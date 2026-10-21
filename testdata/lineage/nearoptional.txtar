@@ -1,0 +1,312 @@
+# schema contains optional fields of all cue kinds.
+# TODO Remove this once the 'optional' corpus case is fixed.
+-- in.cue --
+import "github.com/grafana/thema"
+
+thema.#Lineage
+name: "nearoptional"
+schemas: [{
+	version: [0, 0]
+	schema: {
+        notoptional: int32
+        astring?: string
+        anint?:   int
+        abool?:   bool
+        abytes?:  bytes
+        alist?:   [...string]
+        astruct?: {
+            nested: string
+        }
+	}
+}]
+lenses: []
+-- in/validate/TestValidate/missingFields.data.json --
+{
+}
+-- out/validate/TestValidate/missingFields --
+<nearoptional@v0.0>.notoptional: validation failed, data is not an instance:
+	schema specifies that field exists with type `int32`
+	but field was absent from data
+-- in/validate/TestValidate/wrongTypeInListItem.data.json --
+{
+    "notoptional": 1,
+    "alist": [42]
+}
+-- out/validate/TestValidate/wrongTypeInListItem --
+<nearoptional@v0.0>.alist.0: validation failed, data is not an instance:
+	schema expected `string`
+		/in.cue:13:23
+		/in.cue:13:20
+		/cue.mod/pkg/github.com/grafana/thema/lineage.cue:234:20
+	but data contained `42`
+		test:3:15
+-- out/encoding/openapi/TestGenerate/nilcfg --
+== 0.0.json
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "nearoptional",
+    "version": "0.0"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "nearoptional": {
+        "type": "object",
+        "required": [
+          "notoptional"
+        ],
+        "properties": {
+          "notoptional": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "astring": {
+            "type": "string"
+          },
+          "anint": {
+            "type": "integer"
+          },
+          "abool": {
+            "type": "boolean"
+          },
+          "abytes": {
+            "type": "string",
+            "format": "binary"
+          },
+          "alist": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "astruct": {
+            "type": "object",
+            "required": [
+              "nested"
+            ],
+            "properties": {
+              "nested": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+-- out/encoding/gocode/TestGenerate/group --
+== nearoptional_type_0.0_gen.go
+package nearoptional
+
+// Abool defines model for abool.
+type Abool = bool
+
+// Abytes defines model for abytes.
+type Abytes = []byte
+
+// Alist defines model for alist.
+type Alist = []string
+
+// Anint defines model for anint.
+type Anint = int
+
+// Astring defines model for astring.
+type Astring = string
+
+// Astruct defines model for astruct.
+type Astruct struct {
+	Nested string `json:"nested"`
+}
+
+// Notoptional defines model for notoptional.
+type Notoptional = int32
+-- out/encoding/openapi/TestGenerate/group --
+== 0.0.json
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "nearoptional",
+    "version": "0.0"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "notoptional": {
+        "type": "integer",
+        "format": "int32"
+      },
+      "astring": {
+        "type": "string"
+      },
+      "anint": {
+        "type": "integer"
+      },
+      "abool": {
+        "type": "boolean"
+      },
+      "abytes": {
+        "type": "string",
+        "format": "binary"
+      },
+      "alist": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "astruct": {
+        "type": "object",
+        "required": [
+          "nested"
+        ],
+        "properties": {
+          "nested": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
+-- out/encoding/gocode/TestGenerate/depointerized --
+== nearoptional_type_0.0_gen.go
+package nearoptional
+
+// Nearoptional defines model for nearoptional.
+type Nearoptional struct {
+	Abool   bool     `json:"abool,omitempty"`
+	Abytes  []byte   `json:"abytes,omitempty"`
+	Alist   []string `json:"alist,omitempty"`
+	Anint   int      `json:"anint,omitempty"`
+	Astring string   `json:"astring,omitempty"`
+	Astruct struct {
+		Nested string `json:"nested"`
+	} `json:"astruct,omitempty"`
+	Notoptional int32 `json:"notoptional"`
+}
+-- out/encoding/openapi/TestGenerate/expandrefs --
+== 0.0.json
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "nearoptional",
+    "version": "0.0"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "nearoptional": {
+        "type": "object",
+        "required": [
+          "notoptional"
+        ],
+        "properties": {
+          "notoptional": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "astring": {
+            "type": "string"
+          },
+          "anint": {
+            "type": "integer"
+          },
+          "abool": {
+            "type": "boolean"
+          },
+          "abytes": {
+            "type": "string",
+            "format": "binary"
+          },
+          "alist": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "astruct": {
+            "type": "object",
+            "required": [
+              "nested"
+            ],
+            "properties": {
+              "nested": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+-- out/encoding/gocode/TestGenerate/godeclincomments --
+== nearoptional_type_0.0_gen.go
+package nearoptional
+
+// Nearoptional defines model for nearoptional.
+type Nearoptional struct {
+	Abool   *bool    `json:"abool,omitempty"`
+	Abytes  []byte   `json:"abytes,omitempty"`
+	Alist   []string `json:"alist,omitempty"`
+	Anint   *int     `json:"anint,omitempty"`
+	Astring *string  `json:"astring,omitempty"`
+	Astruct *struct {
+		Nested string `json:"nested"`
+	} `json:"astruct,omitempty"`
+	Notoptional int32 `json:"notoptional"`
+}
+-- out/encoding/gocode/TestGenerate/expandref --
+== nearoptional_type_0.0_gen.go
+package nearoptional
+
+// Nearoptional defines model for nearoptional.
+type Nearoptional struct {
+	Abool   *bool    `json:"abool,omitempty"`
+	Abytes  []byte   `json:"abytes,omitempty"`
+	Alist   []string `json:"alist,omitempty"`
+	Anint   *int     `json:"anint,omitempty"`
+	Astring *string  `json:"astring,omitempty"`
+	Astruct *struct {
+		Nested string `json:"nested"`
+	} `json:"astruct,omitempty"`
+	Notoptional int32 `json:"notoptional"`
+}
+-- out/bind --
+Schema count: 1
+Schema versions: 0.0
+Lenses count: 0
+-- out/encoding/gocode/TestGenerate/nilcfg --
+== nearoptional_type_0.0_gen.go
+package nearoptional
+
+// Nearoptional defines model for nearoptional.
+type Nearoptional struct {
+	Abool   *bool    `json:"abool,omitempty"`
+	Abytes  []byte   `json:"abytes,omitempty"`
+	Alist   []string `json:"alist,omitempty"`
+	Anint   *int     `json:"anint,omitempty"`
+	Astring *string  `json:"astring,omitempty"`
+	Astruct *struct {
+		Nested string `json:"nested"`
+	} `json:"astruct,omitempty"`
+	Notoptional int32 `json:"notoptional"`
+}
+-- out/encoding/typescript/TestGenerate/nilcfg --
+export interface Nearoptional {
+  abool?: boolean;
+  abytes?: string;
+  alist?: Array<string>;
+  anint?: number;
+  astring?: string;
+  astruct?: {
+    nested: string;
+  };
+  notoptional: number;
+}
+
+export const defaultNearoptional: Partial<Nearoptional> = {
+  alist: [],
+};

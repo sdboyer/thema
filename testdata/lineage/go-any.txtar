@@ -1,0 +1,326 @@
+# lineage containing fields that must generate any type in Go
+-- in.cue --
+import "github.com/grafana/thema"
+
+thema.#Lineage
+name: "go-any"
+schemas: [{
+    version: [0, 0]
+    schema: {
+        value: string | bool
+        optional?: string | bool
+        emptyMap: {...}
+
+        structVal: {
+            inner: string | int
+            innerOptional?: _
+        }
+    }
+}]
+lenses: []
+-- in/validate/TestValidate/valueAsInt.data.json --
+{
+    "value": 42
+}
+-- out/validate/TestValidate/valueAsInt --
+<go-any@v0.0>.value: validation failed, data is not an instance:
+	schema expected `bool`
+		/in.cue:8:25
+		/cue.mod/pkg/github.com/grafana/thema/lineage.cue:234:20
+	but data contained `42`
+		test:2:14
+<go-any@v0.0>.value: validation failed, data is not an instance:
+	schema expected `string`
+		/in.cue:8:16
+		/cue.mod/pkg/github.com/grafana/thema/lineage.cue:234:20
+	but data contained `42`
+		test:2:14
+-- out/validate/TestValidate/emptyMapAsString --
+<go-any@v0.0>.emptyMap: validation failed, data is not an instance:
+	schema expected `{...}`
+		/in.cue:10:19
+		/cue.mod/pkg/github.com/grafana/thema/lineage.cue:234:20
+	but data contained `"definitely not a map"`
+		test:2:17
+-- out/validate/TestValidate/structValInnerAsBool --
+<go-any@v0.0>.structVal.inner: validation failed, data is not an instance:
+	schema expected `int`
+		/in.cue:13:29
+		/cue.mod/pkg/github.com/grafana/thema/lineage.cue:234:20
+	but data contained `true`
+		test:3:18
+<go-any@v0.0>.structVal.inner: validation failed, data is not an instance:
+	schema expected `string`
+		/in.cue:13:20
+		/cue.mod/pkg/github.com/grafana/thema/lineage.cue:234:20
+	but data contained `true`
+		test:3:18
+-- in/validate/TestValidate/emptyMapAsString.data.json --
+{
+    "emptyMap": "definitely not a map"
+}
+-- in/validate/TestValidate/structValInnerAsBool.data.json --
+{
+    "structVal": {
+        "inner": true
+    }
+}
+-- out/encoding/openapi/TestGenerate/nilcfg --
+== 0.0.json
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "goany",
+    "version": "0.0"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "goany": {
+        "type": "object",
+        "required": [
+          "value",
+          "emptyMap",
+          "structVal"
+        ],
+        "properties": {
+          "value": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "optional": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "emptyMap": {
+            "type": "object"
+          },
+          "structVal": {
+            "type": "object",
+            "required": [
+              "inner"
+            ],
+            "properties": {
+              "inner": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ]
+              },
+              "innerOptional": {}
+            }
+          }
+        }
+      }
+    }
+  }
+}
+-- out/encoding/gocode/TestGenerate/nilcfg --
+== goany_type_0.0_gen.go
+package goany
+
+// Goany defines model for goany.
+type Goany struct {
+	EmptyMap  map[string]any `json:"emptyMap"`
+	Optional  *any           `json:"optional,omitempty"`
+	StructVal struct {
+		Inner         any  `json:"inner"`
+		InnerOptional *any `json:"innerOptional,omitempty"`
+	} `json:"structVal"`
+	Value any `json:"value"`
+}
+-- out/encoding/openapi/TestGenerate/group --
+== 0.0.json
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "goany",
+    "version": "0.0"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "value": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "boolean"
+          }
+        ]
+      },
+      "optional": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "boolean"
+          }
+        ]
+      },
+      "emptyMap": {
+        "type": "object"
+      },
+      "structVal": {
+        "type": "object",
+        "required": [
+          "inner"
+        ],
+        "properties": {
+          "inner": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ]
+          },
+          "innerOptional": {}
+        }
+      }
+    }
+  }
+}
+-- out/encoding/gocode/TestGenerate/group --
+== goany_type_0.0_gen.go
+package goany
+
+// EmptyMap defines model for emptyMap.
+type EmptyMap = map[string]any
+
+// StructVal defines model for structVal.
+type StructVal struct {
+	Inner         any  `json:"inner"`
+	InnerOptional *any `json:"innerOptional,omitempty"`
+}
+-- out/bind --
+Schema count: 1
+Schema versions: 0.0
+Lenses count: 0
+-- out/encoding/openapi/TestGenerate/expandrefs --
+== 0.0.json
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "goany",
+    "version": "0.0"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "goany": {
+        "type": "object",
+        "required": [
+          "value",
+          "emptyMap",
+          "structVal"
+        ],
+        "properties": {
+          "value": {
+            "oneOf": [
+              {},
+              {}
+            ]
+          },
+          "optional": {
+            "oneOf": [
+              {},
+              {}
+            ]
+          },
+          "emptyMap": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "structVal": {
+            "type": "object",
+            "required": [
+              "inner"
+            ],
+            "properties": {
+              "inner": {
+                "oneOf": [
+                  {},
+                  {}
+                ]
+              },
+              "innerOptional": {}
+            }
+          }
+        }
+      }
+    }
+  }
+}
+-- out/encoding/gocode/TestGenerate/depointerized --
+== goany_type_0.0_gen.go
+package goany
+
+// Goany defines model for goany.
+type Goany struct {
+	EmptyMap  map[string]any `json:"emptyMap"`
+	Optional  any            `json:"optional,omitempty"`
+	StructVal struct {
+		Inner         any `json:"inner"`
+		InnerOptional any `json:"innerOptional,omitempty"`
+	} `json:"structVal"`
+	Value any `json:"value"`
+}
+-- out/encoding/gocode/TestGenerate/godeclincomments --
+== goany_type_0.0_gen.go
+package goany
+
+// Goany defines model for goany.
+type Goany struct {
+	EmptyMap  map[string]any `json:"emptyMap"`
+	Optional  *any           `json:"optional,omitempty"`
+	StructVal struct {
+		Inner         any  `json:"inner"`
+		InnerOptional *any `json:"innerOptional,omitempty"`
+	} `json:"structVal"`
+	Value any `json:"value"`
+}
+-- out/encoding/gocode/TestGenerate/expandref --
+== goany_type_0.0_gen.go
+package goany
+
+// Goany defines model for goany.
+type Goany struct {
+	EmptyMap  map[string]any `json:"emptyMap"`
+	Optional  *any           `json:"optional,omitempty"`
+	StructVal struct {
+		Inner         any  `json:"inner"`
+		InnerOptional *any `json:"innerOptional,omitempty"`
+	} `json:"structVal"`
+	Value any `json:"value"`
+}
+-- out/encoding/typescript/TestGenerate/nilcfg --
+export interface Go-Any {
+  emptyMap: Record<string, unknown>;
+  optional?: (string | boolean);
+  structVal: {
+    inner: (string | number);
+    innerOptional?: unknown;
+  };
+  value: (string | boolean);
+}

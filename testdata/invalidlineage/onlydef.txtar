@@ -1,0 +1,17 @@
+# schema only contains a definition
+-- in.cue --
+import "github.com/grafana/thema"
+
+thema.#Lineage
+name: "onlydef"
+schemas: [{
+	version: [0, 0]
+	schema: {
+		#Baz: {
+			run:  string
+			tell: bytes
+			dat:  int32
+		}
+	}
+}]
+lenses: []

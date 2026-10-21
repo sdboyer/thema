@@ -1,0 +1,279 @@
+# lineage containing two trivial schemas
+-- in.cue --
+
+import "github.com/grafana/thema"
+
+thema.#Lineage
+name: "trivial-two"
+schemas: [{
+    version: [0, 0]
+    schema: {
+        firstfield: string
+    }
+},
+{
+    version: [0, 1]
+    schema: {
+        firstfield: string
+        secondfield?: int32
+    }
+}]
+
+lenses: [{
+    from: [0, 1]
+    to: [0, 0]
+    input: _
+    result: {
+        firstfield: input.firstfield
+    }
+}]
+-- in/validate/TestValidate/firstfieldAsInt32.data.json --
+{
+    "firstfield": 42
+}
+-- out/validate/TestValidate/firstfieldAsInt32 --
+<trivial-two@v0.1>.firstfield: validation failed, data is not an instance:
+	schema expected `string`
+		/in.cue:15:21
+	but data contained `42`
+		test:2:19
+-- out/validate/TestValidate/secondfieldAsString --
+<trivial-two@v0.1>.secondfield: validation failed, data is not an instance:
+	schema expected `int32`
+		/cue.mod/pkg/github.com/grafana/thema/lineage.cue:234:20
+	but data contained `"foo"`
+		test:2:20
+-- in/validate/TestValidate/secondfieldAsString.data.json --
+{
+    "secondfield": "foo"
+}
+-- out/encoding/openapi/TestGenerate/nilcfg --
+== 0.0.json
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "trivialtwo",
+    "version": "0.0"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "trivialtwo": {
+        "type": "object",
+        "required": [
+          "firstfield"
+        ],
+        "properties": {
+          "firstfield": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}== 0.1.json
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "trivialtwo",
+    "version": "0.1"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "trivialtwo": {
+        "type": "object",
+        "required": [
+          "firstfield"
+        ],
+        "properties": {
+          "firstfield": {
+            "type": "string"
+          },
+          "secondfield": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      }
+    }
+  }
+}
+-- out/encoding/openapi/TestGenerate/group --
+== 0.0.json
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "trivialtwo",
+    "version": "0.0"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "firstfield": {
+        "type": "string"
+      }
+    }
+  }
+}== 0.1.json
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "trivialtwo",
+    "version": "0.1"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "firstfield": {
+        "type": "string"
+      },
+      "secondfield": {
+        "type": "integer",
+        "format": "int32"
+      }
+    }
+  }
+}
+-- out/encoding/openapi/TestGenerate/expandrefs --
+== 0.0.json
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "trivialtwo",
+    "version": "0.0"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "trivialtwo": {
+        "type": "object",
+        "required": [
+          "firstfield"
+        ],
+        "properties": {
+          "firstfield": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}== 0.1.json
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "trivialtwo",
+    "version": "0.1"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "trivialtwo": {
+        "type": "object",
+        "required": [
+          "firstfield"
+        ],
+        "properties": {
+          "firstfield": {
+            "type": "string"
+          },
+          "secondfield": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      }
+    }
+  }
+}
+-- out/encoding/gocode/TestGenerate/godeclincomments --
+== trivialtwo_type_0.0_gen.go
+package trivialtwo
+
+// Trivialtwo defines model for trivialtwo.
+type Trivialtwo struct {
+	Firstfield string `json:"firstfield"`
+}
+== trivialtwo_type_0.1_gen.go
+package trivialtwo
+
+// Trivialtwo defines model for trivialtwo.
+type Trivialtwo struct {
+	Firstfield  string `json:"firstfield"`
+	Secondfield *int32 `json:"secondfield,omitempty"`
+}
+-- out/encoding/gocode/TestGenerate/expandref --
+== trivialtwo_type_0.0_gen.go
+package trivialtwo
+
+// Trivialtwo defines model for trivialtwo.
+type Trivialtwo struct {
+	Firstfield string `json:"firstfield"`
+}
+== trivialtwo_type_0.1_gen.go
+package trivialtwo
+
+// Trivialtwo defines model for trivialtwo.
+type Trivialtwo struct {
+	Firstfield  string `json:"firstfield"`
+	Secondfield *int32 `json:"secondfield,omitempty"`
+}
+-- out/bind --
+Schema count: 2
+Schema versions: 0.0, 0.1
+Lenses count: 1
+-- out/encoding/gocode/TestGenerate/nilcfg --
+== trivialtwo_type_0.0_gen.go
+package trivialtwo
+
+// Trivialtwo defines model for trivialtwo.
+type Trivialtwo struct {
+	Firstfield string `json:"firstfield"`
+}
+== trivialtwo_type_0.1_gen.go
+package trivialtwo
+
+// Trivialtwo defines model for trivialtwo.
+type Trivialtwo struct {
+	Firstfield  string `json:"firstfield"`
+	Secondfield *int32 `json:"secondfield,omitempty"`
+}
+-- out/encoding/gocode/TestGenerate/group --
+== trivialtwo_type_0.0_gen.go
+package trivialtwo
+
+// Firstfield defines model for firstfield.
+type Firstfield = string
+== trivialtwo_type_0.1_gen.go
+package trivialtwo
+
+// Firstfield defines model for firstfield.
+type Firstfield = string
+
+// Secondfield defines model for secondfield.
+type Secondfield = int32
+-- out/encoding/gocode/TestGenerate/depointerized --
+== trivialtwo_type_0.0_gen.go
+package trivialtwo
+
+// Trivialtwo defines model for trivialtwo.
+type Trivialtwo struct {
+	Firstfield string `json:"firstfield"`
+}
+== trivialtwo_type_0.1_gen.go
+package trivialtwo
+
+// Trivialtwo defines model for trivialtwo.
+type Trivialtwo struct {
+	Firstfield  string `json:"firstfield"`
+	Secondfield int32  `json:"secondfield,omitempty"`
+}
+-- out/encoding/typescript/TestGenerate/nilcfg --
+export interface Trivial-Two {
+  firstfield: string;
+}
+export interface Trivial-Two {
+  firstfield: string;
+  secondfield?: number;
+}

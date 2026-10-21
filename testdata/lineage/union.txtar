@@ -1,0 +1,621 @@
+# schema contains a union and many fields types referencing that union
+
+#slow
+-- in.cue --
+import "github.com/grafana/thema"
+
+thema.#Lineage
+name: "union"
+schemas: [{
+	version: [0, 0]
+	schema: {
+        theUnion:            #UnionDef
+        optionalUnion?:      #UnionDef
+        mapUnion:            [string]: #UnionDef
+        listUnion:           [...#UnionDef]
+        mapList: [string]:       [...#UnionDef]
+        mapChained: [string]:    [string]: #UnionDef
+        mapListChained:          [string]: [string]: [string]: [...#UnionDef]
+        doubleList:              [...[...#UnionDef]]
+        mapDoubleList:           [string]: [...[...#UnionDef]]
+        mapTripleList:            [string]: [...[...[...#UnionDef]]]
+        emptyStructs:            [...[...{...}]]
+        nestedStruct: {
+            structUnion: #UnionDef
+            mapUnion:    [string]: #UnionDef
+            listUnion:   [...#UnionDef]
+        }
+        #UnionDef: string | bool
+	}
+}]
+lenses: []
+-- in/validate/TestValidate/mapUnionWithInt.data.json --
+{
+    "mapUnion": {
+        "foo": 42
+    }
+}
+-- out/validate/TestValidate/mapUnionWithInt --
+<union@v0.0>.mapUnion.foo: validation failed, data is not an instance:
+	schema expected `bool`
+		/in.cue:24:29
+		/in.cue:10:40
+		/cue.mod/pkg/github.com/grafana/thema/lineage.cue:234:20
+	but data contained `42`
+		test:3:16
+<union@v0.0>.mapUnion.foo: validation failed, data is not an instance:
+	schema expected `string`
+		/in.cue:24:20
+		/in.cue:10:40
+		/cue.mod/pkg/github.com/grafana/thema/lineage.cue:234:20
+	but data contained `42`
+		test:3:16
+-- out/validate/TestValidate/theUnionWithInt --
+<union@v0.0>.theUnion: validation failed, data is not an instance:
+	schema expected `bool`
+		/in.cue:24:29
+		/in.cue:8:30
+		/cue.mod/pkg/github.com/grafana/thema/lineage.cue:234:20
+	but data contained `42`
+		test:2:17
+<union@v0.0>.theUnion: validation failed, data is not an instance:
+	schema expected `string`
+		/in.cue:24:20
+		/in.cue:8:30
+		/cue.mod/pkg/github.com/grafana/thema/lineage.cue:234:20
+	but data contained `42`
+		test:2:17
+-- in/validate/TestValidate/theUnionWithInt.data.json --
+{
+    "theUnion": 42
+}
+-- out/encoding/openapi/TestGenerate/nilcfg --
+== 0.0.json
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "union",
+    "version": "0.0"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "UnionDef": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "boolean"
+          }
+        ]
+      },
+      "union": {
+        "type": "object",
+        "required": [
+          "theUnion",
+          "mapUnion",
+          "listUnion",
+          "mapList",
+          "mapChained",
+          "mapListChained",
+          "doubleList",
+          "mapDoubleList",
+          "mapTripleList",
+          "emptyStructs",
+          "nestedStruct"
+        ],
+        "properties": {
+          "theUnion": {
+            "$ref": "#/components/schemas/UnionDef"
+          },
+          "optionalUnion": {
+            "$ref": "#/components/schemas/UnionDef"
+          },
+          "mapUnion": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/UnionDef"
+            }
+          },
+          "listUnion": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnionDef"
+            }
+          },
+          "mapList": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/UnionDef"
+              }
+            }
+          },
+          "mapChained": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/components/schemas/UnionDef"
+              }
+            }
+          },
+          "mapListChained": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UnionDef"
+                  }
+                }
+              }
+            }
+          },
+          "doubleList": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/UnionDef"
+              }
+            }
+          },
+          "mapDoubleList": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/UnionDef"
+                }
+              }
+            }
+          },
+          "mapTripleList": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UnionDef"
+                  }
+                }
+              }
+            }
+          },
+          "emptyStructs": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            }
+          },
+          "nestedStruct": {
+            "type": "object",
+            "required": [
+              "structUnion",
+              "mapUnion",
+              "listUnion"
+            ],
+            "properties": {
+              "structUnion": {
+                "$ref": "#/components/schemas/UnionDef"
+              },
+              "mapUnion": {
+                "type": "object",
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/UnionDef"
+                }
+              },
+              "listUnion": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/UnionDef"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+-- out/encoding/openapi/TestGenerate/group --
+== 0.0.json
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "union",
+    "version": "0.0"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "theUnion": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "boolean"
+          }
+        ]
+      },
+      "optionalUnion": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "boolean"
+          }
+        ]
+      },
+      "UnionDef": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "boolean"
+          }
+        ]
+      },
+      "mapUnion": {
+        "type": "object",
+        "additionalProperties": {
+          "$ref": "#/components/schemas/UnionDef"
+        }
+      },
+      "listUnion": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/UnionDef"
+        }
+      },
+      "mapList": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/UnionDef"
+          }
+        }
+      },
+      "mapChained": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/components/schemas/UnionDef"
+          }
+        }
+      },
+      "mapListChained": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/UnionDef"
+              }
+            }
+          }
+        }
+      },
+      "doubleList": {
+        "type": "array",
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/UnionDef"
+          }
+        }
+      },
+      "mapDoubleList": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnionDef"
+            }
+          }
+        }
+      },
+      "mapTripleList": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/UnionDef"
+              }
+            }
+          }
+        }
+      },
+      "emptyStructs": {
+        "type": "array",
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      },
+      "nestedStruct": {
+        "type": "object",
+        "required": [
+          "structUnion",
+          "mapUnion",
+          "listUnion"
+        ],
+        "properties": {
+          "structUnion": {
+            "$ref": "#/components/schemas/UnionDef"
+          },
+          "mapUnion": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/UnionDef"
+            }
+          },
+          "listUnion": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnionDef"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+-- out/encoding/openapi/TestGenerate/expandrefs --
+== 0.0.json
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "union",
+    "version": "0.0"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "UnionDef": {
+        "oneOf": [
+          {},
+          {}
+        ]
+      },
+      "union": {
+        "type": "object",
+        "required": [
+          "theUnion",
+          "mapUnion",
+          "listUnion",
+          "mapList",
+          "mapChained",
+          "mapListChained",
+          "doubleList",
+          "mapDoubleList",
+          "mapTripleList",
+          "emptyStructs",
+          "nestedStruct"
+        ],
+        "properties": {
+          "theUnion": {
+            "oneOf": [
+              {},
+              {}
+            ]
+          },
+          "optionalUnion": {
+            "oneOf": [
+              {},
+              {}
+            ]
+          },
+          "mapUnion": {
+            "type": "object",
+            "additionalProperties": {
+              "oneOf": [
+                {},
+                {}
+              ]
+            }
+          },
+          "listUnion": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {},
+                {}
+              ]
+            }
+          },
+          "mapList": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {},
+                  {}
+                ]
+              }
+            }
+          },
+          "mapChained": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "oneOf": [
+                  {},
+                  {}
+                ]
+              }
+            }
+          },
+          "mapListChained": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "array",
+                  "items": {
+                    "oneOf": [
+                      {},
+                      {}
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "doubleList": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {},
+                  {}
+                ]
+              }
+            }
+          },
+          "mapDoubleList": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    {},
+                    {}
+                  ]
+                }
+              }
+            }
+          },
+          "mapTripleList": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "oneOf": [
+                      {},
+                      {}
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "emptyStructs": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": {}
+              }
+            }
+          },
+          "nestedStruct": {
+            "type": "object",
+            "required": [
+              "structUnion",
+              "mapUnion",
+              "listUnion"
+            ],
+            "properties": {
+              "structUnion": {
+                "oneOf": [
+                  {},
+                  {}
+                ]
+              },
+              "mapUnion": {
+                "type": "object",
+                "additionalProperties": {
+                  "oneOf": [
+                    {},
+                    {}
+                  ]
+                }
+              },
+              "listUnion": {
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    {},
+                    {}
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+-- out/bind --
+Schema count: 1
+Schema versions: 0.0
+Lenses count: 0
+-- out/encoding/typescript/TestGenerate/nilcfg --
+export interface Union {
+  doubleList: Array<Array<(Record<string, unknown> | '#UnionDef')>>;
+  emptyStructs: Array<Array<Record<string, unknown>>>;
+  listUnion: Array<(Record<string, unknown> | '#UnionDef')>;
+  mapChained: Record<string, Record<string, (Record<string, unknown> | '#UnionDef')>>;
+  mapDoubleList: Record<string, Array<Array<(Record<string, unknown> | '#UnionDef')>>>;
+  mapList: Record<string, Array<(Record<string, unknown> | '#UnionDef')>>;
+  mapListChained: Record<string, Record<string, Record<string, Array<(Record<string, unknown> | '#UnionDef')>>>>;
+  mapTripleList: Record<string, Array<Array<Array<(Record<string, unknown> | '#UnionDef')>>>>;
+  mapUnion: Record<string, (Record<string, unknown> | '#UnionDef')>;
+  nestedStruct: {
+    structUnion: (Record<string, unknown> | '#UnionDef');
+    mapUnion: Record<string, (Record<string, unknown> | '#UnionDef')>;
+    listUnion: Array<(Record<string, unknown> | '#UnionDef')>;
+  };
+  optionalUnion?: (Record<string, unknown> | '#UnionDef');
+  theUnion: (Record<string, unknown> | '#UnionDef');
+}
+
+export const defaultUnion: Partial<Union> = {
+  doubleList: [],
+  emptyStructs: [],
+  listUnion: [],
+};

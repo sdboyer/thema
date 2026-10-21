@@ -1,0 +1,9 @@
+-- in.cue --
+
+import "github.com/grafana/thema"
+
+thema.#Lineage
+name: "empty-schemas"
+schemas: []
+-- out/bindfail --
+incompatible list lengths (0 and 1)
