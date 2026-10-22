@@ -384,4 +384,4 @@ A lineage's `joinSchema` is unified into every one of its schemas: its fields, c
 You've now seen all the component parts of thema and how they work together, which provides a sense of how to express schemas using thema. In the [next tutorial](go-mapping.md), we'll map the `Ship` lineage created here to a general-purpose language (Go), which is prerequisite to writing useful programs around lineages.
 
 [^defaultcompat]:
-    Whether adding a field with a default should be backward compatible is an [open question](https://github.com/grafana/thema/discussions/15). Every old instance remains valid, but thema's compatibility check currently rejects it.
+    Whether adding a field with a default should be backward compatible is an [open question](https://github.com/sdboyer/thema/issues/18). Every old instance remains valid, but thema's compatibility check currently rejects it.

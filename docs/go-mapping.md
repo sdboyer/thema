@@ -235,7 +235,7 @@ It's tempting to imagine "instance == lineage" as another idiomatic best practic
 
 Thema's [exemplars](https://github.com/sdboyer/thema/tree/main/exemplars), for example, are [part of a larger type](https://github.com/sdboyer/thema/blob/main/exemplars/constraint.cue#L6) that acts partially as testing harness and partially as basis for documentation. The whole package contains multiple lineages, and [is constrained](https://github.com/sdboyer/thema/blob/main/exemplars/constraint.cue#L17) to expect each named exemplar harness as a top-level field, like our `lin`.
 
-There's also entirely other ways of marking which CUE values are supposed to be lineages. [Attributes](https://github.com/sdboyer/thema/blob/main/exemplars/constraint.cue#L17), for example, could be a clean way to indicate to generic tooling (triggered e.g. via a `//go:generate` directive) that a particular lineage should be translated to another language[^cuetsy]:
+There's also entirely other ways of marking which CUE values are supposed to be lineages. [Attributes](https://github.com/sdboyer/thema/blob/main/exemplars/constraint.cue#L17), for example, could be a clean way to indicate to generic tooling (triggered e.g. via a `//go:generate` directive) that a particular lineage should be translated to another language:
 
 ```cue
 package example
@@ -332,9 +332,6 @@ In the [next tutorial](go-usage.md), we'll trade our Thema author hat for a Them
 [^loaderhelper]:
     `InstanceWithThema` abstracts over [`load.Instances`](https://pkg.go.dev/cuelang.org/go/cue/load#Instances), which offers far more [options](https://pkg.go.dev/cuelang.org/go/cue/load#Config) than are usually needed for Thema. It's expected that some more complex cases will not fit into `InstanceWithThema`; in such case, plan to write your own loader-helper, using [`load.Configure`](https://pkg.go.dev/github.com/sdboyer/thema/load#Configure) so thema's CUE resolves.
 
-[^cuetsy]:
-    Grafana currently relies on an attribute-driven mechanism for translating Thema schemas to TypeScript using the [cuetsy](https://github.com/grafana/cuetsy) library. Current usage is different than the protobuf example here because cuetsy is not Thema-aware, and authors therefore apply attributes to individual schema within lineages.
-
 [^cuevalidity]:
     The goal is that all constraints necessary for invariant enforcement on lineages are expressed natively in CUE. However, some of that enforcement is currently performed by `BindLineage()` in Go, because it's not (yet) possible to express the necessary constraints natively in CUE.
     
@@ -348,4 +345,4 @@ In the [next tutorial](go-usage.md), we'll trade our Thema author hat for a Them
 
     Ideally, package version and lineage state would be decoupled, and lineage state updates handled at runtime. Mapping from CUE `thema.Lineage` to (lang) `Lineage`-equivalent is something that programs could do continuously in the background by periodically polling a lineage registry service over HTTP, and integrating updates into the `Lineage`-equivalent. Recompilation would no longer be needed; evolutionary independence would be restored.
 
-    In theory, [append-only immutability constraints](invariants.md) on published lineages should make this straightforward, to the point where any language's Thema bindings could encapsulate the polling and hot-updating of the in-language `Lineage` handle into a single function, similar to what `BindLineage()` does today. (In fact, the two are likely to be complementary: start by building from reliably-available embedded, local CUE bytes, then kick off a background thread that continuously polls a server for newer bytes.) A [registry and publishing flow](https://github.com/grafana/thema/issues/6) are prerequisite to a fully general solution, but in the meantime, org-by-org one-offs should be feasible in a pinch.
+    In theory, [append-only immutability constraints](invariants.md) on published lineages should make this straightforward, to the point where any language's Thema bindings could encapsulate the polling and hot-updating of the in-language `Lineage` handle into a single function, similar to what `BindLineage()` does today. (In fact, the two are likely to be complementary: start by building from reliably-available embedded, local CUE bytes, then kick off a background thread that continuously polls a server for newer bytes.) A registry and publishing flow for lineages is prerequisite to a fully general solution, but in the meantime, org-by-org one-offs should be feasible in a pinch.
