@@ -23,8 +23,11 @@ depends on that version, so the constant and the tag must agree.
 
 ## One-time setup
 
-The `CUE_REGISTRY_TOKEN` repository secret must hold a Central Registry token
-with permission to publish `github.com/sdboyer/thema`. Create one at
-<https://registry.cue.works> (account settings, tokens). The CUE module
+The release workflow logs in to the Central Registry with GitHub Actions OIDC,
+so no registry token is stored in the repository. The registry must trust it:
+at <https://registry.cue.works/account/oidc>, add a trust entry for the
+`sdboyer/thema` repository, limited to the `.github/workflows/release.yml`
+workflow and `refs/tags/v*` refs, acting as an account that can publish
+`github.com/sdboyer/thema`. The CUE module
 declares `source: kind: "git"`, so only files tracked by git at the tagged
 commit are published.

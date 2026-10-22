@@ -59,6 +59,10 @@ jobs:
   cue-publish:
     needs: version-guard
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # OIDC login to the Central Registry; no long-lived registry token.
+      id-token: write
     steps:
       - uses: actions/checkout@v7
 
@@ -70,10 +74,10 @@ jobs:
       - name: Install cue
         run: go install "cuelang.org/go/cmd/cue@$(go list -m -f '{{.Version}}' cuelang.org/go)"
 
+      # Requires a trust entry for this repository and workflow at
+      # https://registry.cue.works/account/oidc.
       - name: Log in to the Central Registry
-        env:
-          CUE_TOKEN: ${{ secrets.CUE_REGISTRY_TOKEN }}
-        run: cue login --token="$CUE_TOKEN"
+        uses: cue-labs/registry-login-action@v1
 
       - name: Publish CUE module
         env:
