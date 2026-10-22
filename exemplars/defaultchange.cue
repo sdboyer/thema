@@ -22,7 +22,7 @@ defaultchange: {
 					aunion: "foo"
 				}
 				if input.aunion != "bar" {
-					aunion: input.anion
+					aunion: input.aunion
 				}
 			}
 			lacunas: [
@@ -51,7 +51,7 @@ defaultchange: {
 					aunion: "bar"
 				}
 				if input.aunion != "foo" {
-					aunion: input.anion
+					aunion: input.aunion
 				}
 			}
 			lacunas: [
