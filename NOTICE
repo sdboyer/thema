@@ -1,0 +1,13 @@
+Thema
+Copyright 2021-2024 Grafana Labs
+Copyright 2026 Sam Boyer
+
+This project is derived from github.com/grafana/thema
+(https://github.com/grafana/thema), developed at Grafana Labs and licensed
+under the Apache License, Version 2.0. Files in this repository have been
+modified from their originals; the commit "Import grafana/thema at 2016107"
+records the unmodified upstream state, and subsequent history records all
+changes. Contributors to the original project are listed in AUTHORS.
+
+This project includes software developed by the CUE Authors
+(https://cuelang.org), licensed under the Apache License, Version 2.0.
