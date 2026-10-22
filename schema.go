@@ -275,7 +275,7 @@ func (sch *unaryTypedSchema[T]) is(osch Schema) bool {
 }
 
 func (sch *unaryTypedSchema[T]) ValidateTyped(data cue.Value, opts ...ValidateOption) (*TypedInstance[T], error) {
-	inst, err := sch.Schema.Validate(data, opts...)
+	inst, err := sch.Validate(data, opts...)
 	if err != nil {
 		return nil, err
 	}

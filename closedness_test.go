@@ -182,13 +182,13 @@ func TestValidateAsWritten(t *testing.T) {
 		"extra field in a #Def":  {`{open: {a: 1}, shut: {a: 1}, def: {a: 1, extra: 1}}`, false, false},
 	} {
 		t.Run(name, func(t *testing.T) {
-			_, err := sch.Validate(ctx.CompileString(c.data))
-			if (err == nil) != c.closed {
-				t.Errorf("default validation: valid = %v, want %v (%v)", err == nil, c.closed, err)
+			_, verr := sch.Validate(ctx.CompileString(c.data))
+			if (verr == nil) != c.closed {
+				t.Errorf("default validation: valid = %v, want %v (%v)", verr == nil, c.closed, verr)
 			}
-			_, err = sch.Validate(ctx.CompileString(c.data), AsWritten())
-			if (err == nil) != c.asWritten {
-				t.Errorf("AsWritten validation: valid = %v, want %v (%v)", err == nil, c.asWritten, err)
+			_, verr = sch.Validate(ctx.CompileString(c.data), AsWritten())
+			if (verr == nil) != c.asWritten {
+				t.Errorf("AsWritten validation: valid = %v, want %v (%v)", verr == nil, c.asWritten, verr)
 			}
 		})
 	}
