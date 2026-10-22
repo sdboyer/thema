@@ -1,12 +1,11 @@
-# joinSchema injects a default into a field the schema declares as required
-#issue: 22
+# joinSchema is injected into every schema, so its defaults apply to every version
 -- in.cue --
 import (
 	"github.com/sdboyer/thema"
 )
 
 lin: thema.Lineage & {
-	name: "join-default"
+	name: "join-injects-default"
 	joinSchema: {a?: *"injected" | string, ...}
 	schemas: [{
 		version: [0, 0]
@@ -15,4 +14,5 @@ lin: thema.Lineage & {
 }
 -- expect --
 bind ok
-validate 0.0 fail {}
+validate 0.0 ok {}
+validate 0.0 ok {a: "x"}

@@ -1,0 +1,18 @@
+# joinSchema is injected into every schema, so its fields are part of every version
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "join-injects-fields"
+	joinSchema: {kind: string}
+	schemas: [{
+		version: [0, 0]
+		schema: {a: int}
+	}]
+}
+-- expect --
+bind ok
+validate 0.0 fail {a: 1}
+validate 0.0 ok {a: 1, kind: "x"}
