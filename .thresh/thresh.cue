@@ -153,6 +153,7 @@ seams: "go-residual-checks": {
 		checkNativeValidity:    "runs the CUE-native validity pass and surfaces its errors"
 		checkLensesOrder:       "lens from/to ordering constraints"
 		checkLensCompleteness:   "exactly the required lenses exist (Go or CUE): needs the bound version list, and Translate selects CUE lenses by position, so a missing or extra lens silently shifts the rest"
+		checkSchemaShapes:       "schemas and joinSchema must be structs, and examples valid instances: CUE can constrain kinds, but reports a schema like _ only once data arrives"
 		checkLensResults:        "static lens checks with input standing for any source instance: needs each lens paired with its source and target schemas, closedness applied at use, and the declared-fields walker"
 		checkLacunas:            "lacuna lists must be enumerable without input, and lacuna field paths declared by the lens's schemas: needs the lineage's schemas, and CUE would only report missing required lacuna fields once data arrives"
 		checkUnknownFields:      "unknown lineage/schema/lens fields; CUE rejects them too, but positions the error at its guard in thema's CUE, while Go can point at the author's line. Known fields are read from thema's CUE, not duplicated"
