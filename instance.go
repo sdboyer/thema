@@ -102,14 +102,17 @@ func (i *Instance) Dehydrate() *Instance {
 // schema.
 func (i *Instance) AsSuccessor() (*Instance, TranslationLacunas, error) {
 	i.check()
-	// If it's a minor version upgrade, we can safely shortcut and just create
-	// a new instance
+	// A minor version upgrade needs no lens: backwards compatibility means the
+	// data is already an instance of the successor. Validate rather than assume
+	// it, so that a compatibility break the compat check missed fails here
+	// instead of yielding an invalid instance.
 	nsch := i.Schema().Successor()
 	if nsch.Version()[0] == i.Schema().Version()[0] {
-		ni := new(Instance)
-		*ni = *i
-		ni.sch = nsch
-		return ni, nil, nil
+		ni, err := nsch.Validate(i.raw)
+		if err != nil {
+			return nil, nil, errors.Mark(fmt.Errorf("instance of %s is not an instance of its successor %s: %w", i.Schema().Version(), nsch.Version(), err), terrors.ErrInvalidData)
+		}
+		return ni, TranslationLacunas{{From: i.Schema().Version(), To: nsch.Version(), Lacunas: []Lacuna{}}}, nil
 	}
 	return i.Translate(i.sch.Successor().Version())
 }
@@ -300,6 +303,11 @@ func (i *Instance) translateGo(to SyntacticVersion) (*Instance, TranslationLacun
 			if rti.Schema().Version() != nsch.Version() {
 				return nil, nil, fmt.Errorf("lens returned an instance of the wrong schema version: expected %v, got %v", nsch.Version(), rti.Schema().Version())
 			}
+			// The returned instance may come from any schema, even another lineage's.
+			// Only its data is trusted, and only once validated against the target.
+			if rti, err = nsch.Validate(rti.Underlying()); err != nil {
+				return nil, nil, errors.Mark(fmt.Errorf("%s lens returned data that is not an instance of %s: %w", mlid, nsch.Version(), err), terrors.ErrLensResultIsInvalidData)
+			}
 			// A Go lens's result is opaque, so fields carried over unchanged from its
 			// input at the same path count as passed through, not built.
 			var built []cue.Path
@@ -319,10 +327,10 @@ func (i *Instance) translateGo(to SyntacticVersion) (*Instance, TranslationLacun
 				}
 			}
 		} else {
-			// going up a minor version - neither errors nor lacunas are possible
+			// going up a minor version - no lens, so no lacunas
 			rti, _, err = ti.AsSuccessor()
 			if err != nil {
-				panic(fmt.Sprintf("unreachable - error on minor version upgrade: %s", err))
+				return nil, nil, err
 			}
 		}
 		if steplac == nil {

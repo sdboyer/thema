@@ -13,12 +13,10 @@ import (
 	"github.com/sdboyer/thema/internal/util"
 )
 
-// TestKnownGo holds known violations that can't be stated in the
-// testdata/known format: they need Go lenses, inspect lacunas, or distinguish a
-// panic from an error. Each subtest follows the same discipline as
-// TestKnownViolations: skipped as TODO while any expectation is unmet, failing
-// once all are met.
-func TestKnownGo(t *testing.T) {
+// TestGoLensValidation checks that Go lenses can't bypass the validation CUE
+// lenses get: their results are validated against the target schema, minor-version
+// steps validate rather than assume, and CUE lenses aren't silently ignored.
+func TestGoLensValidation(t *testing.T) {
 	ctx := cuecontext.New()
 	rt := NewRuntime(ctx)
 	bindSrc := func(t *testing.T, src string, opts ...BindOption) (lin Lineage, err error) {
@@ -60,12 +58,11 @@ func TestKnownGo(t *testing.T) {
 		}
 		return inst
 	}
-	verdict := func(t *testing.T, issue int, unmet []string) {
+	verdict := func(t *testing.T, unmet []string) {
 		t.Helper()
 		if len(unmet) > 0 {
-			t.Skipf("TODO(#%d): %d expectation(s) not met:\n  %s", issue, len(unmet), strings.Join(unmet, "\n  "))
+			t.Errorf("%d expectation(s) not met:\n  %s", len(unmet), strings.Join(unmet, "\n  "))
 		}
-		t.Errorf("all expectations met: #%d may be fixed for this case; move it into the regular tests", issue)
 	}
 
 	// A minor-version step through Go lenses re-tags the instance via AsSuccessor
@@ -86,7 +83,7 @@ func TestKnownGo(t *testing.T) {
 				unmet = append(unmet, fmt.Sprintf("translate 0.0 -> 0.1 returned an instance invalid against its own schema: %v", verr))
 			}
 		}
-		verdict(t, 24, unmet)
+		verdict(t, unmet)
 	})
 
 	// translateGo checks only the version number of what a Go lens returns, so a
@@ -105,7 +102,7 @@ func TestKnownGo(t *testing.T) {
 		if err == nil {
 			unmet = append(unmet, fmt.Sprintf("translate accepted a lens result from lineage %q", out.Schema().Lineage().Name()))
 		}
-		verdict(t, 24, unmet)
+		verdict(t, unmet)
 	})
 
 	// When Go lenses are supplied, CUE lenses are not checked at all.
@@ -122,7 +119,7 @@ func TestKnownGo(t *testing.T) {
 		if err == nil {
 			unmet = append(unmet, "bind succeeded despite invalid CUE lenses")
 		}
-		verdict(t, 24, unmet)
+		verdict(t, unmet)
 	})
 
 	// Lacunas whose condition holds are never returned from Translate.

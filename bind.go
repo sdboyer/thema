@@ -456,6 +456,13 @@ func (ml *maybeLineage) checkLensesOrder() error {
 	// Two distinct validation paths, depending on whether the lenses were defined in
 	// Go or CUE.
 	if len(ml.implens) > 0 {
+		// A lineage's lenses come from Go or from CUE, never both: with Go lenses
+		// supplied, CUE lenses would be neither used nor checked.
+		if cl, _ := ml.uni.LookupPath(cue.MakePath(cue.Str("lenses"))).Default(); cl.Exists() {
+			if n, err := cl.Len().Int64(); err != nil || n > 0 {
+				return errors.Mark(errors.New("lineage declares CUE lenses, but Go lenses were supplied: a lineage's lenses must all be in Go or all in CUE"), terrors.ErrErroneousLenses)
+			}
+		}
 		ids := make([]lensID, 0, len(ml.implens))
 		for _, lens := range ml.implens {
 			if lens.Mapper == nil {
