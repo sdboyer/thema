@@ -77,7 +77,7 @@ func (ml *maybeLineage) checkGoValidity(cfg *bindConfig) error {
 	var previous *schemaDef
 	for schiter.Next() {
 		sch := &schemaDef{ref: schiter.Value()}
-		v, err := schemaVersion(sch.ref.LookupPath(vpath))
+		v, err := schemaVersion(ml.rt.Context(), sch.ref.LookupPath(vpath))
 		if err != nil {
 			return errors.Mark(cerrors.Newf(userPos(sch.ref.LookupPath(vpath)), "schema %d: %s", len(ml.schlist), err), terrors.ErrInvalidLineage)
 		}
@@ -112,17 +112,22 @@ func (ml *maybeLineage) checkGoValidity(cfg *bindConfig) error {
 // author wrote must be a single concrete version; a disjunction, even one with a
 // default, is rejected rather than resolved. An omitted version takes thema's
 // default of 0.0.
-func schemaVersion(v cue.Value) (SyntacticVersion, error) {
+//
+// An omitted version is recognized by its value, not its source: it is thema's
+// own SyntacticVersion | *[0, 0], which alone admits any version. A disjunction
+// an author wrote admits only its own alternatives.
+func schemaVersion(ctx *cue.Context, v cue.Value) (SyntacticVersion, error) {
 	var sv SyntacticVersion
 	if !v.Exists() {
 		return sv, fmt.Errorf("version is missing")
 	}
-	if authorWrote(v) {
-		if _, hasDefault := v.Default(); hasDefault || v.Validate(cue.Concrete(true)) != nil {
+	if d, hasDefault := v.Default(); hasDefault {
+		if v.Unify(ctx.Encode([]uint64{99, 99})).Validate(cue.Concrete(true)) != nil {
 			return sv, fmt.Errorf("version must be a single concrete version, such as [0, 1]")
 		}
-	} else {
-		v, _ = v.Default()
+		v = d
+	} else if v.Validate(cue.Concrete(true)) != nil {
+		return sv, fmt.Errorf("version must be a single concrete version, such as [0, 1]")
 	}
 	if err := v.Decode(&sv); err != nil {
 		return sv, fmt.Errorf("version must be a pair of non-negative integers, such as [0, 1]")
@@ -130,8 +135,11 @@ func schemaVersion(v cue.Value) (SyntacticVersion, error) {
 	return sv, nil
 }
 
-// authorWrote reports whether any conjunct of v comes from outside thema's own
-// CUE, i.e. was written by the lineage's author.
+// authorWrote reports whether any conjunct of v has a position outside the
+// embedded thema module's root, i.e. was most likely written by the lineage's
+// author. It is a heuristic, for choosing error positions only: when thema's CUE
+// is loaded some other way (e.g. as the main module), its positions don't fall
+// under that root.
 func authorWrote(v cue.Value) bool {
 	_, args := v.Expr()
 	for _, a := range args {
