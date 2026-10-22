@@ -65,9 +65,9 @@ func GenerateSchema(sch thema.Schema, cfg *Config) (*ast.File, error) {
 		onf: cfg.NameFunc,
 		// Underlying() gives us the _#schema ref to the definition. We need to
 		// eliminate path elements leading into the actual user-specified definition.
-		schdef: sch.Underlying().LookupPath(cue.MakePath(cue.Hid("_#schema", "github.com/sdboyer/thema"))),
+		schdef: sch.Underlying().LookupPath(cue.MakePath(cue.Hid("_#schema", util.ThemaPackageID))),
 		schraw: sch.Underlying().LookupPath(cue.MakePath(cue.Str("schema"))),
-		join:   sch.Underlying().LookupPath(cue.MakePath(cue.Hid("_join", "github.com/sdboyer/thema"))),
+		join:   sch.Underlying().LookupPath(cue.MakePath(cue.Hid("_join", util.ThemaPackageID))),
 		bpath:  sch.Underlying().Path(),
 	}
 

@@ -34,6 +34,7 @@ import (
 	"cuelang.org/go/cue/load"
 	"cuelang.org/go/pkg/encoding/json"
 	"cuelang.org/go/pkg/encoding/yaml"
+	"github.com/sdboyer/thema/internal/embedreg"
 	"github.com/sdboyer/thema/internal/envvars"
 	"github.com/sdboyer/thema/internal/util"
 	"github.com/stretchr/testify/assert"
@@ -302,16 +303,19 @@ func LoadVanilla(themaFS fs.FS, a *txtar.Archive, args ...string) []*build.Insta
 		}
 		overlay[filepath.Join(vfsRootDir, f.Name)] = load.FromBytes(f.Data)
 	}
-
-	if err := util.ToOverlay(filepath.Join(vfsRootDir, "cue.mod/pkg/github.com/sdboyer/thema"), themaFS, overlay); err != nil {
-		// util.ToOverlay() explores a virtual filesystem and any error is extremely unlikely.
-		// Having a panic here is probably alright since this function is only used in tests.
-		panic(err)
+	modfile := filepath.Join(vfsRootDir, "cue.mod/module.cue")
+	if _, has := overlay[modfile]; !has {
+		overlay[modfile] = load.FromString(util.ModuleFile("thema.test/vanilla"))
 	}
 
 	cfg := &load.Config{
 		Dir:     vfsRootDir,
 		Overlay: overlay,
+	}
+	if err := embedreg.Configure(cfg, themaFS); err != nil {
+		// Only possible if thema's embedded CUE module is broken, and this function
+		// is only used in tests.
+		panic(err)
 	}
 
 	return load.Instances(args, cfg)

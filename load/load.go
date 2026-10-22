@@ -13,6 +13,7 @@ import (
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/load"
 	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/internal/embedreg"
 	"github.com/sdboyer/thema/internal/util"
 	"github.com/yalue/merged_fs"
 )
@@ -40,20 +41,34 @@ func AsModFS(in fs.FS, modname string) fs.FS {
 	if os.IsNotExist(err) {
 		m := fstest.MapFS{
 			// in general, Go virtual FS work only with slash separators internally
-			"cue.mod/module.cue": &fstest.MapFile{Data: []byte(fmt.Sprintf(`module: "%s"`, modname))},
+			"cue.mod/module.cue": &fstest.MapFile{Data: []byte(util.ModuleFile(modname))},
 		}
 		return merged_fs.NewMergedFS(m, in)
 	}
 	return in
 }
 
-var themamodpath = filepath.Join("cue.mod", "pkg", "github.com", "sdboyer", "thema")
+// Configure prepares cfg for loading CUE that imports thema's CUE module,
+// github.com/sdboyer/thema@v0. That module is served from the copy embedded in
+// this Go module, which is added to cfg.Overlay at a virtual path naming the
+// module and version, e.g. /github.com/sdboyer/thema@v0.1.0; that path appears in
+// error positions for thema's CUE.
+//
+// The loaded module must declare a dependency on thema's CUE module at exactly
+// the version embedded in this Go module; any other version is an error. All
+// other dependencies are fetched through cfg.Registry if set, or else through a
+// registry configured from cfg.Env, as [load.Config] would by default.
+//
+// Configure returns an error if cfg sets FS, which the CUE loader does not
+// permit to be combined with Overlay.
+func Configure(cfg *load.Config) error {
+	return embedreg.Configure(cfg, thema.CueJointFS)
+}
 
 // InstanceWithThema wraps CUE's [load.Instance] in order to allow
 // loading .cue files that directly `import "github.com/sdboyer/thema"`, as
-// lineages are expected to. This is accomplished by constructing a
-// load.Config.Overlay with the Thema CUE files dynamically injected under
-// cue.mod/pkg/, where CUE searches for mod-external imports.
+// lineages are expected to. Thema's CUE module is served from the copy embedded
+// in this Go module; see [Registry].
 //
 // This loader is opinionated, preferring simple ease-of-use and fewer degrees
 // of freedom to the completeness of load.Instances. Some reasonable use cases
@@ -93,8 +108,6 @@ func InstanceWithThema(modFS fs.FS, dir string, opts ...Option) (*build.Instance
 			switch normpath {
 			case filepath.Join("cue.mod", "gen"), filepath.Join("cue.mod", "usr"):
 				return fs.SkipDir
-			case themamodpath:
-				return fmt.Errorf("path %q already exists in modFS passed to InstancesWithThema, must be absent for dynamic dependency injection", themamodpath)
 			}
 			return nil
 		} else if normpath == filepath.Join("cue.mod", "module.cue") {
@@ -135,12 +148,8 @@ func InstanceWithThema(modFS fs.FS, dir string, opts ...Option) (*build.Instance
 	}
 
 	// Special case for when we're calling this loader with paths inside the thema module
-	if modname == "github.com/sdboyer/thema" {
+	if modname == util.ThemaModulePath {
 		if err := ToOverlay(modroot, thema.CueJointFS, overlay); err != nil {
-			return nil, err
-		}
-	} else {
-		if err := ToOverlay(filepath.Join(modroot, themamodpath), thema.CueFS, overlay); err != nil {
 			return nil, err
 		}
 	}
@@ -165,6 +174,9 @@ func InstanceWithThema(modFS fs.FS, dir string, opts ...Option) (*build.Instance
 	}
 
 	cfg.Package = lc.pkgname
+	if err := Configure(cfg); err != nil {
+		return nil, err
+	}
 
 	inst := load.Instances(nil, cfg)[0]
 	if inst.Err != nil {

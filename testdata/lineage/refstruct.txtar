@@ -39,14 +39,25 @@ lenses: []
 }
 -- out/validate/TestValidate/disjunction --
 <refstruct@v0.0>.disj: validation failed, data is not an instance:
-	schema specifies that field exists with type `{run:string,dat:>=-2147483648 & <=2147483647 & int} | {one:string,two:string}`
+	schema specifies that field exists with type `{run:string,tell?:bytes,dat:int32} | {one:string,two:string}`
+		/in.cue:9:9
 	but field was absent from data
+		test:6:13
 -- out/validate/TestValidate/aBazRunWithInt --
 <refstruct@v0.0>.aBaz.run: validation failed, data is not an instance:
 	schema expected `string`
 		/in.cue:12:10
+		/in.cue:8:9
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:234:20
 	but data contained `42`
 		test:3:16
+<refstruct@v0.0>.aBaz.dat: validation failed, data is not an instance:
+	schema specifies that field exists with type `int32`
+	but field was absent from data
+<refstruct@v0.0>.disj: validation failed, data is not an instance:
+	schema specifies that field exists with type `{run:string,tell?:bytes,dat:int32} | {one:string,two:string}`
+		/in.cue:9:9
+	but field was absent from data
 -- out/encoding/openapi/TestGenerate/nilcfg --
 == 0.0.json
 {

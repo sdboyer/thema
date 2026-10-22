@@ -33,8 +33,9 @@ lin2: schemas: [{
     }
 }]
 -- out/isappendonly-fail --
-field #Baz not present in {someField:string,#Baz:{run:string,tell:bytes}}:
-    ./cue.mod/pkg/github.com/sdboyer/thema/lineage.cue:223:10
+field #Baz not present in {someField:string,#Baz:{run:string,tell:bytes,dat?:int32}}:
+    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:223:10
     ./in.cue:22:13
+field dat not present in {run:string,tell:bytes,dat?:int32}:
+    ./in.cue:25:9
 missing field "#Baz"
-required field is optional in subsumed value: dat

@@ -32,7 +32,7 @@ func loadRuntime() *build.Instance {
 		cfg := &load.Config{
 			Overlay: overlay,
 			Package: "thema",
-			Module:  "github.com/sdboyer/thema",
+			Module:  util.ThemaModulePath,
 			Dir:     path,
 		}
 		themaBI = load.Instances(nil, cfg)[0]
@@ -132,7 +132,7 @@ func (ca cueArgs) make(path string, rt *Runtime) (cue.Value, error) {
 
 	var cpath cue.Path
 	if path[0] == '_' {
-		cpath = cue.MakePath(cue.Hid(path, "github.com/sdboyer/thema"))
+		cpath = cue.MakePath(cue.Hid(path, util.ThemaPackageID))
 	} else {
 		cpath = cue.ParsePath(path)
 	}

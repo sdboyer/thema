@@ -41,7 +41,9 @@ func mapImports(raw cue.Value, fn ImportMapper) ([]tsast.ImportSpec, error) {
 
 	var ims []*ast.ImportSpec
 	for _, src := range bi.Files {
-		ims = append(ims, src.Imports...)
+		for im := range src.ImportSpecs() {
+			ims = append(ims, im)
+		}
 	}
 
 	var specs []tsast.ImportSpec

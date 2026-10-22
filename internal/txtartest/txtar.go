@@ -39,6 +39,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/internal/envvars"
+	"github.com/sdboyer/thema/internal/util"
 	tload "github.com/sdboyer/thema/load"
 	"golang.org/x/tools/txtar"
 )
@@ -254,7 +255,7 @@ func (t *LineageTest) WriteFileOrErrBytes(name string) func([]byte, error) {
 		if err != nil {
 			t.WriteErrors(err, name)
 		} else {
-			fmt.Fprintf(t.Writer(name), string(b))
+			fmt.Fprint(t.Writer(name), string(b))
 		}
 	}
 }
@@ -393,7 +394,7 @@ func Load(a *txtar.Archive, dir string, args ...string) ([]*build.Instance, erro
 	}
 
 	if _, has := mfs["cue.mod/module.cue"]; !has {
-		mfs["cue.mod/module.cue"] = &fstest.MapFile{Data: []byte(fmt.Sprintf("module: %q", testPath))}
+		mfs["cue.mod/module.cue"] = &fstest.MapFile{Data: []byte(util.ModuleFile(testPath))}
 	}
 
 	var insts []*build.Instance

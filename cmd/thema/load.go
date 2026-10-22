@@ -15,6 +15,7 @@ import (
 	"github.com/sdboyer/thema"
 	terrors "github.com/sdboyer/thema/errors"
 	"github.com/sdboyer/thema/internal/util"
+	tload "github.com/sdboyer/thema/load"
 	"github.com/spf13/cobra"
 )
 
@@ -126,10 +127,7 @@ func (lla *lineageLoadArgs) dynLoad() (*dynamicLoader, error) {
 		}
 
 		overlay := map[string]load.Source{
-			filepath.Join(dyndir, "cue.mod", "module.cue"): load.FromString(`module: ""`),
-		}
-		if err := util.ToOverlay(filepath.Join(dyndir, themamodpath), thema.CueFS, overlay); err != nil {
-			panic(fmt.Sprintf("unreachable - %s", err))
+			filepath.Join(dyndir, "cue.mod", "module.cue"): load.FromString(util.ModuleFile("thema.cli/input")),
 		}
 		cfg = &load.Config{
 			ModuleRoot: dyndir,
@@ -137,17 +135,12 @@ func (lla *lineageLoadArgs) dynLoad() (*dynamicLoader, error) {
 			Dir:        dyndir,
 			Package:    "*",
 		}
+		if err := tload.Configure(cfg); err != nil {
+			return nil, err
+		}
 
 		binsts = load.Instances(args, cfg)
 	} else {
-		overlay := map[string]load.Source{}
-		// do no muckery if in thema mod dir
-		if dl.cm.modname != "github.com/sdboyer/thema" {
-			if err := util.ToOverlay(filepath.Join(dl.cm.cuemodparentdir, themamodpath), thema.CueFS, overlay); err != nil {
-				panic(fmt.Sprintf("unreachable - %s", err))
-			}
-		}
-
 		dl.relToLinDir, err = filepath.Rel(dl.cm.cuemodparentdir, lla.absInput)
 		if err != nil {
 			return nil, fmt.Errorf("should be unreachable - cue.mod 'parent' path of %s is not rel to lin filepath of %s", dl.cm.cuemodparentdir, lla.inputLinFilePath)
@@ -162,9 +155,11 @@ func (lla *lineageLoadArgs) dynLoad() (*dynamicLoader, error) {
 		cfg = &load.Config{
 			ModuleRoot: dl.cm.cuemodparentdir,
 			Module:     dl.cm.modname,
-			Overlay:    overlay,
 			Dir:        filepath.Join(dl.cm.cuemodparentdir, dl.relToLinDir),
 			// Package:    "*",
+		}
+		if err := tload.Configure(cfg); err != nil {
+			return nil, err
 		}
 		binsts = load.Instances(args, cfg)
 	}
@@ -266,8 +261,6 @@ func findCueMod(path string) (*parentCueMod, error) {
 	}
 	return nil, os.ErrNotExist
 }
-
-var themamodpath = filepath.Join("cue.mod", "pkg", "github.com", "sdboyer", "thema")
 
 type ppathf func(*build.Instance) string
 

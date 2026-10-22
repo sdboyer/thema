@@ -62,7 +62,7 @@ func CueFS() fs.FS {
 	}
 
 	m["cue.mod/module.cue"] = &fstest.MapFile{
-		Data: []byte("module: \"github.com/sdboyer/thema/exemplars\""),
+		Data: []byte(util.ModuleFile("github.com/sdboyer/thema/exemplars")),
 	}
 	return m
 }
@@ -160,7 +160,7 @@ func buildExemplarsPackage(rt *thema.Runtime) cue.Value {
 
 	cfg := &load.Config{
 		Overlay: overlay,
-		Module:  "github.com/sdboyer/thema",
+		Module:  util.ThemaModulePath,
 		Dir:     filepath.Join(util.Prefix, "exemplars"),
 	}
 

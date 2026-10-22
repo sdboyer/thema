@@ -30,5 +30,5 @@ lin: lenses: [{
 }]
 -- out/bindfail --
 schema 0.1 is not backwards compatible with schema 0.0:
-required field is optional in subsumed value: added
+regular field is constraint in subsumed value: added
 value not an instance

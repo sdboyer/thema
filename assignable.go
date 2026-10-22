@@ -58,6 +58,10 @@ func assignable(sch cue.Value, T interface{}) error {
 
 	ctx := sch.Context()
 	gt := ctx.EncodeType(v.Interface())
+	// As of CUE v0.18, Subsume reports the value of an optional or required field
+	// as "not an instance" of anything, even of an identical type. Unifying with top
+	// yields the same value detached from the field's constraint.
+	top := ctx.CompileString("_")
 
 	// None of the builtin CUE functions do _quite_ what we want here. In the
 	// simple case, we might check subsumption of the Go type by the CUE
@@ -151,7 +155,7 @@ func assignable(sch cue.Value, T interface{}) error {
 			// seems reasonable at least until we really formally define this
 			// relation
 			// gval, exists := gmap[vp.Path.Optional().String()].Value
-			gvp, exists := gmap[vp.Path.String()]
+			gvp, exists := gmap[fieldKey(vp.Path)]
 
 			// TODO replace these one-offs with formalized error types
 			if !exists {
@@ -161,7 +165,7 @@ func assignable(sch cue.Value, T interface{}) error {
 
 			gval := gvp.Value
 			// Remove the paths from the map for leftover checking later
-			delete(gmap, vp.Path.String())
+			delete(gmap, fieldKey(vp.Path))
 			// delete(gmap, vp.Path.Optional().String())
 
 			check(gval, sval, p)
@@ -269,7 +273,7 @@ func assignable(sch cue.Value, T interface{}) error {
 		// be assignable to the Go type, we have to see if the Go type
 		// subsumes the schema, rather than the more intuitive check
 		// that the schema subsumes the Go type.
-		if err := gval.Subsume(sval, cue.Schema()); err != nil {
+		if err := gval.Subsume(top.Unify(sval), cue.Schema()); err != nil {
 			errs[p.String()] = fmt.Errorf("%s: schema type %v not subsumed by Go type %v", p, sval, gval)
 		}
 	}
@@ -303,6 +307,13 @@ type valpath struct {
 
 type structSlice []valpath
 
+// fieldKey returns the bare name of the single-field path p, for matching
+// fields between a schema and a Go type. The string form of a path includes any
+// optional or required marker (foo?), which the Go side never has.
+func fieldKey(p cue.Path) string {
+	return p.Selectors()[0].Unquoted()
+}
+
 func structToMap(v cue.Value) map[string]valpath {
 	m := make(map[string]valpath)
 	iter, err := v.Fields(cue.Optional(true))
@@ -316,8 +327,7 @@ func structToMap(v cue.Value) map[string]valpath {
 			Value: iter.Value(),
 		}
 		// fmt.Printf("sm %v %#v\n", iter.Selector(), iter.Value())
-		m[iter.Selector().String()] = vp
-		// m[iter.Selector().Optional().String()] = vp
+		m[fieldKey(vp.Path)] = vp
 	}
 
 	return m

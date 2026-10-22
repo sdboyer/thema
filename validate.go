@@ -106,6 +106,18 @@ func (vf validationFailure) Error() string {
 	return buf.String()
 }
 
+// msgArgString returns the string form of an argument to a CUE error message.
+// CUE passes values to be formatted as fmt.Stringers, rather than strings.
+func msgArgString(arg any) (string, bool) {
+	switch x := arg.(type) {
+	case string:
+		return x, true
+	case fmt.Stringer:
+		return x.String(), true
+	}
+	return "", false
+}
+
 // HERE BE DRAGONS, BRING A SWORD.
 func mungeValidateErr(err error, sch Schema) error {
 	_, is := err.(errors.Error)
@@ -125,7 +137,7 @@ func mungeValidateErr(err error, sch Schema) error {
 		msg, vals := ee.Msg()
 		switch len(vals) {
 		case 1:
-			val, ok := vals[0].(string)
+			val, ok := msgArgString(vals[0])
 			if !ok {
 				break
 			}
@@ -152,11 +164,11 @@ func mungeValidateErr(err error, sch Schema) error {
 
 			// data first
 			if len(inputPositions) > 1 && !strings.HasSuffix(inputPositions[0].Filename(), ".cue") {
-				schval, svok = vals[1].(string)
-				dataval, dvok = vals[0].(string)
+				schval, svok = msgArgString(vals[1])
+				dataval, dvok = msgArgString(vals[0])
 			} else { // schema first
-				schval, svok = vals[0].(string)
-				dataval, dvok = vals[1].(string)
+				schval, svok = msgArgString(vals[0])
+				dataval, dvok = msgArgString(vals[1])
 			}
 			if !svok || !dvok {
 				break
@@ -179,13 +191,13 @@ func mungeValidateErr(err error, sch Schema) error {
 
 			// data first
 			if len(inputPositions) > 1 && !strings.HasSuffix(inputPositions[0].Filename(), ".cue") {
-				schval, svok = vals[1].(string)
-				dataval, dvok = vals[0].(string)
+				schval, svok = msgArgString(vals[1])
+				dataval, dvok = msgArgString(vals[0])
 				schkind, skok = vals[3].(cue.Kind)
 				datakind, dkok = vals[2].(cue.Kind)
 			} else { // schema first
-				schval, svok = vals[0].(string)
-				dataval, dvok = vals[1].(string)
+				schval, svok = msgArgString(vals[0])
+				dataval, dvok = msgArgString(vals[1])
 				schkind, skok = vals[2].(cue.Kind)
 				datakind, dkok = vals[3].(cue.Kind)
 			}

@@ -294,13 +294,12 @@ func (ic *initCommand) runOpenAPI(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	rt := (*upcue.Runtime)(ctx)
-	inst, err := rt.CompileFile(f)
-	if err != nil {
+	v := ctx.BuildFile(f)
+	if err := v.Err(); err != nil {
 		ic.err = err
 		return
 	}
-	fo, err := openapi.Extract(inst, &openapi.Config{})
+	fo, err := openapi.Extract(v, &openapi.Config{})
 	if err != nil {
 		ic.err = err
 		return

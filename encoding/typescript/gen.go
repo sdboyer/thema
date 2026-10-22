@@ -12,6 +12,7 @@ import (
 	"github.com/sdboyer/thema/internal/cuetsy"
 	"github.com/sdboyer/thema/internal/cuetsy/ts"
 	"github.com/sdboyer/thema/internal/cuetsy/ts/ast"
+	"github.com/sdboyer/thema/internal/util"
 )
 
 // All the parsed templates in the tmpl subdirectory
@@ -72,7 +73,7 @@ func GenerateTypes(sch thema.Schema, cfg *TypeConfig) (*ast.File, error) {
 		cfg.RootName = strings.Title(sch.Lineage().Name())
 	}
 
-	schdef := sch.Underlying().LookupPath(cue.MakePath(cue.Hid("_#schema", "github.com/sdboyer/thema")))
+	schdef := sch.Underlying().LookupPath(cue.MakePath(cue.Hid("_#schema", util.ThemaPackageID)))
 	tf, err := cuetsy.GenerateAST(schdef, *cfg.CuetsyConfig)
 	if err != nil {
 		return nil, fmt.Errorf("generating TS for child elements of schema failed: %w", err)

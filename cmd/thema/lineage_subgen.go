@@ -176,7 +176,7 @@ func (gc *genCommand) runOpenAPI(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), str)
+	fmt.Fprint(cmd.OutOrStdout(), str)
 	return nil
 }
 
@@ -214,7 +214,7 @@ func (gc *genCommand) runJSONSchema(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), str)
+	fmt.Fprint(cmd.OutOrStdout(), str)
 	return nil
 }
 
@@ -306,7 +306,7 @@ func (gc *genCommand) runGoBindings(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	fmt.Fprintf(buf, fmt.Sprintf(goheaderp, gc.epath))
+	fmt.Fprintf(buf, goheaderp, gc.epath)
 	buf.Write(f)
 
 	path := gc.lla.absInput

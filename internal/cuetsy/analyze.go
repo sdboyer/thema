@@ -295,7 +295,6 @@ func dumpsyn(v cue.Value) (string, error) {
 		cue.Optional(true),
 		cue.Attributes(true),
 		cue.Docs(true),
-		cue.ResolveReferences(false),
 	)
 
 	byt, err := format.Node(syn, format.Simplify(), format.TabIndent(true))

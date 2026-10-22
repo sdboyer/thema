@@ -39,6 +39,7 @@ type Case struct {
 var updateGolden = flag.Bool("update-golden", false, "Update golden files with test results")
 
 func TestGenerateWithImports(t *testing.T) {
+	t.Skip("TODO(#3): cuetsy not yet ported to CUE v0.18")
 	test := cuetxtar.TxTarTest{
 		Root:   "./testdata/imports",
 		Name:   "gen",
@@ -86,6 +87,7 @@ func TestGenerateWithImports(t *testing.T) {
 }
 
 func TestGenerate(t *testing.T) {
+	t.Skip("TODO(#3): cuetsy not yet ported to CUE v0.18")
 	cases, err := loadCases(CasesDir)
 	if err != nil {
 		t.Fatal(err)

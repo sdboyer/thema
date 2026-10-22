@@ -753,7 +753,7 @@ func (g *generator) genEnumReference(v cue.Value) (*typeRef, error) {
 		conjuncts[1] = getDefaultEnumValue(conjuncts[1])
 		lit, err = getEnumLiteral(conjuncts)
 		if err != nil {
-			ve := valError(v, err.Error())
+			ve := valError(v, "%s", err)
 			g.addErr(ve)
 			return nil, ve
 		}
@@ -771,7 +771,7 @@ func (g *generator) genEnumReference(v cue.Value) (*typeRef, error) {
 		var err error
 		lit, err = getEnumLiteral(conjuncts[1:])
 		if err != nil {
-			ve := valError(v, err.Error())
+			ve := valError(v, "%s", err)
 			g.addErr(ve)
 			return nil, ve
 		}
@@ -1080,7 +1080,7 @@ func (g generator) tsprintField(v cue.Value, isType bool, isDefault bool) (ts.Ex
 			if val.Exists() && val.IncompleteKind() != cue.TopKind {
 				expr, err := g.tsprintField(val, isType, isDefault)
 				if err != nil {
-					return nil, valError(v, err.Error())
+					return nil, valError(v, "%s", err)
 				}
 				kvs := []tsast.KeyValueExpr{
 					{
@@ -1105,7 +1105,7 @@ func (g generator) tsprintField(v cue.Value, isType bool, isDefault bool) (ts.Ex
 				}
 				expr, err := g.tsprintField(value, isType, isDefault)
 				if err != nil {
-					return nil, valError(v, err.Error())
+					return nil, valError(v, "%s", err)
 				}
 				k := iter.Label()
 				if iter.IsOptional() {

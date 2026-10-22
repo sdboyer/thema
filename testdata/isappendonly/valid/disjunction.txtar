@@ -1,12 +1,7 @@
 #firstLin: lin1
 #secondLin: lin2
 -- in.cue --
-import (
-	"time"
-	"strings"
-
-	"github.com/sdboyer/thema"
-)
+import "github.com/sdboyer/thema"
 
 lin1: thema.#Lineage
 lin1: name: "disjunction"

@@ -32,8 +32,8 @@ lin2: schemas: [{
     }
 }]
 -- out/isappendonly-fail --
-field aBaz not present in {aBaz:{run:string,dat:>=-2147483648 & <=2147483647 & int},#Baz:{run:string,dat:>=-2147483648 & <=2147483647 & int}}:
-    ./cue.mod/pkg/github.com/sdboyer/thema/lineage.cue:223:10
+field aBaz not present in {aBaz:~(lin2.schemas.0.schema.#Baz),#Baz:{run:string,dat:int32}}:
+    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:223:10
     ./in.cue:22:13
 missing field "aBaz"
-required field is optional in subsumed value: tell
+regular field is constraint in subsumed value: tell

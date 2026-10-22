@@ -148,7 +148,11 @@ func (ml *maybeLineage) checkLineageShape(cfg *bindConfig) error {
 		if !val.Exists() {
 			return errors.Mark(mkerror(ml.raw, "not a lineage, missing #Lineage.%s", path), terrors.ErrValueNotALineage)
 		}
-		if !val.IsConcrete() {
+		// IsConcrete reports any list as concrete, even an open one, so also require
+		// a concrete length; otherwise an absent schemas field would pass as #Lineage's
+		// open default of [#SchemaDef, ...#SchemaDef].
+		_, lenerr := val.Len().Int64()
+		if !val.IsConcrete() || (val.IncompleteKind() == cue.ListKind && lenerr != nil) {
 			return errors.Mark(mkerror(val, "invalid lineage, #Lineage.%s must be concrete", path), terrors.ErrInvalidLineage)
 		}
 	}
@@ -357,7 +361,7 @@ func (lensVersionDef) version(val cue.Value, p string) (SyntacticVersion, error)
 
 	v := SyntacticVersion{}
 	if err := vval.Value().Decode(&v); err != nil {
-		return v, errors.Mark(mkerror(val, fmt.Sprintf("failed to decode lens version %s from: %s", vval, val)), terrors.ErrInvalidLineage)
+		return v, errors.Mark(mkerror(val, "failed to decode lens version %s from: %s", vval, val), terrors.ErrInvalidLineage)
 	}
 
 	return v, nil

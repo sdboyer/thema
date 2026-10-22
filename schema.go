@@ -6,6 +6,8 @@ import (
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/errors"
+
+	"github.com/sdboyer/thema/internal/util"
 )
 
 var (
@@ -14,10 +16,10 @@ var (
 )
 
 var (
-	pathSchDef   = cue.MakePath(cue.Hid("_#schema", "github.com/sdboyer/thema"))
+	pathSchDef   = cue.MakePath(cue.Hid("_#schema", util.ThemaPackageID))
 	pathExamples = cue.MakePath(cue.Str("examples"))
 	pathSch      = cue.MakePath(cue.Str("schema"))
-	pathJoin     = cue.MakePath(cue.Hid("_join", "github.com/sdboyer/thema"))
+	pathJoin     = cue.MakePath(cue.Hid("_join", util.ThemaPackageID))
 )
 
 // schemaDef represents a single #SchemaDef, with a backlink to its containing

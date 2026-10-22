@@ -35,14 +35,19 @@ lenses: [{
 <trivial-two@v0.1>.firstfield: validation failed, data is not an instance:
 	schema expected `string`
 		/in.cue:15:21
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:234:20
 	but data contained `42`
 		test:2:19
 -- out/validate/TestValidate/secondfieldAsString --
 <trivial-two@v0.1>.secondfield: validation failed, data is not an instance:
 	schema expected `int32`
-		/cue.mod/pkg/github.com/sdboyer/thema/lineage.cue:234:20
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:234:20
 	but data contained `"foo"`
 		test:2:20
+<trivial-two@v0.1>.firstfield: validation failed, data is not an instance:
+	schema specifies that field exists with type `string`
+		/in.cue:15:21
+	but field was absent from data
 -- in/validate/TestValidate/secondfieldAsString.data.json --
 {
     "secondfield": "foo"

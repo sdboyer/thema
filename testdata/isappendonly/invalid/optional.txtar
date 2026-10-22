@@ -22,7 +22,5 @@ lin2: schemas: [{
     }
 }]
 -- out/isappendonly-fail --
-field aNewOptionalField not present in {aField:string}:
-    ./cue.mod/pkg/github.com/sdboyer/thema/lineage.cue:223:10
-    ./in.cue:7:10
-missing field "aNewOptionalField"
+field not allowed in closed struct: aNewOptionalField
+value not an instance

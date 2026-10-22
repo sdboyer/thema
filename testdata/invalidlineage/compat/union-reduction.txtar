@@ -38,6 +38,6 @@ lin: lenses: [{
 }]
 -- out/bindfail --
 schema 0.1 is not backwards compatible with schema 0.0:
-field concreteCross not present in {concreteCross:"foo" | "bar" | 42,concreteString:"foo" | "bar" | "baz",crossKind3:string | >=-2147483648 & <=2147483647 & int | bytes,crossKind2:string | >=-2147483648 & <=2147483647 & int}:
-    /cue.mod/pkg/github.com/sdboyer/thema/lineage.cue:234:12
+field concreteCross not present in {concreteCross:"foo" | "bar" | 42,concreteString:"foo" | "bar" | "baz",crossKind3:string | int32 | bytes,crossKind2:string | int32}:
+    /github.com/sdboyer/thema@v0.1.0/lineage.cue:234:12
 missing field "concreteCross"
