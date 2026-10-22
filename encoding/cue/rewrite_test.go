@@ -8,9 +8,9 @@ import (
 	"cuelang.org/go/cue/ast"
 	"cuelang.org/go/cue/build"
 	"cuelang.org/go/cue/cuecontext"
-	"github.com/grafana/thema"
-	tastutil "github.com/grafana/thema/internal/astutil"
-	"github.com/grafana/thema/internal/txtartest/vanilla"
+	"github.com/sdboyer/thema"
+	tastutil "github.com/sdboyer/thema/internal/astutil"
+	"github.com/sdboyer/thema/internal/txtartest/vanilla"
 )
 
 func TestRewriteLegacyLineage(t *testing.T) {

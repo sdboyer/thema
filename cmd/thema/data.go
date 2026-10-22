@@ -12,8 +12,8 @@ import (
 	"cuelang.org/go/cue"
 	"github.com/spf13/cobra"
 
-	"github.com/grafana/thema"
-	"github.com/grafana/thema/vmux"
+	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/vmux"
 )
 
 type dataCommand struct {

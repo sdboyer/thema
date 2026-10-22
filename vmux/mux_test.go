@@ -7,9 +7,9 @@ import (
 	"testing"
 
 	"cuelang.org/go/cue/cuecontext"
-	"github.com/grafana/thema"
-	"github.com/grafana/thema/exemplars"
-	"github.com/grafana/thema/internal/envvars"
+	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/exemplars"
+	"github.com/sdboyer/thema/internal/envvars"
 	"github.com/stretchr/testify/require"
 )
 

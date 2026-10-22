@@ -12,7 +12,7 @@ import (
 	"github.com/dave/dst/dstutil"
 	"golang.org/x/tools/imports"
 
-	"github.com/grafana/thema/internal/util"
+	"github.com/sdboyer/thema/internal/util"
 )
 
 type GenGoFile struct {

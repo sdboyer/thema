@@ -12,8 +12,8 @@ import (
 	"cuelang.org/go/cue/build"
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/load"
-	"github.com/grafana/thema"
-	"github.com/grafana/thema/internal/util"
+	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/internal/util"
 	"github.com/yalue/merged_fs"
 )
 
@@ -47,10 +47,10 @@ func AsModFS(in fs.FS, modname string) fs.FS {
 	return in
 }
 
-var themamodpath = filepath.Join("cue.mod", "pkg", "github.com", "grafana", "thema")
+var themamodpath = filepath.Join("cue.mod", "pkg", "github.com", "sdboyer", "thema")
 
 // InstanceWithThema wraps CUE's [load.Instance] in order to allow
-// loading .cue files that directly `import "github.com/grafana/thema"`, as
+// loading .cue files that directly `import "github.com/sdboyer/thema"`, as
 // lineages are expected to. This is accomplished by constructing a
 // load.Config.Overlay with the Thema CUE files dynamically injected under
 // cue.mod/pkg/, where CUE searches for mod-external imports.
@@ -67,7 +67,7 @@ var themamodpath = filepath.Join("cue.mod", "pkg", "github.com", "grafana", "the
 // there must exist cue.mod/module.cue, which must contain a top-level field
 // declaring the module name (aka import prefix/module path), e.g.:
 //
-//	module: "github.com/grafana/thema"
+//	module: "github.com/sdboyer/thema"
 //
 // The dir parameter must specify a directory containing .cue files with
 // lineages to be loaded, relative to the module root directory. This is similar
@@ -135,7 +135,7 @@ func InstanceWithThema(modFS fs.FS, dir string, opts ...Option) (*build.Instance
 	}
 
 	// Special case for when we're calling this loader with paths inside the thema module
-	if modname == "github.com/grafana/thema" {
+	if modname == "github.com/sdboyer/thema" {
 		if err := ToOverlay(modroot, thema.CueJointFS, overlay); err != nil {
 			return nil, err
 		}

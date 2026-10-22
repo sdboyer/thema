@@ -4,7 +4,7 @@ import (
 	"os"
 
 	"cuelang.org/go/cue/cuecontext"
-	"github.com/grafana/thema"
+	"github.com/sdboyer/thema"
 	"github.com/spf13/cobra"
 )
 

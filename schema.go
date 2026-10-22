@@ -14,10 +14,10 @@ var (
 )
 
 var (
-	pathSchDef   = cue.MakePath(cue.Hid("_#schema", "github.com/grafana/thema"))
+	pathSchDef   = cue.MakePath(cue.Hid("_#schema", "github.com/sdboyer/thema"))
 	pathExamples = cue.MakePath(cue.Str("examples"))
 	pathSch      = cue.MakePath(cue.Str("schema"))
-	pathJoin     = cue.MakePath(cue.Hid("_join", "github.com/grafana/thema"))
+	pathJoin     = cue.MakePath(cue.Hid("_join", "github.com/sdboyer/thema"))
 )
 
 // schemaDef represents a single #SchemaDef, with a backlink to its containing

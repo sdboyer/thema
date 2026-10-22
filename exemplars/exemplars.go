@@ -9,9 +9,9 @@ import (
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/load"
-	"github.com/grafana/thema"
-	"github.com/grafana/thema/internal/util"
-	tload "github.com/grafana/thema/load"
+	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/internal/util"
+	tload "github.com/sdboyer/thema/load"
 )
 
 // All returns all of the exemplar lineages in a map keyed by lineage name.
@@ -62,7 +62,7 @@ func CueFS() fs.FS {
 	}
 
 	m["cue.mod/module.cue"] = &fstest.MapFile{
-		Data: []byte("module: \"github.com/grafana/thema/exemplars\""),
+		Data: []byte("module: \"github.com/sdboyer/thema/exemplars\""),
 	}
 	return m
 }
@@ -160,7 +160,7 @@ func buildExemplarsPackage(rt *thema.Runtime) cue.Value {
 
 	cfg := &load.Config{
 		Overlay: overlay,
-		Module:  "github.com/grafana/thema",
+		Module:  "github.com/sdboyer/thema",
 		Dir:     filepath.Join(util.Prefix, "exemplars"),
 	}
 

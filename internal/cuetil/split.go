@@ -64,7 +64,7 @@ func PoslistWithoutThema(v cue.Value) []token.Pos {
 	poslist := make([]token.Pos, 0, len(vals))
 	for _, dval := range vals {
 		// TODO not sure if we should expect os-sensitive path separators here or not
-		if pos := dval.Pos(); pos != token.NoPos && !strings.Contains(pos.Filename(), "github.com/grafana/thema") {
+		if pos := dval.Pos(); pos != token.NoPos && !strings.Contains(pos.Filename(), "github.com/sdboyer/thema") {
 			poslist = append(poslist, pos)
 		}
 	}

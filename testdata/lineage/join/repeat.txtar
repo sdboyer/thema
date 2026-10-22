@@ -1,6 +1,6 @@
 # Case where the joinSchema is exactly the same as a schema in the lineage
 -- in.cue --
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 thema.#Lineage
 name: "repeat"

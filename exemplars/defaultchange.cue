@@ -1,6 +1,6 @@
 package exemplars
 
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 defaultchange: {
 	description: "The default value for a field is changed, entailing a new sequence."

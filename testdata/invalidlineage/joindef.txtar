@@ -1,6 +1,6 @@
 # Definitions are not allowed in joinSchema
 -- in.cue --
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 thema.#Lineage
 name: "joindef"

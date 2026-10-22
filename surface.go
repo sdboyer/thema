@@ -7,8 +7,8 @@ import (
 
 	"cuelang.org/go/cue"
 
-	terrors "github.com/grafana/thema/errors"
-	"github.com/grafana/thema/internal/envvars"
+	terrors "github.com/sdboyer/thema/errors"
+	"github.com/sdboyer/thema/internal/envvars"
 )
 
 // A CUEWrapper wraps a cue.Value, and can return that value for inspection.
@@ -275,7 +275,7 @@ type Schema interface {
 // the program against just one version.
 //
 // This process is known as version multiplexing. See
-// [github.com/grafana/thema/vmux].
+// [github.com/sdboyer/thema/vmux].
 type ConvergentLineage[T Assignee] interface {
 	Lineage
 

@@ -1,6 +1,6 @@
 # joinSchema is a reference to an embedded struct
 -- in.cue --
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 thema.#Lineage
 name: "embedref"

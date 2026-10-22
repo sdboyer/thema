@@ -13,9 +13,9 @@ import (
 	"github.com/dave/dst"
 	"github.com/dave/dst/dstutil"
 	"github.com/getkin/kin-openapi/openapi3"
-	"github.com/grafana/thema"
-	"github.com/grafana/thema/encoding/openapi"
-	"github.com/grafana/thema/internal/deepmap/oapi-codegen/pkg/codegen"
+	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/encoding/openapi"
+	"github.com/sdboyer/thema/internal/deepmap/oapi-codegen/pkg/codegen"
 )
 
 // All the parsed templates in the tmpl subdirectory

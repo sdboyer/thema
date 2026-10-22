@@ -1,4 +1,4 @@
-module github.com/grafana/thema
+module github.com/sdboyer/thema
 
 go 1.19
 

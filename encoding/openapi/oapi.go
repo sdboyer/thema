@@ -8,10 +8,10 @@ import (
 	"cuelang.org/go/cue/errors"
 	"cuelang.org/go/encoding/openapi"
 	"cuelang.org/go/pkg/strings"
-	"github.com/grafana/thema"
-	"github.com/grafana/thema/internal/astutil"
-	"github.com/grafana/thema/internal/cuetil"
-	"github.com/grafana/thema/internal/util"
+	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/internal/astutil"
+	"github.com/sdboyer/thema/internal/cuetil"
+	"github.com/sdboyer/thema/internal/util"
 )
 
 // Config controls OpenAPI derivation from a Thema schema.
@@ -65,9 +65,9 @@ func GenerateSchema(sch thema.Schema, cfg *Config) (*ast.File, error) {
 		onf: cfg.NameFunc,
 		// Underlying() gives us the _#schema ref to the definition. We need to
 		// eliminate path elements leading into the actual user-specified definition.
-		schdef: sch.Underlying().LookupPath(cue.MakePath(cue.Hid("_#schema", "github.com/grafana/thema"))),
+		schdef: sch.Underlying().LookupPath(cue.MakePath(cue.Hid("_#schema", "github.com/sdboyer/thema"))),
 		schraw: sch.Underlying().LookupPath(cue.MakePath(cue.Str("schema"))),
-		join:   sch.Underlying().LookupPath(cue.MakePath(cue.Hid("_join", "github.com/grafana/thema"))),
+		join:   sch.Underlying().LookupPath(cue.MakePath(cue.Hid("_join", "github.com/sdboyer/thema"))),
 		bpath:  sch.Underlying().Path(),
 	}
 

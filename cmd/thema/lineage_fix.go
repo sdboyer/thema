@@ -5,8 +5,8 @@ import (
 	"os"
 
 	"cuelang.org/go/cue"
-	cuenc "github.com/grafana/thema/encoding/cue"
-	tastutil "github.com/grafana/thema/internal/astutil"
+	cuenc "github.com/sdboyer/thema/encoding/cue"
+	tastutil "github.com/sdboyer/thema/internal/astutil"
 	"github.com/spf13/cobra"
 )
 

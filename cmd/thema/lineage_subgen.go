@@ -16,10 +16,10 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/mod/modfile"
 
-	"github.com/grafana/thema"
-	"github.com/grafana/thema/encoding/gocode"
-	"github.com/grafana/thema/encoding/jsonschema"
-	"github.com/grafana/thema/encoding/openapi"
+	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/encoding/gocode"
+	"github.com/sdboyer/thema/encoding/jsonschema"
+	"github.com/sdboyer/thema/encoding/openapi"
 )
 
 type genCommand struct {
@@ -146,7 +146,7 @@ Each subcommand supports generating code for a different language target.
 
 Note that the controls offered by each subcommand are intentionally simplified.
 But, each subcommand is implemented as a thin layer atop the packages in
-github.com/grafana/thema/format/*. If the CLI lacks the fine-grained control
+github.com/sdboyer/thema/format/*. If the CLI lacks the fine-grained control
 you require, it is recommended to write your own code generator using those packages.
 `,
 }
@@ -298,8 +298,8 @@ still calls themaFSFor$NAME(), making it the responsibility of the user to
 hand-write their own implementation in another .go file within the same
 package.
 
-LineageFactory: https://pkg.go.dev/github.com/grafana/thema#LineageFactory
-ConvergentLineageFactory: https://pkg.go.dev/github.com/grafana/thema#ConvergentLineageFactory
+LineageFactory: https://pkg.go.dev/github.com/sdboyer/thema#LineageFactory
+ConvergentLineageFactory: https://pkg.go.dev/github.com/sdboyer/thema#ConvergentLineageFactory
 `,
 }
 

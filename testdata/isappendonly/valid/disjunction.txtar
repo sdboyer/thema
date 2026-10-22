@@ -5,7 +5,7 @@ import (
 	"time"
 	"strings"
 
-	"github.com/grafana/thema"
+	"github.com/sdboyer/thema"
 )
 
 lin1: thema.#Lineage

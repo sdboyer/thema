@@ -10,7 +10,7 @@ import (
 	"cuelang.org/go/cue/cuecontext"
 	cjson "cuelang.org/go/encoding/json"
 	"cuelang.org/go/pkg/strings"
-	"github.com/grafana/thema/internal/txtartest/vanilla"
+	"github.com/sdboyer/thema/internal/txtartest/vanilla"
 	"github.com/stretchr/testify/require"
 )
 

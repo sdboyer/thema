@@ -8,7 +8,7 @@ import (
 	"cuelang.org/go/cue/ast/astutil"
 	"cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/token"
-	"github.com/grafana/thema"
+	"github.com/sdboyer/thema"
 )
 
 // RewriteLegacyLineage takes a [cue.Value] and a [cue.Path] to a legacy Thema

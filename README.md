@@ -12,11 +12,11 @@ This holistic view allows Thema to act like a typechecker, but for change-safety
 
 These capabilities make Thema a general framework for decoupling the evolution of communicating systems. This can be outward-facing: Thema's guardrails allow anyone to create APIs with Stripe's renowned [backwards compatibility](https://stripe.com/docs/upgrades) guarantees. Or it can be inward-facing: or to change the messages passed in a mesh of microservices without intricately orchestrating deployment.
 
-Learn more in our [docs](https://github.com/grafana/thema/tree/main/docs), or in this [overview video](https://www.youtube.com/watch?v=PpoS_ThntEM)! (Some things have been renamed since that video, but the logic is unchanged.)
+Learn more in our [docs](https://github.com/sdboyer/thema/tree/main/docs), or in this [overview video](https://www.youtube.com/watch?v=PpoS_ThntEM)! (Some things have been renamed since that video, but the logic is unchanged.)
 
 ## Usage
 
-Thema defines the way schemas are written, organizing each object's history into a "lineage." Once authored, Thema also provides tools for working with lineages via a few [basic operations](https://github.com/grafana/thema/blob/main/docs/overview.md#about-thema-operations). There are a few different usage patterns, all largely equivalent in capability:
+Thema defines the way schemas are written, organizing each object's history into a "lineage." Once authored, Thema also provides tools for working with lineages via a few [basic operations](https://github.com/sdboyer/thema/blob/main/docs/overview.md#about-thema-operations). There are a few different usage patterns, all largely equivalent in capability:
 
 * **CLI:** a CLI command that provides access to Thema's basic operations, one lineage per invocation. Use it for fast exploration and testing of schemas, or as a tool in CI.
 * **Server:** An HTTP server that provides access to Thema's basic operations for a configurable set of lineages. Run it as a stateless sidecar in your infrastructure or microservice mesh.
@@ -25,7 +25,7 @@ Thema defines the way schemas are written, organizing each object's history into
 The CLI and server modes are bundled together in the `thema` command. To install:
 
 ```bash
-go install github.com/grafana/thema/cmd/thema@latest
+go install github.com/sdboyer/thema/cmd/thema@latest
 ```
 
 ## Maturity

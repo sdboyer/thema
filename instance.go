@@ -8,7 +8,7 @@ import (
 	"cuelang.org/go/pkg/encoding/json"
 	"github.com/cockroachdb/errors"
 
-	terrors "github.com/grafana/thema/errors"
+	terrors "github.com/sdboyer/thema/errors"
 )
 
 // BindInstanceType produces a TypedInstance, given an Instance and a

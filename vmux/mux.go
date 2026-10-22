@@ -8,7 +8,7 @@ import (
 	cjson "cuelang.org/go/encoding/json"
 	"cuelang.org/go/encoding/yaml"
 	pyaml "cuelang.org/go/pkg/encoding/yaml"
-	"github.com/grafana/thema"
+	"github.com/sdboyer/thema"
 )
 
 func allvstr(sch thema.Schema) string {

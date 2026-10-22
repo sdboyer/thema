@@ -1,6 +1,6 @@
 package exemplars
 
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 narrowing: {
 	description: "Lineage that narrows a sloppily-specified boolean/string-ish type to a proper boolean over a single breaking change."

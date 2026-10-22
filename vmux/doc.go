@@ -10,6 +10,6 @@
 //
 // The generic utilities in this package reduce version muxing to a single
 // function call. Still, they are pure convenience: this package relies
-// solely on the public interface of [github.com/grafana/thema], and can
+// solely on the public interface of [github.com/sdboyer/thema], and can
 // be reimplemented with different tradeoffs elsewhere if needed.
 package vmux

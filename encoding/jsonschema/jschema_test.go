@@ -6,8 +6,8 @@ import (
 	"cuelang.org/go/cue/ast"
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/pkg/encoding/json"
-	"github.com/grafana/thema"
-	"github.com/grafana/thema/exemplars"
+	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/exemplars"
 	"github.com/xeipuuv/gojsonschema"
 )
 

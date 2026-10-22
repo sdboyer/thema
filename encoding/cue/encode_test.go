@@ -2,7 +2,7 @@ package cue
 
 import (
 	"cuelang.org/go/cue/cuecontext"
-	"github.com/grafana/thema"
+	"github.com/sdboyer/thema"
 )
 
 var ctx = cuecontext.New()

@@ -1,10 +1,10 @@
 # Tutorial: Mapping CUE Lineages into Go
 
-Once we know how to [write a Thema lineage in CUE](authoring.md), a common next step is to make the lineage available for use in a general-purpose programming language, like Go. No matter what we'd like this Go program to do with our lineages, we must first get the CUE text of our lineage declaration - often referred to as "the bytes" in this doc - into Go, and load it into the [types exported by the `thema` package](https://pkg.go.dev/github.com/grafana/thema).
+Once we know how to [write a Thema lineage in CUE](authoring.md), a common next step is to make the lineage available for use in a general-purpose programming language, like Go. No matter what we'd like this Go program to do with our lineages, we must first get the CUE text of our lineage declaration - often referred to as "the bytes" in this doc - into Go, and load it into the [types exported by the `thema` package](https://pkg.go.dev/github.com/sdboyer/thema).
 
 Thema's Go types are intentionally designed to limit extension: exported interfaces and structs with some or all unexported members. Thema's value as a schema system derives primarily from its [guarantees](invariants.md), so for Thema to be useful in Go, those guarantees must hold. To that end, we make the `Lineage` type the face of those guarantees. To its consumers, `Lineage` should be a powerful, reliable abstraction: if some Go code has a non-`nil` variable of type `thema.Lineage`, all of Thema's (implemented) guarantees apply, unconditionally.
 
-That's a serious guarantee, especially given that responsibility for fulfilling it will fall to the lineage author. Hopeium won't cut it. For Thema guarantees to actually hold in the wild - where `Lineage` instances burst forth from Go code written by us mortals who haven't _quite_ gotten around to finishing our maths PhD yet - it must be near-impossible to produce a `Lineage` that doesn't keep Thema's promises. As we'll see, Thema approaches this by making [`BindLineage()`](https://pkg.go.dev/github.com/grafana/thema#BindLineage) a verification choke point: it's the only way to create a `Lineage`, and will error out if provided raw CUE that does not constitute a valid lineage.
+That's a serious guarantee, especially given that responsibility for fulfilling it will fall to the lineage author. Hopeium won't cut it. For Thema guarantees to actually hold in the wild - where `Lineage` instances burst forth from Go code written by us mortals who haven't _quite_ gotten around to finishing our maths PhD yet - it must be near-impossible to produce a `Lineage` that doesn't keep Thema's promises. As we'll see, Thema approaches this by making [`BindLineage()`](https://pkg.go.dev/github.com/sdboyer/thema#BindLineage) a verification choke point: it's the only way to create a `Lineage`, and will error out if provided raw CUE that does not constitute a valid lineage.
 
 With this in mind, this tutorial puts us in the role of the lineage author with the goal of creating a standalone Go package that can return an instance of `thema.Lineage` from the `Ship` lineage we [previously](authoring.md) created in CUE.
 
@@ -26,10 +26,10 @@ go mod init $MODPATH
 cue mod init $MODPATH
 ```
 
-Finally, grab [`ship.cue`](https://github.com/grafana/thema/blob/main/docs/ship.cue):
+Finally, grab [`ship.cue`](https://github.com/sdboyer/thema/blob/main/docs/ship.cue):
 
 ```bash
-curl https://raw.githubusercontent.com/grafana/thema/main/docs/ship.cue > ship.cue
+curl https://raw.githubusercontent.com/sdboyer/thema/main/docs/ship.cue > ship.cue
 ```
 
 **NOTE: the `package` name at the top of `ship.cue` must be the same as what appears in `cue.mod/module.cue`.** If you changed `MODPATH`, hand-edit `ship.cue` to have the same `package` value as the final element in `MODPATH`.
@@ -43,9 +43,9 @@ This tutorial is focused on Go, but if you want to be able to run `cue eval` alo
 These commands should work, though grabbing a tarball of the latest Thema repo and placing it yourself is more reliable.
 
 ```
-mkdir -p cue.mod/pkg/github.com/grafana/thema && \
-curl -LJ0 https://github.com/grafana/thema/zipball/main > thema.zip && \
-unzip -oj thema.zip '*.cue' -d cue.mod/pkg/github.com/grafana/thema && \
+mkdir -p cue.mod/pkg/github.com/sdboyer/thema && \
+curl -LJ0 https://github.com/sdboyer/thema/zipball/main > thema.zip && \
+unzip -oj thema.zip '*.cue' -d cue.mod/pkg/github.com/sdboyer/thema && \
 rm thema.zip
 ```
 
@@ -53,7 +53,7 @@ This is nothing even resembling a proper package management solution (there's [a
 
 ## Goal: The Lineage Factory
 
-For each lineage you create in CUE, the recommended, idiomatic approach is to export a single Go function that satisfies the [`LineageFactory`](https://pkg.go.dev/github.com/grafana/thema#LineageFactory) type. The lineage factory function will be the canonical way of accessing your lineage in any Go program. It should follow a naming pattern:
+For each lineage you create in CUE, the recommended, idiomatic approach is to export a single Go function that satisfies the [`LineageFactory`](https://pkg.go.dev/github.com/sdboyer/thema#LineageFactory) type. The lineage factory function will be the canonical way of accessing your lineage in any Go program. It should follow a naming pattern:
 
 ```go
 func <name>Lineage (lib thema.Library, opts ...thema.BindOption) (thema.Lineage, error) { ... }
@@ -76,13 +76,13 @@ Exporting exactly one `LineageFactory` per lineage is usually preferable. There 
 * Colocate the Go package containing the lineage factory in the same directory as the `.cue` file containing the lineage declaration.
 * Use Go 1.16 [embedding](https://pkg.go.dev/embed) to bind `.cue` files to the package containing your lineage factory.
 
-Thema's [exemplars](https://github.com/grafana/thema/tree/main/exemplars) package illustrates these idioms.
+Thema's [exemplars](https://github.com/sdboyer/thema/tree/main/exemplars) package illustrates these idioms.
 
 ## Map the bytes 
 
-The first step is getting all the `.cue` files we need into our Go program. The obvious file is `ship.cue` - but we _also_ need the upstream thema `.cue` files we vendored, which are necessary for the CUE runtime to satisfy the `import "github.com/grafana/thema"` statement in `ship.cue`.
+The first step is getting all the `.cue` files we need into our Go program. The obvious file is `ship.cue` - but we _also_ need the upstream thema `.cue` files we vendored, which are necessary for the CUE runtime to satisfy the `import "github.com/sdboyer/thema"` statement in `ship.cue`.
 
-In a new `lineage.go` file, we'll embed our `.cue` files into an `embed.FS`. Then we'll use the [`InstancesWithThema`](https://pkg.go.dev/github.com/grafana/thema/load#InstancesWithThema) helper function[^loaderhelper] to load the raw CUE files we embedded. 
+In a new `lineage.go` file, we'll embed our `.cue` files into an `embed.FS`. Then we'll use the [`InstancesWithThema`](https://pkg.go.dev/github.com/sdboyer/thema/load#InstancesWithThema) helper function[^loaderhelper] to load the raw CUE files we embedded. 
 
 ```go
 package example
@@ -90,7 +90,7 @@ package example
 import (
     "embed"
 
-    "github.com/grafana/thema/load"
+    "github.com/sdboyer/thema/load"
 )
 
 //go:embed ship.cue cue.mod/module.cue
@@ -118,7 +118,7 @@ import (
     "embed"
 
     "cuelang.org/go/cue/cuecontext"
-    "github.com/grafana/thema/load"
+    "github.com/sdboyer/thema/load"
 )
 
 //go:embed ship.cue cue.mod/module.cue
@@ -139,7 +139,7 @@ Managing `cue.Context` is tricky, though. Creating a one-off context-universe fo
 
 Instead, we should take a `cue.Context` as an argument. But that's also complicated, because Thema needs not only a shared universe, but a shared universe _that has loaded Thema's pure CUE logic_. 
 
-To simplify this, Thema has a [`Library`](https://pkg.go.dev/github.com/grafana/thema#Library) type. `Library` is a thin wrapper around `cue.Context` - just some helper methods, including one to retrieve the context, with the assurance that Thema is loaded and addressable within that context. We'll see how this gets used a little later, but for now, let's update our function:
+To simplify this, Thema has a [`Library`](https://pkg.go.dev/github.com/sdboyer/thema#Library) type. `Library` is a thin wrapper around `cue.Context` - just some helper methods, including one to retrieve the context, with the assurance that Thema is loaded and addressable within that context. We'll see how this gets used a little later, but for now, let's update our function:
 
 ```go
 package example
@@ -147,8 +147,8 @@ package example
 import (
     "embed"
 
-    "github.com/grafana/thema"
-    "github.com/grafana/thema/load"
+    "github.com/sdboyer/thema"
+    "github.com/sdboyer/thema/load"
 )
 
 //go:embed ship.cue cue.mod/module.cue
@@ -182,7 +182,7 @@ In CUE, as in most data-centric langauges, data is structure is code is design. 
 ```cue
 package example
 
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 lin: thema.#Lineage
 lin: name: "Ship"
@@ -199,8 +199,8 @@ import (
     "embed"
 
     "cuelang.org/go/cue"
-    "github.com/grafana/thema"
-    "github.com/grafana/thema/load"
+    "github.com/sdboyer/thema"
+    "github.com/sdboyer/thema/load"
 )
 
 //go:embed ship.cue cue.mod/module.cue
@@ -226,7 +226,7 @@ The simplicity of our `ship.cue` and example module as a whole suggests that it 
 ```cue
 package example
 
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 thema.#Lineage
 name: "Ship"
@@ -238,14 +238,14 @@ If our CUE had this structure, then the `val` returned from `ctx.BuildInstance` 
 
 It's tempting to imagine "instance == lineage" as another idiomatic best practice. And it would be great to have a general rule - anything that further structures the relationship between CUE and Go code makes it easier to reason about. Unfortunately, this rule doesn't generalize well. 
 
-Thema's [exemplars](https://github.com/grafana/thema/tree/main/exemplars), for example, are [part of a larger type](https://github.com/grafana/thema/blob/main/exemplars/constraint.cue#L6) that acts partially as testing harness and partially as basis for documentation. The whole package contains multiple lineages, and [is constrained](https://github.com/grafana/thema/blob/main/exemplars/constraint.cue#L17) to expect each named exemplar harness as a top-level field, like our `lin`.
+Thema's [exemplars](https://github.com/sdboyer/thema/tree/main/exemplars), for example, are [part of a larger type](https://github.com/sdboyer/thema/blob/main/exemplars/constraint.cue#L6) that acts partially as testing harness and partially as basis for documentation. The whole package contains multiple lineages, and [is constrained](https://github.com/sdboyer/thema/blob/main/exemplars/constraint.cue#L17) to expect each named exemplar harness as a top-level field, like our `lin`.
 
-There's also entirely other ways of marking which CUE values are supposed to be lineages. [Attributes](https://github.com/grafana/thema/blob/main/exemplars/constraint.cue#L17), for example, could be a clean way to indicate to generic tooling (triggered e.g. via a `//go:generate` directive) that a particular lineage should be translated to another language[^cuetsy]:
+There's also entirely other ways of marking which CUE values are supposed to be lineages. [Attributes](https://github.com/sdboyer/thema/blob/main/exemplars/constraint.cue#L17), for example, could be a clean way to indicate to generic tooling (triggered e.g. via a `//go:generate` directive) that a particular lineage should be translated to another language[^cuetsy]:
 
 ```cue
 package example
 
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 lin: thema.#Lineage @thematranslate(protobuf) // purely illustrative; not real/supported by any tool
 lin: name: "Ship"
@@ -268,8 +268,8 @@ import (
     "embed"
 
     "cuelang.org/go/cue"
-    "github.com/grafana/thema"
-    "github.com/grafana/thema/load"
+    "github.com/sdboyer/thema"
+    "github.com/sdboyer/thema/load"
 )
 
 //go:embed ship.cue cue.mod/module.cue
@@ -309,7 +309,7 @@ import (
     "testing"
 
     "cuelang.org/go/cue/cuecontext"
-    "github.com/grafana/thema"
+    "github.com/sdboyer/thema"
 )
 
 func TestShipIsValid(t *testing.T) {
@@ -329,7 +329,7 @@ TODO
 
 ## Wrap-up
 
-This tutorial illustrated how, as a Thema lineage author, we take a CUE `#Lineage` and make it available to Go programs as a [`Lineage`](https://pkg.go.dev/github.com/grafana/thema#Lineage) via a standard [`LineageFactory`](https://pkg.go.dev/github.com/grafana/thema#LineageFactory) function.
+This tutorial illustrated how, as a Thema lineage author, we take a CUE `#Lineage` and make it available to Go programs as a [`Lineage`](https://pkg.go.dev/github.com/sdboyer/thema#Lineage) via a standard [`LineageFactory`](https://pkg.go.dev/github.com/sdboyer/thema#LineageFactory) function.
 
 In the [next tutorial](go-usage.md), we'll trade our Thema author hat for a Thema consumer hat, and show how to write a Go program that uses the Thema `Lineage` returned from `ShipLineage()` to be written against just one version of `Ship`, but be able to handle `Ship`s in any form specified in the lineage.
 

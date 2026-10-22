@@ -1,6 +1,6 @@
 package exemplars
 
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 single: {
 	description: "Lineage containing one sequence with a single, trivial schema."

@@ -24,7 +24,7 @@ import (
 	"unicode"
 
 	"github.com/getkin/kin-openapi/openapi3"
-	"github.com/grafana/thema/internal/deepmap/oapi-codegen/pkg/util"
+	"github.com/sdboyer/thema/internal/deepmap/oapi-codegen/pkg/util"
 )
 
 type ParameterDefinition struct {

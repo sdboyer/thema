@@ -1,6 +1,6 @@
 package exemplars
 
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 _#Exemplar: {
 	l:           thema.#Lineage

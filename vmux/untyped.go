@@ -3,7 +3,7 @@ package vmux
 import (
 	"fmt"
 
-	"github.com/grafana/thema"
+	"github.com/sdboyer/thema"
 )
 
 // UntypedMux is a version multiplexer that maps a []byte containing data at any

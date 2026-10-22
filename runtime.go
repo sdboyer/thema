@@ -10,7 +10,7 @@ import (
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/load"
-	"github.com/grafana/thema/internal/util"
+	"github.com/sdboyer/thema/internal/util"
 )
 
 var rtOnce sync.Once
@@ -18,7 +18,7 @@ var themaBI *build.Instance
 
 func loadRuntime() *build.Instance {
 	rtOnce.Do(func() {
-		path := filepath.Join(util.Prefix, "github.com", "grafana", "thema")
+		path := filepath.Join(util.Prefix, "github.com", "sdboyer", "thema")
 
 		overlay := make(map[string]load.Source)
 		if err := util.ToOverlay(path, CueJointFS, overlay); err != nil {
@@ -32,7 +32,7 @@ func loadRuntime() *build.Instance {
 		cfg := &load.Config{
 			Overlay: overlay,
 			Package: "thema",
-			Module:  "github.com/grafana/thema",
+			Module:  "github.com/sdboyer/thema",
 			Dir:     path,
 		}
 		themaBI = load.Instances(nil, cfg)[0]
@@ -59,7 +59,7 @@ func loadRuntime() *build.Instance {
 // Each Thema Runtime is bound to a single cue.Context, determined by the parameter
 // passed to [NewRuntime].
 type Runtime struct {
-	// Value corresponds to loading the whole github.com/grafana/thema:thema
+	// Value corresponds to loading the whole github.com/sdboyer/thema:thema
 	// package.
 	val cue.Value
 
@@ -69,7 +69,7 @@ type Runtime struct {
 }
 
 // NewRuntime parses, loads and builds a full CUE instance/value representing
-// all of the logic in the Thema CUE package (github.com/grafana/thema),
+// all of the logic in the Thema CUE package (github.com/sdboyer/thema),
 // and returns a Runtime instance ready for use.
 //
 // Building is performed using the provided cue.Context. Passing a nil context will panic.
@@ -106,7 +106,7 @@ func (rt *Runtime) u() {
 }
 
 // Underlying returns the underlying cue.Value representing the whole Thema CUE
-// library (github.com/grafana/thema).
+// library (github.com/sdboyer/thema).
 func (rt *Runtime) Underlying() cue.Value {
 	return rt.val
 }
@@ -132,7 +132,7 @@ func (ca cueArgs) make(path string, rt *Runtime) (cue.Value, error) {
 
 	var cpath cue.Path
 	if path[0] == '_' {
-		cpath = cue.MakePath(cue.Hid(path, "github.com/grafana/thema"))
+		cpath = cue.MakePath(cue.Hid(path, "github.com/sdboyer/thema"))
 	} else {
 		cpath = cue.ParsePath(path)
 	}

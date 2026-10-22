@@ -1,6 +1,6 @@
 # basic join schema with just a single scalar field
 -- in.cue --
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 thema.#Lineage
 name: "oneone"

@@ -2,7 +2,7 @@
 
 #slow
 -- in.cue --
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 thema.#Lineage
 name: "union"
@@ -40,14 +40,14 @@ lenses: []
 	schema expected `bool`
 		/in.cue:24:29
 		/in.cue:10:40
-		/cue.mod/pkg/github.com/grafana/thema/lineage.cue:234:20
+		/cue.mod/pkg/github.com/sdboyer/thema/lineage.cue:234:20
 	but data contained `42`
 		test:3:16
 <union@v0.0>.mapUnion.foo: validation failed, data is not an instance:
 	schema expected `string`
 		/in.cue:24:20
 		/in.cue:10:40
-		/cue.mod/pkg/github.com/grafana/thema/lineage.cue:234:20
+		/cue.mod/pkg/github.com/sdboyer/thema/lineage.cue:234:20
 	but data contained `42`
 		test:3:16
 -- out/validate/TestValidate/theUnionWithInt --
@@ -55,14 +55,14 @@ lenses: []
 	schema expected `bool`
 		/in.cue:24:29
 		/in.cue:8:30
-		/cue.mod/pkg/github.com/grafana/thema/lineage.cue:234:20
+		/cue.mod/pkg/github.com/sdboyer/thema/lineage.cue:234:20
 	but data contained `42`
 		test:2:17
 <union@v0.0>.theUnion: validation failed, data is not an instance:
 	schema expected `string`
 		/in.cue:24:20
 		/in.cue:8:30
-		/cue.mod/pkg/github.com/grafana/thema/lineage.cue:234:20
+		/cue.mod/pkg/github.com/sdboyer/thema/lineage.cue:234:20
 	but data contained `42`
 		test:2:17
 -- in/validate/TestValidate/theUnionWithInt.data.json --

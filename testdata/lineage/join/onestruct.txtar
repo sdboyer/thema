@@ -1,6 +1,6 @@
 # joinSchema contains a field that is a struct
 -- in.cue --
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 thema.#Lineage
 name: "onestruct"

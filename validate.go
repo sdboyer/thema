@@ -9,7 +9,7 @@ import (
 	"cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/token"
 
-	terrors "github.com/grafana/thema/errors"
+	terrors "github.com/sdboyer/thema/errors"
 )
 
 type onesidederr struct {

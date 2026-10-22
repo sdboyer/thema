@@ -15,8 +15,8 @@ import (
 	"cuelang.org/go/encoding/jsonschema"
 	"cuelang.org/go/encoding/openapi"
 	"cuelang.org/go/encoding/yaml"
-	"github.com/grafana/thema/encoding/cue"
-	tastutil "github.com/grafana/thema/internal/astutil"
+	"github.com/sdboyer/thema/encoding/cue"
+	tastutil "github.com/sdboyer/thema/internal/astutil"
 	"github.com/spf13/cobra"
 )
 

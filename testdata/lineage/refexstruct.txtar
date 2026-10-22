@@ -1,6 +1,6 @@
 # schema contains a reference to an external type of struct kind
 -- in.cue --
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 thema.#Lineage
 name: "refexstruct"

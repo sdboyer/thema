@@ -19,11 +19,11 @@ Read the [Thema overview](overview.md) before beginning this tutorial.
 
 Thema lineages require only two fields to be explicitly defined: 
 
-1. `name`: the identifier for the thing schematized by the lineage. Use a simple name, not a fully-qualified name - you'll define the fully-qualified name later. For this tutorial, we'll use [`"Ship"`](https://github.com/grafana/thema/blob/main/FAQ.md#where-does-the-name-thema-come-from).
+1. `name`: the identifier for the thing schematized by the lineage. Use a simple name, not a fully-qualified name - you'll define the fully-qualified name later. For this tutorial, we'll use [`"Ship"`](https://github.com/sdboyer/thema/blob/main/FAQ.md#where-does-the-name-thema-come-from).
 2. `seqs`: contains the list of all sequences of all schemas within the lineage, and the lenses that map between them. It's basically a two-dimensional array.
 
 ```cue
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 lin: thema.#Lineage 
 lin: name: "Ship"
@@ -36,7 +36,7 @@ lin: seqs: [
 
 A valid lineage requires at least one sequence in `seqs`, which in turn must contain at least one schema in its `schemas` list. As a result, our example isn't actually a valid lineage. Rather, it's the minimum necessary structure to begin defining a lineage. (Note that the outermost `lin` can be omitted, in which case the entire file is the lineage.)
 
-Supporting tooling must refuse to work with invalid lineages, similar to a failed type check. As a result, attempting to `cue eval`, [load the lineage for use in Go](https://pkg.go.dev/github.com/grafana/thema#BindLineage), or otherwise doing anything with the example here, ([should](TODOlinktoissue)) fail with a message that the length of `schemas` is less than one.
+Supporting tooling must refuse to work with invalid lineages, similar to a failed type check. As a result, attempting to `cue eval`, [load the lineage for use in Go](https://pkg.go.dev/github.com/sdboyer/thema#BindLineage), or otherwise doing anything with the example here, ([should](TODOlinktoissue)) fail with a message that the length of `schemas` is less than one.
 
 ## Defining a schema
 
@@ -47,7 +47,7 @@ Lineages should be sealed structures, as thema invariants only hold in the conte
 Let's define our first schema as an object containing a single field named `firstfield`, which must be of type `string`.
 
 ```cue
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 lin: thema.#Lineage 
 lin: name: "Ship"
@@ -77,7 +77,7 @@ Let's add one more field, `secondfield`, which must be an `int`.
 **Note:** in thema, schema version is determined by its position within the two-dimensional array structure of `seqs`, rather than through arbitrary choice by the author. These structurally-determined version numbers are indicated as comments.
 
 ```cue
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 lin: thema.#Lineage 
 lin: name: "Ship"
@@ -109,7 +109,7 @@ There are three approaches to fixing this:
 The simplest fix involves just one character: `?`. This indicates that `secondfield` is optional.
 
 ```cue
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 lin: thema.#Lineage 
 lin: name: "Ship"
@@ -137,7 +137,7 @@ If the behavior of a program accepting `Ship` behaves in a meaningfully differen
 CUE allows [specifying default values](https://cuelang.org/docs/tutorials/tour/types/defaults/) for fields. We can do so with `secondfield`, which will (may[^defaultcompat]) make `0.1` backward compatible with `0.0`, making our lineage valid. In this example, specify `42` as the default value.
 
 ```cue
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 lin: thema.#Lineage 
 lin: name: "Ship"
@@ -173,7 +173,7 @@ The third option for making our lineage valid is to rely on thema's foundational
 In this approach, rather than adding `secondfield` to a schema in the same sequence, we place our schema in a new sequence, thereby granting the new schema the version number `1.0`.
 
 ```cue
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 lin: thema.#Lineage 
 lin: name: "Ship"
@@ -217,7 +217,7 @@ The change to the `Ship` schema is trivial, but presents an interesting challeng
 The only real answer is to add a placeholder value - here, `-1`.
 
 ```cue
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 lin: thema.#Lineage
 lin: name: "Ship"
@@ -292,7 +292,7 @@ Lacunas represent a gap or flaw in a lens translation. As a lineage author, you 
 Thema defines a limited set of lacuna types that correspond to different types of flaws. (This area is under active development.) For our case, we should emit a `Placeholder` lacuna.
 
 ```cue
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 lin: thema.#Lineage
 lin: name: "Ship"
@@ -377,7 +377,7 @@ Basic inputs and outputs:
 
 Encapsulating translation flaws as lacunas relieves pressure on the schemas and translation. Schemas need not carry extraneous, legacy fields to reflect translation flaws, and lacunas can disambiguate for the calling program between translations with flaws, and those without. In this case, we can imagine `secondfield` is actually a serial identifier/foreign key, and the calling program can be constructed to look for a `Placeholder` lacuna on `secondfield`, then replace that `-1` with a correct value derived from another source.
 
-Knowing when to emit a lacuna, and which type to emit, is nontrivial. The set of lacuna types and precise rules for when and how to use them appropriately are under active development. We will, in future, provide documentation specific to each lacuna type. In the meantime, the [exemplars directory](https://github.com/grafana/thema/tree/main/exemplars) contains a number of examples of lacuna use.
+Knowing when to emit a lacuna, and which type to emit, is nontrivial. The set of lacuna types and precise rules for when and how to use them appropriately are under active development. We will, in future, provide documentation specific to each lacuna type. In the meantime, the [exemplars directory](https://github.com/sdboyer/thema/tree/main/exemplars) contains a number of examples of lacuna use.
 
 ## Advanced: schema openness
 

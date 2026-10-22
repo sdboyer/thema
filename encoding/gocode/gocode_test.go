@@ -7,11 +7,11 @@ import (
 	"cuelang.org/go/cue/cuecontext"
 	copenapi "cuelang.org/go/encoding/openapi"
 
-	"github.com/grafana/thema"
-	"github.com/grafana/thema/encoding/openapi"
-	"github.com/grafana/thema/internal/txtartest/bindlin"
-	"github.com/grafana/thema/internal/txtartest/vanilla"
-	"github.com/grafana/thema/internal/util"
+	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/encoding/openapi"
+	"github.com/sdboyer/thema/internal/txtartest/bindlin"
+	"github.com/sdboyer/thema/internal/txtartest/vanilla"
+	"github.com/sdboyer/thema/internal/util"
 )
 
 func TestGenerate(t *testing.T) {

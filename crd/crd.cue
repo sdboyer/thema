@@ -3,7 +3,7 @@ package crd
 import (
 	"list"
 	"strings"
-	"github.com/grafana/thema"
+	"github.com/sdboyer/thema"
 )
 
 // CRD transforms a lineage into a Kubernetes custom resource definition, or a series thereof.

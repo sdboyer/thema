@@ -1,6 +1,6 @@
 # schema contains an optional field with a ref to a type that references one type and extends another
 -- in.cue --
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 thema.#Lineage
 name: "unifyref"

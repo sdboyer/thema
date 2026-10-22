@@ -5,7 +5,7 @@ import (
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
-	"github.com/grafana/thema"
+	"github.com/sdboyer/thema"
 )
 
 var allctx = cuecontext.New()

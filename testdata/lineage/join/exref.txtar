@@ -1,6 +1,6 @@
 # joinSchema contains references to external definitions
 -- in.cue --
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 thema.#Lineage
 name: "exref"

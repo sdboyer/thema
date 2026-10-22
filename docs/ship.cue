@@ -1,6 +1,6 @@
 package thema_example
 
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 lin: thema.#Lineage
 lin: name: "Ship"

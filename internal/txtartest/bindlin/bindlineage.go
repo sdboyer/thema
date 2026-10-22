@@ -3,8 +3,8 @@ package bindlin
 import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
-	"github.com/grafana/thema"
-	"github.com/grafana/thema/internal/txtartest/vanilla"
+	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/internal/txtartest/vanilla"
 )
 
 // BindTxtarLineage attempts to bind a lineage from the CUE package instance at

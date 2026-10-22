@@ -37,9 +37,9 @@ import (
 	"cuelang.org/go/pkg/encoding/json"
 	"cuelang.org/go/pkg/encoding/yaml"
 	"github.com/google/go-cmp/cmp"
-	"github.com/grafana/thema"
-	"github.com/grafana/thema/internal/envvars"
-	tload "github.com/grafana/thema/load"
+	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/internal/envvars"
+	tload "github.com/sdboyer/thema/load"
 	"golang.org/x/tools/txtar"
 )
 

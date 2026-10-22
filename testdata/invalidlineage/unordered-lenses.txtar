@@ -1,6 +1,6 @@
 # lineage loading should error because lenses are not ordered by version
 -- in.cue --
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 thema.#Lineage
 name: "unordered-lenses"

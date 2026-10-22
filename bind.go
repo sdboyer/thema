@@ -9,8 +9,8 @@ import (
 	"cuelang.org/go/cue/token"
 	"github.com/cockroachdb/errors"
 
-	terrors "github.com/grafana/thema/errors"
-	"github.com/grafana/thema/internal/compat"
+	terrors "github.com/sdboyer/thema/errors"
+	"github.com/sdboyer/thema/internal/compat"
 )
 
 // maybeLineage is an intermediate processing structure used to validate

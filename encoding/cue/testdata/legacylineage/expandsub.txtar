@@ -1,6 +1,6 @@
 #sub: lin
 -- in.cue --
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 lin: thema.#Lineage & {
     name: "expand"
@@ -30,7 +30,7 @@ lin: thema.#Lineage & {
 }
 
 -- out/rewrite-legacy-lineage --
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 lin: thema.#Lineage & {
 	name: "expand"

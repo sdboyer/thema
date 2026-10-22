@@ -8,8 +8,8 @@ import (
 	cerrors "cuelang.org/go/cue/errors"
 	"github.com/cockroachdb/errors"
 
-	terrors "github.com/grafana/thema/errors"
-	"github.com/grafana/thema/internal/cuetil"
+	terrors "github.com/sdboyer/thema/errors"
+	"github.com/sdboyer/thema/internal/cuetil"
 )
 
 var (

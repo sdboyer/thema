@@ -6,7 +6,7 @@ import (
 	upcue "cuelang.org/go/cue"
 	"cuelang.org/go/cue/ast"
 	"cuelang.org/go/cue/ast/astutil"
-	tastutil "github.com/grafana/thema/internal/astutil"
+	tastutil "github.com/sdboyer/thema/internal/astutil"
 	"github.com/spf13/cobra"
 )
 

@@ -2,7 +2,7 @@
 
 #subpath
 -- in.cue --
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 thema.#Lineage
 name: "maps"
@@ -43,25 +43,25 @@ aStruct: foo:   string
 <maps@v0.0>.aComplexMap.foo: validation failed, data is not an instance:
 	schema expected `string`
 		/in.cue:18:23
-		/cue.mod/pkg/github.com/grafana/thema/lineage.cue:234:20
+		/cue.mod/pkg/github.com/sdboyer/thema/lineage.cue:234:20
 	but data contained `42`
 		test:3:16
 <maps@v0.0>.aComplexMap.iShouldBeAnInt: validation failed, data is not an instance:
 	schema expected `int`
 		/in.cue:19:23
-		/cue.mod/pkg/github.com/grafana/thema/lineage.cue:234:20
+		/cue.mod/pkg/github.com/sdboyer/thema/lineage.cue:234:20
 	but data contained `"but I am not"`
 		test:4:27
 <maps@v0.0>.aComplexMap.bShouldBeABool: validation failed, data is not an instance:
 	schema expected `bool`
 		/in.cue:20:23
-		/cue.mod/pkg/github.com/grafana/thema/lineage.cue:234:20
+		/cue.mod/pkg/github.com/sdboyer/thema/lineage.cue:234:20
 	but data contained `"but I am a string"`
 		test:5:27
 <maps@v0.0>.aComplexMap.cShouldBeAString: validation failed, data is not an instance:
 	schema expected `string`
 		/in.cue:21:23
-		/cue.mod/pkg/github.com/grafana/thema/lineage.cue:234:20
+		/cue.mod/pkg/github.com/sdboyer/thema/lineage.cue:234:20
 	but data contained `1`
 		test:6:29
 -- out/encoding/openapi/TestGenerate/nilcfg --

@@ -12,13 +12,13 @@ import (
 	"cuelang.org/go/cue/build"
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/load"
-	"github.com/grafana/thema"
-	terrors "github.com/grafana/thema/errors"
-	"github.com/grafana/thema/internal/util"
+	"github.com/sdboyer/thema"
+	terrors "github.com/sdboyer/thema/errors"
+	"github.com/sdboyer/thema/internal/util"
 	"github.com/spf13/cobra"
 )
 
-// TODO OMG WOULD BE SO AMAZING TO MAKE THIS ALL JUST USE github.com/grafana/thema/load
+// TODO OMG WOULD BE SO AMAZING TO MAKE THIS ALL JUST USE github.com/sdboyer/thema/load
 
 type lineageLoadArgs struct {
 	// fs path to the lineage to load. may be absolute or relative, and point to a
@@ -142,7 +142,7 @@ func (lla *lineageLoadArgs) dynLoad() (*dynamicLoader, error) {
 	} else {
 		overlay := map[string]load.Source{}
 		// do no muckery if in thema mod dir
-		if dl.cm.modname != "github.com/grafana/thema" {
+		if dl.cm.modname != "github.com/sdboyer/thema" {
 			if err := util.ToOverlay(filepath.Join(dl.cm.cuemodparentdir, themamodpath), thema.CueFS, overlay); err != nil {
 				panic(fmt.Sprintf("unreachable - %s", err))
 			}
@@ -267,7 +267,7 @@ func findCueMod(path string) (*parentCueMod, error) {
 	return nil, os.ErrNotExist
 }
 
-var themamodpath = filepath.Join("cue.mod", "pkg", "github.com", "grafana", "thema")
+var themamodpath = filepath.Join("cue.mod", "pkg", "github.com", "sdboyer", "thema")
 
 type ppathf func(*build.Instance) string
 

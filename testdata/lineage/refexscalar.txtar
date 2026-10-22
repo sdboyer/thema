@@ -1,7 +1,7 @@
 # schema contains a reference to an external type of a scalar kind
 #subpath
 -- in.cue --
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 thema.#Lineage
 name: "refscalar"

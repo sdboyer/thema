@@ -1,6 +1,6 @@
 # schema contains a normal field and a definition not referenced by the field
 -- in.cue --
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 thema.#Lineage
 name: "noref"

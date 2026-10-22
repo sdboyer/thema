@@ -1,7 +1,7 @@
 # schema contains optional fields of all cue kinds.
 # TODO Remove this once the 'optional' corpus case is fixed.
 -- in.cue --
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 thema.#Lineage
 name: "nearoptional"
@@ -37,7 +37,7 @@ lenses: []
 	schema expected `string`
 		/in.cue:13:23
 		/in.cue:13:20
-		/cue.mod/pkg/github.com/grafana/thema/lineage.cue:234:20
+		/cue.mod/pkg/github.com/sdboyer/thema/lineage.cue:234:20
 	but data contained `42`
 		test:3:15
 -- out/encoding/openapi/TestGenerate/nilcfg --

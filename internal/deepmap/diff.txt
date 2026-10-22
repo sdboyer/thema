@@ -9,7 +9,7 @@ diff oapi-codegen/pkg/codegen/codegen_test.go thema/internal/deepmap/oapi-codege
 < 	examplePetstore "github.com/deepmap/oapi-codegen/examples/petstore-expanded/echo/api"
 < 	"github.com/deepmap/oapi-codegen/pkg/util"
 15a10
-> 	"github.com/grafana/thema/internal/deepmap/oapi-codegen/pkg/util"
+> 	"github.com/sdboyer/thema/internal/deepmap/oapi-codegen/pkg/util"
 31,131d25
 < }
 < 
@@ -150,7 +150,7 @@ diff oapi-codegen/pkg/codegen/operations.go thema/internal/deepmap/oapi-codegen/
 26d25
 < 	"github.com/deepmap/oapi-codegen/pkg/util"
 27a27
-> 	"github.com/grafana/thema/internal/deepmap/oapi-codegen/pkg/util"
+> 	"github.com/sdboyer/thema/internal/deepmap/oapi-codegen/pkg/util"
 diff oapi-codegen/pkg/codegen/schema.go thema/internal/deepmap/oapi-codegen/pkg/codegen/schema.go
 257c257
 < 		mergedSchema, err := MergeSchemas(schema.AllOf, path)
@@ -164,7 +164,7 @@ diff oapi-codegen/pkg/codegen/template_helpers.go thema/internal/deepmap/oapi-co
 23c23
 < 	"github.com/deepmap/oapi-codegen/pkg/util"
 ---
-> 	"github.com/grafana/thema/internal/deepmap/oapi-codegen/pkg/util"
+> 	"github.com/sdboyer/thema/internal/deepmap/oapi-codegen/pkg/util"
 Common subdirectories: oapi-codegen/pkg/codegen/templates and thema/internal/deepmap/oapi-codegen/pkg/codegen/templates
 Common subdirectories: oapi-codegen/pkg/codegen/test_specs and thema/internal/deepmap/oapi-codegen/pkg/codegen/test_specs
 diff oapi-codegen/pkg/codegen/utils.go thema/internal/deepmap/oapi-codegen/pkg/codegen/utils.go

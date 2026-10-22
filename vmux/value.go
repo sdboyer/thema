@@ -1,6 +1,6 @@
 package vmux
 
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 // ValueMux is a version multiplexer that maps a []byte containing data at any
 // schematized version to a Go var of a type that a particular schematized

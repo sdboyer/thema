@@ -1,6 +1,6 @@
 package exemplars
 
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 rename: {
 	description: "A field is renamed - a breaking change, necessitating a new sequence."

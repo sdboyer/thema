@@ -8,9 +8,9 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/ast"
 	"cuelang.org/go/cue/parser"
-	"github.com/grafana/thema"
-	"github.com/grafana/thema/internal/astutil"
-	"github.com/grafana/thema/internal/compat"
+	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/internal/astutil"
+	"github.com/sdboyer/thema/internal/compat"
 )
 
 // NewLineage constructs a CUE ast.File with a new lineage declaration in it,
@@ -100,7 +100,7 @@ type linTplVars struct {
 // TODO replace with collection of templates
 var emptyLineage = template.Must(template.New("newlin").Parse(`
 {{- if ne .PkgName "" }}package {{ .PkgName }}
-{{end}}import "github.com/grafana/thema"
+{{end}}import "github.com/sdboyer/thema"
 
 thema.#Lineage
 name: "{{ .Name }}"

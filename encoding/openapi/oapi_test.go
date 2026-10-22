@@ -8,9 +8,9 @@ import (
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/errors"
 	"cuelang.org/go/encoding/openapi"
-	"github.com/grafana/thema"
-	"github.com/grafana/thema/internal/txtartest/bindlin"
-	"github.com/grafana/thema/internal/txtartest/vanilla"
+	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/internal/txtartest/bindlin"
+	"github.com/sdboyer/thema/internal/txtartest/vanilla"
 )
 
 func TestGenerate(t *testing.T) {

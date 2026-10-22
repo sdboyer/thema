@@ -11,7 +11,7 @@ import (
 	"github.com/grafana/cuetsy"
 	"github.com/grafana/cuetsy/ts"
 	"github.com/grafana/cuetsy/ts/ast"
-	"github.com/grafana/thema"
+	"github.com/sdboyer/thema"
 )
 
 // All the parsed templates in the tmpl subdirectory
@@ -72,7 +72,7 @@ func GenerateTypes(sch thema.Schema, cfg *TypeConfig) (*ast.File, error) {
 		cfg.RootName = strings.Title(sch.Lineage().Name())
 	}
 
-	schdef := sch.Underlying().LookupPath(cue.MakePath(cue.Hid("_#schema", "github.com/grafana/thema")))
+	schdef := sch.Underlying().LookupPath(cue.MakePath(cue.Hid("_#schema", "github.com/sdboyer/thema")))
 	tf, err := cuetsy.GenerateAST(schdef, *cfg.CuetsyConfig)
 	if err != nil {
 		return nil, fmt.Errorf("generating TS for child elements of schema failed: %w", err)

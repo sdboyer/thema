@@ -8,8 +8,8 @@ import (
 	"cuelang.org/go/cue/ast"
 	"cuelang.org/go/cue/ast/astutil"
 	"cuelang.org/go/cue/token"
-	"github.com/grafana/thema"
-	"github.com/grafana/thema/encoding/openapi"
+	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/encoding/openapi"
 )
 
 // GenerateSchema generates a JSON Schema (Draft 4) schema representation of the

@@ -1,1 +1,1 @@
-module: "github.com/grafana/thema"
+module: "github.com/sdboyer/thema"

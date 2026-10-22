@@ -1,7 +1,7 @@
 #firstLin: lin1
 #secondLin: lin2
 -- in.cue --
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 lin1: thema.#Lineage
 lin1: name: "newfield"

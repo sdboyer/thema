@@ -9,7 +9,7 @@ import (
 
 	"cuelang.org/go/cue"
 
-	"github.com/grafana/thema/internal/txtartest/vanilla"
+	"github.com/sdboyer/thema/internal/txtartest/vanilla"
 
 	"cuelang.org/go/cue/cuecontext"
 	"github.com/stretchr/testify/require"

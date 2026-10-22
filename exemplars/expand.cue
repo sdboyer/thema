@@ -1,6 +1,6 @@
 package exemplars
 
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 expand: {
 	description: "A few schema in a single sequence, illustrating some simple expansions permitted by backwards compatibility rules."

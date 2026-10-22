@@ -1,6 +1,6 @@
 package vmux
 
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 // ByteMux is a version multiplexer that maps a []byte containing data at any
 // schematized version to a []byte containing data at a particular schematized version.

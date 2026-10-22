@@ -1,7 +1,7 @@
 # joinSchema contains optional fields of all cue kinds.
 # TODO Remove this once the 'optional' corpus case is fixed.
 -- in.cue --
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 thema.#Lineage
 name: "nearoptional"

@@ -14,7 +14,7 @@ This command will generate an empty lineage named `ship` and store the output in
 ```cue
 package ship
 
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 thema.#Lineage
 name: "ship"
@@ -35,7 +35,7 @@ Let's define a simple schema as an object containing two fields named `name` of 
 ```cue
 package ship
 
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 thema.#Lineage
 name: "ship"
@@ -104,8 +104,8 @@ import (
 	"embed"
 	"path"
 
-	"github.com/grafana/thema"
-	"github.com/grafana/thema/load"
+	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/load"
 )
 
 //go:embed ship.cue
@@ -124,7 +124,7 @@ func Lineage(rt *thema.Runtime, opts ...thema.BindOption) (thema.Lineage, error)
 // type guards
 var _ thema.LineageFactory = Lineage
 ```
-We now have a single Go function our program can call, and it will load up the `ship.cue` from disk and return a [`thema.Lineage`](https://pkg.go.dev/github.com/grafana/thema#Lineage)
+We now have a single Go function our program can call, and it will load up the `ship.cue` from disk and return a [`thema.Lineage`](https://pkg.go.dev/github.com/sdboyer/thema#Lineage)
 We can then use the Lineage function to validate our data against the schema of choice
 
 ## Validating data
@@ -132,7 +132,7 @@ We can then use the Lineage function to validate our data against the schema of 
 Using the Thema CLI, users can validate the schema of choice defined in `ship.cue`. Use the below command to validate the schema against an invalid JSON data
 
 ```
-curl https://raw.githubusercontent.com/grafana/thema/main/docs/test_ship.json > test_ship.json
+curl https://raw.githubusercontent.com/sdboyer/thema/main/docs/test_ship.json > test_ship.json
 thema data validate -v 0.0 -l ship.cue test_ship.json
 ```
 
@@ -157,8 +157,8 @@ import (
 	"testing"
 
 	"cuelang.org/go/cue/cuecontext"
-	"github.com/grafana/thema"
-	"github.com/grafana/thema/vmux"
+	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/vmux"
 )
 
 //go:embed test_ship.json

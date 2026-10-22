@@ -1,6 +1,6 @@
 # schema is an embedded struct, where struct is a def within the schema
 -- in.cue --
-import "github.com/grafana/thema"
+import "github.com/sdboyer/thema"
 
 thema.#Lineage
 name: "embedref"

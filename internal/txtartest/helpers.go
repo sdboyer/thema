@@ -5,7 +5,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/grafana/thema"
+	"github.com/sdboyer/thema"
 )
 
 // ForEachSchema iterates over the provided lineage's schemas, calling the

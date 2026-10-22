@@ -5,8 +5,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/grafana/thema"
-	"github.com/grafana/thema/exemplars"
+	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/exemplars"
 )
 
 var exonce sync.Once

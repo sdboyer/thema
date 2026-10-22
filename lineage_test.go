@@ -11,7 +11,7 @@ import (
 	"cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/load"
 
-	"github.com/grafana/thema/internal/txtartest/vanilla"
+	"github.com/sdboyer/thema/internal/txtartest/vanilla"
 )
 
 func TestBindLineage(t *testing.T) {
@@ -227,7 +227,7 @@ func getCaseWithImport() *build.Instance {
 	})[0]
 
 	buf := new(bytes.Buffer)
-	buf.WriteString(`import "github.com/grafana/thema"
+	buf.WriteString(`import "github.com/sdboyer/thema"
 
 thema.#Lineage
 `)

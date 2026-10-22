@@ -1,6 +1,6 @@
 # Using Thema in (Go) Programs
 
-In prior articles, we [wrote a `Ship` lineage in CUE](authoring.md), then made it reliably available in Go via a canonical [`LineageFactory`](https://pkg.go.dev/github.com/grafana/thema#LineageFactory) function named `ShipLineage()`. With that done, we're ready to write a program that puts Thema to work doing something useful.
+In prior articles, we [wrote a `Ship` lineage in CUE](authoring.md), then made it reliably available in Go via a canonical [`LineageFactory`](https://pkg.go.dev/github.com/sdboyer/thema#LineageFactory) function named `ShipLineage()`. With that done, we're ready to write a program that puts Thema to work doing something useful.
 
 Now, there are lots of kinds of programs that might use Thema. Here are a few:
 
@@ -52,7 +52,7 @@ import (
 
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/encoding/json"
-	"github.com/grafana/thema"
+	"github.com/sdboyer/thema"
 )
 
 var input = []byte(`{
@@ -77,9 +77,9 @@ With data-as-`cue.Value` prepared, we're ready to start validating. But first, l
 
 Thema's Go library presents three types for its core operations:
 
-* [`Lineage`](https://pkg.go.dev/github.com/grafana/thema#Lineage): represents a whole lineage; what we created in previous tutorials. Closed interface.
-* [`Schema`](https://pkg.go.dev/github.com/grafana/thema#Schema): represents an individual schema from a lineage. Closed interface.
-* [`Instance`](https://pkg.go.dev/github.com/grafana/thema#Instance): represents data that's a valid instance of some schema from some lineage. Struct with hidden members.
+* [`Lineage`](https://pkg.go.dev/github.com/sdboyer/thema#Lineage): represents a whole lineage; what we created in previous tutorials. Closed interface.
+* [`Schema`](https://pkg.go.dev/github.com/sdboyer/thema#Schema): represents an individual schema from a lineage. Closed interface.
+* [`Instance`](https://pkg.go.dev/github.com/sdboyer/thema#Instance): represents data that's a valid instance of some schema from some lineage. Struct with hidden members.
 
 These directly represent three of the [core concepts](overview.md). All of these types are closed in order to ensure that a non-nil variable of the type is constructed in a manner that is ready for use, and confers Thema's [guarantees](invariants.md).
 
@@ -98,7 +98,7 @@ import (
     "testing"
 
     "cuelang.org/go/cue/cuecontext"
-    "github.com/grafana/thema"
+    "github.com/sdboyer/thema"
 )
 
 var lib thema.Library = thema.NewLibrary(cuecontext.New())
@@ -121,11 +121,11 @@ func TestHandpickValidation(t *testing.T) {
 }
 ```
 
-Here, we've hand-picked the schema version we want to validate against - `0.0`, which every lineage is guaranteed to contain. The [`LatestVersion()`](https://pkg.go.dev/github.com/grafana/thema#LatestVersion) and [`LatestVersionInSequence()`](https://pkg.go.dev/github.com/grafana/thema#LatestVersionInSequence) functions provide fuzzier version selection logic. But allowing only one schema version as input somewhat defeats the purpose of using Thema in the first place. Ideally, we'd have something more dynamic.
+Here, we've hand-picked the schema version we want to validate against - `0.0`, which every lineage is guaranteed to contain. The [`LatestVersion()`](https://pkg.go.dev/github.com/sdboyer/thema#LatestVersion) and [`LatestVersionInSequence()`](https://pkg.go.dev/github.com/sdboyer/thema#LatestVersionInSequence) functions provide fuzzier version selection logic. But allowing only one schema version as input somewhat defeats the purpose of using Thema in the first place. Ideally, we'd have something more dynamic.
 
 ### Search by validity
 
-The first step to simplifying the ingestion of data from multiple possible schemas is to stop treating them individually. (It's like ["cattle, not pets"](http://cloudscaling.com/blog/cloud-computing/the-history-of-pets-vs-cattle/), but for schema!) [`Lineage.ValidateAny()`](https://pkg.go.dev/github.com/grafana/thema#Lineage) gives us what we want, here: instead of having to preselect the schema we want to validate against, we only want to know if the data is valid against _any_ schema in our lineage.
+The first step to simplifying the ingestion of data from multiple possible schemas is to stop treating them individually. (It's like ["cattle, not pets"](http://cloudscaling.com/blog/cloud-computing/the-history-of-pets-vs-cattle/), but for schema!) [`Lineage.ValidateAny()`](https://pkg.go.dev/github.com/sdboyer/thema#Lineage) gives us what we want, here: instead of having to preselect the schema we want to validate against, we only want to know if the data is valid against _any_ schema in our lineage.
 
 ```go
 package example
@@ -134,7 +134,7 @@ import (
     "testing"
 
     "cuelang.org/go/cue/cuecontext"
-    "github.com/grafana/thema"
+    "github.com/sdboyer/thema"
 )
 
 var lib thema.Library = thema.NewLibrary(cuecontext.New())
@@ -176,7 +176,7 @@ OK, now we know what version we validated against. But relying on search means w
 
 Fanning in to a single version of our schema means putting Thema's system of lenses and translation to work. Given an instance of `Ship`, regardless of what version it starts at, we want to translate to one known, fixed version throughout our program. (This is analogous to pinning a dependency's version with a traditional package manager.) For now, let's put it in a package variable called `targetVersion`, and pick `1.0`.
 
-Calling `Translate()` on an instance will produce two values: a new instance valid with respect to the schema version that was specified, and any lacunas that the translation process produced. And our `Ship` lineage [does emit one](https://github.com/grafana/thema/blob/main/docs/authoring.md#emitting-a-lacuna), because we had to put that placeholder `-1` value in for `secondfield`.
+Calling `Translate()` on an instance will produce two values: a new instance valid with respect to the schema version that was specified, and any lacunas that the translation process produced. And our `Ship` lineage [does emit one](https://github.com/sdboyer/thema/blob/main/docs/authoring.md#emitting-a-lacuna), because we had to put that placeholder `-1` value in for `secondfield`.
 
 ```go
 var targetVersion = thema.SV(1, 0)
@@ -264,7 +264,7 @@ With our native Go type populated, our program is now ready to forget that Thema
 
 ## Input Kernel
 
-**NOTE - the kernel system has been replaced with the much-improved, generics-powered [vmux](https://pkg.go.dev/github.com/grafana/thema/vmux) package. This tutorial is the process of being rewritten.**
+**NOTE - the kernel system has been replaced with the much-improved, generics-powered [vmux](https://pkg.go.dev/github.com/sdboyer/thema/vmux) package. This tutorial is the process of being rewritten.**
 
 Manually stitching together a Thema-based input processing flow can be done. Clearly - we've just done it. But all we've really made is function calls scattered across tests, rather than a nice, tight system. Ideally, there'd be an approach that miimally distracts us from the harder problem: composing Thema into larger systems. Start with a `[]byte` of input data, end with our desired Go type, all in a minimal structure made from the answer to a few high-level questions:
 
@@ -273,7 +273,7 @@ Manually stitching together a Thema-based input processing flow can be done. Cle
 * Which schema version are we targeting?
 * What Go type do we want our data to end up in?
 
-Enter, [`InputKernel`](https://pkg.go.dev/github.com/grafana/thema/kernel#InputKernel).
+Enter, [`InputKernel`](https://pkg.go.dev/github.com/sdboyer/thema/kernel#InputKernel).
 
 Thema's kernels encapsulate common patterns for getting data into and out of a running program. The `InputKernel` does this for the pattern we just wrote out manually. To create one, we answer those four questions:
 
@@ -388,7 +388,7 @@ TODO mention how HTTP Request headers can be used to decide which version to tra
 
 ## Wrap-up
 
-This tutorial illustrated how to take the [`LineageFactory`](https://pkg.go.dev/github.com/grafana/thema#LineageFactory) called `ShipLineage` that we created in the [last tutorial](go-mapping.md), and use it to create an `InputKernel` around a Go `Ship` type that can handle valid input of any ship schema in our lineage and land on a populated instance of our `Ship` type.
+This tutorial illustrated how to take the [`LineageFactory`](https://pkg.go.dev/github.com/sdboyer/thema#LineageFactory) called `ShipLineage` that we created in the [last tutorial](go-mapping.md), and use it to create an `InputKernel` around a Go `Ship` type that can handle valid input of any ship schema in our lineage and land on a populated instance of our `Ship` type.
 
 The [next (TODO)](lacuna-programming.md) tutorial will show how to add the final, tidy layer for working with Thema in programs: handling lacunas that are emitted from `Translate()`.
 

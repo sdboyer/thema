@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"cuelang.org/go/cue/cuecontext"
-	"github.com/grafana/thema"
-	"github.com/grafana/thema/internal/txtartest/bindlin"
-	"github.com/grafana/thema/internal/txtartest/vanilla"
+	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/internal/txtartest/bindlin"
+	"github.com/sdboyer/thema/internal/txtartest/vanilla"
 )
 
 func TestGenerate(t *testing.T) {
