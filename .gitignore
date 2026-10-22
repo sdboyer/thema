@@ -19,3 +19,5 @@
 cmd/thema/thema
 
 dist/
+
+.DS_Store
