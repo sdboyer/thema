@@ -83,7 +83,7 @@ Lineage: {
 
 	// Catch misspelled or unknown fields. Hidden and definition fields are not
 	// matched, and remain free for lineage authors' own helpers.
-	[K=!~"^(name|joinSchema|schemas|lenses)$"]: error("\(K) is not a field of a lineage; a lineage has only name, joinSchema, schemas and lenses")
+	[!~"^(name|joinSchema|schemas|lenses)$"]~(K,_): error("\(K) is not a field of a lineage; a lineage has only name, joinSchema, schemas and lenses")
 
 	_forwardLenses:  [for lens in lenses if lens.to[0] > lens.from[0] {lens}]
 	_backwardLenses: [for lens in lenses if lens.to[0] <= lens.from[0] {lens}]
@@ -226,7 +226,7 @@ SchemaDef: {
 	// for use in documentation or other non-functional contexts.
 	examples?: [string]: _schema
 
-	[K=!~"^(version|schema|examples)$"]: error("\(K) is not a field of a schema; a schema entry has only version, schema and examples")
+	[!~"^(version|schema|examples)$"]~(K,_): error("\(K) is not a field of a schema; a schema entry has only version, schema and examples")
 }
 
 // Lens defines a transformation that maps the fields of one schema in a lineage to the
@@ -264,7 +264,7 @@ Lens: {
 	// for more information (TODO).
 	lacunas: [...Lacuna]
 
-	[K=!~"^(from|to|input|result|lacunas)$"]: error("\(K) is not a field of a lens; a lens has only from, to, input, result and lacunas")
+	[!~"^(from|to|input|result|lacunas)$"]~(K,_): error("\(K) is not a field of a lens; a lens has only from, to, input, result and lacunas")
 }
 
 // SyntacticVersion is an ordered pair of non-negative integers. It represents

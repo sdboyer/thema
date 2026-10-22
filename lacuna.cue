@@ -38,7 +38,7 @@ Lacuna: {
 
 	type: or([for t in LacunaTypes {t}])
 
-	[K=!~"^(condition|sourceFields|targetFields|message|type)$"]: error("\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type")
+	[!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error("\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type")
 }
 
 // A reference to a field and its value in a schema/instance.
@@ -48,10 +48,10 @@ LacunaFieldRef: {
 	value: _
 	path:  string
 
-	[K=!~"^(value|path)$"]: error("\(K) is not a field of a lacuna field reference; it has only value and path")
+	[!~"^(value|path)$"]~(K,_): error("\(K) is not a field of a lacuna field reference; it has only value and path")
 }
 
-LacunaTypes: [N=string]: LacunaType & {name: N}
+LacunaTypes: [string]~(N,_): LacunaType & {name: N}
 LacunaTypes: {
 	// Placeholder lacunas indicate that a field in the target instance has
 	// been filled with a placeholder value.

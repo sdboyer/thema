@@ -4,7 +4,7 @@ import "github.com/sdboyer/thema"
 
 rename: {
 	description: "A field is renamed - a breaking change, necessitating a new sequence."
-	l:           thema.Lineage & {
+	l: thema.Lineage & {
 		schemas: [{
 			version: [0, 0]
 			schema: {
@@ -20,8 +20,8 @@ rename: {
 		}]
 
 		lenses: [{
-			to: [0, 0]
-			from: [1, 0]
+			to:    [0, 0]
+			from:  [1, 0]
 			input: _
 			result: {
 				before:    input.after
@@ -29,8 +29,8 @@ rename: {
 			}
 			lacunas: []
 		}, {
-			to: [1, 0]
-			from: [0, 0]
+			to:    [1, 0]
+			from:  [0, 0]
 			input: _
 			result: {
 				after:     input.before

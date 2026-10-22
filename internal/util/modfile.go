@@ -6,7 +6,7 @@ import "fmt"
 // cue.mod/module.cue. Every module.cue that thema synthesizes declares the same
 // version, so that thema's CUE and the CUE it loads alongside it are evaluated
 // under the same language semantics.
-const LanguageVersion = "v0.17.0"
+const LanguageVersion = "v0.18.0"
 
 // ModuleFile returns the contents of a cue.mod/module.cue file declaring the
 // provided module path, [LanguageVersion], and a dependency on thema's CUE module

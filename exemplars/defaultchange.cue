@@ -4,7 +4,7 @@ import "github.com/sdboyer/thema"
 
 defaultchange: {
 	description: "The default value for a field is changed, entailing a new sequence."
-	l:           thema.Lineage & {
+	l: thema.Lineage & {
 		schemas: [{
 			version: [0, 0]
 			schema: aunion: *"foo" | "bar" | "baz"
@@ -14,8 +14,8 @@ defaultchange: {
 		}]
 
 		lenses: [{
-			to: [0, 0]
-			from: [1, 0]
+			to:    [0, 0]
+			from:  [1, 0]
 			input: _
 			result: {
 				if input.aunion == "bar" {
@@ -42,8 +42,8 @@ defaultchange: {
 				},
 			]
 		}, {
-			to: [1, 0]
-			from: [0, 0]
+			to:    [1, 0]
+			from:  [0, 0]
 			input: _
 			result: {
 				// FIXME lenses need more structure to allow disambiguating absence and presence in the instance

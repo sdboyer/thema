@@ -7,17 +7,17 @@ lin: name: "Ship"
 lin: seqs: [
 	{
 		schemas: [
-			{// 0.0
+			{
 				firstfield: string
-			},
+			}, // 0.0
 		]
 	},
 	{
 		schemas: [
-			{// 1.0
+			{
 				firstfield:  string
 				secondfield: int
-			},
+			}, // 1.0
 		]
 
 		lens: forward: {

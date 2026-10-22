@@ -14,7 +14,7 @@ _Exemplar: {
 	// }
 }
 
-[N=string]: _Exemplar & {
+[string]~(N,_): _Exemplar & {
 	l: name: N
 }
 

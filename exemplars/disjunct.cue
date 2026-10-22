@@ -24,7 +24,7 @@ disjunct: {
 					branch:    2
 					branchtwo: string
 				} | {
-					branch:      3
+					branch: 3
 					branchthree: {
 						branchthreeinner: int
 					} | {
@@ -35,8 +35,8 @@ disjunct: {
 		}]
 
 		lenses: [{
-			to: [0, 0]
-			from: [0, 1]
+			to:    [0, 0]
+			from:  [0, 1]
 			input: _
 			result: {
 				// FIXME this extra conditional is needed b/c otherwise lienage validation complains 'branch' field doesn't exist

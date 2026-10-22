@@ -4,7 +4,7 @@ import "github.com/sdboyer/thema"
 
 single: {
 	description: "Lineage containing one sequence with a single, trivial schema."
-	l:           thema.Lineage & {
+	l: thema.Lineage & {
 		seqs: [
 			{
 				schemas: [
@@ -12,7 +12,7 @@ single: {
 						astring: string
 						anint:   int
 						abool:   bool
-						anopt?: [number, number]
+						anopt?:  [number, number]
 					},
 				]
 			},
