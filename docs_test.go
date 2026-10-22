@@ -18,9 +18,7 @@ func TestDocsShip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// loadLineageValue supplies the package clause and import itself.
-	body := string(src)
-	body = body[strings.Index(body, "lin:"):]
+	body := lineageBody(t, string(src))
 
 	ctx := cuecontext.New()
 	lin, err := bindString(t, NewRuntime(ctx), body)
@@ -66,10 +64,20 @@ func TestDocsAuthoringSnippets(t *testing.T) {
 	}
 	rt := NewRuntime(cuecontext.New())
 	for i, m := range snippets {
-		body := m[1][strings.Index(m[1], "lin:"):]
-		_, err := bindString(t, rt, body)
+		_, err := bindString(t, rt, lineageBody(t, m[1]))
 		if (err == nil) != want[i] {
 			t.Errorf("snippet %d: bound = %v, want %v (%v)", i, err == nil, want[i], err)
 		}
 	}
+}
+
+// lineageBody returns src from its lineage field on; bindString supplies the
+// package clause and import itself.
+func lineageBody(t *testing.T, src string) string {
+	t.Helper()
+	i := strings.Index(src, "lin:")
+	if i < 0 {
+		t.Fatalf("no lineage field in:\n%s", src)
+	}
+	return src[i:]
 }
