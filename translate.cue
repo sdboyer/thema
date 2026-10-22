@@ -47,9 +47,17 @@ Translate: {
 	out: {
 		steps: [...TranslatedInstance]
 		result: {
-			from:   FV
-			to:     TV
-			result: *steps[len(steps)-1].result | I
+			from: FV
+			to:   TV
+			// Chosen by step count, not as a disjunction default: an erroneous
+			// default is silently discarded, which would turn a broken lens into
+			// an untranslated copy of the input.
+			if len(steps) > 0 {
+				result: steps[len(steps)-1].result
+			}
+			if len(steps) == 0 {
+				result: I
+			}
 		}
 	}
 	out: {
