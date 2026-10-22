@@ -1,0 +1,27 @@
+Verifies default value generation for enums
+- Disjunction style uses CUE defaults
+- Struct style uses @cuetsy(enumDefault) flag
+
+-- cue --
+package cuetsy
+
+OrEnum: "foo" | "bar" | *"baz" @cuetsy(kind="enum")
+OrEnumNumeric: *1 | 2 | 3 @cuetsy(kind="enum", memberNames="Foo|Bar|Zip")
+
+-- ts  --
+
+export enum OrEnum {
+  Bar = 'bar',
+  Baz = 'baz',
+  Foo = 'foo',
+}
+
+export const defaultOrEnum: OrEnum = OrEnum.Baz;
+
+export enum OrEnumNumeric {
+  Bar = 2,
+  Foo = 1,
+  Zip = 3,
+}
+
+export const defaultOrEnumNumeric: OrEnumNumeric = OrEnumNumeric.Foo;

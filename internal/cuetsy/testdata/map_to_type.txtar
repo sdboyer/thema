@@ -1,0 +1,49 @@
+-- cue --
+package cuetsy
+
+#StructTest: {
+  a: string
+}
+
+#StructWithDots: {
+  type: "hola"
+  ...
+}
+
+Map: {
+  boolTest: [string]: bool
+  numberTest: [string]: int64
+  stringTest: [string]: string
+  emptyStructTest: {...}
+  listTest: [string]: [...string]
+  listWithStructTest: [string]: [...#StructTest]
+  mapTest: [string]: [string]: string
+  structTest: [string]: #StructTest
+  optionalTest?: [string]: string
+  emptyStructMapTest: [string]: {...}
+  structWithDotsTest: [string]: #StructWithDots
+} @cuetsy(kind="interface")
+
+
+
+-- ts  --
+
+export interface Map {
+  boolTest: Record<string, boolean>;
+  emptyStructMapTest: Record<string, Record<string, unknown>>;
+  emptyStructTest: Record<string, unknown>;
+  listTest: Record<string, Array<string>>;
+  listWithStructTest: Record<string, Array<{
+  a: string,
+}>>;
+  mapTest: Record<string, Record<string, string>>;
+  numberTest: Record<string, number>;
+  optionalTest?: Record<string, string>;
+  stringTest: Record<string, string>;
+  structTest: Record<string, {
+  a: string,
+}>;
+  structWithDotsTest: Record<string, {
+  type: 'hola',
+}>;
+}

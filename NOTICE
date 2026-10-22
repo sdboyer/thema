@@ -11,3 +11,7 @@ changes. Contributors to the original project are listed in AUTHORS.
 
 This project includes software developed by the CUE Authors
 (https://cuelang.org), licensed under the Apache License, Version 2.0.
+
+internal/cuetsy is derived from github.com/grafana/cuetsy v0.1.11
+(https://github.com/grafana/cuetsy), Copyright Grafana Labs, licensed under
+the Apache License, Version 2.0, and modified from the original.

@@ -1,0 +1,11 @@
+-- cue --
+package test
+
+Out: {
+    foo: string
+} | {
+    bar: string
+} @cuetsy(kind="interface")
+
+-- err --
+Found an error in the field 'Out:3:1'. Error: typescript interfaces cannot be constructed from disjunctions

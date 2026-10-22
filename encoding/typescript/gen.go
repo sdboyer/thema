@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"cuelang.org/go/cue"
-	"github.com/grafana/cuetsy"
-	"github.com/grafana/cuetsy/ts"
-	"github.com/grafana/cuetsy/ts/ast"
 	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/internal/cuetsy"
+	"github.com/sdboyer/thema/internal/cuetsy/ts"
+	"github.com/sdboyer/thema/internal/cuetsy/ts/ast"
 )
 
 // All the parsed templates in the tmpl subdirectory
