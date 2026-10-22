@@ -57,7 +57,7 @@ func runValidateAny(t *testing.T, stdin *os.File) (string, error) {
 		t.Fatal(err)
 	}
 
-	cmd := exec.Command(os.Args[0], "data", "validate-any", "-l", "ship.cue", "-p", "lin")
+	cmd := exec.Command(os.Args[0], "data", "validate-any", "-l", "ship.cue", "-p", "lin") //nolint:gosec // re-executes this test binary
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), runMainEnv+"=1")
 	cmd.Stdin = stdin
@@ -73,11 +73,11 @@ func TestDataRedirectedStdin(t *testing.T) {
 	if err := os.WriteFile(in, []byte(`{"a": "foo"}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	f, err := os.Open(in)
+	f, err := os.Open(in) //nolint:gosec // a file this test just wrote
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close() // nolint: errcheck
+	defer f.Close() //nolint:errcheck // nothing to do on a failed close in a test
 
 	out, err := runValidateAny(t, f)
 	if err != nil {
@@ -93,11 +93,11 @@ func TestDataPipedStdin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer r.Close() // nolint: errcheck
-	if _, err := w.WriteString(`{"a": "foo"}`); err != nil {
+	defer r.Close() //nolint:errcheck // nothing to do on a failed close in a test
+	if _, err = w.WriteString(`{"a": "foo"}`); err != nil {
 		t.Fatal(err)
 	}
-	if err := w.Close(); err != nil {
+	if err = w.Close(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -116,7 +116,7 @@ func TestDataCharDeviceStdin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close() // nolint: errcheck
+	defer f.Close() //nolint:errcheck // nothing to do on a failed close in a test
 
 	out, err := runValidateAny(t, f)
 	if err == nil {
