@@ -134,6 +134,9 @@ func BindLineage(v cue.Value, rt *Runtime, opts ...BindOption) (Lineage, error) 
 	if err := ml.checkLensesOrder(); err != nil {
 		return nil, err
 	}
+	if err := ml.checkLensResults(); err != nil {
+		return nil, err
+	}
 	if err := ml.checkLacunas(); err != nil {
 		return nil, err
 	}

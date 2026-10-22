@@ -305,6 +305,72 @@ func (ml *maybeLineage) checkNativeValidity(cfg *bindConfig) error {
 	return nil
 }
 
+// checkLensResults statically checks each CUE lens against its schemas, with its
+// input standing for any instance of its source schema (closed, so references to
+// fields the source can't have are errors). The lens's input must accept every
+// instance of the source schema, and its result must be consistent with the
+// target schema and build only fields the target declares. This catches at bind
+// time what would otherwise fail only when a matching instance is translated.
+func (ml *maybeLineage) checkLensResults() error {
+	if len(ml.implens) > 0 {
+		return nil
+	}
+	ctx := ml.rt.Context()
+	byVersion := make(map[SyntacticVersion]*schemaDef, len(ml.schlist))
+	for _, sch := range ml.schlist {
+		byVersion[sch.v] = sch
+	}
+	inputPath, resultPath := cue.MakePath(cue.Str("input")), cue.MakePath(cue.Str("result"))
+
+	var errs cerrors.Error
+	lenses := ml.uni.LookupPath(cue.MakePath(cue.Str("lenses")))
+	for li := 0; ; li++ {
+		lens := lenses.LookupPath(cue.MakePath(cue.Index(li)))
+		if !lens.Exists() {
+			break
+		}
+		var from, to SyntacticVersion
+		if lens.LookupPath(cue.MakePath(cue.Str("from"))).Decode(&from) != nil || lens.LookupPath(cue.MakePath(cue.Str("to"))).Decode(&to) != nil {
+			continue
+		}
+		fsch, tsch := byVersion[from], byVersion[to]
+		if fsch == nil || tsch == nil {
+			continue
+		}
+		fail := func(v cue.Value, format string, args ...any) {
+			errs = cerrors.Append(errs, cerrors.Newf(userPos(v), "lens %s -> %s: %s", from, to, fmt.Sprintf(format, args...)))
+		}
+
+		source := cuetil.CloseRecursive(ctx, fsch.def)
+		input := lens.LookupPath(inputPath)
+		if err := input.Subsume(source); err != nil {
+			fail(input, "input must accept every instance of schema %s, but is narrower: %s", from, cerrors.Details(err, nil))
+			continue
+		}
+
+		result := lens.FillPath(inputPath, source).LookupPath(resultPath)
+		if err := result.Unify(cuetil.CloseRecursive(ctx, tsch.def)).Validate(); err != nil {
+			fail(lens.LookupPath(resultPath), "result is not an instance of schema %s:\n%s", to, cerrors.Details(err, nil))
+			continue
+		}
+		paths := cuetil.UndeclaredBuiltFields(ctx, result, tsch.def)
+		// Fields built inside comprehensions only exist once data makes them fire.
+		for _, p := range cuetil.ComprehensionFieldPaths(lens.LookupPath(resultPath)) {
+			if !cuetil.DeclaresPath(ctx, tsch.def, p) {
+				paths = append(paths, p)
+			}
+		}
+		if len(paths) > 0 {
+			fail(lens.LookupPath(resultPath), "%s", tsch.undeclaredErr(paths))
+		}
+	}
+
+	if errs != nil {
+		return errors.Mark(errs, terrors.ErrInvalidLens)
+	}
+	return nil
+}
+
 // checkLacunas checks the lacunas each CUE lens can emit: they must be listed
 // unconditionally (each lacuna's condition field decides whether it applies),
 // have a message and a type, and refer only to fields declared by the lens's
@@ -390,7 +456,21 @@ func (ml *maybeLineage) checkLensesOrder() error {
 	// Two distinct validation paths, depending on whether the lenses were defined in
 	// Go or CUE.
 	if len(ml.implens) > 0 {
-		return ml.checkGoLensCompleteness()
+		ids := make([]lensID, 0, len(ml.implens))
+		for _, lens := range ml.implens {
+			if lens.Mapper == nil {
+				return fmt.Errorf("nil Go migration func for %s", lid(lens.From, lens.To))
+			}
+			ids = append(ids, lid(lens.From, lens.To))
+		}
+		if err := ml.checkLensCompleteness(ids, "Go migrations"); err != nil {
+			return err
+		}
+		ml.lensmap = make(map[lensID]ImperativeLens, len(ml.implens))
+		for _, lens := range ml.implens {
+			ml.lensmap[lid(lens.From, lens.To)] = lens
+		}
+		return nil
 	}
 
 	lensIter, err := ml.uni.LookupPath(cue.MakePath(cue.Str("lenses"))).List()
@@ -398,6 +478,7 @@ func (ml *maybeLineage) checkLensesOrder() error {
 		return nil // no lenses found
 	}
 
+	var ids []lensID
 	var previous *lensVersionDef
 	for lensIter.Next() {
 		curr, err := newLensVersionDef(lensIter.Value())
@@ -410,21 +491,25 @@ func (ml *maybeLineage) checkLensesOrder() error {
 		}
 
 		previous = &curr
+		ids = append(ids, lid(curr.from, curr.to))
 	}
 
-	return nil
+	// Translate selects CUE lenses by their position in the sorted list, so a
+	// missing or extra lens would shift every lens after it.
+	return ml.checkLensCompleteness(ids, "lenses")
 }
 
-func (ml *maybeLineage) checkGoLensCompleteness() error {
-	// TODO(sdboyer) it'd be nice to consolidate all the errors so that the user always sees a complete set of problems
+// checkLensCompleteness checks that a lineage has exactly the lenses its schema
+// versions require: a lens from every schema back to its predecessor, and a lens
+// forward across every major version boundary. Duplicates, self-lenses, lenses
+// between nonexistent or non-adjacent versions, and forward lenses across minor
+// versions (which are implicit) are all errors. kind names the lenses in errors,
+// e.g. "CUE lenses".
+func (ml *maybeLineage) checkLensCompleteness(ids []lensID, kind string) error {
 	all := make(map[lensID]bool)
-	for _, lens := range ml.implens {
-		id := lid(lens.From, lens.To)
+	for _, id := range ids {
 		if all[id] {
-			return fmt.Errorf("duplicate Go migration %s", id)
-		}
-		if lens.Mapper == nil {
-			return fmt.Errorf("nil Go migration func for %s", id)
+			return errors.Mark(fmt.Errorf("duplicate %s for %s", kind, id), terrors.ErrErroneousLenses)
 		}
 		all[id] = true
 	}
@@ -459,7 +544,7 @@ func (ml *maybeLineage) checkGoLensCompleteness() error {
 	if len(missing) > 0 {
 		b := new(bytes.Buffer)
 
-		fmt.Fprintf(b, "Go migrations not provided for the following version pairs:\n")
+		fmt.Fprintf(b, "%s not provided for the following version pairs:\n", kind)
 		for _, mlid := range missing {
 			fmt.Fprint(b, "\t", mlid, "\n")
 		}
@@ -469,40 +554,32 @@ func (ml *maybeLineage) checkGoLensCompleteness() error {
 	if len(all) > 0 {
 		b := new(bytes.Buffer)
 
-		fmt.Fprintf(b, "Go migrations erroneously provided for the following version pairs:\n")
+		fmt.Fprintf(b, "%s erroneously provided for the following version pairs:\n", kind)
 		// walk the slice so output is reliably ordered
-		for _, lens := range ml.implens {
+		for _, elid := range ids {
 			// if it's not in the list it's because it was expected & already processed
-			elid := lid(lens.From, lens.To)
 			if _, has := all[elid]; !has {
 				continue
 			}
-			if !synvExists(ml.allv, lens.To) {
-				fmt.Fprintf(b, "\t%s (schema version %s does not exist)", elid, lens.To)
-			} else if !synvExists(ml.allv, lens.From) {
-				fmt.Fprintf(b, "\t%s (schema version %s does not exist)", elid, lens.From)
+			if !synvExists(ml.allv, elid.To) {
+				fmt.Fprintf(b, "\t%s (schema version %s does not exist)\n", elid, elid.To)
+			} else if !synvExists(ml.allv, elid.From) {
+				fmt.Fprintf(b, "\t%s (schema version %s does not exist)\n", elid, elid.From)
 			} else if elid.To == elid.From {
-				fmt.Fprintf(b, "\t%s (self-migrations not allowed)", elid)
+				fmt.Fprintf(b, "\t%s (lenses from a version to itself are not allowed)\n", elid)
 			} else if elid.To.Less(elid.From) {
 				// reverse lenses
 				// only possibility is non-sequential versions connected
-				fmt.Fprintf(b, "\t%s (%s is predecessor of %s, not %s)", elid, ml.allv[searchSynv(ml.allv, elid.From)-1], elid.From, elid.To)
+				fmt.Fprintf(b, "\t%s (%s is the predecessor of %s, not %s)\n", elid, ml.allv[searchSynv(ml.allv, elid.From)-1], elid.From, elid.To)
+			} else if elid.To[0] == elid.From[0] {
+				// forward lens within a major version
+				fmt.Fprintf(b, "\t%s (minor version upgrades are handled automatically)\n", elid)
 			} else {
-				// forward lenses
-				// either a minor lens was provided, or non-sequential versions connected
-				if lens.To[0] != lens.From[0] {
-					fmt.Fprintf(b, "\t%s (minor version upgrades are handled automatically)", elid)
-				} else {
-					fmt.Fprintf(b, "\t%s (%s is successor of %s, not %s)", elid, ml.allv[searchSynv(ml.allv, elid.From)+1], elid.From, elid.To)
-				}
+				// forward lens across major versions, between non-adjacent versions
+				fmt.Fprintf(b, "\t%s (%s is the successor of %s, not %s)\n", elid, ml.allv[searchSynv(ml.allv, elid.From)+1], elid.From, elid.To)
 			}
 		}
 		return errors.Mark(errors.New(b.String()), terrors.ErrErroneousLenses)
-	}
-
-	ml.lensmap = make(map[lensID]ImperativeLens, len(ml.implens))
-	for _, lens := range ml.implens {
-		ml.lensmap[lid(lens.From, lens.To)] = lens
 	}
 
 	return nil
