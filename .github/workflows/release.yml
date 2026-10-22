@@ -5,21 +5,81 @@ on:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
 
+permissions:
+  contents: read
+
 jobs:
-  goreleaser:
+  # The Go module and the CUE module are released under the same tag, and the
+  # Go module embeds the CUE module's version as util.ThemaModuleVersion. A tag
+  # that disagrees with it would publish a Go module whose synthesized
+  # module.cue files depend on a different CUE module version than the one
+  # published alongside it.
+  version-guard:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
+
+      - name: Check ThemaModuleVersion matches tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          v=$(sed -n 's/^const ThemaModuleVersion = "\(.*\)"$/\1/p' internal/util/modfile.go)
+          if [ -z "$v" ]; then
+            echo "::error file=internal/util/modfile.go::could not find ThemaModuleVersion"
+            exit 1
+          fi
+          if [ "$v" != "$TAG" ]; then
+            echo "::error file=internal/util/modfile.go::ThemaModuleVersion is $v but the tag is $TAG; bump it in a commit and re-tag"
+            exit 1
+          fi
+
+  goreleaser:
+    needs: version-guard
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - run: git fetch --force --tags
-      - uses: actions/setup-go@v4
+
+      - uses: actions/setup-go@v7
         with:
-          go-version: stable
-      - uses: goreleaser/goreleaser-action@v4
+          go-version-file: go.mod
+          cache: true
+
+      - uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
-          version: latest
+          version: "~> v2"
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  cue-publish:
+    needs: version-guard
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # OIDC login to the Central Registry; no long-lived registry token.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install cue
+        run: go install "cuelang.org/go/cmd/cue@$(go list -m -f '{{.Version}}' cuelang.org/go)"
+
+      # Requires a trust entry for this repository and workflow at
+      # https://registry.cue.works/account/oidc.
+      - name: Log in to the Central Registry
+        uses: cue-labs/registry-login-action@v1
+
+      - name: Publish CUE module
+        env:
+          TAG: ${{ github.ref_name }}
+        run: cue mod publish "$TAG"
