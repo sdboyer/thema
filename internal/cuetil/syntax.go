@@ -14,7 +14,7 @@ import (
 func ListBuiltByComprehension(v cue.Value) bool {
 	_, conjuncts := v.Expr()
 	for _, c := range conjuncts {
-		var x ast.Node = c.Source()
+		x := c.Source()
 		if f, ok := x.(*ast.Field); ok {
 			x = f.Value
 		}
@@ -41,7 +41,7 @@ func ComprehensionFieldPaths(v cue.Value) []cue.Path {
 		conjuncts = []cue.Value{v}
 	}
 	for _, c := range conjuncts {
-		var x ast.Node = c.Source()
+		x := c.Source()
 		if f, ok := x.(*ast.Field); ok {
 			x = f.Value
 		}
