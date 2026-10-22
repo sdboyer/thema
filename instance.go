@@ -43,8 +43,19 @@ type Instance struct {
 	// The schema the data validated against/of which the input data is a valid instance
 	sch Schema
 
+	// How the data was validated; translations validate their results the same way
+	vcfg validateConfig
+
 	// simple flag the prevents external creation
 	valid bool
+}
+
+// validateOpts returns options that validate data the same way i was validated.
+func (i *Instance) validateOpts() []ValidateOption {
+	if i.vcfg.asWritten {
+		return []ValidateOption{AsWritten()}
+	}
+	return nil
 }
 
 func (i *Instance) check() {
@@ -220,10 +231,11 @@ func (i *Instance) Translate(to SyntacticVersion) (*Instance, TranslationLacunas
 	}
 
 	out, err := cueArgs{
-		"inst": i.raw,
-		"to":   to,
-		"from": i.Schema().Version(),
-		"lin":  i.Schema().Lineage().Underlying(),
+		"inst":      i.raw,
+		"to":        to,
+		"from":      i.Schema().Version(),
+		"lin":       i.Schema().Lineage().Underlying(),
+		"asWritten": i.vcfg.asWritten,
 	}.call("Translate", i.rt())
 	if err != nil {
 		// This can't happen without a name change or an invariant violation
@@ -249,7 +261,7 @@ func (i *Instance) Translate(to SyntacticVersion) (*Instance, TranslationLacunas
 	}
 
 	// Ensure the result is a valid instance of the target schema
-	inst, err := newsch.Validate(raw)
+	inst, err := newsch.Validate(raw, i.validateOpts()...)
 	if err != nil {
 		return nil, nil, errors.Mark(err, terrors.ErrLensResultIsInvalidData)
 	}

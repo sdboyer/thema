@@ -74,7 +74,7 @@ func (sch *schemaDef) rt() *Runtime {
 // the translation internally; input values must be concrete. To use
 // incomplete CUE values with Thema schemas, prefer working directly in CUE,
 // or if you must, rely on Underlying().
-func (sch *schemaDef) Validate(data cue.Value) (*Instance, error) {
+func (sch *schemaDef) Validate(data cue.Value, opts ...ValidateOption) (*Instance, error) {
 	sch.rt().rl()
 	defer sch.rt().ru()
 	// TODO which approach is actually the right one, unify or subsume? ugh
@@ -84,9 +84,14 @@ func (sch *schemaDef) Validate(data cue.Value) (*Instance, error) {
 	// 	// return nil, mungeValidateErr(err, sch)
 	// }
 
-	// Schemas are only as closed as their authors wrote them; validation rejects
-	// fields the schema does not define by closing it here.
-	x := cuetil.CloseRecursive(sch.rt().Context(), sch.def).Unify(data)
+	// Schemas are only as closed as their authors wrote them. By default,
+	// validation rejects fields the schema does not define by closing it here.
+	cfg := newValidateConfig(opts)
+	def := sch.def
+	if !cfg.asWritten {
+		def = cuetil.CloseRecursive(sch.rt().Context(), def)
+	}
+	x := def.Unify(data)
 
 	// The cue.Concrete(true) option ensure that Concrete all values resulting
 	// from the unification of the schema and data are concrete.
@@ -100,6 +105,7 @@ func (sch *schemaDef) Validate(data cue.Value) (*Instance, error) {
 		valid: true,
 		raw:   data,
 		sch:   sch,
+		vcfg:  cfg,
 		name:  "", // FIXME how are we getting this out?
 	}, nil
 }
@@ -268,8 +274,8 @@ func (sch *unaryTypedSchema[T]) is(osch Schema) bool {
 	return schemaIs(sch.Schema, osch)
 }
 
-func (sch *unaryTypedSchema[T]) ValidateTyped(data cue.Value) (*TypedInstance[T], error) {
-	inst, err := sch.Schema.Validate(data)
+func (sch *unaryTypedSchema[T]) ValidateTyped(data cue.Value, opts ...ValidateOption) (*TypedInstance[T], error) {
+	inst, err := sch.Schema.Validate(data, opts...)
 	if err != nil {
 		return nil, err
 	}

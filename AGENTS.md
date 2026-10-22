@@ -28,7 +28,9 @@ semantics apply them where they are used:
 - **Compatibility checks**: `internal/compat` closes both versions
   (`cuetil.CloseRecursive`) before comparing. Subsumption between open structs
   gets field additions and removals wrong.
-- **`Schema.Validate()`**: closed by default.
+- **`Schema.Validate()`**: closed by default; `AsWritten()` validates against
+  the schema exactly as written instead. An instance remembers how it was
+  validated, and its translations validate the same way.
 - **Lens results**: closed against the target schema inside `Translate`. In Go,
   the fields each lens *builds* are also checked against what the target schema
   declares (`cuetil.UndeclaredBuiltFields`), even where the author wrote `...`.
