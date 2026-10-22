@@ -1,0 +1,16 @@
+# schema is null, not a struct
+#issue: 23
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "shape-schema-null"
+	schemas: [{
+		version: [0, 0]
+		schema: null
+	}]
+}
+-- expect --
+bind fail

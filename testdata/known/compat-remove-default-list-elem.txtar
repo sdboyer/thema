@@ -1,0 +1,25 @@
+# minor bump removes a default in list elements; {l: [{}]} was valid at 0.0 and is invalid at 0.1
+#issue: 17
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "compat-remove-default-list-elem"
+	schemas: [{
+		version: [0, 0]
+		schema: {l: [...{a: *1 | int}]}
+	}, {
+		version: [0, 1]
+		schema: {l: [...{a: int}]}
+	}]
+	lenses: [{
+		from: [0, 1]
+		to: [0, 0]
+		input: _
+		result: {l: input.l}
+	}]
+}
+-- expect --
+bind fail

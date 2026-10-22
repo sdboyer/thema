@@ -1,0 +1,23 @@
+# schema references #LatestVersion and a lens result references the lineage name
+#issue: 21
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "ext-lens-uses-name"
+	schemas: [{
+		version: [0, 0]
+		schema: {a: string, v: lin.#LatestVersion[1]}
+	}, {
+		version: [0, 1]
+		schema: {a: string, b?: string, v: lin.#LatestVersion[1]}
+	}]
+	lenses: [{
+		from: [0, 1]
+		to: [0, 0]
+		input: _
+		result: {a: lin.name, v: input.v}
+	}]
+}
+-- expect --
+bind fail

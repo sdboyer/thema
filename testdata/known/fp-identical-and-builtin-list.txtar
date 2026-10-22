@@ -1,0 +1,27 @@
+# identical list.MinItems(1) in both versions is judged backwards incompatible
+#issue: 18
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+	"list"
+)
+
+lin: thema.Lineage & {
+	name: "fp-identical-and-builtin-list"
+	schemas: [{
+		version: [0, 0]
+		schema: {l: list.MinItems(1) & [...int]}
+	}, {
+		version: [0, 1]
+		schema: {l: list.MinItems(1) & [...int]}
+	}]
+	lenses: [{
+		from: [0, 1]
+		to: [0, 0]
+		input: _
+		result: input
+	}]
+}
+-- expect --
+bind ok
+translate 0.0 0.1 ok {l: [1]}

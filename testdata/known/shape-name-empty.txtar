@@ -1,0 +1,13 @@
+# lineage name is empty
+#issue: 23
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: ""
+	schemas: [{version: [0, 0], schema: {a: int}}]
+}
+-- expect --
+bind fail

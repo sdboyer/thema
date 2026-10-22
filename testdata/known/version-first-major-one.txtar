@@ -1,0 +1,17 @@
+# the first schema is declared [1, 0] rather than [0, 0]
+#issue: 19
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "version-first-major-one"
+	schemas: [{
+		version: [1, 0]
+		schema: {a: int}
+	}]
+	lenses: []
+}
+-- expect --
+bind fail

@@ -1,0 +1,23 @@
+# schema 0.0 is defined in terms of the latest schema, so appending a version rewrites it
+#issue: 21
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "ext-old-depends-on-latest"
+	schemas: [{
+		version: [0, 0]
+		schema: {a: lin.schemas[len(lin.schemas)-1].schema.a}
+	}, {
+		version: [0, 1]
+		schema: {a: int | string}
+	}]
+	lenses: [{
+		from: [0, 1]
+		to: [0, 0]
+		input: _
+		result: {a: input.a}
+	}]
+}
+-- expect --
+bind fail

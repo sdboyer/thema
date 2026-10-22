@@ -1,0 +1,25 @@
+# minor bump removes a default in a nested struct; {s: {}} was valid at 0.0 and is invalid at 0.1
+#issue: 17
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "compat-remove-default-nested"
+	schemas: [{
+		version: [0, 0]
+		schema: {s: {a: *1 | int}}
+	}, {
+		version: [0, 1]
+		schema: {s: {a: int}}
+	}]
+	lenses: [{
+		from: [0, 1]
+		to: [0, 0]
+		input: _
+		result: {s: input.s}
+	}]
+}
+-- expect --
+bind fail

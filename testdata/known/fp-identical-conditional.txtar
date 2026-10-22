@@ -1,0 +1,26 @@
+# identical schema containing a conditional field is judged backwards incompatible
+#issue: 18
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "fp-identical-conditional"
+	schemas: [{
+		version: [0, 0]
+		schema: {kind: string, if kind == "x" {extra?: int}}
+	}, {
+		version: [0, 1]
+		schema: {kind: string, if kind == "x" {extra?: int}}
+	}]
+	lenses: [{
+		from: [0, 1]
+		to: [0, 0]
+		input: _
+		result: input
+	}]
+}
+-- expect --
+bind ok
+translate 0.0 0.1 ok {kind: "x", extra: 1}

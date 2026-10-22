@@ -1,0 +1,28 @@
+# explicitly open schema: Validate accepts an extra field, which Translate then rejects even on identity and minor steps
+#issue: 25
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "validate-open-then-translate"
+	schemas: [{
+		version: [0, 0]
+		schema: {a: string, ...}
+	}, {
+		version: [0, 1]
+		schema: {a: string, ...}
+	}]
+	lenses: [{
+		from: [0, 1]
+		to: [0, 0]
+		input: _
+		result: {a: input.a}
+	}]
+}
+-- expect --
+validate 0.0 ok {a: "x", z: 1}
+translate 0.0 0.0 ok {a: "x", z: 1}
+translate 0.0 0.1 ok {a: "x", z: 1}
+succ 0.0 ok {a: "x", z: 1}

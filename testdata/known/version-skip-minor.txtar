@@ -1,0 +1,25 @@
+# versions skip a minor: [0, 0] then [0, 2]
+#issue: 19
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "version-skip-minor"
+	schemas: [{
+		version: [0, 0]
+		schema: {a: int}
+	}, {
+		version: [0, 2]
+		schema: {a: int, b?: int}
+	}]
+	lenses: [{
+		from: [0, 2]
+		to: [0, 0]
+		input: _
+		result: {a: input.a}
+	}]
+}
+-- expect --
+bind fail

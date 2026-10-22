@@ -1,0 +1,26 @@
+# schema is a struct disjunction with a default: instances of the non-default branch validate, but Translate reports their fields as undeclared
+#issue: 25
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "shape-schema-default-disj"
+	schemas: [{
+		version: [0, 0]
+		schema: *{a: int} | {b: string}
+	}, {
+		version: [0, 1]
+		schema: *{a: int} | {b: string} | {c?: bool}
+	}]
+	lenses: [{
+		from: [0, 1]
+		to: [0, 0]
+		input: _
+		result: input
+	}]
+}
+-- expect --
+validate 0.0 ok {b: "x"}
+translate 0.0 0.1 ok {b: "x"}

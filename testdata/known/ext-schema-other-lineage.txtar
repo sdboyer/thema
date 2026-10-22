@@ -1,0 +1,19 @@
+# schema is borrowed from another lineage's latest schema
+#issue: 21
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+other: thema.Lineage & {
+	name: "other"
+	schemas: [{version: [0, 0], schema: {a: int}}]
+}
+
+lin: thema.Lineage & {
+	name: "ext-schema-other-lineage"
+	schemas: [{
+		version: [0, 0]
+		schema: other.schemas[len(other.schemas)-1].schema
+	}]
+}
+-- expect --
+bind fail

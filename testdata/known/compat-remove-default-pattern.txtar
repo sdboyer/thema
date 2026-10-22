@@ -1,0 +1,25 @@
+# minor bump removes a default in pattern-constrained map values; {m: {k: {}}} was valid at 0.0 and is invalid at 0.1
+#issue: 17
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "compat-remove-default-pattern"
+	schemas: [{
+		version: [0, 0]
+		schema: {m: [string]: {a: *1 | int}}
+	}, {
+		version: [0, 1]
+		schema: {m: [string]: {a: int}}
+	}]
+	lenses: [{
+		from: [0, 1]
+		to: [0, 0]
+		input: _
+		result: input
+	}]
+}
+-- expect --
+bind fail

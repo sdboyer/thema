@@ -1,0 +1,26 @@
+# recursive schema: nested instances validate, but Translate reports their fields as undeclared
+#issue: 25
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "fp-identical-recursive"
+	schemas: [{
+		version: [0, 0]
+		schema: {#Node: {v: int, next?: #Node}, root: #Node}
+	}, {
+		version: [0, 1]
+		schema: {#Node: {v: int, next?: #Node}, root: #Node}
+	}]
+	lenses: [{
+		from: [0, 1]
+		to: [0, 0]
+		input: _
+		result: input
+	}]
+}
+-- expect --
+validate 0.0 ok {root: {v: 1, next: {v: 2}}}
+translate 0.0 0.1 ok {root: {v: 1, next: {v: 2}}}

@@ -1,0 +1,33 @@
+# version [0, 1] is declared twice
+#issue: 19
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "version-duplicate-minor"
+	schemas: [{
+		version: [0, 0]
+		schema: {a: int}
+	}, {
+		version: [0, 1]
+		schema: {a: int, b?: int}
+	}, {
+		version: [0, 1]
+		schema: {a: int, b?: int, c?: int}
+	}]
+	lenses: [{
+		from: [0, 1]
+		to: [0, 0]
+		input: _
+		result: {a: input.a}
+	}, {
+		from: [0, 1]
+		to: [0, 1]
+		input: _
+		result: {a: input.a, b: input.b}
+	}]
+}
+-- expect --
+bind fail

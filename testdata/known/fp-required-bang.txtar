@@ -1,0 +1,19 @@
+# a schema containing a required (!) field cannot be bound at all
+#issue: 25
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "fp-required-bang"
+	schemas: [{
+		version: [0, 0]
+		schema: {a!: int}
+	}]
+	lenses: []
+}
+-- expect --
+bind ok
+validate 0.0 ok {a: 1}
+validate 0.0 fail {}

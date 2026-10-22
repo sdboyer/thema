@@ -1,0 +1,26 @@
+# sub-struct open via an embedded definition with ...: Validate accepts an extra field, a minor Translate rejects it
+#issue: 25
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "decl-embedded-def-open"
+	schemas: [{
+		version: [0, 0]
+		schema: {#Base: {a: int, ...}, s: #Base}
+	}, {
+		version: [0, 1]
+		schema: {#Base: {a: int, ...}, s: #Base}
+	}]
+	lenses: [{
+		from: [0, 1]
+		to: [0, 0]
+		input: _
+		result: input
+	}]
+}
+-- expect --
+validate 0.0 ok {s: {a: 1, z: 2}}
+translate 0.0 0.1 ok {s: {a: 1, z: 2}}

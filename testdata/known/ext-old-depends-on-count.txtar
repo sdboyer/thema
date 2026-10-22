@@ -1,0 +1,23 @@
+# schema 0.0 is constrained by the number of schemas, so appending a version changes it
+#issue: 21
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "ext-old-depends-on-count"
+	schemas: [{
+		version: [0, 0]
+		schema: {n: <=len(lin.schemas)}
+	}, {
+		version: [0, 1]
+		schema: {n: <=len(lin.schemas), m?: int}
+	}]
+	lenses: [{
+		from: [0, 1]
+		to: [0, 0]
+		input: _
+		result: {n: input.n}
+	}]
+}
+-- expect --
+bind fail

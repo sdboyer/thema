@@ -1,0 +1,16 @@
+# schema body is a reference to a value outside the lineage
+#issue: 21
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+_ext: {a: int}
+
+lin: thema.Lineage & {
+	name: "ext-schema-outside"
+	schemas: [{
+		version: [0, 0]
+		schema: _ext
+	}]
+}
+-- expect --
+bind fail

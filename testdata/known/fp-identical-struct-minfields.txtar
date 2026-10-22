@@ -1,0 +1,27 @@
+# identical struct.MinFields(1) in both versions is judged backwards incompatible
+#issue: 18
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+	"struct"
+)
+
+lin: thema.Lineage & {
+	name: "fp-identical-struct-minfields"
+	schemas: [{
+		version: [0, 0]
+		schema: {m: struct.MinFields(1) & {[string]: int}}
+	}, {
+		version: [0, 1]
+		schema: {m: struct.MinFields(1) & {[string]: int}}
+	}]
+	lenses: [{
+		from: [0, 1]
+		to: [0, 0]
+		input: _
+		result: input
+	}]
+}
+-- expect --
+bind ok
+translate 0.0 0.1 ok {m: {a: 1}}
