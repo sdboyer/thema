@@ -313,6 +313,42 @@ func (ml *maybeLineage) checkNativeValidity(cfg *bindConfig) error {
 	return nil
 }
 
+// checkSchemaShapes checks what each schema and the joinSchema may be: schemas
+// must be struct-kinded, a joinSchema must be a struct (or thema's default, _), and each
+// schema's examples must be valid instances of it. CUE can constrain kinds, but
+// not report a schema like _ as an error until data arrives.
+func (ml *maybeLineage) checkSchemaShapes() error {
+	ctx := ml.rt.Context()
+	var errs cerrors.Error
+
+	// thema's default joinSchema is _, which joins nothing.
+	if join := ml.uni.LookupPath(cue.MakePath(cue.Str("joinSchema"))); join.IncompleteKind() != cue.StructKind && join.IncompleteKind() != cue.TopKind {
+		errs = cerrors.Append(errs, cerrors.Newf(userPos(join), "joinSchema must be a struct, not %s", join.IncompleteKind()))
+	}
+
+	for _, sch := range ml.schlist {
+		if k := sch.def.IncompleteKind(); k != cue.StructKind {
+			errs = cerrors.Append(errs, cerrors.Newf(userPos(sch.ref.LookupPath(pathSch)), "schema %s must be a struct, not %s", sch.v, k))
+			continue
+		}
+		iter, err := sch.ref.LookupPath(cue.MakePath(cue.Str("examples"))).Fields()
+		if err != nil {
+			continue
+		}
+		closed := cuetil.CloseRecursive(ctx, sch.def)
+		for iter.Next() {
+			if err := closed.Unify(iter.Value()).Validate(cue.Concrete(true)); err != nil {
+				errs = cerrors.Append(errs, cerrors.Newf(userPos(iter.Value()), "schema %s example %s is not a valid instance of the schema: %s", sch.v, iter.Selector(), cerrors.Details(err, nil)))
+			}
+		}
+	}
+
+	if errs != nil {
+		return errors.Mark(errs, terrors.ErrInvalidLineage)
+	}
+	return nil
+}
+
 // checkLensResults statically checks each CUE lens against its schemas, with its
 // input standing for any instance of its source schema (closed, so references to
 // fields the source can't have are errors). The lens's input must accept every
