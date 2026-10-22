@@ -67,8 +67,11 @@ func GenerateSchema(sch thema.Schema, cfg *Config) (*ast.File, error) {
 		// eliminate path elements leading into the actual user-specified definition.
 		schdef: sch.Underlying().LookupPath(cue.MakePath(cue.Hid("_schema", util.ThemaPackageID))),
 		schraw: sch.Underlying().LookupPath(cue.MakePath(cue.Str("schema"))),
-		join:   sch.Underlying().LookupPath(cue.MakePath(cue.Hid("_join", util.ThemaPackageID))),
-		bpath:  sch.Underlying().Path(),
+		// The lineage's joinSchema, rather than SchemaDef._join: the latter's
+		// value is a reference to the former, which the generator cannot
+		// translate when it has to inline it.
+		join:  sch.Lineage().Underlying().LookupPath(cue.MakePath(cue.Str("joinSchema"))),
+		bpath: sch.Underlying().Path(),
 	}
 
 	var decls []ast.Decl
@@ -77,11 +80,19 @@ func GenerateSchema(sch thema.Schema, cfg *Config) (*ast.File, error) {
 		decls, err = genGroup(gen)
 	} else if cfg.SplitSchema {
 		decls, err = genSingle(gen, gen.schraw, gen.join)
-	} else {
+	} else if len(cfg.Subpath.Selectors()) > 0 {
 		decls, err = genSingle(gen, gen.schdef)
+	} else {
+		// _schema is _join & schema, but the generator can't handle values
+		// that are thema's references to them when it inlines them. Feed it the
+		// two operands directly; joinSchema first, so its fields come first.
+		decls, err = genSchema(gen, gen.join, gen.schraw)
 	}
 	if err != nil {
 		return nil, err
+	}
+	for _, d := range decls {
+		restoreNullableFormats(d)
 	}
 
 	// TODO recursively sort output to improve stability of output
@@ -142,6 +153,9 @@ func genGroup(gen *oapiGen) ([]ast.Decl, error) {
 		cfgi.NameFunc = func(val cue.Value, path cue.Path) string {
 			return gen.nfSingle(val, path, defpath, name)
 		}
+		if cfgi.DescriptionFunc == nil {
+			cfgi.DescriptionFunc = gen.describer()
+		}
 		cfgi.Info = newHeader(defpath.String(), gen.sch.Version())
 
 		part, err := openapi.Generate(defsch, &cfgi)
@@ -169,7 +183,9 @@ func genSingle(gen *oapiGen, values ...cue.Value) ([]ast.Decl, error) {
 	return decls, nil
 }
 
-func genSchema(gen *oapiGen, val cue.Value) ([]ast.Decl, error) {
+// genSchema generates a schema named for the lineage from the unification of
+// vals. When a Subpath is configured, it is applied to each of vals.
+func genSchema(gen *oapiGen, vals ...cue.Value) ([]ast.Decl, error) {
 	hasSubpath := len(gen.cfg.Subpath.Selectors()) > 0
 	name := util.SanitizeLabelString(gen.sch.Lineage().Name())
 	if gen.cfg.RootName != "" {
@@ -179,35 +195,35 @@ func genSchema(gen *oapiGen, val cue.Value) ([]ast.Decl, error) {
 		name = sel[len(sel)-1].String()
 	}
 
-	if hasSubpath {
-		for i, sel := range gen.cfg.Subpath.Selectors() {
-			if !val.Allows(sel) {
-				return nil, errors.Newf(cuetil.FirstNonThemaPos(val), "subpath %q not present in schema", cue.MakePath(gen.cfg.Subpath.Selectors()[:i+1]...))
-			}
-		}
-		if err := pathAllowed(gen.join, gen.cfg.Subpath); err != nil {
-			return nil, err
-		}
-		val = val.LookupPath(gen.cfg.Subpath)
-	}
-
 	v := gen.sch.Underlying().Context().CompileString(fmt.Sprintf("#%s: _", name))
 	defpath := cue.MakePath(cue.Def(name))
 	// v, defpath := newEmptyDef(gen.sch.Underlying().Context(), name)
-	defsch := v.FillPath(defpath, val)
+	defsch := v
+	for _, val := range vals {
+		if hasSubpath {
+			for i, sel := range gen.cfg.Subpath.Selectors() {
+				if !val.Allows(sel) {
+					return nil, errors.Newf(cuetil.FirstNonThemaPos(val), "subpath %q not present in schema", cue.MakePath(gen.cfg.Subpath.Selectors()[:i+1]...))
+				}
+			}
+			if err := pathAllowed(gen.join, gen.cfg.Subpath); err != nil {
+				return nil, err
+			}
+			val = val.LookupPath(gen.cfg.Subpath)
+		}
+		defsch = defsch.FillPath(defpath, val)
+	}
 
-	gen.cfg.NameFunc = func(val cue.Value, path cue.Path) string {
-		// fmt.Println("NF===", path)
-		// if gen.sch.Lineage().Name() == "maps" {
-		// 	// fmt.Println("NF===", path, p(val))
-		// }
+	cfgi := *gen.cfg.Config
+	cfgi.NameFunc = func(val cue.Value, path cue.Path) string {
 		return gen.nfSingle(val, path, defpath, name)
 	}
-	gen.cfg.Info = newHeader(name, gen.sch.Version())
+	if cfgi.DescriptionFunc == nil {
+		cfgi.DescriptionFunc = gen.describer()
+	}
+	cfgi.Info = newHeader(name, gen.sch.Version())
 
-	// fmt.Println(gen.sch.Lineage().Name(), defsch.Eval())
-	// fmt.Println(gen.sch.Lineage().Name(), defsch)
-	f, err := openapi.Generate(defsch.Eval(), gen.cfg.Config)
+	f, err := openapi.Generate(defsch.Eval(), &cfgi)
 	if err != nil {
 		return nil, err
 	}
@@ -220,7 +236,7 @@ func genSchema(gen *oapiGen, val cue.Value) ([]ast.Decl, error) {
 // - Eliminate any path prefixes on the element, both internal lineage and wrapping
 // - Replace the name "_schema" with the desired name
 // - Call the user-provided NameFunc, if any
-// - Remove CUE markers like #, !, ?
+// - Remove CUE markers like #, !, ?, and the _ of hidden labels
 func (gen *oapiGen) nfSingle(val cue.Value, path, defpath cue.Path, name string) string {
 	tpath := cuetil.TrimPathPrefix(trimThemaPathPrefix(path, gen.bpath), defpath)
 
@@ -236,7 +252,45 @@ func (gen *oapiGen) nfSingle(val cue.Value, path, defpath cue.Path, name string)
 	if gen.onf != nil {
 		return gen.onf(val, tpath)
 	}
-	return strings.Trim(tpath.String(), "?#")
+	// Hidden labels (e.g. _aMap, _#Foo) are valid reference targets; their
+	// leading underscore is a CUE marker like #.
+	return strings.TrimLeft(strings.Trim(tpath.String(), "?#"), "_#")
+}
+
+// themaDocPaths are the fields of thema's CUE through which a schema value is
+// reached. Their docs describe thema itself, not any schema, but the schema
+// value carries them.
+var themaDocPaths = []cue.Path{
+	cue.MakePath(cue.Str("Lineage"), cue.Str("joinSchema")),
+	cue.MakePath(cue.Str("SchemaDef"), cue.Str("schema")),
+	cue.MakePath(cue.Str("SchemaDef"), cue.Hid("_join", util.ThemaPackageID)),
+	cue.MakePath(cue.Str("SchemaDef"), cue.Hid("_schema", util.ThemaPackageID)),
+}
+
+// describer returns the default DescriptionFunc. It joins the doc comments
+// attached to a value, as the generator does when no DescriptionFunc is set,
+// but omits those of the thema fields in themaDocPaths.
+//
+// Docs are matched by text rather than position: thema's CUE may be loaded more
+// than once (e.g. from the embedded module and as files of a lineage that lives
+// in thema's own module), and only the text is the same each time.
+func (gen *oapiGen) describer() func(cue.Value) string {
+	themaDocs := make(map[string]bool)
+	for _, p := range themaDocPaths {
+		for _, cg := range gen.sch.Lineage().Runtime().Underlying().LookupPath(p).Doc() {
+			themaDocs[cg.Text()] = true
+		}
+	}
+
+	return func(v cue.Value) string {
+		var docs []string
+		for _, cg := range v.Doc() {
+			if !themaDocs[cg.Text()] {
+				docs = append(docs, cg.Text())
+			}
+		}
+		return strings.Join(docs, "\n\n")
+	}
 }
 
 func getSchemas(f *ast.File) []ast.Decl {

@@ -45,6 +45,7 @@ lenses: [{
   "components": {
     "schemas": {
       "trivialtwocomments": {
+        "description": "This should be schema/object-level docs",
         "type": "object",
         "required": [
           "firstfield"
@@ -69,6 +70,7 @@ lenses: [{
   "components": {
     "schemas": {
       "trivialtwocomments": {
+        "description": "Different schema/object-level docs for the next schema",
         "type": "object",
         "required": [
           "firstfield"
@@ -139,6 +141,7 @@ lenses: [{
   "components": {
     "schemas": {
       "trivialtwocomments": {
+        "description": "This should be schema/object-level docs",
         "type": "object",
         "required": [
           "firstfield"
@@ -163,6 +166,7 @@ lenses: [{
   "components": {
     "schemas": {
       "trivialtwocomments": {
+        "description": "Different schema/object-level docs for the next schema",
         "type": "object",
         "required": [
           "firstfield"
