@@ -36,34 +36,29 @@ curl https://raw.githubusercontent.com/sdboyer/thema/main/docs/ship.cue > ship.c
 
 We'll use the `Ship` lineage throughout this tutorial.
 
-### Optional: Populate Thema as a CUE dependency
+### Add Thema as a CUE dependency
 
-This tutorial is focused on Go, but if you want to be able to run `cue eval` along the way, you'll need to populate your `cue.mod/pkg` directory, which [CUE searches to satisfy imports](https://cuelang.org/docs/concepts/packages/#location-on-disk), similar to a Go `vendor` directory.
+`ship.cue` imports thema's CUE module, so your CUE module needs it as a dependency:
 
-These commands should work, though grabbing a tarball of the latest Thema repo and placing it yourself is more reliable.
-
-```
-mkdir -p cue.mod/pkg/github.com/sdboyer/thema && \
-curl -LJ0 https://github.com/sdboyer/thema/zipball/main > thema.zip && \
-unzip -oj thema.zip '*.cue' -d cue.mod/pkg/github.com/sdboyer/thema && \
-rm thema.zip
+```bash
+cue mod get github.com/sdboyer/thema@v0
 ```
 
-This is nothing even resembling a proper package management solution (there's [a proposal](https://github.com/cue-lang/cue/issues/851)) - just a good-enough hack for a tutorial!
+Use the same version of thema's CUE module as of its Go module: when the Go library loads `ship.cue`, it uses its own built-in copy of thema's CUE, and requires the versions to match. See [CUE modules](cue-modules.md).
 
 ## Goal: The Lineage Factory
 
 For each lineage you create in CUE, the recommended, idiomatic approach is to export a single Go function that satisfies the [`LineageFactory`](https://pkg.go.dev/github.com/sdboyer/thema#LineageFactory) type. The lineage factory function will be the canonical way of accessing your lineage in any Go program. It should follow a naming pattern:
 
 ```go
-func <name>Lineage (lib thema.Library, opts ...thema.BindOption) (thema.Lineage, error) { ... }
+func <name>Lineage (rt *thema.Runtime, opts ...thema.BindOption) (thema.Lineage, error) { ... }
 var _ thema.LineageFactory = <name>Lineage
 ```
 
 For Go packages that clearly correspond to a single lineage declaration, the lineage name may be omitted:
 
 ```go
-func Lineage (lib thema.Library, opts ...thema.BindOption) (thema.Lineage, error) { ... }
+func Lineage (rt *thema.Runtime, opts ...thema.BindOption) (thema.Lineage, error) { ... }
 var _ thema.LineageFactory = Lineage
 ```
 
@@ -80,9 +75,9 @@ Thema's [exemplars](https://github.com/sdboyer/thema/tree/main/exemplars) packag
 
 ## Map the bytes 
 
-The first step is getting all the `.cue` files we need into our Go program. The obvious file is `ship.cue` - but we _also_ need the upstream thema `.cue` files we vendored, which are necessary for the CUE runtime to satisfy the `import "github.com/sdboyer/thema"` statement in `ship.cue`.
+The first step is getting all the `.cue` files we need into our Go program: `ship.cue`, and `cue.mod/module.cue`, which declares the dependency on thema's CUE module. thema's own `.cue` files don't need to be included: the Go library supplies its built-in copy to satisfy the `import "github.com/sdboyer/thema"` statement in `ship.cue`.
 
-In a new `lineage.go` file, we'll embed our `.cue` files into an `embed.FS`. Then we'll use the [`InstancesWithThema`](https://pkg.go.dev/github.com/sdboyer/thema/load#InstancesWithThema) helper function[^loaderhelper] to load the raw CUE files we embedded. 
+In a new `lineage.go` file, we'll embed our `.cue` files into an `embed.FS`. Then we'll use the [`InstanceWithThema`](https://pkg.go.dev/github.com/sdboyer/thema/load#InstanceWithThema) helper function[^loaderhelper] to load the raw CUE files we embedded. 
 
 ```go
 package example
@@ -98,7 +93,7 @@ var modFS embed.FS
 
 func loadLineage() (cue.Value, error) {
     // "." loads the root directory of the modFS, where our our ship.cue is located.
-    inst, err := load.InstancesWithThema(modFS, ".")
+    inst, err := load.InstanceWithThema(modFS, ".")
     if err != nil {
         return cue.Value{}, err
     }
@@ -125,7 +120,7 @@ import (
 var modFS embed.FS
 
 func loadLineage() (cue.Value, error) {
-    inst, err := load.InstancesWithThema(modFS, ".")
+    inst, err := load.InstanceWithThema(modFS, ".")
     if err != nil {
         return cue.Value{}, err
     }
@@ -139,7 +134,7 @@ Managing `cue.Context` is tricky, though. Creating a one-off context-universe fo
 
 Instead, we should take a `cue.Context` as an argument. But that's also complicated, because Thema needs not only a shared universe, but a shared universe _that has loaded Thema's pure CUE logic_. 
 
-To simplify this, Thema has a [`Library`](https://pkg.go.dev/github.com/sdboyer/thema#Library) type. `Library` is a thin wrapper around `cue.Context` - just some helper methods, including one to retrieve the context, with the assurance that Thema is loaded and addressable within that context. We'll see how this gets used a little later, but for now, let's update our function:
+To simplify this, Thema has a [`Runtime`](https://pkg.go.dev/github.com/sdboyer/thema#Runtime) type. `Runtime` is a thin wrapper around `cue.Context` - just some helper methods, including one to retrieve the context, with the assurance that Thema is loaded and addressable within that context. We'll see how this gets used a little later, but for now, let's update our function:
 
 ```go
 package example
@@ -154,13 +149,13 @@ import (
 //go:embed ship.cue cue.mod/module.cue
 var modFS embed.FS
 
-func loadLineage(lib thema.Library) (cue.Value, error) {
-    inst, err := load.InstancesWithThema(modFS, ".")
+func loadLineage(rt *thema.Runtime) (cue.Value, error) {
+    inst, err := load.InstanceWithThema(modFS, ".")
     if err != nil {
         return cue.Value{}, err
     }
 
-    val := lib.Context().BuildInstance(inst)
+    val := rt.Context().BuildInstance(inst)
 }
 ```
 
@@ -168,11 +163,11 @@ Much better. Now, with a `cue.Value` in hand, the first critical stage of mappin
 
 ## Bind a `Lineage`
 
-We have a `cue.Value` - great! But there's a low ceiling on how much we can actually say about this freshly-loaded `val`. In our particular case, we can be sure that `val` points to just the contents of `ship.cue`, because that's literally the only file in our CUE module. But in general, each element returned from `InstancesWithThema` can represent a pile of files from a hierarchy of directories, all automatically unified together, according to [CUE's rules for filesystem organization](https://cuelang.org/docs/references/spec/#modules-instances-and-packages).
+We have a `cue.Value` - great! But there's a low ceiling on how much we can actually say about this freshly-loaded `val`. In our particular case, we can be sure that `val` points to just the contents of `ship.cue`, because that's literally the only file in our CUE module. But in general, each element returned from `InstanceWithThema` can represent a pile of files from a hierarchy of directories, all automatically unified together, according to [CUE's rules for filesystem organization](https://cuelang.org/docs/references/spec/#modules-instances-and-packages).
 
 All we can say for sure is that `val` represents a bunch of syntactically valid CUE statements. That's a far cry from the [strong guarantees](invariants.md) lineages are supposed to provide. That's what we do next, in two phases:
 
-1. Retrieve the particular `cue.Value` that's actually supposed to be the `#Lineage` of our `Ship`
+1. Retrieve the particular `cue.Value` that's actually supposed to be the `Lineage` of our `Ship`
 2. Verify that it's a valid lineage, and wrap it in our Go `Lineage` type
 
 ### Retrieval
@@ -184,10 +179,10 @@ package example
 
 import "github.com/sdboyer/thema"
 
-lin: thema.Lineage
-lin: name: "Ship"
-lin: seqs: [
-// ...
+lin: thema.Lineage & {
+    name: "Ship"
+    schemas: [
+    // ...
 ```
 
 Our Go program now must mirror that design choice, traversing to the value we know actually represents our lineage:
@@ -206,13 +201,13 @@ import (
 //go:embed ship.cue cue.mod/module.cue
 var modFS embed.FS
 
-func loadLineage(lib thema.Library) (cue.Value, error) {
-    inst, err := load.InstancesWithThema(modFS, ".")
+func loadLineage(rt *thema.Runtime) (cue.Value, error) {
+    inst, err := load.InstanceWithThema(modFS, ".")
     if err != nil {
         return cue.Value{}, err
     }
 
-    val := lib.Context().BuildInstance(inst)
+    val := rt.Context().BuildInstance(inst)
     return val.LookupPath(cue.MakePath(cue.Str("lin"))), nil
 }
 ```
@@ -230,7 +225,7 @@ import "github.com/sdboyer/thema"
 
 thema.Lineage
 name: "Ship"
-seqs: [
+schemas: [
 // ...
 ```
 
@@ -247,10 +242,11 @@ package example
 
 import "github.com/sdboyer/thema"
 
-lin: thema.Lineage @thematranslate(protobuf) // purely illustrative; not real/supported by any tool
-lin: name: "Ship"
-lin: seqs: [
-// ...
+lin: thema.Lineage & {
+    name: "Ship"
+    schemas: [
+    // ...
+} @thematranslate(protobuf) // purely illustrative; not real/supported by any tool
 ```
 
 There's nothing wrong or inadvisable about either of these approaches. If anything, they demonstrate the importance of keeping the Go loading layer flexible in order to avoid unnecessary, composition-limiting constraints on what's done in CUE.
@@ -275,23 +271,23 @@ import (
 //go:embed ship.cue cue.mod/module.cue
 var modFS embed.FS
 
-func loadLineage(lib thema.Library) (cue.Value, error) {
-    inst, err := load.InstancesWithThema(modFS, ".")
+func loadLineage(rt *thema.Runtime) (cue.Value, error) {
+    inst, err := load.InstanceWithThema(modFS, ".")
     if err != nil {
         return cue.Value{}, err
     }
 
-    val := lib.Context().BuildInstance(inst)
+    val := rt.Context().BuildInstance(inst)
     return val.LookupPath(cue.MakePath(cue.Str("lin"))), nil
 }
 
 // ShipLineage constructs a Go handle representing the Ship lineage.
-func ShipLineage(lib thema.Library, opts ...thema.BindOption) (thema.Lineage, error) {
-    linval, err := loadLineage(lib)
+func ShipLineage(rt *thema.Runtime, opts ...thema.BindOption) (thema.Lineage, error) {
+    linval, err := loadLineage(rt)
     if err != nil {
         return nil, err
     }
-    return thema.BindLineage(linval, lib, opts...)
+    return thema.BindLineage(linval, rt, opts...)
 }
 var _ thema.LineageFactory = ShipLineage // Ensure our factory fulfills the type
 ```
@@ -313,7 +309,7 @@ import (
 )
 
 func TestShipIsValid(t *testing.T) {
-    if _, err := ShipLineage(thema.NewLibrary(cuecontext.New())); err != nil {
+    if _, err := ShipLineage(thema.NewRuntime(cuecontext.New())); err != nil {
         t.Fatal(err)
     }
 }
@@ -329,12 +325,12 @@ TODO
 
 ## Wrap-up
 
-This tutorial illustrated how, as a Thema lineage author, we take a CUE `#Lineage` and make it available to Go programs as a [`Lineage`](https://pkg.go.dev/github.com/sdboyer/thema#Lineage) via a standard [`LineageFactory`](https://pkg.go.dev/github.com/sdboyer/thema#LineageFactory) function.
+This tutorial illustrated how, as a Thema lineage author, we take a CUE `thema.Lineage` and make it available to Go programs as a [`Lineage`](https://pkg.go.dev/github.com/sdboyer/thema#Lineage) via a standard [`LineageFactory`](https://pkg.go.dev/github.com/sdboyer/thema#LineageFactory) function.
 
 In the [next tutorial](go-usage.md), we'll trade our Thema author hat for a Thema consumer hat, and show how to write a Go program that uses the Thema `Lineage` returned from `ShipLineage()` to be written against just one version of `Ship`, but be able to handle `Ship`s in any form specified in the lineage.
 
 [^loaderhelper]:
-    `InstancesWithThema` abstracts over [`load.Instances`](https://pkg.go.dev/cuelang.org/go@v0.4.0/cue/load#Instances), which offers far more [options](https://pkg.go.dev/cuelang.org/go@v0.4.0/cue/load#Config) than are usually needed for Thema. It's expected that some more complex cases will not fit into `InstancesWithThema`; in such case, plan to write your own loader-helper.
+    `InstanceWithThema` abstracts over [`load.Instances`](https://pkg.go.dev/cuelang.org/go/cue/load#Instances), which offers far more [options](https://pkg.go.dev/cuelang.org/go/cue/load#Config) than are usually needed for Thema. It's expected that some more complex cases will not fit into `InstanceWithThema`; in such case, plan to write your own loader-helper, using [`load.Configure`](https://pkg.go.dev/github.com/sdboyer/thema/load#Configure) so thema's CUE resolves.
 
 [^cuetsy]:
     Grafana currently relies on an attribute-driven mechanism for translating Thema schemas to TypeScript using the [cuetsy](https://github.com/grafana/cuetsy) library. Current usage is different than the protobuf example here because cuetsy is not Thema-aware, and authors therefore apply attributes to individual schema within lineages.
@@ -345,11 +341,11 @@ In the [next tutorial](go-usage.md), we'll trade our Thema author hat for a Them
     Today, lineage authors delegate verification to `BindLineage()`, resulting in uniform invariant enforcement across all Go `Lineage` instances. But when all necessary constraints are expressed in CUE, verification can shift left (up?). `BindLineage()` will delegate enforcement to CUE itself, becoming a passthrough more akin to `ShipLineage()`, and guarantee uniformity will naturally extend not just to a Go `Lineage`, but to any analogous construct in the Thema bindings for another language (that has a CUE evaluator).
 
 [^panic]:
-    Arguably, you could call `ShipLineage()` in an `init()` function, and `panic()` on error. `panic()` is usually reserved in Go for unrecoverable errors, and a lineage failing to load is unrecoverable: the only possible sources of failure are a) a buggy CUE evaluator, b) backwards incompatible changes in CUE itself, or c) the input CUE is not a valid `#Lineage`. As long as the bytes representing the input CUE arrive through reliable transport (e.g. from a colocated file `//go:embed`-ed in the binary), no remediation is possible within the scope of the running program.
+    Arguably, you could call `ShipLineage()` in an `init()` function, and `panic()` on error. `panic()` is usually reserved in Go for unrecoverable errors, and a lineage failing to load is unrecoverable: the only possible sources of failure are a) a buggy CUE evaluator, b) backwards incompatible changes in CUE itself, or c) the input CUE is not a valid `thema.Lineage`. As long as the bytes representing the input CUE arrive through reliable transport (e.g. from a colocated file `//go:embed`-ed in the binary), no remediation is possible within the scope of the running program.
 
 [^pubretrieve]:
     Barring bugs, the only systemic failure mode is a side effect of what made this tutorial relatively uncomplicated: embedding. Embedding CUE files into Go makes them reliably available, but it also couples the set of known schema in the lineage to the version of the Go package into which they're embedded. If we add a new schema to `Ship`, Go programs in other repos/modules won't see it until their `go.mod` is updated and they're recompiled. The central Thema guarantee - translatability of any valid instance to the schema version the program expects - would be lost until recompilation.
 
-    Ideally, package version and lineage state would be decoupled, and lineage state updates handled at runtime. Mapping from CUE `#Lineage` to (lang) `Lineage`-equivalent is something that programs could do continuously in the background by periodically polling a lineage registry service over HTTP, and integrating updates into the `Lineage`-equivalent. Recompilation would no longer be needed; evolutionary independence would be restored.
+    Ideally, package version and lineage state would be decoupled, and lineage state updates handled at runtime. Mapping from CUE `thema.Lineage` to (lang) `Lineage`-equivalent is something that programs could do continuously in the background by periodically polling a lineage registry service over HTTP, and integrating updates into the `Lineage`-equivalent. Recompilation would no longer be needed; evolutionary independence would be restored.
 
     In theory, [append-only immutability constraints](invariants.md) on published lineages should make this straightforward, to the point where any language's Thema bindings could encapsulate the polling and hot-updating of the in-language `Lineage` handle into a single function, similar to what `BindLineage()` does today. (In fact, the two are likely to be complementary: start by building from reliably-available embedded, local CUE bytes, then kick off a background thread that continuously polls a server for newer bytes.) A [registry and publishing flow](https://github.com/grafana/thema/issues/6) are prerequisite to a fully general solution, but in the meantime, org-by-org one-offs should be feasible in a pinch.
