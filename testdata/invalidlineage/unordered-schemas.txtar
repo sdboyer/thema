@@ -234,4 +234,5 @@ lenses: [{
     }
 }]
 -- out/bindfail --
-schema version 0.1 is not greater than previous schema version 0.2
+schema version 0.2 does not follow 0.0: the next schema must be version 0.1 or 1.0:
+    ./in.cue:18:5

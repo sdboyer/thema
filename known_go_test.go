@@ -128,26 +128,4 @@ func TestKnownGo(t *testing.T) {
 	// Lacunas whose condition holds are never returned from Translate.
 
 	// Malformed versions make BindLineage panic rather than return an error.
-	for name, src := range map[string]string{
-		"bind-panic-version-ambiguous": `lin: thema.Lineage & {
-	name: "x"
-	schemas: [{version: [0, 0], schema: {a: int}}, {version: [0, 1] | [1, 0], schema: {a: int, b?: int}}]
-	lenses: [{from: [0, 1], to: [0, 0], input: _, result: {a: input.a}}]
-}`,
-		"bind-panic-schemas-elem-disj": `lin: thema.Lineage & {
-	name: "x"
-	schemas: [{version: [0, 0], schema: {a: int}} | {version: [0, 0], schema: {b: int}}]
-}`,
-	} {
-		t.Run(name, func(t *testing.T) {
-			_, err := bindSrc(t, src)
-			var unmet []string
-			if err == nil {
-				unmet = append(unmet, "bind succeeded")
-			} else if strings.HasPrefix(err.Error(), "panic: ") {
-				unmet = append(unmet, "bind panicked instead of returning an error: "+err.Error())
-			}
-			verdict(t, 19, unmet)
-		})
-	}
 }

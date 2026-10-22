@@ -76,28 +76,17 @@ func (ml *maybeLineage) checkGoValidity(cfg *bindConfig) error {
 
 	var previous *schemaDef
 	for schiter.Next() {
-		// Only thing not natively enforced in CUE is that the SchemaDef.version field is concrete
-		svval := schiter.Value().LookupPath(vpath)
-		iter, err := svval.List()
+		sch := &schemaDef{ref: schiter.Value()}
+		v, err := schemaVersion(sch.ref.LookupPath(vpath))
 		if err != nil {
-			panic(fmt.Sprintf("unreachable - should have already verified SchemaDef.version field exists and is list: %+v", err))
+			return errors.Mark(cerrors.Newf(userPos(sch.ref.LookupPath(vpath)), "schema %d: %s", len(ml.schlist), err), terrors.ErrInvalidLineage)
 		}
-		for iter.Next() {
-			if !iter.Value().IsConcrete() {
-				return errors.Mark(mkerror(iter.Value(), "SchemaDef.version must have concrete major and minor versions"), terrors.ErrInvalidLineage)
-			}
-		}
-		sch := &schemaDef{}
-		err = svval.Decode(&sch.v)
-		if err != nil {
-			panic(fmt.Sprintf("unreachable - could not decode syntactic version: %+v", err))
-		}
+		sch.v = v
 
 		if err := ml.checkSchemasOrder(previous, sch); err != nil {
 			return err
 		}
 
-		sch.ref = schiter.Value()
 		sch.def = sch.ref.LookupPath(pathSchDef)
 		if previous != nil && !cfg.skipbuggychecks {
 			compaterr := compat.ThemaCompatible(ml.rt.Context(), previous.def, sch.def)
@@ -119,16 +108,66 @@ func (ml *maybeLineage) checkGoValidity(cfg *bindConfig) error {
 	return nil
 }
 
+// schemaVersion returns the version declared by a schema entry. A version the
+// author wrote must be a single concrete version; a disjunction, even one with a
+// default, is rejected rather than resolved. An omitted version takes thema's
+// default of 0.0.
+func schemaVersion(v cue.Value) (SyntacticVersion, error) {
+	var sv SyntacticVersion
+	if !v.Exists() {
+		return sv, fmt.Errorf("version is missing")
+	}
+	if authorWrote(v) {
+		if _, hasDefault := v.Default(); hasDefault || v.Validate(cue.Concrete(true)) != nil {
+			return sv, fmt.Errorf("version must be a single concrete version, such as [0, 1]")
+		}
+	} else {
+		v, _ = v.Default()
+	}
+	if err := v.Decode(&sv); err != nil {
+		return sv, fmt.Errorf("version must be a pair of non-negative integers, such as [0, 1]")
+	}
+	return sv, nil
+}
+
+// authorWrote reports whether any conjunct of v comes from outside thema's own
+// CUE, i.e. was written by the lineage's author.
+func authorWrote(v cue.Value) bool {
+	_, args := v.Expr()
+	for _, a := range args {
+		if p := a.Pos(); p.IsValid() && !strings.HasPrefix(p.Filename(), embedreg.Root()+string(filepath.Separator)) {
+			return true
+		}
+	}
+	return false
+}
+
+// checkSchemasOrder checks that each schema's version is the exact successor of
+// its predecessor's: either the next minor version, or the first (.0) version of
+// the next major version. The first schema must be 0.0.
 func (ml *maybeLineage) checkSchemasOrder(prev, curr *schemaDef) error {
 	if prev == nil {
+		if curr.v != synv(0, 0) {
+			return errors.Mark(cerrors.Newf(versionPos(curr), "the first schema must be version 0.0, not %s", curr.v), terrors.ErrInvalidSchemasOrder)
+		}
 		return nil
 	}
 
-	if curr.v.Less(prev.v) {
-		return errors.Mark(mkerror(curr.ref.LookupPath(pathSch), "schema version %s is not greater than previous schema version %s", curr.v, prev.v), terrors.ErrInvalidSchemasOrder)
+	nextMinor, nextMajor := synv(prev.v[0], prev.v[1]+1), synv(prev.v[0]+1, 0)
+	if curr.v != nextMinor && curr.v != nextMajor {
+		return errors.Mark(cerrors.Newf(versionPos(curr), "schema version %s does not follow %s: the next schema must be version %s or %s", curr.v, prev.v, nextMinor, nextMajor), terrors.ErrInvalidSchemasOrder)
 	}
 
 	return nil
+}
+
+// versionPos returns the position of a schema entry's version as its author wrote
+// it, or of the entry itself if the version was omitted.
+func versionPos(sch *schemaDef) token.Pos {
+	if v := sch.ref.LookupPath(cue.MakePath(cue.Str("version"))); authorWrote(v) {
+		return userPos(v)
+	}
+	return userPos(sch.ref)
 }
 
 func (ml *maybeLineage) checkExists(cfg *bindConfig) error {
