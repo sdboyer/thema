@@ -118,6 +118,20 @@ func msgArgString(arg any) (string, bool) {
 	return "", false
 }
 
+// requiredFieldType returns the schema's type for the required field at path,
+// for describing it in a missing-field error.
+func requiredFieldType(sch Schema, path []string) string {
+	sels := make([]cue.Selector, len(path))
+	for i, p := range path {
+		sels[i] = cue.Str(p).Required()
+	}
+	v := sch.Underlying().LookupPath(pathSchDef).LookupPath(cue.MakePath(sels...))
+	if !v.Exists() {
+		return "_"
+	}
+	return humanReadableCUEType(fmt.Sprint(v))
+}
+
 // HERE BE DRAGONS, BRING A SWORD.
 func mungeValidateErr(err error, sch Schema) error {
 	_, is := err.(errors.Error)
@@ -136,6 +150,18 @@ func mungeValidateErr(err error, sch Schema) error {
 
 		msg, vals := ee.Msg()
 		switch len(vals) {
+		case 0:
+			if !strings.Contains(msg, "required but not present") {
+				break
+			}
+			errs = append(errs, &onesidederr{
+				schpos:  schpos,
+				datapos: datapos,
+				coords:  x,
+				val:     requiredFieldType(sch, x.fieldpath),
+				code:    terrors.MissingField,
+			})
+			continue
 		case 1:
 			val, ok := msgArgString(vals[0])
 			if !ok {

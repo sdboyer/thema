@@ -13,36 +13,53 @@ import (
 // sch merely tolerates. Where sch is a disjunction, data needs to match only one
 // of its branches.
 func UndeclaredFields(ctx *cue.Context, data, sch cue.Value) []cue.Path {
-	return undeclared(ctx, data, sch, cue.MakePath())
+	w := walker{ctx: ctx}
+	return w.undeclared(data, sch, cue.MakePath())
 }
 
-func undeclared(ctx *cue.Context, data, sch cue.Value, p cue.Path) []cue.Path {
-	// A disjunction with a default resolves to the default, and for some shapes
-	// (notably lists) Expr() then reports neither the default nor an OrOp, just the
-	// non-default value space. Judge data against that space, not the default.
-	if _, hasDefault := sch.Default(); hasDefault {
-		if op, args := sch.Expr(); op == cue.NoOp && len(args) == 1 {
-			sch = args[0]
-		}
+// UndeclaredBuiltFields is like [UndeclaredFields], but for a value built by an
+// expression, such as a lens result: only fields the expression constructs are
+// checked. A field whose value is a reference (e.g. b: input.a) passes through
+// whatever it refers to, and is not descended into.
+func UndeclaredBuiltFields(ctx *cue.Context, built, sch cue.Value) []cue.Path {
+	w := walker{ctx: ctx, skipRefs: true}
+	return w.undeclared(built, sch, cue.MakePath())
+}
+
+type walker struct {
+	ctx *cue.Context
+	// skipRefs causes fields whose values are references to be skipped.
+	skipRefs bool
+}
+
+func isReference(v cue.Value) bool {
+	op, _ := v.Expr()
+	return op == cue.SelectorOp || op == cue.IndexOp
+}
+
+func (w walker) undeclared(data, sch cue.Value, p cue.Path) []cue.Path {
+	if sch.IncompleteKind() == cue.TopKind {
+		// _ declares everything beneath it.
+		return nil
 	}
 
-	if op, branches := sch.Expr(); op == cue.OrOp {
-		// Judge data only against branches it could be an instance of. A branch
-		// that can't hold the data at all (e.g. a default of []) would otherwise
-		// look like a perfect match, as there would be nothing in it to compare.
+	if alts := alternatives(sch, 0); len(alts) > 1 {
+		// Judge data only against alternatives it could be an instance of. One that
+		// can't hold the data at all (e.g. a default of []) would otherwise look
+		// like a perfect match, as there would be nothing in it to compare.
 		var fits []cue.Value
-		for _, b := range branches {
-			if b.Unify(data).Validate() == nil {
-				fits = append(fits, b)
+		for _, a := range alts {
+			if a.Unify(data).Validate() == nil {
+				fits = append(fits, a)
 			}
 		}
 		if len(fits) > 0 {
-			branches = fits
+			alts = fits
 		}
 
 		var best []cue.Path
-		for i, b := range branches {
-			found := undeclared(ctx, data, b, p)
+		for i, a := range alts {
+			found := w.undeclaredIn(data, a, p)
 			if len(found) == 0 {
 				return nil
 			}
@@ -51,11 +68,67 @@ func undeclared(ctx *cue.Context, data, sch cue.Value, p cue.Path) []cue.Path {
 			}
 		}
 		return best
+	} else if len(alts) == 1 {
+		sch = alts[0]
 	}
+	return w.undeclaredIn(data, sch, p)
+}
 
+// maxAlternativesDepth bounds the expression depth alternatives explores.
+const maxAlternativesDepth = 16
+
+// alternatives returns the values sch may take, each a non-disjunctive schema:
+// defaults are stripped (a disjunction with a default resolves to the default,
+// and for some shapes Expr() then reports only the non-default value space),
+// nested disjunctions are flattened, and a conjunction with a disjunctive member
+// is distributed over that member's alternatives.
+func alternatives(sch cue.Value, depth int) []cue.Value {
+	if depth > maxAlternativesDepth {
+		return []cue.Value{sch}
+	}
+	op, args := sch.Expr()
+	switch op {
+	case cue.OrOp:
+		var out []cue.Value
+		for _, a := range args {
+			out = append(out, alternatives(a, depth+1)...)
+		}
+		return out
+	case cue.AndOp:
+		for i, a := range args {
+			alts := alternatives(a, depth+1)
+			if len(alts) < 2 {
+				continue
+			}
+			var rest cue.Value
+			for j, b := range args {
+				if j == i {
+					continue
+				}
+				if !rest.Exists() {
+					rest = b
+				} else {
+					rest = rest.Unify(b)
+				}
+			}
+			out := make([]cue.Value, len(alts))
+			for k, alt := range alts {
+				out[k] = alt.Unify(rest)
+			}
+			return out
+		}
+	case cue.NoOp:
+		if _, hasDefault := sch.Default(); hasDefault && len(args) == 1 {
+			return alternatives(args[0], depth+1)
+		}
+	}
+	return []cue.Value{sch}
+}
+
+func (w walker) undeclaredIn(data, sch cue.Value, p cue.Path) []cue.Path {
 	switch data.IncompleteKind() {
 	case cue.StructKind:
-		return undeclaredInStruct(ctx, data, sch, p)
+		return w.undeclaredInStruct(data, sch, p)
 	case cue.ListKind:
 		var found []cue.Path
 		iter, err := data.List()
@@ -68,7 +141,7 @@ func undeclared(ctx *cue.Context, data, sch cue.Value, p cue.Path) []cue.Path {
 				elsch = sch.LookupPath(cue.MakePath(cue.AnyIndex))
 			}
 			if elsch.Exists() {
-				found = append(found, undeclared(ctx, iter.Value(), elsch, appendPath(p, cue.Index(i)))...)
+				found = append(found, w.undeclared(iter.Value(), elsch, appendPath(p, cue.Index(i)))...)
 			}
 		}
 		return found
@@ -76,7 +149,7 @@ func undeclared(ctx *cue.Context, data, sch cue.Value, p cue.Path) []cue.Path {
 	return nil
 }
 
-func undeclaredInStruct(ctx *cue.Context, data, sch cue.Value, p cue.Path) []cue.Path {
+func (w walker) undeclaredInStruct(data, sch cue.Value, p cue.Path) []cue.Path {
 	fields := make(map[string]cue.Value)
 	var patterns []cue.Selector
 	var patternVals []cue.Value
@@ -93,7 +166,15 @@ func undeclaredInStruct(ctx *cue.Context, data, sch cue.Value, p cue.Path) []cue
 			continue
 		}
 		if sel.IsString() {
-			fields[sel.Unquoted()] = siter.Value()
+			fv := siter.Value()
+			if fv.IncompleteKind() == cue.BottomKind {
+				// A recursive reference (e.g. next?: #Node) is not evaluated in place;
+				// follow it to the value it refers to.
+				if d := cue.Dereference(fv); d.IncompleteKind() != cue.BottomKind {
+					fv = d
+				}
+			}
+			fields[sel.Unquoted()] = fv
 		}
 	}
 
@@ -107,16 +188,19 @@ func undeclaredInStruct(ctx *cue.Context, data, sch cue.Value, p cue.Path) []cue
 		if !sel.IsString() {
 			continue
 		}
+		if w.skipRefs && isReference(diter.Value()) {
+			continue
+		}
 		name := sel.Unquoted()
 		fp := appendPath(p, sel)
 		if fsch, ok := fields[name]; ok {
-			found = append(found, undeclared(ctx, diter.Value(), fsch, fp)...)
+			found = append(found, w.undeclared(diter.Value(), fsch, fp)...)
 			continue
 		}
 		matched := false
 		for i, pat := range patterns {
-			if pat.Pattern().Unify(ctx.Encode(name)).Err() == nil {
-				found = append(found, undeclared(ctx, diter.Value(), patternVals[i], fp)...)
+			if pat.Pattern().Unify(w.ctx.Encode(name)).Err() == nil {
+				found = append(found, w.undeclared(diter.Value(), patternVals[i], fp)...)
 				matched = true
 				break
 			}

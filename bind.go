@@ -240,7 +240,11 @@ func (ml *maybeLineage) checkLineageShape(cfg *bindConfig) error {
 	// }
 	//
 	// means that those structures won't pass Validate until we've injected an actual object there.
-	if err := ml.uni.Validate(cue.Final()); err != nil {
+	//
+	// Nor can it be validated as final: schemas are abstract, and a schema's required
+	// (!) fields are legitimately absent until data is supplied. Final validation
+	// reports each one as missing.
+	if err := ml.uni.Validate(); err != nil {
 		return errors.Mark(cerrors.Promote(err, "not an instance of thema.Lineage"), terrors.ErrInvalidLineage)
 	}
 

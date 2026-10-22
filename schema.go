@@ -104,12 +104,8 @@ func (sch *schemaDef) Validate(data cue.Value) (*Instance, error) {
 	}, nil
 }
 
-// checkDeclared returns an error if data contains any field, at any depth, that
-// the schema does not declare - even where the schema's author wrote it as open.
-// Lenses are strictly bound to the schema as defined: they may not produce fields
-// a schema merely tolerates.
-func (sch *schemaDef) checkDeclared(data cue.Value) error {
-	paths := cuetil.UndeclaredFields(sch.rt().Context(), data, sch.def)
+// undeclaredErr describes fields at paths that the schema does not declare.
+func (sch *schemaDef) undeclaredErr(paths []cue.Path) error {
 	if len(paths) == 0 {
 		return nil
 	}

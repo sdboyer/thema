@@ -30,6 +30,11 @@ func TestUndeclaredFields(t *testing.T) {
 		{"nullable struct", `{n: null | {a: int, ...}}`, `{n: {a: 1, x: 2}}`, []string{"n.x"}},
 		{"embedded definition", `{#D: {a: int, ...}, s: {#D, b?: int}}`, `{s: {a: 1, b: 2, x: 3}}`, []string{"s.x"}},
 		{"hidden and definition data labels ignored", `{a: int}`, `{a: 1, _h: 2, #d: 3}`, nil},
+		{"top declares everything", `{a: string, meta: _}`, `{a: "x", meta: {deep: {x: 1}, l: [{y: 2}]}}`, nil},
+		{"recursive definition", `{#Node: {v: int, next?: #Node}, root: #Node}`, `{root: {v: 1, next: {v: 2, next: {v: 3}}}}`, nil},
+		{"recursive definition, undeclared deep", `{#Node: {v: int, next?: #Node}, root: #Node}`, `{root: {v: 1, next: {v: 2, x: 3}}}`, []string{"root.next.x"}},
+		{"conjunction with defaulted disjunction", `_ & (*{a: int} | {b: string})`, `{b: "x"}`, nil},
+		{"conjunction with defaulted disjunction, undeclared", `_ & (*{a: int} | {b: string})`, `{b: "x", z: 1}`, []string{"z"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			var got []string

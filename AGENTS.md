@@ -30,9 +30,12 @@ semantics apply them where they are used:
   gets field additions and removals wrong.
 - **`Schema.Validate()`**: closed by default.
 - **Lens results**: closed against the target schema inside `Translate`. In Go,
-  results are also checked for fields the target schema does not declare
-  (`cuetil.UndeclaredFields`), even where the author wrote `...`. Lenses are
-  strictly bound to the schema as defined.
+  the fields each lens *builds* are also checked against what the target schema
+  declares (`cuetil.UndeclaredBuiltFields`), even where the author wrote `...`.
+  Lenses are strictly bound to the schema as defined. Data a lens passes through
+  by reference to its input is not checked, and neither are steps with no lens
+  (identity, minor versions). For Go lenses, whose results are opaque, fields
+  unchanged from the input at the same path count as passed through.
 
 Typos at thema-owned levels are caught twice:
 

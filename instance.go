@@ -9,6 +9,8 @@ import (
 	"github.com/cockroachdb/errors"
 
 	terrors "github.com/sdboyer/thema/errors"
+	"github.com/sdboyer/thema/internal/cuetil"
+	"github.com/sdboyer/thema/internal/util"
 )
 
 // BindInstanceType produces a TypedInstance, given an Instance and a
@@ -245,8 +247,7 @@ func (i *Instance) Translate(to SyntacticVersion) (*Instance, TranslationLacunas
 		return nil, nil, errors.Mark(fmt.Errorf("lens produced a non-concrete result: %s", cerrors.Details(err, nil)), terrors.ErrLensIncomplete)
 	}
 
-	// A lens may not produce fields its target schema does not declare
-	if err := newsch.(*schemaDef).checkDeclared(raw); err != nil {
+	if err := i.checkLensBuiltFields(out); err != nil {
 		return nil, nil, errors.Mark(err, terrors.ErrLensResultIsInvalidData)
 	}
 
@@ -295,7 +296,15 @@ func (i *Instance) translateGo(to SyntacticVersion) (*Instance, TranslationLacun
 			if rti.Schema().Version() != nsch.Version() {
 				return nil, nil, fmt.Errorf("lens returned an instance of the wrong schema version: expected %v, got %v", nsch.Version(), rti.Schema().Version())
 			}
-			if err := nsch.(*schemaDef).checkDeclared(rti.Underlying()); err != nil {
+			// A Go lens's result is opaque, so fields carried over unchanged from its
+			// input at the same path count as passed through, not built.
+			var built []cue.Path
+			for _, p := range cuetil.UndeclaredFields(i.rt().Context(), rti.Underlying(), nsch.(*schemaDef).def) {
+				if in := ti.raw.LookupPath(p); !in.Exists() || cuetil.Equal(in, rti.Underlying().LookupPath(p)) != nil {
+					built = append(built, p)
+				}
+			}
+			if err := nsch.(*schemaDef).undeclaredErr(built); err != nil {
 				return nil, nil, errors.Mark(fmt.Errorf("%s lens: %w", mlid, err), terrors.ErrLensResultIsInvalidData)
 			}
 		} else {
@@ -310,6 +319,38 @@ func (i *Instance) translateGo(to SyntacticVersion) (*Instance, TranslationLacun
 	}
 
 	return ti, nil, nil
+}
+
+// checkLensBuiltFields checks that each lens applied by a CUE Translate (whose
+// output is out) built only fields its target schema declares. Lenses are strictly
+// bound to the schema as defined, even where its author wrote it as open. Data a
+// lens merely passes through, by reference to its input, is not checked; nor are
+// minor-version steps, which have no lens.
+func (i *Instance) checkLensBuiltFields(out cue.Value) error {
+	steps, err := out.LookupPath(cue.MakePath(cue.Str("steps"))).List()
+	if err != nil {
+		return nil
+	}
+	lensResult := cue.MakePath(cue.Hid("_lens", util.ThemaPackageID), cue.Str("result"))
+	for steps.Next() {
+		result := steps.Value().LookupPath(lensResult)
+		if !result.Exists() {
+			continue
+		}
+		var to SyntacticVersion
+		if err := steps.Value().LookupPath(cue.MakePath(cue.Str("to"))).Decode(&to); err != nil {
+			return err
+		}
+		sch, err := i.Schema().Lineage().Schema(to)
+		if err != nil {
+			return err
+		}
+		def := sch.(*schemaDef)
+		if err := def.undeclaredErr(cuetil.UndeclaredBuiltFields(i.rt().Context(), result, def.def)); err != nil {
+			return fmt.Errorf("lens to %s: %w", to, err)
+		}
+	}
+	return nil
 }
 
 type multiTranslationLacunas []struct {

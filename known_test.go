@@ -33,7 +33,7 @@ import (
 //
 // A case whose expectations aren't all met is skipped as TODO(#N). A case whose
 // expectations are all met fails, so that a fix is noticed and the case moved
-// into the regular fixtures.
+// into testdata/cases.
 func TestKnownViolations(t *testing.T) {
 	files, err := filepath.Glob("testdata/known/*.txtar")
 	if err != nil {
@@ -70,7 +70,40 @@ func TestKnownViolations(t *testing.T) {
 			if len(unmet) > 0 {
 				t.Skipf("TODO(#%s): %d expectation(s) not met:\n%s", issue[1], len(unmet), strings.Join(unmet, "\n"))
 			}
-			t.Errorf("all expectations met: #%s may be fixed for this case; move it into the regular fixtures", issue[1])
+			t.Errorf("all expectations met: #%s may be fixed for this case; move it into testdata/cases", issue[1])
+		})
+	}
+}
+
+// TestCases runs the cases in testdata/cases, in the same format as
+// testdata/known (an #issue line is optional), requiring every expectation to be
+// met. Fixed known violations move here.
+func TestCases(t *testing.T) {
+	files, err := filepath.Glob("testdata/cases/*.txtar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range files {
+		t.Run(strings.TrimSuffix(filepath.Base(f), ".txtar"), func(t *testing.T) {
+			ar, err := txtar.ParseFile(f)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var src, expect string
+			for _, af := range ar.Files {
+				switch af.Name {
+				case "in.cue":
+					src = string(af.Data)
+				case "expect":
+					expect = string(af.Data)
+				}
+			}
+			if src == "" || expect == "" {
+				t.Fatalf("%s must have in.cue and expect files", f)
+			}
+			if unmet := checkExpectations(t, src, expect); len(unmet) > 0 {
+				t.Errorf("%d expectation(s) not met:\n%s", len(unmet), strings.Join(unmet, "\n"))
+			}
 		})
 	}
 }
