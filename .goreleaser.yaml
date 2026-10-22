@@ -1,3 +1,5 @@
+version: 2
+
 before:
   hooks:
     - go mod tidy
@@ -12,14 +14,14 @@ builds:
     main: ./cmd/thema
 
 archives:
-  - format: tar.gz
+  - formats: [tar.gz]
     format_overrides:
     - goos: windows
-      format: zip
+      formats: [zip]
 checksum:
   name_template: 'checksums.txt'
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ incpatch .Version }}-next"
 changelog:
   use: github
   sort: asc
