@@ -92,6 +92,12 @@ func GenerateTypes(sch thema.Schema, cfg *TypeConfig) (*ast.File, error) {
 		if err != nil {
 			return nil, fmt.Errorf("generating TS for schema root failed: %w", err)
 		}
+		// The root's doc comments are those of thema's internal _schema
+		// field in lineage.cue, which say nothing about the author's schema.
+		if td, ok := top.T.(ast.TypeDecl); ok {
+			td.CommentList = nil
+			top.T = td
+		}
 		file.Nodes = append(file.Nodes, top.T)
 		if top.D != nil {
 			file.Nodes = append(file.Nodes, top.D)
