@@ -91,9 +91,6 @@ func GenerateSchema(sch thema.Schema, cfg *Config) (*ast.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	for _, d := range decls {
-		restoreNullableFormats(d)
-	}
 
 	// TODO recursively sort output to improve stability of output
 	return &ast.File{
