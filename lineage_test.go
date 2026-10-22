@@ -66,7 +66,7 @@ func TestInvalidLineages(t *testing.T) {
 		ThemaFS: CueJointFS,
 		ToDo: map[string]string{
 			"invalidlineage/joindef": "no invariant checker written to disallow definitions from joinSchema",
-			"invalidlineage/onlydef": "Lineage schema non-emptiness constraints are temporarily suspended while migrating grafana to flattened lineage structure",
+			"invalidlineage/onlydef": "no invariant checker written to require a schema to declare a regular field",
 		},
 	}
 

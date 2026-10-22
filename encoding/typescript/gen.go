@@ -39,7 +39,7 @@ type TypeConfig struct {
 	// does not represent an object that is ever expected to exist independently,
 	// but each of its top-level fields do.
 	//
-	// NOTE - https://github.com/grafana/thema/issues/62 is the issue for formalizing
+	// NOTE - https://github.com/sdboyer/thema/issues/40 is the issue for formalizing
 	// the group concept. Fixing that issue will obviate this field. Once fixed,
 	// this field will be ignored, deprecated, and eventually removed.
 	Group bool

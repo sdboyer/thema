@@ -23,7 +23,7 @@ type Config struct {
 	// independently, but each of its top-level fields do, including definitions and
 	// optional fields.
 	//
-	// NOTE - https://github.com/grafana/thema/issues/62 is the issue for formalizing
+	// NOTE - https://github.com/sdboyer/thema/issues/40 is the issue for formalizing
 	// the group concept. Fixing that issue will obviate this field. Once fixed,
 	// this field will be deprecated and ignored.
 	Group bool
