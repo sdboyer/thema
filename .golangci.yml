@@ -1,46 +1,58 @@
-linters-settings:
-  gocyclo:
-    min-complexity: 15
-  govet:
-    check-shadowing: true
-  misspell:
-    locale: US
-  nolintlint:
-    allow-leading-space: false # require machine-readable nolint directives (with no leading space)
-    allow-unused: false # report any unused nolint directives
-    require-explanation: true # require an explanation for nolint directives
-    require-specific: false # don't require nolint directives to be specific about which linter is being skipped
-  revive:
-    confidence: 0
+version: "2"
 
 linters:
-  disable-all: true
+  default: none
+  # Carried over from the v1 config. Dropped in the v2 migration:
+  #  - exportloopref: obsolete since Go 1.22's per-iteration loop variables.
+  #  - gosimple, stylecheck: merged into staticcheck.
+  #  - typecheck: no longer a linter; type errors always fail the run.
+  #  - goimports: now a formatter (see below).
+  #  - gomnd: renamed to mnd.
   enable:
     - dogsled
     - errcheck
-    - exportloopref
     - gochecknoinits
-    - gocritic
     - goconst
+    - gocritic
     - gocyclo
-    - goimports
-    - revive
-    - gomnd
     - goprintffuncname
     - gosec
-    - gosimple
     - govet
     - ineffassign
     - misspell
+    - mnd
     - nolintlint
+    - revive
     - staticcheck
-    - stylecheck
-    - typecheck
     - unconvert
     - unparam
     - unused
     - whitespace
+  settings:
+    gocyclo:
+      min-complexity: 15
+    govet:
+      # v1's check-shadowing.
+      enable:
+        - shadow
+    misspell:
+      locale: US
+    nolintlint:
+      require-explanation: true
+      require-specific: false
+      allow-unused: false
+    revive:
+      confidence: 0
+  exclusions:
+    generated: lax
+    paths:
+      # Vendored-in third-party code; not ours to lint.
+      - internal/cuetsy
 
-issues:
-  # enable issues excluded by default 
-  exclude-use-default: false
+formatters:
+  enable:
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - internal/cuetsy
