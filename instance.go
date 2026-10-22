@@ -234,9 +234,6 @@ func (i *Instance) Translate(to SyntacticVersion) (*Instance, TranslationLacunas
 		return nil, nil, errors.Mark(out.Err(), terrors.ErrInvalidLens)
 	}
 
-	lac := make(multiTranslationLacunas, 0)
-	out.LookupPath(cue.MakePath(cue.Str("lacunas"))).Decode(&lac)
-
 	// Attempt to evaluate Translate result to remove intermediate structures created by Translate.
 	// Otherwise, all the Translate results are non-concrete, which leads to undesired effects.
 	raw, _ := out.LookupPath(cue.MakePath(cue.Str("result"), cue.Str("result"))).Default()
@@ -256,16 +253,22 @@ func (i *Instance) Translate(to SyntacticVersion) (*Instance, TranslationLacunas
 	if err != nil {
 		return nil, nil, errors.Mark(err, terrors.ErrLensResultIsInvalidData)
 	}
-	return inst, lac, err
+
+	var lac TranslationLacunas
+	if err := out.LookupPath(cue.MakePath(cue.Str("steps"))).Decode(&lac); err != nil {
+		return nil, nil, errors.Mark(fmt.Errorf("lens produced invalid lacunas: %s", cerrors.Details(err, nil)), terrors.ErrInvalidLens)
+	}
+	return inst, lac, nil
 }
 
 func (i *Instance) translateGo(to SyntacticVersion) (*Instance, TranslationLacunas, error) {
 	from := i.Schema().Version()
 	if to == from {
 		// TODO make sure this mirrors the pure CUE behavior
-		return i, nil, nil
+		return i, TranslationLacunas{}, nil
 	}
 	lensmap := i.Schema().Lineage().(*baseLineage).lensmap
+	lac := TranslationLacunas{}
 
 	sch := i.Schema()
 	ti := new(Instance)
@@ -279,11 +282,12 @@ func (i *Instance) translateGo(to SyntacticVersion) (*Instance, TranslationLacun
 		}
 
 		var rti *Instance
+		var steplac []Lacuna
 		var err error
 		if to.Less(from) || sch.Version()[0] != nsch.Version()[0] {
 			// Going backward, or crossing major version - need explicit lens
 			mlid := lid(sch.Version(), nsch.Version())
-			rti, err = lensmap[mlid].Mapper(ti, nsch)
+			rti, steplac, err = lensmap[mlid].Mapper(ti, nsch)
 			if err != nil {
 				return nil, nil, fmt.Errorf("error executing %s migration: %w", mlid, err)
 			}
@@ -307,6 +311,13 @@ func (i *Instance) translateGo(to SyntacticVersion) (*Instance, TranslationLacun
 			if err := nsch.(*schemaDef).undeclaredErr(built); err != nil {
 				return nil, nil, errors.Mark(fmt.Errorf("%s lens: %w", mlid, err), terrors.ErrLensResultIsInvalidData)
 			}
+			// Go lenses can't be checked statically, so check their lacunas as they
+			// are emitted, by the same rules CUE lenses are held to at bind time.
+			for _, l := range steplac {
+				if err := checkLacuna(i.rt().Context(), l, sch.(*schemaDef), nsch.(*schemaDef)); err != nil {
+					return nil, nil, errors.Mark(fmt.Errorf("%s lens: %w", mlid, err), terrors.ErrInvalidLens)
+				}
+			}
 		} else {
 			// going up a minor version - neither errors nor lacunas are possible
 			rti, _, err = ti.AsSuccessor()
@@ -314,11 +325,15 @@ func (i *Instance) translateGo(to SyntacticVersion) (*Instance, TranslationLacun
 				panic(fmt.Sprintf("unreachable - error on minor version upgrade: %s", err))
 			}
 		}
+		if steplac == nil {
+			steplac = []Lacuna{}
+		}
+		lac = append(lac, TranslationStep{From: sch.Version(), To: nsch.Version(), Lacunas: steplac})
 		*ti = *rti
 		sch = nsch
 	}
 
-	return ti, nil, nil
+	return ti, lac, nil
 }
 
 // checkLensBuiltFields checks that each lens applied by a CUE Translate (whose
@@ -351,18 +366,4 @@ func (i *Instance) checkLensBuiltFields(out cue.Value) error {
 		}
 	}
 	return nil
-}
-
-type multiTranslationLacunas []struct {
-	V   SyntacticVersion `json:"v"`
-	Lac []Lacuna         `json:"lacunas"`
-}
-
-func (lac multiTranslationLacunas) AsList() []Lacuna {
-	// FIXME This loses info, naturally - need to rework the lacuna types
-	var l []Lacuna
-	for _, v := range lac {
-		l = append(l, v.Lac...)
-	}
-	return l
 }

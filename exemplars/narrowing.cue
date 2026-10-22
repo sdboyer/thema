@@ -35,19 +35,18 @@ narrowing: {
 				}
 			}
 			lacunas: [
-				if ((input.boolish & string) != _|_) && ((input.boolish & ("true" | "false")) == _|_) {
-					thema.Lacuna & {
-						sourceFields: [{
-							path:  "boolish"
-							value: input.boolish
-						}]
-						targetFields: [{
-							path:  "properbool"
-							value: result.properbool
-						}]
-						message: "boolish was a string but neither \"true\" nor \"false\"; fallback to treating as false"
-						type:    thema.LacunaTypes.LossyFieldMapping
-					}
+				thema.Lacuna & {
+					condition: ((input.boolish & string) != _|_) && ((input.boolish & ("true" | "false")) == _|_)
+					sourceFields: [{
+						path:  "boolish"
+						value: input.boolish
+					}]
+					targetFields: [{
+						path:  "properbool"
+						value: result.properbool
+					}]
+					message: "boolish was a string but neither \"true\" nor \"false\"; fallback to treating as false"
+					type:    thema.LacunaTypes.LossyFieldMapping
 				},
 			]
 		}]

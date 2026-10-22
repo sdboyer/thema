@@ -1,6 +1,7 @@
 package exemplars
 
 import (
+	"fmt"
 	"testing"
 
 	"cuelang.org/go/cue"
@@ -64,5 +65,43 @@ func TestDefaultChangeNonDefaultBranch(t *testing.T) {
 		if got, _ := back.Underlying().LookupPath(cue.ParsePath("aunion")).String(); got != "baz" {
 			t.Fatalf("round trip: aunion = %q, want \"baz\"", got)
 		}
+	}
+}
+
+// The exemplars' lacunas fire exactly when their conditions hold.
+func TestExemplarLacunas(t *testing.T) {
+	for name, c := range map[string]struct {
+		lin      func(*thema.Runtime, ...thema.BindOption) (thema.Lineage, error)
+		from, to thema.SyntacticVersion
+		data     string
+		want     []thema.LacunaType
+	}{
+		"narrowing, lossy":        {NarrowingLineage, thema.SV(0, 0), thema.SV(1, 0), `{boolish: "maybe"}`, []thema.LacunaType{thema.LacunaLossyFieldMapping}},
+		"narrowing, clean":        {NarrowingLineage, thema.SV(0, 0), thema.SV(1, 0), `{boolish: "true"}`, nil},
+		"defaultchange, forward":  {DefaultChangeLineage, thema.SV(0, 0), thema.SV(1, 0), `{aunion: "foo"}`, []thema.LacunaType{thema.LacunaChangedDefault}},
+		"defaultchange, backward": {DefaultChangeLineage, thema.SV(1, 0), thema.SV(0, 0), `{aunion: "bar"}`, []thema.LacunaType{thema.LacunaChangedDefault}},
+		"defaultchange, other":    {DefaultChangeLineage, thema.SV(0, 0), thema.SV(1, 0), `{aunion: "baz"}`, nil},
+	} {
+		t.Run(name, func(t *testing.T) {
+			lin, err := c.lin(allrt)
+			if err != nil {
+				t.Fatal(err)
+			}
+			inst, err := thema.SchemaP(lin, c.from).Validate(allctx.CompileString(c.data))
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, lac, err := inst.Translate(c.to)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got []thema.LacunaType
+			for _, l := range lac.AsList() {
+				got = append(got, l.Type)
+			}
+			if fmt.Sprint(got) != fmt.Sprint(c.want) {
+				t.Errorf("got lacunas %v, want %v", got, c.want)
+			}
+		})
 	}
 }

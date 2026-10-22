@@ -91,7 +91,7 @@ type Lineage interface {
 // See [ImperativeLenses] for more information.
 type ImperativeLens struct {
 	To, From SyntacticVersion
-	Mapper   func(inst *Instance, to Schema) (*Instance, error)
+	Mapper   func(inst *Instance, to Schema) (*Instance, []Lacuna, error)
 }
 
 // SchemaP returns the schema identified by the provided version. If no schema

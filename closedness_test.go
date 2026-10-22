@@ -15,6 +15,13 @@ import (
 // the lineage at path lin.
 func bindString(t *testing.T, rt *Runtime, src string) (Lineage, error) {
 	t.Helper()
+	return BindLineage(loadLineageValue(t, rt.Context(), src), rt)
+}
+
+// loadLineageValue loads src as a single-file lineage module importing thema, and
+// returns the value at path lin.
+func loadLineageValue(t *testing.T, ctx *cue.Context, src string) cue.Value {
+	t.Helper()
 	cfg := &load.Config{
 		Dir: "/m",
 		Overlay: map[string]load.Source{
@@ -29,7 +36,7 @@ func bindString(t *testing.T, rt *Runtime, src string) (Lineage, error) {
 	if bi.Err != nil {
 		t.Fatal(bi.Err)
 	}
-	return BindLineage(rt.Context().BuildInstance(bi).LookupPath(cue.ParsePath("lin")), rt)
+	return ctx.BuildInstance(bi).LookupPath(cue.ParsePath("lin"))
 }
 
 func TestLensResultsMayNotInventFields(t *testing.T) {

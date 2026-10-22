@@ -91,7 +91,7 @@ Translate: {
 					to:   _lens.to
 					// TODO initial input isn't necessarily unified with schema - does that make translated output meaningfully different?
 					result:  _lens.result & ({#closed: schdef._schema}).#closed
-					lacunas: [for lac in _lens.lacunas if lac.condition {lac.lacuna}]
+					lacunas: [for lac in _lens.lacunas if lac.condition {lac}]
 				}]
 
 				// Final value excludes first element (initial input) from accum
@@ -134,7 +134,7 @@ Translate: {
 						from:    prior.to
 						to:      schdef.version
 						result:  _lens.result & ({#closed: schdef._schema}).#closed
-						lacunas: [for lac in _lens.lacunas if lac.condition {lac.lacuna}]
+						lacunas: [for lac in _lens.lacunas if lac.condition {lac}]
 					}
 				}]
 

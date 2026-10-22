@@ -239,367 +239,367 @@ lenses: [{
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.0-simple->0.0.json --
 {"init":"some string"}
 {"init":"some string"}
-null
+[]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.0-simple->0.1.json --
 {"init":"some string"}
 {"init":"some string"}
-null
+[{"from":[0,0],"to":[0,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.0-simple->0.2.json --
 {"init":"some string"}
 {"init":"some string"}
-null
+[{"from":[0,0],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,2],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.0-simple->0.3.json --
 {"init":"some string"}
 {"init":"some string"}
-null
+[{"from":[0,0],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,3],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.0-simple->1.0.json --
 {"init":"some string"}
 {"renamed":"some string","withDefault":"foo"}
-null
+[{"from":[0,0],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[1,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.0-simple->1.1.json --
 {"init":"some string"}
 {"renamed":"some string","withDefault":"foo"}
-null
+[{"from":[0,0],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[1,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.0-simple->2.0.json --
 {"init":"some string"}
 {"toObj":{"init":"some string"},"withDefault":"foo"}
-null
+[{"from":[0,0],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[2,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.1-withoutOptional->0.0.json --
 {"init":"some string"}
 {"init":"some string"}
-null
+[{"from":[0,1],"to":[0,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.1-withoutOptional->0.1.json --
 {"init":"some string"}
 {"init":"some string"}
-null
+[]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.1-withoutOptional->0.2.json --
 {"init":"some string"}
 {"init":"some string"}
-null
+[{"from":[0,1],"to":[0,2],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.1-withoutOptional->0.3.json --
 {"init":"some string"}
 {"init":"some string"}
-null
+[{"from":[0,1],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,3],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.1-withoutOptional->1.0.json --
 {"init":"some string"}
 {"renamed":"some string","withDefault":"foo"}
-null
+[{"from":[0,1],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[1,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.1-withoutOptional->1.1.json --
 {"init":"some string"}
 {"renamed":"some string","withDefault":"foo"}
-null
+[{"from":[0,1],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[1,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.1-withoutOptional->2.0.json --
 {"init":"some string"}
 {"toObj":{"init":"some string"},"withDefault":"foo"}
-null
+[{"from":[0,1],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[2,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.1-withOptional->0.0.json --
 {"init":"some string","optional":32}
 {"init":"some string"}
-null
+[{"from":[0,1],"to":[0,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.1-withOptional->0.1.json --
 {"init":"some string","optional":32}
 {"init":"some string","optional":32}
-null
+[]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.1-withOptional->0.2.json --
 {"init":"some string","optional":32}
 {"init":"some string","optional":32}
-null
+[{"from":[0,1],"to":[0,2],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.1-withOptional->0.3.json --
 {"init":"some string","optional":32}
 {"init":"some string","optional":32}
-null
+[{"from":[0,1],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,3],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.1-withOptional->1.0.json --
 {"init":"some string","optional":32}
 {"renamed":"some string","optional":32,"withDefault":"foo"}
-null
+[{"from":[0,1],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[1,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.1-withOptional->1.1.json --
 {"init":"some string","optional":32}
 {"renamed":"some string","optional":32,"withDefault":"foo"}
-null
+[{"from":[0,1],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[1,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.1-withOptional->2.0.json --
 {"init":"some string","optional":32}
 {"toObj":{"init":"some string"},"optional":32,"withDefault":"foo"}
-null
+[{"from":[0,1],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[2,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.2-withoutOptional->0.0.json --
 {"init":"some string","withDefault":"foo"}
 {"init":"some string"}
-null
+[{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.2-withoutOptional->0.1.json --
 {"init":"some string","withDefault":"foo"}
 {"init":"some string"}
-null
+[{"from":[0,2],"to":[0,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.2-withoutOptional->0.2.json --
 {"init":"some string","withDefault":"foo"}
 {"init":"some string","withDefault":"foo"}
-null
+[]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.2-withoutOptional->0.3.json --
 {"init":"some string","withDefault":"foo"}
 {"init":"some string","withDefault":"foo"}
-null
+[{"from":[0,2],"to":[0,3],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.2-withoutOptional->1.0.json --
 {"init":"some string","withDefault":"foo"}
 {"renamed":"some string","withDefault":"foo"}
-null
+[{"from":[0,2],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[1,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.2-withoutOptional->1.1.json --
 {"init":"some string","withDefault":"foo"}
 {"renamed":"some string","withDefault":"foo"}
-null
+[{"from":[0,2],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[1,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.2-withoutOptional->2.0.json --
 {"init":"some string","withDefault":"foo"}
 {"toObj":{"init":"some string"},"withDefault":"foo"}
-null
+[{"from":[0,2],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[2,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.2-withOptional->0.0.json --
 {"init":"some string","optional":32,"withDefault":"bar"}
 {"init":"some string"}
-null
+[{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.2-withOptional->0.1.json --
 {"init":"some string","optional":32,"withDefault":"bar"}
 {"init":"some string","optional":32}
-null
+[{"from":[0,2],"to":[0,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.2-withOptional->0.2.json --
 {"init":"some string","optional":32,"withDefault":"bar"}
 {"init":"some string","optional":32,"withDefault":"bar"}
-null
+[]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.2-withOptional->0.3.json --
 {"init":"some string","optional":32,"withDefault":"bar"}
 {"init":"some string","optional":32,"withDefault":"bar"}
-null
+[{"from":[0,2],"to":[0,3],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.2-withOptional->1.0.json --
 {"init":"some string","optional":32,"withDefault":"bar"}
 {"renamed":"some string","optional":32,"withDefault":"foo"}
-null
+[{"from":[0,2],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[1,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.2-withOptional->1.1.json --
 {"init":"some string","optional":32,"withDefault":"bar"}
 {"renamed":"some string","optional":32,"withDefault":"foo"}
-null
+[{"from":[0,2],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[1,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.2-withOptional->2.0.json --
 {"init":"some string","optional":32,"withDefault":"bar"}
 {"toObj":{"init":"some string"},"optional":32,"withDefault":"foo"}
-null
+[{"from":[0,2],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[2,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withoutOptional->0.0.json --
 {"init":"some string","withDefault":"baz"}
 {"init":"some string"}
-null
+[{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withoutOptional->0.1.json --
 {"init":"some string","withDefault":"baz"}
 {"init":"some string"}
-null
+[{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withoutOptional->0.2.json --
 {"init":"some string","withDefault":"baz"}
 {"init":"some string","withDefault":"foo"}
-null
+[{"from":[0,3],"to":[0,2],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withoutOptional->0.3.json --
 {"init":"some string","withDefault":"baz"}
 {"init":"some string","withDefault":"baz"}
-null
+[]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withoutOptional->1.0.json --
 {"init":"some string","withDefault":"baz"}
 {"renamed":"some string","withDefault":"foo"}
-null
+[{"from":[0,3],"to":[1,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withoutOptional->1.1.json --
 {"init":"some string","withDefault":"baz"}
 {"renamed":"some string","withDefault":"foo"}
-null
+[{"from":[0,3],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[1,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withoutOptional->2.0.json --
 {"init":"some string","withDefault":"baz"}
 {"toObj":{"init":"some string"},"withDefault":"foo"}
-null
+[{"from":[0,3],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[2,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withOptional->0.0.json --
 {"init":"some string","optional":32,"withDefault":"baz"}
 {"init":"some string"}
-null
+[{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withOptional->0.1.json --
 {"init":"some string","optional":32,"withDefault":"baz"}
 {"init":"some string","optional":32}
-null
+[{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withOptional->0.2.json --
 {"init":"some string","optional":32,"withDefault":"baz"}
 {"init":"some string","optional":32,"withDefault":"foo"}
-null
+[{"from":[0,3],"to":[0,2],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withOptional->0.3.json --
 {"init":"some string","optional":32,"withDefault":"baz"}
 {"init":"some string","optional":32,"withDefault":"baz"}
-null
+[]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withOptional->1.0.json --
 {"init":"some string","optional":32,"withDefault":"baz"}
 {"renamed":"some string","optional":32,"withDefault":"foo"}
-null
+[{"from":[0,3],"to":[1,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withOptional->1.1.json --
 {"init":"some string","optional":32,"withDefault":"baz"}
 {"renamed":"some string","optional":32,"withDefault":"foo"}
-null
+[{"from":[0,3],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[1,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withOptional->2.0.json --
 {"init":"some string","optional":32,"withDefault":"baz"}
 {"toObj":{"init":"some string"},"optional":32,"withDefault":"foo"}
-null
+[{"from":[0,3],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[2,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withoutOptional->0.0.json --
 {"renamed":"some string","withDefault":"foo"}
 {"init":"some string"}
-null
+[{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withoutOptional->0.1.json --
 {"renamed":"some string","withDefault":"foo"}
 {"init":"some string"}
-null
+[{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withoutOptional->0.2.json --
 {"renamed":"some string","withDefault":"foo"}
 {"init":"some string","withDefault":"foo"}
-null
+[{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withoutOptional->0.3.json --
 {"renamed":"some string","withDefault":"foo"}
 {"init":"some string","withDefault":"foo"}
-null
+[{"from":[1,0],"to":[0,3],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withoutOptional->1.0.json --
 {"renamed":"some string","withDefault":"foo"}
 {"renamed":"some string","withDefault":"foo"}
-null
+[]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withoutOptional->1.1.json --
 {"renamed":"some string","withDefault":"foo"}
 {"renamed":"some string","withDefault":"foo"}
-null
+[{"from":[1,0],"to":[1,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withoutOptional->2.0.json --
 {"renamed":"some string","withDefault":"foo"}
 {"toObj":{"init":"some string"},"withDefault":"foo"}
-null
+[{"from":[1,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[2,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->0.0.json --
 {"renamed":"some string","optional":32,"withDefault":"bar"}
 {"init":"some string"}
-null
+[{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->0.1.json --
 {"renamed":"some string","optional":32,"withDefault":"bar"}
 {"init":"some string","optional":32}
-null
+[{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->0.2.json --
 {"renamed":"some string","optional":32,"withDefault":"bar"}
 {"init":"some string","optional":32,"withDefault":"foo"}
-null
+[{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->0.3.json --
 {"renamed":"some string","optional":32,"withDefault":"bar"}
 {"init":"some string","optional":32,"withDefault":"bar"}
-null
+[{"from":[1,0],"to":[0,3],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->1.0.json --
 {"renamed":"some string","optional":32,"withDefault":"bar"}
 {"renamed":"some string","optional":32,"withDefault":"bar"}
-null
+[]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->1.1.json --
 {"renamed":"some string","optional":32,"withDefault":"bar"}
 {"renamed":"some string","optional":32,"withDefault":"bar"}
-null
+[{"from":[1,0],"to":[1,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->2.0.json --
 {"renamed":"some string","optional":32,"withDefault":"bar"}
 {"toObj":{"init":"some string"},"optional":32,"withDefault":"foo"}
-null
+[{"from":[1,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[2,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withoutOptional->0.0.json --
 {"renamed":"some string","withDefault":"bing"}
 {"init":"some string"}
-null
+[{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withoutOptional->0.1.json --
 {"renamed":"some string","withDefault":"bing"}
 {"init":"some string"}
-null
+[{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withoutOptional->0.2.json --
 {"renamed":"some string","withDefault":"bing"}
 {"init":"some string","withDefault":"foo"}
-null
+[{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withoutOptional->0.3.json --
 {"renamed":"some string","withDefault":"bing"}
 {"init":"some string","withDefault":"foo"}
-null
+[{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withoutOptional->1.0.json --
 {"renamed":"some string","withDefault":"bing"}
 {"renamed":"some string","withDefault":"foo"}
-null
+[{"from":[1,1],"to":[1,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withoutOptional->1.1.json --
 {"renamed":"some string","withDefault":"bing"}
 {"renamed":"some string","withDefault":"bing"}
-null
+[]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withoutOptional->2.0.json --
 {"renamed":"some string","withDefault":"bing"}
 {"toObj":{"init":"some string"},"withDefault":"foo"}
-null
+[{"from":[1,1],"to":[2,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withOptional->0.0.json --
 {"renamed":"some string","optional":32,"withDefault":"bing"}
 {"init":"some string"}
-null
+[{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withOptional->0.1.json --
 {"renamed":"some string","optional":32,"withDefault":"bing"}
 {"init":"some string","optional":32}
-null
+[{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withOptional->0.2.json --
 {"renamed":"some string","optional":32,"withDefault":"bing"}
 {"init":"some string","optional":32,"withDefault":"foo"}
-null
+[{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withOptional->0.3.json --
 {"renamed":"some string","optional":32,"withDefault":"bing"}
 {"init":"some string","optional":32,"withDefault":"foo"}
-null
+[{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withOptional->1.0.json --
 {"renamed":"some string","optional":32,"withDefault":"bing"}
 {"renamed":"some string","optional":32,"withDefault":"foo"}
-null
+[{"from":[1,1],"to":[1,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withOptional->1.1.json --
 {"renamed":"some string","optional":32,"withDefault":"bing"}
 {"renamed":"some string","optional":32,"withDefault":"bing"}
-null
+[]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withOptional->2.0.json --
 {"renamed":"some string","optional":32,"withDefault":"bing"}
 {"toObj":{"init":"some string"},"optional":32,"withDefault":"foo"}
-null
+[{"from":[1,1],"to":[2,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withoutOptional->0.0.json --
 {"toObj":{"init":"some string"},"withDefault":"bing"}
 {"init":"some string"}
-null
+[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withoutOptional->0.1.json --
 {"toObj":{"init":"some string"},"withDefault":"bing"}
 {"init":"some string"}
-null
+[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withoutOptional->0.2.json --
 {"toObj":{"init":"some string"},"withDefault":"bing"}
 {"init":"some string","withDefault":"foo"}
-null
+[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withoutOptional->0.3.json --
 {"toObj":{"init":"some string"},"withDefault":"bing"}
 {"init":"some string","withDefault":"foo"}
-null
+[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withoutOptional->1.0.json --
 {"toObj":{"init":"some string"},"withDefault":"bing"}
 {"renamed":"some string","withDefault":"foo"}
-null
+[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withoutOptional->1.1.json --
 {"toObj":{"init":"some string"},"withDefault":"bing"}
 {"renamed":"some string","withDefault":"foo"}
-null
+[{"from":[2,0],"to":[1,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withoutOptional->2.0.json --
 {"toObj":{"init":"some string"},"withDefault":"bing"}
 {"toObj":{"init":"some string"},"withDefault":"bing"}
-null
+[]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withOptional->0.0.json --
 {"toObj":{"init":"some string"},"optional":32,"withDefault":"bing"}
 {"init":"some string"}
-null
+[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withOptional->0.1.json --
 {"toObj":{"init":"some string"},"optional":32,"withDefault":"bing"}
 {"init":"some string","optional":32}
-null
+[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withOptional->0.2.json --
 {"toObj":{"init":"some string"},"optional":32,"withDefault":"bing"}
 {"init":"some string","optional":32,"withDefault":"foo"}
-null
+[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withOptional->0.3.json --
 {"toObj":{"init":"some string"},"optional":32,"withDefault":"bing"}
 {"init":"some string","optional":32,"withDefault":"foo"}
-null
+[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withOptional->1.0.json --
 {"toObj":{"init":"some string"},"optional":32,"withDefault":"bing"}
 {"renamed":"some string","optional":32,"withDefault":"foo"}
-null
+[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withOptional->1.1.json --
 {"toObj":{"init":"some string"},"optional":32,"withDefault":"bing"}
 {"renamed":"some string","optional":32,"withDefault":"foo"}
-null
+[{"from":[2,0],"to":[1,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withOptional->2.0.json --
 {"toObj":{"init":"some string"},"optional":32,"withDefault":"bing"}
 {"toObj":{"init":"some string"},"optional":32,"withDefault":"bing"}
-null
+[]
 -- out/bind --
 Schema count: 7
 Schema versions: 0.0, 0.1, 0.2, 0.3, 1.0, 1.1, 2.0

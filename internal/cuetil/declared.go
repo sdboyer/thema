@@ -215,3 +215,65 @@ func (w walker) undeclaredInStruct(data, sch cue.Value, p cue.Path) []cue.Path {
 func appendPath(p cue.Path, sel cue.Selector) cue.Path {
 	return cue.MakePath(append(p.Selectors(), sel)...)
 }
+
+// DeclaresPath reports whether sch declares a field at path p, by the same rules
+// as [UndeclaredFields]: a field of that name (regular, optional or required) or a
+// matching pattern constraint at each step. An open struct's ... declares
+// nothing, and _ declares everything beneath it. Where sch is a disjunction, any
+// alternative declaring the path suffices.
+func DeclaresPath(ctx *cue.Context, sch cue.Value, p cue.Path) bool {
+	sels := p.Selectors()
+	if len(sels) == 0 {
+		return true
+	}
+	if sch.IncompleteKind() == cue.TopKind {
+		return true
+	}
+	for _, alt := range alternatives(sch, 0) {
+		if next, ok := declaredChild(ctx, alt, sels[0]); ok && DeclaresPath(ctx, next, cue.MakePath(sels[1:]...)) {
+			return true
+		}
+	}
+	return false
+}
+
+// declaredChild returns the schema sch declares for the child sel, if any.
+func declaredChild(ctx *cue.Context, sch cue.Value, sel cue.Selector) (cue.Value, bool) {
+	switch {
+	case sel.Type().LabelType() == cue.IndexLabel:
+		if v := sch.LookupPath(cue.MakePath(sel)); v.Exists() {
+			return v, true
+		}
+		if v := sch.LookupPath(cue.MakePath(cue.AnyIndex)); v.Exists() {
+			return v, true
+		}
+		return cue.Value{}, false
+	case sel.IsString():
+		iter, err := sch.Fields(cue.Optional(true), cue.Patterns(true))
+		if err != nil {
+			return cue.Value{}, false
+		}
+		name := sel.Unquoted()
+		var pattern cue.Value
+		for iter.Next() {
+			s := iter.Selector()
+			if s.ConstraintType() == cue.PatternConstraint {
+				if !pattern.Exists() && s.Pattern().Unify(ctx.Encode(name)).Err() == nil {
+					pattern = iter.Value()
+				}
+				continue
+			}
+			if s.IsString() && s.Unquoted() == name {
+				v := iter.Value()
+				if v.IncompleteKind() == cue.BottomKind {
+					if d := cue.Dereference(v); d.IncompleteKind() != cue.BottomKind {
+						v = d
+					}
+				}
+				return v, true
+			}
+		}
+		return pattern, pattern.Exists()
+	}
+	return cue.Value{}, false
+}

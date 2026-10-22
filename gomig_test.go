@@ -107,20 +107,21 @@ schemas: [{
 		{
 			To:   SV(0, 0),
 			From: SV(0, 1),
-			Mapper: func(inst *Instance, to Schema) (*Instance, error) {
+			Mapper: func(inst *Instance, to Schema) (*Instance, []Lacuna, error) {
 				m := tomap(inst)
 
 				tom := map[string]any{
 					"init": m["init"],
 				}
 
-				return to.Validate(to.Underlying().Context().Encode(tom))
+				inst, err := to.Validate(to.Underlying().Context().Encode(tom))
+				return inst, nil, err
 			},
 		},
 		{
 			To:   SV(0, 1),
 			From: SV(0, 2),
-			Mapper: func(inst *Instance, to Schema) (*Instance, error) {
+			Mapper: func(inst *Instance, to Schema) (*Instance, []Lacuna, error) {
 				m := tomap(inst)
 
 				tom := map[string]any{
@@ -130,13 +131,14 @@ schemas: [{
 					tom["optional"] = v
 				}
 
-				return to.Validate(to.Underlying().Context().Encode(tom))
+				inst, err := to.Validate(to.Underlying().Context().Encode(tom))
+				return inst, nil, err
 			},
 		},
 		{
 			To:   SV(0, 2),
 			From: SV(0, 3),
-			Mapper: func(inst *Instance, to Schema) (*Instance, error) {
+			Mapper: func(inst *Instance, to Schema) (*Instance, []Lacuna, error) {
 				m := tomap(inst)
 
 				tom := map[string]any{
@@ -152,13 +154,14 @@ schemas: [{
 					tom["withDefault"] = "foo"
 				}
 
-				return to.Validate(to.Underlying().Context().Encode(tom))
+				inst, err := to.Validate(to.Underlying().Context().Encode(tom))
+				return inst, nil, err
 			},
 		},
 		{
 			To:   SV(0, 3),
 			From: SV(1, 0),
-			Mapper: func(inst *Instance, to Schema) (*Instance, error) {
+			Mapper: func(inst *Instance, to Schema) (*Instance, []Lacuna, error) {
 				m := tomap(inst)
 
 				tom := map[string]any{
@@ -178,13 +181,14 @@ schemas: [{
 					tom["withDefault"] = "foo"
 				}
 
-				return to.Validate(to.Underlying().Context().Encode(tom))
+				inst, err := to.Validate(to.Underlying().Context().Encode(tom))
+				return inst, nil, err
 			},
 		},
 		{
 			To:   SV(1, 0),
 			From: SV(0, 3),
-			Mapper: func(inst *Instance, to Schema) (*Instance, error) {
+			Mapper: func(inst *Instance, to Schema) (*Instance, []Lacuna, error) {
 				m := tomap(inst)
 
 				tom := map[string]any{
@@ -203,13 +207,14 @@ schemas: [{
 					tom["withDefault"] = "bar"
 				}
 
-				return to.Validate(to.Underlying().Context().Encode(tom))
+				inst, err := to.Validate(to.Underlying().Context().Encode(tom))
+				return inst, nil, err
 			},
 		},
 		{
 			To:   SV(1, 0),
 			From: SV(1, 1),
-			Mapper: func(inst *Instance, to Schema) (*Instance, error) {
+			Mapper: func(inst *Instance, to Schema) (*Instance, []Lacuna, error) {
 				m := tomap(inst)
 
 				tom := map[string]any{
@@ -224,13 +229,14 @@ schemas: [{
 					tom["withDefault"] = "bar"
 				}
 
-				return to.Validate(to.Underlying().Context().Encode(tom))
+				inst, err := to.Validate(to.Underlying().Context().Encode(tom))
+				return inst, nil, err
 			},
 		},
 		{
 			To:   SV(1, 1),
 			From: SV(2, 0),
-			Mapper: func(inst *Instance, to Schema) (*Instance, error) {
+			Mapper: func(inst *Instance, to Schema) (*Instance, []Lacuna, error) {
 				m := tomap(inst)
 
 				tom := map[string]any{
@@ -245,13 +251,14 @@ schemas: [{
 					tom["withDefault"] = "bar"
 				}
 
-				return to.Validate(to.Underlying().Context().Encode(tom))
+				inst, err := to.Validate(to.Underlying().Context().Encode(tom))
+				return inst, nil, err
 			},
 		},
 		{
 			To:   SV(2, 0),
 			From: SV(1, 1),
-			Mapper: func(inst *Instance, to Schema) (*Instance, error) {
+			Mapper: func(inst *Instance, to Schema) (*Instance, []Lacuna, error) {
 				m := tomap(inst)
 
 				tom := map[string]any{
@@ -268,7 +275,8 @@ schemas: [{
 					tom["withDefault"] = "bar"
 				}
 
-				return to.Validate(to.Underlying().Context().Encode(tom))
+				inst, err := to.Validate(to.Underlying().Context().Encode(tom))
+				return inst, nil, err
 			},
 		},
 	}
@@ -287,7 +295,7 @@ schemas: [{
 			t.Run(tname, func(t *testing.T) {
 				tinst, lacunas, err := tex.Translate(end.Version())
 				require.NoError(t, err)
-				assert.Nil(t, lacunas, "pure go migrations cannot emit lacunas")
+				assert.Empty(t, lacunas.AsList(), "these go migrations emit no lacunas")
 
 				b, err := tinst.Underlying().MarshalJSON()
 				require.NoError(t, err)
@@ -316,47 +324,47 @@ schemas: [{
 		_, err = BindLineage(linval, rt, ImperativeLenses(append(correctLenses, ImperativeLens{
 			To:     SV(2, 0),
 			From:   SV(2, 1),
-			Mapper: func(inst *Instance, to Schema) (*Instance, error) { return nil, nil },
+			Mapper: func(inst *Instance, to Schema) (*Instance, []Lacuna, error) { return nil, nil, nil },
 		})...))
 		assert.Error(t, err, "expected error when adding Go migration pointing to nonexistent version")
 
 		_, err = BindLineage(linval, rt, ImperativeLenses(append(correctLenses, ImperativeLens{
 			To:     SV(2, 1),
 			From:   SV(2, 0),
-			Mapper: func(inst *Instance, to Schema) (*Instance, error) { return nil, nil },
+			Mapper: func(inst *Instance, to Schema) (*Instance, []Lacuna, error) { return nil, nil, nil },
 		})...))
 		assert.Error(t, err, "expected error when adding Go migration pointing to nonexistent version")
 
 		_, err = BindLineage(linval, rt, ImperativeLenses(append(correctLenses, ImperativeLens{
 			To:     SV(2, 0),
 			From:   SV(1, 1),
-			Mapper: func(inst *Instance, to Schema) (*Instance, error) { return nil, nil },
+			Mapper: func(inst *Instance, to Schema) (*Instance, []Lacuna, error) { return nil, nil, nil },
 		})...))
 		assert.Error(t, err, "expected error when adding duplicate Go migration")
 
 		_, err = BindLineage(linval, rt, ImperativeLenses(append(correctLenses, ImperativeLens{
-			Mapper: func(inst *Instance, to Schema) (*Instance, error) { return nil, nil },
+			Mapper: func(inst *Instance, to Schema) (*Instance, []Lacuna, error) { return nil, nil, nil },
 		})...))
 		assert.Error(t, err, "expected error when providing a Go migration with same to and from")
 
 		_, err = BindLineage(linval, rt, ImperativeLenses(append(correctLenses, ImperativeLens{
 			To:     SV(2, 0),
 			From:   SV(1, 0),
-			Mapper: func(inst *Instance, to Schema) (*Instance, error) { return nil, nil },
+			Mapper: func(inst *Instance, to Schema) (*Instance, []Lacuna, error) { return nil, nil, nil },
 		})...))
 		assert.Error(t, err, "expected error when providing Go migration with wrong successor")
 
 		_, err = BindLineage(linval, rt, ImperativeLenses(append(correctLenses, ImperativeLens{
 			To:     SV(1, 0),
 			From:   SV(2, 0),
-			Mapper: func(inst *Instance, to Schema) (*Instance, error) { return nil, nil },
+			Mapper: func(inst *Instance, to Schema) (*Instance, []Lacuna, error) { return nil, nil, nil },
 		})...))
 		assert.Error(t, err, "expected error when providing Go migration with wrong predecessor")
 
 		_, err = BindLineage(linval, rt, ImperativeLenses(append(correctLenses, ImperativeLens{
 			To:     SV(1, 1),
 			From:   SV(1, 0),
-			Mapper: func(inst *Instance, to Schema) (*Instance, error) { return nil, nil },
+			Mapper: func(inst *Instance, to Schema) (*Instance, []Lacuna, error) { return nil, nil, nil },
 		})...))
 		assert.Error(t, err, "expected error when providing Go migration for minor version upgrade")
 

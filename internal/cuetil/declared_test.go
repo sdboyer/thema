@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 )
 
@@ -45,5 +46,32 @@ func TestUndeclaredFields(t *testing.T) {
 				t.Errorf("got %v, want %v", got, c.want)
 			}
 		})
+	}
+}
+
+func TestDeclaresPath(t *testing.T) {
+	ctx := cuecontext.New()
+	sch := ctx.CompileString(`{
+	a: int
+	b?: string
+	c!: {d: int, e?: {f: int}}
+	open: {x: int, ...}
+	m: [string]: {v: int}
+	l: [...{w: int}]
+	any: _
+	dj: {p: int} | {q: int}
+}`)
+	for path, want := range map[string]bool{
+		"a": true, "b": true, "c": true, "c.d": true, "c.e.f": true,
+		"open.x": true, "open.y": false,
+		"m.anything": true, "m.k.v": true, "m.k.z": false,
+		"l[0].w": true, "l[3].w": true, "l[0].z": false,
+		"any.deep.down": true,
+		"dj.p":          true, "dj.q": true, "dj.r": false,
+		"nope": false, "a.b": false,
+	} {
+		if got := DeclaresPath(ctx, sch, cue.ParsePath(path)); got != want {
+			t.Errorf("%s: got %v, want %v", path, got, want)
+		}
 	}
 }

@@ -52,6 +52,17 @@ seams: "embedded-module-root": {
 	]
 }
 
+// Go's set of lacuna types mirrors LacunaTypes in thema's CUE; Go lenses' lacunas
+// are checked against it.
+seams: "lacuna-types": {
+	kind:  "shared-kernel"
+	paths: ["lacuna.go"]
+	consult: [
+		"LacunaTypes in lacuna.cue (lockstep test TestLacunaTypesMatchCUE)",
+		"Go lenses, whose lacunas are validated against these types at translation",
+	]
+}
+
 // The CUE module config is pure substrate.
 seams: "cue-module": {
 	kind:    "shared-kernel"
@@ -112,6 +123,7 @@ seams: "go-residual-checks": {
 		checkNativeValidity:    "runs the CUE-native validity pass and surfaces its errors"
 		checkLensesOrder:       "lens from/to ordering constraints"
 		checkGoLensCompleteness: "every required lens exists for the version set"
+		checkLacunas:            "lacuna lists must be enumerable without input, and lacuna field paths declared by the lens's schemas: needs the lineage's schemas, and CUE would only report missing required lacuna fields once data arrives"
 		checkUnknownFields:      "unknown lineage/schema/lens fields; CUE rejects them too, but positions the error at its guard in thema's CUE, while Go can point at the author's line. Known fields are read from thema's CUE, not duplicated"
 	}
 }

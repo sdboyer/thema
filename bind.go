@@ -14,6 +14,7 @@ import (
 
 	terrors "github.com/sdboyer/thema/errors"
 	"github.com/sdboyer/thema/internal/compat"
+	"github.com/sdboyer/thema/internal/cuetil"
 	"github.com/sdboyer/thema/internal/embedreg"
 )
 
@@ -262,6 +263,87 @@ func (ml *maybeLineage) checkNativeValidity(cfg *bindConfig) error {
 		return errors.Mark(cerrors.Promote(err, "lineage is invalid"), terrors.ErrInvalidLineage)
 	}
 
+	return nil
+}
+
+// checkLacunas checks the lacunas each CUE lens can emit: they must be listed
+// unconditionally (each lacuna's condition field decides whether it applies),
+// have a message and a type, and refer only to fields declared by the lens's
+// schemas: source fields by its 'from' schema, target fields by its 'to' schema.
+// CUE checks the type and field shapes; the rest needs the lineage's schemas, or
+// would only be reported by CUE once data arrives.
+func (ml *maybeLineage) checkLacunas() error {
+	byVersion := make(map[SyntacticVersion]*schemaDef, len(ml.schlist))
+	for _, sch := range ml.schlist {
+		byVersion[sch.v] = sch
+	}
+
+	var errs cerrors.Error
+	lenses := ml.uni.LookupPath(cue.MakePath(cue.Str("lenses")))
+	for li := 0; ; li++ {
+		lens := lenses.LookupPath(cue.MakePath(cue.Index(li)))
+		if !lens.Exists() {
+			break
+		}
+		var from, to SyntacticVersion
+		if lens.LookupPath(cue.MakePath(cue.Str("from"))).Decode(&from) != nil || lens.LookupPath(cue.MakePath(cue.Str("to"))).Decode(&to) != nil {
+			// Malformed lens versions are other checks' concern.
+			continue
+		}
+		fsch, tsch := byVersion[from], byVersion[to]
+		if fsch == nil || tsch == nil {
+			continue
+		}
+
+		// A lens that declares no lacunas has thema's open default, [...Lacuna], which
+		// resolves to []. A list built conditionally has no concrete length at all.
+		raw := lens.LookupPath(cue.MakePath(cue.Str("lacunas")))
+		lacunas, _ := raw.Default()
+		if _, err := lacunas.Len().Int64(); err != nil || cuetil.ListBuiltByComprehension(raw) {
+			errs = cerrors.Append(errs, cerrors.Newf(userPos(lacunas),
+				"lens %s -> %s: lacunas must be listed unconditionally, with each lacuna's condition field deciding whether it applies", from, to))
+			continue
+		}
+		for i := 0; ; i++ {
+			lac := lacunas.LookupPath(cue.MakePath(cue.Index(i)))
+			if !lac.Exists() {
+				break
+			}
+			fail := func(format string, args ...any) {
+				errs = cerrors.Append(errs, cerrors.Newf(userPos(lac), "lens %s -> %s, lacuna %d: %s", from, to, i, fmt.Sprintf(format, args...)))
+			}
+			if !lac.LookupPath(cue.MakePath(cue.Str("message"))).Exists() {
+				fail("message is required")
+			}
+			if !lac.LookupPath(cue.MakePath(cue.Str("type"))).Exists() {
+				fail("type is required")
+			}
+			for _, side := range []struct {
+				field string
+				sch   *schemaDef
+			}{{"sourceFields", fsch}, {"targetFields", tsch}} {
+				refs := lac.LookupPath(cue.MakePath(cue.Str(side.field)))
+				for j := 0; ; j++ {
+					ref := refs.LookupPath(cue.MakePath(cue.Index(j)))
+					if !ref.Exists() {
+						break
+					}
+					path, err := ref.LookupPath(cue.MakePath(cue.Str("path"))).String()
+					if err != nil {
+						fail("%s[%d].path must be a concrete string", side.field, j)
+						continue
+					}
+					if err := checkFieldRefPath(ml.rt.Context(), path, side.sch); err != nil {
+						fail("%s[%d]: %v", side.field, j, err)
+					}
+				}
+			}
+		}
+	}
+
+	if errs != nil {
+		return errors.Mark(errs, terrors.ErrInvalidLens)
+	}
 	return nil
 }
 

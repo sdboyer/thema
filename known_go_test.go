@@ -75,8 +75,9 @@ func TestKnownGo(t *testing.T) {
 		lin := mustBind(t, `lin: thema.Lineage & {
 	name: "main"
 	schemas: [{version: [0, 0], schema: {a: *1 | int}}, {version: [0, 1], schema: {a: int}}]
-}`, ImperativeLenses(ImperativeLens{From: SV(0, 1), To: SV(0, 0), Mapper: func(inst *Instance, to Schema) (*Instance, error) {
-			return to.Validate(inst.Underlying())
+}`, ImperativeLenses(ImperativeLens{From: SV(0, 1), To: SV(0, 0), Mapper: func(inst *Instance, to Schema) (*Instance, []Lacuna, error) {
+			inst, err := to.Validate(inst.Underlying())
+			return inst, nil, err
 		}}))
 		var unmet []string
 		out, _, err := mustValidate(t, lin.First(), `{}`).Translate(SV(0, 1))
@@ -95,8 +96,9 @@ func TestKnownGo(t *testing.T) {
 		lin := mustBind(t, `lin: thema.Lineage & {
 	name: "main"
 	schemas: [{version: [0, 0], schema: {a: string}}, {version: [0, 1], schema: {a: string, b?: int}}]
-}`, ImperativeLenses(ImperativeLens{From: SV(0, 1), To: SV(0, 0), Mapper: func(inst *Instance, to Schema) (*Instance, error) {
-			return other.First().Validate(ctx.CompileString(`{a: 42}`))
+}`, ImperativeLenses(ImperativeLens{From: SV(0, 1), To: SV(0, 0), Mapper: func(inst *Instance, to Schema) (*Instance, []Lacuna, error) {
+			inst, err := other.First().Validate(ctx.CompileString(`{a: 42}`))
+			return inst, nil, err
 		}}))
 		var unmet []string
 		out, _, err := mustValidate(t, lin.Latest(), `{a: "x"}`).Translate(SV(0, 0))
@@ -112,8 +114,9 @@ func TestKnownGo(t *testing.T) {
 	name: "main"
 	schemas: [{version: [0, 0], schema: {a: string}}, {version: [0, 1], schema: {a: string, b?: int}}]
 	lenses: [{from: [9, 9], to: [3, 0], input: _, result: {nonsense: true}}, {from: [0, 0], to: [0, 0], input: _, result: {}}]
-}`, ImperativeLenses(ImperativeLens{From: SV(0, 1), To: SV(0, 0), Mapper: func(inst *Instance, to Schema) (*Instance, error) {
-			return to.Validate(ctx.CompileString(`{a: "x"}`))
+}`, ImperativeLenses(ImperativeLens{From: SV(0, 1), To: SV(0, 0), Mapper: func(inst *Instance, to Schema) (*Instance, []Lacuna, error) {
+			inst, err := to.Validate(ctx.CompileString(`{a: "x"}`))
+			return inst, nil, err
 		}}))
 		var unmet []string
 		if err == nil {
@@ -123,32 +126,6 @@ func TestKnownGo(t *testing.T) {
 	})
 
 	// Lacunas whose condition holds are never returned from Translate.
-	t.Run("lens-lacunas-dropped", func(t *testing.T) {
-		lin := mustBind(t, `lin: thema.Lineage & {
-	name: "lacunas"
-	schemas: [{version: [0, 0], schema: {a: string}}, {version: [0, 1], schema: {a: string, b?: int}}]
-	lenses: [{
-		from: [0, 1]
-		to: [0, 0]
-		input: _
-		result: {a: input.a}
-		lacunas: [thema.Lacuna & {
-			targetFields: []
-			sourceFields: [{path: "b", value: input.b}]
-			message: "b dropped"
-			type: thema.LacunaTypes.LossyFieldMapping
-		}]
-	}]
-}`)
-		var unmet []string
-		_, lac, err := mustValidate(t, lin.Latest(), `{a: "x", b: 3}`).Translate(SV(0, 0))
-		if err != nil {
-			unmet = append(unmet, fmt.Sprintf("translate failed: %v", err))
-		} else if len(lac.AsList()) == 0 {
-			unmet = append(unmet, "translate emitted no lacunas, though the lens's lacuna condition holds")
-		}
-		verdict(t, 8, unmet)
-	})
 
 	// Malformed versions make BindLineage panic rather than return an error.
 	for name, src := range map[string]string{
