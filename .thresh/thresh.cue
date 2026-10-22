@@ -20,10 +20,35 @@ seams: lineages: {
 // anyone writes unifies with #Lineage, and the Go library binds to these by path.
 seams: "lineage-kernel": {
 	kind:  "shared-kernel"
-	paths: ["lineage.cue"]
+	paths: ["lineage.cue", "translate.cue", "lacuna.cue", "traverse.cue"]
 	consult: [
 		"every lineage that unifies with thema.#Lineage",
 		"the Go facade (bind.go, lineage.go, surface.go)",
+		"Go code that calls thema's CUE pseudofunctions and decodes their output shape (instance.go Translate decodes #Translate's out)",
+	]
+}
+
+// Go constants that mirror thema's CUE module identity: its path, embedded version
+// and language version, and the package identity that scopes thema's hidden fields
+// (cue.Hid). They must stay in lockstep with cue.mod/module.cue and the release tag.
+seams: "thema-module-identity": {
+	kind:  "shared-kernel"
+	paths: ["internal/util/modfile.go"]
+	consult: [
+		"cue.mod/module.cue (lockstep test in internal/util)",
+		"the release process, which tags the Go and CUE modules with ThemaModuleVersion",
+		"every module.cue thema synthesizes (util.ModuleFile) and every cue.Hid lookup",
+	]
+}
+
+// The virtual path at which the embedded thema module is presented to the CUE
+// loader appears in every error position that points into thema's CUE.
+seams: "embedded-module-root": {
+	kind:  "shared-kernel"
+	paths: ["internal/embedreg/embedreg.go"]
+	consult: [
+		"users reading error positions (the path is user-facing)",
+		"golden error output in testdata",
 	]
 }
 
@@ -40,7 +65,12 @@ seams: "cue-dependency": {
 	kind:    "shared-kernel"
 	paths:   ["go.mod"]
 	watch:   ["cuelang.org/go"]
-	consult: ["every lineage's validity; the Go facade's cue.Value handling"]
+	consult: [
+		"every lineage's validity; the Go facade's cue.Value handling",
+		"Go code that parses CUE error shapes (validate.go mungeValidateErr matches on Msg() argument counts and types)",
+		"Go code that works around evaluator behavior (assignable.go detaches values before Subsume)",
+		"golden error output in testdata, which records CUE's error wording and positions",
+	]
 }
 
 // --- choke-point ------------------------------------------------------------------
@@ -52,6 +82,16 @@ seams: bindlineage: {
 	paths:  ["*.go"]
 	type:   "baseLineage"
 	onlyIn: ["BindLineage"]
+}
+
+// Configure is the only way thema's CUE module gets served to the loader. Building
+// the registry elsewhere could skip the module-file check or the overlay that makes
+// its virtual root readable.
+seams: "embedded-registry": {
+	kind:   "choke-point"
+	paths:  ["internal/embedreg/*.go"]
+	type:   "registry"
+	onlyIn: ["Configure"]
 }
 
 // --- declared-set: the Go/CUE partition of responsibility ------------------------
