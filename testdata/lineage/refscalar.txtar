@@ -61,17 +61,6 @@ lenses: []
     }
   }
 }
--- out/encoding/gocode/TestGenerate/depointerized --
-== refscalar_type_0.0_gen.go
-package refscalar
-
-// Baz defines model for Baz.
-type Baz = string
-
-// Refscalar defines model for refscalar.
-type Refscalar struct {
-	ABaz Baz `json:"aBaz"`
-}
 -- out/encoding/openapi/TestGenerate/expandrefs --
 == 0.0.json
 {
@@ -100,49 +89,7 @@ type Refscalar struct {
     }
   }
 }
--- out/encoding/gocode/TestGenerate/godeclincomments --
-== refscalar_type_0.0_gen.go
-package refscalar
-
-// Baz defines model for Baz.
-type Baz = string
-
-// Refscalar defines model for refscalar.
-type Refscalar struct {
-	ABaz Baz `json:"aBaz"`
-}
--- out/encoding/gocode/TestGenerate/expandref --
-== refscalar_type_0.0_gen.go
-package refscalar
-
-// Baz defines model for Baz.
-type Baz = string
-
-// Refscalar defines model for refscalar.
-type Refscalar struct {
-	ABaz string `json:"aBaz"`
-}
 -- out/bind --
 Schema count: 1
 Schema versions: 0.0
 Lenses count: 0
--- out/encoding/gocode/TestGenerate/nilcfg --
-== refscalar_type_0.0_gen.go
-package refscalar
-
-// Baz defines model for Baz.
-type Baz = string
-
-// Refscalar defines model for refscalar.
-type Refscalar struct {
-	ABaz Baz `json:"aBaz"`
-}
--- out/encoding/gocode/TestGenerate/group --
-== refscalar_type_0.0_gen.go
-package refscalar
-
-// Baz defines model for Baz.
-type Baz = string
-
-// ABaz defines model for aBaz.
-type ABaz = string

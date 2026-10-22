@@ -318,27 +318,6 @@ schemas: [{
 {
     "someFloat64": "I am a string"
 }
--- out/encoding/gocode/TestGenerate/nilcfg --
-== scalarfields_type_0.0_gen.go
-package scalarfields
-
-// Scalarfields defines model for scalarfields.
-type Scalarfields struct {
-	IntWithBounds            int     `json:"intWithBounds"`
-	NullableIntWithDefault   *int    `json:"nullableIntWithDefault"`
-	NullableIntWithNoDefault *int    `json:"nullableIntWithNoDefault"`
-	SomeFloat32              float32 `json:"someFloat32"`
-	SomeFloat64              float64 `json:"someFloat64"`
-	SomeInt16                int     `json:"someInt16"`
-	SomeInt32                int32   `json:"someInt32"`
-	SomeInt64                int64   `json:"someInt64"`
-	SomeInt8                 int     `json:"someInt8"`
-	SomeUInt16               int     `json:"someUInt16"`
-	SomeUInt32               int     `json:"someUInt32"`
-	SomeUInt64               int     `json:"someUInt64"`
-	SomeUInt8                int     `json:"someUInt8"`
-	StringWithLength         string  `json:"stringWithLength"`
-}
 -- out/encoding/openapi/TestGenerate/nilcfg --
 == 0.0.json
 {
@@ -618,118 +597,10 @@ type Scalarfields struct {
     }
   }
 }
--- out/encoding/gocode/TestGenerate/depointerized --
-== scalarfields_type_0.0_gen.go
-package scalarfields
-
-// Scalarfields defines model for scalarfields.
-type Scalarfields struct {
-	IntWithBounds            int     `json:"intWithBounds"`
-	NullableIntWithDefault   int     `json:"nullableIntWithDefault"`
-	NullableIntWithNoDefault int     `json:"nullableIntWithNoDefault"`
-	SomeFloat32              float32 `json:"someFloat32"`
-	SomeFloat64              float64 `json:"someFloat64"`
-	SomeInt16                int     `json:"someInt16"`
-	SomeInt32                int32   `json:"someInt32"`
-	SomeInt64                int64   `json:"someInt64"`
-	SomeInt8                 int     `json:"someInt8"`
-	SomeUInt16               int     `json:"someUInt16"`
-	SomeUInt32               int     `json:"someUInt32"`
-	SomeUInt64               int     `json:"someUInt64"`
-	SomeUInt8                int     `json:"someUInt8"`
-	StringWithLength         string  `json:"stringWithLength"`
-}
--- out/encoding/gocode/TestGenerate/godeclincomments --
-== scalarfields_type_0.0_gen.go
-package scalarfields
-
-// Scalarfields defines model for scalarfields.
-type Scalarfields struct {
-	IntWithBounds            int     `json:"intWithBounds"`
-	NullableIntWithDefault   *int    `json:"nullableIntWithDefault"`
-	NullableIntWithNoDefault *int    `json:"nullableIntWithNoDefault"`
-	SomeFloat32              float32 `json:"someFloat32"`
-	SomeFloat64              float64 `json:"someFloat64"`
-	SomeInt16                int     `json:"someInt16"`
-	SomeInt32                int32   `json:"someInt32"`
-	SomeInt64                int64   `json:"someInt64"`
-	SomeInt8                 int     `json:"someInt8"`
-	SomeUInt16               int     `json:"someUInt16"`
-	SomeUInt32               int     `json:"someUInt32"`
-	SomeUInt64               int     `json:"someUInt64"`
-	SomeUInt8                int     `json:"someUInt8"`
-	StringWithLength         string  `json:"stringWithLength"`
-}
--- out/encoding/gocode/TestGenerate/expandref --
-== scalarfields_type_0.0_gen.go
-package scalarfields
-
-// Scalarfields defines model for scalarfields.
-type Scalarfields struct {
-	IntWithBounds            int     `json:"intWithBounds"`
-	NullableIntWithDefault   *int    `json:"nullableIntWithDefault"`
-	NullableIntWithNoDefault *int    `json:"nullableIntWithNoDefault"`
-	SomeFloat32              float32 `json:"someFloat32"`
-	SomeFloat64              float64 `json:"someFloat64"`
-	SomeInt16                int     `json:"someInt16"`
-	SomeInt32                int32   `json:"someInt32"`
-	SomeInt64                int64   `json:"someInt64"`
-	SomeInt8                 int     `json:"someInt8"`
-	SomeUInt16               int     `json:"someUInt16"`
-	SomeUInt32               int     `json:"someUInt32"`
-	SomeUInt64               int     `json:"someUInt64"`
-	SomeUInt8                int     `json:"someUInt8"`
-	StringWithLength         string  `json:"stringWithLength"`
-}
 -- out/bind --
 Schema count: 1
 Schema versions: 0.0
 Lenses count: 0
--- out/encoding/gocode/TestGenerate/group --
-== scalarfields_type_0.0_gen.go
-package scalarfields
-
-// IntWithBounds defines model for intWithBounds.
-type IntWithBounds = int
-
-// NullableIntWithDefault defines model for nullableIntWithDefault.
-type NullableIntWithDefault = int
-
-// NullableIntWithNoDefault defines model for nullableIntWithNoDefault.
-type NullableIntWithNoDefault = int
-
-// SomeFloat32 defines model for someFloat32.
-type SomeFloat32 = float32
-
-// SomeFloat64 defines model for someFloat64.
-type SomeFloat64 = float64
-
-// SomeInt16 defines model for someInt16.
-type SomeInt16 = int
-
-// SomeInt32 defines model for someInt32.
-type SomeInt32 = int32
-
-// SomeInt64 defines model for someInt64.
-type SomeInt64 = int64
-
-// SomeInt8 defines model for someInt8.
-type SomeInt8 = int
-
-// SomeUInt16 defines model for someUInt16.
-type SomeUInt16 = int
-
-// SomeUInt32 defines model for someUInt32.
-type SomeUInt32 = int
-
-// SomeUInt64 defines model for someUInt64.
-type SomeUInt64 = int
-
-// SomeUInt8 defines model for someUInt8.
-type SomeUInt8 = int
-
-// StringWithLength defines model for stringWithLength.
-type StringWithLength = string
 -- out/encoding/typescript/TestGenerate/nilcfg --
 export interface Scalar-Fields {
   intWithBounds: number;

@@ -131,20 +131,6 @@ lenses: []
     }
   }
 }
--- out/encoding/gocode/TestGenerate/nilcfg --
-== goany_type_0.0_gen.go
-package goany
-
-// Goany defines model for goany.
-type Goany struct {
-	EmptyMap  map[string]any `json:"emptyMap"`
-	Optional  *any           `json:"optional,omitempty"`
-	StructVal struct {
-		Inner         any  `json:"inner"`
-		InnerOptional *any `json:"innerOptional,omitempty"`
-	} `json:"structVal"`
-	Value any `json:"value"`
-}
 -- out/encoding/openapi/TestGenerate/group --
 == 0.0.json
 {
@@ -200,18 +186,6 @@ type Goany struct {
       }
     }
   }
-}
--- out/encoding/gocode/TestGenerate/group --
-== goany_type_0.0_gen.go
-package goany
-
-// EmptyMap defines model for emptyMap.
-type EmptyMap = map[string]any
-
-// StructVal defines model for structVal.
-type StructVal struct {
-	Inner         any  `json:"inner"`
-	InnerOptional *any `json:"innerOptional,omitempty"`
 }
 -- out/bind --
 Schema count: 1
@@ -271,48 +245,6 @@ Lenses count: 0
       }
     }
   }
-}
--- out/encoding/gocode/TestGenerate/depointerized --
-== goany_type_0.0_gen.go
-package goany
-
-// Goany defines model for goany.
-type Goany struct {
-	EmptyMap  map[string]any `json:"emptyMap"`
-	Optional  any            `json:"optional,omitempty"`
-	StructVal struct {
-		Inner         any `json:"inner"`
-		InnerOptional any `json:"innerOptional,omitempty"`
-	} `json:"structVal"`
-	Value any `json:"value"`
-}
--- out/encoding/gocode/TestGenerate/godeclincomments --
-== goany_type_0.0_gen.go
-package goany
-
-// Goany defines model for goany.
-type Goany struct {
-	EmptyMap  map[string]any `json:"emptyMap"`
-	Optional  *any           `json:"optional,omitempty"`
-	StructVal struct {
-		Inner         any  `json:"inner"`
-		InnerOptional *any `json:"innerOptional,omitempty"`
-	} `json:"structVal"`
-	Value any `json:"value"`
-}
--- out/encoding/gocode/TestGenerate/expandref --
-== goany_type_0.0_gen.go
-package goany
-
-// Goany defines model for goany.
-type Goany struct {
-	EmptyMap  map[string]any `json:"emptyMap"`
-	Optional  *any           `json:"optional,omitempty"`
-	StructVal struct {
-		Inner         any  `json:"inner"`
-		InnerOptional *any `json:"innerOptional,omitempty"`
-	} `json:"structVal"`
-	Value any `json:"value"`
 }
 -- out/encoding/typescript/TestGenerate/nilcfg --
 export interface Go-Any {

@@ -89,17 +89,6 @@ lenses: []
     }
   }
 }
--- out/encoding/gocode/TestGenerate/depointerized --
-== onestruct_type_0.0_gen.go
-package onestruct
-
-// Onestruct defines model for onestruct.
-type Onestruct struct {
-	AField struct {
-		DefLitField string `json:"defLitField"`
-	} `json:"aField"`
-	Foo string `json:"foo"`
-}
 -- out/encoding/openapi/TestGenerate/expandrefs --
 == 0.0.json
 {
@@ -137,54 +126,10 @@ type Onestruct struct {
     }
   }
 }
--- out/encoding/gocode/TestGenerate/godeclincomments --
-== onestruct_type_0.0_gen.go
-package onestruct
-
-// Onestruct defines model for onestruct.
-type Onestruct struct {
-	AField struct {
-		DefLitField string `json:"defLitField"`
-	} `json:"aField"`
-	Foo string `json:"foo"`
-}
--- out/encoding/gocode/TestGenerate/expandref --
-== onestruct_type_0.0_gen.go
-package onestruct
-
-// Onestruct defines model for onestruct.
-type Onestruct struct {
-	AField struct {
-		DefLitField string `json:"defLitField"`
-	} `json:"aField"`
-	Foo string `json:"foo"`
-}
 -- out/bind --
 Schema count: 1
 Schema versions: 0.0
 Lenses count: 0
--- out/encoding/gocode/TestGenerate/nilcfg --
-== onestruct_type_0.0_gen.go
-package onestruct
-
-// Onestruct defines model for onestruct.
-type Onestruct struct {
-	AField struct {
-		DefLitField string `json:"defLitField"`
-	} `json:"aField"`
-	Foo string `json:"foo"`
-}
--- out/encoding/gocode/TestGenerate/group --
-== onestruct_type_0.0_gen.go
-package onestruct
-
-// AField defines model for aField.
-type AField struct {
-	DefLitField string `json:"defLitField"`
-}
-
-// Foo defines model for foo.
-type Foo = string
 -- out/encoding/typescript/TestGenerate/nilcfg --
 export interface Onestruct {
   aField: {

@@ -51,15 +51,6 @@ lenses: []
     }
   }
 }
--- out/encoding/gocode/TestGenerate/group --
-== oneone_type_0.0_gen.go
-package oneone
-
-// Bar defines model for bar.
-type Bar = string
-
-// Foo defines model for foo.
-type Foo = string
 -- out/encoding/openapi/TestGenerate/group --
 == 0.0.json
 {
@@ -79,15 +70,6 @@ type Foo = string
       }
     }
   }
-}
--- out/encoding/gocode/TestGenerate/depointerized --
-== oneone_type_0.0_gen.go
-package oneone
-
-// Oneone defines model for oneone.
-type Oneone struct {
-	Bar string `json:"bar"`
-	Foo string `json:"foo"`
 }
 -- out/encoding/openapi/TestGenerate/expandrefs --
 == 0.0.json
@@ -118,37 +100,10 @@ type Oneone struct {
     }
   }
 }
--- out/encoding/gocode/TestGenerate/godeclincomments --
-== oneone_type_0.0_gen.go
-package oneone
-
-// Oneone defines model for oneone.
-type Oneone struct {
-	Bar string `json:"bar"`
-	Foo string `json:"foo"`
-}
--- out/encoding/gocode/TestGenerate/expandref --
-== oneone_type_0.0_gen.go
-package oneone
-
-// Oneone defines model for oneone.
-type Oneone struct {
-	Bar string `json:"bar"`
-	Foo string `json:"foo"`
-}
 -- out/bind --
 Schema count: 1
 Schema versions: 0.0
 Lenses count: 0
--- out/encoding/gocode/TestGenerate/nilcfg --
-== oneone_type_0.0_gen.go
-package oneone
-
-// Oneone defines model for oneone.
-type Oneone struct {
-	Bar string `json:"bar"`
-	Foo string `json:"foo"`
-}
 -- out/encoding/typescript/TestGenerate/nilcfg --
 export interface Oneone {
   bar: string;

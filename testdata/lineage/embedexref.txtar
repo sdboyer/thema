@@ -16,23 +16,6 @@ lenses: []
     refField1: string
     refField2: 42
 }
--- out/encoding/gocode/TestGenerate/nilcfg --
-== embedexref_type_0.0_gen.go
-package embedexref
-
-// Defines values for EmbedexrefRefField2.
-const (
-	EmbedexrefRefField2N42 EmbedexrefRefField2 = 42
-)
-
-// Embedexref defines model for embedexref.
-type Embedexref struct {
-	RefField1 string              `json:"refField1"`
-	RefField2 EmbedexrefRefField2 `json:"refField2"`
-}
-
-// EmbedexrefRefField2 defines model for Embedexref.RefField2.
-type EmbedexrefRefField2 int
 -- out/encoding/openapi/TestGenerate/nilcfg --
 == 0.0.json
 {
@@ -65,20 +48,6 @@ type EmbedexrefRefField2 int
     }
   }
 }
--- out/encoding/gocode/TestGenerate/group --
-== embedexref_type_0.0_gen.go
-package embedexref
-
-// Defines values for RefField2.
-const (
-	RefField2N42 RefField2 = 42
-)
-
-// RefField1 defines model for refField1.
-type RefField1 = string
-
-// RefField2 defines model for refField2.
-type RefField2 int
 -- out/encoding/openapi/TestGenerate/group --
 == 0.0.json
 {
@@ -102,23 +71,6 @@ type RefField2 int
     }
   }
 }
--- out/encoding/gocode/TestGenerate/depointerized --
-== embedexref_type_0.0_gen.go
-package embedexref
-
-// Defines values for EmbedexrefRefField2.
-const (
-	EmbedexrefRefField2N42 EmbedexrefRefField2 = 42
-)
-
-// Embedexref defines model for embedexref.
-type Embedexref struct {
-	RefField1 string              `json:"refField1"`
-	RefField2 EmbedexrefRefField2 `json:"refField2"`
-}
-
-// EmbedexrefRefField2 defines model for Embedexref.RefField2.
-type EmbedexrefRefField2 int
 -- out/encoding/openapi/TestGenerate/expandrefs --
 == 0.0.json
 {
@@ -151,40 +103,6 @@ type EmbedexrefRefField2 int
     }
   }
 }
--- out/encoding/gocode/TestGenerate/godeclincomments --
-== embedexref_type_0.0_gen.go
-package embedexref
-
-// Defines values for EmbedexrefRefField2.
-const (
-	EmbedexrefRefField2N42 EmbedexrefRefField2 = 42
-)
-
-// Embedexref defines model for embedexref.
-type Embedexref struct {
-	RefField1 string              `json:"refField1"`
-	RefField2 EmbedexrefRefField2 `json:"refField2"`
-}
-
-// EmbedexrefRefField2 defines model for Embedexref.RefField2.
-type EmbedexrefRefField2 int
--- out/encoding/gocode/TestGenerate/expandref --
-== embedexref_type_0.0_gen.go
-package embedexref
-
-// Defines values for EmbedexrefRefField2.
-const (
-	EmbedexrefRefField2N42 EmbedexrefRefField2 = 42
-)
-
-// Embedexref defines model for embedexref.
-type Embedexref struct {
-	RefField1 string              `json:"refField1"`
-	RefField2 EmbedexrefRefField2 `json:"refField2"`
-}
-
-// EmbedexrefRefField2 defines model for Embedexref.RefField2.
-type EmbedexrefRefField2 int
 -- out/bind --
 Schema count: 1
 Schema versions: 0.0

@@ -55,14 +55,6 @@ lenses: []
     }
   }
 }
--- out/encoding/gocode/TestGenerate/depointerized --
-== onenone_type_0.0_gen.go
-package onenone
-
-// Onenone defines model for onenone.
-type Onenone struct {
-	Foo string `json:"foo"`
-}
 -- out/encoding/openapi/TestGenerate/expandrefs --
 == 0.0.json
 {
@@ -88,40 +80,10 @@ type Onenone struct {
     }
   }
 }
--- out/encoding/gocode/TestGenerate/godeclincomments --
-== onenone_type_0.0_gen.go
-package onenone
-
-// Onenone defines model for onenone.
-type Onenone struct {
-	Foo string `json:"foo"`
-}
--- out/encoding/gocode/TestGenerate/expandref --
-== onenone_type_0.0_gen.go
-package onenone
-
-// Onenone defines model for onenone.
-type Onenone struct {
-	Foo string `json:"foo"`
-}
 -- out/bind --
 Schema count: 1
 Schema versions: 0.0
 Lenses count: 0
--- out/encoding/gocode/TestGenerate/nilcfg --
-== onenone_type_0.0_gen.go
-package onenone
-
-// Onenone defines model for onenone.
-type Onenone struct {
-	Foo string `json:"foo"`
-}
--- out/encoding/gocode/TestGenerate/group --
-== onenone_type_0.0_gen.go
-package onenone
-
-// Foo defines model for foo.
-type Foo = string
 -- out/encoding/typescript/TestGenerate/nilcfg --
 export interface Onenone {
   foo: string;

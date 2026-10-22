@@ -24,8 +24,6 @@ func main() {
 		}
 	}
 
-	// srv commands
-	// TODO
 	err := rootCmd.Execute()
 	if err != nil {
 		os.Exit(1)
@@ -41,8 +39,6 @@ func addLinPathVars(cmd *cobra.Command, lla *lineageLoadArgs) {
 // List of all commands, for batching stuff
 var allCmds = []*cobra.Command{
 	rootCmd,
-	srvCmd,
-	httpCmd,
 	dataCmd,
 	translateCmd,
 	validateCmd,
@@ -53,11 +49,9 @@ var allCmds = []*cobra.Command{
 	initLineageOpenAPICmd,
 	initLineageJSONSchemaCmd,
 	lineageBumpCmd,
-	lineageFixCmd,
 	genLineageCmd,
 	genTSTypesLineageCmd,
 	genGoBindingsLineageCmd,
-	genGoTypesLineageCmd,
 	genOapiLineageCmd,
 	genJschLineageCmd,
 }
