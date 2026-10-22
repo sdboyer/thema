@@ -23,9 +23,9 @@ type Config struct {
 	// independently, but each of its top-level fields do, including definitions and
 	// optional fields.
 	//
-	// NOTE - https://github.com/sdboyer/thema/issues/40 is the issue for formalizing
-	// the group concept. Fixing that issue will obviate this field. Once fixed,
-	// this field will be deprecated and ignored.
+	// NOTE - this is a codegen-only stopgap for related objects. A model for
+	// collections of lineages (https://github.com/sdboyer/thema/issues/40) should
+	// replace it.
 	Group bool
 
 	// RootName specifies the name to use for the type representing the root of the
