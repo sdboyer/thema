@@ -307,16 +307,16 @@ func IsAppendOnly(oldLineage Lineage, newLineage Lineage) error {
 		return fmt.Errorf("schemas can't be deleted once published")
 	}
 
+	// Compare each schema as thema uses it: joined with the joinSchema, and closed,
+	// since the openness of a schema as written says nothing about whether two
+	// schemas accept the same instances.
+	ctx := oldLineage.Runtime().Context()
 	for i, schema := range oldSchemas {
-		schemaPath := "schema"
-		oldSchema := schema.Underlying()
-		x := oldSchema.LookupPath(cue.ParsePath(schemaPath))
-
-		newSchema := newSchemas[i].Underlying()
-		y := newSchema.LookupPath(cue.ParsePath(schemaPath))
+		x := cuetil.CloseRecursive(ctx, schema.Underlying().LookupPath(pathSchDef))
+		y := cuetil.CloseRecursive(ctx, newSchemas[i].Underlying().LookupPath(pathSchDef))
 
 		if err := cuetil.Equal(x, y); err != nil {
-			return err
+			return fmt.Errorf("schema %s changed: %w", schema.Version(), err)
 		}
 	}
 
