@@ -576,28 +576,34 @@ func (ml *maybeLineage) checkLensCompleteness(ids []lensID, kind string) error {
 			if _, has := all[elid]; !has {
 				continue
 			}
-			if !synvExists(ml.allv, elid.To) {
-				fmt.Fprintf(b, "\t%s (schema version %s does not exist)\n", elid, elid.To)
-			} else if !synvExists(ml.allv, elid.From) {
-				fmt.Fprintf(b, "\t%s (schema version %s does not exist)\n", elid, elid.From)
-			} else if elid.To == elid.From {
-				fmt.Fprintf(b, "\t%s (lenses from a version to itself are not allowed)\n", elid)
-			} else if elid.To.Less(elid.From) {
-				// reverse lenses
-				// only possibility is non-sequential versions connected
-				fmt.Fprintf(b, "\t%s (%s is the predecessor of %s, not %s)\n", elid, ml.allv[searchSynv(ml.allv, elid.From)-1], elid.From, elid.To)
-			} else if elid.To[0] == elid.From[0] {
-				// forward lens within a major version
-				fmt.Fprintf(b, "\t%s (minor version upgrades are handled automatically)\n", elid)
-			} else {
-				// forward lens across major versions, between non-adjacent versions
-				fmt.Fprintf(b, "\t%s (%s is the successor of %s, not %s)\n", elid, ml.allv[searchSynv(ml.allv, elid.From)+1], elid.From, elid.To)
-			}
+			fmt.Fprintf(b, "\t%s (%s)\n", elid, ml.erroneousLensReason(elid))
 		}
 		return errors.Mark(errors.New(b.String()), terrors.ErrErroneousLenses)
 	}
 
 	return nil
+}
+
+// erroneousLensReason explains why a lens the lineage doesn't require is wrong.
+func (ml *maybeLineage) erroneousLensReason(elid lensID) string {
+	switch {
+	case !synvExists(ml.allv, elid.To):
+		return fmt.Sprintf("schema version %s does not exist", elid.To)
+	case !synvExists(ml.allv, elid.From):
+		return fmt.Sprintf("schema version %s does not exist", elid.From)
+	case elid.To == elid.From:
+		return "lenses from a version to itself are not allowed"
+	case elid.To.Less(elid.From):
+		// reverse lenses
+		// only possibility is non-sequential versions connected
+		return fmt.Sprintf("%s is the predecessor of %s, not %s", ml.allv[searchSynv(ml.allv, elid.From)-1], elid.From, elid.To)
+	case elid.To[0] == elid.From[0]:
+		// forward lens within a major version
+		return "minor version upgrades are handled automatically"
+	default:
+		// forward lens across major versions, between non-adjacent versions
+		return fmt.Sprintf("%s is the successor of %s, not %s", ml.allv[searchSynv(ml.allv, elid.From)+1], elid.From, elid.To)
+	}
 }
 
 type lensVersionDef struct {
