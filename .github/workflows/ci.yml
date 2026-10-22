@@ -1,16 +1,80 @@
-name: Go
-on: [pull_request]
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
 
 jobs:
-  build:
+  test:
+    name: test (go ${{ matrix.go }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - go: go.mod
+            go-version-file: go.mod
+          - go: stable
+            go-version: stable
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
 
-      - name: Set up Go
-        uses: actions/setup-go@v3
+      - uses: actions/setup-go@v7
         with:
-          go-version: 1.19
+          go-version-file: ${{ matrix.go-version-file }}
+          go-version: ${{ matrix.go-version }}
+          cache: true
 
       - name: Test
-        run: go test -v ./...
+        run: go test ./...
+
+  lint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.15
+          # The existing code carries a few hundred findings spread across
+          # every linter, predating this config. Only fail on issues
+          # introduced by the PR (or pushed commits) until those are paid
+          # down; drop this to make lint fully enforcing.
+          only-new-issues: true
+
+  cue:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # Use the same CUE version the Go module evaluates thema's CUE with.
+      - name: Install cue
+        run: go install "cuelang.org/go/cmd/cue@$(go list -m -f '{{.Version}}' cuelang.org/go)"
+
+      - name: cue mod tidy --check
+        run: cue mod tidy --check
+
+      - name: cue fmt --check
+        run: cue fmt --check . ./exemplars
+
+      # Thema's packages are schemas and lineage definitions, so they are
+      # legitimately non-concrete; vet for errors, not completeness.
+      - name: cue vet
+        run: cue vet -c=false . ./exemplars
