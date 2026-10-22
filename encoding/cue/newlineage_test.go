@@ -181,7 +181,7 @@ func bindGenerated(t *testing.T, src string) thema.Lineage {
 		t.Fatal(err)
 	}
 	v := ctx.BuildInstance(binst)
-	if err := v.Validate(cue.All()); err != nil {
+	if err = v.Validate(cue.All()); err != nil {
 		t.Fatalf("generated lineage does not evaluate: %s", err)
 	}
 	lin, err := thema.BindLineage(v, rt)
