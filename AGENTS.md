@@ -67,4 +67,24 @@ read the taps. They are facts about your diff, not opinions, and they never bloc
 - **lineage-kernel** (`shared-kernel`): lineage.cue, translate.cue, lacuna.cue, traverse.cue is co-owned kernel. A change there owes consultation with: every lineage that unifies with thema.Lineage; the Go facade (bind.go, lineage.go, surface.go); Go code that calls thema's CUE pseudofunctions and decodes their output shape (instance.go Translate decodes Translate's out).
 - **lineages** (`published-language`): exemplars/*.cue, docs/*.cue is a versioned contract for consumers you cannot enumerate. A change owes them compatibility; a breaking change is loud even when correct.
 - **thema-module-identity** (`shared-kernel`): internal/util/modfile.go is co-owned kernel. A change there owes consultation with: cue.mod/module.cue (lockstep test in internal/util); the release process, which tags the Go and CUE modules with ThemaModuleVersion; every module.cue thema synthesizes (util.ModuleFile) and every cue.Hid lookup.
+
+### Recording whether a tap helped
+
+Each tap carries an ID (`#<id>`). Once it is clear whether a tap was useful (not
+before), record a verdict:
+
+    thresh verdict <id> --by origin --useful yes|no|unclear --evidence "what happened"
+
+Use `--by origin` if the tap was delivered to you; `--by sweep` if you are reviewing
+the work afterwards.
+
+- **yes**: the tap caused or confirmed something observable: the diff changed, a
+  co-owner was consulted, a version or compatibility decision was revisited, or you
+  explicitly checked that the crossing was intended.
+- **no**: the tap was true, but nothing followed and nothing needed to.
+- **unclear**: it can't be determined (e.g. the work was abandoned).
+- If the tap misstated the diff, pass `--inaccurate` instead of `--useful`: that is a
+  thresh bug, not a judgment.
+
+A verdict is a record, never a request: it does not change what thresh reports.
 <!-- END thresh explain -->
