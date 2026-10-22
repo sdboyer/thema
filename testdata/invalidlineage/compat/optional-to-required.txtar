@@ -3,7 +3,7 @@
 
 import "github.com/sdboyer/thema"
 
-thema.#Lineage
+thema.Lineage
 name: "optional-to-required"
 schemas: [{
     version: [0, 0]
@@ -29,5 +29,5 @@ lenses: [{
 -- out/bindfail --
 schema 0.1 is not backwards compatible with schema 0.0:
 field toUpgrade not present in {toUpgrade?:string}:
-    /github.com/sdboyer/thema@v0.1.0/lineage.cue:234:12
+    /github.com/sdboyer/thema@v0.1.0/lineage.cue:223:11
 missing field "toUpgrade"

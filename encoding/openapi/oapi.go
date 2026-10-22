@@ -41,7 +41,7 @@ type Config struct {
 	Subpath cue.Path
 
 	// SplitSchema generates the schemas from schema and _join values, and it merges them
-	// to generate the file. It's useful when their merged _#schema version doesn't show
+	// to generate the file. It's useful when their merged _schema version doesn't show
 	// the desired results.
 	SplitSchema bool
 }
@@ -63,9 +63,9 @@ func GenerateSchema(sch thema.Schema, cfg *Config) (*ast.File, error) {
 		cfg: cfg,
 		sch: sch,
 		onf: cfg.NameFunc,
-		// Underlying() gives us the _#schema ref to the definition. We need to
+		// Underlying() gives us the _schema ref to the definition. We need to
 		// eliminate path elements leading into the actual user-specified definition.
-		schdef: sch.Underlying().LookupPath(cue.MakePath(cue.Hid("_#schema", util.ThemaPackageID))),
+		schdef: sch.Underlying().LookupPath(cue.MakePath(cue.Hid("_schema", util.ThemaPackageID))),
 		schraw: sch.Underlying().LookupPath(cue.MakePath(cue.Str("schema"))),
 		join:   sch.Underlying().LookupPath(cue.MakePath(cue.Hid("_join", util.ThemaPackageID))),
 		bpath:  sch.Underlying().Path(),
@@ -105,11 +105,11 @@ func GenerateSchema(sch thema.Schema, cfg *Config) (*ast.File, error) {
 type oapiGen struct {
 	cfg *Config
 	sch thema.Schema
-	// the #SchemaDef._#schema
+	// the SchemaDef._schema
 	schdef cue.Value
-	// the #SchemaDef.schema
+	// the SchemaDef.schema
 	schraw cue.Value
-	// the #SchemaDef._join
+	// the SchemaDef._join
 	join cue.Value
 
 	// overall name for the generated oapi doc
@@ -118,7 +118,7 @@ type oapiGen struct {
 	// original NameFunc
 	onf func(cue.Value, cue.Path) string
 
-	// full prefix path that leads up to the #SchemaDef, e.g. lin._sortedSchemas[0]
+	// full prefix path that leads up to the SchemaDef, e.g. lin._sortedSchemas[0]
 	bpath cue.Path
 }
 
@@ -218,7 +218,7 @@ func genSchema(gen *oapiGen, val cue.Value) ([]ast.Decl, error) {
 
 // For generating a single, our NameFunc must:
 // - Eliminate any path prefixes on the element, both internal lineage and wrapping
-// - Replace the name "_#schema" with the desired name
+// - Replace the name "_schema" with the desired name
 // - Call the user-provided NameFunc, if any
 // - Remove CUE markers like #, !, ?
 func (gen *oapiGen) nfSingle(val cue.Value, path, defpath cue.Path, name string) string {
@@ -279,7 +279,7 @@ func trimThemaPathPrefix(p, base cue.Path) cue.Path {
 		return cue.Path{}
 	}
 	switch rest[0].String() {
-	case "schema", "_#schema", "_join", "joinSchema":
+	case "schema", "_schema", "_join", "joinSchema":
 		return cue.MakePath(rest[1:]...)
 	default:
 		return cue.MakePath(rest...)

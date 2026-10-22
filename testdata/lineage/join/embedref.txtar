@@ -2,10 +2,10 @@
 -- in.cue --
 import "github.com/sdboyer/thema"
 
-thema.#Lineage
+thema.Lineage
 name: "embedref"
 joinSchema: {
-    EmbedRef
+    _EmbedRef
 }
 schemas: [{
 	version: [0, 0]
@@ -15,7 +15,7 @@ schemas: [{
 }]
 lenses: []
 
-EmbedRef: {
+_EmbedRef: {
 	refField1: string
 	refField2: 42
 }

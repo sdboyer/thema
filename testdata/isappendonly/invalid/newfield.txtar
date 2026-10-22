@@ -3,7 +3,7 @@
 -- in.cue --
 import "github.com/sdboyer/thema"
 
-lin1: thema.#Lineage
+lin1: thema.Lineage
 lin1: name: "newfield"
 lin1: schemas: [{
 	version: [0, 0]
@@ -12,7 +12,7 @@ lin1: schemas: [{
 	}
 }]
 
-lin2: thema.#Lineage
+lin2: thema.Lineage
 lin2: name: "newfield"
 lin2: schemas: [{
     version: [0, 0]
@@ -22,5 +22,5 @@ lin2: schemas: [{
     }
 }]
 -- out/isappendonly-fail --
-field not allowed in closed struct: secondfield
+regular field is constraint in subsumed value: secondfield
 value not an instance

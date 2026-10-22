@@ -4,7 +4,7 @@
 
 import "github.com/sdboyer/thema"
 
-lin: thema.#Lineage
+lin: thema.Lineage
 lin: name: "add-optional"
 lin: schemas: [{
     version: [0, 0]

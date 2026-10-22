@@ -16,7 +16,7 @@ package ship
 
 import "github.com/sdboyer/thema"
 
-thema.#Lineage
+thema.Lineage
 name: "ship"
 seqs: [
 	{
@@ -37,7 +37,7 @@ package ship
 
 import "github.com/sdboyer/thema"
 
-thema.#Lineage
+thema.Lineage
 name: "ship"
 seqs: [
 	{

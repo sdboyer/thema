@@ -3,7 +3,7 @@
 
 import "github.com/sdboyer/thema"
 
-thema.#Lineage
+thema.Lineage
 name: "expand"
 schemas: [{
     version: [0, 0]
@@ -79,19 +79,19 @@ lenses: [{
 <expand@v0.3>.withDefault: validation failed, data is not an instance:
 	schema expected `"bar"`
 		/in.cue:32:32
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:234:20
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:223:19
 	but data contained `"invalid value for withDefault"`
 		test:3:20
 <expand@v0.3>.withDefault: validation failed, data is not an instance:
 	schema expected `"baz"`
 		/in.cue:32:40
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:234:20
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:223:19
 	but data contained `"invalid value for withDefault"`
 		test:3:20
 <expand@v0.3>.withDefault: validation failed, data is not an instance:
 	schema expected `"foo"`
 		/in.cue:32:24
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:234:20
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:223:19
 	but data contained `"invalid value for withDefault"`
 		test:3:20
 -- out/encoding/openapi/TestGenerate/nilcfg --

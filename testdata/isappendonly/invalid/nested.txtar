@@ -3,7 +3,7 @@
 -- in.cue --
 import "github.com/sdboyer/thema"
 
-lin1: thema.#Lineage
+lin1: thema.Lineage
 lin1: name: "nested"
 lin1: schemas: [{
 	version: [0, 0]
@@ -14,7 +14,7 @@ lin1: schemas: [{
 	}
 }]
 
-lin2: thema.#Lineage
+lin2: thema.Lineage
 lin2: name: "nested"
 lin2: schemas: [{
     version: [0, 0]
@@ -26,8 +26,9 @@ lin2: schemas: [{
     }
 }]
 -- out/isappendonly-fail --
-field anObject not present in {anObject:{aField:string,aNewOptionalField?:string}}:
-    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:223:10
-    ./in.cue:18:13
-field not allowed in closed struct: aNewOptionalField
+field aNewOptionalField not present in {aField:string}:
+    ./in.cue:8:13
+field anObject not present in {anObject:{aField:string}}:
+    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:215:11
+    ./in.cue:7:10
 missing field "anObject"

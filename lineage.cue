@@ -9,13 +9,16 @@ import (
 // evolutionary history of a particular kind of object: every schema that has
 // ever existed for that object, and the lenses that allow translating between
 // those schema versions.
-#Lineage: {
+//
+// Lineage and the other structures in thema's CUE are deliberately not
+// definitions. Definitions close recursively, which would impose closedness on
+// every schema a lineage author writes. thema takes no position on the openness
+// of schemas; operations that need closed semantics apply it where they are used.
+Lineage: {
 	// The name of the thing specified by the schemas in this lineage.
 	//
 	// A lineage's name must not change as it evolves.
-	name: string
-	// TODO(must) https://github.com/cue-lang/cue/issues/943
-	// name: must(isconcrete(name), "all lineages must have a name")
+	name!: string
 
 	// joinSchema governs the shape of schema that may be expressed in a
 	// lineage. It is the least upper bound, or join, of the acceptable schema
@@ -32,19 +35,16 @@ import (
 
 	// schemas is the ordered list of all schemas in the lineage.
 	//
-	// Each element is a #SchemaDef, injected with the joinSchema for this lineage.
+	// Each element is a SchemaDef, injected with the joinSchema for this lineage.
 	//
 	// It is recommended but not required that schema entries in this list be defined
 	// in ascending order by version. Thema tooling that modifies and emits lineages
 	// definitions may produce schemas sorted in ascending order, rather than original
 	// source order.
 	// TODO switch to descending order - newest on top is nicer to read
-	schemas: [#SchemaDef, ...#SchemaDef]
-	//			schemas: [...#SchemaDef]
+	schemas!: [_joinedSchemaDef, ..._joinedSchemaDef]
 
-	if joinSchema != _|_ {
-		schemas: [{_join: joinSchema}, ...{{_join: joinSchema}}]
-	}
+	let _joinedSchemaDef = SchemaDef & {_join: joinSchema}
 
 	// lenses contains all the mappings between all the schemas in the lineage.
 	//
@@ -79,21 +79,14 @@ import (
 	// list. Thema tooling that modifies and emits lineages definitions may produce lenses
 	// sorted in ascending order, rather than original source order.
 	// TODO switch to descending order - newest on top is nicer to read
-	lenses: [...#Lens]
+	lenses: [...Lens]
 
-	_atLeastOneSchema: len(schemas) > 0
+	// Catch misspelled or unknown fields. Hidden and definition fields are not
+	// matched, and remain free for lineage authors' own helpers.
+	[K=!~"^(name|joinSchema|schemas|lenses)$"]: error("\(K) is not a field of a lineage; a lineage has only name, joinSchema, schemas and lenses")
 
-	SS=_schemas: [...]
-	if _atLeastOneSchema == true {
-		_schemas: schemas
-	}
-
-	if _atLeastOneSchema == false {
-		_schemas: [#SchemaDef & {version: [0, 0]}]
-	}
-
-	_forwardLenses: [ for lens in lenses if {lens.to[0] > lens.from[0]} {lens}]
-	_backwardLenses: [ for lens in lenses if {lens.to[0] <= lens.from[0]} {lens}]
+	_forwardLenses:  [for lens in lenses if lens.to[0] > lens.from[0] {lens}]
+	_backwardLenses: [for lens in lenses if lens.to[0] <= lens.from[0] {lens}]
 
 	// preserved for debugging
 	//	lensVersions: {
@@ -116,16 +109,15 @@ import (
 
 	//	counts: _counts
 	// TODO check subsumption (backwards compat) of each schema with its successor natively in CUE
-	if len(SS) == 1 {
+	if len(schemas) == 1 {
 		_counts: [0]
 	}
 
-	if len(SS) > 1 {
-		_pos: [0, for i, sch in list.Drop(SS, 1) if SS[i].version[0] < sch.version[0] {i + 1}]
-		_counts: [ for i, idx in list.Slice(_pos, 0, len(_pos)-1) {
-			_pos[i+1] - list.Sum(list.Slice(_pos, 0, i+1))
-		}, len(SS) - _pos[len(_pos)-1]]
-
+	if len(schemas) > 1 {
+		_pos: [0, for i, sch in list.Drop(schemas, 1) if schemas[i].version[0] < sch.version[0] {i + 1}]
+		_counts: [for i, idx in list.Slice(_pos, 0, len(_pos) - 1) {
+			_pos[i+1] - list.Sum(list.Slice(_pos, 0, i + 1))
+		}, len(schemas) - _pos[len(_pos)-1]]
 		// The following approach to the above:
 		//
 		//		let pos = [0, for i, sch in SS[1:] if SS[i].version[0] < sch.version[0] { i+1 }]
@@ -142,7 +134,7 @@ import (
 	// within the overall canonical schema sort ordering. This allows trivial
 	// schema retrieval from a syntactic version.
 	_basis: [0, for maj, _ in list.Drop(_counts, 1) {
-		list.Sum(list.Take(_counts, maj+1))
+		list.Sum(list.Take(_counts, maj + 1))
 	}]
 
 	// Pick is a pseudofunction that returns the schema from this Lineage
@@ -155,21 +147,21 @@ import (
 	// apply compositions or joinSchemas.
 	//#Pick: {
 	//	// The schema version to retrieve.
-	//	v: #SyntacticVersion & [<len(L._counts), <=L._counts[v[0]]]
+	//	v: SyntacticVersion & [<len(L._counts), <=L._counts[v[0]]]
 	//	// TODO(must) https://github.com/cue-lang/cue/issues/943
 	//	// must(isconcrete(v[0]), "must specify a concrete major version")
-//
+	//
 	//	out: SS[_basis[v[0]]+v[1]]._#schema
 	//}
 
 	// PickDef takes the same arguments as Pick, but returns the entire
-	// #SchemaDef rather than only the schema body itself.
+	// SchemaDef rather than only the schema body itself.
 	//#PickDef: {
 	//	// The schema version to retrieve.
-	//	v: #SyntacticVersion & [<len(L._counts), <=L._counts[v[0]]]
+	//	v: SyntacticVersion & [<len(L._counts), <=L._counts[v[0]]]
 	//	// TODO(must) https://github.com/cue-lang/cue/issues/943
 	//	// must(isconcrete(v[0]), "must specify a concrete sequence number")
-//
+	//
 	//	out: SS[_basis[v[0]]+v[1]]
 	//}
 
@@ -188,26 +180,26 @@ import (
 	// their own pace.
 	//
 	// TODO functionize
-	#LatestVersion: SS[len(SS)-1].version
+	#LatestVersion: schemas[len(schemas)-1].version
 
 	_flatidx: {
-		v: #SyntacticVersion
+		v: SyntacticVersion
 		// TODO check what happens when out of bounds
 		out: _basis[v[0]] + v[1]
 	}
 }
 
-// #SchemaDef represents a single schema declaration in Thema. In addition to
+// SchemaDef represents a single schema declaration in Thema. In addition to
 // the schema itself, it contains the schema's version, optional examples,
 // composition instructions, and lenses that map to or from the schema, as
 // required by Thema's invariants.
 //
 // Note that the version number must be explicitly declared, even though the
 // correct value is algorithmically determined.
-#SchemaDef: {
+SchemaDef: {
 	// version is the Syntactic Version number of the schema. While this property
 	// is settable by lineage authors, it has exactly one correct value for any
-	// particular #SchemaDef in any lineage, algorithmically determined by its
+	// particular SchemaDef in any lineage, algorithmically determined by its
 	// position in the list of schemas and the number of its predecessors that
 	// make breaking changes to their schemas.
 	//
@@ -218,37 +210,34 @@ import (
 	//
 	// The entire lineage is considered invalid if the version number in this field
 	// is inconsistent with the algorithmically determined set of [non-]breaking changes.
-	version: #SyntacticVersion | *[0, 0]
+	version: SyntacticVersion | *[0, 0]
 
-	schema: _
+	schema!: _
 
 	_join: _
 
-	// Thema's internal handle for the user-provided schema definition. This
-	// handle is used by all helpers/operations in the thema package. As a
-	// CUE definition, use of this handle entails that all thema schemas are
-	// always recursively closed by default.
-	//
-	// This handle is also unified with the joinSchema of the containing lineage.
-
-	_#schema: _join & schema
-
-	//	_schemaIsNonEmpty: struct.MinFields(1) & _#schema
+	// Thema's internal handle for the user-provided schema, unified with the
+	// joinSchema of the containing lineage. This handle is used by all
+	// helpers/operations in the thema package. It is exactly as open or closed as
+	// the lineage author wrote it.
+	_schema: _join & schema
 
 	// examples is an optional set of named examples of the schema, intended
 	// for use in documentation or other non-functional contexts.
-	examples?: [string]: _#schema
+	examples?: [string]: _schema
+
+	[K=!~"^(version|schema|examples)$"]: error("\(K) is not a field of a schema; a schema entry has only version, schema and examples")
 }
 
 // Lens defines a transformation that maps the fields of one schema in a lineage to the
 // fields of another schema, as well as the lacunas that may exist for specific objects
 // when translating instances between these schemas.
-#Lens: {
+Lens: {
 	// The schema version that is the input or source of the mapping.
-	from: #SyntacticVersion
+	from!: SyntacticVersion
 
 	// The schema version that is the result or target of the mapping.
-	to: #SyntacticVersion
+	to!: SyntacticVersion
 
 	// input is filled with an object instance of the 'from' schema in order to use the
 	// lens to translate between schema versions.
@@ -258,7 +247,8 @@ import (
 	// expressed as a mapping from 'input' to this field.
 	//
 	// The value must be an instance of the 'to' schema, constructed through
-	// references to the 'from' schema.
+	// references to the 'from' schema. It may not contain any field the 'to'
+	// schema does not define, whatever the openness of that schema.
 	//
 	// For example, if the schemas corresponding to the 'from' and 'to' versions are:
 	//
@@ -272,24 +262,26 @@ import (
 
 	// lacunas describe semantic gaps in the transform's mapping. See lacuna docs
 	// for more information (TODO).
-	lacunas: [...#Lacuna]
+	lacunas: [...Lacuna]
+
+	[K=!~"^(from|to|input|result|lacunas)$"]: error("\(K) is not a field of a lens; a lens has only from, to, input, result and lacunas")
 }
 
 // SyntacticVersion is an ordered pair of non-negative integers. It represents
 // the version of a schema within a lineage, or the version of an instance that
 // is valid with respect to the schema of that version.
-#SyntacticVersion: [uint64, uint64]
+SyntacticVersion: [uint64, uint64]
 
 // TODO functionize
-_cmpSV: FN={
-	l:   #SyntacticVersion
-	r:   #SyntacticVersion
+_cmpSV: {
+	l:   SyntacticVersion
+	r:   SyntacticVersion
 	out: -1 | 0 | 1
 	out: {
-		if FN.l[0] < FN.r[0] {-1}
-		if FN.l[0] > FN.r[0] {1}
-		if FN.l[0] == FN.r[0] && FN.l[1] < FN.r[1] {-1}
-		if FN.l[0] == FN.r[0] && FN.l[1] > FN.r[1] {1}
-		if FN.l == FN.r {0}
+		if l[0] < r[0] {-1}
+		if l[0] > r[0] {1}
+		if l[0] == r[0] && l[1] < r[1] {-1}
+		if l[0] == r[0] && l[1] > r[1] {1}
+		if l == r {0}
 	}
 }

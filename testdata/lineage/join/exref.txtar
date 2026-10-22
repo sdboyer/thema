@@ -2,10 +2,10 @@
 -- in.cue --
 import "github.com/sdboyer/thema"
 
-thema.#Lineage
+thema.Lineage
 name: "exref"
 joinSchema: {
-    ref: ExRef
+    ref: _ExRef
     refdef: #ExRefDef
 }
 schemas: [{
@@ -16,7 +16,7 @@ schemas: [{
 }]
 lenses: []
 
-ExRef: {
+_ExRef: {
 	normalField: string
 }
 

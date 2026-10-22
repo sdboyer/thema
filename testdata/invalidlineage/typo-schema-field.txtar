@@ -1,0 +1,14 @@
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+thema.Lineage
+name: "typo"
+schemas: [{
+	version: [0, 0]
+	shcema: {
+		foo: string
+	}
+}]
+-- out/bindfail --
+shcema is not a field of a schema entry; valid fields are examples, schema, version:
+    ./in.cue:7:2

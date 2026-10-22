@@ -14,15 +14,7 @@ package thema
 // When translating, the predicate in each lacuna's "condition" field is checked
 // to determine whether the lacuna is applicable to the particular instance
 // being translated.
-#Lacuna: {
-	// A reference to a field and its value in a schema/instance.
-	#FieldRef: {
-		// TODO would be great to be able to constrain that value should always be a reference,
-		// and path is (a modified version of) the string representation of the reference
-		value: _
-		path:  string
-	}
-
+Lacuna: {
 	// Indicates whether the lacuna applies to the particular object being translated.
 	// If this field evaluates to false, this lacuna is not emitted for a particular
 	// translation. If unspecified, defaults to true.
@@ -30,11 +22,11 @@ package thema
 
 	// The field path(s) and their value(s) in the pre-translation instance
 	// that are relevant to the lacuna.
-	sourceFields: [...#FieldRef]
+	sourceFields: [...LacunaFieldRef]
 
 	// The field path(s) and their value(s) in the post-translation instance
 	// that are relevant to the lacuna.
-	targetFields: [...#FieldRef]
+	targetFields: [...LacunaFieldRef]
 
 	// At least one of sourceFields or targetFields must be non-empty.
 	// TODO(must) https://github.com/cue-lang/cue/issues/943
@@ -44,11 +36,23 @@ package thema
 	// A human-readable message describing the gap in translation.
 	message: string
 
-	type: or([ for t in #LacunaTypes {t}])
+	type: or([for t in LacunaTypes {t}])
+
+	[K=!~"^(condition|sourceFields|targetFields|message|type)$"]: error("\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type")
 }
 
-#LacunaTypes: [N=string]: #LacunaType & {name: N}
-#LacunaTypes: {
+// A reference to a field and its value in a schema/instance.
+LacunaFieldRef: {
+	// TODO would be great to be able to constrain that value should always be a reference,
+	// and path is (a modified version of) the string representation of the reference
+	value: _
+	path:  string
+
+	[K=!~"^(value|path)$"]: error("\(K) is not a field of a lacuna field reference; it has only value and path")
+}
+
+LacunaTypes: [N=string]: LacunaType & {name: N}
+LacunaTypes: {
 	// Placeholder lacunas indicate that a field in the target instance has
 	// been filled with a placeholder value.
 	//
@@ -94,7 +98,7 @@ package thema
 	}
 }
 
-#LacunaType: {
+LacunaType: {
 	name: string
 	id:   int // FIXME this is a dumb way of trying to express identity
 }

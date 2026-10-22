@@ -102,7 +102,7 @@ var emptyLineage = template.Must(template.New("newlin").Parse(`
 {{- if ne .PkgName "" }}package {{ .PkgName }}
 {{end}}import "github.com/sdboyer/thema"
 
-thema.#Lineage
+thema.Lineage
 name: "{{ .Name }}"
 schemas: [
     {
@@ -126,7 +126,7 @@ func appendlin(lin thema.Lineage, sch cue.Value) (ast.Node, error) {
 
 	lv := lin.Latest().Version()
 	lsch := thema.SchemaP(lin, lv)
-	if err := compat.ThemaCompatible(lsch.Underlying(), sch); err == nil {
+	if err := compat.ThemaCompatible(lin.Runtime().Context(), lsch.Underlying(), sch); err == nil {
 		// Is compatible, bump minor version
 		tgtv := thema.SyntacticVersion{lv[0], lv[1] + 1}
 		ast.AddComment(schnode, versionComment(tgtv))

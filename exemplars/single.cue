@@ -4,7 +4,7 @@ import "github.com/sdboyer/thema"
 
 single: {
 	description: "Lineage containing one sequence with a single, trivial schema."
-	l:           thema.#Lineage & {
+	l:           thema.Lineage & {
 		schemas: [{
 			version: [0, 0]
 			schema: {

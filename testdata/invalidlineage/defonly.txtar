@@ -2,7 +2,7 @@
 
 import "github.com/sdboyer/thema"
 
-thema.#Lineage
+thema.Lineage
 -- out/bindfail --
-invalid lineage, #Lineage.name must be concrete:
-    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:16:2
+not a lineage, missing Lineage.name:
+    ./in.cue:2:1

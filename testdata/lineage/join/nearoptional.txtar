@@ -3,7 +3,7 @@
 -- in.cue --
 import "github.com/sdboyer/thema"
 
-thema.#Lineage
+thema.Lineage
 name: "nearoptional"
 joinSchema: {
     notoptional: int32

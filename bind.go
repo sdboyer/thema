@@ -3,6 +3,9 @@ package thema
 import (
 	"bytes"
 	"fmt"
+	"path/filepath"
+	"sort"
+	"strings"
 
 	"cuelang.org/go/cue"
 	cerrors "cuelang.org/go/cue/errors"
@@ -11,6 +14,7 @@ import (
 
 	terrors "github.com/sdboyer/thema/errors"
 	"github.com/sdboyer/thema/internal/compat"
+	"github.com/sdboyer/thema/internal/embedreg"
 )
 
 // maybeLineage is an intermediate processing structure used to validate
@@ -19,14 +23,14 @@ import (
 // it's important that these flags are populated in order to avoid false negatives.
 // no system ensures this, it's all human reasoning
 type maybeLineage struct {
-	// user lineage definition, NOT unified with thema.#Lineage
+	// user lineage definition, NOT unified with thema.Lineage
 	raw cue.Value
 
-	// user lineage definition, unified with thema.#Lineage
+	// user lineage definition, unified with thema.Lineage
 	uni cue.Value
 
 	// original input cue.Value representing the lineage. May or may not be unified
-	// with thema.#Lineage
+	// with thema.Lineage
 	orig cue.Value
 
 	rt *Runtime
@@ -71,15 +75,15 @@ func (ml *maybeLineage) checkGoValidity(cfg *bindConfig) error {
 
 	var previous *schemaDef
 	for schiter.Next() {
-		// Only thing not natively enforced in CUE is that the #SchemaDef.version field is concrete
+		// Only thing not natively enforced in CUE is that the SchemaDef.version field is concrete
 		svval := schiter.Value().LookupPath(vpath)
 		iter, err := svval.List()
 		if err != nil {
-			panic(fmt.Sprintf("unreachable - should have already verified #SchemaDef.version field exists and is list: %+v", err))
+			panic(fmt.Sprintf("unreachable - should have already verified SchemaDef.version field exists and is list: %+v", err))
 		}
 		for iter.Next() {
 			if !iter.Value().IsConcrete() {
-				return errors.Mark(mkerror(iter.Value(), "#SchemaDef.version must have concrete major and minor versions"), terrors.ErrInvalidLineage)
+				return errors.Mark(mkerror(iter.Value(), "SchemaDef.version must have concrete major and minor versions"), terrors.ErrInvalidLineage)
 			}
 		}
 		sch := &schemaDef{}
@@ -95,7 +99,7 @@ func (ml *maybeLineage) checkGoValidity(cfg *bindConfig) error {
 		sch.ref = schiter.Value()
 		sch.def = sch.ref.LookupPath(pathSchDef)
 		if previous != nil && !cfg.skipbuggychecks {
-			compaterr := compat.ThemaCompatible(previous.def, sch.def)
+			compaterr := compat.ThemaCompatible(ml.rt.Context(), previous.def, sch.def)
 			if sch.v[1] == 0 && compaterr == nil {
 				// Major version change, should be backwards incompatible
 				return errors.Mark(mkerror(sch.ref.LookupPath(pathSch), "schema %s must be backwards incompatible with schema %s: introduce a breaking change, or redeclare as version %s", sch.v, previous.v, synv(previous.v[0], previous.v[1]+1)), terrors.ErrInvalidLineage)
@@ -140,24 +144,92 @@ func (ml *maybeLineage) checkExists(cfg *bindConfig) error {
 	return nil
 }
 
+// checkUnknownFields reports regular fields that thema does not define, at the
+// lineage, schema entry and lens levels. thema's CUE rejects these too, but CUE
+// positions such errors at the guard in thema's own CUE; reporting them from Go
+// points at the author's line instead. Hidden and definition fields are left alone,
+// as they are free for the author's own helpers.
+//
+// The set of known fields is read from thema's CUE, so it cannot drift from it.
+func (ml *maybeLineage) checkUnknownFields() error {
+	var errs cerrors.Error
+	check := func(v cue.Value, def cue.Value, what string) {
+		known := make(map[string]bool)
+		var names []string
+		kiter, err := def.Fields(cue.Optional(true))
+		if err != nil {
+			panic(fmt.Sprintf("unreachable - thema's own %s must be a struct: %v", what, err))
+		}
+		for kiter.Next() {
+			known[kiter.Selector().Unquoted()] = true
+			names = append(names, kiter.Selector().Unquoted())
+		}
+		sort.Strings(names)
+
+		iter, err := v.Fields(cue.Optional(true))
+		if err != nil {
+			return
+		}
+		for iter.Next() {
+			sel := iter.Selector()
+			if !sel.IsString() || known[sel.Unquoted()] {
+				continue
+			}
+			errs = cerrors.Append(errs, cerrors.Newf(userPos(iter.Value()), "%s is not a field of %s; valid fields are %s", sel.Unquoted(), what, strings.Join(names, ", ")))
+		}
+	}
+	each := func(list cue.Value, known cue.Value, what string) {
+		// List() refuses to iterate a list whose elements contain errors, which is
+		// exactly the case being checked for, so walk the elements by index.
+		for i := 0; ; i++ {
+			elem := list.LookupPath(cue.MakePath(cue.Index(i)))
+			if !elem.Exists() {
+				return
+			}
+			check(elem, known, what)
+		}
+	}
+
+	rtv := ml.rt.Underlying()
+	check(ml.raw, ml.rt.linDef(), "a lineage")
+	each(ml.raw.LookupPath(cue.MakePath(cue.Str("schemas"))), rtv.LookupPath(cue.MakePath(cue.Str("SchemaDef"))), "a schema entry")
+	each(ml.raw.LookupPath(cue.MakePath(cue.Str("lenses"))), rtv.LookupPath(cue.MakePath(cue.Str("Lens"))), "a lens")
+
+	if errs != nil {
+		return errors.Mark(errs, terrors.ErrInvalidLineage)
+	}
+	return nil
+}
+
+// userPos returns the position of the first conjunct of v that is not in thema's
+// own CUE, or v's position if there is none.
+func userPos(v cue.Value) token.Pos {
+	_, args := v.Expr()
+	for _, a := range args {
+		if p := a.Pos(); p.IsValid() && !strings.HasPrefix(p.Filename(), embedreg.Root()+string(filepath.Separator)) {
+			return p
+		}
+	}
+	return v.Pos()
+}
+
 func (ml *maybeLineage) checkLineageShape(cfg *bindConfig) error {
 	// Check certain paths specifically, because these are common getting started errors of just arranging
 	// CUE statements in the right way that deserve more targeted guidance
 	for _, path := range []string{"name", "schemas"} {
 		val := ml.raw.LookupPath(cue.MakePath(cue.Str(path)))
 		if !val.Exists() {
-			return errors.Mark(mkerror(ml.raw, "not a lineage, missing #Lineage.%s", path), terrors.ErrValueNotALineage)
+			return errors.Mark(mkerror(ml.raw, "not a lineage, missing Lineage.%s", path), terrors.ErrValueNotALineage)
 		}
 		// IsConcrete reports any list as concrete, even an open one, so also require
-		// a concrete length; otherwise an absent schemas field would pass as #Lineage's
-		// open default of [#SchemaDef, ...#SchemaDef].
+		// a concrete length.
 		_, lenerr := val.Len().Int64()
 		if !val.IsConcrete() || (val.IncompleteKind() == cue.ListKind && lenerr != nil) {
-			return errors.Mark(mkerror(val, "invalid lineage, #Lineage.%s must be concrete", path), terrors.ErrInvalidLineage)
+			return errors.Mark(mkerror(val, "invalid lineage, Lineage.%s must be concrete", path), terrors.ErrInvalidLineage)
 		}
 	}
 
-	// The candidate lineage must be an instance of #Lineage. However, we can't validate the whole
+	// The candidate lineage must be an instance of Lineage. However, we can't validate the whole
 	// structure, because lenses will fail validation. This is because we currently expect them to be written:
 	//
 	// {
@@ -169,7 +241,7 @@ func (ml *maybeLineage) checkLineageShape(cfg *bindConfig) error {
 	//
 	// means that those structures won't pass Validate until we've injected an actual object there.
 	if err := ml.uni.Validate(cue.Final()); err != nil {
-		return errors.Mark(cerrors.Promote(err, "not an instance of thema.#Lineage"), terrors.ErrInvalidLineage)
+		return errors.Mark(cerrors.Promote(err, "not an instance of thema.Lineage"), terrors.ErrInvalidLineage)
 	}
 
 	return nil

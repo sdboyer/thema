@@ -25,13 +25,13 @@ type baseLineage struct {
 	// internal flag to ensure BindLineage is only mechanism to create
 	validated bool
 
-	// name of the lineage, #Lineage.name
+	// name of the lineage, Lineage.name
 	name string
 
 	// original raw input cue.Value containing lineage definition
 	raw cue.Value
 
-	// input cue.Value, unified with thema.#Lineage
+	// input cue.Value, unified with thema.Lineage
 	uni cue.Value
 
 	// all schema versions in the lineage
@@ -63,24 +63,24 @@ func BindLineage(v cue.Value, rt *Runtime, opts ...BindOption) (Lineage, error) 
 	lindef := rt.linDef()
 
 	var raw, uni cue.Value
-	// don't unify thema.#Lineage again if the input already did it. doing so may
+	// don't unify thema.Lineage again if the input already did it. doing so may
 	// result in noisy extra instances of thema internals, confusing things like
 	// the openapi encoder and likely having performance implications
 	if vlist := cuetil.AppendSplit(orig, cue.AndOp, nil); len(vlist) > 1 {
 		others := make([]cue.Value, 0, len(vlist))
 		for _, av := range vlist {
 			_, path := av.ReferencePath()
-			if path.String() != "#Lineage" {
+			if path.String() != "Lineage" {
 				others = append(others, av)
 			}
 		}
 
 		if len(others) == len(vlist) {
-			// input value wasn't unified with thema.#Lineage, though there were other unifications
+			// input value wasn't unified with thema.Lineage, though there were other unifications
 			raw = orig
 			uni = lindef.Unify(orig)
 		} else {
-			// input value was unified with thema.#Lineage...
+			// input value was unified with thema.Lineage...
 			if len(others) == 1 {
 				// ...and there was only one other value, probably a struct literal (but don't lean
 				// on that assumption without adding more checks!)
@@ -94,8 +94,8 @@ func BindLineage(v cue.Value, rt *Runtime, opts ...BindOption) (Lineage, error) 
 			}
 
 			// The key property for the 'uni' value we store in the lineage is that it is
-			// unified exactly once with thema.#Lineage. So, reuse the original input if
-			// there was only one #Lineage unification eliminated. Else, make a new one.
+			// unified exactly once with thema.Lineage. So, reuse the original input if
+			// there was only one Lineage unification eliminated. Else, make a new one.
 			if len(others) == len(vlist)-1 {
 				uni = orig
 			} else {
@@ -117,6 +117,9 @@ func BindLineage(v cue.Value, rt *Runtime, opts ...BindOption) (Lineage, error) 
 	}
 
 	if err := ml.checkExists(cfg); err != nil {
+		return nil, err
+	}
+	if err := ml.checkUnknownFields(); err != nil {
 		return nil, err
 	}
 	if err := ml.checkLineageShape(cfg); err != nil {

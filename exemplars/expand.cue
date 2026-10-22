@@ -4,7 +4,7 @@ import "github.com/sdboyer/thema"
 
 expand: {
 	description: "A few schema in a single sequence, illustrating some simple expansions permitted by backwards compatibility rules."
-	l:           thema.#Lineage & {
+	l:           thema.Lineage & {
 		schemas: [{
 			version: [0, 0]
 			schema: {

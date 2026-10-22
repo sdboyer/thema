@@ -2,7 +2,7 @@
 -- in.cue --
 import "github.com/sdboyer/thema"
 
-thema.#Lineage
+thema.Lineage
 name: "refexstruct"
 schemas: [{
 	version: [0, 0]

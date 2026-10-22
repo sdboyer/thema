@@ -3,11 +3,11 @@ package thema
 import "list"
 
 // TODO docs
-#TranslatedInstance: {
-	from:   #SyntacticVersion
-	to:     #SyntacticVersion
-	result: _
-	lacunas: [...#Lacuna]
+TranslatedInstance: {
+	from:    SyntacticVersion
+	to:      SyntacticVersion
+	result:  _
+	lacunas: [...Lacuna]
 }
 
 // Translate takes an instance, a lineage, and to and from versions.
@@ -18,23 +18,34 @@ import "list"
 // starting from the version the instance is valid against, and
 // continuing until the target schema version is reached.
 //
+// Each step's result is unified with the target schema, closed at that point of
+// use: a lens may never produce a field its target schema does not define,
+// whether or not the lineage author wrote that schema as open.
+//
 // The result is the instance in final translated form, the schema versions
 // at which the translation started and ended, and any lacunas emitted during
 // translation.
 //
 // TODO functionize
-#Translate: {
-	L=lin: _
-	I=inst: {...}
-	FV=from: #SyntacticVersion
-	TV=to:   #SyntacticVersion
+Translate: {
+	lin:  _
+	inst: {...}
+	from: SyntacticVersion
+	to:   SyntacticVersion
+
+	// Nested structs below declare their own from/to fields, so bind the
+	// arguments to names that can't be shadowed.
+	let L = lin
+	let I = inst
+	let FV = from
+	let TV = to
 
 	let cmp = (_cmpSV & {l: FV, r: TV}).out
 
 	// TODO validate I is instance of FV schema
 
 	out: {
-		steps: [...#TranslatedInstance]
+		steps: [...TranslatedInstance]
 		result: {
 			from:   FV
 			to:     TV
@@ -50,7 +61,7 @@ import "list"
 				let hi = (L._flatidx & {v: FV}).out
 				let lo = (L._flatidx & {v: TV}).out
 
-				_accum: [{result: I, to: FV}, for i, pos in list.Range(hi-1, lo-1, -1) {
+				_accum: [{result: I, to: FV}, for i, pos in list.Range(hi - 1, lo - 1, -1) {
 					// alias pointing to the previous item in the list we're building
 					let prior = _accum[i]
 
@@ -71,8 +82,8 @@ import "list"
 					from: _lens.from
 					to:   _lens.to
 					// TODO initial input isn't necessarily unified with schema - does that make translated output meaningfully different?
-					result: {_lens.result, schdef._#schema}
-					lacunas: [ for lac in _lens.lacunas if lac.condition {lac.lacuna}]
+					result:  _lens.result & ({#closed: schdef._schema}).#closed
+					lacunas: [for lac in _lens.lacunas if lac.condition {lac.lacuna}]
 				}]
 
 				// Final value excludes first element (initial input) from accum
@@ -84,7 +95,7 @@ import "list"
 				// translation, inclusive of the starting schema.
 				let lo = (L._flatidx & {v: FV}).out
 				let hi = (L._flatidx & {v: TV}).out
-				let schrange = list.Slice(L.schemas, lo+1, hi+1)
+				let schrange = list.Slice(L.schemas, lo + 1, hi + 1)
 
 				_accum: [{result: I, to: FV}, for i, schdef in schrange {
 					// alias pointing to the previous item in the list we're building
@@ -93,13 +104,14 @@ import "list"
 					if prior.to[0] == schdef.version[0] {
 						// Only a minor version. Backwards compatibility rules dictate that the mapping
 						// algorithm for the forward lens is generic: simple unification.
-						from: prior.to
-						to:   schdef.version
-						//						result: prior.result & schdef._#schema
-						result: {prior.result, schdef._#schema}
+						from:   prior.to
+						to:     schdef.version
+						result: prior.result & ({#closed: schdef._schema}).#closed
 					}
 
 					if prior.to[0] < schdef.version[0] {
+						// Crossing a major version. The forward lens explicitly defined in the schema
+						// provides the mapping algorithm.
 						// TODO does having this field in the result, even hidden, cause a problem? does using an alias cause the computation to run more than once?
 						_lens: L._forwardLenses[schdef.version[0]-1] & {
 							// pass the prior result along as the input to this next lens
@@ -111,13 +123,10 @@ import "list"
 							to:   schdef.version
 						}
 
-						from: prior.to
-						to:   schdef.version
-						//						result: {_lens.result, schdef._#schema, {lidx: lensidx}}
-						result: {_lens.result, schdef._#schema}
-						lacunas: [ for lac in _lens.lacunas if lac.condition {lac.lacuna}]
-						// Crossing a major version. The forward lens explicitly defined in the schema
-						// provides the mapping algorithm.
+						from:    prior.to
+						to:      schdef.version
+						result:  _lens.result & ({#closed: schdef._schema}).#closed
+						lacunas: [for lac in _lens.lacunas if lac.condition {lac.lacuna}]
 					}
 				}]
 

@@ -87,7 +87,7 @@ func FirstNonThemaPos(v cue.Value) token.Pos {
 // 		others := make([]cue.Value, 0, len(vlist))
 // 		for _, av := range vlist {
 // 			_, path := av.ReferencePath()
-// 			if path.String() != "#Lineage" {
+// 			if path.String() != "Lineage" {
 // 				others = append(others, av)
 // 			}
 // 		}

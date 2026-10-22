@@ -7,6 +7,7 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/errors"
 
+	"github.com/sdboyer/thema/internal/cuetil"
 	"github.com/sdboyer/thema/internal/util"
 )
 
@@ -16,19 +17,19 @@ var (
 )
 
 var (
-	pathSchDef   = cue.MakePath(cue.Hid("_#schema", util.ThemaPackageID))
+	pathSchDef   = cue.MakePath(cue.Hid("_schema", util.ThemaPackageID))
 	pathExamples = cue.MakePath(cue.Str("examples"))
 	pathSch      = cue.MakePath(cue.Str("schema"))
 	pathJoin     = cue.MakePath(cue.Hid("_join", util.ThemaPackageID))
 )
 
-// schemaDef represents a single #SchemaDef, with a backlink to its containing
-// #Lineage.
+// schemaDef represents a single SchemaDef, with a backlink to its containing
+// Lineage.
 type schemaDef struct {
-	// ref holds a reference to the entire #SchemaDef object.
+	// ref holds a reference to the entire SchemaDef object.
 	ref cue.Value
 
-	// def holds a reference to #SchemaDef._#schema. See those docs.
+	// def holds a reference to SchemaDef._schema. See those docs.
 	def cue.Value
 
 	// v is the version of this schema.
@@ -83,7 +84,9 @@ func (sch *schemaDef) Validate(data cue.Value) (*Instance, error) {
 	// 	// return nil, mungeValidateErr(err, sch)
 	// }
 
-	x := sch.def.Unify(data)
+	// Schemas are only as closed as their authors wrote them; validation rejects
+	// fields the schema does not define by closing it here.
+	x := cuetil.CloseRecursive(sch.rt().Context(), sch.def).Unify(data)
 
 	// The cue.Concrete(true) option ensure that Concrete all values resulting
 	// from the unification of the schema and data are concrete.
@@ -99,6 +102,22 @@ func (sch *schemaDef) Validate(data cue.Value) (*Instance, error) {
 		sch:   sch,
 		name:  "", // FIXME how are we getting this out?
 	}, nil
+}
+
+// checkDeclared returns an error if data contains any field, at any depth, that
+// the schema does not declare - even where the schema's author wrote it as open.
+// Lenses are strictly bound to the schema as defined: they may not produce fields
+// a schema merely tolerates.
+func (sch *schemaDef) checkDeclared(data cue.Value) error {
+	paths := cuetil.UndeclaredFields(sch.rt().Context(), data, sch.def)
+	if len(paths) == 0 {
+		return nil
+	}
+	strs := make([]string, len(paths))
+	for i, p := range paths {
+		strs[i] = p.String()
+	}
+	return fmt.Errorf("fields not declared by schema %s: %s", sch.Version(), strings.Join(strs, ", "))
 }
 
 // Successor returns the next schema in the lineage, or nil if it is the last schema.
@@ -142,13 +161,13 @@ func (sch *schemaDef) LatestInMajor() Schema {
 	return sch.lin.allsch[searchSynv(sch.lin.allv, SyntacticVersion{sch.v[0] + 1, 0})]
 }
 
-// Underlying returns the cue.Value that represents the underlying CUE #SchemaDef.
+// Underlying returns the cue.Value that represents the underlying CUE SchemaDef.
 //
-// The #SchemaDef is not directly helpful for most use cases. But useful values are easily
+// The SchemaDef is not directly helpful for most use cases. But useful values are easily
 // accessed by calling [cue.Value.LookupPath] on the returned value:
 //   - "schema": the literal schema definition provided by the user.
-//   - "_#schema": the user-provided schema, unified with the lineage joinSchema and
-//     recursively closed.
+//   - "_schema": the user-provided schema, unified with the lineage joinSchema. It
+//     is exactly as open or closed as the lineage author wrote it.
 func (sch *schemaDef) Underlying() cue.Value {
 	return sch.ref
 }

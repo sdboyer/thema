@@ -1,0 +1,34 @@
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+thema.Lineage
+name: "typo"
+schemas: [{
+	version: [0, 0]
+	schema: {
+		foo: string
+	}
+}, {
+	version: [1, 0]
+	schema: {
+		bar: string
+	}
+}]
+lenses: [{
+	to: [0, 0]
+	from: [1, 0]
+	input: _
+	reslt: {
+		foo: input.bar
+	}
+}, {
+	to: [1, 0]
+	from: [0, 0]
+	input: _
+	result: {
+		bar: input.foo
+	}
+}]
+-- out/bindfail --
+reslt is not a field of a lens; valid fields are from, input, lacunas, result, to:
+    ./in.cue:20:2

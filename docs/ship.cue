@@ -2,7 +2,7 @@ package thema_example
 
 import "github.com/sdboyer/thema"
 
-lin: thema.#Lineage
+lin: thema.Lineage
 lin: name: "Ship"
 lin: seqs: [
 	{
@@ -28,13 +28,13 @@ lin: seqs: [
 				secondfield: -1
 			}
 			lacunas: [
-				thema.#Lacuna & {
+				thema.Lacuna & {
 					targetFields: [{
 						path:  "secondfield"
 						value: to.secondfield
 					}]
 					message: "-1 used as a placeholder value - replace with a real value before persisting!"
-					type:    thema.#LacunaTypes.Placeholder
+					type:    thema.LacunaTypes.Placeholder
 				},
 			]
 			translated: to & rel

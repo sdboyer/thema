@@ -2,8 +2,8 @@ package exemplars
 
 import "github.com/sdboyer/thema"
 
-_#Exemplar: {
-	l:           thema.#Lineage
+_Exemplar: {
+	l:           thema.Lineage
 	description: string
 	// tt: [string]: {
 	//     r: l.joinSchema
@@ -14,7 +14,7 @@ _#Exemplar: {
 	// }
 }
 
-[N=string]: _#Exemplar & {
+[N=string]: _Exemplar & {
 	l: name: N
 }
 

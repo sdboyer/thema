@@ -33,7 +33,7 @@ type initCommand struct {
 
 func (ic *initCommand) setup(cmd *cobra.Command) {
 	cmd.AddCommand(initLineageCmd)
-	initLineageCmd.PersistentFlags().StringVarP(&ic.name, "name", "n", "", "String for the #Lineage.name field")
+	initLineageCmd.PersistentFlags().StringVarP(&ic.name, "name", "n", "", "String for the Lineage.name field")
 	initLineageCmd.PersistentFlags().StringVar(&ic.pkgname, "package-name", "", "Name for generated package. If omitted, --name value is used")
 	initLineageCmd.PersistentFlags().BoolVar(&ic.nopkg, "no-package", false, "Generate lineage without a package directive")
 

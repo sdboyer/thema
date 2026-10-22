@@ -129,12 +129,12 @@ func LatestVersionInSequence(lin Lineage, seqv uint) (SyntacticVersion, error) {
 }
 
 // A LineageFactory returns a [Lineage], which is immutably bound to a single
-// instance of #Lineage declared in CUE.
+// instance of Lineage declared in CUE.
 //
 // LineageFactory funcs are intended to be the main Go entrypoint to all of the
 // operations, guarantees, and capabilities of Thema lineages. Lineage authors
 // should generally define and export one instance of LineageFactory per
-// #Lineage instance.
+// Lineage instance.
 //
 // It is idiomatic to name LineageFactory funcs after the "name" field on the
 // lineage they return:

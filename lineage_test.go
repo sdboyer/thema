@@ -21,7 +21,7 @@ func TestBindLineage(t *testing.T) {
 		ThemaFS: CueJointFS,
 		ToDo: map[string]string{
 			"lineage/defaultchange": "Thema compat analyzer fails to classify changes to default values as breaking",
-			"lineage/optional":      "Optional fields do not satisfy struct.MinFields(), causing #Lineage constraints to fail",
+			"lineage/optional":      "Optional fields do not satisfy struct.MinFields(), causing Lineage constraints to fail",
 		},
 	}
 
@@ -229,7 +229,7 @@ func getCaseWithImport() *build.Instance {
 	buf := new(bytes.Buffer)
 	buf.WriteString(`import "github.com/sdboyer/thema"
 
-thema.#Lineage
+thema.Lineage
 `)
 	buf.WriteString(benchBindstr)
 
@@ -241,7 +241,7 @@ thema.#Lineage
 }
 
 // BenchmarkBindLineage benchmarks binding a lineage in Go, with and without
-// explicitly unifying the input lineage with thema.#Lineage in the CUE source.
+// explicitly unifying the input lineage with thema.Lineage in the CUE source.
 //
 // Keeping these separate lets us see the difference between the performance cost
 // of just the pure, native CUE logic, vs. the cost of the Go code that wraps it.

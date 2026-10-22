@@ -4,7 +4,7 @@
 -- in.cue --
 import "github.com/sdboyer/thema"
 
-thema.#Lineage
+thema.Lineage
 name: "union"
 schemas: [{
 	version: [0, 0]
@@ -40,14 +40,14 @@ lenses: []
 	schema expected `bool`
 		/in.cue:24:29
 		/in.cue:10:40
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:234:20
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:223:19
 	but data contained `42`
 		test:3:16
 <union@v0.0>.mapUnion.foo: validation failed, data is not an instance:
 	schema expected `string`
 		/in.cue:24:20
 		/in.cue:10:40
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:234:20
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:223:19
 	but data contained `42`
 		test:3:16
 <union@v0.0>.theUnion: validation failed, data is not an instance:
@@ -60,14 +60,14 @@ lenses: []
 	schema expected `bool`
 		/in.cue:24:29
 		/in.cue:8:30
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:234:20
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:223:19
 	but data contained `42`
 		test:2:17
 <union@v0.0>.theUnion: validation failed, data is not an instance:
 	schema expected `string`
 		/in.cue:24:20
 		/in.cue:8:30
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:234:20
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:223:19
 	but data contained `42`
 		test:2:17
 <union@v0.0>.nestedStruct.structUnion: validation failed, data is not an instance:

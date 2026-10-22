@@ -184,7 +184,7 @@ package example
 
 import "github.com/sdboyer/thema"
 
-lin: thema.#Lineage
+lin: thema.Lineage
 lin: name: "Ship"
 lin: seqs: [
 // ...
@@ -228,7 +228,7 @@ package example
 
 import "github.com/sdboyer/thema"
 
-thema.#Lineage
+thema.Lineage
 name: "Ship"
 seqs: [
 // ...
@@ -247,7 +247,7 @@ package example
 
 import "github.com/sdboyer/thema"
 
-lin: thema.#Lineage @thematranslate(protobuf) // purely illustrative; not real/supported by any tool
+lin: thema.Lineage @thematranslate(protobuf) // purely illustrative; not real/supported by any tool
 lin: name: "Ship"
 lin: seqs: [
 // ...

@@ -25,7 +25,7 @@ Thema lineages require only two fields to be explicitly defined:
 ```cue
 import "github.com/sdboyer/thema"
 
-lin: thema.#Lineage 
+lin: thema.Lineage 
 lin: name: "Ship"
 lin: seqs: [
     {
@@ -49,7 +49,7 @@ Let's define our first schema as an object containing a single field named `firs
 ```cue
 import "github.com/sdboyer/thema"
 
-lin: thema.#Lineage 
+lin: thema.Lineage 
 lin: name: "Ship"
 lin: seqs: [
     {
@@ -79,7 +79,7 @@ Let's add one more field, `secondfield`, which must be an `int`.
 ```cue
 import "github.com/sdboyer/thema"
 
-lin: thema.#Lineage 
+lin: thema.Lineage 
 lin: name: "Ship"
 lin: seqs: [
     {
@@ -111,7 +111,7 @@ The simplest fix involves just one character: `?`. This indicates that `secondfi
 ```cue
 import "github.com/sdboyer/thema"
 
-lin: thema.#Lineage 
+lin: thema.Lineage 
 lin: name: "Ship"
 lin: seqs: [
     {
@@ -139,7 +139,7 @@ CUE allows [specifying default values](https://cuelang.org/docs/tutorials/tour/t
 ```cue
 import "github.com/sdboyer/thema"
 
-lin: thema.#Lineage 
+lin: thema.Lineage 
 lin: name: "Ship"
 lin: seqs: [
     {
@@ -175,7 +175,7 @@ In this approach, rather than adding `secondfield` to a schema in the same seque
 ```cue
 import "github.com/sdboyer/thema"
 
-lin: thema.#Lineage 
+lin: thema.Lineage 
 lin: name: "Ship"
 lin: seqs: [
     {
@@ -219,7 +219,7 @@ The only real answer is to add a placeholder value - here, `-1`.
 ```cue
 import "github.com/sdboyer/thema"
 
-lin: thema.#Lineage
+lin: thema.Lineage
 lin: name: "Ship"
 lin: seqs: [
     {
@@ -294,7 +294,7 @@ Thema defines a limited set of lacuna types that correspond to different types o
 ```cue
 import "github.com/sdboyer/thema"
 
-lin: thema.#Lineage
+lin: thema.Lineage
 lin: name: "Ship"
 lin: seqs: [
     {
@@ -320,13 +320,13 @@ lin: seqs: [
                 secondfield: -1
             }
             lacunas: [
-                thema.#Lacuna & {
+                thema.Lacuna & {
                     targetFields: [{
                         path: "secondfield"
                         value: to.secondfield
                     }]
                     message: "-1 used as a placeholder value - replace with a real value before persisting!"
-                    type: thema.#LacunaTypes.Placeholder
+                    type: thema.LacunaTypes.Placeholder
                 }
             ]
             translated: to & rel

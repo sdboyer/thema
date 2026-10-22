@@ -3,7 +3,7 @@
 
 import "github.com/sdboyer/thema"
 
-thema.#Lineage
+thema.Lineage
 name: "trivial-two-comments"
 schemas: [{
     version: [0, 0]

@@ -39,12 +39,12 @@ func loadWithThema(t *testing.T, modfile, body string) cue.Value {
 }
 
 func TestResolvesWithoutRegistry(t *testing.T) {
-	v := loadWithThema(t, util.ModuleFile("example.com/m"), "lin: thema.#Lineage & {name: \"x\"}\n")
+	v := loadWithThema(t, util.ModuleFile("example.com/m"), "lin: thema.Lineage & {name: \"x\"}\n")
 	if err := v.Err(); err != nil {
 		t.Fatal(err)
 	}
 	if !v.LookupPath(cue.ParsePath("lin.name")).Exists() {
-		t.Fatal("expected thema.#Lineage to resolve")
+		t.Fatal("expected thema.Lineage to resolve")
 	}
 }
 
@@ -56,7 +56,7 @@ func TestVersionSkew(t *testing.T) {
 		Env: []string{"CUE_REGISTRY=none"},
 		Overlay: map[string]load.Source{
 			"/m/cue.mod/module.cue": load.FromString(modfile),
-			"/m/in.cue":             load.FromString("package m\n\nimport \"github.com/sdboyer/thema\"\n\nlin: thema.#Lineage\n"),
+			"/m/in.cue":             load.FromString("package m\n\nimport \"github.com/sdboyer/thema\"\n\nlin: thema.Lineage\n"),
 		},
 	}
 	if err := embedreg.Configure(cfg, thema.CueJointFS); err != nil {
@@ -74,11 +74,11 @@ func TestVersionSkew(t *testing.T) {
 }
 
 func TestErrorPositionsUseRoot(t *testing.T) {
-	// name must be a string, per thema.#Lineage, so this conflicts in thema's CUE.
-	v := loadWithThema(t, util.ModuleFile("example.com/m"), "lin: thema.#Lineage & {name: 42}\n")
+	// name must be a string, per thema.Lineage, so this conflicts in thema's CUE.
+	v := loadWithThema(t, util.ModuleFile("example.com/m"), "lin: thema.Lineage & {name: 42}\n")
 	err := v.Validate()
 	if err == nil {
-		t.Fatal("expected a conflict with thema.#Lineage")
+		t.Fatal("expected a conflict with thema.Lineage")
 	}
 	want := embedreg.Root() + "/lineage.cue"
 	for _, e := range cerrors.Errors(err) {

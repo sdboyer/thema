@@ -222,7 +222,7 @@ func (i *Instance) Translate(to SyntacticVersion) (*Instance, TranslationLacunas
 		"to":   to,
 		"from": i.Schema().Version(),
 		"lin":  i.Schema().Lineage().Underlying(),
-	}.call("#Translate", i.rt())
+	}.call("Translate", i.rt())
 	if err != nil {
 		// This can't happen without a name change or an invariant violation
 		panic(err)
@@ -235,14 +235,19 @@ func (i *Instance) Translate(to SyntacticVersion) (*Instance, TranslationLacunas
 	lac := make(multiTranslationLacunas, 0)
 	out.LookupPath(cue.MakePath(cue.Str("lacunas"))).Decode(&lac)
 
-	// Attempt to evaluate #Translate result to remove intermediate structures created by #Translate.
-	// Otherwise, all the #Translate results are non-concrete, which leads to undesired effects.
+	// Attempt to evaluate Translate result to remove intermediate structures created by Translate.
+	// Otherwise, all the Translate results are non-concrete, which leads to undesired effects.
 	raw, _ := out.LookupPath(cue.MakePath(cue.Str("result"), cue.Str("result"))).Default()
 
 	// Check that the result is concrete by trying to marshal/export it as JSON
 	_, err = json.Marshal(raw)
 	if err != nil {
 		return nil, nil, errors.Mark(fmt.Errorf("lens produced a non-concrete result: %s", cerrors.Details(err, nil)), terrors.ErrLensIncomplete)
+	}
+
+	// A lens may not produce fields its target schema does not declare
+	if err := newsch.(*schemaDef).checkDeclared(raw); err != nil {
+		return nil, nil, errors.Mark(err, terrors.ErrLensResultIsInvalidData)
 	}
 
 	// Ensure the result is a valid instance of the target schema
@@ -289,6 +294,9 @@ func (i *Instance) translateGo(to SyntacticVersion) (*Instance, TranslationLacun
 			}
 			if rti.Schema().Version() != nsch.Version() {
 				return nil, nil, fmt.Errorf("lens returned an instance of the wrong schema version: expected %v, got %v", nsch.Version(), rti.Schema().Version())
+			}
+			if err := nsch.(*schemaDef).checkDeclared(rti.Underlying()); err != nil {
+				return nil, nil, errors.Mark(fmt.Errorf("%s lens: %w", mlid, err), terrors.ErrLensResultIsInvalidData)
 			}
 		} else {
 			// going up a minor version - neither errors nor lacunas are possible

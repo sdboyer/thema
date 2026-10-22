@@ -22,9 +22,9 @@ seams: "lineage-kernel": {
 	kind:  "shared-kernel"
 	paths: ["lineage.cue", "translate.cue", "lacuna.cue", "traverse.cue"]
 	consult: [
-		"every lineage that unifies with thema.#Lineage",
+		"every lineage that unifies with thema.Lineage",
 		"the Go facade (bind.go, lineage.go, surface.go)",
-		"Go code that calls thema's CUE pseudofunctions and decodes their output shape (instance.go Translate decodes #Translate's out)",
+		"Go code that calls thema's CUE pseudofunctions and decodes their output shape (instance.go Translate decodes Translate's out)",
 	]
 }
 
@@ -112,6 +112,7 @@ seams: "go-residual-checks": {
 		checkNativeValidity:    "runs the CUE-native validity pass and surfaces its errors"
 		checkLensesOrder:       "lens from/to ordering constraints"
 		checkGoLensCompleteness: "every required lens exists for the version set"
+		checkUnknownFields:      "unknown lineage/schema/lens fields; CUE rejects them too, but positions the error at its guard in thema's CUE, while Go can point at the author's line. Known fields are read from thema's CUE, not duplicated"
 	}
 }
 

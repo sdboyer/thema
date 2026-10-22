@@ -26,7 +26,7 @@ const ThemaModulePath = "github.com/sdboyer/thema@v0"
 const ThemaModuleVersion = "v0.1.0"
 
 // ThemaPackageID is the canonical CUE import path of thema's CUE package, which
-// lives at the root of [ThemaModulePath]. Thema's hidden fields (e.g. _#schema)
+// lives at the root of [ThemaModulePath]. Thema's hidden fields (e.g. _schema)
 // are scoped to this package identity, so it is the qualifier for any [cue.Hid]
 // selector targeting them.
 const ThemaPackageID = ThemaModulePath

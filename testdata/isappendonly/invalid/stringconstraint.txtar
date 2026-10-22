@@ -7,7 +7,7 @@ import (
 	"github.com/sdboyer/thema"
 )
 
-lin1: thema.#Lineage
+lin1: thema.Lineage
 lin1: name: "stringconstraint"
 lin1: schemas: [{
 	version: [0, 0]
@@ -20,7 +20,7 @@ lin1: schemas: [{
 	}
 }]
 
-lin2: thema.#Lineage
+lin2: thema.Lineage
 lin2: name: "stringconstraint"
 lin2: schemas: [{
 	version: [0, 0]
@@ -34,7 +34,7 @@ lin2: schemas: [{
 }]
 -- out/isappendonly-fail --
 field aString not present in {aString:strings.MinRunes(2),anObject:{aField:int}}:
-    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:223:10
+    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:215:11
     ./in.cue:24:10
 missing field "aString"
 invalid value strings.MinRunes(2) (does not satisfy strings.MinRunes(1)): non-concrete value string:

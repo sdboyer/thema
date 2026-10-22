@@ -4,7 +4,7 @@ import "github.com/sdboyer/thema"
 
 narrowing: {
 	description: "Lineage that narrows a sloppily-specified boolean/string-ish type to a proper boolean over a single breaking change."
-	l:           thema.#Lineage & {
+	l:           thema.Lineage & {
 		schemas: [{
 			version: [0, 0]
 			schema: boolish: "true" | "false" | bool | string
@@ -36,7 +36,7 @@ narrowing: {
 			}
 			lacunas: [
 				if ((input.boolish & string) != _|_) && ((input.boolish & ("true" | "false")) == _|_) {
-					thema.#Lacuna & {
+					thema.Lacuna & {
 						sourceFields: [{
 							path:  "boolish"
 							value: input.boolish
@@ -46,7 +46,7 @@ narrowing: {
 							value: result.properbool
 						}]
 						message: "boolish was a string but neither \"true\" nor \"false\"; fallback to treating as false"
-						type:    thema.#LacunaTypes.LossyFieldMapping
+						type:    thema.LacunaTypes.LossyFieldMapping
 					}
 				},
 			]

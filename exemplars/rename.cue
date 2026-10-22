@@ -4,7 +4,7 @@ import "github.com/sdboyer/thema"
 
 rename: {
 	description: "A field is renamed - a breaking change, necessitating a new sequence."
-	l:           thema.#Lineage & {
+	l:           thema.Lineage & {
 		schemas: [{
 			version: [0, 0]
 			schema: {

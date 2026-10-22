@@ -5,7 +5,7 @@
 -- in.cue --
 import "github.com/sdboyer/thema"
 
-lin1: thema.#Lineage
+lin1: thema.Lineage
 lin1: name: "newschema"
 lin1: schemas: [{
 	version: [0, 0]
@@ -24,7 +24,7 @@ lin1: schemas: [{
 	}
 }]
 
-lin2: thema.#Lineage
+lin2: thema.Lineage
 lin2: name: "newschema"
 lin2: schemas: [{
     version: [0, 0]

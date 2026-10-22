@@ -3,7 +3,7 @@
 -- in.cue --
 import "github.com/sdboyer/thema"
 
-lin1: thema.#Lineage
+lin1: thema.Lineage
 lin1: name: "noref"
 lin1: schemas: [{
 	version: [0, 0]
@@ -18,7 +18,7 @@ lin1: schemas: [{
 	}
 }]
 
-lin2: thema.#Lineage
+lin2: thema.Lineage
 lin2: name: "noref"
 lin2: schemas: [{
     version: [0, 0]
@@ -34,7 +34,7 @@ lin2: schemas: [{
 }]
 -- out/isappendonly-fail --
 field #Baz not present in {someField:string,#Baz:{run:string,tell:bytes,dat?:int32}}:
-    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:223:10
+    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:215:11
     ./in.cue:22:13
 field dat not present in {run:string,tell:bytes,dat?:int32}:
     ./in.cue:25:9

@@ -2,14 +2,14 @@
 -- in.cue --
 import "github.com/sdboyer/thema"
 
-thema.#Lineage
+thema.Lineage
 name: "unifyref"
 schemas: [{
 	version: [0, 0]
 	schema: {
 	    afoo: #Foo
 
-	    #Foo: External & {
+	    #Foo: _External & {
 	        optf?: #Bar
 	    }
 	    #Bar: {
@@ -19,7 +19,7 @@ schemas: [{
 }]
 lenses: []
 
-External: {
+_External: {
     extfield: string
 }
 -- out/encoding/openapi/TestGenerate/nilcfg --

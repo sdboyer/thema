@@ -2,7 +2,7 @@
 -- in.cue --
 import "github.com/sdboyer/thema"
 
-thema.#Lineage
+thema.Lineage
 name: "refstruct"
 schemas: [{
 	version: [0, 0]
@@ -48,7 +48,7 @@ lenses: []
 	schema expected `string`
 		/in.cue:12:10
 		/in.cue:8:9
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:234:20
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:223:19
 	but data contained `42`
 		test:3:16
 <refstruct@v0.0>.aBaz.dat: validation failed, data is not an instance:

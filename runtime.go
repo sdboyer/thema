@@ -116,11 +116,11 @@ func (rt *Runtime) Context() *cue.Context {
 	return rt.val.Context()
 }
 
-// Return the #Lineage definition (or panic)
+// Return the Lineage definition (or panic)
 //
 // SURROUND CALLS TO THIS IN rl()/ru()
 func (rt *Runtime) linDef() cue.Value {
-	dlin := rt.val.LookupPath(cue.MakePath(cue.Def("#Lineage")))
+	dlin := rt.val.LookupPath(cue.MakePath(cue.Str("Lineage")))
 	return dlin
 }
 
