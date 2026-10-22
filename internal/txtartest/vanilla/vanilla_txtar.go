@@ -176,7 +176,7 @@ func (t *Test) Rel(filename string) string {
 func (t *Test) WriteErrors(err errors.Error) {
 	if err != nil {
 		errors.Print(t, err, &errors.Config{
-			Cwd:     t.Dir,
+			Cwd:     vfsRootDir,
 			ToSlash: true,
 		})
 	}
@@ -288,11 +288,12 @@ func (t *Test) RawInstances(args ...string) []*build.Instance {
 	return LoadVanilla(t.ThemaFS, t.Archive, args...)
 }
 
+// vfsRootDir is the virtual directory at which txtar files are overlaid.
+const vfsRootDir = "/"
+
 // LoadVanilla loads the instances of a txtar file. By default, it only loads
 // files in the root directory.
 func LoadVanilla(themaFS fs.FS, a *txtar.Archive, args ...string) []*build.Instance {
-	vfsRootDir := "/"
-
 	auto := len(args) == 0
 	overlay := map[string]load.Source{}
 	for _, f := range a.Files {
