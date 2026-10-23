@@ -1,0 +1,30 @@
+# as lens-hidden-declared-extra, built inside a comprehension
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "lens-hidden-declared-conditional"
+	schemas: [{
+		version: [0, 0]
+		schema: {a: string, _h: {k: int}}
+	}, {
+		version: [0, 1]
+		schema: {a: string, b?: int}
+	}]
+	lenses: [{
+		from: [0, 1]
+		to: [0, 0]
+		input: _
+		result: {
+			a: input.a
+			_h: {
+				k: 1
+				if input.a == "boom" {extra: 2}
+			}
+		}
+	}]
+}
+-- expect --
+bind fail _h.extra

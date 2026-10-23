@@ -308,8 +308,8 @@ func (i *Instance) translateGo(to SyntacticVersion) (*Instance, TranslationLacun
 					built = append(built, p)
 				}
 			}
-			if err := nsch.(*schemaDef).undeclaredErr(built); err != nil {
-				return nil, nil, errors.Mark(fmt.Errorf("%s lens: %w", mlid, err), terrors.ErrLensResultIsInvalidData)
+			if uerr := nsch.(*schemaDef).undeclaredErr(pathStrings(built)); uerr != nil {
+				return nil, nil, errors.Mark(fmt.Errorf("%s lens: %w", mlid, uerr), terrors.ErrLensResultIsInvalidData)
 			}
 			// Go lenses can't be checked statically, so check their lacunas as they
 			// are emitted, by the same rules CUE lenses are held to at bind time.
@@ -346,12 +346,13 @@ func (i *Instance) checkLensBuiltFields(out cue.Value) error {
 	if err != nil {
 		return nil
 	}
-	lensResult := cue.MakePath(cue.Hid("_lens", util.ThemaPackageID), cue.Str("result"))
+	lensPath := cue.MakePath(cue.Hid("_lens", util.ThemaPackageID))
 	for steps.Next() {
-		result := steps.Value().LookupPath(lensResult)
-		if !result.Exists() {
+		lens := steps.Value().LookupPath(lensPath)
+		if !lens.Exists() {
 			continue
 		}
+		result := lens.LookupPath(cue.MakePath(cue.Str("result")))
 		var to SyntacticVersion
 		if err := steps.Value().LookupPath(cue.MakePath(cue.Str("to"))).Decode(&to); err != nil {
 			return err
@@ -361,7 +362,11 @@ func (i *Instance) checkLensBuiltFields(out cue.Value) error {
 			return err
 		}
 		def := sch.(*schemaDef)
-		if err := def.undeclaredErr(cuetil.UndeclaredBuiltFields(i.rt().Context(), result, def.def)); err != nil {
+		syn, err := cuetil.ParseLens(lens)
+		if err != nil {
+			return fmt.Errorf("lens to %s: %w", to, err)
+		}
+		if err := def.undeclaredErr(pathStrings(cuetil.UndeclaredBuiltFields(i.rt().Context(), result, def.def, syn.Result()))); err != nil {
 			return fmt.Errorf("lens to %s: %w", to, err)
 		}
 	}

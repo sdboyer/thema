@@ -12,32 +12,29 @@ import (
 // open struct's ... declares nothing: unlike closedness, this reports fields that
 // sch merely tolerates. Where sch is a disjunction, data needs to match only one
 // of its branches.
+//
+// Hidden fields follow closedness: one sch does not declare is not data and is
+// not checked; beneath one it declares, fields are checked as anywhere else.
+// Hidden labels are matched to sch's by name (see [UndeclaredConditionalFields]).
 func UndeclaredFields(ctx *cue.Context, data, sch cue.Value) []cue.Path {
 	w := walker{ctx: ctx}
-	return w.undeclared(data, sch, cue.MakePath())
+	return w.undeclared(data, sch, cue.MakePath(), nil)
 }
 
-// UndeclaredBuiltFields is like [UndeclaredFields], but for a value built by an
-// expression, such as a lens result: only fields the expression constructs are
-// checked. A field whose value is a reference (e.g. b: input.a) passes through
-// whatever it refers to, and is not descended into.
-func UndeclaredBuiltFields(ctx *cue.Context, built, sch cue.Value) []cue.Path {
-	w := walker{ctx: ctx, skipRefs: true}
-	return w.undeclared(built, sch, cue.MakePath())
+// UndeclaredBuiltFields is like [UndeclaredFields], but for a lens result,
+// described by b (see [LensSyntax.Result]): only fields the lens builds are
+// checked. Data it passes through from its input (e.g. b: input.a) is not
+// checked, nor descended into.
+func UndeclaredBuiltFields(ctx *cue.Context, result, sch cue.Value, b *Built) []cue.Path {
+	w := walker{ctx: ctx}
+	return w.undeclared(result, sch, cue.MakePath(), b)
 }
 
 type walker struct {
 	ctx *cue.Context
-	// skipRefs causes fields whose values are references to be skipped.
-	skipRefs bool
 }
 
-func isReference(v cue.Value) bool {
-	op, _ := v.Expr()
-	return op == cue.SelectorOp || op == cue.IndexOp
-}
-
-func (w walker) undeclared(data, sch cue.Value, p cue.Path) []cue.Path {
+func (w walker) undeclared(data, sch cue.Value, p cue.Path, b *Built) []cue.Path {
 	if sch.IncompleteKind() == cue.TopKind {
 		// _ declares everything beneath it.
 		return nil
@@ -59,7 +56,7 @@ func (w walker) undeclared(data, sch cue.Value, p cue.Path) []cue.Path {
 
 		var best []cue.Path
 		for i, a := range alts {
-			found := w.undeclaredIn(data, a, p)
+			found := w.undeclaredIn(data, a, p, b)
 			if len(found) == 0 {
 				return nil
 			}
@@ -71,7 +68,7 @@ func (w walker) undeclared(data, sch cue.Value, p cue.Path) []cue.Path {
 	} else if len(alts) == 1 {
 		sch = alts[0]
 	}
-	return w.undeclaredIn(data, sch, p)
+	return w.undeclaredIn(data, sch, p, b)
 }
 
 // maxAlternativesDepth bounds the expression depth alternatives explores.
@@ -125,10 +122,10 @@ func alternatives(sch cue.Value, depth int) []cue.Value {
 	return []cue.Value{sch}
 }
 
-func (w walker) undeclaredIn(data, sch cue.Value, p cue.Path) []cue.Path {
+func (w walker) undeclaredIn(data, sch cue.Value, p cue.Path, b *Built) []cue.Path {
 	switch data.IncompleteKind() {
 	case cue.StructKind:
-		return w.undeclaredInStruct(data, sch, p)
+		return w.undeclaredInStruct(data, sch, p, b)
 	case cue.ListKind:
 		var found []cue.Path
 		iter, err := data.List()
@@ -141,7 +138,8 @@ func (w walker) undeclaredIn(data, sch cue.Value, p cue.Path) []cue.Path {
 				elsch = sch.LookupPath(cue.MakePath(cue.AnyIndex))
 			}
 			if elsch.Exists() {
-				found = append(found, w.undeclared(iter.Value(), elsch, appendPath(p, cue.Index(i)))...)
+				// What a lens builds is not known per list element: each is checked.
+				found = append(found, w.undeclared(iter.Value(), elsch, appendPath(p, cue.Index(i)), nil)...)
 			}
 		}
 		return found
@@ -149,14 +147,15 @@ func (w walker) undeclaredIn(data, sch cue.Value, p cue.Path) []cue.Path {
 	return nil
 }
 
-func (w walker) undeclaredInStruct(data, sch cue.Value, p cue.Path) []cue.Path {
+// schemaFields returns the regular fields sch declares, by name, and its pattern
+// constraints.
+func schemaFields(sch cue.Value) (map[string]cue.Value, []cue.Selector, []cue.Value, error) {
 	fields := make(map[string]cue.Value)
 	var patterns []cue.Selector
 	var patternVals []cue.Value
 	siter, err := sch.Fields(cue.Optional(true), cue.Patterns(true))
 	if err != nil {
-		// Not a struct-kinded schema; disagreements of kind are not this function's concern.
-		return nil
+		return nil, nil, nil, err
 	}
 	for siter.Next() {
 		sel := siter.Selector()
@@ -177,30 +176,47 @@ func (w walker) undeclaredInStruct(data, sch cue.Value, p cue.Path) []cue.Path {
 			fields[sel.Unquoted()] = fv
 		}
 	}
+	return fields, patterns, patternVals, nil
+}
+
+func (w walker) undeclaredInStruct(data, sch cue.Value, p cue.Path, b *Built) []cue.Path {
+	fields, patterns, patternVals, err := schemaFields(sch)
+	if err != nil {
+		// Not a struct-kinded schema; disagreements of kind are not this function's concern.
+		return nil
+	}
 
 	var found []cue.Path
-	diter, err := data.Fields()
+	diter, err := data.Fields(cue.Hidden(true))
 	if err != nil {
 		return nil
 	}
 	for diter.Next() {
 		sel := diter.Selector()
+		fp := appendPath(p, sel)
+		if sel.LabelType() == cue.HiddenLabel {
+			cb, through := b.child(sel.String())
+			if fsch, ok := declaredHidden(sch, sel.String()); ok && !through {
+				found = append(found, w.undeclared(diter.Value(), fsch, fp, cb)...)
+			}
+			continue
+		}
 		if !sel.IsString() {
 			continue
 		}
-		if w.skipRefs && isReference(diter.Value()) {
+		name := sel.Unquoted()
+		cb, through := b.child(name)
+		if through {
 			continue
 		}
-		name := sel.Unquoted()
-		fp := appendPath(p, sel)
 		if fsch, ok := fields[name]; ok {
-			found = append(found, w.undeclared(diter.Value(), fsch, fp)...)
+			found = append(found, w.undeclared(diter.Value(), fsch, fp, cb)...)
 			continue
 		}
 		matched := false
 		for i, pat := range patterns {
 			if pat.Pattern().Unify(w.ctx.Encode(name)).Err() == nil {
-				found = append(found, w.undeclared(diter.Value(), patternVals[i], fp)...)
+				found = append(found, w.undeclared(diter.Value(), patternVals[i], fp, cb)...)
 				matched = true
 				break
 			}

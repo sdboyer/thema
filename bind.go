@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -361,10 +362,16 @@ func (ml *maybeLineage) checkLensResults() error {
 			fail(lens.LookupPath(resultPath), "result is not an instance of schema %s:\n%s", to, cerrors.Details(err, nil))
 			continue
 		}
-		paths := cuetil.UndeclaredBuiltFields(ctx, result, tsch.def)
+		syn, err := cuetil.ParseLens(lens)
+		if err != nil {
+			fail(lens, "%v", err)
+			continue
+		}
+		built := syn.Result()
+		paths := pathStrings(cuetil.UndeclaredBuiltFields(ctx, result, tsch.def, built))
 		// Fields built inside comprehensions only exist once data makes them fire.
-		for _, p := range cuetil.ComprehensionFieldPaths(lens.LookupPath(resultPath)) {
-			if !cuetil.DeclaresPath(ctx, tsch.def, p) {
+		for _, p := range cuetil.UndeclaredConditionalFields(ctx, built, tsch.def) {
+			if !slices.Contains(paths, p) {
 				paths = append(paths, p)
 			}
 		}
@@ -412,7 +419,12 @@ func (ml *maybeLineage) checkLacunas() error {
 		// resolves to []. A list built conditionally has no concrete length at all.
 		raw := lens.LookupPath(cue.MakePath(cue.Str("lacunas")))
 		lacunas, _ := raw.Default()
-		if _, err := lacunas.Len().Int64(); err != nil || cuetil.ListBuiltByComprehension(raw) {
+		syn, err := cuetil.ParseLens(lens)
+		if err != nil {
+			errs = cerrors.Append(errs, cerrors.Newf(userPos(lens), "lens %s -> %s: %v", from, to, err))
+			continue
+		}
+		if _, err := lacunas.Len().Int64(); err != nil || syn.LacunasConditional() {
 			errs = cerrors.Append(errs, cerrors.Newf(userPos(lacunas),
 				"lens %s -> %s: lacunas must be listed unconditionally, with each lacuna's condition field deciding whether it applies", from, to))
 			continue

@@ -1,0 +1,28 @@
+# fields of an embedded hidden field surface in the result, where they are checked
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "lens-hidden-embedded-conditional"
+	schemas: [{
+		version: [0, 0]
+		schema: {a: string}
+	}, {
+		version: [0, 1]
+		schema: {a: string, b?: int}
+	}]
+	lenses: [{
+		from: [0, 1]
+		to: [0, 0]
+		input: _
+		result: {
+			a: input.a
+			_h: {if input.a == "boom" {extra: 2}}
+			_h
+		}
+	}]
+}
+-- expect --
+bind fail 0.0: extra
