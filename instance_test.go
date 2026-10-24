@@ -111,7 +111,13 @@ schemas: [
 			header?: string
 		},
 	},
-]`
+]
+lenses: [{
+	from: [0, 1]
+	to: [0, 0]
+	input: _
+	result: title: input.title
+}]`
 	linval := rt.Context().CompileString(linstr)
 	lin, err := BindLineage(linval, rt)
 	require.NoError(t, err)

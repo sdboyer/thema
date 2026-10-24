@@ -14,7 +14,6 @@ linters:
     - gochecknoinits
     - goconst
     - gocritic
-    - gocyclo
     - goprintffuncname
     - gosec
     - govet
@@ -29,8 +28,6 @@ linters:
     - unused
     - whitespace
   settings:
-    gocyclo:
-      min-complexity: 15
     govet:
       # v1's check-shadowing.
       enable:

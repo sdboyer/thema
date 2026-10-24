@@ -1,0 +1,25 @@
+# control for lens-let-copy: the same copy, by direct reference to input
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "lens-direct-copy"
+	schemas: [{
+		version: [0, 0]
+		schema: {a: string, n: {p: int, ...}}
+	}, {
+		version: [0, 1]
+		schema: {a: string, n: {p: int, ...}, b?: int}
+	}]
+	lenses: [{
+		from: [0, 1]
+		to: [0, 0]
+		input: _
+		result: {a: input.a, n: input.n}
+	}]
+}
+-- expect --
+bind ok
+translate 0.1 0.0 ok {a: "x", n: {p: 1, q: 2}}
