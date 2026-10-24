@@ -8,7 +8,7 @@
 } @cuetsy(kind="interface")
 
 #StructWithDefaults: {
-    #Base
+    #Base...
     baseEnum:              #Enum
     valueEnum:             #Enum & "a"
     defaultEnum:           #Enum | (*"a" | _)

@@ -65,7 +65,7 @@ func exprTree(v cue.Value) *exprNode {
 	}
 
 	if len(path.Selectors()) > 0 {
-		n.ref = exprTree(cue.Dereference(v))
+		n.ref = exprTree(dereference(v))
 		n.refpath = path
 		n.ref.parent = n
 		n.ref.isref = true
