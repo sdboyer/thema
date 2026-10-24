@@ -18,7 +18,7 @@ Lineage: {
 	// The name of the thing specified by the schemas in this lineage.
 	//
 	// A lineage's name must not change as it evolves.
-	name!: string
+	name!: string & !=""
 
 	// joinSchema governs the shape of schema that may be expressed in a
 	// lineage. It is the least upper bound, or join, of the acceptable schema
