@@ -4,7 +4,7 @@
 import "github.com/sdboyer/thema"
 
 thema.Lineage
-name: "trivial-two"
+name: "trivialTwo"
 schemas: [{
     version: [0, 0]
     schema: {
@@ -32,19 +32,19 @@ lenses: [{
     "firstfield": 42
 }
 -- out/validate/TestValidate/firstfieldAsInt32 --
-<trivial-two@v0.1>.firstfield: validation failed, data is not an instance:
+<trivialTwo@v0.1>.firstfield: validation failed, data is not an instance:
 	schema expected `string`
 		/in.cue:15:21
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:223:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
 	but data contained `42`
 		test:2:19
 -- out/validate/TestValidate/secondfieldAsString --
-<trivial-two@v0.1>.secondfield: validation failed, data is not an instance:
+<trivialTwo@v0.1>.secondfield: validation failed, data is not an instance:
 	schema expected `int32`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:223:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
 	but data contained `"foo"`
 		test:2:20
-<trivial-two@v0.1>.firstfield: validation failed, data is not an instance:
+<trivialTwo@v0.1>.firstfield: validation failed, data is not an instance:
 	schema specifies that field exists with type `string`
 		/in.cue:15:21
 	but field was absent from data
@@ -57,13 +57,13 @@ lenses: [{
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "trivialtwo",
+    "title": "trivialTwo",
     "version": "0.0"
   },
   "paths": {},
   "components": {
     "schemas": {
-      "trivialtwo": {
+      "trivialTwo": {
         "type": "object",
         "required": [
           "firstfield"
@@ -80,13 +80,13 @@ lenses: [{
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "trivialtwo",
+    "title": "trivialTwo",
     "version": "0.1"
   },
   "paths": {},
   "components": {
     "schemas": {
-      "trivialtwo": {
+      "trivialTwo": {
         "type": "object",
         "required": [
           "firstfield"
@@ -109,7 +109,7 @@ lenses: [{
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "trivialtwo",
+    "title": "trivialTwo",
     "version": "0.0"
   },
   "paths": {},
@@ -124,7 +124,7 @@ lenses: [{
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "trivialtwo",
+    "title": "trivialTwo",
     "version": "0.1"
   },
   "paths": {},
@@ -145,13 +145,13 @@ lenses: [{
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "trivialtwo",
+    "title": "trivialTwo",
     "version": "0.0"
   },
   "paths": {},
   "components": {
     "schemas": {
-      "trivialtwo": {
+      "trivialTwo": {
         "type": "object",
         "required": [
           "firstfield"
@@ -168,13 +168,13 @@ lenses: [{
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "trivialtwo",
+    "title": "trivialTwo",
     "version": "0.1"
   },
   "paths": {},
   "components": {
     "schemas": {
-      "trivialtwo": {
+      "trivialTwo": {
         "type": "object",
         "required": [
           "firstfield"

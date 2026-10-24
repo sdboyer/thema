@@ -32,7 +32,7 @@ lin2: schemas: [{
 }]
 -- out/isappendonly-fail --
 field #EmbedRef not present in {#EmbedRef:{refField1:string,refField2:1},refField1:string,refField2:1}:
-    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:223:11
+    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:227:11
 field refField2 not present in {refField1:string,refField2:1}:
     ./in.cue:24:20
 missing field "#EmbedRef"

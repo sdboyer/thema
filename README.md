@@ -1,9 +1,5 @@
 # Thema
 
-> [!WARNING]
-> This repository is no longer actively maintained or supported.
-> If you are interested in continuing the development of this project, feel free to fork the repository and customize it to your needs.
-
 Thema is a system for writing schemas. Much like JSON Schema or OpenAPI, it is general-purpose and its most obvious application is as an [IDL](https://en.wikipedia.org/wiki/Interface_description_language). However, those systems treat _changing_ schemas as out of scope: a single version of a schema for some object is the atomic unit, and versioning is left to opaque strings in external systems like git or HTTP. Thema, by contrast, makes schema change a first-class system property: the atomic unit is the _set_ of schema for some object, iteratively appended to over time as requirements evolve.
 
 Thema's approach is novel, so an analogy to the familiar may help. ["Branching by abstraction"](https://martinfowler.com/bliki/BranchByAbstraction.html) suggests that you refactor large applications not with long-running VCS branches and big-bang merges, but by letting old and new code live side-by-side on `main`, and choosing between them with logical gates, like [feature flags](https://featureflags.io/feature-flags/). Thema is "schema versioning by abstraction": all versions of a schema live side-by-side on `main`, within logical structures Thema defines.
@@ -12,17 +8,15 @@ This holistic view allows Thema to act like a typechecker, but for change-safety
 
 These capabilities make Thema a general framework for decoupling the evolution of communicating systems. This can be outward-facing: Thema's guardrails allow anyone to create APIs with Stripe's renowned [backwards compatibility](https://stripe.com/docs/upgrades) guarantees. Or it can be inward-facing: or to change the messages passed in a mesh of microservices without intricately orchestrating deployment.
 
-Learn more in our [docs](https://github.com/sdboyer/thema/tree/main/docs), or in this [overview video](https://www.youtube.com/watch?v=PpoS_ThntEM)! (Some things have been renamed since that video, but the logic is unchanged.)
+Learn more in our [docs](https://github.com/sdboyer/thema/tree/main/docs), starting with the [overview](docs/overview.md) and the [lineage authoring tutorial](docs/authoring.md).
 
 ## Usage
 
-Thema defines the way schemas are written, organizing each object's history into a "lineage." Once authored, Thema also provides tools for working with lineages via a few [basic operations](https://github.com/sdboyer/thema/blob/main/docs/overview.md#about-thema-operations). There are a few different usage patterns, all largely equivalent in capability:
+Thema defines the way schemas are written, organizing each object's history into a "lineage." Once authored, Thema also provides tools for working with lineages via a few [basic operations](https://github.com/sdboyer/thema/blob/main/docs/overview.md#about-thema-operations):
 
-* **CLI:** a CLI command that provides access to Thema's basic operations, one lineage per invocation. Use it for fast exploration and testing of schemas, or as a tool in CI.
-* **Server:** An HTTP server that provides access to Thema's basic operations for a configurable set of lineages. Run it as a stateless sidecar in your infrastructure or microservice mesh.
+* **CUE:** lineages are written in CUE, against thema's CUE module, `github.com/sdboyer/thema@v0`. Add it to your CUE module with `cue mod get github.com/sdboyer/thema@v0`. See [CUE modules](docs/cue-modules.md).
 * **Library:** a library, importable in your application code, that provides a convenient interface to Thema's basic operations, as well as helpers for common usage patterns. Naturally the most flexible, and the recommended approach for creating new helpers, such as code generators, API generators, or a whole Kubernetes operator framework. (Currently only for Go[^evaluator])
-
-The CLI and server modes are bundled together in the `thema` command. To install:
+* **CLI:** the `thema` command provides access to Thema's basic operations, one lineage per invocation. Use it for fast exploration and testing of schemas, or as a tool in CI. To install:
 
 ```bash
 go install github.com/sdboyer/thema/cmd/thema@latest
@@ -30,7 +24,7 @@ go install github.com/sdboyer/thema/cmd/thema@latest
 
 ## Maturity
 
-Thema is a young project. The goals are large, but bounded: we will know when the core system is complete. And it mostly is, now - though some breaking changes to how schemas are written are planned before reaching stability.
+Thema is a young project. The goals are large, but bounded: we will know when the core system is complete. Until it reaches v1, breaking changes to how lineages are written remain possible.
 
 It is not yet recommended to replace established, stable systems with Thema, but experimenting with doing so is reasonable (and appreciated!). For newer projects, Thema may be a good choice today; the decision is likely to come down to whether the long-term benefit of a simpler architecture for authoring, composing and evolving schema will offset the short-term cost of some incomplete functionality and breaking changes.
 

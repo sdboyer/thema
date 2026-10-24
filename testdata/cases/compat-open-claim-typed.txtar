@@ -1,0 +1,19 @@
+# under an author's ..., a field may already hold any value: declaring it with a type narrows 0.0, so it's breaking (#47 is about the error's wording)
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "compatOpenClaimTyped"
+	schemas: [{
+		version: [0, 0]
+		schema: {a: string, ...}
+	}, {
+		version: [0, 1]
+		schema: {a: string, zzz?: string, ...}
+	}]
+	lenses: [{from: [0, 1], to: [0, 0], input: _, result: {a: input.a}}]
+}
+-- expect --
+bind fail not backwards compatible

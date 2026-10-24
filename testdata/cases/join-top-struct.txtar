@@ -1,0 +1,17 @@
+# joinSchema is top and the schema is a scalar
+#issue: 22
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "joinTopStruct"
+	joinSchema: _
+	schemas: [{
+		version: [0, 0]
+		schema: 5
+	}]
+}
+-- expect --
+bind fail

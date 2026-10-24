@@ -1,0 +1,330 @@
+How comprehensions are presented.
+
+- evaluated/raw/documented keep every comprehension as written, whether or not
+  it has fired or been decided: one over concrete data (forConcrete,
+  letClause, listConcrete) or with a constant condition (ifDecided) is still
+  a comprehension. Its presence does not mean it is pending.
+- final expands the ones that have fired. Pending ones are inconsistent: a
+  top-level if disappears (ifPending: {a: 1}), a nested one remains (nested),
+  a for remains (forPending), and a list's becomes [] (list).
+- evaluated wraps a list in a struct when it needs a generated let (list), and
+  not otherwise (listConcrete).
+- A comparison with _|_ carries the comment "explicit error (_|_ literal) in
+  source".
+-- in.cue --
+input: _
+cases: {
+	ifPending:   {a: 1, if input.x != _|_ {extra: 1}}
+	ifDecided:   {a: 1, if true {extra: 1}}
+	forPending:  {for k, v in input.m {"\(k)": v}}
+	forConcrete: {for k, v in {p: 1, q: 2} {"\(k)x": v}}
+	letClause:   {for k, v in {p: 1} let W = v + 1 {"\(k)": W}}
+	nested:      {m: {if input.z == 1 {d: 4}}, e: 5}
+	list:        [if input.x != _|_ {1}]
+	listConcrete: [for i in [1, 2] {i}]
+}
+-- conjunct 0 --
+ifPending: {a: 1, if input.x != _|_ {extra: 1}}
+## ifDecided
+-- conjunct 0 --
+ifDecided: {a: 1, if true {extra: 1}}
+## forPending
+-- conjunct 0 --
+forPending: {for k, v in input.m {"\(k)": v}}
+## forConcrete
+-- conjunct 0 --
+forConcrete: {for k, v in {p: 1, q: 2} {"\(k)x": v}}
+## letClause
+-- conjunct 0 --
+letClause: {for k, v in {p: 1} let W = v + 1 {"\(k)": W}}
+## nested
+-- conjunct 0 --
+nested: {m: {if input.z == 1 {d: 4}}, e: 5}
+## list
+-- conjunct 0 --
+list: [if input.x != _|_ {1}]
+## listConcrete
+-- conjunct 0 --
+listConcrete: [for i in [1, 2] {i}]
+-- conjunct 0 --
+ifPending: {a: 1, if input.x != _|_ {extra: 1}}
+## ifDecided
+-- conjunct 0 --
+ifDecided: {a: 1, if true {extra: 1}}
+## forPending
+-- conjunct 0 --
+forPending: {for k, v in input.m {"\(k)": v}}
+## forConcrete
+-- conjunct 0 --
+forConcrete: {for k, v in {p: 1, q: 2} {"\(k)x": v}}
+## letClause
+-- conjunct 0 --
+letClause: {for k, v in {p: 1} let W = v + 1 {"\(k)": W}}
+## nested
+-- conjunct 0 --
+nested: {m: {if input.z == 1 {d: 4}}, e: 5}
+## list
+-- conjunct 0 --
+list: [if input.x != _|_ {1}]
+## listConcrete
+-- conjunct 0 --
+listConcrete: [for i in [1, 2] {i}]
+-- out/written --
+## ifPending
+>> operand 0
+ifPending: {a: 1, if input.x != _|_ {extra: 1}}
+## ifDecided
+>> operand 0
+ifDecided: {a: 1, if true {extra: 1}}
+## forPending
+>> operand 0
+forPending: {for k, v in input.m {"\(k)": v}}
+## forConcrete
+>> operand 0
+forConcrete: {for k, v in {p: 1, q: 2} {"\(k)x": v}}
+## letClause
+>> operand 0
+letClause: {for k, v in {p: 1} let W = v + 1 {"\(k)": W}}
+## nested
+>> operand 0
+nested: {m: {if input.z == 1 {d: 4}}, e: 5}
+## list
+>> operand 0
+list: [if input.x != _|_ {1}]
+## listConcrete
+>> operand 0
+listConcrete: [for i in [1, 2] {i}]
+-- out/evaluated --
+## ifPending
+{
+	a: 1
+	if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## ifDecided
+{
+	a: 1
+	if true {
+		extra: 1
+	}
+}
+## forPending
+{
+	for k, v in INPUT.m {
+		"\(k)": v
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## forConcrete
+{for k, v in {
+	p: 1
+	q: 2
+} {
+	"\(k)x": v
+}}
+## letClause
+{for k, v in {p: 1} let W = v + 1 {
+	"\(k)": W
+}}
+## nested
+{
+	m: {if INPUT.z == 1 {
+		d: 4
+	}}
+	e: 5
+
+	//cue:path: input
+	let INPUT = _
+}
+## list
+{
+	[if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		1
+	}]
+
+	//cue:path: input
+	let INPUT = _
+}
+## listConcrete
+[for i in [1, 2] {
+	i
+}]
+-- out/raw --
+## ifPending
+{
+	a: 1
+	if input.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}
+}
+## ifDecided
+{
+	a: 1
+	if true {
+		extra: 1
+	}
+}
+## forPending
+{for k, v in input.m {
+	"\(k)": v
+}}
+## forConcrete
+{for k, v in {
+	p: 1
+	q: 2
+} {
+	"\(k)x": v
+}}
+## letClause
+{for k, v in {p: 1} let W = v + 1 {
+	"\(k)": W
+}}
+## nested
+{
+	m: {if input.z == 1 {
+		d: 4
+	}}
+	e: 5
+}
+## list
+[if input.x != _|_ // explicit error (_|_ literal) in source
+{
+	1
+}]
+## listConcrete
+[for i in [1, 2] {
+	i
+}]
+-- out/final --
+## ifPending
+{a: 1}
+## ifDecided
+{
+	a:     1
+	extra: 1
+}
+## forPending
+{
+	for k, v in INPUT.m {
+		"\(k)": v
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## forConcrete
+{
+	px: 1
+	qx: 2
+}
+## letClause
+{p: 2}
+## nested
+{
+	m: {if INPUT.z == 1 {
+		d: 4
+	}}
+	e: 5
+
+	//cue:path: input
+	let INPUT = _
+}
+## list
+[]
+## listConcrete
+[1, 2]
+-- out/data --
+## ifPending
+{a: 1}
+## ifDecided
+{
+	a:     1
+	extra: 1
+}
+## forPending
+error: cases.forPending: input.m undefined as input is incomplete (type _)
+## forConcrete
+{
+	px: 1
+	qx: 2
+}
+## letClause
+{p: 2}
+## nested
+error: cases.nested.m: input.z undefined as input is incomplete (type _)
+## list
+[]
+## listConcrete
+[1, 2]
+-- out/documented --
+## ifPending
+{
+	a: 1
+	if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## ifDecided
+{
+	a: 1
+	if true {
+		extra: 1
+	}
+}
+## forPending
+{
+	for k, v in INPUT.m {
+		"\(k)": v
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## forConcrete
+{for k, v in {
+	p: 1
+	q: 2
+} {
+	"\(k)x": v
+}}
+## letClause
+{for k, v in {p: 1} let W = v + 1 {
+	"\(k)": W
+}}
+## nested
+{
+	m: {if INPUT.z == 1 {
+		d: 4
+	}}
+	e: 5
+
+	//cue:path: input
+	let INPUT = _
+}
+## list
+{
+	[if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		1
+	}]
+
+	//cue:path: input
+	let INPUT = _
+}
+## listConcrete
+[for i in [1, 2] {
+	i
+}]

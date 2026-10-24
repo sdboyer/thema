@@ -7,7 +7,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "compat-list-maxitems"
+	name: "compatListMaxitems"
 	schemas: [{
 		version: [0, 0]
 		schema: {l: [...int]}

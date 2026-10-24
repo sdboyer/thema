@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "fp-new-field-with-default"
+	name: "fpNewFieldWithDefault"
 	schemas: [{
 		version: [0, 0]
 		schema: {a: int}

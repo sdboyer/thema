@@ -1,0 +1,16 @@
+# schema is a list, not a struct
+#issue: 23
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "shapeSchemaList"
+	schemas: [{
+		version: [0, 0]
+		schema: [...int]
+	}]
+}
+-- expect --
+bind fail

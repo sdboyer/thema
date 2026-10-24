@@ -25,7 +25,7 @@ import (
 // declaring the lineage (at path `lin` if present, else the root), and an expect
 // file stating the correct behavior, one assertion per line:
 //
-//	bind ok|fail
+//	bind ok|fail [text the error must contain]
 //	validate <version> ok|fail <cue data>
 //	translate <from> <to> ok|fail <cue data>
 //	succ <version> ok|fail <cue data>   (ok: AsSuccessor succeeds, and the result validates)
@@ -169,7 +169,8 @@ func checkExpectations(t *testing.T, src, expect string) (unmet []string) {
 		}
 		fields := strings.Fields(line)
 		if fields[0] == "bind" {
-			if got := outcome(binderr); !strings.HasPrefix(got, fields[1]) {
+			got := outcome(binderr)
+			if want := strings.Join(fields[2:], " "); !strings.HasPrefix(got, fields[1]) || !strings.Contains(got, want) {
 				miss(line, "bind was %s", got)
 			}
 			continue

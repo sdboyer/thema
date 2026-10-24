@@ -1,0 +1,12 @@
+# lineage name of ASCII letters and digits, starting with a letter, in either case
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "Ship2Go"
+	schemas: [{version: [0, 0], schema: {a: int}}]
+}
+-- expect --
+bind ok

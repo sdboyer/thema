@@ -7,7 +7,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "compat-list-unique"
+	name: "compatListUnique"
 	schemas: [{
 		version: [0, 0]
 		schema: {l: [...int]}

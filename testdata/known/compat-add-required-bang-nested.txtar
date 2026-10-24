@@ -4,7 +4,7 @@
 import "github.com/sdboyer/thema"
 
 lin: thema.Lineage & {
-	name: "compat-add-required-bang-nested"
+	name: "compatAddRequiredBangNested"
 	schemas: [{
 		version: [0, 0]
 		schema: {n!: {a!: string}}

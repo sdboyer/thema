@@ -10,6 +10,16 @@ conjuncts a value came from. Expect to build small, purpose-specific inspection
 code, and confirm hypotheses with a standalone reproduction before changing
 thema's CUE or Go.
 
+`internal/cueview` names the ways thema turns a value into syntax or text (the
+"views"), each documented with its quirks. Its goldens
+(`internal/cueview/testdata`) record what each view produces for definitions,
+references and lets, aliases, hidden fields, comprehensions and output shape. Pick
+a view by name rather than assembling `Syntax` options at a call site, and add a
+golden case for any new quirk you rely on. Never decide anything about a value
+from `Source()` (the `Written` view): it depends on how the value was
+constructed, not on what it is. To follow references within a value,
+`cueview.Tree` resolves its exported syntax.
+
 [github.com/sdboyer/cuerious](https://github.com/sdboyer/cuerious) helps with
 this: `cuerious.ExprTree(v)` builds a walkable tree of a value's expression
 structure, linking each node to its `cue.Value`. It is far from perfect, and it
@@ -30,12 +40,21 @@ semantics apply them where they are used:
   gets field additions and removals wrong.
 - **`Schema.Validate()`**: closed by default.
 - **Lens results**: closed against the target schema inside `Translate`. In Go,
-  the fields each lens *builds* are also checked against what the target schema
-  declares (`cuetil.UndeclaredBuiltFields`), even where the author wrote `...`.
-  Lenses are strictly bound to the schema as defined. Data a lens passes through
-  by reference to its input is not checked, and neither are steps with no lens
-  (identity, minor versions). For Go lenses, whose results are opaque, fields
-  unchanged from the input at the same path count as passed through.
+  the fields each lens *writes* are also checked against what the target schema
+  declares (`cuetil.UndeclaredLensFields`), even where the author wrote `...`.
+  Lenses are strictly bound to the schema as defined. Each result field's origin
+  is *copied* (input data, reached however indirectly: lets, aliases, `self`,
+  other fields), *constant* (a literal) or *computed* (any other expression, or
+  a mix); a reference to anything but input, such as a hidden helper field, has
+  the origin of what it refers to. Copied data is not checked, and neither are
+  steps with no lens (identity, minor versions). Origins are read from the
+  lens's syntax (`cuetil.LensSyntax`), so they depend only on what the lens is;
+  they also matter for compiling lenses to targets without an expression
+  language, which can only copy. Hidden fields follow closedness: one the target
+  doesn't declare is the lens's scratch space and isn't checked; beneath one it
+  declares, the lens may write only what it declares. For Go lenses, whose
+  results are opaque, fields unchanged from the input at the same path count as
+  copied.
 
 Typos at thema-owned levels are caught twice:
 
@@ -56,14 +75,37 @@ Before finalizing an approach that touches any of these, run `thresh check` and
 read the taps. They are facts about your diff, not opinions, and they never block.
 
 - **bindlineage** (`choke-point`): in *.go, only BindLineage may construct baseLineage. Constructing it elsewhere skips what the choke point enforces.
-- **cue-dependency** (`shared-kernel`): in go.mod, the lines mentioning cuelang.org/go are co-owned substrate. A change there owes consultation with: every lineage's validity; the Go facade's cue.Value handling; Go code that parses CUE error shapes (validate.go mungeValidateErr matches on Msg() argument counts and types); Go code that works around evaluator behavior (assignable.go detaches values before Subsume); golden error output in testdata, which records CUE's error wording and positions.
+- **cue-dependency** (`shared-kernel`): in go.mod, the lines mentioning cuelang.org/go are co-owned substrate. A change there owes consultation with: every lineage's validity; the Go facade's cue.Value handling; Go code that parses CUE error shapes (validate.go mungeValidateErr matches on Msg() argument counts and types); Go code that works around evaluator behavior (assignable.go detaches values before Subsume); golden error output in testdata, which records CUE's error wording and positions; internal/cueview goldens, which record how CUE presents values as syntax; every check built on a view (lens checks in internal/cuetil) depends on them.
 - **cue-go-binding** (`references-resolve`): Go files (*.go) reach into CUE files (*.cue) by literal path; every such reference must resolve.
 - **cue-module** (`shared-kernel`): cue.mod/module.cue is co-owned kernel. A change there owes consultation with: everything that evaluates thema's CUE.
+- **cue-views** (`declared-set`): the [A-Z]* functions in internal/cueview/view.go are an intentional, enumerated set (7 declared). Adding one requires declaring why it belongs.
+- **cueview-goldens** (`shared-kernel`): internal/cueview/testdata/*.txtar is co-owned kernel. A change there owes consultation with: every caller of the view whose output changed (internal/cuetil syntax.go reads Evaluated through cueview.Tree); the view's doc comment in internal/cueview/view.go, which lists its quirks.
 - **embedded-module-root** (`shared-kernel`): internal/embedreg/embedreg.go is co-owned kernel. A change there owes consultation with: users reading error positions (the path is user-facing); golden error output in testdata.
 - **embedded-registry** (`choke-point`): in internal/embedreg/*.go, only Configure may construct registry. Constructing it elsewhere skips what the choke point enforces.
-- **go-residual-checks** (`declared-set`): the check* functions in bind.go are an intentional, enumerated set (9 declared). Adding one requires declaring why it belongs.
+- **go-residual-checks** (`declared-set`): the check* functions in bind.go are an intentional, enumerated set (11 declared). Adding one requires declaring why it belongs.
 - **lacuna-types** (`shared-kernel`): lacuna.go is co-owned kernel. A change there owes consultation with: LacunaTypes in lacuna.cue (lockstep test TestLacunaTypesMatchCUE); Go lenses, whose lacunas are validated against these types at translation.
+- **lens-result-fields** (`shared-kernel`): internal/cuetil/declared.go, internal/cuetil/syntax.go, internal/cueview/tree.go is co-owned kernel. A change there owes consultation with: bind.go checkGoLensCompleteness and checkLacunas, and instance.go Translate (Go lenses) and checkLensResultFields (CUE lenses): all must apply the same rule; AGENTS.md, Lens results; testdata/cases/lens-* and the construction-independence tests in internal/cuetil.
 - **lineage-kernel** (`shared-kernel`): lineage.cue, translate.cue, lacuna.cue, traverse.cue is co-owned kernel. A change there owes consultation with: every lineage that unifies with thema.Lineage; the Go facade (bind.go, lineage.go, surface.go); Go code that calls thema's CUE pseudofunctions and decodes their output shape (instance.go Translate decodes Translate's out).
 - **lineages** (`published-language`): exemplars/*.cue, docs/*.cue is a versioned contract for consumers you cannot enumerate. A change owes them compatibility; a breaking change is loud even when correct.
 - **thema-module-identity** (`shared-kernel`): internal/util/modfile.go is co-owned kernel. A change there owes consultation with: cue.mod/module.cue (lockstep test in internal/util); the release process, which tags the Go and CUE modules with ThemaModuleVersion; every module.cue thema synthesizes (util.ModuleFile) and every cue.Hid lookup.
+
+### Recording whether a tap helped
+
+Each tap carries an ID (`#<id>`). Once it is clear whether a tap was useful (not
+before), record a verdict:
+
+    thresh verdict <id> --by origin --useful yes|no|unclear --evidence "what happened"
+
+Use `--by origin` if the tap was delivered to you; `--by sweep` if you are reviewing
+the work afterwards.
+
+- **yes**: the tap caused or confirmed something observable: the diff changed, a
+  co-owner was consulted, a version or compatibility decision was revisited, or you
+  explicitly checked that the crossing was intended.
+- **no**: the tap was true, but nothing followed and nothing needed to.
+- **unclear**: it can't be determined (e.g. the work was abandoned).
+- If the tap misstated the diff, pass `--inaccurate` instead of `--useful`: that is a
+  thresh bug, not a judgment.
+
+A verdict is a record, never a request: it does not change what thresh reports.
 <!-- END thresh explain -->

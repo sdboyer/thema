@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "fp-identical-conditional"
+	name: "fpIdenticalConditional"
 	schemas: [{
 		version: [0, 0]
 		schema: {kind: string, if kind == "x" {extra?: int}}

@@ -1,0 +1,21 @@
+# examples that are not valid instances of their schema
+#issue: 23
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "shapeExamplesInvalid"
+	schemas: [{
+		version: [0, 0]
+		schema: {a: int}
+		examples: {
+			extra: {a: 1, bogus: true}
+			incomplete: {a: int}
+			empty: {}
+		}
+	}]
+}
+-- expect --
+bind fail

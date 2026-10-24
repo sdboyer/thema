@@ -9,7 +9,7 @@ other: thema.Lineage & {
 }
 
 lin: thema.Lineage & {
-	name: "ext-schema-other-lineage"
+	name: "extSchemaOtherLineage"
 	schemas: [{
 		version: [0, 0]
 		schema: other.schemas[len(other.schemas)-1].schema

@@ -4,7 +4,7 @@
 import "github.com/sdboyer/thema"
 
 thema.Lineage
-name: "second-schema-versionless"
+name: "secondSchemaVersionless"
 schemas: [
 	{
 		version: [0, 0]
@@ -31,4 +31,5 @@ lenses: [
 	}
 ]
 -- out/bindfail --
-schema 0.0 must be backwards incompatible with schema 0.0: introduce a breaking change, or redeclare as version 0.1
+schema version 0.0 does not follow 0.0: the next schema must be version 0.1 or 1.0:
+    ./in.cue:13:2
