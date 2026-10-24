@@ -1,0 +1,21 @@
+# under an author's ..., declaring a field as _ narrows nothing: compatible, and values carry across
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "compat-open-claim-top"
+	schemas: [{
+		version: [0, 0]
+		schema: {a: string, ...}
+	}, {
+		version: [0, 1]
+		schema: {a: string, zzz?: _, ...}
+	}]
+	lenses: [{from: [0, 1], to: [0, 0], input: _, result: {a: input.a}}]
+}
+-- expect --
+bind ok
+translate 0.0 0.1 ok {a: "x", zzz: 5}
+translate 0.1 0.0 ok {a: "x", zzz: 5}
