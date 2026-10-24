@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "lens-self"
+	name: "lensSelf"
 	schemas: [{
 		version: [0, 0]
 		schema: {a: int}

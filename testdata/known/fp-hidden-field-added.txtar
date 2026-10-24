@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "fp-hidden-field-added"
+	name: "fpHiddenFieldAdded"
 	schemas: [{
 		version: [0, 0]
 		schema: {a: int}

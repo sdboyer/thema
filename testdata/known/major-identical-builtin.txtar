@@ -7,7 +7,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "major-identical-builtin"
+	name: "majorIdenticalBuiltin"
 	schemas: [{
 		version: [0, 0]
 		schema: {a: strings.MinRunes(1)}

@@ -5,7 +5,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "lens-hidden-declared-optional-conditional"
+	name: "lensHiddenDeclaredOptionalConditional"
 	schemas: [{
 		version: [0, 0]
 		schema: {a: string, _h?: {k: int}}

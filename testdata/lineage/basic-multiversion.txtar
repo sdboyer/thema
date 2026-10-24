@@ -6,7 +6,7 @@
 import "github.com/sdboyer/thema"
 
 thema.Lineage
-name: "basic-multiversion"
+name: "basicMultiversion"
 
 schemas: [{
     version: [0, 0]

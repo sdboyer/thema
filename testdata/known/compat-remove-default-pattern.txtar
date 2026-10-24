@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "compat-remove-default-pattern"
+	name: "compatRemoveDefaultPattern"
 	schemas: [{
 		version: [0, 0]
 		schema: {m: [string]: {a: *1 | int}}

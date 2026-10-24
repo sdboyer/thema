@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "lens-conditional-undeclared"
+	name: "lensConditionalUndeclared"
 	schemas: [{
 		version: [0, 0]
 		schema: {a: string}

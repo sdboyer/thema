@@ -6,7 +6,7 @@ import "github.com/sdboyer/thema"
 _ext: {a: int}
 
 lin: thema.Lineage & {
-	name: "ext-schema-outside"
+	name: "extSchemaOutside"
 	schemas: [{
 		version: [0, 0]
 		schema: _ext

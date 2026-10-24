@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "decl-embedded-def-open"
+	name: "declEmbeddedDefOpen"
 	schemas: [{
 		version: [0, 0]
 		schema: {#Base: {a: int, ...}, s: #Base}

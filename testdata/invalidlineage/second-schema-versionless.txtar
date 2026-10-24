@@ -4,7 +4,7 @@
 import "github.com/sdboyer/thema"
 
 thema.Lineage
-name: "second-schema-versionless"
+name: "secondSchemaVersionless"
 schemas: [
 	{
 		version: [0, 0]

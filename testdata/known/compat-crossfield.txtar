@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "compat-crossfield"
+	name: "compatCrossfield"
 	schemas: [{
 		version: [0, 0]
 		schema: {a: int, b?: int}

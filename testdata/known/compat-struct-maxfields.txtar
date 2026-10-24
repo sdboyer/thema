@@ -7,7 +7,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "compat-struct-maxfields"
+	name: "compatStructMaxfields"
 	schemas: [{
 		version: [0, 0]
 		schema: {m: [string]: int}

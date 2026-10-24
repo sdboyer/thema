@@ -5,7 +5,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "lens-direct-copy"
+	name: "lensDirectCopy"
 	schemas: [{
 		version: [0, 0]
 		schema: {a: string, n: {p: int, ...}}

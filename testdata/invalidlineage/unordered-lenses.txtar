@@ -3,7 +3,7 @@
 import "github.com/sdboyer/thema"
 
 thema.Lineage
-name: "unordered-lenses"
+name: "unorderedLenses"
 
 schemas: [{
     version: [0, 0]

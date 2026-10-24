@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "version-first-not-zero"
+	name: "versionFirstNotZero"
 	schemas: [{
 		version: [0, 1]
 		schema: {a: int}

@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "lens-explicit-forward-minor"
+	name: "lensExplicitForwardMinor"
 	schemas: [{
 		version: [0, 0]
 		schema: {a: int}

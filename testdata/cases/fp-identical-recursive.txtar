@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "fp-identical-recursive"
+	name: "fpIdenticalRecursive"
 	schemas: [{
 		version: [0, 0]
 		schema: {#Node: {v: int, next?: #Node}, root: #Node}

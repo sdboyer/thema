@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "shape-schema-top"
+	name: "shapeSchemaTop"
 	schemas: [{
 		version: [0, 0]
 		schema: _

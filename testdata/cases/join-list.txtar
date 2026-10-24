@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "join-list"
+	name: "joinList"
 	joinSchema: [...]
 	schemas: [{
 		version: [0, 0]

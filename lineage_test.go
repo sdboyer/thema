@@ -183,7 +183,7 @@ func bindTxtarLineage(t *vanilla.Test, rt *Runtime, path string) (Lineage, error
 }
 
 var benchBindstr = `
-name: "trivial-two"
+name: "trivialTwo"
 schemas: [{
     version: [0, 0]
     schema: {

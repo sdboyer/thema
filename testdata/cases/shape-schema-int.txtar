@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "shape-schema-int"
+	name: "shapeSchemaInt"
 	schemas: [{
 		version: [0, 0]
 		schema: int
