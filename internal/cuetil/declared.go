@@ -21,20 +21,20 @@ func UndeclaredFields(ctx *cue.Context, data, sch cue.Value) []cue.Path {
 	return w.undeclared(data, sch, cue.MakePath(), nil)
 }
 
-// UndeclaredBuiltFields is like [UndeclaredFields], but for a lens result,
-// described by b (see [LensSyntax.Result]): only fields the lens builds are
-// checked. Data it passes through from its input (e.g. b: input.a) is not
-// checked, nor descended into.
-func UndeclaredBuiltFields(ctx *cue.Context, result, sch cue.Value, b *Built) []cue.Path {
+// UndeclaredLensFields is like [UndeclaredFields], but for a lens result,
+// described by f (see [LensSyntax.Result]): only fields the lens writes,
+// constant or computed, are checked. Data it copies from its input (e.g.
+// b: input.a) is not checked, nor descended into.
+func UndeclaredLensFields(ctx *cue.Context, result, sch cue.Value, f *LensField) []cue.Path {
 	w := walker{ctx: ctx}
-	return w.undeclared(result, sch, cue.MakePath(), b)
+	return w.undeclared(result, sch, cue.MakePath(), f)
 }
 
 type walker struct {
 	ctx *cue.Context
 }
 
-func (w walker) undeclared(data, sch cue.Value, p cue.Path, b *Built) []cue.Path {
+func (w walker) undeclared(data, sch cue.Value, p cue.Path, b *LensField) []cue.Path {
 	if sch.IncompleteKind() == cue.TopKind {
 		// _ declares everything beneath it.
 		return nil
@@ -122,7 +122,7 @@ func alternatives(sch cue.Value, depth int) []cue.Value {
 	return []cue.Value{sch}
 }
 
-func (w walker) undeclaredIn(data, sch cue.Value, p cue.Path, b *Built) []cue.Path {
+func (w walker) undeclaredIn(data, sch cue.Value, p cue.Path, b *LensField) []cue.Path {
 	switch data.IncompleteKind() {
 	case cue.StructKind:
 		return w.undeclaredInStruct(data, sch, p, b)
@@ -138,7 +138,7 @@ func (w walker) undeclaredIn(data, sch cue.Value, p cue.Path, b *Built) []cue.Pa
 				elsch = sch.LookupPath(cue.MakePath(cue.AnyIndex))
 			}
 			if elsch.Exists() {
-				// What a lens builds is not known per list element: each is checked.
+				// Where a lens's list elements come from is not known: each is checked.
 				found = append(found, w.undeclared(iter.Value(), elsch, appendPath(p, cue.Index(i)), nil)...)
 			}
 		}
@@ -179,7 +179,7 @@ func schemaFields(sch cue.Value) (map[string]cue.Value, []cue.Selector, []cue.Va
 	return fields, patterns, patternVals, nil
 }
 
-func (w walker) undeclaredInStruct(data, sch cue.Value, p cue.Path, b *Built) []cue.Path {
+func (w walker) undeclaredInStruct(data, sch cue.Value, p cue.Path, b *LensField) []cue.Path {
 	fields, patterns, patternVals, err := schemaFields(sch)
 	if err != nil {
 		// Not a struct-kinded schema; disagreements of kind are not this function's concern.

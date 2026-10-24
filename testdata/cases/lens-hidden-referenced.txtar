@@ -1,4 +1,4 @@
-# a field referring to a hidden helper is built, not passed through: only references into input pass data through
+# a field referring to a hidden helper holds what the helper holds, not a copy: only references into input copy
 -- in.cue --
 import (
 	"github.com/sdboyer/thema"

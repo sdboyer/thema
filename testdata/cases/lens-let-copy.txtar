@@ -1,12 +1,12 @@
-# input data passed through a let is passed through, not built: an open target
-# may receive fields it tolerates, as with a direct reference to input
+# input data reached through a let is copied, not computed: an open target may
+# receive fields it tolerates, as with a direct reference to input
 -- in.cue --
 import (
 	"github.com/sdboyer/thema"
 )
 
 lin: thema.Lineage & {
-	name: "lens-let-passthrough"
+	name: "lens-let-copy"
 	schemas: [{
 		version: [0, 0]
 		schema: {a: string, n: {p: int, ...}}

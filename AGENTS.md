@@ -40,18 +40,21 @@ semantics apply them where they are used:
   gets field additions and removals wrong.
 - **`Schema.Validate()`**: closed by default.
 - **Lens results**: closed against the target schema inside `Translate`. In Go,
-  the fields each lens *builds* are also checked against what the target schema
-  declares (`cuetil.UndeclaredBuiltFields`), even where the author wrote `...`.
-  Lenses are strictly bound to the schema as defined. Data a lens passes through
-  from its input is not checked, and neither are steps with no lens (identity,
-  minor versions). A value is passed through if it resolves into the lens's
-  input, however indirectly (lets, aliases, `self`, other fields); a reference
-  to anything else, such as a hidden helper field, is built. This is read from
-  the lens's syntax (`cuetil.LensSyntax`) so that it depends only on what the
-  lens is. Hidden fields follow closedness: one the target doesn't declare is the
-  lens's scratch space and isn't checked; beneath one it declares, the lens may
-  build only what it declares. For Go lenses, whose results are opaque, fields
-  unchanged from the input at the same path count as passed through.
+  the fields each lens *writes* are also checked against what the target schema
+  declares (`cuetil.UndeclaredLensFields`), even where the author wrote `...`.
+  Lenses are strictly bound to the schema as defined. Each result field's origin
+  is *copied* (input data, reached however indirectly: lets, aliases, `self`,
+  other fields), *constant* (a literal) or *computed* (any other expression, or
+  a mix); a reference to anything but input, such as a hidden helper field, has
+  the origin of what it refers to. Copied data is not checked, and neither are
+  steps with no lens (identity, minor versions). Origins are read from the
+  lens's syntax (`cuetil.LensSyntax`), so they depend only on what the lens is;
+  they also matter for compiling lenses to targets without an expression
+  language, which can only copy. Hidden fields follow closedness: one the target
+  doesn't declare is the lens's scratch space and isn't checked; beneath one it
+  declares, the lens may write only what it declares. For Go lenses, whose
+  results are opaque, fields unchanged from the input at the same path count as
+  copied.
 
 Typos at thema-owned levels are caught twice:
 
@@ -81,7 +84,7 @@ read the taps. They are facts about your diff, not opinions, and they never bloc
 - **embedded-registry** (`choke-point`): in internal/embedreg/*.go, only Configure may construct registry. Constructing it elsewhere skips what the choke point enforces.
 - **go-residual-checks** (`declared-set`): the check* functions in bind.go are an intentional, enumerated set (10 declared). Adding one requires declaring why it belongs.
 - **lacuna-types** (`shared-kernel`): lacuna.go is co-owned kernel. A change there owes consultation with: LacunaTypes in lacuna.cue (lockstep test TestLacunaTypesMatchCUE); Go lenses, whose lacunas are validated against these types at translation.
-- **lens-built-fields** (`shared-kernel`): internal/cuetil/declared.go, internal/cuetil/syntax.go, internal/cueview/tree.go is co-owned kernel. A change there owes consultation with: bind.go checkGoLensCompleteness and checkLacunas, and instance.go Translate (Go lenses) and checkLensBuiltFields (CUE lenses): all must apply the same rule; AGENTS.md, Lens results; testdata/cases/lens-* and the construction-independence tests in internal/cuetil.
+- **lens-result-fields** (`shared-kernel`): internal/cuetil/declared.go, internal/cuetil/syntax.go, internal/cueview/tree.go is co-owned kernel. A change there owes consultation with: bind.go checkGoLensCompleteness and checkLacunas, and instance.go Translate (Go lenses) and checkLensResultFields (CUE lenses): all must apply the same rule; AGENTS.md, Lens results; testdata/cases/lens-* and the construction-independence tests in internal/cuetil.
 - **lineage-kernel** (`shared-kernel`): lineage.cue, translate.cue, lacuna.cue, traverse.cue is co-owned kernel. A change there owes consultation with: every lineage that unifies with thema.Lineage; the Go facade (bind.go, lineage.go, surface.go); Go code that calls thema's CUE pseudofunctions and decodes their output shape (instance.go Translate decodes Translate's out).
 - **lineages** (`published-language`): exemplars/*.cue, docs/*.cue is a versioned contract for consumers you cannot enumerate. A change owes them compatibility; a breaking change is loud even when correct.
 - **thema-module-identity** (`shared-kernel`): internal/util/modfile.go is co-owned kernel. A change there owes consultation with: cue.mod/module.cue (lockstep test in internal/util); the release process, which tags the Go and CUE modules with ThemaModuleVersion; every module.cue thema synthesizes (util.ModuleFile) and every cue.Hid lookup.

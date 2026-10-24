@@ -1,11 +1,11 @@
-# control for lens-let-passthrough: the same pass-through, by direct reference to input
+# control for lens-let-copy: the same copy, by direct reference to input
 -- in.cue --
 import (
 	"github.com/sdboyer/thema"
 )
 
 lin: thema.Lineage & {
-	name: "lens-direct-passthrough"
+	name: "lens-direct-copy"
 	schemas: [{
 		version: [0, 0]
 		schema: {a: string, n: {p: int, ...}}

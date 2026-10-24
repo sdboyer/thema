@@ -98,16 +98,17 @@ seams: "cueview-goldens": {
 	]
 }
 
-// The lens built-field rule: a lens may build only fields its target declares,
-// while data it passes through from its input is not checked. One rule, enforced
-// at bind (CUE lenses, from syntax) and at translate (CUE and Go lenses), from
-// shared helpers. The two enforcement sites must agree; when they didn't, hidden
-// fields were rejected at bind that translate accepted.
-seams: "lens-built-fields": {
+// The lens result-field rule: a lens may write (constant or computed) only fields
+// its target declares, while data it copies from its input is not checked. One
+// rule, enforced at bind (CUE lenses, from syntax) and at translate (CUE and Go
+// lenses), from shared helpers. The enforcement sites must agree; when they
+// didn't, hidden fields were rejected at bind that translate accepted. Field
+// origins (copied/constant/computed) will also decide what lenses can compile to.
+seams: "lens-result-fields": {
 	kind:  "shared-kernel"
 	paths: ["internal/cuetil/declared.go", "internal/cuetil/syntax.go", "internal/cueview/tree.go"]
 	consult: [
-		"bind.go checkGoLensCompleteness and checkLacunas, and instance.go Translate (Go lenses) and checkLensBuiltFields (CUE lenses): all must apply the same rule",
+		"bind.go checkGoLensCompleteness and checkLacunas, and instance.go Translate (Go lenses) and checkLensResultFields (CUE lenses): all must apply the same rule",
 		"AGENTS.md, Lens results",
 		"testdata/cases/lens-* and the construction-independence tests in internal/cuetil",
 	]

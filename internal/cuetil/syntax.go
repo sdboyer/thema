@@ -11,7 +11,7 @@ import (
 )
 
 // LensSyntax is the syntax of a lens, read from the lens as evaluated (see
-// cueview.Tree), for the checks of what a lens builds. Its answers depend only on
+// cueview.Tree), for the checks of where a lens's result comes from. Its answers depend only on
 // what the lens is, not on how its value was constructed.
 type LensSyntax struct {
 	t       *cueview.Tree
@@ -76,50 +76,72 @@ func (ls *LensSyntax) LacunasConditional() bool {
 	return false
 }
 
-// Result returns how the lens builds its result.
-func (ls *LensSyntax) Result() *Built {
+// Result returns where the lens's result, and each of its fields, comes from.
+func (ls *LensSyntax) Result() *LensField {
 	return ls.classify(ls.result, false)
 }
 
-// Built describes how a lens produces one field of its result (or the result
-// itself), from the lens's syntax: whether the lens passes input data through,
-// or builds it.
-//
-// A value is passed through if every conjunct of it is a reference that
-// resolves into the lens's input, however indirectly: through lets, aliases,
-// self, or other fields. Anything else is built, including a reference to a
-// hidden helper field. Fields a built struct has that its syntax doesn't name
-// come from its passed-through conjuncts (e.g. n: input.n & {x: 1}), unless the
-// struct also has fields whose labels its syntax can't name (dynamic labels,
-// lists built by comprehensions, selections the syntax can't follow), in which
-// case they count as built.
+// Origin is where the value of a field of a lens result comes from.
+type Origin int
+
+const (
+	// Computed is any other value: an expression (input.a + 1, an
+	// interpolation, a builtin call), or a mix of origins (input.n & {x: 1}).
+	Computed Origin = iota
+	// Copied is input data, unchanged: a reference that resolves into the
+	// lens's input, however indirectly (lets, aliases, self, other fields).
+	Copied
+	// Constant is a literal the lens writes: a scalar, or a struct or list
+	// literal without comprehensions, whose own fields and elements have their
+	// own origins.
+	Constant
+)
+
+func (o Origin) String() string {
+	switch o {
+	case Copied:
+		return "copied"
+	case Constant:
+		return "constant"
+	}
+	return "computed"
+}
+
+// LensField describes where one field of a lens result (or the result itself)
+// comes from, read from the lens's syntax: see [Origin]. A reference to
+// anything other than input, such as a hidden helper field, is followed to what
+// it refers to. Fields a struct has that its syntax doesn't name come from its
+// copied conjuncts (e.g. n: input.n & {x: 1}), unless the struct also has
+// fields whose labels its syntax can't name (dynamic labels, lists built by
+// comprehensions, selections the syntax can't follow), in which case they are
+// taken to be computed.
 //
 // A builtin call other than close() is taken to produce no fields of its own,
 // as with thema's result: struct.MinFields(0). A builtin that does produce a
-// struct (e.g. json.Unmarshal) is not seen as building its fields.
+// struct (e.g. json.Unmarshal) is not seen as producing its fields (#45).
 //
-// A nil *Built describes a value about which nothing is known: all of it counts
-// as built.
-type Built struct {
-	passThrough bool
+// A nil *LensField describes a value about which nothing is known: all of it is
+// taken to be computed.
+type LensField struct {
+	Origin Origin
 	// conditional is true if the field is declared only inside comprehensions,
 	// and so may not exist until data makes them fire.
 	conditional bool
-	// open is true if the value may have built fields not in children.
+	// open is true if the value may have computed fields not in children.
 	open     bool
-	children map[string]*Built
+	children map[string]*LensField
 }
 
-// child returns how the field name of b is produced, and whether it is passed
-// through.
-func (b *Built) child(name string) (*Built, bool) {
-	if b == nil {
+// child returns where the field name of f comes from, and whether it is
+// copied.
+func (f *LensField) child(name string) (*LensField, bool) {
+	if f == nil {
 		return nil, false
 	}
-	if c, ok := b.children[name]; ok {
-		return c, c.passThrough
+	if c, ok := f.children[name]; ok {
+		return c, c.Origin == Copied
 	}
-	if b.open {
+	if f.open {
 		return nil, false
 	}
 	return nil, true
@@ -134,8 +156,9 @@ func (ls *LensSyntax) fromInput(c cueview.Conjunct) bool {
 	return false
 }
 
-func (ls *LensSyntax) classify(conjs []cueview.Conjunct, conditional bool) *Built {
-	b := &Built{passThrough: len(conjs) > 0, conditional: conditional, children: map[string]*Built{}}
+func (ls *LensSyntax) classify(conjs []cueview.Conjunct, conditional bool) *LensField {
+	b := &LensField{conditional: conditional, children: map[string]*LensField{}}
+	b.Origin = ls.origin(conjs)
 	fields, order := ls.collectFields(conjs, b)
 	for _, name := range order {
 		var cs []cueview.Conjunct
@@ -149,11 +172,58 @@ func (ls *LensSyntax) classify(conjs []cueview.Conjunct, conditional bool) *Buil
 	return b
 }
 
+// origin returns where a value with the conjuncts conjs comes from.
+func (ls *LensSyntax) origin(conjs []cueview.Conjunct) Origin {
+	copied, written := 0, 0
+	for _, c := range conjs {
+		switch {
+		case ls.fromInput(c):
+			copied++
+		case isLiteral(c.Expr):
+			written++
+		default:
+			return Computed
+		}
+	}
+	switch {
+	case copied > 0 && written == 0:
+		return Copied
+	case written > 0 && copied == 0:
+		return Constant
+	}
+	return Computed
+}
+
+// isLiteral reports whether x is a literal, or a predeclared identifier that
+// adds nothing to a value (_, or a type such as int, which only constrains).
+func isLiteral(x ast.Expr) bool {
+	switch e := x.(type) {
+	case *ast.BasicLit:
+		return true
+	case *ast.StructLit:
+		// Which fields a struct with a comprehension has is computed.
+		for _, d := range e.Elts {
+			if _, ok := d.(*ast.Comprehension); ok {
+				return false
+			}
+		}
+		return true
+	case *ast.ListLit:
+		return !listHasComprehension(e)
+	case *ast.UnaryExpr:
+		// A negative number.
+		_, ok := e.X.(*ast.BasicLit)
+		return ok
+	case *ast.Ident:
+		return !opens(e)
+	}
+	return false
+}
+
 // collectFields returns the declarations of each field the conjuncts that are
 // not from input declare, by name, with the names in order of declaration. It
-// records in b whether all of conjs are from input, and whether they may give
-// fields the syntax can't name.
-func (ls *LensSyntax) collectFields(conjs []cueview.Conjunct, b *Built) (map[string][]cueview.FieldDecl, []string) {
+// records in b whether they may give fields the syntax can't name.
+func (ls *LensSyntax) collectFields(conjs []cueview.Conjunct, b *LensField) (map[string][]cueview.FieldDecl, []string) {
 	fields := map[string][]cueview.FieldDecl{}
 	var order []string
 	embedded := ls.embedded(b)
@@ -161,7 +231,6 @@ func (ls *LensSyntax) collectFields(conjs []cueview.Conjunct, b *Built) (map[str
 		if ls.fromInput(c) {
 			continue
 		}
-		b.passThrough = false
 		s, ok := c.Expr.(*ast.StructLit)
 		if !ok {
 			b.open = b.open || opens(c.Expr)
@@ -188,7 +257,7 @@ func (ls *LensSyntax) collectFields(conjs []cueview.Conjunct, b *Built) (map[str
 
 // embedded returns the conjuncts of an embedded expression that are not from
 // input, recording in b whether they may give fields the syntax can't name.
-func (ls *LensSyntax) embedded(b *Built) func(ast.Expr) []ast.Expr {
+func (ls *LensSyntax) embedded(b *LensField) func(ast.Expr) []ast.Expr {
 	return func(x ast.Expr) []ast.Expr {
 		var out []ast.Expr
 		for _, c := range ls.t.Conjuncts(x) {
@@ -235,25 +304,25 @@ func listHasComprehension(x ast.Expr) bool {
 	return false
 }
 
-// UndeclaredConditionalFields returns the paths of fields that b's lens builds
-// inside comprehensions and that sch does not declare, by the rules of
-// [DeclaresPath]. Such fields may not exist until data makes the comprehension
-// fire, so they are found from the lens's syntax. A path is reported only at its
-// first undeclared step.
+// UndeclaredConditionalFields returns the paths of fields that f's lens writes
+// inside comprehensions (that is, doesn't copy) and that sch does not declare,
+// by the rules of [DeclaresPath]. Such fields may not exist until data makes the
+// comprehension fire, so they are found from the lens's syntax. A path is
+// reported only at its first undeclared step.
 //
 // Hidden fields follow closedness: one sch does not declare is the lens's own
-// scratch space and is not checked; beneath one it declares, the lens may build
+// scratch space and is not checked; beneath one it declares, the lens may write
 // only what it declares. Hidden labels are matched to sch's by name, which is
 // exact where the lens and its schemas are in the same package.
-func UndeclaredConditionalFields(ctx *cue.Context, b *Built, sch cue.Value) []string {
+func UndeclaredConditionalFields(ctx *cue.Context, f *LensField, sch cue.Value) []string {
 	var found []string
 	// schs are the schemas that declare path: where sch is a disjunction, any of
 	// its alternatives may.
-	var walk func(b *Built, schs []cue.Value, path []string)
-	walk = func(b *Built, schs []cue.Value, path []string) {
+	var walk func(b *LensField, schs []cue.Value, path []string)
+	walk = func(b *LensField, schs []cue.Value, path []string) {
 		for _, name := range sortedKeys(b.children) {
 			c := b.children[name]
-			if c.passThrough {
+			if c.Origin == Copied {
 				continue
 			}
 			hidden := strings.HasPrefix(name, "_")
@@ -292,7 +361,7 @@ func UndeclaredConditionalFields(ctx *cue.Context, b *Built, sch cue.Value) []st
 			}
 		}
 	}
-	walk(b, []cue.Value{sch}, nil)
+	walk(f, []cue.Value{sch}, nil)
 	return found
 }
 
@@ -314,7 +383,7 @@ func declaredHidden(sch cue.Value, name string) (cue.Value, bool) {
 	return cue.Value{}, false
 }
 
-func sortedKeys(m map[string]*Built) []string {
+func sortedKeys(m map[string]*LensField) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)

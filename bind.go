@@ -367,10 +367,10 @@ func (ml *maybeLineage) checkLensResults() error {
 			fail(lens, "%v", err)
 			continue
 		}
-		built := syn.Result()
-		paths := pathStrings(cuetil.UndeclaredBuiltFields(ctx, result, tsch.def, built))
+		fields := syn.Result()
+		paths := pathStrings(cuetil.UndeclaredLensFields(ctx, result, tsch.def, fields))
 		// Fields built inside comprehensions only exist once data makes them fire.
-		for _, p := range cuetil.UndeclaredConditionalFields(ctx, built, tsch.def) {
+		for _, p := range cuetil.UndeclaredConditionalFields(ctx, fields, tsch.def) {
 			if !slices.Contains(paths, p) {
 				paths = append(paths, p)
 			}
