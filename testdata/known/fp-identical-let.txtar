@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "fp-identical-let"
+	name: "fpIdenticalLet"
 	schemas: [{
 		version: [0, 0]
 		schema: {let T = int, a: T}

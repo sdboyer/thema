@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "lens-nonexistent-versions"
+	name: "lensNonexistentVersions"
 	schemas: [{
 		version: [0, 0]
 		schema: {a: int}

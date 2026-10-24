@@ -4,7 +4,7 @@
 import "github.com/sdboyer/thema"
 
 thema.Lineage
-name: "union-null"
+name: "unionNull"
 schemas: [{
 	version: [0, 0]
 	schema: {

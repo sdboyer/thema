@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "join-top-struct"
+	name: "joinTopStruct"
 	joinSchema: _
 	schemas: [{
 		version: [0, 0]

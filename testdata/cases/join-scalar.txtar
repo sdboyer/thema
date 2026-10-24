@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "join-scalar"
+	name: "joinScalar"
 	joinSchema: string
 	schemas: [{
 		version: [0, 0]

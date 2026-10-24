@@ -7,7 +7,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "fp-identical-builtin"
+	name: "fpIdenticalBuiltin"
 	schemas: [{
 		version: [0, 0]
 		schema: {a: strings.MinRunes(1)}

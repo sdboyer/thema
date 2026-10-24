@@ -4,7 +4,7 @@
 import "github.com/sdboyer/thema"
 
 thema.Lineage
-name: "one-schema-versionless"
+name: "oneSchemaVersionless"
 schemas: [{
     schema: {
         firstfield: string

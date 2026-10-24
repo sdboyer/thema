@@ -3,7 +3,7 @@
 import "github.com/sdboyer/thema"
 
 thema.Lineage
-name: "unordered-schemas"
+name: "unorderedSchemas"
 
 schemas: [{
     version: [0, 0]

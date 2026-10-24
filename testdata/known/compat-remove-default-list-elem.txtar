@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "compat-remove-default-list-elem"
+	name: "compatRemoveDefaultListElem"
 	schemas: [{
 		version: [0, 0]
 		schema: {l: [...{a: *1 | int}]}

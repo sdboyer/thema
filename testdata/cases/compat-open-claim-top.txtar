@@ -5,7 +5,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "compat-open-claim-top"
+	name: "compatOpenClaimTop"
 	schemas: [{
 		version: [0, 0]
 		schema: {a: string, ...}

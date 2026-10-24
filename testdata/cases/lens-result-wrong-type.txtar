@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "lens-result-wrong-type"
+	name: "lensResultWrongType"
 	schemas: [{
 		version: [0, 0]
 		schema: {a: string}

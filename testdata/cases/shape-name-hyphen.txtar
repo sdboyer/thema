@@ -1,13 +1,12 @@
-# lineage name is not identifier-like
-#issue: 23
+# lineage name contains a hyphen, which no generated identifier can carry
 -- in.cue --
 import (
 	"github.com/sdboyer/thema"
 )
 
 lin: thema.Lineage & {
-	name: "../../etc/passwd; DROP TABLE\n"
+	name: "ship-v2"
 	schemas: [{version: [0, 0], schema: {a: int}}]
 }
 -- expect --
-bind fail
+bind fail out of bound

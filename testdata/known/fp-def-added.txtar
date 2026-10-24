@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "fp-def-added"
+	name: "fpDefAdded"
 	schemas: [{
 		version: [0, 0]
 		schema: {a: int}

@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "lens-result-input-nonexistent-field"
+	name: "lensResultInputNonexistentField"
 	schemas: [{
 		version: [0, 0]
 		schema: {a: string}

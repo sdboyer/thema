@@ -7,7 +7,7 @@ import (
 )
 
 thema.Lineage
-name: "scalar-fields"
+name: "scalarFields"
 
 schemas: [{
     version: [0, 0]
@@ -134,12 +134,12 @@ schemas: [{
 -- out/validate/TestValidate/stringWithLength --
 <scalar-fields@v0.0>.stringWithLength:
 -- out/validate/TestValidate/someInt8 --
-<scalar-fields@v0.0>.someInt8: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt8: validation failed, data is not an instance:
 	schema expected `int8`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:223:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
 	but data contained `null`
 		test:2:17
-<scalar-fields@v0.0>.stringWithLength: validation failed, data is not an instance:
+<scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
 	schema expected `strings.MinRunes(10)`
 		/in.cue:26:27
 		/in.cue:26:53
@@ -147,17 +147,17 @@ schemas: [{
 		test:15:25
 		test:15:25
 -- out/validate/TestValidate/someInt16 --
-<scalar-fields@v0.0>.someInt16: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt16: validation failed, data is not an instance:
 	schema expected `int16`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:223:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
 	but data contained `null`
 		test:3:18
-<scalar-fields@v0.0>.someUInt16: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt16: validation failed, data is not an instance:
 	schema expected `uint16`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:223:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
 	but data contained `null`
 		test:4:19
-<scalar-fields@v0.0>.stringWithLength: validation failed, data is not an instance:
+<scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
 	schema expected `strings.MinRunes(10)`
 		/in.cue:26:27
 		/in.cue:26:53
@@ -165,424 +165,424 @@ schemas: [{
 		test:15:25
 		test:15:25
 -- out/validate/TestValidate/someUInt16 --
-<scalar-fields@v0.0>.someUInt16: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt16: validation failed, data is not an instance:
 	schema expected `uint16`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:223:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
 	but data contained `null`
 		test:2:19
-<scalar-fields@v0.0>.stringWithLength: validation failed, data is not an instance:
+<scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
 	schema expected `strings.MinRunes(10)`
 		/in.cue:26:27
 		/in.cue:26:53
 	but data contained `"hello"`
 		test:13:25
 		test:13:25
-<scalar-fields@v0.0>.someInt8: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt8: validation failed, data is not an instance:
 	schema specifies that field exists with type `int8`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt16: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt16: validation failed, data is not an instance:
 	schema specifies that field exists with type `int16`
 	but field was absent from data
 -- out/validate/TestValidate/someUInt32 --
-<scalar-fields@v0.0>.someUInt32: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt32: validation failed, data is not an instance:
 	schema expected `uint32`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:223:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
 	but data contained `null`
 		test:2:19
-<scalar-fields@v0.0>.stringWithLength: validation failed, data is not an instance:
+<scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
 	schema expected `strings.MinRunes(10)`
 		/in.cue:26:27
 		/in.cue:26:53
 	but data contained `"hello"`
 		test:12:25
 		test:12:25
-<scalar-fields@v0.0>.someUInt16: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt16: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint16`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt8: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt8: validation failed, data is not an instance:
 	schema specifies that field exists with type `int8`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt16: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt16: validation failed, data is not an instance:
 	schema specifies that field exists with type `int16`
 	but field was absent from data
 -- out/validate/TestValidate/someUInt64 --
-<scalar-fields@v0.0>.someUInt64: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt64: validation failed, data is not an instance:
 	schema expected `uint64`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:223:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
 	but data contained `null`
 		test:3:19
-<scalar-fields@v0.0>.stringWithLength: validation failed, data is not an instance:
+<scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
 	schema expected `strings.MinRunes(10)`
 		/in.cue:26:27
 		/in.cue:26:53
 	but data contained `"hello"`
 		test:12:25
 		test:12:25
-<scalar-fields@v0.0>.someUInt16: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt16: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint16`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt8: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt8: validation failed, data is not an instance:
 	schema specifies that field exists with type `int8`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt16: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt16: validation failed, data is not an instance:
 	schema specifies that field exists with type `int16`
 	but field was absent from data
 -- out/validate/TestValidate/someUInt8 --
-<scalar-fields@v0.0>.someUInt8: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt8: validation failed, data is not an instance:
 	schema expected `uint8`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:223:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
 	but data contained `null`
 		test:2:18
-<scalar-fields@v0.0>.stringWithLength: validation failed, data is not an instance:
+<scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
 	schema expected `strings.MinRunes(10)`
 		/in.cue:26:27
 		/in.cue:26:53
 	but data contained `"hello"`
 		test:10:25
 		test:10:25
-<scalar-fields@v0.0>.someUInt16: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt16: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint16`
 	but field was absent from data
-<scalar-fields@v0.0>.someUInt32: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt32: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint32`
 	but field was absent from data
-<scalar-fields@v0.0>.someUInt64: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt64: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint64`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt8: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt8: validation failed, data is not an instance:
 	schema specifies that field exists with type `int8`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt16: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt16: validation failed, data is not an instance:
 	schema specifies that field exists with type `int16`
 	but field was absent from data
 -- out/validate/TestValidate/missingFields --
-<scalar-fields@v0.0>.someUInt8: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt8: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint8`
 	but field was absent from data
-<scalar-fields@v0.0>.someUInt16: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt16: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint16`
 	but field was absent from data
-<scalar-fields@v0.0>.someUInt32: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt32: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint32`
 	but field was absent from data
-<scalar-fields@v0.0>.someUInt64: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt64: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint64`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt8: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt8: validation failed, data is not an instance:
 	schema specifies that field exists with type `int8`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt16: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt16: validation failed, data is not an instance:
 	schema specifies that field exists with type `int16`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt32: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt32: validation failed, data is not an instance:
 	schema specifies that field exists with type `int32`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt64: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt64: validation failed, data is not an instance:
 	schema specifies that field exists with type `int64`
 	but field was absent from data
-<scalar-fields@v0.0>.someFloat32: validation failed, data is not an instance:
+<scalarFields@v0.0>.someFloat32: validation failed, data is not an instance:
 	schema specifies that field exists with type `float32`
 	but field was absent from data
-<scalar-fields@v0.0>.someFloat64: validation failed, data is not an instance:
+<scalarFields@v0.0>.someFloat64: validation failed, data is not an instance:
 	schema specifies that field exists with type `float64`
 	but field was absent from data
-<scalar-fields@v0.0>.intWithBounds: validation failed, data is not an instance:
+<scalarFields@v0.0>.intWithBounds: validation failed, data is not an instance:
 	schema specifies that field exists with type `>=0 & <10 & int`
 		/in.cue:23:24
 	but field was absent from data
-<scalar-fields@v0.0>.nullableIntWithNoDefault: validation failed, data is not an instance:
+<scalarFields@v0.0>.nullableIntWithNoDefault: validation failed, data is not an instance:
 	schema specifies that field exists with type `int | null`
 		/in.cue:24:35
 	but field was absent from data
-<scalar-fields@v0.0>.stringWithLength: validation failed, data is not an instance:
+<scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
 	schema specifies that field exists with type `strings.MinRunes(10)`
 		/in.cue:26:36
 		/in.cue:26:27
 	but field was absent from data
 -- out/validate/TestValidate/stringWithLength --
-<scalar-fields@v0.0>.stringWithLength: validation failed, data is not an instance:
+<scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
 	schema expected `strings.MinRunes(10)`
 		/in.cue:26:27
 		/in.cue:26:53
 	but data contained `"hello"`
 		test:9:25
 		test:9:25
-<scalar-fields@v0.0>.someUInt8: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt8: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint8`
 	but field was absent from data
-<scalar-fields@v0.0>.someUInt16: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt16: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint16`
 	but field was absent from data
-<scalar-fields@v0.0>.someUInt32: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt32: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint32`
 	but field was absent from data
-<scalar-fields@v0.0>.someUInt64: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt64: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint64`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt8: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt8: validation failed, data is not an instance:
 	schema specifies that field exists with type `int8`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt16: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt16: validation failed, data is not an instance:
 	schema specifies that field exists with type `int16`
 	but field was absent from data
 -- out/validate/TestValidate/outOfBoundsLowerInt --
-<scalar-fields@v0.0>.intWithBounds: validation failed, data is not an instance:
+<scalarFields@v0.0>.intWithBounds: validation failed, data is not an instance:
 	schema expected `>=0`
 		/in.cue:23:30
 	but data contained `-1`
 		test:2:22
-<scalar-fields@v0.0>.someUInt8: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt8: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint8`
 	but field was absent from data
-<scalar-fields@v0.0>.someUInt16: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt16: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint16`
 	but field was absent from data
-<scalar-fields@v0.0>.someUInt32: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt32: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint32`
 	but field was absent from data
-<scalar-fields@v0.0>.someUInt64: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt64: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint64`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt8: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt8: validation failed, data is not an instance:
 	schema specifies that field exists with type `int8`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt16: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt16: validation failed, data is not an instance:
 	schema specifies that field exists with type `int16`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt32: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt32: validation failed, data is not an instance:
 	schema specifies that field exists with type `int32`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt64: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt64: validation failed, data is not an instance:
 	schema specifies that field exists with type `int64`
 	but field was absent from data
-<scalar-fields@v0.0>.someFloat32: validation failed, data is not an instance:
+<scalarFields@v0.0>.someFloat32: validation failed, data is not an instance:
 	schema specifies that field exists with type `float32`
 	but field was absent from data
-<scalar-fields@v0.0>.someFloat64: validation failed, data is not an instance:
+<scalarFields@v0.0>.someFloat64: validation failed, data is not an instance:
 	schema specifies that field exists with type `float64`
 	but field was absent from data
-<scalar-fields@v0.0>.nullableIntWithNoDefault: validation failed, data is not an instance:
+<scalarFields@v0.0>.nullableIntWithNoDefault: validation failed, data is not an instance:
 	schema specifies that field exists with type `int | null`
 		/in.cue:24:35
 	but field was absent from data
-<scalar-fields@v0.0>.stringWithLength: validation failed, data is not an instance:
+<scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
 	schema specifies that field exists with type `strings.MinRunes(10)`
 		/in.cue:26:36
 		/in.cue:26:27
 	but field was absent from data
 -- out/validate/TestValidate/outOfBoundsUpperInt --
-<scalar-fields@v0.0>.intWithBounds: validation failed, data is not an instance:
+<scalarFields@v0.0>.intWithBounds: validation failed, data is not an instance:
 	schema expected `<10`
 		/in.cue:23:36
 	but data contained `12`
 		test:6:22
-<scalar-fields@v0.0>.someUInt8: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt8: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint8`
 	but field was absent from data
-<scalar-fields@v0.0>.someUInt16: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt16: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint16`
 	but field was absent from data
-<scalar-fields@v0.0>.someUInt32: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt32: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint32`
 	but field was absent from data
-<scalar-fields@v0.0>.someUInt64: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt64: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint64`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt8: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt8: validation failed, data is not an instance:
 	schema specifies that field exists with type `int8`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt16: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt16: validation failed, data is not an instance:
 	schema specifies that field exists with type `int16`
 	but field was absent from data
-<scalar-fields@v0.0>.nullableIntWithNoDefault: validation failed, data is not an instance:
+<scalarFields@v0.0>.nullableIntWithNoDefault: validation failed, data is not an instance:
 	schema specifies that field exists with type `int | null`
 		/in.cue:24:35
 	but field was absent from data
-<scalar-fields@v0.0>.stringWithLength: validation failed, data is not an instance:
+<scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
 	schema specifies that field exists with type `strings.MinRunes(10)`
 		/in.cue:26:36
 		/in.cue:26:27
 	but field was absent from data
 -- out/validate/TestValidate/someInt32 --
-<scalar-fields@v0.0>.someInt32: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt32: validation failed, data is not an instance:
 	schema expected `int32`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:223:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
 	but data contained `"not an int"`
 		test:2:18
-<scalar-fields@v0.0>.someUInt8: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt8: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint8`
 	but field was absent from data
-<scalar-fields@v0.0>.someUInt16: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt16: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint16`
 	but field was absent from data
-<scalar-fields@v0.0>.someUInt32: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt32: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint32`
 	but field was absent from data
-<scalar-fields@v0.0>.someUInt64: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt64: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint64`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt8: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt8: validation failed, data is not an instance:
 	schema specifies that field exists with type `int8`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt16: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt16: validation failed, data is not an instance:
 	schema specifies that field exists with type `int16`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt64: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt64: validation failed, data is not an instance:
 	schema specifies that field exists with type `int64`
 	but field was absent from data
-<scalar-fields@v0.0>.someFloat32: validation failed, data is not an instance:
+<scalarFields@v0.0>.someFloat32: validation failed, data is not an instance:
 	schema specifies that field exists with type `float32`
 	but field was absent from data
-<scalar-fields@v0.0>.someFloat64: validation failed, data is not an instance:
+<scalarFields@v0.0>.someFloat64: validation failed, data is not an instance:
 	schema specifies that field exists with type `float64`
 	but field was absent from data
-<scalar-fields@v0.0>.intWithBounds: validation failed, data is not an instance:
+<scalarFields@v0.0>.intWithBounds: validation failed, data is not an instance:
 	schema specifies that field exists with type `>=0 & <10 & int`
 		/in.cue:23:24
 	but field was absent from data
-<scalar-fields@v0.0>.nullableIntWithNoDefault: validation failed, data is not an instance:
+<scalarFields@v0.0>.nullableIntWithNoDefault: validation failed, data is not an instance:
 	schema specifies that field exists with type `int | null`
 		/in.cue:24:35
 	but field was absent from data
-<scalar-fields@v0.0>.stringWithLength: validation failed, data is not an instance:
+<scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
 	schema specifies that field exists with type `strings.MinRunes(10)`
 		/in.cue:26:36
 		/in.cue:26:27
 	but field was absent from data
 -- out/validate/TestValidate/someInt64 --
-<scalar-fields@v0.0>.someInt64: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt64: validation failed, data is not an instance:
 	schema expected `int64`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:223:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
 	but data contained `"not an int64"`
 		test:2:18
-<scalar-fields@v0.0>.someUInt8: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt8: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint8`
 	but field was absent from data
-<scalar-fields@v0.0>.someUInt16: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt16: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint16`
 	but field was absent from data
-<scalar-fields@v0.0>.someUInt32: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt32: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint32`
 	but field was absent from data
-<scalar-fields@v0.0>.someUInt64: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt64: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint64`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt8: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt8: validation failed, data is not an instance:
 	schema specifies that field exists with type `int8`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt16: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt16: validation failed, data is not an instance:
 	schema specifies that field exists with type `int16`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt32: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt32: validation failed, data is not an instance:
 	schema specifies that field exists with type `int32`
 	but field was absent from data
-<scalar-fields@v0.0>.someFloat32: validation failed, data is not an instance:
+<scalarFields@v0.0>.someFloat32: validation failed, data is not an instance:
 	schema specifies that field exists with type `float32`
 	but field was absent from data
-<scalar-fields@v0.0>.someFloat64: validation failed, data is not an instance:
+<scalarFields@v0.0>.someFloat64: validation failed, data is not an instance:
 	schema specifies that field exists with type `float64`
 	but field was absent from data
-<scalar-fields@v0.0>.intWithBounds: validation failed, data is not an instance:
+<scalarFields@v0.0>.intWithBounds: validation failed, data is not an instance:
 	schema specifies that field exists with type `>=0 & <10 & int`
 		/in.cue:23:24
 	but field was absent from data
-<scalar-fields@v0.0>.nullableIntWithNoDefault: validation failed, data is not an instance:
+<scalarFields@v0.0>.nullableIntWithNoDefault: validation failed, data is not an instance:
 	schema specifies that field exists with type `int | null`
 		/in.cue:24:35
 	but field was absent from data
-<scalar-fields@v0.0>.stringWithLength: validation failed, data is not an instance:
+<scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
 	schema specifies that field exists with type `strings.MinRunes(10)`
 		/in.cue:26:36
 		/in.cue:26:27
 	but field was absent from data
 -- out/validate/TestValidate/someFloat32 --
-<scalar-fields@v0.0>.someFloat32: validation failed, data is not an instance:
+<scalarFields@v0.0>.someFloat32: validation failed, data is not an instance:
 	schema expected `float32`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:223:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
 	but data contained `"I am a string"`
 		test:2:20
-<scalar-fields@v0.0>.someUInt8: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt8: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint8`
 	but field was absent from data
-<scalar-fields@v0.0>.someUInt16: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt16: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint16`
 	but field was absent from data
-<scalar-fields@v0.0>.someUInt32: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt32: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint32`
 	but field was absent from data
-<scalar-fields@v0.0>.someUInt64: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt64: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint64`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt8: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt8: validation failed, data is not an instance:
 	schema specifies that field exists with type `int8`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt16: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt16: validation failed, data is not an instance:
 	schema specifies that field exists with type `int16`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt32: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt32: validation failed, data is not an instance:
 	schema specifies that field exists with type `int32`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt64: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt64: validation failed, data is not an instance:
 	schema specifies that field exists with type `int64`
 	but field was absent from data
-<scalar-fields@v0.0>.someFloat64: validation failed, data is not an instance:
+<scalarFields@v0.0>.someFloat64: validation failed, data is not an instance:
 	schema specifies that field exists with type `float64`
 	but field was absent from data
-<scalar-fields@v0.0>.intWithBounds: validation failed, data is not an instance:
+<scalarFields@v0.0>.intWithBounds: validation failed, data is not an instance:
 	schema specifies that field exists with type `>=0 & <10 & int`
 		/in.cue:23:24
 	but field was absent from data
-<scalar-fields@v0.0>.nullableIntWithNoDefault: validation failed, data is not an instance:
+<scalarFields@v0.0>.nullableIntWithNoDefault: validation failed, data is not an instance:
 	schema specifies that field exists with type `int | null`
 		/in.cue:24:35
 	but field was absent from data
-<scalar-fields@v0.0>.stringWithLength: validation failed, data is not an instance:
+<scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
 	schema specifies that field exists with type `strings.MinRunes(10)`
 		/in.cue:26:36
 		/in.cue:26:27
 	but field was absent from data
 -- out/validate/TestValidate/someFloat64 --
-<scalar-fields@v0.0>.someFloat64: validation failed, data is not an instance:
+<scalarFields@v0.0>.someFloat64: validation failed, data is not an instance:
 	schema expected `float64`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:223:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
 	but data contained `"I am a string"`
 		test:2:20
-<scalar-fields@v0.0>.someUInt8: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt8: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint8`
 	but field was absent from data
-<scalar-fields@v0.0>.someUInt16: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt16: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint16`
 	but field was absent from data
-<scalar-fields@v0.0>.someUInt32: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt32: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint32`
 	but field was absent from data
-<scalar-fields@v0.0>.someUInt64: validation failed, data is not an instance:
+<scalarFields@v0.0>.someUInt64: validation failed, data is not an instance:
 	schema specifies that field exists with type `uint64`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt8: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt8: validation failed, data is not an instance:
 	schema specifies that field exists with type `int8`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt16: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt16: validation failed, data is not an instance:
 	schema specifies that field exists with type `int16`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt32: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt32: validation failed, data is not an instance:
 	schema specifies that field exists with type `int32`
 	but field was absent from data
-<scalar-fields@v0.0>.someInt64: validation failed, data is not an instance:
+<scalarFields@v0.0>.someInt64: validation failed, data is not an instance:
 	schema specifies that field exists with type `int64`
 	but field was absent from data
-<scalar-fields@v0.0>.someFloat32: validation failed, data is not an instance:
+<scalarFields@v0.0>.someFloat32: validation failed, data is not an instance:
 	schema specifies that field exists with type `float32`
 	but field was absent from data
-<scalar-fields@v0.0>.intWithBounds: validation failed, data is not an instance:
+<scalarFields@v0.0>.intWithBounds: validation failed, data is not an instance:
 	schema specifies that field exists with type `>=0 & <10 & int`
 		/in.cue:23:24
 	but field was absent from data
-<scalar-fields@v0.0>.nullableIntWithNoDefault: validation failed, data is not an instance:
+<scalarFields@v0.0>.nullableIntWithNoDefault: validation failed, data is not an instance:
 	schema specifies that field exists with type `int | null`
 		/in.cue:24:35
 	but field was absent from data
-<scalar-fields@v0.0>.stringWithLength: validation failed, data is not an instance:
+<scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
 	schema specifies that field exists with type `strings.MinRunes(10)`
 		/in.cue:26:36
 		/in.cue:26:27

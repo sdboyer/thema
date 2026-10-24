@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "lens-missing-forward-major"
+	name: "lensMissingForwardMajor"
 	schemas: [{
 		version: [0, 0]
 		schema: {a: int}

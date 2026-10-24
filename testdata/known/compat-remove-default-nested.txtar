@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "compat-remove-default-nested"
+	name: "compatRemoveDefaultNested"
 	schemas: [{
 		version: [0, 0]
 		schema: {s: {a: *1 | int}}
