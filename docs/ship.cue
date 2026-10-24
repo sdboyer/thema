@@ -2,51 +2,53 @@ package thema_example
 
 import "github.com/sdboyer/thema"
 
-lin: thema.Lineage
-lin: name: "Ship"
-lin: seqs: [
-	{
-		schemas: [
-			{
-				firstfield: string
-			}, // 0.0
-		]
-	},
-	{
-		schemas: [
-			{
-				firstfield:  string
-				secondfield: int
-			}, // 1.0
-		]
-
-		lens: forward: {
-			from: seqs[0].schemas[0]
-			to:   seqs[1].schemas[0]
-			rel: {
-				firstfield:  from.firstfield
-				secondfield: -1
-			}
-			lacunas: [
-				thema.Lacuna & {
-					targetFields: [{
-						path:  "secondfield"
-						value: to.secondfield
-					}]
-					message: "-1 used as a placeholder value - replace with a real value before persisting!"
-					type:    thema.LacunaTypes.Placeholder
-				},
-			]
-			translated: to & rel
+lin: thema.Lineage & {
+	name: "Ship"
+	schemas: [{
+		version: [0, 0]
+		schema: {
+			firstfield: string
 		}
-		lens: reverse: {
-			from: seqs[1].schemas[0]
-			to:   seqs[0].schemas[0]
-			rel: {
-				// Map the first field back
-				firstfield: from.firstfield
-			}
-			translated: to & rel
+	}, {
+		version: [1, 0]
+		schema: {
+			firstfield:  string
+			secondfield: int
 		}
-	},
-]
+	}]
+	lenses: [{
+		// 1.0 -> 0.0: drop secondfield.
+		from:  [1, 0]
+		to:    [0, 0]
+		input: _
+		result: {
+			firstfield: input.firstfield
+		}
+		lacunas: [thema.Lacuna & {
+			sourceFields: [{
+				path:  "secondfield"
+				value: input.secondfield
+			}]
+			message: "secondfield has no equivalent in 0.0 and was dropped"
+			type:    thema.LacunaTypes.DroppedField
+		}]
+	}, {
+		// 0.0 -> 1.0: secondfield is new and required, and 0.0 has no data for it,
+		// so the lens fills in a placeholder and says so with a lacuna.
+		from:  [0, 0]
+		to:    [1, 0]
+		input: _
+		result: {
+			firstfield:  input.firstfield
+			secondfield: -1
+		}
+		lacunas: [thema.Lacuna & {
+			targetFields: [{
+				path:  "secondfield"
+				value: result.secondfield
+			}]
+			message: "-1 used as a placeholder value - replace with a real value before persisting!"
+			type:    thema.LacunaTypes.Placeholder
+		}]
+	}]
+}

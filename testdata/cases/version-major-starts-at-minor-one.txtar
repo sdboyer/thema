@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "version-major-starts-at-minor-one"
+	name: "versionMajorStartsAtMinorOne"
 	schemas: [{
 		version: [0, 0]
 		schema: {a: int}

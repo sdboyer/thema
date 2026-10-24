@@ -51,7 +51,7 @@ export interface MyLineage {
     schemas: [{
       union: (Enum | 'foo' | 33);
       union1: (Enum | 'a');
-      union2: (Enum | 'foo');
+      union2: Enum;
       union3: (Enum | 'bar');
       union4: (Enum | 'foo');
       union5: (Array<Enum> | Record<string, Array<Enum>>);
@@ -71,27 +71,3 @@ export interface MyLineage {
     }];
   }];
 }
-
-export const defaultMyLineage: Partial<MyLineage> = {
-  seqs: [{
-    schemas: [{
-      union1: 'a',
-      union2: 'foo',
-      union4: Enum,
-      union5: Record<string, Array<Enum>>,
-      union6: {
-        value: 'b',
-        value1: string,
-      },
-      union7: {
-        nested: {
-          union: Enum,
-          union1: {
-            value: 'b',
-            value1: string,
-          },
-        },
-      },
-    }],
-  }],
-};

@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "compat-matchif"
+	name: "compatMatchif"
 	schemas: [{
 		version: [0, 0]
 		schema: {a: {x?: int, y?: int}}

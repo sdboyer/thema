@@ -81,10 +81,8 @@ func marshalAndWrite(tc *vanilla.Test, w io.Writer, any interface{}) {
 	require.NoError(tc, err)
 }
 
-// TestInstance_LookupPathOnTranslatedInstance is a regression test
-// specifically written for https://github.com/grafana/thema/issues/155.
-//
-// Caused because [Instance.Translate] results were always non-concrete,
+// TestInstance_LookupPathOnTranslatedInstance is a regression test for a bug
+// caused because [Instance.Translate] results were always non-concrete,
 // when the result evaluates to something concrete.
 //
 // So, this test checks that [cue.Value.LookupPath] behaves as expected
@@ -111,7 +109,13 @@ schemas: [
 			header?: string
 		},
 	},
-]`
+]
+lenses: [{
+	from: [0, 1]
+	to: [0, 0]
+	input: _
+	result: title: input.title
+}]`
 	linval := rt.Context().CompileString(linstr)
 	lin, err := BindLineage(linval, rt)
 	require.NoError(t, err)

@@ -5,7 +5,7 @@
 import "github.com/sdboyer/thema"
 
 lin: thema.Lineage
-lin: name: "remove-optional"
+lin: name: "removeOptional"
 lin: schemas: [{
     version: [0, 0]
     schema: {

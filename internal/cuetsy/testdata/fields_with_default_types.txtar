@@ -8,7 +8,7 @@
 } @cuetsy(kind="interface")
 
 #StructWithDefaults: {
-    #Base
+    #Base...
     baseType:              #Type
     valueType:             #Type
     defaultType:           #Type & (*"a" | _)

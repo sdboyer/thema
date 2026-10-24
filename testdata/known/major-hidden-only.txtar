@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "major-hidden-only"
+	name: "majorHiddenOnly"
 	schemas: [{
 		version: [0, 0]
 		schema: {a: int}

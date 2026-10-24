@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "version-second-omitted-first"
+	name: "versionSecondOmittedFirst"
 	schemas: [{
 		schema: {a: int}
 	}, {

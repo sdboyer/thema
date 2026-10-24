@@ -81,6 +81,36 @@ seams: "cue-dependency": {
 		"Go code that parses CUE error shapes (validate.go mungeValidateErr matches on Msg() argument counts and types)",
 		"Go code that works around evaluator behavior (assignable.go detaches values before Subsume)",
 		"golden error output in testdata, which records CUE's error wording and positions",
+		"internal/cueview goldens, which record how CUE presents values as syntax; every check built on a view (lens checks in internal/cuetil) depends on them",
+	]
+}
+
+// How CUE presents a value as syntax shifts between versions and surprises often
+// (_#def wrappers, generated lets, comprehensions kept or dropped). The goldens
+// record each view's output; a diff there is a change every caller of that view
+// must be checked against.
+seams: "cueview-goldens": {
+	kind:  "shared-kernel"
+	paths: ["internal/cueview/testdata/*.txtar"]
+	consult: [
+		"every caller of the view whose output changed (internal/cuetil syntax.go reads Evaluated through cueview.Tree)",
+		"the view's doc comment in internal/cueview/view.go, which lists its quirks",
+	]
+}
+
+// The lens result-field rule: a lens may write (constant or computed) only fields
+// its target declares, while data it copies from its input is not checked. One
+// rule, enforced at bind (CUE lenses, from syntax) and at translate (CUE and Go
+// lenses), from shared helpers. The enforcement sites must agree; when they
+// didn't, hidden fields were rejected at bind that translate accepted. Field
+// origins (copied/constant/computed) will also decide what lenses can compile to.
+seams: "lens-result-fields": {
+	kind:  "shared-kernel"
+	paths: ["internal/cuetil/declared.go", "internal/cuetil/syntax.go", "internal/cueview/tree.go"]
+	consult: [
+		"bind.go checkGoLensCompleteness and checkLacunas, and instance.go Translate (Go lenses) and checkLensResultFields (CUE lenses): all must apply the same rule",
+		"AGENTS.md, Lens results",
+		"testdata/cases/lens-* and the construction-independence tests in internal/cuetil",
 	]
 }
 
@@ -122,7 +152,9 @@ seams: "go-residual-checks": {
 		checkLineageShape:      "structural shape checks on the raw lineage value"
 		checkNativeValidity:    "runs the CUE-native validity pass and surfaces its errors"
 		checkLensesOrder:       "lens from/to ordering constraints"
-		checkGoLensCompleteness: "every required lens exists for the version set"
+		checkLensCompleteness:   "exactly the required lenses exist (Go or CUE): needs the bound version list, and Translate selects CUE lenses by position, so a missing or extra lens silently shifts the rest"
+		checkSchemaShapes:       "schemas and joinSchema must be structs, and examples valid instances: CUE can constrain kinds, but reports a schema like _ only once data arrives"
+		checkLensResults:        "static lens checks with input standing for any source instance: needs each lens paired with its source and target schemas, closedness applied at use, and the declared-fields walker"
 		checkLacunas:            "lacuna lists must be enumerable without input, and lacuna field paths declared by the lens's schemas: needs the lineage's schemas, and CUE would only report missing required lacuna fields once data arrives"
 		checkUnknownFields:      "unknown lineage/schema/lens fields; CUE rejects them too, but positions the error at its guard in thema's CUE, while Go can point at the author's line. Known fields are read from thema's CUE, not duplicated"
 	}
@@ -138,6 +170,24 @@ seams: "kernel-definitions": {
 	defs:  "*#*"
 	declared: {
 		"#LatestVersion": "lets a user's package reference a computed member without it appearing in exported data; holds a version, never a schema"
+	}
+}
+
+// Each view of a cue.Value as syntax is a deliberate, documented choice of
+// options with known quirks. Variants made ad hoc at call sites are how those
+// quirks get rediscovered; a new view must say why none of these will do.
+seams: "cue-views": {
+	kind:  "declared-set"
+	paths: ["internal/cueview/view.go"]
+	funcs: "[A-Z]*"
+	declared: {
+		Written:    "the author's text with positions, per conjunct; for pointing errors at it, never for deciding anything"
+		Evaluated:  "the value as evaluated, not final; depends only on the value; the basis for structural checks"
+		Raw:        "the names the value's syntax refers to, left dangling"
+		Final:      "defaults taken, closed; what a user sees by default, without requiring concreteness"
+		Data:       "concrete data, failing on anything else, which Syntax alone would hide as _|_ comments"
+		Documented: "Evaluated with doc comments, for output people read"
+		Text:       "formats syntax from any view as CUE source"
 	}
 }
 

@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "validate-open-then-translate"
+	name: "validateOpenThenTranslate"
 	schemas: [{
 		version: [0, 0]
 		schema: {a: string, ...}

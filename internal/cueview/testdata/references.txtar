@@ -1,0 +1,489 @@
+How references are presented, by where they point.
+
+- A reference leaving the value is inlined if concrete (outsideConcrete: 5).
+  Otherwise evaluated/documented/final bind it in a let generated at the end,
+  named after the referenced path in upper case (INPUT), with the doc comment
+  "//cue:path: <path>". That comment is the only way to tell a generated let
+  from an author's.
+- A reference within the value stays as written in evaluated/documented: to a
+  sibling (x: _h), to an author's let (r: L), through self (q: S.p). final
+  resolves the sibling and self, but keeps the author's let.
+- raw leaves references dangling as written (_R, ext, input.y), except that a
+  let declared outside the value is inlined (outsideLet).
+- written shows only the reference where contents come from elsewhere
+  (viaReference: <nil>, _R), operands of & separately (viaUnify), each
+  conjunct of a field declared twice (splitConjuncts), and for a single
+  conjunct the whole field, label and comments included.
+- Unused lets and aliases are compile errors in language v0.18, so they never
+  appear.
+-- in.cue --
+input: _
+ext:   5
+_R: {a: input.a, if input.x != _|_ {extra: 1}}
+let OUT = {if input.x != _|_ {extra: 1}}
+
+cases: {
+	literal:         {a: input.a, if input.x != _|_ {extra: 1}}
+	viaReference:    _R
+	viaEmbed:        {_R}
+	viaUnify:        _R & {}
+	splitConjuncts:  {a: input.a}
+	splitConjuncts:  {b: 1}
+	sibling:         {_h: input.a, x: _h}
+	innerLet:        {let L = input.a, r: L}
+	outsideLet:      {r: OUT}
+	self:            {let S = self, p: 1, q: S.p}
+	outsideConcrete: {r: ext}
+	outsideIncomplete: {r: input.y}
+}
+-- conjunct 0 --
+literal: {a: input.a, if input.x != _|_ {extra: 1}}
+## viaReference
+-- conjunct 0 --
+<nil>
+-- conjunct 1 --
+_R
+## viaEmbed
+-- conjunct 0 --
+<nil>
+-- conjunct 1 --
+_R
+## viaUnify
+-- conjunct 0 --
+_R
+-- conjunct 1 --
+{}
+## splitConjuncts
+-- conjunct 0 --
+splitConjuncts: {a: input.a}
+-- conjunct 1 --
+splitConjuncts: {b: 1}
+## sibling
+-- conjunct 0 --
+sibling: {_h: input.a, x: _h}
+## innerLet
+-- conjunct 0 --
+innerLet: {let L = input.a, r: L}
+## outsideLet
+-- conjunct 0 --
+outsideLet: {r: OUT}
+## self
+-- conjunct 0 --
+self: {let S = self, p: 1, q: S.p}
+## outsideConcrete
+-- conjunct 0 --
+outsideConcrete: {r: ext}
+## outsideIncomplete
+-- conjunct 0 --
+outsideIncomplete: {r: input.y}
+-- conjunct 0 --
+literal: {a: input.a, if input.x != _|_ {extra: 1}}
+## viaReference
+-- conjunct 0 --
+<nil>
+-- conjunct 1 --
+_R
+## viaEmbed
+-- conjunct 0 --
+<nil>
+-- conjunct 1 --
+_R
+## viaUnify
+-- conjunct 0 --
+_R
+-- conjunct 1 --
+{}
+## splitConjuncts
+-- conjunct 0 --
+splitConjuncts: {a: input.a}
+-- conjunct 1 --
+splitConjuncts: {b: 1}
+## sibling
+-- conjunct 0 --
+sibling: {_h: input.a, x: _h}
+## innerLet
+-- conjunct 0 --
+innerLet: {let L = input.a, r: L}
+## outsideLet
+-- conjunct 0 --
+outsideLet: {r: OUT}
+## self
+-- conjunct 0 --
+self: {let S = self, p: 1, q: S.p}
+## outsideConcrete
+-- conjunct 0 --
+outsideConcrete: {r: ext}
+## outsideIncomplete
+-- conjunct 0 --
+outsideIncomplete: {r: input.y}
+-- out/written --
+## literal
+>> operand 0
+literal: {a: input.a, if input.x != _|_ {extra: 1}}
+## viaReference
+>> operand 0
+<nil>
+>> operand 1
+_R
+## viaEmbed
+>> operand 0
+<nil>
+>> operand 1
+_R
+## viaUnify
+>> operand 0
+_R
+>> operand 1
+{}
+## splitConjuncts
+>> operand 0
+splitConjuncts: {a: input.a}
+>> operand 1
+splitConjuncts: {b: 1}
+## sibling
+>> operand 0
+sibling: {_h: input.a, x: _h}
+## innerLet
+>> operand 0
+innerLet: {let L = input.a, r: L}
+## outsideLet
+>> operand 0
+outsideLet: {r: OUT}
+## self
+>> operand 0
+self: {let S = self, p: 1, q: S.p}
+## outsideConcrete
+>> operand 0
+outsideConcrete: {r: ext}
+## outsideIncomplete
+>> operand 0
+outsideIncomplete: {r: input.y}
+-- out/evaluated --
+## literal
+{
+	a: INPUT.a
+	if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## viaReference
+{
+	a: INPUT.a
+	if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## viaEmbed
+{
+	a: INPUT.a
+	if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## viaUnify
+{
+	a: INPUT.a
+	if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## splitConjuncts
+{
+	a: INPUT.a
+	b: 1
+
+	//cue:path: input
+	let INPUT = _
+}
+## sibling
+{
+	_h: INPUT.a
+	x:  _h
+
+	//cue:path: input
+	let INPUT = _
+}
+## innerLet
+{
+	let L = INPUT.a
+	r: L
+
+	//cue:path: input
+	let INPUT = _
+}
+## outsideLet
+{
+	r: {if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}}
+
+	//cue:path: input
+	let INPUT = _
+}
+## self
+{
+	let S = self
+	p: 1
+	q: S.p
+}
+## outsideConcrete
+{r: 5}
+## outsideIncomplete
+{
+	r: INPUT.y
+
+	//cue:path: input
+	let INPUT = _
+}
+-- out/raw --
+## literal
+{
+	a: input.a
+	if input.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}
+}
+## viaReference
+_R
+## viaEmbed
+_R
+## viaUnify
+_R
+## splitConjuncts
+{
+	a: input.a
+	b: 1
+}
+## sibling
+{
+	_h: input.a
+	x:  _h
+}
+## innerLet
+{
+	let L = input.a
+	r: L
+}
+## outsideLet
+{
+	r: {if input.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}}
+}
+## self
+{
+	let S = self
+	p: 1
+	q: S.p
+}
+## outsideConcrete
+{r: ext}
+## outsideIncomplete
+{r: input.y}
+-- out/final --
+## literal
+{
+	a: INPUT.a
+
+	//cue:path: input
+	let INPUT = _
+}
+## viaReference
+{
+	a: INPUT.a
+
+	//cue:path: input
+	let INPUT = _
+}
+## viaEmbed
+{
+	a: INPUT.a
+
+	//cue:path: input
+	let INPUT = _
+}
+## viaUnify
+{
+	a: INPUT.a
+
+	//cue:path: input
+	let INPUT = _
+}
+## splitConjuncts
+{
+	a: INPUT.a
+	b: 1
+
+	//cue:path: input
+	let INPUT = _
+}
+## sibling
+{
+	x: INPUT.a
+
+	//cue:path: input
+	let INPUT = _
+}
+## innerLet
+{
+	let L = INPUT.a
+	r: L
+
+	//cue:path: input
+	let INPUT = _
+}
+## outsideLet
+{r: {}}
+## self
+{
+	p: 1
+	q: 1
+}
+## outsideConcrete
+{r: 5}
+## outsideIncomplete
+{
+	r: INPUT.y
+
+	//cue:path: input
+	let INPUT = _
+}
+-- out/data --
+## literal
+error: cases.literal.a: input.a undefined as input is incomplete (type _)
+## viaReference
+error: _R.a: input.a undefined as input is incomplete (type _)
+## viaEmbed
+error: cases.viaEmbed.a: input.a undefined as input is incomplete (type _)
+## viaUnify
+error: cases.viaUnify.a: input.a undefined as input is incomplete (type _)
+## splitConjuncts
+error: cases.splitConjuncts.a: input.a undefined as input is incomplete (type _)
+## sibling
+error: cases.sibling._h: input.a undefined as input is incomplete (type _)
+## innerLet
+error: cases.innerLet.r: input.a undefined as input is incomplete (type _)
+## outsideLet
+{r: {}}
+## self
+{
+	p: 1
+	q: 1
+}
+## outsideConcrete
+{r: 5}
+## outsideIncomplete
+error: cases.outsideIncomplete.r: input.y undefined as input is incomplete (type _)
+-- out/documented --
+## literal
+{
+	a: INPUT.a
+	if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## viaReference
+{
+	a: INPUT.a
+	if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## viaEmbed
+{
+	a: INPUT.a
+	if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## viaUnify
+{
+	a: INPUT.a
+	if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## splitConjuncts
+{
+	a: INPUT.a
+	b: 1
+
+	//cue:path: input
+	let INPUT = _
+}
+## sibling
+{
+	_h: INPUT.a
+	x:  _h
+
+	//cue:path: input
+	let INPUT = _
+}
+## innerLet
+{
+	let L = INPUT.a
+	r: L
+
+	//cue:path: input
+	let INPUT = _
+}
+## outsideLet
+{
+	r: {if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}}
+
+	//cue:path: input
+	let INPUT = _
+}
+## self
+{
+	let S = self
+	p: 1
+	q: S.p
+}
+## outsideConcrete
+{r: 5}
+## outsideIncomplete
+{
+	r: INPUT.y
+
+	//cue:path: input
+	let INPUT = _
+}

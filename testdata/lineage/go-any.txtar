@@ -3,7 +3,7 @@
 import "github.com/sdboyer/thema"
 
 thema.Lineage
-name: "go-any"
+name: "goAny"
 schemas: [{
     version: [0, 0]
     schema: {
@@ -23,51 +23,51 @@ lenses: []
     "value": 42
 }
 -- out/validate/TestValidate/valueAsInt --
-<go-any@v0.0>.value: validation failed, data is not an instance:
+<goAny@v0.0>.value: validation failed, data is not an instance:
 	schema expected `bool`
 		/in.cue:8:25
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:223:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
 	but data contained `42`
 		test:2:14
-<go-any@v0.0>.value: validation failed, data is not an instance:
+<goAny@v0.0>.value: validation failed, data is not an instance:
 	schema expected `string`
 		/in.cue:8:16
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:223:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
 	but data contained `42`
 		test:2:14
-<go-any@v0.0>.structVal.inner: validation failed, data is not an instance:
+<goAny@v0.0>.structVal.inner: validation failed, data is not an instance:
 	schema specifies that field exists with type `string | int`
 		/in.cue:13:20
 	but field was absent from data
 -- out/validate/TestValidate/emptyMapAsString --
-<go-any@v0.0>.emptyMap: validation failed, data is not an instance:
+<goAny@v0.0>.emptyMap: validation failed, data is not an instance:
 	schema expected `{...}`
 		/in.cue:10:19
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:223:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
 	but data contained `"definitely not a map"`
 		test:2:17
-<go-any@v0.0>.value: validation failed, data is not an instance:
+<goAny@v0.0>.value: validation failed, data is not an instance:
 	schema specifies that field exists with type `string | bool`
 		/in.cue:8:16
 	but field was absent from data
-<go-any@v0.0>.structVal.inner: validation failed, data is not an instance:
+<goAny@v0.0>.structVal.inner: validation failed, data is not an instance:
 	schema specifies that field exists with type `string | int`
 		/in.cue:13:20
 	but field was absent from data
 -- out/validate/TestValidate/structValInnerAsBool --
-<go-any@v0.0>.structVal.inner: validation failed, data is not an instance:
+<goAny@v0.0>.structVal.inner: validation failed, data is not an instance:
 	schema expected `int`
 		/in.cue:13:29
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:223:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
 	but data contained `true`
 		test:3:18
-<go-any@v0.0>.structVal.inner: validation failed, data is not an instance:
+<goAny@v0.0>.structVal.inner: validation failed, data is not an instance:
 	schema expected `string`
 		/in.cue:13:20
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:223:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
 	but data contained `true`
 		test:3:18
-<go-any@v0.0>.value: validation failed, data is not an instance:
+<goAny@v0.0>.value: validation failed, data is not an instance:
 	schema specifies that field exists with type `string | bool`
 		/in.cue:8:16
 	but field was absent from data

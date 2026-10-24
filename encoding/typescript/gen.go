@@ -39,9 +39,9 @@ type TypeConfig struct {
 	// does not represent an object that is ever expected to exist independently,
 	// but each of its top-level fields do.
 	//
-	// NOTE - https://github.com/grafana/thema/issues/62 is the issue for formalizing
-	// the group concept. Fixing that issue will obviate this field. Once fixed,
-	// this field will be ignored, deprecated, and eventually removed.
+	// NOTE - this is a codegen-only stopgap for related objects. A model for
+	// collections of lineages (https://github.com/sdboyer/thema/issues/40) should
+	// replace it.
 	Group bool
 
 	// RootName specifies the name to use for the type representing the root of the
@@ -91,6 +91,12 @@ func GenerateTypes(sch thema.Schema, cfg *TypeConfig) (*ast.File, error) {
 		top, err := cuetsy.GenerateSingleAST(cfg.RootName, schdef, as)
 		if err != nil {
 			return nil, fmt.Errorf("generating TS for schema root failed: %w", err)
+		}
+		// The root's doc comments are those of thema's internal _schema
+		// field in lineage.cue, which say nothing about the author's schema.
+		if td, ok := top.T.(ast.TypeDecl); ok {
+			td.CommentList = nil
+			top.T = td
 		}
 		file.Nodes = append(file.Nodes, top.T)
 		if top.D != nil {

@@ -1,0 +1,385 @@
+How values from definitions are presented.
+
+- evaluated/documented wrap any recursively closed value (a definition, or a
+  field whose value is one) as {_#def, _#def: ...}. raw shows only the
+  reference (and simplifies the embedding {#R} to #R); final and data drop
+  definitions, and final drops the pending comprehension in withComprehension.
+- A definition referenced below the top of the value is moved into a let
+  generated at the end: R.#x with let R = {#x: ...}.
+- An author's own field named _#def, inside a definition, is wrapped like any
+  other content: _#def: {_#def: int, ...}. Written by hand, {_#def, _#def: ...}
+  is indistinguishable from the wrapper.
+- A recursive reference (n?: #A) stays a reference.
+- written: Expr() splits a reference into two operands, a nil one and the
+  reference itself (definition: <nil>, #A).
+-- in.cue --
+input: _
+#A: {a: int, n?: #A}
+#B: {b: string, c: {d: int}}
+#R: {a: int, if input.x != _|_ {extra: 1}}
+#E: {_#def: int, a: int}
+_#H: {a: int}
+
+cases: {
+	definition:   #A
+	unified:      #B & {b: "s"}
+	nestedRef:    {k: #B}
+	embeddedRef:  {k: {#R}}
+	selectedFrom: #B.c
+	withComprehension: #R
+	authorDefLabel:    #E
+	plainDefLabel:     {_#def: 1, a: 2}
+	hiddenDefinition:  _#H
+}
+-- conjunct 0 --
+<nil>
+-- conjunct 1 --
+#A
+## unified
+-- conjunct 0 --
+#B
+-- conjunct 1 --
+{b: "s"}
+## nestedRef
+-- conjunct 0 --
+nestedRef: {k: #B}
+## embeddedRef
+-- conjunct 0 --
+embeddedRef: {k: {#R}}
+## selectedFrom
+-- conjunct 0 --
+#B
+-- conjunct 1 --
+<nil>
+## withComprehension
+-- conjunct 0 --
+<nil>
+-- conjunct 1 --
+#R
+## authorDefLabel
+-- conjunct 0 --
+<nil>
+-- conjunct 1 --
+#E
+## plainDefLabel
+-- conjunct 0 --
+plainDefLabel: {_#def: 1, a: 2}
+## hiddenDefinition
+-- conjunct 0 --
+<nil>
+-- conjunct 1 --
+_#H
+-- conjunct 0 --
+<nil>
+-- conjunct 1 --
+#A
+## unified
+-- conjunct 0 --
+#B
+-- conjunct 1 --
+{b: "s"}
+## nestedRef
+-- conjunct 0 --
+nestedRef: {k: #B}
+## embeddedRef
+-- conjunct 0 --
+embeddedRef: {k: {#R}}
+## selectedFrom
+-- conjunct 0 --
+#B
+-- conjunct 1 --
+<nil>
+## withComprehension
+-- conjunct 0 --
+<nil>
+-- conjunct 1 --
+#R
+## authorDefLabel
+-- conjunct 0 --
+<nil>
+-- conjunct 1 --
+#E
+## plainDefLabel
+-- conjunct 0 --
+plainDefLabel: {_#def: 1, a: 2}
+## hiddenDefinition
+-- conjunct 0 --
+<nil>
+-- conjunct 1 --
+_#H
+-- out/written --
+## definition
+>> operand 0
+<nil>
+>> operand 1
+#A
+## unified
+>> operand 0
+#B
+>> operand 1
+{b: "s"}
+## nestedRef
+>> operand 0
+nestedRef: {k: #B}
+## embeddedRef
+>> operand 0
+embeddedRef: {k: {#R}}
+## selectedFrom
+>> operand 0
+#B
+>> operand 1
+<nil>
+## withComprehension
+>> operand 0
+<nil>
+>> operand 1
+#R
+## authorDefLabel
+>> operand 0
+<nil>
+>> operand 1
+#E
+## plainDefLabel
+>> operand 0
+plainDefLabel: {_#def: 1, a: 2}
+## hiddenDefinition
+>> operand 0
+<nil>
+>> operand 1
+_#H
+-- out/evaluated --
+## definition
+{
+	_#def
+	_#def: {
+		a:  int
+		n?: #A
+	}
+}
+## unified
+{
+	_#def
+	_#def: {
+		b: string
+		c: d: int
+	} & {b: "s"}
+}
+## nestedRef
+{
+	k: B.#x
+
+	//cue:path: #B
+	let B = {
+		#x: {
+			b: string
+			c: d: int
+		}
+	}
+}
+## embeddedRef
+{
+	k: R.#x
+
+	//cue:path: #R
+	let R = {
+		#x: {
+			a: int
+			if INPUT.x != _|_ // explicit error (_|_ literal) in source
+			{
+				extra: 1
+			}
+		}
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## selectedFrom
+{
+	_#def
+	_#def: d: int
+}
+## withComprehension
+{
+	_#def
+	_#def: {
+		a: int
+		if INPUT.x != _|_ // explicit error (_|_ literal) in source
+		{
+			extra: 1
+		}
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## authorDefLabel
+{
+	_#def
+	_#def: {
+		_#def: int
+		a:     int
+	}
+}
+## plainDefLabel
+{
+	_#def: 1
+	a:     2
+}
+## hiddenDefinition
+{
+	_#def
+	_#def: a: int
+}
+-- out/raw --
+## definition
+#A
+## unified
+#B & {b: "s"}
+## nestedRef
+{k: #B}
+## embeddedRef
+{k: #R}
+## selectedFrom
+#B.c
+## withComprehension
+#R
+## authorDefLabel
+#E
+## plainDefLabel
+{
+	_#def: 1
+	a:     2
+}
+## hiddenDefinition
+_#H
+-- out/final --
+## definition
+{a: int}
+## unified
+{
+	b: "s"
+	c: d: int
+}
+## nestedRef
+{
+	k: {
+		b: string
+		c: d: int
+	}
+}
+## embeddedRef
+{k: a: int}
+## selectedFrom
+{d: int}
+## withComprehension
+{a: int}
+## authorDefLabel
+{a: int}
+## plainDefLabel
+{a: 2}
+## hiddenDefinition
+{a: int}
+-- out/data --
+## definition
+error: cases.definition.a: incomplete value int
+## unified
+error: cases.unified.c.d: incomplete value int
+## nestedRef
+error: cases.nestedRef.k.b: incomplete value string (and 1 more errors)
+## embeddedRef
+error: cases.embeddedRef.k.a: incomplete value int
+## selectedFrom
+error: cases.selectedFrom.d: incomplete value int
+## withComprehension
+error: cases.withComprehension.a: incomplete value int
+## authorDefLabel
+error: cases.authorDefLabel.a: incomplete value int
+## plainDefLabel
+{a: 2}
+## hiddenDefinition
+error: cases.hiddenDefinition.a: incomplete value int
+-- out/documented --
+## definition
+{
+	_#def
+	_#def: {
+		a:  int
+		n?: #A
+	}
+}
+## unified
+{
+	_#def
+	_#def: {
+		b: string
+		c: d: int
+	} & {b: "s"}
+}
+## nestedRef
+{
+	k: B.#x
+
+	//cue:path: #B
+	let B = {
+		#x: {
+			b: string
+			c: d: int
+		}
+	}
+}
+## embeddedRef
+{
+	k: R.#x
+
+	//cue:path: #R
+	let R = {
+		#x: {
+			a: int
+			if INPUT.x != _|_ // explicit error (_|_ literal) in source
+			{
+				extra: 1
+			}
+		}
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## selectedFrom
+{
+	_#def
+	_#def: d: int
+}
+## withComprehension
+{
+	_#def
+	_#def: {
+		a: int
+		if INPUT.x != _|_ // explicit error (_|_ literal) in source
+		{
+			extra: 1
+		}
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## authorDefLabel
+{
+	_#def
+	_#def: {
+		_#def: int
+		a:     int
+	}
+}
+## plainDefLabel
+{
+	_#def: 1
+	a:     2
+}
+## hiddenDefinition
+{
+	_#def
+	_#def: a: int
+}

@@ -97,6 +97,9 @@ _ExRef: {
   "paths": {},
   "components": {
     "schemas": {
+      "foo": {
+        "type": "string"
+      },
       "ref": {
         "type": "object",
         "required": [
@@ -107,9 +110,6 @@ _ExRef: {
             "type": "string"
           }
         }
-      },
-      "foo": {
-        "type": "string"
       },
       "refdef": {
         "type": "object",
@@ -140,8 +140,8 @@ _ExRef: {
         "type": "object",
         "required": [
           "ref",
-          "foo",
-          "refdef"
+          "refdef",
+          "foo"
         ],
         "properties": {
           "ref": {
@@ -155,9 +155,6 @@ _ExRef: {
               }
             }
           },
-          "foo": {
-            "type": "string"
-          },
           "refdef": {
             "type": "object",
             "required": [
@@ -168,6 +165,9 @@ _ExRef: {
                 "type": "string"
               }
             }
+          },
+          "foo": {
+            "type": "string"
           }
         }
       }

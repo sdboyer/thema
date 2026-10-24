@@ -4,7 +4,7 @@
 import "github.com/sdboyer/thema"
 
 lin: thema.Lineage & {
-	name: "compat-add-required-bang"
+	name: "compatAddRequiredBang"
 	schemas: [{
 		version: [0, 0]
 		schema: {a!: string}

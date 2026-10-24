@@ -161,6 +161,7 @@ func TestLacunaBindChecks(t *testing.T) {
 	}{
 		"valid":                          {`[thema.Lacuna & {sourceFields: [{path: "b", value: input.b}], targetFields: [{path: "nested.x", value: result.nested.x}], message: "m", type: "DroppedField"}]`, ""},
 		"conditional list":               {`[if input.b != _|_ {thema.Lacuna & {message: "m", type: "DroppedField"}}]`, "listed unconditionally"},
+		"conditional list via let":       {"L\n\t\tlet L = [if input.b != _|_ {thema.Lacuna & {message: \"m\", type: \"DroppedField\"}}]", "listed unconditionally"},
 		"source path not in from schema": {`[thema.Lacuna & {sourceFields: [{path: "nope", value: 1}], message: "m", type: "DroppedField"}]`, `"nope" is not declared by schema 0.1`},
 		"target path not in to schema":   {`[thema.Lacuna & {targetFields: [{path: "b", value: 1}], message: "m", type: "DroppedField"}]`, `"b" is not declared by schema 0.0`},
 		"nested path not declared":       {`[thema.Lacuna & {targetFields: [{path: "nested.y", value: 1}], message: "m", type: "DroppedField"}]`, `"nested.y" is not declared`},

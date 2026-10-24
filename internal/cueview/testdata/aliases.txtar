@@ -1,0 +1,133 @@
+How postfix aliases (language v0.18) are presented.
+
+- A field alias x~(X) is kept as written, with its uses.
+- A dual alias x~(K,V): uses of K are replaced by the label ("x"); V is kept.
+- A pattern alias [string]~(K,_) is kept.
+- A dynamic field's alias ("dy"+"n")~(K,V): the label is evaluated ("dyn"~(V)),
+  but evaluated/raw/documented show uses of K as string, losing the value that
+  final and data show ("dyn").
+-- in.cue --
+cases: {
+	field:   {x~(X): 1, y: X}
+	dual:    {x~(K, V): {n: 1}, y: K, z: V.n}
+	pattern: {[string]~(K, _): {name: K}, foo: {}}
+	dynamic: {("dy" + "n")~(K, V): {label: K}, w: V.label}
+}
+-- conjunct 0 --
+field: {x~(X): 1, y: X}
+## dual
+-- conjunct 0 --
+dual: {x~(K,V): {n: 1}, y: K, z: V.n}
+## pattern
+-- conjunct 0 --
+pattern: {[string]~(K,_): {name: K}, foo: {}}
+## dynamic
+-- conjunct 0 --
+dynamic: {("dy" + "n")~(K,V): {label: K}, w: V.label}
+-- conjunct 0 --
+field: {x~(X): 1, y: X}
+## dual
+-- conjunct 0 --
+dual: {x~(K,V): {n: 1}, y: K, z: V.n}
+## pattern
+-- conjunct 0 --
+pattern: {[string]~(K,_): {name: K}, foo: {}}
+## dynamic
+-- conjunct 0 --
+dynamic: {("dy" + "n")~(K,V): {label: K}, w: V.label}
+-- out/written --
+## field
+>> operand 0
+field: {x~(X): 1, y: X}
+## dual
+>> operand 0
+dual: {x~(K,V): {n: 1}, y: K, z: V.n}
+## pattern
+>> operand 0
+pattern: {[string]~(K,_): {name: K}, foo: {}}
+## dynamic
+>> operand 0
+dynamic: {("dy" + "n")~(K,V): {label: K}, w: V.label}
+-- out/evaluated --
+## field
+{x~(X): 1, y: X}
+## dual
+{x~(V): n: 1, y: "x", z: V.n}
+## pattern
+{
+	[string]~(K,_): name: K
+	foo: {}
+}
+## dynamic
+{
+	"dyn"~(V): label: string
+	w: V.label
+}
+-- out/raw --
+## field
+{x~(X): 1, y: X}
+## dual
+{x~(V): n: 1, y: "x", z: V.n}
+## pattern
+{
+	[string]~(K,_): name: K
+	foo: {}
+}
+## dynamic
+{
+	"dyn"~(V): label: string
+	w: V.label
+}
+-- out/final --
+## field
+{
+	x: 1
+	y: 1
+}
+## dual
+{
+	x: n: 1
+	y: "x"
+	z: 1
+}
+## pattern
+{foo: name: "foo"}
+## dynamic
+{
+	dyn: label: "dyn"
+	w: "dyn"
+}
+-- out/data --
+## field
+{
+	x: 1
+	y: 1
+}
+## dual
+{
+	x: n: 1
+	y: "x"
+	z: 1
+}
+## pattern
+{foo: name: "foo"}
+## dynamic
+{
+	dyn: label: "dyn"
+	w: "dyn"
+}
+-- out/documented --
+## field
+{x~(X): 1, y: X}
+## dual
+{x~(V): n: 1, y: "x", z: V.n}
+## pattern
+{
+	[string]~(K,_): name: K
+	foo: {}
+}
+## dynamic
+{
+	"dyn"~(V): label: string
+	w: V.label
+}

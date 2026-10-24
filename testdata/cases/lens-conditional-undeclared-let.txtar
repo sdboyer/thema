@@ -1,0 +1,29 @@
+# lens result, reached through a let, contains a field its target does not declare, for some inputs
+#issue: 20
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "lensConditionalUndeclaredLet"
+	schemas: [{
+		version: [0, 0]
+		schema: {a: string}
+	}, {
+		version: [0, 1]
+		schema: {a: string, b?: int}
+	}]
+	lenses: [{
+		from: [0, 1]
+		to: [0, 0]
+		input: _
+		result: R
+		let R = {
+			a: input.a
+			if input.a == "boom" {extra: 1}
+		}
+	}]
+}
+-- expect --
+bind fail
