@@ -40,8 +40,10 @@ type Lineage interface {
 	// incomplete CUE values with Thema schemas, prefer working directly in CUE,
 	// or if you must, rely on Underlying().
 	//
+	// Validation options apply to each schema as in [Schema.Validate].
+	//
 	// TODO should this instead be interface{} (ugh ugh wish Go had tagged unions) like FillPath?
-	ValidateAny(data cue.Value) *Instance
+	ValidateAny(data cue.Value, opts ...ValidateOption) *Instance
 
 	// Schema returns the schema identified by the provided version, if one exists.
 	//
@@ -218,6 +220,35 @@ func ImperativeLenses(lenses ...ImperativeLens) BindOption {
 	}
 }
 
+// ValidateOption configures how data is validated against a schema.
+type ValidateOption func(c *validateConfig)
+
+// Internal validation configuration.
+type validateConfig struct {
+	// validate against the schema as written, rather than closed
+	asWritten bool
+}
+
+func newValidateConfig(opts []ValidateOption) validateConfig {
+	var c validateConfig
+	for _, opt := range opts {
+		opt(&c)
+	}
+	return c
+}
+
+// AsWritten validates data against a schema exactly as its author wrote it: open
+// wherever the author left it open, and closed only where they closed it (with
+// definitions, close(), and so on). By default, thema closes a schema for
+// validation, so that data may contain only fields the schema defines.
+//
+// An [Instance] validated this way is validated the same way when translated.
+func AsWritten() ValidateOption {
+	return func(c *validateConfig) {
+		c.asWritten = true
+	}
+}
+
 // Schema represents a single, complete schema from a thema lineage. A Schema's
 // Validate() method determines whether some data constitutes an Instance.
 type Schema interface {
@@ -236,8 +267,12 @@ type Schema interface {
 	// use incomplete CUE values with Thema schemas, prefer working directly in CUE,
 	// or call [Schema.Underlying] to work directly with the underlying CUE API.
 	//
+	// By default, validation closes the schema: data containing fields the schema
+	// does not define is invalid, however open the schema's author wrote it. Pass
+	// [AsWritten] to validate against the schema exactly as written instead.
+	//
 	// TODO should this instead be interface{} (ugh ugh wish Go had tagged unions) like FillPath?
-	Validate(data cue.Value) (*Instance, error)
+	Validate(data cue.Value, opts ...ValidateOption) (*Instance, error)
 
 	// Successor returns the next schema in the lineage, or nil if it is the last schema.
 	Successor() Schema
@@ -294,7 +329,7 @@ type TypedSchema[T Assignee] interface {
 
 	// ValidateTyped performs validation identically to [Schema.Validate], but
 	// returns a TypedInstance on success.
-	ValidateTyped(data cue.Value) (*TypedInstance[T], error)
+	ValidateTyped(data cue.Value, opts ...ValidateOption) (*TypedInstance[T], error)
 
 	// ConvergentLineage returns the ConvergentLineage that contains this schema.
 	ConvergentLineage() ConvergentLineage[T]

@@ -33,6 +33,11 @@ Translate: {
 	from: SyntacticVersion
 	to:   SyntacticVersion
 
+	// asWritten unifies each step's result with its target schema as its author
+	// wrote it, rather than closed: for instances validated as written, which may
+	// carry fields their schema tolerates but doesn't define.
+	asWritten: bool | *false
+
 	// Nested structs below declare their own from/to fields, so bind the
 	// arguments to names that can't be shadowed.
 	let L = lin
@@ -93,7 +98,7 @@ Translate: {
 					from: _lens.from
 					to:   _lens.to
 					// TODO initial input isn't necessarily unified with schema - does that make translated output meaningfully different?
-					result:  _lens.result & ({#closed: schdef._schema}).#closed
+					result:  _lens.result & [if asWritten {schdef._schema}, ({#closed: schdef._schema}).#closed][0]
 					lacunas: [for lac in _lens.lacunas if lac.condition {lac}]
 				}]
 
@@ -117,7 +122,7 @@ Translate: {
 						// algorithm for the forward lens is generic: simple unification.
 						from:   prior.to
 						to:     schdef.version
-						result: prior.result & ({#closed: schdef._schema}).#closed
+						result: prior.result & [if asWritten {schdef._schema}, ({#closed: schdef._schema}).#closed][0]
 					}
 
 					if prior.to[0] < schdef.version[0] {
@@ -136,7 +141,7 @@ Translate: {
 
 						from:    prior.to
 						to:      schdef.version
-						result:  _lens.result & ({#closed: schdef._schema}).#closed
+						result:  _lens.result & [if asWritten {schdef._schema}, ({#closed: schdef._schema}).#closed][0]
 						lacunas: [for lac in _lens.lacunas if lac.condition {lac}]
 					}
 				}]

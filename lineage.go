@@ -251,11 +251,11 @@ func (lin *baseLineage) Name() string {
 // or if you must, rely on Underlying().
 //
 // TODO should this instead be interface{} (ugh ugh wish Go had tagged unions) like FillPath?
-func (lin *baseLineage) ValidateAny(data cue.Value) *Instance {
+func (lin *baseLineage) ValidateAny(data cue.Value, opts ...ValidateOption) *Instance {
 	isValidLineage(lin)
 
 	for sch := lin.schema(synv()); sch != nil; sch = sch.successor() {
-		if inst, err := sch.Validate(data); err == nil {
+		if inst, err := sch.Validate(data, opts...); err == nil {
 			return inst
 		}
 	}

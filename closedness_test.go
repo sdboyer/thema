@@ -142,3 +142,78 @@ func TestAbstractLineageEvaluates(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateAsWritten(t *testing.T) {
+	ctx := cuecontext.New()
+	rt := NewRuntime(ctx)
+
+	lin, err := bindString(t, rt, `lin: thema.Lineage & {
+	name: "aswritten"
+	schemas: [{
+		version: [0, 0]
+		schema: {
+			open: {a: int}
+			shut: close({a: int})
+			#Def: {a: int}
+			def: #Def
+		}
+	}, {
+		version: [0, 1]
+		schema: {
+			open: {a: int}
+			shut: close({a: int})
+			#Def: {a: int}
+			def: #Def
+			b?: int
+		}
+	}]
+	lenses: [{
+		from: [0, 1]
+		to: [0, 0]
+		input: _
+		result: {open: input.open, shut: input.shut, def: input.def}
+	}]
+}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sch := lin.First()
+	valid := `{open: {a: 1}, shut: {a: 1}, def: {a: 1}}`
+
+	for name, c := range map[string]struct {
+		data              string
+		closed, asWritten bool // whether valid by default, and with AsWritten
+	}{
+		"no extras":              {valid, true, true},
+		"extra top-level field":  {`{open: {a: 1}, shut: {a: 1}, def: {a: 1}, extra: 1}`, false, true},
+		"extra field in open":    {`{open: {a: 1, extra: 1}, shut: {a: 1}, def: {a: 1}}`, false, true},
+		"extra field in close()": {`{open: {a: 1}, shut: {a: 1, extra: 1}, def: {a: 1}}`, false, false},
+		"extra field in a #Def":  {`{open: {a: 1}, shut: {a: 1}, def: {a: 1, extra: 1}}`, false, false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, verr := sch.Validate(ctx.CompileString(c.data))
+			if (verr == nil) != c.closed {
+				t.Errorf("default validation: valid = %v, want %v (%v)", verr == nil, c.closed, verr)
+			}
+			_, verr = sch.Validate(ctx.CompileString(c.data), AsWritten())
+			if (verr == nil) != c.asWritten {
+				t.Errorf("AsWritten validation: valid = %v, want %v (%v)", verr == nil, c.asWritten, verr)
+			}
+		})
+	}
+
+	// An instance validated as written is translated, and its results validated,
+	// the same way.
+	inst, err := sch.Validate(ctx.CompileString(`{open: {a: 1, extra: 1}, shut: {a: 1}, def: {a: 1}}`), AsWritten())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, to := range []SyntacticVersion{SV(0, 0), SV(0, 1)} {
+		if _, _, err := inst.Translate(to); err != nil {
+			t.Errorf("translating an as-written instance to %s: %v", to, err)
+		}
+	}
+	if lin.ValidateAny(ctx.CompileString(`{open: {a: 1, extra: 1}, shut: {a: 1}, def: {a: 1}}`), AsWritten()) == nil {
+		t.Error("ValidateAny did not apply AsWritten")
+	}
+}
