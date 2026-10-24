@@ -1,0 +1,24 @@
+# beneath a hidden field the target declares, a lens may build only what it declares
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "lens-hidden-declared-extra"
+	schemas: [{
+		version: [0, 0]
+		schema: {a: string, _h: {k: int}}
+	}, {
+		version: [0, 1]
+		schema: {a: string, b?: int}
+	}]
+	lenses: [{
+		from: [0, 1]
+		to: [0, 0]
+		input: _
+		result: {a: input.a, _h: {k: 1, extra: 2}}
+	}]
+}
+-- expect --
+bind fail _h.extra
