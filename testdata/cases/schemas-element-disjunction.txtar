@@ -1,10 +1,10 @@
-# a schemas element written as a disjunction is rejected with an error, not a panic
+# a schema entry written as a disjunction is rejected with an error, not a panic
 -- in.cue --
 import "github.com/sdboyer/thema"
 
 lin: thema.Lineage & {
 	name: "x"
-	schemas: [{version: [0, 0], schema: {a: int}} | {version: [0, 0], schema: {b: int}}]
+	schemas: "0": "0": {schema: {a: int}} | {schema: {b: int}}
 }
 -- expect --
 bind fail

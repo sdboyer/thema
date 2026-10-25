@@ -4,20 +4,21 @@ import "github.com/sdboyer/thema"
 
 thema.Lineage
 name: "unifyref"
-schemas: [{
-	version: [0, 0]
-	schema: {
-	    afoo: #Foo
-
-	    #Foo: _External & {
-	        optf?: #Bar
-	    }
-	    #Bar: {
-	        another: string
-	    }
+schemas: {
+	"0": "0": {
+		schema: {
+		    afoo: #Foo
+	
+		    #Foo: _External & {
+		        optf?: #Bar
+		    }
+		    #Bar: {
+		        another: string
+		    }
+		}
 	}
-}]
-lenses: []
+}
+lenses: {}
 
 _External: {
     extfield: string

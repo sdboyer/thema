@@ -105,14 +105,13 @@ var emptyLineage = template.Must(template.New("newlin").Parse(`
 
 thema.Lineage
 name: "{{ .Name }}"
-schemas: [
-    {
-        version: [0, 0]
+schemas: {
+    "0": "0": {
         schema: {
             {{ .Sch }}
         }
     }
-]
+}
 `))
 
 // Append adds the provided cue.Value as a new schema to the provided Lineage.

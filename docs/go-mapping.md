@@ -181,7 +181,7 @@ import "github.com/sdboyer/thema"
 
 lin: thema.Lineage & {
     name: "Ship"
-    schemas: [
+    schemas: {
     // ...
 ```
 
@@ -225,7 +225,7 @@ import "github.com/sdboyer/thema"
 
 thema.Lineage
 name: "Ship"
-schemas: [
+schemas: {
 // ...
 ```
 
@@ -244,7 +244,7 @@ import "github.com/sdboyer/thema"
 
 lin: thema.Lineage & {
     name: "Ship"
-    schemas: [
+    schemas: {
     // ...
 } @thematranslate(protobuf) // purely illustrative; not real/supported by any tool
 ```

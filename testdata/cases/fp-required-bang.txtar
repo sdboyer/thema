@@ -7,11 +7,12 @@ import (
 
 lin: thema.Lineage & {
 	name: "fpRequiredBang"
-	schemas: [{
-		version: [0, 0]
-		schema: {a!: int}
-	}]
-	lenses: []
+	schemas: {
+		"0": "0": {
+			schema: {a!: int}
+		}
+	}
+	lenses: {}
 }
 -- expect --
 bind ok

@@ -37,23 +37,17 @@ func TestBindLineage(t *testing.T) {
 		if err != nil {
 			tc.Fatalf("error binding lineage: %+v", err)
 		}
-		schemaselem := cue.Str("schemas")
-		sspath := cue.MakePath(schemaselem)
-		slen, err := lin.Underlying().LookupPath(sspath).Len().Int64()
-		if err != nil {
-			tc.Fatal("error getting schemas len", err)
-		}
+		slen := len(lin.All())
 		fmt.Fprintf(tc, "Schema count: %v\n", slen)
 		fmt.Fprintf(tc, "Schema versions: %s\n", lin.allVersions())
 
-		var llen int64
-		if slen > 1 {
-			lenseselem := cue.Str("lenses")
-			slpath := cue.MakePath(lenseselem)
-			llen, err = lin.Underlying().LookupPath(slpath).Len().Int64()
-			if err != nil {
-				tc.Fatal("error getting lenses len", err)
-			}
+		var llen int
+		iter, err := lin.Underlying().LookupPath(cue.MakePath(cue.Str("lenses"))).Fields()
+		if err != nil {
+			tc.Fatal("error getting lenses", err)
+		}
+		for iter.Next() {
+			llen++
 		}
 		fmt.Fprintf(tc, "Lenses count: %v\n", llen)
 	})
@@ -184,28 +178,28 @@ func bindTxtarLineage(t *vanilla.Test, rt *Runtime, path string) (Lineage, error
 
 var benchBindstr = `
 name: "trivialTwo"
-schemas: [{
-    version: [0, 0]
-    schema: {
-        firstfield: string
+schemas: {
+    "0": "0": {
+        schema: {
+            firstfield: string
+        }
     }
-},
-{
-    version: [0, 1]
-    schema: {
-        firstfield: string
-        secondfield?: int32
+    "0": "1": {
+        schema: {
+            firstfield: string
+            secondfield?: int32
+        }
     }
-}]
+}
 
-lenses: [{
-    from: [0, 1]
-    to: [0, 0]
-    input: _
-    result: {
-        firstfield: input.firstfield
+lenses: {
+    "0.1->0.0": {
+        input: _
+        result: {
+            firstfield: input.firstfield
+        }
     }
-}]
+}
 `
 
 func BenchmarkUnifyLineage(b *testing.B) {

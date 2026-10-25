@@ -6,7 +6,9 @@ import (
 
 lin: thema.Lineage & {
 	name: "../../etc/passwd; DROP TABLE\n"
-	schemas: [{version: [0, 0], schema: {a: int}}]
+	schemas: {
+		"0": "0": {schema: {a: int}}
+	}
 }
 -- expect --
 bind fail out of bound

@@ -21,13 +21,11 @@ func TestLensSyntaxErrorPositions(t *testing.T) {
 	lens := func(body string) string {
 		return `lin: thema.Lineage & {
 	name: "positions"
-	schemas: [{version: [0, 0], schema: {a: string}}, {version: [0, 1], schema: {a: string, b?: int}}]
-	lenses: [{
-		from: [0, 1]
-		to: [0, 0]
+	schemas: "0": {"0": schema: {a: string}, "1": schema: {a: string, b?: int}}
+	lenses: "0.1->0.0": {
 		input: _
 ` + body + `
-	}]
+	}
 }`
 	}
 	for name, c := range map[string]struct {

@@ -5,22 +5,24 @@ import "github.com/sdboyer/thema"
 
 lin1: thema.Lineage
 lin1: name: "newfield"
-lin1: schemas: [{
-	version: [0, 0]
-	schema: {
-		firstfield: string
+lin1: schemas: {
+	"0": "0": {
+		schema: {
+			firstfield: string
+		}
 	}
-}]
+}
 
 lin2: thema.Lineage
 lin2: name: "newfield"
-lin2: schemas: [{
-    version: [0, 0]
-    schema: {
-        firstfield: string
-        secondfield: int32
-    }
-}]
+lin2: schemas: {
+	"0": "0": {
+	    schema: {
+	        firstfield: string
+	        secondfield: int32
+	    }
+	}
+}
 -- out/isappendonly-fail --
 regular field is constraint in subsumed value: secondfield
 value not an instance

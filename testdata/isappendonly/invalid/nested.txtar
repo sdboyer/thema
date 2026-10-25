@@ -5,30 +5,32 @@ import "github.com/sdboyer/thema"
 
 lin1: thema.Lineage
 lin1: name: "nested"
-lin1: schemas: [{
-	version: [0, 0]
-	schema: {
-		anObject: {
-            aField: string
-        }
+lin1: schemas: {
+	"0": "0": {
+		schema: {
+			anObject: {
+	            aField: string
+	        }
+		}
 	}
-}]
+}
 
 lin2: thema.Lineage
 lin2: name: "nested"
-lin2: schemas: [{
-    version: [0, 0]
-    schema: {
-		anObject: {
-            aField: string
-            aNewOptionalField?: string
-        }
-    }
-}]
+lin2: schemas: {
+	"0": "0": {
+	    schema: {
+			anObject: {
+	            aField: string
+	            aNewOptionalField?: string
+	        }
+	    }
+	}
+}
 -- out/isappendonly-fail --
 field aNewOptionalField not present in {aField:string}:
-    ./in.cue:8:13
+    ./in.cue:8:14
 field anObject not present in {anObject:{aField:string}}:
-    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:219:11
-    ./in.cue:7:10
+    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:162:11
+    ./in.cue:7:11
 missing field "anObject"

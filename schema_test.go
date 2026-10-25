@@ -13,21 +13,22 @@ import (
 )
 
 var linstr = `name: "single"
-schemas: [{
-	version: [0, 0]
-	schema: {
-		astring?: string
-		anint:   int64 | *42
-		abool:   bool
-	}
-	examples: {
-		simple: {
-			astring: "some string"
-			anint:  42
-			abool:  true
+schemas: {
+	"0": "0": {
+		schema: {
+			astring?: string
+			anint:   int64 | *42
+			abool:   bool
+		}
+		examples: {
+			simple: {
+				astring: "some string"
+				anint:  42
+				abool:  true
+			}
 		}
 	}
-}]
+}
 `
 
 type TestType struct {
@@ -108,14 +109,15 @@ func TestSchema_Examples(t *testing.T) {
 
 	t.Run("withoutExamples", func(t *testing.T) {
 		linStrNoExamples := `name: "single"
-schemas: [{
-	version: [0, 0]
-	schema: {
-		astring?: string
-		anint:   int64 | *42
-		abool:   bool
+schemas: {
+	"0": "0": {
+		schema: {
+			astring?: string
+			anint:   int64 | *42
+			abool:   bool
+		}
 	}
-}]
+}
 `
 
 		lin := testLin(linStrNoExamples)
@@ -127,15 +129,16 @@ schemas: [{
 
 	t.Run("withEmptyExamples", func(t *testing.T) {
 		linStrNoExamples := `name: "single"
-schemas: [{
-	version: [0, 0]
-	schema: {
-		astring?: string
-		anint:   int64 | *42
-		abool:   bool
+schemas: {
+	"0": "0": {
+		schema: {
+			astring?: string
+			anint:   int64 | *42
+			abool:   bool
+		}
+		examples: {}
 	}
-	examples: {}
-}]
+}
 `
 		lin := testLin(linStrNoExamples)
 

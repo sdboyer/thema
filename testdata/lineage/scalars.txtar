@@ -9,25 +9,26 @@ import (
 thema.Lineage
 name: "scalarFields"
 
-schemas: [{
-    version: [0, 0]
-    schema: {
-        someUInt8: uint8
-        someUInt16: uint16
-        someUInt32: uint32
-        someUInt64: uint64
-        someInt8: int8
-        someInt16: int16
-        someInt32: int32
-        someInt64: int64
-        someFloat32: float32
-        someFloat64: float64
-        intWithBounds: int & >=0 & <10
-        nullableIntWithNoDefault: int | null
-        nullableIntWithDefault: int | null | *10
-        stringWithLength: string & strings.MinRunes(10)
-    }
-}]
+schemas: {
+	"0": "0": {
+	    schema: {
+	        someUInt8: uint8
+	        someUInt16: uint16
+	        someUInt32: uint32
+	        someUInt64: uint64
+	        someInt8: int8
+	        someInt16: int16
+	        someInt32: int32
+	        someInt64: int64
+	        someFloat32: float32
+	        someFloat64: float64
+	        intWithBounds: int & >=0 & <10
+	        nullableIntWithNoDefault: int | null
+	        nullableIntWithDefault: int | null | *10
+	        stringWithLength: string & strings.MinRunes(10)
+	    }
+	}
+}
 -- in/validate/TestValidate/someInt8.data.json --
 {
     "someInt8": null,
@@ -136,44 +137,44 @@ schemas: [{
 -- out/validate/TestValidate/someInt8 --
 <scalarFields@v0.0>.someInt8: validation failed, data is not an instance:
 	schema expected `int8`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
 	but data contained `null`
 		test:2:17
 <scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
 	schema expected `strings.MinRunes(10)`
-		/in.cue:26:27
-		/in.cue:26:53
+		/in.cue:26:28
+		/in.cue:26:54
 	but data contained `"hello"`
 		test:15:25
 		test:15:25
 -- out/validate/TestValidate/someInt16 --
 <scalarFields@v0.0>.someInt16: validation failed, data is not an instance:
 	schema expected `int16`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
 	but data contained `null`
 		test:3:18
 <scalarFields@v0.0>.someUInt16: validation failed, data is not an instance:
 	schema expected `uint16`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
 	but data contained `null`
 		test:4:19
 <scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
 	schema expected `strings.MinRunes(10)`
-		/in.cue:26:27
-		/in.cue:26:53
+		/in.cue:26:28
+		/in.cue:26:54
 	but data contained `"hello"`
 		test:15:25
 		test:15:25
 -- out/validate/TestValidate/someUInt16 --
 <scalarFields@v0.0>.someUInt16: validation failed, data is not an instance:
 	schema expected `uint16`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
 	but data contained `null`
 		test:2:19
 <scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
 	schema expected `strings.MinRunes(10)`
-		/in.cue:26:27
-		/in.cue:26:53
+		/in.cue:26:28
+		/in.cue:26:54
 	but data contained `"hello"`
 		test:13:25
 		test:13:25
@@ -186,13 +187,13 @@ schemas: [{
 -- out/validate/TestValidate/someUInt32 --
 <scalarFields@v0.0>.someUInt32: validation failed, data is not an instance:
 	schema expected `uint32`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
 	but data contained `null`
 		test:2:19
 <scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
 	schema expected `strings.MinRunes(10)`
-		/in.cue:26:27
-		/in.cue:26:53
+		/in.cue:26:28
+		/in.cue:26:54
 	but data contained `"hello"`
 		test:12:25
 		test:12:25
@@ -208,13 +209,13 @@ schemas: [{
 -- out/validate/TestValidate/someUInt64 --
 <scalarFields@v0.0>.someUInt64: validation failed, data is not an instance:
 	schema expected `uint64`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
 	but data contained `null`
 		test:3:19
 <scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
 	schema expected `strings.MinRunes(10)`
-		/in.cue:26:27
-		/in.cue:26:53
+		/in.cue:26:28
+		/in.cue:26:54
 	but data contained `"hello"`
 		test:12:25
 		test:12:25
@@ -230,13 +231,13 @@ schemas: [{
 -- out/validate/TestValidate/someUInt8 --
 <scalarFields@v0.0>.someUInt8: validation failed, data is not an instance:
 	schema expected `uint8`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
 	but data contained `null`
 		test:2:18
 <scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
 	schema expected `strings.MinRunes(10)`
-		/in.cue:26:27
-		/in.cue:26:53
+		/in.cue:26:28
+		/in.cue:26:54
 	but data contained `"hello"`
 		test:10:25
 		test:10:25
@@ -288,22 +289,22 @@ schemas: [{
 	but field was absent from data
 <scalarFields@v0.0>.intWithBounds: validation failed, data is not an instance:
 	schema specifies that field exists with type `>=0 & <10 & int`
-		/in.cue:23:24
+		/in.cue:23:25
 	but field was absent from data
 <scalarFields@v0.0>.nullableIntWithNoDefault: validation failed, data is not an instance:
 	schema specifies that field exists with type `int | null`
-		/in.cue:24:35
+		/in.cue:24:36
 	but field was absent from data
 <scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
 	schema specifies that field exists with type `strings.MinRunes(10)`
-		/in.cue:26:36
-		/in.cue:26:27
+		/in.cue:26:37
+		/in.cue:26:28
 	but field was absent from data
 -- out/validate/TestValidate/stringWithLength --
 <scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
 	schema expected `strings.MinRunes(10)`
-		/in.cue:26:27
-		/in.cue:26:53
+		/in.cue:26:28
+		/in.cue:26:54
 	but data contained `"hello"`
 		test:9:25
 		test:9:25
@@ -328,7 +329,7 @@ schemas: [{
 -- out/validate/TestValidate/outOfBoundsLowerInt --
 <scalarFields@v0.0>.intWithBounds: validation failed, data is not an instance:
 	schema expected `>=0`
-		/in.cue:23:30
+		/in.cue:23:31
 	but data contained `-1`
 		test:2:22
 <scalarFields@v0.0>.someUInt8: validation failed, data is not an instance:
@@ -363,17 +364,17 @@ schemas: [{
 	but field was absent from data
 <scalarFields@v0.0>.nullableIntWithNoDefault: validation failed, data is not an instance:
 	schema specifies that field exists with type `int | null`
-		/in.cue:24:35
+		/in.cue:24:36
 	but field was absent from data
 <scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
 	schema specifies that field exists with type `strings.MinRunes(10)`
-		/in.cue:26:36
-		/in.cue:26:27
+		/in.cue:26:37
+		/in.cue:26:28
 	but field was absent from data
 -- out/validate/TestValidate/outOfBoundsUpperInt --
 <scalarFields@v0.0>.intWithBounds: validation failed, data is not an instance:
 	schema expected `<10`
-		/in.cue:23:36
+		/in.cue:23:37
 	but data contained `12`
 		test:6:22
 <scalarFields@v0.0>.someUInt8: validation failed, data is not an instance:
@@ -396,17 +397,17 @@ schemas: [{
 	but field was absent from data
 <scalarFields@v0.0>.nullableIntWithNoDefault: validation failed, data is not an instance:
 	schema specifies that field exists with type `int | null`
-		/in.cue:24:35
+		/in.cue:24:36
 	but field was absent from data
 <scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
 	schema specifies that field exists with type `strings.MinRunes(10)`
-		/in.cue:26:36
-		/in.cue:26:27
+		/in.cue:26:37
+		/in.cue:26:28
 	but field was absent from data
 -- out/validate/TestValidate/someInt32 --
 <scalarFields@v0.0>.someInt32: validation failed, data is not an instance:
 	schema expected `int32`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
 	but data contained `"not an int"`
 		test:2:18
 <scalarFields@v0.0>.someUInt8: validation failed, data is not an instance:
@@ -438,21 +439,21 @@ schemas: [{
 	but field was absent from data
 <scalarFields@v0.0>.intWithBounds: validation failed, data is not an instance:
 	schema specifies that field exists with type `>=0 & <10 & int`
-		/in.cue:23:24
+		/in.cue:23:25
 	but field was absent from data
 <scalarFields@v0.0>.nullableIntWithNoDefault: validation failed, data is not an instance:
 	schema specifies that field exists with type `int | null`
-		/in.cue:24:35
+		/in.cue:24:36
 	but field was absent from data
 <scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
 	schema specifies that field exists with type `strings.MinRunes(10)`
-		/in.cue:26:36
-		/in.cue:26:27
+		/in.cue:26:37
+		/in.cue:26:28
 	but field was absent from data
 -- out/validate/TestValidate/someInt64 --
 <scalarFields@v0.0>.someInt64: validation failed, data is not an instance:
 	schema expected `int64`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
 	but data contained `"not an int64"`
 		test:2:18
 <scalarFields@v0.0>.someUInt8: validation failed, data is not an instance:
@@ -484,21 +485,21 @@ schemas: [{
 	but field was absent from data
 <scalarFields@v0.0>.intWithBounds: validation failed, data is not an instance:
 	schema specifies that field exists with type `>=0 & <10 & int`
-		/in.cue:23:24
+		/in.cue:23:25
 	but field was absent from data
 <scalarFields@v0.0>.nullableIntWithNoDefault: validation failed, data is not an instance:
 	schema specifies that field exists with type `int | null`
-		/in.cue:24:35
+		/in.cue:24:36
 	but field was absent from data
 <scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
 	schema specifies that field exists with type `strings.MinRunes(10)`
-		/in.cue:26:36
-		/in.cue:26:27
+		/in.cue:26:37
+		/in.cue:26:28
 	but field was absent from data
 -- out/validate/TestValidate/someFloat32 --
 <scalarFields@v0.0>.someFloat32: validation failed, data is not an instance:
 	schema expected `float32`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
 	but data contained `"I am a string"`
 		test:2:20
 <scalarFields@v0.0>.someUInt8: validation failed, data is not an instance:
@@ -530,21 +531,21 @@ schemas: [{
 	but field was absent from data
 <scalarFields@v0.0>.intWithBounds: validation failed, data is not an instance:
 	schema specifies that field exists with type `>=0 & <10 & int`
-		/in.cue:23:24
+		/in.cue:23:25
 	but field was absent from data
 <scalarFields@v0.0>.nullableIntWithNoDefault: validation failed, data is not an instance:
 	schema specifies that field exists with type `int | null`
-		/in.cue:24:35
+		/in.cue:24:36
 	but field was absent from data
 <scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
 	schema specifies that field exists with type `strings.MinRunes(10)`
-		/in.cue:26:36
-		/in.cue:26:27
+		/in.cue:26:37
+		/in.cue:26:28
 	but field was absent from data
 -- out/validate/TestValidate/someFloat64 --
 <scalarFields@v0.0>.someFloat64: validation failed, data is not an instance:
 	schema expected `float64`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
 	but data contained `"I am a string"`
 		test:2:20
 <scalarFields@v0.0>.someUInt8: validation failed, data is not an instance:
@@ -576,16 +577,16 @@ schemas: [{
 	but field was absent from data
 <scalarFields@v0.0>.intWithBounds: validation failed, data is not an instance:
 	schema specifies that field exists with type `>=0 & <10 & int`
-		/in.cue:23:24
+		/in.cue:23:25
 	but field was absent from data
 <scalarFields@v0.0>.nullableIntWithNoDefault: validation failed, data is not an instance:
 	schema specifies that field exists with type `int | null`
-		/in.cue:24:35
+		/in.cue:24:36
 	but field was absent from data
 <scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
 	schema specifies that field exists with type `strings.MinRunes(10)`
-		/in.cue:26:36
-		/in.cue:26:27
+		/in.cue:26:37
+		/in.cue:26:28
 	but field was absent from data
 -- in/validate/TestValidate/outOfBoundsLowerInt.data.json --
 {

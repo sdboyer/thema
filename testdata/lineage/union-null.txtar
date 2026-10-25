@@ -5,30 +5,31 @@ import "github.com/sdboyer/thema"
 
 thema.Lineage
 name: "unionNull"
-schemas: [{
-	version: [0, 0]
-	schema: {
-		kindString: {
-			simpleString: string
-			withNull:     string | null
-		}
-		kindFloat: {
-			simpleFloat64: float64
-			simpleFloat32: float32
-			withNull64:    float64 | null
-			withNull32:    float32 | null
-		}
-		kindInt: {
-			simpleInt:   int
-			simpleInt32: int32
-			simpleInt64: int64
-			withNull:    int | null
-			withNull64:  int64 | null
-			withNull32:  int32 | null
+schemas: {
+	"0": "0": {
+		schema: {
+			kindString: {
+				simpleString: string
+				withNull:     string | null
+			}
+			kindFloat: {
+				simpleFloat64: float64
+				simpleFloat32: float32
+				withNull64:    float64 | null
+				withNull32:    float32 | null
+			}
+			kindInt: {
+				simpleInt:   int
+				simpleInt32: int32
+				simpleInt64: int64
+				withNull:    int | null
+				withNull64:  int64 | null
+				withNull32:  int32 | null
+			}
 		}
 	}
-}]
-lenses: []
+}
+lenses: {}
 -- out/bind --
 Schema count: 1
 Schema versions: 0.0

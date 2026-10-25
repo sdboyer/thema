@@ -52,30 +52,26 @@ func TestLensResultsMayNotInventFields(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			lin, err := bindString(t, rt, `lin: thema.Lineage & {
 	name: "invent"
-	schemas: [{
-		version: [0, 0]
-		schema: a: string
-	}, {
-		version: [1, 0]
+	schemas: {
+		"0": "0": schema: a: string
 		// Written open, deliberately: lens results must still match it exactly.
-		schema: {b: string, n: {x: int}, ...}
-	}]
-	lenses: [{
-		to: [0, 0]
-		from: [1, 0]
-		input: _
-		result: a: input.b
-	}, {
-		to: [1, 0]
-		from: [0, 0]
-		input: _
-		result: `+result+`
-	}]
+		"1": "0": schema: {b: string, n: {x: int}, ...}
+	}
+	lenses: {
+		"1.0->0.0": {
+			input: _
+			result: a: input.b
+		}
+		"0.0->1.0": {
+			input: _
+			result: `+result+`
+		}
+	}
 }`)
 			if name != "valid" {
 				// Invented fields are visible in the lens without any data, so they're
 				// rejected when the lineage is bound.
-				if err == nil || !strings.Contains(err.Error(), "lens 0.0 -> 1.0") {
+				if err == nil || !strings.Contains(err.Error(), "lens 0.0->1.0") {
 					t.Fatalf("lens result with an invented field was not rejected at bind: %v", err)
 				}
 				return
@@ -104,13 +100,14 @@ func TestValidateHonorsAuthorOpenness(t *testing.T) {
 
 	lin, err := bindString(t, rt, `lin: thema.Lineage & {
 	name: "openness"
-	schemas: [{
-		version: [0, 0]
-		schema: {
-			closedish: {a: int}
-			open: {a: int, ...}
+	schemas: {
+		"0": "0": {
+			schema: {
+				closedish: {a: int}
+				open: {a: int, ...}
+			}
 		}
-	}]
+	}
 }`)
 	if err != nil {
 		t.Fatal(err)

@@ -5,24 +5,26 @@ import "github.com/sdboyer/thema"
 
 lin1: thema.Lineage
 lin1: name: "optional"
-lin1: schemas: [{
-	version: [0, 0]
-	schema: {
-		aField: string
+lin1: schemas: {
+	"0": "0": {
+		schema: {
+			aField: string
+		}
 	}
-}]
+}
 
 lin2: thema.Lineage
 lin2: name: "optional"
-lin2: schemas: [{
-    version: [0, 0]
-    schema: {
-        aField: string
-        aNewOptionalField?: int32
-    }
-}]
+lin2: schemas: {
+	"0": "0": {
+	    schema: {
+	        aField: string
+	        aNewOptionalField?: int32
+	    }
+	}
+}
 -- out/isappendonly-fail --
 field aNewOptionalField not present in {aField:string}:
-    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:219:11
-    ./in.cue:7:10
+    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:162:11
+    ./in.cue:7:11
 missing field "aNewOptionalField"

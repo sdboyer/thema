@@ -7,20 +7,21 @@ import (
 
 lin: thema.Lineage & {
 	name: "joinRefsSchema"
-	joinSchema: lin.schemas[len(lin.schemas)-1].schema
-	schemas: [{
-		version: [0, 0]
-		schema: {a: int}
-	}, {
-		version: [0, 1]
-		schema: {a: int, b?: int}
-	}]
-	lenses: [{
-		from: [0, 1]
-		to: [0, 0]
-		input: _
-		result: {a: input.a}
-	}]
+	joinSchema: lin.schemas["0"]["\(len(lin.schemas["0"])-1)"].schema
+	schemas: {
+		"0": "0": {
+			schema: {a: int}
+		}
+		"0": "1": {
+			schema: {a: int, b?: int}
+		}
+	}
+	lenses: {
+		"0.1->0.0": {
+			input: _
+			result: {a: input.a}
+		}
+	}
 }
 -- expect --
 bind fail

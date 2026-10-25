@@ -4,20 +4,21 @@ import "github.com/sdboyer/thema"
 
 thema.Lineage
 name: "goAny"
-schemas: [{
-    version: [0, 0]
-    schema: {
-        value: string | bool
-        optional?: string | bool
-        emptyMap: {...}
-
-        structVal: {
-            inner: string | int
-            innerOptional?: _
+schemas: {
+    "0": "0": {
+        schema: {
+            value: string | bool
+            optional?: string | bool
+            emptyMap: {...}
+    
+            structVal: {
+                inner: string | int
+                innerOptional?: _
+            }
         }
     }
-}]
-lenses: []
+}
+lenses: {}
 -- in/validate/TestValidate/valueAsInt.data.json --
 {
     "value": 42
@@ -25,51 +26,51 @@ lenses: []
 -- out/validate/TestValidate/valueAsInt --
 <goAny@v0.0>.value: validation failed, data is not an instance:
 	schema expected `bool`
-		/in.cue:8:25
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
+		/in.cue:8:29
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
 	but data contained `42`
 		test:2:14
 <goAny@v0.0>.value: validation failed, data is not an instance:
 	schema expected `string`
-		/in.cue:8:16
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
+		/in.cue:8:20
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
 	but data contained `42`
 		test:2:14
 <goAny@v0.0>.structVal.inner: validation failed, data is not an instance:
 	schema specifies that field exists with type `string | int`
-		/in.cue:13:20
+		/in.cue:13:24
 	but field was absent from data
 -- out/validate/TestValidate/emptyMapAsString --
 <goAny@v0.0>.emptyMap: validation failed, data is not an instance:
 	schema expected `{...}`
-		/in.cue:10:19
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
+		/in.cue:10:23
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
 	but data contained `"definitely not a map"`
 		test:2:17
 <goAny@v0.0>.value: validation failed, data is not an instance:
 	schema specifies that field exists with type `string | bool`
-		/in.cue:8:16
+		/in.cue:8:20
 	but field was absent from data
 <goAny@v0.0>.structVal.inner: validation failed, data is not an instance:
 	schema specifies that field exists with type `string | int`
-		/in.cue:13:20
+		/in.cue:13:24
 	but field was absent from data
 -- out/validate/TestValidate/structValInnerAsBool --
 <goAny@v0.0>.structVal.inner: validation failed, data is not an instance:
 	schema expected `int`
-		/in.cue:13:29
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
+		/in.cue:13:33
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
 	but data contained `true`
 		test:3:18
 <goAny@v0.0>.structVal.inner: validation failed, data is not an instance:
 	schema expected `string`
-		/in.cue:13:20
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
+		/in.cue:13:24
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
 	but data contained `true`
 		test:3:18
 <goAny@v0.0>.value: validation failed, data is not an instance:
 	schema specifies that field exists with type `string | bool`
-		/in.cue:8:16
+		/in.cue:8:20
 	but field was absent from data
 -- in/validate/TestValidate/emptyMapAsString.data.json --
 {

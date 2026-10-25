@@ -7,16 +7,17 @@ import (
 
 lin: thema.Lineage & {
 	name: "lensNonexistentVersions"
-	schemas: [{
-		version: [0, 0]
-		schema: {a: int}
-	}]
-	lenses: [{
-		from: [7, 3]
-		to: [5, 0]
-		input: _
-		result: {zzz: input.q}
-	}]
+	schemas: {
+		"0": "0": {
+			schema: {a: int}
+		}
+	}
+	lenses: {
+		"7.3->5.0": {
+			input: _
+			result: {zzz: input.q}
+		}
+	}
 }
 -- expect --
 bind fail

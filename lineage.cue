@@ -1,8 +1,9 @@
 package thema
 
 import (
-	"struct"
 	"list"
+	"strconv"
+	"struct"
 )
 
 // Lineage is the top-level container in thema, holding the complete
@@ -37,20 +38,37 @@ Lineage: {
 	//	joinSchema?: struct.MinFields(1)
 	joinSchema: _
 
-	// schemas is the ordered list of all schemas in the lineage.
-	//
-	// Each element is a SchemaDef, injected with the joinSchema for this lineage.
-	//
-	// It is recommended but not required that schema entries in this list be defined
-	// in ascending order by version. Thema tooling that modifies and emits lineages
-	// definitions may produce schemas sorted in ascending order, rather than original
-	// source order.
-	// TODO switch to descending order - newest on top is nicer to read
-	schemas!: [_joinedSchemaDef, ..._joinedSchemaDef]
+	// The keys of schemas (each a major or minor version) and of lenses (an edge
+	// between two versions).
+	let versionKey = "^(0|[1-9][0-9]*)$"
+	let edgeKey = "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)->(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
 
-	let _joinedSchemaDef = SchemaDef & {_join: joinSchema}
+	// schemas holds every schema in the lineage, keyed by major version, then by
+	// minor version: schemas["1"]["0"] is the schema for version 1.0. Keys are
+	// non-negative decimal integers, without leading zeros.
+	//
+	// Each schema is a SchemaDef, injected with the joinSchema for this lineage.
+	// Its version is its key; a schema entry does not declare it.
+	//
+	// Versions are contiguous: majors run from 0 without gaps, and the minors of
+	// each major run from 0 without gaps. A skipped version is a missing key.
+	schemas!: struct.MinFields(1) & {
+		[=~versionKey]~(M,_): struct.MinFields(1) & {
+			[=~versionKey]~(m,_): SchemaDef & {
+				_join: joinSchema
+				_version: [strconv.Atoi(M), strconv.Atoi(m)]
+			}
 
-	// lenses contains all the mappings between all the schemas in the lineage.
+			[!~versionKey]~(K,_): error("\(K) is not a minor version; schemas are keyed by major, then minor version, each a non-negative integer such as \"0\"")
+		}
+
+		[!~versionKey]~(K,_): error("\(K) is not a major version; schemas are keyed by major, then minor version, each a non-negative integer such as \"0\"")
+	}
+
+	// lenses contains all the mappings between all the schemas in the lineage,
+	// keyed by the edge each one maps across: lenses["1.0->0.1"] maps instances
+	// of schema 1.0 to schema 0.1. The source and target versions are the key's;
+	// a lens does not declare them.
 	//
 	// For a lineage to be valid, it must contain lenses such that an instance of
 	// each schema can be translated into both its predecessor and successor schemas.
@@ -62,112 +80,52 @@ Lineage: {
 	//  - A lens mapping forward across every breaking change/new major version
 	//  - A lens mapping backward across every change
 	//
-	// Thus, for a lineage with schema versions [0,0], [0,1], [1,0], [2,0], [2,1],
-	// the following lenses must exist (implicit lenses are wrapped in parentheses):
+	// Thus, for a lineage with schema versions 0.0, 0.1, 1.0, 2.0, 2.1, the
+	// following lenses must exist (implicit lenses are wrapped in parentheses):
 	//
-	//  [0,1] -> [0,0]
-	// ([0,0] -> [0,1])
-	//  [1,0] -> [0,1]
-	//  [0,1] -> [1,0]
-	//  [2,0] -> [1,0]
-	//  [1,0] -> [2,0]
-	//  [2,1] -> [2,0]
-	// ([2,0] -> [2,1])
+	//  "0.1->0.0"
+	// ("0.0->0.1")
+	//  "1.0->0.1"
+	//  "0.1->1.0"
+	//  "2.0->1.0"
+	//  "1.0->2.0"
+	//  "2.1->2.0"
+	// ("2.0->2.1")
 	//
 	// To be valid, a lineage must define the exact set of explicit lenses entailed by its
 	// set of schema versions. It is not permitted to explicitly define a lens across
 	// non-breaking changes.
-	//
-	// The above ordering of lenses, sorted ascending first by 'to' then by 'from' version,
-	// is the recommended but not required order in which lenses should be defined in this
-	// list. Thema tooling that modifies and emits lineages definitions may produce lenses
-	// sorted in ascending order, rather than original source order.
-	// TODO switch to descending order - newest on top is nicer to read
-	lenses: [...Lens]
+	lenses: {
+		[=~edgeKey]: Lens
+
+		[!~edgeKey]~(K,_): error("\(K) is not a lens edge; lenses are keyed by \"<from>-><to>\" versions, such as \"1.0->0.1\"")
+	}
 
 	// Catch misspelled or unknown fields. Hidden and definition fields are not
 	// matched, and remain free for lineage authors' own helpers.
 	[!~"^(name|joinSchema|schemas|lenses)$"]~(K,_): error("\(K) is not a field of a lineage; a lineage has only name, joinSchema, schemas and lenses")
 
-	_forwardLenses:  [for lens in lenses if lens.to[0] > lens.from[0] {lens}]
-	_backwardLenses: [for lens in lenses if lens.to[0] <= lens.from[0] {lens}]
+	// _counts holds the number of minor versions in each major version: the index
+	// is the major version, the value its number of minors.
+	_counts: [for M in list.Range(0, len(schemas), 1) {len(schemas["\(M)"])}]
 
-	// preserved for debugging
-	//	lensVersions: {
-	//		backward: {
-	//			both: [ for lens in _backwardLenses {"\(lens.from[0]).\(lens.from[1])->v\(lens.to[0]).\(lens.to[1])"}]
-	//			to: [ for lens in _backwardLenses {"v\(lens.to[0]).\(lens.to[1])"}]
-	//			from: [ for lens in _backwardLenses {"v\(lens.from[0]).\(lens.from[1])"}]
-	//		}
-	//		forward: {
-	//			both: [ for lens in _forwardLenses {"\(lens.from[0]).\(lens.from[1])->v\(lens.to[0]).\(lens.to[1])"}]
-	//			to: [ for lens in _forwardLenses {"v\(lens.to[0]).\(lens.to[1])"}]
-	//			from: [ for lens in _forwardLenses {"v\(lens.from[0]).\(lens.from[1])"}]
-	//		}
-	//	}
-
-	// _counts tracks the number of versions in each major version in the lineage.
-	// The index corresponds to the major version number, and the value is the
-	// number of minor versions within that major.
-	_counts: [...uint64] & list.MinItems(1)
-
-	//	counts: _counts
-	// TODO check subsumption (backwards compat) of each schema with its successor natively in CUE
-	if len(schemas) == 1 {
-		_counts: [0]
-	}
-
-	if len(schemas) > 1 {
-		_pos: [0, for i, sch in list.Drop(schemas, 1) if schemas[i].version[0] < sch.version[0] {i + 1}]
-		_counts: [for i, idx in list.Slice(_pos, 0, len(_pos) - 1) {
-			_pos[i+1] - list.Sum(list.Slice(_pos, 0, i + 1))
-		}, len(schemas) - _pos[len(_pos)-1]]
-		// The following approach to the above:
-		//
-		//		let pos = [0, for i, sch in SS[1:] if SS[i].version[0] < sch.version[0] { i+1 }]
-		//		_counts: [for i, idx in pos[:len(pos)-1] {
-		//			pos[i+1]-list.Sum(pos[:i+1])
-		//		}, len(SS)-pos[len(pos)-1]]
-		//
-		// causes the following cue internals panic:
-		// panic: getNodeContext: nodeContext out of sync [recovered]
-		//	panic: getNodeContext: nodeContext out of sync
-	}
+	// _ordered is the version of every schema in the lineage, ascending. Versions
+	// are contiguous, so it is built by counting through the keys rather than by
+	// sorting them; a skipped version is a missing key.
+	//
+	// It holds versions, not schemas: operations look each schema up by its key.
+	// Translate closes each step's result against its target schema; closed
+	// against the same schema taken from a list built by comprehension, a result
+	// for a schema that is a disjunction with a default re-evaluates in Go to the
+	// unclosed default (testdata/cases/shape-schema-default-disj).
+	_ordered: [for M in list.Range(0, len(schemas), 1)
+		for m in list.Range(0, len(schemas["\(M)"]), 1) {schemas["\(M)"]["\(m)"]._version}]
 
 	// _basis keeps the index of the first schema in each major version
-	// within the overall canonical schema sort ordering. This allows trivial
-	// schema retrieval from a syntactic version.
+	// within _ordered.
 	_basis: [0, for maj, _ in list.Drop(_counts, 1) {
 		list.Sum(list.Take(_counts, maj + 1))
 	}]
-
-	// Pick is a pseudofunction that returns the schema from this Lineage
-	// (lin) that corresponds to the provided SyntacticVersion (v). Bounds
-	// constraints enforce that the provided version number exists within the
-	// lineage.
-	//
-	// Pick is the only correct mechanism to retrieve a lineage's declared schema.
-	// Retrieving a lineage's schemas by direct indexing will not check invariants,
-	// apply compositions or joinSchemas.
-	//#Pick: {
-	//	// The schema version to retrieve.
-	//	v: SyntacticVersion & [<len(L._counts), <=L._counts[v[0]]]
-	//	// TODO(must) https://github.com/cue-lang/cue/issues/943
-	//	// must(isconcrete(v[0]), "must specify a concrete major version")
-	//
-	//	out: SS[_basis[v[0]]+v[1]]._#schema
-	//}
-
-	// PickDef takes the same arguments as Pick, but returns the entire
-	// SchemaDef rather than only the schema body itself.
-	//#PickDef: {
-	//	// The schema version to retrieve.
-	//	v: SyntacticVersion & [<len(L._counts), <=L._counts[v[0]]]
-	//	// TODO(must) https://github.com/cue-lang/cue/issues/943
-	//	// must(isconcrete(v[0]), "must specify a concrete sequence number")
-	//
-	//	out: SS[_basis[v[0]]+v[1]]
-	//}
 
 	// latestVersion always contains the SyntacticVersion of the lineage's
 	// "latest" schema - the schema with the largest version number.
@@ -184,7 +142,7 @@ Lineage: {
 	// their own pace.
 	//
 	// TODO functionize
-	#LatestVersion: schemas[len(schemas)-1].version
+	#LatestVersion: _ordered[len(_ordered)-1]
 
 	_flatidx: {
 		v: SyntacticVersion
@@ -193,28 +151,13 @@ Lineage: {
 	}
 }
 
-// SchemaDef represents a single schema declaration in Thema. In addition to
-// the schema itself, it contains the schema's version, optional examples,
-// composition instructions, and lenses that map to or from the schema, as
-// required by Thema's invariants.
-//
-// Note that the version number must be explicitly declared, even though the
-// correct value is algorithmically determined.
+// SchemaDef represents a single schema declaration in Thema: the schema itself,
+// and optional examples. Its version is the key it is declared at in a
+// lineage's schemas; it does not declare one itself.
 SchemaDef: {
-	// version is the Syntactic Version number of the schema. While this property
-	// is settable by lineage authors, it has exactly one correct value for any
-	// particular SchemaDef in any lineage, algorithmically determined by its
-	// position in the list of schemas and the number of its predecessors that
-	// make breaking changes to their schemas.
-	//
-	// Despite there being only one correct choice, lineage authors must still
-	// explicitly declare the schema version. Future improvements in Thema may make
-	// this unnecessary, but explicitly declaring the version is always useful for
-	// readability.
-	//
-	// The entire lineage is considered invalid if the version number in this field
-	// is inconsistent with the algorithmically determined set of [non-]breaking changes.
-	version: SyntacticVersion | *[0, 0]
+	// _version is the Syntactic Version number of the schema, filled from the
+	// keys the lineage declares the schema at.
+	_version: SyntacticVersion
 
 	schema!: _
 
@@ -230,25 +173,22 @@ SchemaDef: {
 	// for use in documentation or other non-functional contexts.
 	examples?: [string]: _schema
 
-	[!~"^(version|schema|examples)$"]~(K,_): error("\(K) is not a field of a schema; a schema entry has only version, schema and examples")
+	[!~"^(schema|examples)$"]~(K,_): error("\(K) is not a field of a schema; a schema entry has only schema and examples")
 }
 
 // Lens defines a transformation that maps the fields of one schema in a lineage to the
 // fields of another schema, as well as the lacunas that may exist for specific objects
 // when translating instances between these schemas.
+//
+// The schema versions a lens maps from and to are the edge it is declared at in a
+// lineage's lenses, e.g. "1.0->0.1"; it does not declare them itself.
 Lens: {
-	// The schema version that is the input or source of the mapping.
-	from!: SyntacticVersion
-
-	// The schema version that is the result or target of the mapping.
-	to!: SyntacticVersion
-
 	// input is filled with an object instance of the 'from' schema in order to use the
 	// lens to translate between schema versions.
 	input: _
 
-	// The relation between the schemas identified by the 'from' and 'to' versions,
-	// expressed as a mapping from 'input' to this field.
+	// The relation between the schemas identified by the lens's 'from' and 'to'
+	// versions, expressed as a mapping from 'input' to this field.
 	//
 	// The value must be an instance of the 'to' schema, constructed through
 	// references to the 'from' schema. It may not contain any field the 'to'
@@ -268,7 +208,7 @@ Lens: {
 	// for more information (TODO).
 	lacunas: [...Lacuna]
 
-	[!~"^(from|to|input|result|lacunas)$"]~(K,_): error("\(K) is not a field of a lens; a lens has only from, to, input, result and lacunas")
+	[!~"^(input|result|lacunas)$"]~(K,_): error("\(K) is not a field of a lens; a lens has only input, result and lacunas")
 }
 
 // SyntacticVersion is an ordered pair of non-negative integers. It represents

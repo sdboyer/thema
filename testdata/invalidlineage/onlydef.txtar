@@ -4,14 +4,15 @@ import "github.com/sdboyer/thema"
 
 thema.Lineage
 name: "onlydef"
-schemas: [{
-	version: [0, 0]
-	schema: {
-		#Baz: {
-			run:  string
-			tell: bytes
-			dat:  int32
+schemas: {
+	"0": "0": {
+		schema: {
+			#Baz: {
+				run:  string
+				tell: bytes
+				dat:  int32
+			}
 		}
 	}
-}]
-lenses: []
+}
+lenses: {}

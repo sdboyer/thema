@@ -7,19 +7,20 @@ import (
 
 lin: thema.Lineage & {
 	name: "compatMatchif"
-	schemas: [{
-		version: [0, 0]
-		schema: {a: {x?: int, y?: int}}
-	}, {
-		version: [0, 1]
-		schema: {a: matchIf({x!: _}, {y!: _}, _) & {x?: int, y?: int}}
-	}]
-	lenses: [{
-		from: [0, 1]
-		to: [0, 0]
-		input: _
-		result: {a: input.a}
-	}]
+	schemas: {
+		"0": "0": {
+			schema: {a: {x?: int, y?: int}}
+		}
+		"0": "1": {
+			schema: {a: matchIf({x!: _}, {y!: _}, _) & {x?: int, y?: int}}
+		}
+	}
+	lenses: {
+		"0.1->0.0": {
+			input: _
+			result: {a: input.a}
+		}
+	}
 }
 -- expect --
 bind fail

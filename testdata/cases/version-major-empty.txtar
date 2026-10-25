@@ -1,0 +1,13 @@
+# a major version declares no minor versions
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "versionMajorEmpty"
+	schemas: {
+		"0": "0": schema: {a: int}
+		"1": {}
+	}
+}
+-- expect --
+bind fail major version 1 declares no schemas

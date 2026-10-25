@@ -7,20 +7,21 @@ import (
 
 lin: thema.Lineage & {
 	name: "lensLetCopy"
-	schemas: [{
-		version: [0, 0]
-		schema: {a: string, n: {p: int, ...}}
-	}, {
-		version: [0, 1]
-		schema: {a: string, n: {p: int, ...}, b?: int}
-	}]
-	lenses: [{
-		from: [0, 1]
-		to: [0, 0]
-		input: _
-		let N = input.n
-		result: {a: input.a, n: N}
-	}]
+	schemas: {
+		"0": "0": {
+			schema: {a: string, n: {p: int, ...}}
+		}
+		"0": "1": {
+			schema: {a: string, n: {p: int, ...}, b?: int}
+		}
+	}
+	lenses: {
+		"0.1->0.0": {
+			input: _
+			let N = input.n
+			result: {a: input.a, n: N}
+		}
+	}
 }
 -- expect --
 bind ok

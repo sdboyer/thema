@@ -2,10 +2,12 @@ package thema
 
 import (
 	"bytes"
+	"cmp"
 	"fmt"
 	"path/filepath"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"cuelang.org/go/cue"
@@ -64,27 +66,77 @@ func lid(from, to SyntacticVersion) lensID {
 	return lensID{from, to}
 }
 
+// String returns id as the key of its lens in a lineage's lenses, e.g. "1.0->0.1".
 func (id lensID) String() string {
-	return fmt.Sprintf("%s -> %s", id.From, id.To)
+	return fmt.Sprintf("%s->%s", id.From, id.To)
+}
+
+// parseVersionKey parses a major or minor version key in a lineage's schemas: a
+// non-negative decimal integer, without leading zeros, so that each version has
+// exactly one key.
+func parseVersionKey(key string) (uint, bool) {
+	n, err := strconv.ParseUint(key, 10, 32)
+	if err != nil || strconv.FormatUint(n, 10) != key {
+		return 0, false
+	}
+	return uint(n), true
+}
+
+// parseLensEdge parses a lens's key in a lineage's lenses: the versions it maps
+// from and to, e.g. "1.0->0.1".
+func parseLensEdge(key string) (lensID, bool) {
+	from, to, ok := strings.Cut(key, "->")
+	if !ok {
+		return lensID{}, false
+	}
+	var id lensID
+	for _, p := range []struct {
+		s string
+		v *SyntacticVersion
+	}{{from, &id.From}, {to, &id.To}} {
+		maj, minor, ok := strings.Cut(p.s, ".")
+		if !ok {
+			return lensID{}, false
+		}
+		a, aok := parseVersionKey(maj)
+		b, bok := parseVersionKey(minor)
+		if !aok || !bok {
+			return lensID{}, false
+		}
+		*p.v = synv(a, b)
+	}
+	return id, true
 }
 
 func (ml *maybeLineage) checkGoValidity(cfg *bindConfig) error {
-	schiter, err := ml.uni.LookupPath(cue.MakePath(cue.Str("schemas"))).List()
+	majiter, err := ml.uni.LookupPath(cue.MakePath(cue.Str("schemas"))).Fields()
 	if err != nil {
-		panic(fmt.Sprintf("unreachable - should have already verified schemas field exists and is list: %+v", cerrors.Details(err, nil)))
+		panic(fmt.Sprintf("unreachable - should have already verified schemas field exists and is a struct: %+v", cerrors.Details(err, nil)))
 	}
-	vpath := cue.MakePath(cue.Str("version"))
+	// Keys were checked by checkUnknownFields.
+	var schlist []*schemaDef
+	for majiter.Next() {
+		maj, _ := parseVersionKey(majiter.Selector().Unquoted())
+		miniter, err := majiter.Value().Fields()
+		if err != nil {
+			panic(fmt.Sprintf("unreachable - should have already verified schemas[%q] is a struct: %+v", majiter.Selector().Unquoted(), cerrors.Details(err, nil)))
+		}
+		n := len(schlist)
+		for miniter.Next() {
+			minor, _ := parseVersionKey(miniter.Selector().Unquoted())
+			schlist = append(schlist, &schemaDef{ref: miniter.Value(), v: synv(maj, minor)})
+		}
+		if len(schlist) == n {
+			return errors.Mark(cerrors.Newf(userPos(majiter.Value()), "major version %d declares no schemas: its first schema must be version %s", maj, synv(maj, 0)), terrors.ErrNonContiguousVersions)
+		}
+	}
+	slices.SortFunc(schlist, func(a, b *schemaDef) int {
+		return cmp.Or(cmp.Compare(a.v[0], b.v[0]), cmp.Compare(a.v[1], b.v[1]))
+	})
 
 	var previous *schemaDef
-	for schiter.Next() {
-		sch := &schemaDef{ref: schiter.Value()}
-		v, err := schemaVersion(ml.rt.Context(), sch.ref.LookupPath(vpath))
-		if err != nil {
-			return errors.Mark(cerrors.Newf(userPos(sch.ref.LookupPath(vpath)), "schema %d: %s", len(ml.schlist), err), terrors.ErrInvalidLineage)
-		}
-		sch.v = v
-
-		if err := ml.checkSchemasOrder(previous, sch); err != nil {
+	for _, sch := range schlist {
+		if err := ml.checkSchemaVersions(previous, sch); err != nil {
 			return err
 		}
 
@@ -109,74 +161,25 @@ func (ml *maybeLineage) checkGoValidity(cfg *bindConfig) error {
 	return nil
 }
 
-// schemaVersion returns the version declared by a schema entry. A version the
-// author wrote must be a single concrete version; a disjunction, even one with a
-// default, is rejected rather than resolved. An omitted version takes thema's
-// default of 0.0.
-//
-// An omitted version is recognized by its value, not its source: it is thema's
-// own SyntacticVersion | *[0, 0], which alone admits any version. A disjunction
-// an author wrote admits only its own alternatives.
-func schemaVersion(ctx *cue.Context, v cue.Value) (SyntacticVersion, error) {
-	var sv SyntacticVersion
-	if !v.Exists() {
-		return sv, fmt.Errorf("version is missing")
-	}
-	if d, hasDefault := v.Default(); hasDefault {
-		if v.Unify(ctx.Encode([]uint64{99, 99})).Validate(cue.Concrete(true)) != nil {
-			return sv, fmt.Errorf("version must be a single concrete version, such as [0, 1]")
-		}
-		v = d
-	} else if v.Validate(cue.Concrete(true)) != nil {
-		return sv, fmt.Errorf("version must be a single concrete version, such as [0, 1]")
-	}
-	if err := v.Decode(&sv); err != nil {
-		return sv, fmt.Errorf("version must be a pair of non-negative integers, such as [0, 1]")
-	}
-	return sv, nil
-}
-
-// authorWrote reports whether any conjunct of v has a position outside the
-// embedded thema module's root, i.e. was most likely written by the lineage's
-// author. It is a heuristic, for choosing error positions only: when thema's CUE
-// is loaded some other way (e.g. as the main module), its positions don't fall
-// under that root.
-func authorWrote(v cue.Value) bool {
-	_, args := v.Expr()
-	for _, a := range args {
-		if p := a.Pos(); p.IsValid() && !strings.HasPrefix(p.Filename(), embedreg.Root()+string(filepath.Separator)) {
-			return true
-		}
-	}
-	return false
-}
-
-// checkSchemasOrder checks that each schema's version is the exact successor of
-// its predecessor's: either the next minor version, or the first (.0) version of
-// the next major version. The first schema must be 0.0.
-func (ml *maybeLineage) checkSchemasOrder(prev, curr *schemaDef) error {
+// checkSchemaVersions checks, for each schema in ascending version order, that
+// its version is the exact successor of its predecessor's: either the next minor
+// version, or the first (.0) version of the next major version. The first schema
+// must be 0.0. Versions are keys, so they can't repeat; this checks that none is
+// skipped.
+func (ml *maybeLineage) checkSchemaVersions(prev, curr *schemaDef) error {
 	if prev == nil {
 		if curr.v != synv(0, 0) {
-			return errors.Mark(cerrors.Newf(versionPos(curr), "the first schema must be version 0.0, not %s", curr.v), terrors.ErrInvalidSchemasOrder)
+			return errors.Mark(cerrors.Newf(userPos(curr.ref), "the first schema must be version 0.0, not %s", curr.v), terrors.ErrNonContiguousVersions)
 		}
 		return nil
 	}
 
 	nextMinor, nextMajor := synv(prev.v[0], prev.v[1]+1), synv(prev.v[0]+1, 0)
 	if curr.v != nextMinor && curr.v != nextMajor {
-		return errors.Mark(cerrors.Newf(versionPos(curr), "schema version %s does not follow %s: the next schema must be version %s or %s", curr.v, prev.v, nextMinor, nextMajor), terrors.ErrInvalidSchemasOrder)
+		return errors.Mark(cerrors.Newf(userPos(curr.ref), "schema version %s does not follow %s: the next schema must be version %s or %s", curr.v, prev.v, nextMinor, nextMajor), terrors.ErrNonContiguousVersions)
 	}
 
 	return nil
-}
-
-// versionPos returns the position of a schema entry's version as its author wrote
-// it, or of the entry itself if the version was omitted.
-func versionPos(sch *schemaDef) token.Pos {
-	if v := sch.ref.LookupPath(cue.MakePath(cue.Str("version"))); authorWrote(v) {
-		return userPos(v)
-	}
-	return userPos(sch.ref)
 }
 
 func (ml *maybeLineage) checkExists(cfg *bindConfig) error {
@@ -194,7 +197,8 @@ func (ml *maybeLineage) checkExists(cfg *bindConfig) error {
 }
 
 // checkUnknownFields reports regular fields that thema does not define, at the
-// lineage, schema entry and lens levels. thema's CUE rejects these too, but CUE
+// lineage, schema entry and lens levels, and keys that are not versions (in
+// schemas) or edges (in lenses). thema's CUE rejects these too, but CUE
 // positions such errors at the guard in thema's own CUE; reporting them from Go
 // points at the author's line instead. Hidden and definition fields are left alone,
 // as they are free for the author's own helpers.
@@ -227,22 +231,45 @@ func (ml *maybeLineage) checkUnknownFields() error {
 			errs = cerrors.Append(errs, cerrors.Newf(userPos(iter.Value()), "%s is not a field of %s; valid fields are %s", sel.Unquoted(), what, strings.Join(names, ", ")))
 		}
 	}
-	each := func(list cue.Value, known cue.Value, what string) {
-		// List() refuses to iterate a list whose elements contain errors, which is
-		// exactly the case being checked for, so walk the elements by index.
-		for i := 0; ; i++ {
-			elem := list.LookupPath(cue.MakePath(cue.Index(i)))
-			if !elem.Exists() {
-				return
+	// each calls fn with each regular field of v whose key is valid, and reports
+	// those whose key isn't.
+	each := func(v cue.Value, valid func(string) bool, badkey string, fn func(cue.Value)) {
+		iter, err := v.Fields(cue.Optional(true))
+		if err != nil {
+			return
+		}
+		for iter.Next() {
+			if !iter.Selector().IsString() {
+				continue
 			}
-			check(elem, known, what)
+			if key := iter.Selector().Unquoted(); !valid(key) {
+				errs = cerrors.Append(errs, cerrors.Newf(userPos(iter.Value()), "%q is not %s", key, badkey))
+				continue
+			}
+			fn(iter.Value())
 		}
 	}
+	isVersion := func(key string) bool {
+		_, ok := parseVersionKey(key)
+		return ok
+	}
+	isEdge := func(key string) bool {
+		_, ok := parseLensEdge(key)
+		return ok
+	}
+	const versionKeys = `schemas are keyed by major, then minor version, each a non-negative integer such as "0"`
 
 	rtv := ml.rt.Underlying()
+	schdef, lensdef := rtv.LookupPath(cue.MakePath(cue.Str("SchemaDef"))), rtv.LookupPath(cue.MakePath(cue.Str("Lens")))
 	check(ml.raw, ml.rt.linDef(), "a lineage")
-	each(ml.raw.LookupPath(cue.MakePath(cue.Str("schemas"))), rtv.LookupPath(cue.MakePath(cue.Str("SchemaDef"))), "a schema entry")
-	each(ml.raw.LookupPath(cue.MakePath(cue.Str("lenses"))), rtv.LookupPath(cue.MakePath(cue.Str("Lens"))), "a lens")
+	each(ml.raw.LookupPath(cue.MakePath(cue.Str("schemas"))), isVersion, "a major version; "+versionKeys, func(major cue.Value) {
+		each(major, isVersion, "a minor version; "+versionKeys, func(sch cue.Value) {
+			check(sch, schdef, "a schema entry")
+		})
+	})
+	each(ml.raw.LookupPath(cue.MakePath(cue.Str("lenses"))), isEdge, `a lens edge; lenses are keyed by "<from>-><to>" versions, such as "1.0->0.1"`, func(lens cue.Value) {
+		check(lens, lensdef, "a lens")
+	})
 
 	if errs != nil {
 		return errors.Mark(errs, terrors.ErrInvalidLineage)
@@ -270,10 +297,12 @@ func (ml *maybeLineage) checkLineageShape(cfg *bindConfig) error {
 		if !val.Exists() {
 			return errors.Mark(mkerror(ml.raw, "not a lineage, missing Lineage.%s", path), terrors.ErrValueNotALineage)
 		}
-		// IsConcrete reports any list as concrete, even an open one, so also require
-		// a concrete length.
-		_, lenerr := val.Len().Int64()
-		if !val.IsConcrete() || (val.IncompleteKind() == cue.ListKind && lenerr != nil) {
+		if path == "schemas" {
+			if iter, err := val.Fields(); err == nil && !iter.Next() {
+				return errors.Mark(cerrors.Newf(userPos(val), "invalid lineage, Lineage.schemas must declare at least one schema"), terrors.ErrInvalidLineage)
+			}
+		}
+		if !val.IsConcrete() {
 			return errors.Mark(mkerror(val, "invalid lineage, Lineage.%s must be concrete", path), terrors.ErrInvalidLineage)
 		}
 	}
@@ -368,22 +397,14 @@ func (ml *maybeLineage) checkLensResults() error {
 	inputPath, resultPath := cue.MakePath(cue.Str("input")), cue.MakePath(cue.Str("result"))
 
 	var errs cerrors.Error
-	lenses := ml.uni.LookupPath(cue.MakePath(cue.Str("lenses")))
-	for li := 0; ; li++ {
-		lens := lenses.LookupPath(cue.MakePath(cue.Index(li)))
-		if !lens.Exists() {
-			break
-		}
-		var from, to SyntacticVersion
-		if lens.LookupPath(cue.MakePath(cue.Str("from"))).Decode(&from) != nil || lens.LookupPath(cue.MakePath(cue.Str("to"))).Decode(&to) != nil {
-			continue
-		}
+	for _, cl := range ml.cueLenses() {
+		lens, from, to := cl.v, cl.id.From, cl.id.To
 		fsch, tsch := byVersion[from], byVersion[to]
 		if fsch == nil || tsch == nil {
 			continue
 		}
 		fail := func(v cue.Value, format string, args ...any) {
-			errs = cerrors.Append(errs, cerrors.Newf(userPos(v), "lens %s -> %s: %s", from, to, fmt.Sprintf(format, args...)))
+			errs = cerrors.Append(errs, cerrors.Newf(userPos(v), "lens %s->%s: %s", from, to, fmt.Sprintf(format, args...)))
 		}
 
 		source := cuetil.CloseRecursive(ctx, fsch.def)
@@ -435,17 +456,8 @@ func (ml *maybeLineage) checkLacunas() error {
 	}
 
 	var errs cerrors.Error
-	lenses := ml.uni.LookupPath(cue.MakePath(cue.Str("lenses")))
-	for li := 0; ; li++ {
-		lens := lenses.LookupPath(cue.MakePath(cue.Index(li)))
-		if !lens.Exists() {
-			break
-		}
-		var from, to SyntacticVersion
-		if lens.LookupPath(cue.MakePath(cue.Str("from"))).Decode(&from) != nil || lens.LookupPath(cue.MakePath(cue.Str("to"))).Decode(&to) != nil {
-			// Malformed lens versions are other checks' concern.
-			continue
-		}
+	for _, cl := range ml.cueLenses() {
+		lens, from, to := cl.v, cl.id.From, cl.id.To
 		fsch, tsch := byVersion[from], byVersion[to]
 		if fsch == nil || tsch == nil {
 			continue
@@ -457,12 +469,12 @@ func (ml *maybeLineage) checkLacunas() error {
 		lacunas, _ := raw.Default()
 		syn, err := cuetil.ParseLens(lens)
 		if err != nil {
-			errs = cerrors.Append(errs, cerrors.Newf(userPos(lens), "lens %s -> %s: %v", from, to, err))
+			errs = cerrors.Append(errs, cerrors.Newf(userPos(lens), "lens %s->%s: %v", from, to, err))
 			continue
 		}
 		if _, err := lacunas.Len().Int64(); err != nil || syn.LacunasConditional() {
 			errs = cerrors.Append(errs, cerrors.Newf(userPos(lacunas),
-				"lens %s -> %s: lacunas must be listed unconditionally, with each lacuna's condition field deciding whether it applies", from, to))
+				"lens %s->%s: lacunas must be listed unconditionally, with each lacuna's condition field deciding whether it applies", from, to))
 			continue
 		}
 		for i := 0; ; i++ {
@@ -471,7 +483,7 @@ func (ml *maybeLineage) checkLacunas() error {
 				break
 			}
 			fail := func(format string, args ...any) {
-				errs = cerrors.Append(errs, cerrors.Newf(userPos(lac), "lens %s -> %s, lacuna %d: %s", from, to, i, fmt.Sprintf(format, args...)))
+				errs = cerrors.Append(errs, cerrors.Newf(userPos(lac), "lens %s->%s, lacuna %d: %s", from, to, i, fmt.Sprintf(format, args...)))
 			}
 			if !lac.LookupPath(cue.MakePath(cue.Str("message"))).Exists() {
 				fail("message is required")
@@ -508,16 +520,17 @@ func (ml *maybeLineage) checkLacunas() error {
 	return nil
 }
 
-func (ml *maybeLineage) checkLensesOrder() error {
+// checkLensEdges checks that the edges a lineage has lenses for, whether in Go or
+// in CUE, are exactly those its schema versions require.
+func (ml *maybeLineage) checkLensEdges() error {
+	cuelenses := ml.cueLenses()
 	// Two distinct validation paths, depending on whether the lenses were defined in
 	// Go or CUE.
 	if len(ml.implens) > 0 {
 		// A lineage's lenses come from Go or from CUE, never both: with Go lenses
 		// supplied, CUE lenses would be neither used nor checked.
-		if cl, _ := ml.uni.LookupPath(cue.MakePath(cue.Str("lenses"))).Default(); cl.Exists() {
-			if n, err := cl.Len().Int64(); err != nil || n > 0 {
-				return errors.Mark(errors.New("lineage declares CUE lenses, but Go lenses were supplied: a lineage's lenses must all be in Go or all in CUE"), terrors.ErrErroneousLenses)
-			}
+		if len(cuelenses) > 0 {
+			return errors.Mark(errors.New("lineage declares CUE lenses, but Go lenses were supplied: a lineage's lenses must all be in Go or all in CUE"), terrors.ErrErroneousLenses)
 		}
 		ids := make([]lensID, 0, len(ml.implens))
 		for _, lens := range ml.implens {
@@ -536,30 +549,32 @@ func (ml *maybeLineage) checkLensesOrder() error {
 		return nil
 	}
 
-	lensIter, err := ml.uni.LookupPath(cue.MakePath(cue.Str("lenses"))).List()
-	if err != nil {
-		return nil // no lenses found
+	ids := make([]lensID, 0, len(cuelenses))
+	for _, cl := range cuelenses {
+		ids = append(ids, cl.id)
 	}
-
-	var ids []lensID
-	var previous *lensVersionDef
-	for lensIter.Next() {
-		curr, err := newLensVersionDef(lensIter.Value())
-		if err != nil {
-			return err
-		}
-
-		if err := doCheck(previous, &curr); err != nil {
-			return err
-		}
-
-		previous = &curr
-		ids = append(ids, lid(curr.from, curr.to))
-	}
-
-	// Translate selects CUE lenses by their position in the sorted list, so a
-	// missing or extra lens would shift every lens after it.
 	return ml.checkLensCompleteness(ids, "lenses")
+}
+
+// cueLens is a lens declared in a lineage's CUE, and the edge it is declared at.
+type cueLens struct {
+	id lensID
+	v  cue.Value
+}
+
+// cueLenses returns the lenses declared in the lineage's CUE. Their keys have
+// already been checked by checkUnknownFields.
+func (ml *maybeLineage) cueLenses() []cueLens {
+	iter, err := ml.uni.LookupPath(cue.MakePath(cue.Str("lenses"))).Fields()
+	if err != nil {
+		return nil
+	}
+	var lenses []cueLens
+	for iter.Next() {
+		id, _ := parseLensEdge(iter.Selector().Unquoted())
+		lenses = append(lenses, cueLens{id: id, v: iter.Value()})
+	}
+	return lenses
 }
 
 // checkLensCompleteness checks that a lineage has exactly the lenses its schema
@@ -652,60 +667,4 @@ func (ml *maybeLineage) erroneousLensReason(elid lensID) string {
 		// forward lens across major versions, between non-adjacent versions
 		return fmt.Sprintf("%s is the successor of %s, not %s", ml.allv[searchSynv(ml.allv, elid.From)+1], elid.From, elid.To)
 	}
-}
-
-type lensVersionDef struct {
-	to   SyntacticVersion
-	from SyntacticVersion
-}
-
-func newLensVersionDef(val cue.Value) (lensVersionDef, error) {
-	v := lensVersionDef{}
-	to, err := v.version(val, "to")
-	if err != nil {
-		return lensVersionDef{}, err
-	}
-
-	from, err := v.version(val, "from")
-	if err != nil {
-		return lensVersionDef{}, err
-	}
-
-	return lensVersionDef{to: to, from: from}, err
-}
-
-func doCheck(prev, curr *lensVersionDef) error {
-	if prev == nil {
-		return nil
-	}
-
-	if curr == nil {
-		return nil
-	}
-
-	if curr.to.Less(prev.to) {
-		return errors.Mark(
-			errors.Errorf("lens version [to: %s, from: %s] is not greater than previous lens version [to: %s, from: %s]", curr.to, curr.from, prev.to, prev.from),
-			terrors.ErrInvalidLensesOrder)
-	}
-
-	if prev.to == curr.to && curr.from.Less(prev.from) {
-		return errors.Mark(
-			errors.Errorf("lens version [to: %s, from: %s] is not greater than previous lens version [to: %s, from: %s]", curr.to, curr.from, prev.to, prev.from),
-			terrors.ErrInvalidLensesOrder)
-	}
-
-	return nil
-}
-
-func (lensVersionDef) version(val cue.Value, p string) (SyntacticVersion, error) {
-	vPath := cue.MakePath(cue.Str(p))
-	vval := val.Value().LookupPath(vPath)
-
-	v := SyntacticVersion{}
-	if err := vval.Value().Decode(&v); err != nil {
-		return v, errors.Mark(mkerror(val, "failed to decode lens version %s from: %s", vval, val), terrors.ErrInvalidLineage)
-	}
-
-	return v, nil
 }

@@ -4,20 +4,21 @@ import "github.com/sdboyer/thema"
 
 thema.Lineage
 name: "optional"
-schemas: [{
-	version: [0, 0]
-	schema: {
-        astring?: string
-        anint?:   int
-        abool?:   bool
-        abytes?:  bytes
-        alist?:   [...string]
-        astruct?: {
-            nested: string
-        }
+schemas: {
+	"0": "0": {
+		schema: {
+	        astring?: string
+	        anint?:   int
+	        abool?:   bool
+	        abytes?:  bytes
+	        alist?:   [...string]
+	        astruct?: {
+	            nested: string
+	        }
+		}
 	}
-}]
-lenses: []
+}
+lenses: {}
 -- out/encoding/typescript/TestGenerate/nilcfg --
 export interface Optional {
   abool?: boolean;
