@@ -131,3 +131,18 @@ dynamic: {("dy" + "n")~(K,V): {label: K}, w: V.label}
 	"dyn"~(V): label: string
 	w: V.label
 }
+-- out/selfcontained --
+## field
+{x~(X): 1, y: X}
+## dual
+{x~(V): n: 1, y: "x", z: V.n}
+## pattern
+{
+	[string]~(K,_): name: K
+	foo: {}
+}
+## dynamic
+{
+	"dyn"~(V): label: string
+	w: V.label
+}
