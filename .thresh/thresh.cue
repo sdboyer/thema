@@ -82,6 +82,7 @@ seams: "cue-dependency": {
 		"Go code that works around evaluator behavior (assignable.go detaches values before Subsume)",
 		"golden error output in testdata, which records CUE's error wording and positions",
 		"internal/cueview goldens, which record how CUE presents values as syntax; every check built on a view (lens checks in internal/cuetil) depends on them",
+		"version IDs (internal/contenthash goldens): the canonical form is built on how CUE exports values, so an upgrade that changes the export changes stored IDs",
 	]
 }
 
@@ -93,7 +94,7 @@ seams: "cueview-goldens": {
 	kind:  "shared-kernel"
 	paths: ["internal/cueview/testdata/*.txtar"]
 	consult: [
-		"every caller of the view whose output changed (internal/cuetil syntax.go reads Evaluated through cueview.Tree)",
+		"every caller of the view whose output changed (internal/cuetil syntax.go reads Evaluated through cueview.Tree; internal/contenthash builds its canonical form on SelfContained)",
 		"the view's doc comment in internal/cueview/view.go, which lists its quirks",
 	]
 }
@@ -111,6 +112,20 @@ seams: "lens-result-fields": {
 		"bind.go checkGoLensCompleteness and checkLacunas, and instance.go Translate (Go lenses) and checkLensResultFields (CUE lenses): all must apply the same rule",
 		"AGENTS.md, Lens results",
 		"testdata/cases/lens-* and the construction-independence tests in internal/cuetil",
+	]
+}
+
+// A version's ID is two digests of canonical forms of its content. IDs are
+// stored (envelopes, a registry of record), so the canonical form is co-owned
+// with every ID ever computed: a change to it, or to where a version's schema and
+// lenses are found, changes IDs and orphans what was recorded against them.
+seams: "content-hash": {
+	kind:  "shared-kernel"
+	paths: ["internal/contenthash/*.go", "internal/contenthash/testdata/*.txtar"]
+	consult: [
+		"every stored version ID; a change to the golden digests in internal/contenthash/testdata is a change to them",
+		"internal/cueview SelfContained and its goldens, which the canonical form is built on",
+		"the tip and cut workflow (#65) and lens fixes (#67), which compare schema and lens digests",
 	]
 }
 
@@ -168,13 +183,14 @@ seams: "cue-views": {
 	paths: ["internal/cueview/view.go"]
 	funcs: "[A-Z]*"
 	declared: {
-		Written:    "the author's text with positions, per conjunct; for pointing errors at it, never for deciding anything"
-		Evaluated:  "the value as evaluated, not final; depends only on the value; the basis for structural checks"
-		Raw:        "the names the value's syntax refers to, left dangling"
-		Final:      "defaults taken, closed; what a user sees by default, without requiring concreteness"
-		Data:       "concrete data, failing on anything else, which Syntax alone would hide as _|_ comments"
-		Documented: "Evaluated with doc comments, for output people read"
-		Text:       "formats syntax from any view as CUE source"
+		Written:       "the author's text with positions, per conjunct; for pointing errors at it, never for deciding anything"
+		Evaluated:     "the value as evaluated, not final; depends only on the value; the basis for structural checks"
+		Raw:           "the names the value's syntax refers to, left dangling"
+		Final:         "defaults taken, closed; what a user sees by default, without requiring concreteness"
+		Data:          "concrete data, failing on anything else, which Syntax alone would hide as _|_ comments"
+		Documented:    "Evaluated with doc comments, for output people read"
+		Text:          "formats syntax from any view as CUE source"
+		SelfContained: "Evaluated with imported packages inlined, for questions about a value's content that must not stop at an import path, such as hashing it"
 	}
 }
 
