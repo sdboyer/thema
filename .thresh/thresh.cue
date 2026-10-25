@@ -82,6 +82,21 @@ seams: "cue-dependency": {
 		"Go code that works around evaluator behavior (assignable.go detaches values before Subsume)",
 		"golden error output in testdata, which records CUE's error wording and positions",
 		"internal/cueview goldens, which record how CUE presents values as syntax; every check built on a view (lens checks in internal/cuetil) depends on them",
+		"internal/compile tests, which pin what the evaluator does with positions in AST built for authoring files: that a node's position carries its language version and experiments, and where errors' positions land in thema's pipeline",
+	]
+}
+
+// Error positions are chosen by telling thema's own CUE apart from the author's
+// by path (bind.go userPos and authorWrote). thema's CUE reaches the evaluator at
+// two paths: the embedded module's root, for lineages that import thema, and the
+// Runtime's load path, for everything BindLineage unifies with thema.Lineage
+// itself and for every pseudofunction call such as Translate.
+seams: "kernel-paths": {
+	kind:  "shared-kernel"
+	paths: ["runtime.go"]
+	consult: [
+		"bind.go userPos and authorWrote, which recognize thema's CUE only at embedreg.Root()",
+		"internal/compile classify, and the kernel positions in its pipeline goldens",
 	]
 }
 

@@ -1,0 +1,29 @@
+A minor version that breaks compatibility with its predecessor. The authoring
+form derives major vs. minor from this check, so a compiler won't produce this,
+but BindLineage still checks it.
+
+The error carries no position at all. BindLineage positions it at the schema
+value's Source(), which is nil for a value with more than one conjunct (thema's
+schema!: _ and the author's), so it falls back to a plain error. The compat
+checker's detail, in the text only, points at thema's lineage.cue (_schema),
+not at either schema.
+-- ship/history/0.0.thema --
+schema: {
+	title: string
+}
+-- ship/0.1.thema --
+schema: {
+	title: int
+}
+
+backward: {
+	title: "untitled"
+}
+-- out/error --
+schema 0.1 is not backwards compatible with schema 0.0:
+field title not present in {title:string}:
+    /github.com/sdboyer/thema/lineage.cue:227:11
+missing field "title"
+-- out/positions --
+schema 0.1 is not backwards compatible with schema 0.0:
+	no positions

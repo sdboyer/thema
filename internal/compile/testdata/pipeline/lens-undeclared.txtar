@@ -1,0 +1,35 @@
+The forward lens builds a field (extra, line 9 of 1.0) that schema 1.0 doesn't
+declare, though the schema is open. checkLensResults finds it in Go.
+
+The error is positioned at the whole lens result (here, the lens on line 7),
+not at the field: UndeclaredLensFields returns paths, and cuetil's syntax Tree
+has no positions (see TestViewsOfAuthoredValues). Looking up the lens value at
+each path would find the field's position. The Translate-time counterpart,
+checkLensResultFields, returns errors with no position, but isn't reached here:
+bind rejects the lens first.
+-- ship/history/0.0.thema --
+schema: {
+	title: string
+	count?: int
+}
+-- ship/1.0.thema --
+schema: {
+	title: string
+	count: int & <10
+	...
+}
+
+forward: {
+	count: from.count
+	extra: 1
+}
+
+backward: {
+	count: to.count
+}
+-- out/error --
+lens 0.0 -> 1.0: fields not declared by schema 1.0: extra:
+    ship/1.0.thema:7:1
+-- out/positions --
+lens 0.0 -> 1.0: fields not declared by schema 1.0: extra
+	authored ship/1.0.thema:7:1

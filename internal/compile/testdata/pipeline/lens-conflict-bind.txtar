@@ -1,0 +1,37 @@
+A constant in the forward lens ("many", line 7 of 1.0) conflicts with schema
+1.0 (int, line 3), found by checkLensResults at bind.
+
+The one structured position is the lens result as a whole (here, the lens on
+line 6), chosen by userPos. The CUE detail, which cites the constant, the
+schema and thema's lineage.cue, is flattened into the message, so those
+positions are lost to tools. The path is normal-form structure
+(Lineage.lenses.1.result.count).
+-- ship/history/0.0.thema --
+schema: {
+	title: string
+	count?: int
+}
+-- ship/1.0.thema --
+schema: {
+	title: string
+	count: int & <10
+}
+
+forward: {
+	count: "many"
+}
+
+backward: {
+	count: to.count
+}
+-- out/error --
+lens 0.0 -> 1.0: result is not an instance of schema 1.0:
+Lineage.lenses.1.result.count: conflicting values "many" and int (mismatched types string and int):
+    /github.com/sdboyer/thema/lineage.cue:227:19
+    ship/1.0.thema:3:9
+    ship/1.0.thema:7:9
+:
+    ship/1.0.thema:6:1
+-- out/positions --
+lens 0.0 -> 1.0: result is not an instance of schema 1.0:
+	authored ship/1.0.thema:6:1
