@@ -178,6 +178,19 @@ seams: "go-residual-checks": {
 	}
 }
 
+// thema's CUE API is built from regular fields, not definitions: definitions close
+// recursively, and authors' schemas flow through these structures, so a definition
+// would impose closedness on every schema. Each definition is an exception that
+// must say why it can't be a regular field.
+seams: "kernel-definitions": {
+	kind:  "declared-set"
+	paths: ["lineage.cue", "translate.cue", "lacuna.cue", "traverse.cue"]
+	defs:  "*#*"
+	declared: {
+		"#LatestVersion": "lets a user's package reference a computed member without it appearing in exported data; holds a version, never a schema"
+	}
+}
+
 // Each view of a cue.Value as syntax is a deliberate, documented choice of
 // options with known quirks. Variants made ad hoc at call sites are how those
 // quirks get rediscovered; a new view must say why none of these will do.
