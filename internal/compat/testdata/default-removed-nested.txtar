@@ -5,4 +5,4 @@ s: {a: *1 | int}
 s: {a: int}
 -- out --
 incompatible
-s.a was defaulted and is now required; prior instances that omit it are rejected (rule field-now-required) @ new.cue:1:5
+s.a was defaulted and is now required (rule field-now-required) @ new.cue:1:5

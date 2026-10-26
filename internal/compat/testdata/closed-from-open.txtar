@@ -6,4 +6,4 @@ a: int
 a: int
 -- out --
 incompatible
-the top level accepts any field name in the prior schema and is closed in the new one; prior instances with an undeclared field here are rejected (rule labels-narrowed) @ -
+the top level accepts any field name in the prior schema and is closed in the new one (rule labels-narrowed) @ -

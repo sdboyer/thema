@@ -5,4 +5,4 @@ s: {a: *1 | int}
 s: {a: *2 | int}
 -- out --
 incompatible
-s.a fills with 2 when absent, where the prior schema filled it with 1; prior instances that omit it change value (rule default-changed) @ new.cue:1:5
+s.a fills with 2 when absent, where the prior schema filled it with 1 (rule default-changed) @ new.cue:1:5

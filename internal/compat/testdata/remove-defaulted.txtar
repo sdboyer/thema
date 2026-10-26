@@ -6,4 +6,4 @@ b: *1 | int
 a: string
 -- out --
 incompatible
-b is declared in the prior schema and not accepted by the new one; prior instances that set it are rejected (rule field-removed) @ old.cue:2:1
+b is declared in the prior schema and not accepted by the new one (rule field-removed) @ old.cue:2:1

@@ -38,11 +38,11 @@ lin: lenses: [{
 }]
 -- out/bindfail --
 schema 0.1 is not backwards compatible with schema 0.0:
-concreteCross is now "foo" | 42, which has no alternative for the prior "bar"; prior instances holding "bar" here are rejected (rule value-narrowed):
+concreteCross is now "foo" | 42, which has no alternative for the prior "bar" (rule value-narrowed):
     /in.cue:18:9
-concreteString is now "foo" | "bar", which has no alternative for the prior "baz"; prior instances holding "baz" here are rejected (rule value-narrowed):
+concreteString is now "foo" | "bar", which has no alternative for the prior "baz" (rule value-narrowed):
     /in.cue:19:9
-crossKind3 is now string | int32, no alternative of which has the kind bytes of the prior alternative bytes; prior instances holding any bytes here are rejected (rule value-narrowed):
+crossKind3 is now string | int32, no alternative of which has the kind bytes of the prior alternative bytes (rule value-narrowed):
     /in.cue:20:9
-crossKind2 was int and is now string; prior instances holding any int here are rejected (rule value-narrowed):
+crossKind2 was int and is now string (rule value-narrowed):
     /in.cue:21:9

@@ -5,4 +5,4 @@ m: [string]: {a: *1 | int}
 m: [string]: {a: int}
 -- out --
 incompatible
-m.[_].a was defaulted and is now required; prior instances that omit it are rejected (rule field-now-required) @ new.cue:1:15
+m.[_].a was defaulted and is now required (rule field-now-required) @ new.cue:1:15

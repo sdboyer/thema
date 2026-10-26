@@ -5,4 +5,4 @@ a: *1 | int
 a?: int
 -- out --
 incompatible
-a was filled when absent and is now left absent; prior instances that omit it lose the value (rule default-removed) @ new.cue:1:1
+a was filled when absent and is now left absent (rule default-removed) @ new.cue:1:1

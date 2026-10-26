@@ -5,4 +5,4 @@ l: [...{a: *1 | int}]
 l: [...{a: int}]
 -- out --
 incompatible
-l.[_].a was defaulted and is now required; prior instances that omit it are rejected (rule field-now-required) @ new.cue:1:9
+l.[_].a was defaulted and is now required (rule field-now-required) @ new.cue:1:9

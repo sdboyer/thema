@@ -127,7 +127,7 @@ of three verdicts.
 - **compatible**: every prior instance is accepted and means the same thing at
   this path.
 - **incompatible**: a change at this path rejects some prior instance or
-  changes what it means. The finding says which instances.
+  changes what it means.
 - **unknown**: the schemas differ at this path in a way the checker cannot
   decide, because deciding it would need the instance (a constraint between
   fields, a comprehension) or an analysis the checker does not attempt
@@ -141,11 +141,11 @@ rewrites the schema so that the checker can decide, or makes it a major step.
 Every finding names the rule that produced it, so that it can be looked up in
 the tables below, and reads
 
-    <path> <what changed>; <what happens to prior instances> (rule <name>)
+    <path> <what changed> (rule <name>)
 
 for example
 
-    added is required in the new schema but not declared in the prior one; prior instances that omit it are rejected (rule field-added-required)
+    added is required in the new schema but not declared in the prior one (rule field-added-required)
 
 | Rule | Incompatible when |
 |---|---|

@@ -30,5 +30,5 @@ lin: lenses: [{
 }]
 -- out/bindfail --
 schema 0.1 is not backwards compatible with schema 0.0:
-added is required in the new schema but not declared in the prior one; prior instances that omit it are rejected (rule field-added-required):
+added is required in the new schema but not declared in the prior one (rule field-added-required):
     /in.cue:16:9

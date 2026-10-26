@@ -5,4 +5,4 @@ a?: int
 a!: int
 -- out --
 incompatible
-a was optional and is now required; prior instances that omit it are rejected (rule field-now-required) @ new.cue:1:1
+a was optional and is now required (rule field-now-required) @ new.cue:1:1

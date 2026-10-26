@@ -5,4 +5,4 @@ n!: {a!: string}
 n!: {a!: string, b!: int}
 -- out --
 incompatible
-n.b is required in the new schema but not declared in the prior one; prior instances that omit it are rejected (rule field-added-required) @ new.cue:1:18
+n.b is required in the new schema but not declared in the prior one (rule field-added-required) @ new.cue:1:18

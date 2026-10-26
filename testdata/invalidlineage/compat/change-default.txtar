@@ -46,5 +46,5 @@ lenses: [
 ]
 -- out/bindfail --
 schema 0.2 is not backwards compatible with schema 0.1:
-aunion fills with "baz" when absent, where the prior schema filled it with "foo"; prior instances that omit it change value (rule default-changed):
+aunion fills with "baz" when absent, where the prior schema filled it with "foo" (rule default-changed):
     /in.cue:22:7

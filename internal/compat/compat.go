@@ -113,8 +113,8 @@ const (
 
 // Finding is one verdict at one path. Compatible paths produce no finding.
 //
-// Its text reads as a sentence about the value at Path: "<path> <detail>;
-// <effect> (rule <rule>)". The two schemas are "the prior schema" and "the new
+// Its text reads as a sentence about the value at Path: "<path> <detail>
+// (rule <rule>)". The two schemas are "the prior schema" and "the new
 // schema".
 type Finding struct {
 	Path    cue.Path
@@ -124,11 +124,6 @@ type Finding struct {
 	// whose subject is the value there: "is required in the new schema but
 	// not declared in the prior one".
 	Detail string
-	// Effect says what happens to instances of the prior schema, where that
-	// is known: "prior instances that omit it are rejected". It is what makes
-	// an Incompatible verdict concrete. Empty for Unknown findings and for
-	// narrowings reported by CUE's subsumption.
-	Effect string
 	// Pos is the author's position for the finding: the field in new, or in old
 	// for a field new lacks.
 	Pos token.Pos
@@ -140,11 +135,7 @@ func (f Finding) String() string {
 	if len(f.Path.Selectors()) > 0 {
 		subject = f.Path.String()
 	}
-	fmt.Fprintf(&b, "%s %s", subject, f.Detail)
-	if f.Effect != "" {
-		fmt.Fprintf(&b, "; %s", f.Effect)
-	}
-	fmt.Fprintf(&b, " (rule %s)", f.Rule)
+	fmt.Fprintf(&b, "%s %s (rule %s)", subject, f.Detail, f.Rule)
 	return b.String()
 }
 
@@ -298,7 +289,6 @@ func (w *walker) value(p cue.Path, pred, succ cue.Value) {
 				w.add(Finding{
 					Path: p, Verdict: Incompatible, Rule: RuleValueNarrowed,
 					Detail: fmt.Sprintf("is now %s, which has no alternative for the prior %s", fmtv(succ), fmtv(o)),
-					Effect: fmt.Sprintf("prior instances holding %s here are rejected", fmtv(o)),
 					Pos:    posOf(succ, pred),
 				})
 				continue
@@ -307,7 +297,6 @@ func (w *walker) value(p cue.Path, pred, succ cue.Value) {
 				w.add(Finding{
 					Path: p, Verdict: Incompatible, Rule: RuleValueNarrowed,
 					Detail: fmt.Sprintf("is now %s, no alternative of which has the kind %s of the prior alternative %s", fmtv(succ), ok, fmtv(o)),
-					Effect: fmt.Sprintf("prior instances holding any %s here are rejected", ok),
 					Pos:    posOf(succ, pred),
 				})
 				continue
@@ -373,7 +362,6 @@ func (w *walker) single(p cue.Path, pred, succ, wholeSucc cue.Value) {
 		w.add(Finding{
 			Path: p, Verdict: Incompatible, Rule: RuleValueNarrowed,
 			Detail: fmt.Sprintf("was %s and is now %s", okind, nkind),
-			Effect: fmt.Sprintf("prior instances holding any %s here are rejected", okind),
 			Pos:    posOf(wholeSucc),
 		})
 	default:
@@ -559,7 +547,6 @@ func (w *walker) structs(p cue.Path, pred, succ cue.Value) {
 				w.add(Finding{
 					Path: fp, Verdict: Incompatible, Rule: RuleFieldRemoved,
 					Detail: "is declared in the prior schema and not accepted by the new one",
-					Effect: "prior instances that set it are rejected",
 					Pos:    posOf(of.value),
 				})
 				continue
@@ -585,7 +572,6 @@ func (w *walker) structs(p cue.Path, pred, succ cue.Value) {
 			w.add(Finding{
 				Path: fp, Verdict: Incompatible, Rule: RuleFieldAddedRequired,
 				Detail: "is required in the new schema but not declared in the prior one",
-				Effect: "prior instances that omit it are rejected",
 				Pos:    posOf(nf.value),
 			})
 			continue
@@ -611,7 +597,6 @@ func (w *walker) classes(fp cue.Path, of, nf field) {
 			w.add(Finding{
 				Path: fp, Verdict: Incompatible, Rule: RuleDefaultChanged,
 				Detail: fmt.Sprintf("fills with %s when absent, where the prior schema filled it with %s", fmtv(nf.fill), fmtv(of.fill)),
-				Effect: "prior instances that omit it change value",
 				Pos:    posOf(nf.value),
 			})
 		}
@@ -620,14 +605,12 @@ func (w *walker) classes(fp cue.Path, of, nf field) {
 		w.add(Finding{
 			Path: fp, Verdict: Incompatible, Rule: RuleFieldNowRequired,
 			Detail: fmt.Sprintf("was %s and is now required", of.class),
-			Effect: "prior instances that omit it are rejected",
 			Pos:    posOf(nf.value),
 		})
 	case of.class == defaulted && nf.class == optional:
 		w.add(Finding{
 			Path: fp, Verdict: Incompatible, Rule: RuleDefaultRemoved,
 			Detail: "was filled when absent and is now left absent",
-			Effect: "prior instances that omit it lose the value",
 			Pos:    posOf(nf.value),
 		})
 	}
@@ -655,7 +638,6 @@ func (w *walker) residuals(p cue.Path, pred, succ cue.Value, os, ns structShape)
 			w.add(Finding{
 				Path: p, Verdict: Incompatible, Rule: RuleLabelsNarrowed,
 				Detail: "accepts any field name in the prior schema and is closed in the new one",
-				Effect: "prior instances with an undeclared field here are rejected",
 				Pos:    posOf(succ, pred),
 			})
 			return
@@ -695,7 +677,6 @@ func (w *walker) residuals(p cue.Path, pred, succ cue.Value, os, ns structShape)
 			w.add(Finding{
 				Path: p, Verdict: Incompatible, Rule: RuleLabelsNarrowed,
 				Detail: fmt.Sprintf("accepts any field name in the prior schema and only names matching %s in the new one", patternsString(ns.patterns)),
-				Effect: "prior instances with a field here whose name does not match are rejected",
 				Pos:    posOf(succ, pred),
 			})
 			return
@@ -748,7 +729,6 @@ func (w *walker) lists(p cue.Path, pred, succ cue.Value) {
 		w.add(Finding{
 			Path: p, Verdict: Incompatible, Rule: RuleLengthNarrowed,
 			Detail: fmt.Sprintf("had length %s and now has length %s", fmtv(pred.Len()), fmtv(succ.Len())),
-			Effect: "prior instances whose length the new bounds exclude are rejected",
 			Pos:    posOf(succ),
 		})
 	}
@@ -788,7 +768,6 @@ func (w *walker) leaf(p cue.Path, pred, succ, wholeSucc cue.Value) {
 			w.add(Finding{
 				Path: p, Verdict: Incompatible, Rule: RuleValueNarrowed,
 				Detail: fmt.Sprintf("was %s and is now %s", fmtv(pred), fmtv(succ)),
-				Effect: fmt.Sprintf("prior instances holding %s here are rejected", fmtv(pred)),
 				Pos:    posOf(wholeSucc),
 			})
 		}

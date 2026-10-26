@@ -28,5 +28,5 @@ lenses: [{
 }]
 -- out/bindfail --
 schema 0.1 is not backwards compatible with schema 0.0:
-toUpgrade was optional and is now required; prior instances that omit it are rejected (rule field-now-required):
+toUpgrade was optional and is now required (rule field-now-required):
     /in.cue:15:9
