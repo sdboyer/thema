@@ -22,6 +22,5 @@ lin2: schemas: [{
 }]
 -- out/isappendonly-fail --
 field anInt not present in {anInt:*12 | >0 & <=24 & int}:
-    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:219:11
-    ./in.cue:7:10
+    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:227:11
 missing field "anInt"
