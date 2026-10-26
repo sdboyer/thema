@@ -1,0 +1,55 @@
+A minor version adds an optional field. Its file is just the schema: the
+forward lens is implicit, and the backward lens is a derived drop, conditional
+on the field being present.
+-- ship/history/0.0.thema --
+schema: {
+	firstfield: string
+}
+-- ship/0.1.thema --
+schema: {
+	firstfield:  string
+	secondfield?: int
+}
+-- out/bind --
+ok
+-- out/decompiled/0.1.thema --
+schema: {
+	firstfield:   string
+	secondfield?: int
+}
+-- out/decompiled/history/0.0.thema --
+schema:
+	firstfield: string
+-- out/normal.cue --
+name: "ship"
+schemas:
+	"0": {
+		"0": {
+			schema: {
+				firstfield: string
+			}
+		}
+		"1": {
+			schema: {
+				firstfield:   string
+				secondfield?: int
+			}
+		}
+	}
+lenses:
+	"0.1->0.0": {
+		input: _
+		result: {
+			firstfield: input.firstfield
+		}
+		lacunas: [{
+			@thema(derived)
+			condition: input.secondfield != _|_
+			sourceFields: [{
+				path:  "secondfield"
+				value: input.secondfield
+			}]
+			message: "secondfield has no equivalent in 0.0 and was dropped"
+			type:    "DroppedField"
+		}]
+	}

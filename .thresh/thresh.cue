@@ -32,6 +32,19 @@ seams: "compat-verdicts": {
 	]
 }
 
+// The compiler and the decompiler are inverses on the canonical subset of the
+// normal form, and the round-trip fixtures prove it in both directions. A
+// change to what either emits or recognizes owes the other the same change.
+seams: "compile-roundtrip": {
+	kind:  "shared-kernel"
+	paths: ["internal/compile/compile.go", "internal/compile/lens.go", "internal/compile/decompile.go", "internal/compile/testdata/roundtrip/*.txtar"]
+	consult: [
+		"the other direction: what Compile emits, Decompile must recognize, and what Decompile omits, Compile must regenerate",
+		"the round-trip fixtures in internal/compile/testdata/roundtrip, which hold both directions' goldens",
+		"the lens language design (#62) and the authoring file format (#61), which the vocabulary and layout follow",
+	]
+}
+
 // --- shared-kernel: co-owners we can name ---------------------------------------
 
 // thema's own CUE definitions are the kernel both halves stand on: every lineage
