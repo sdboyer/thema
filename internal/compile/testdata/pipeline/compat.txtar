@@ -21,9 +21,8 @@ backward: {
 }
 -- out/error --
 schema 0.1 is not backwards compatible with schema 0.0:
-field title not present in {title:string}:
-    /github.com/sdboyer/thema/lineage.cue:227:11
-missing field "title"
+title was string and is now int (rule value-narrowed):
+    ship/0.1.thema:2:9
 -- out/positions --
 schema 0.1 is not backwards compatible with schema 0.0:
 	no positions
