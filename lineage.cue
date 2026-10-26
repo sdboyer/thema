@@ -55,7 +55,7 @@ Lineage: {
 	schemas!: struct.MinFields(1) & {
 		[=~versionKey]~(M,_): struct.MinFields(1) & {
 			[=~versionKey]~(m,_): SchemaDef & {
-				_join: joinSchema
+				_join:    joinSchema
 				_version: [strconv.Atoi(M), strconv.Atoi(m)]
 			}
 
@@ -119,7 +119,7 @@ Lineage: {
 	// for a schema that is a disjunction with a default re-evaluates in Go to the
 	// unclosed default (testdata/cases/shape-schema-default-disj).
 	_ordered: [for M in list.Range(0, len(schemas), 1)
-		for m in list.Range(0, len(schemas["\(M)"]), 1) {schemas["\(M)"]["\(m)"]._version}]
+	for m in list.Range(0, len(schemas["\(M)"]), 1) {schemas["\(M)"]["\(m)"]._version}]
 
 	// _basis keeps the index of the first schema in each major version
 	// within _ordered.
