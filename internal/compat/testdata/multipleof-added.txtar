@@ -1,0 +1,9 @@
+# math.MultipleOf added
+-- old.cue --
+s: int
+-- new.cue --
+import "math"
+s: int & math.MultipleOf(6)
+-- out --
+incompatible
+s must now satisfy math.MultipleOf(6), which the prior schema did not require (rule validator-added) @ new.cue:2:1

@@ -738,10 +738,11 @@ func patternsString(pats []cue.Selector) string {
 
 func (w *walker) lists(p cue.Path, pred, succ cue.Value) {
 	w.validators(p, pred, succ)
-	if err := succ.Len().Subsume(pred.Len(), cue.Raw()); err != nil {
+	olen, nlen := w.listLen(pred), w.listLen(succ)
+	if err := nlen.Subsume(olen, cue.Raw()); err != nil {
 		w.add(Finding{
 			Path: p, Verdict: Incompatible, Rule: RuleLengthNarrowed,
-			Detail: fmt.Sprintf("had length %s and now has length %s", fmtv(pred.Len()), fmtv(succ.Len())),
+			Detail: fmt.Sprintf("had length %s and now has length %s", fmtv(olen), fmtv(nlen)),
 			Pos:    posOf(succ),
 		})
 	}
@@ -796,6 +797,16 @@ func (w *walker) leaf(p cue.Path, pred, succ, wholeSucc cue.Value) {
 		})
 	}
 	w.validators(p, pred, succ)
+}
+
+// listLen is v's length constraint. A value that is only a validator
+// (list.Contains(1)) has no list to take a length from and admits any length,
+// as its plain part is top.
+func (w *walker) listLen(v cue.Value) cue.Value {
+	if n := v.Len(); n.Err() == nil {
+		return n
+	}
+	return w.ctx.CompileString("[...]").Len()
 }
 
 // splitValidators separates v into its plain constraints, unified, and its

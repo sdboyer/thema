@@ -1,0 +1,9 @@
+# strings.Contains widened: the prior argument implies the new one
+-- old.cue --
+import "strings"
+s: string & strings.Contains("bc")
+-- new.cue --
+import "strings"
+s: string & strings.Contains("b")
+-- out --
+compatible
