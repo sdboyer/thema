@@ -64,10 +64,8 @@ func (s ship) lineage() *ast.File {
 	}
 	s1 := at(v1.at("schema: {"), strct(s1elts...))
 
-	lens := func(header, resultPos token.Pos, from, to [2]int, result []ast.Decl, lacunas []ast.Expr) ast.Expr {
+	lens := func(header, resultPos token.Pos, result []ast.Decl, lacunas []ast.Expr) ast.Expr {
 		elts := []ast.Decl{
-			field("from", version(header, from[0], from[1])),
-			field("to", version(header, to[0], to[1])),
 			field("input", at(header, ident("_"))),
 			field("result", at(resultPos, strct(result...))),
 		}
@@ -93,16 +91,16 @@ func (s ship) lineage() *ast.File {
 
 	return &ast.File{Decls: []ast.Decl{
 		field("name", at(v1.header(), ast.NewString("ship"))),
-		field("schemas", at(v1.header(), ast.NewList(
-			at(v0.header(), strct(field("version", version(v0.header(), 0, 0)), field("schema", s0))),
-			at(v1.header(), strct(field("version", version(v1.header(), 1, 0)), field("schema", s1))),
+		field("schemas", at(v1.header(), strct(
+			key("0", at(v0.header(), strct(key("0", at(v0.header(), strct(field("schema", s0))))))),
+			key("1", at(v1.header(), strct(key("0", at(v1.header(), strct(field("schema", s1))))))),
 		))),
-		field("lenses", at(v1.header(), ast.NewList(
-			lens(bwd, bwd, [2]int{1, 0}, [2]int{0, 0}, []ast.Decl{
+		field("lenses", at(v1.header(), strct(
+			key("1.0->0.0", lens(bwd, bwd, []ast.Decl{
 				field("title", sel(bwd, "input", "title")),
 				field("count", sel(v1.at("to.count"), "input", "count")),
-			}, nil),
-			lens(fwd, fwdResultPos, [2]int{0, 0}, [2]int{1, 0}, fwdResult, s.fwdLacunas),
+			}, nil)),
+			key("0.0->1.0", lens(fwd, fwdResultPos, fwdResult, s.fwdLacunas)),
 		))),
 	}}
 }
@@ -150,20 +148,18 @@ var pipelineCases = map[string]pipelineCase{
 			v0, v1 := a.source(t, "ship/history/0.0.thema"), a.source(t, "ship/0.1.thema")
 			return &ast.File{Decls: []ast.Decl{
 				field("name", at(v1.header(), ast.NewString("ship"))),
-				field("schemas", at(v1.header(), ast.NewList(
-					at(v0.header(), strct(field("version", version(v0.header(), 0, 0)), field("schema",
-						at(v0.at("schema: {"), strct(field("title", at(v0.at("string"), ident("string")))))))),
-					at(v1.header(), strct(field("version", version(v1.header(), 0, 1)), field("schema",
-						at(v1.at("schema: {"), strct(field("title", at(v1.at("int"), ident("int")))))))),
-				))),
-				field("lenses", at(v1.header(), ast.NewList(at(v1.at("backward: {"), strct(
-					field("from", version(v1.at("backward: {"), 0, 1)),
-					field("to", version(v1.at("backward: {"), 0, 0)),
+				field("schemas", at(v1.header(), strct(key("0", at(v1.header(), strct(
+					key("0", at(v0.header(), strct(field("schema",
+						at(v0.at("schema: {"), strct(field("title", at(v0.at("string"), ident("string"))))))))),
+					key("1", at(v1.header(), strct(field("schema",
+						at(v1.at("schema: {"), strct(field("title", at(v1.at("int"), ident("int"))))))))),
+				)))))),
+				field("lenses", at(v1.header(), strct(key("0.1->0.0", at(v1.at("backward: {"), strct(
 					field("input", at(v1.at("backward: {"), ident("_"))),
 					field("result", at(v1.at("backward: {"), strct(
 						field("title", at(v1.at(`"untitled"`), ast.NewString("untitled"))),
 					))),
-				))))),
+				)))))),
 			}}
 		},
 		is: terrors.ErrInvalidLineage,

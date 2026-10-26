@@ -30,8 +30,8 @@ backward: {
 	count: to.count
 }
 -- out/error --
-Lineage.lenses.1.lacunas.0.severity: severity is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type:
+Lineage.lenses."0.0->1.0".lacunas.0.severity: severity is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type:
     /github.com/sdboyer/thema/lacuna.cue:39:68
 -- out/positions --
-Lineage.lenses.1.lacunas.0.severity: severity is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type
+Lineage.lenses."0.0->1.0".lacunas.0.severity: severity is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type
 	kernel /github.com/sdboyer/thema/lacuna.cue:39:68

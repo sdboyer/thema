@@ -28,8 +28,8 @@ backward: {
 	count: to.count
 }
 -- out/error --
-lens 0.0 -> 1.0: fields not declared by schema 1.0: extra:
+lens 0.0->1.0: fields not declared by schema 1.0: extra:
     ship/1.0.thema:7:1
 -- out/positions --
-lens 0.0 -> 1.0: fields not declared by schema 1.0: extra
+lens 0.0->1.0: fields not declared by schema 1.0: extra
 	authored ship/1.0.thema:7:1

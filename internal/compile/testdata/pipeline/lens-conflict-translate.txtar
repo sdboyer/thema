@@ -28,7 +28,7 @@ backward: {
 {"title": "a", "count": 20}
 -- out/error --
 Translate.out.steps: error in call to list.Drop: invalid value 20 (out of bound <10):
-    /github.com/sdboyer/thema/translate.cue:145:5
+    /github.com/sdboyer/thema/translate.cue:135:5
     data.json:1:25
     ship/1.0.thema:3:15
 Translate.out.steps._accum.1.result.count: invalid value 20 (out of bound <10):
@@ -36,7 +36,7 @@ Translate.out.steps._accum.1.result.count: invalid value 20 (out of bound <10):
     data.json:1:25
 -- out/positions --
 Translate.out.steps: error in call to list.Drop: invalid value 20 (out of bound <10)
-	kernel /github.com/sdboyer/thema/translate.cue:145:5
+	kernel /github.com/sdboyer/thema/translate.cue:135:5
 	data data.json:1:25
 	authored ship/1.0.thema:3:15
 Translate.out.steps._accum.1.result.count: invalid value 20 (out of bound <10)

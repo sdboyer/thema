@@ -73,6 +73,11 @@ func field(label string, v ast.Expr) *ast.Field {
 	return &ast.Field{Label: ast.NewIdent(label), Value: v}
 }
 
+// key builds a field with a string label, for keyed schemas and lenses.
+func key(label string, v ast.Expr) *ast.Field {
+	return &ast.Field{Label: ast.NewString(label), Value: v}
+}
+
 func optional(label string, v ast.Expr) *ast.Field {
 	return &ast.Field{Label: ast.NewIdent(label), Constraint: token.OPTION, Value: v}
 }
@@ -87,10 +92,6 @@ func ident(name string) *ast.Ident {
 
 func num(s string) *ast.BasicLit {
 	return ast.NewLit(token.INT, s)
-}
-
-func version(p token.Pos, major, minor int) *ast.ListLit {
-	return at(p, ast.NewList(at(p, num(fmt.Sprint(major))), at(p, num(fmt.Sprint(minor)))))
 }
 
 // sel builds input.<name>, positioned at p.

@@ -296,28 +296,43 @@ func TestSeparatelyBuiltFiles(t *testing.T) {
 
 	// Split the merged AST into one file per version, plus a skeleton with _
 	// where each version's parts go.
-	elems := func(label string) []ast.Expr {
-		for _, d := range merged.Decls {
-			if f := d.(*ast.Field); f.Label.(*ast.Ident).Name == label {
-				return f.Value.(*ast.ListLit).Elts
+	// entry returns the value at a label path in the merged AST, descending
+	// through keyed structs.
+	entry := func(labels ...string) ast.Expr {
+		decls := merged.Decls
+		var v ast.Expr
+		for _, label := range labels {
+			v = nil
+			for _, d := range decls {
+				if f, ok := d.(*ast.Field); ok {
+					if name, _, _ := ast.LabelName(f.Label); name == label {
+						v = f.Value
+					}
+				}
+			}
+			if v == nil {
+				t.Fatalf("no %s", strings.Join(labels, "."))
+			}
+			if s, ok := v.(*ast.StructLit); ok {
+				decls = s.Elts
 			}
 		}
-		t.Fatalf("no %s", label)
-		return nil
+		return v
 	}
-	schemas, lenses := elems("schemas"), elems("lenses")
-	v0 := ctx.BuildFile(fileOf(field("schema", schemas[0])))
-	v1 := ctx.BuildFile(fileOf(field("schema", schemas[1]), field("backward", lenses[0]), field("forward", lenses[1])))
+	s0, s1 := entry("schemas", "0", "0"), entry("schemas", "1", "0")
+	bwd, fwd := entry("lenses", "1.0->0.0"), entry("lenses", "0.0->1.0")
+	v0 := ctx.BuildFile(fileOf(field("schema", s0)))
+	v1 := ctx.BuildFile(fileOf(field("schema", s1), field("backward", bwd), field("forward", fwd)))
 	skel := ctx.BuildFile(fileOf(
 		merged.Decls[0],
-		field("schemas", ast.NewList(ident("_"), ident("_"))),
-		field("lenses", ast.NewList(ident("_"), ident("_"))),
+		field("schemas", strct(key("0", strct(key("0", ident("_")))), key("1", strct(key("0", ident("_")))))),
+		field("lenses", strct(key("1.0->0.0", ident("_")), key("0.0->1.0", ident("_")))),
 	))
 	lin := skel.
-		FillPath(cue.MakePath(cue.Str("schemas"), cue.Index(0)), v0.LookupPath(cue.ParsePath("schema"))).
-		FillPath(cue.MakePath(cue.Str("schemas"), cue.Index(1)), v1.LookupPath(cue.ParsePath("schema"))).
-		FillPath(cue.MakePath(cue.Str("lenses"), cue.Index(0)), v1.LookupPath(cue.ParsePath("backward"))).
-		FillPath(cue.MakePath(cue.Str("lenses"), cue.Index(1)), v1.LookupPath(cue.ParsePath("forward")))
+		FillPath(cue.MakePath(cue.Str("schemas"), cue.Str("0"), cue.Str("0")), v0.LookupPath(cue.ParsePath("schema"))).
+		FillPath(cue.MakePath(cue.Str("schemas"), cue.Str("1"), cue.Str("0")), v1.LookupPath(cue.ParsePath("schema"))).
+		FillPath(cue.MakePath(cue.Str("lenses"), cue.Str("1.0->0.0")), v1.LookupPath(cue.ParsePath("backward"))).
+		FillPath(cue.MakePath(cue.Str("lenses"), cue.Str("0.0->1.0")), v1.LookupPath(cue.ParsePath("forward")))
 	_, splitErr := thema.BindLineage(lin, rt)
 
 	if mergedErr == nil || splitErr == nil {
