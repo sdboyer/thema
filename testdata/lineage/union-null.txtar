@@ -357,7 +357,7 @@ Lenses count: 0
   }
 }
 -- out/encoding/typescript/TestGenerate/nilcfg --
-export interface Union-Null {
+export interface UnionNull {
   kindFloat: {
     simpleFloat64: number;
     simpleFloat32: number;
