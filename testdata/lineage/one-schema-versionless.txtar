@@ -82,6 +82,6 @@ Schema count: 1
 Schema versions: 0.0
 Lenses count: 0
 -- out/encoding/typescript/TestGenerate/nilcfg --
-export interface One-Schema-Versionless {
+export interface OneSchemaVersionless {
   firstfield: string;
 }
