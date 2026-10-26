@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -302,6 +303,13 @@ func (dc *dataCommand) runDehydrate(cmd *cobra.Command, args []string) error {
 	return err
 }
 
+// stdinHasInput reports whether a stdin with the given mode should be read
+// for input data. Only an interactive terminal (a character device) is ruled
+// out; pipes and files redirected onto stdin are both readable.
+func stdinHasInput(mode fs.FileMode) bool {
+	return mode&fs.ModeCharDevice == 0
+}
+
 func pathOrStdin(args []string) ([]byte, error) {
 	var byt []byte
 	switch len(args) {
@@ -310,7 +318,7 @@ func pathOrStdin(args []string) ([]byte, error) {
 		if err != nil {
 			panic(err)
 		}
-		if fi.Mode()&os.ModeNamedPipe == 0 {
+		if !stdinHasInput(fi.Mode()) {
 			return nil, errors.New("no path provided and nothing on stdin")
 		}
 

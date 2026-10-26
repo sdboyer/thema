@@ -36,8 +36,7 @@ lin2: schemas: {
 }
 -- out/isappendonly-fail --
 field aString not present in {aString:strings.MinRunes(2),anObject:{aField:int}}:
-    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:162:11
-    ./in.cue:25:11
+    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:170:11
 missing field "aString"
 invalid value strings.MinRunes(2) (does not satisfy strings.MinRunes(1)): non-concrete value string:
     ./in.cue:12:22

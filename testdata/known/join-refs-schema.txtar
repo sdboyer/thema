@@ -1,5 +1,5 @@
 # joinSchema references the lineage's latest schema, so it changes as the lineage grows
-#issue: 22
+#issue: 21
 -- in.cue --
 import (
 	"github.com/sdboyer/thema"
