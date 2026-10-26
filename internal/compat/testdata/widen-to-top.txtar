@@ -1,0 +1,7 @@
+# any constraint to _
+-- old.cue --
+n: int
+-- new.cue --
+n: _
+-- out --
+compatible

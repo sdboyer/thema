@@ -1,0 +1,44 @@
+Verifies defaults on fields that reference a type or enum:
+
+- A plain reference takes the referent's default, by reference to its
+  default declaration.
+- A default the referrer adds to a referenced type is printed inline. If
+  the default is a member of the referenced type, the disjunction adds
+  nothing to the type, which is generated as the plain reference.
+- The same applies to enums, whose default is the corresponding member.
+
+-- cue --
+#WithDefault: "a" | *"b" @cuetsy(kind="type")
+#NoDefault: "a" | "b" @cuetsy(kind="type")
+#Enum: "foo" | "bar" @cuetsy(kind="enum")
+
+#Fields: {
+  fromReferent: #WithDefault
+  fromReferrer: #NoDefault | *"b"
+  enumFromReferrer: #Enum | *"bar"
+} @cuetsy(kind="interface")
+
+-- ts --
+
+export type WithDefault = ('a' | 'b');
+
+export const defaultWithDefault: WithDefault = 'b';
+
+export type NoDefault = ('a' | 'b');
+
+export enum Enum {
+  Bar = 'bar',
+  Foo = 'foo',
+}
+
+export interface Fields {
+  enumFromReferrer: Enum;
+  fromReferent: WithDefault;
+  fromReferrer: NoDefault;
+}
+
+export const defaultFields: Partial<Fields> = {
+  enumFromReferrer: Enum.Bar,
+  fromReferent: defaultWithDefault,
+  fromReferrer: 'b',
+};

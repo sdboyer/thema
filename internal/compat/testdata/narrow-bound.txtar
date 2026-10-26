@@ -1,0 +1,8 @@
+# a bound added
+-- old.cue --
+n: int
+-- new.cue --
+n: int & >=0
+-- out --
+incompatible
+n is now uint, which does not accept every value of the prior int (rule value-narrowed) @ new.cue:1:1

@@ -31,5 +31,5 @@ lin: lenses: [{
 }]
 -- out/bindfail --
 schema 0.1 is not backwards compatible with schema 0.0:
-field not allowed in closed struct: getsRemoved
-value not an instance
+getsRemoved is declared in the prior schema and not accepted by the new one (rule field-removed):
+    /in.cue:10:9

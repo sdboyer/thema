@@ -1,0 +1,8 @@
+# a default removed under a pattern (compat-remove-default-pattern)
+-- old.cue --
+m: [string]: {a: *1 | int}
+-- new.cue --
+m: [string]: {a: int}
+-- out --
+incompatible
+m.[_].a was defaulted and is now required (rule field-now-required) @ new.cue:1:15

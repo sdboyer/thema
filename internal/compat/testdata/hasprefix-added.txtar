@@ -1,0 +1,9 @@
+# strings.HasPrefix added
+-- old.cue --
+s: string
+-- new.cue --
+import "strings"
+s: string & strings.HasPrefix("ab")
+-- out --
+incompatible
+s must now satisfy strings.HasPrefix("ab"), which the prior schema did not require (rule validator-added) @ new.cue:2:1

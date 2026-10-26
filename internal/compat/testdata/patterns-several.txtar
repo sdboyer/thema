@@ -1,0 +1,8 @@
+# several patterns on each side, not identical
+-- old.cue --
+m: {[=~"^a"]: int, [=~"^b"]: string}
+-- new.cue --
+m: {[=~"^a"]: int, [=~"^b"]: number}
+-- out --
+unknown
+m has several pattern constraints, [=~"^a"], [=~"^b"] in the prior schema and [=~"^a"], [=~"^b"] in the new one, which the checker compares only for identity (rule unknown-patterns) @ new.cue:1:1

@@ -1,0 +1,8 @@
+# list elements narrowed
+-- old.cue --
+l: [...number]
+-- new.cue --
+l: [...int]
+-- out --
+incompatible
+l.[_] is now int, which does not accept every value of the prior number (rule value-narrowed) @ new.cue:1:8

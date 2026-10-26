@@ -1,0 +1,7 @@
+# same default, widened alternatives (change-default step 1)
+-- old.cue --
+u: *"foo" | "bar"
+-- new.cue --
+u: *"foo" | "bar" | "baz"
+-- out --
+compatible
