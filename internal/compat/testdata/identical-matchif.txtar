@@ -1,0 +1,7 @@
+# an identical matchIf
+-- old.cue --
+a: matchIf({x!: _}, {y!: _}, _) & {x?: int, y?: int}
+-- new.cue --
+a: matchIf({x!: _}, {y!: _}, _) & {x?: int, y?: int}
+-- out --
+compatible

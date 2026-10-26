@@ -1,0 +1,9 @@
+# identical time.Time (fp-time-identical)
+-- old.cue --
+import "time"
+t: time.Time
+-- new.cue --
+import "time"
+t: time.Time
+-- out --
+compatible

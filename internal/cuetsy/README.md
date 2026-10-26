@@ -1,22 +1,4 @@
 <p align="center">
-  <img
-    width="300"
-    src="https://raw.githubusercontent.com/grafana/cuetsy/main/docs/logo/cuetsy.svg"
-    alt="Cuetsy Logo"
-  />
-</p>
-
-<p align="center">
-  <a href="https://drone.grafana.net/grafana/cuetsy">
-    <img src="https://img.shields.io/drone/build/grafana/cuetsy?style=flat-square">
-  </a>
-  <a href="https://github.com/sdboyer/thema/internal/cuetsy/releases">
-    <img src="https://img.shields.io/github/release/grafana/cuetsy?style=flat-square" />
-  </a>
-  <img src="https://img.shields.io/github/contributors/grafana/cuetsy?style=flat-square" />
-</p>
-
-<p align="center">
   <a href="#installation">Installation</a>
   ·
   <a href="#usage">Usage</a>

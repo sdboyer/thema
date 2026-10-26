@@ -106,7 +106,7 @@ func GenerateAST(val cue.Value, c Config) (*ts.File, error) {
 	}
 
 	for iter.Next() {
-		n := g.decl(iter.Selector().String(), iter.Value())
+		n := g.decl(selectorName(iter.Selector()), iter.Value())
 		file.Nodes = append(file.Nodes, n...)
 	}
 
@@ -451,7 +451,7 @@ func (g *generator) genInterface(name string, v cue.Value) []ts.Decl {
 		return nil
 	}
 
-	extends, nolit, err := findExtends(v)
+	extends, bases, err := findExtends(v)
 	if err != nil {
 		g.addErr(err)
 		return nil
@@ -487,14 +487,14 @@ func (g *generator) genInterface(name string, v cue.Value) []ts.Decl {
 		// There's _probably_ a way around this, especially when we move to an
 		// AST rather than dumb string templates. But i'm tired of looking.
 		if len(extends) > 0 {
-			// Look up the path of the current field within the nolit value,
-			// then check it for subsumption.
+			// Look up the path of the current field within the extended
+			// values, then check it for subsumption.
 			sel := iter.Selector()
 			if iter.IsOptional() {
 				sel = sel.Optional()
 			}
 
-			sub := nolit.LookupPath(cue.MakePath(sel))
+			sub := lookupExtended(bases, cue.MakePath(sel))
 			// Theoretically, lattice equality can be defined as bijective
 			// subsumption. In practice, Subsume() seems to ignore optional
 			// fields, and Equals() doesn't. So, use Equals().
@@ -510,7 +510,7 @@ func (g *generator) genInterface(name string, v cue.Value) []ts.Decl {
 			}
 		}
 
-		k := iter.Selector().String()
+		k := selectorName(iter.Selector())
 		if iter.IsOptional() {
 			k += "?"
 		}
@@ -574,12 +574,14 @@ func (g *generator) genInterface(name string, v cue.Value) []ts.Decl {
 // unified/embedded structs from a struct literal, so that we can make the
 // former (if they are also marked with @cuetsy(kind="interface")) show up
 // as "extends" instead of inlining their fields.
-func findExtends(v cue.Value) ([]ts.Expr, cue.Value, error) {
+//
+// It also returns the dereferenced values behind each extends entry, whose
+// fields need not be generated as literals. These are kept separate rather
+// than unified: extended interfaces are commonly closed definitions, and as of
+// CUE v0.18 unifying two of them yields a "field not allowed" bottom.
+func findExtends(v cue.Value) ([]ts.Expr, []cue.Value, error) {
 	var extends []ts.Expr
-	// Create an empty value, onto which we'll unify fields that need not be
-	// generated as literals.
-	baseNolit := v.Context().CompileString("")
-	nolit := v.Context().CompileString("")
+	var bases []cue.Value
 	var walkExpr func(v cue.Value) error
 	walkExpr = func(v cue.Value) error {
 		op, dvals := v.Expr()
@@ -600,7 +602,7 @@ func findExtends(v cue.Value) ([]ts.Expr, cue.Value, error) {
 		case cue.OrOp:
 			return valError(v, "typescript interfaces cannot be constructed from disjunctions")
 		case cue.SelectorOp:
-			deref := cue.Dereference(v)
+			deref := dereference(v)
 			_, dexpr := deref.Expr()
 			if dexpr[len(dexpr)-1].IncompleteKind() == cue.TopKind {
 				return walkExpr(deref)
@@ -615,9 +617,15 @@ func findExtends(v cue.Value) ([]ts.Expr, cue.Value, error) {
 			// add the ref to the list of fields to exclude if subsumed.
 			if expr != nil {
 				extends = append(extends, expr)
-				nolit = baseNolit.Unify(nolit.Unify(cue.Dereference(v)))
+				bases = append(bases, dereference(v))
 			}
 			return nil
+		case cue.SpreadOp:
+			// The postfix ... operator (CUE language v0.18+) opens an
+			// embedded definition so the embedding struct may add fields.
+			// TypeScript interfaces have no closedness, so extend the
+			// operand as if it had been embedded directly.
+			return walkExpr(dvals[0])
 		case cue.AndOp:
 			// First, search the dvals for StructLits. Having more than one is possible,
 			// but weird, as writing >1 literal and unifying them is the same as just writing
@@ -639,10 +647,29 @@ func findExtends(v cue.Value) ([]ts.Expr, cue.Value, error) {
 	}
 
 	if err := walkExpr(v); err != nil {
-		return nil, nolit, err
+		return nil, bases, err
 	}
 
-	return extends, nolit, nil
+	return extends, bases, nil
+}
+
+// lookupExtended looks up p in each of the values behind an interface's
+// extends, unifying the results if more than one declares it. The returned
+// Value does not exist if none do.
+func lookupExtended(bases []cue.Value, p cue.Path) cue.Value {
+	var sub cue.Value
+	for _, b := range bases {
+		s := b.LookupPath(p)
+		if !s.Exists() {
+			continue
+		}
+		if sub.Exists() {
+			sub = sub.Unify(s)
+		} else {
+			sub = s
+		}
+	}
+	return sub
 }
 
 // Generate a typeRef for the cue.Value
@@ -676,7 +703,7 @@ func hasEnumReference(v cue.Value) bool {
 	// changes how we generate.
 	hasPred := containsPred(v, 1,
 		isReference,
-		func(v cue.Value) bool { return targetsKind(cue.Dereference(v), TypeEnum) },
+		func(v cue.Value) bool { return targetsKind(dereference(v), TypeEnum) },
 	)
 
 	// Check if it's setting an enum value [Enum & "value"]
@@ -702,7 +729,7 @@ func hasEnumReference(v cue.Value) bool {
 		// Check if all elements are enums
 		_, exprs := a.Expr()
 		for _, e := range exprs {
-			if t, err := getKindFor(cue.Dereference(e)); err == nil && t != TypeEnum {
+			if t, err := getKindFor(dereference(e)); err == nil && t != TypeEnum {
 				allEnums = false
 			}
 		}
@@ -750,7 +777,12 @@ func (g *generator) genEnumReference(v cue.Value) (*typeRef, error) {
 		}
 	case 2:
 		var err error
-		conjuncts[1] = getDefaultEnumValue(conjuncts[1])
+		// The CUE v0.18 evaluator does not order a field's own conjuncts
+		// after those it inherits through embedding, so either conjunct may
+		// be the one carrying the default.
+		for i := range conjuncts {
+			conjuncts[i] = getDefaultEnumValue(conjuncts[i])
+		}
 		lit, err = getEnumLiteral(conjuncts)
 		if err != nil {
 			ve := valError(v, "%s", err)
@@ -1001,12 +1033,28 @@ func (g generator) tsPrintDefault(v cue.Value) (bool, ts.Expr, error) {
 	// }
 
 	if ok {
-		expr, err := g.tsprintField(d, false, true)
+		// As of CUE v0.18, Default() returns a value detached from its
+		// conjuncts, so the default of a reference is no longer itself a
+		// reference. Check the referrer instead: when it is a reference
+		// whose default is the referent's own, render a reference to the
+		// referent's default declaration. A default the referrer adds itself
+		// (#Type | *"x", which Expr reports as a plain reference when "x" is
+		// a member of #Type) has no such declaration, and is printed inline.
+		isRefDefault := isReference(v) && (hasEnumReference(v) || hasTypeReference(v))
+		if isRefDefault {
+			rd, has := dereference(v).Default()
+			isRefDefault = has && rd.Equals(d)
+		}
+		pv := d
+		if isRefDefault {
+			pv = v
+		}
+		expr, err := g.tsprintField(pv, false, true)
 		if err != nil {
 			return false, nil, err
 		}
 
-		if isReference(d) && (hasEnumReference(v) || hasTypeReference(v)) {
+		if isRefDefault {
 			switch t := expr.(type) {
 			case tsast.SelectorExpr:
 				t.Sel.Name = "default" + t.Sel.Name
@@ -1059,7 +1107,10 @@ func (g generator) tsprintField(v cue.Value, isType bool, isDefault bool) (ts.Ex
 		return nil, valError(v, "failed to generate reference correctly for path %s", v.Path().String())
 	}
 
-	verr := v.Validate(cue.Final())
+	// As of CUE v0.18, cue.Final() also reports required (!) fields as
+	// missing, which is meaningless for a schema. Keep only the cycle
+	// checking it implied.
+	verr := v.Validate(cue.DisallowCycles(true))
 	if verr != nil {
 		return nil, verr
 	}
@@ -1070,6 +1121,12 @@ func (g generator) tsprintField(v cue.Value, isType bool, isDefault bool) (ts.Ex
 	// Concrete values.
 	// Includes "foobar", 5, [1,2,3], etc. (literal values)
 	k := v.Kind()
+	// The CUE v0.18 evaluator reports open lists such as [...T] as concrete
+	// lists. They are not literal values, so route them to the open list
+	// handling below rather than printing their (empty) element set.
+	if k == cue.ListKind && v.Allows(cue.AnyIndex) {
+		k = cue.BottomKind
+	}
 	switch k {
 	case cue.StructKind:
 		switch op {
@@ -1187,8 +1244,12 @@ func (g generator) tsprintField(v cue.Value, isType bool, isDefault bool) (ts.Ex
 		// If the default (all lists have a default, usually self, ugh) differs from the
 		// input list, peel it off. Otherwise our AnyIndex lookup may end up getting
 		// sent on the wrong path.
-		defv, _ := v.Default()
-		if !defv.Equals(v) {
+		//
+		// As of CUE v0.18, Equals compares a disjunction's default rather than
+		// the disjunction, so it cannot detect this. Instead, rely on Expr
+		// having already peeled the default: for a list disjunction like
+		// [...T] | *[], it reports the sole non-default disjunct under NoOp.
+		if op == cue.NoOp && len(dvals) == 1 {
 			v = dvals[0]
 		}
 
@@ -1351,7 +1412,7 @@ func refAsInterface(v cue.Value) (ts.Expr, error) {
 	}
 
 	// Have to do attribute checks on the referenced field itself, so deref
-	deref := cue.Dereference(v)
+	deref := dereference(v)
 	dstr, _ := dvals[1].String()
 
 	// FIXME It's horrifying, teasing out the type of selector kinds this way. *Horrifying*.
@@ -1417,7 +1478,7 @@ func referenceValueAs(v cue.Value, kinds ...TSType) (ts.Expr, error) {
 	if !isReference(v) {
 		_, has := v.Default()
 		if hasOverrideValues(v) {
-			v = dvals[1]
+			_, v, _ = overrideConjuncts(v)
 		} else if !has || !isReference(dvals[0]) {
 			return nil, valError(v, "references within complex logic are currently unsupported")
 		} else {
@@ -1435,7 +1496,7 @@ func referenceValueAs(v cue.Value, kinds ...TSType) (ts.Expr, error) {
 	}
 
 	// Have to do attribute checks on the referenced field itself, so deref
-	deref := cue.Dereference(v)
+	deref := dereference(v)
 
 	// FIXME It's horrifying, teasing out the type of selector kinds this way. *Horrifying*.
 	switch dvals[0].Source().(type) {

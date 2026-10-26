@@ -1,0 +1,8 @@
+# _ narrowed
+-- old.cue --
+n: _
+-- new.cue --
+n: int
+-- out --
+incompatible
+n is now int, which does not accept every value of the prior _ (rule value-narrowed) @ new.cue:1:1

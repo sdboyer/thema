@@ -29,6 +29,6 @@ lin2: schemas: [{
 field aNewOptionalField not present in {aField:string}:
     ./in.cue:8:13
 field anObject not present in {anObject:{aField:string}}:
-    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:215:11
+    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:219:11
     ./in.cue:7:10
 missing field "anObject"

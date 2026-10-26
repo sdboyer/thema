@@ -51,7 +51,7 @@ Given this premise, the best course of action is to create patterns that allow b
 
 ## Why did Thema make up a new version numbering system instead of just using [semver](https://semver.org)?
 
-Thema versions, unlike most version numbering systems, are not an arbitrary declaration by the schema author. Rather, version numbers are derived from the position of the schema within the lineage's list of sequences. Sequence position, in turn, is governed by Thema's checked invariants on backwards compatibility and lens existence.
+Thema versions, unlike most version numbering systems, are not an arbitrary declaration by the schema author. Authors write each schema's version, but only one version is correct: the next minor version if the schema is backward compatible with its predecessor, or the next major version if it isn't. Thema checks the declared version against that, along with the lenses each version requires.
 
 The association of version numbers with verifiable properties grants Thema's versions transparency and precision - within the bounds of what is expressible as schema. Systems like Semantic Versioning are, by contrast, opaque; it wouldn't be unreasonable to highlight this difference by calling Thema's version numbering system "Syntactic Versioning".
 

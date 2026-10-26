@@ -1,0 +1,12 @@
+# lineage name contains a hyphen, which no generated identifier can carry
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "ship-v2"
+	schemas: [{version: [0, 0], schema: {a: int}}]
+}
+-- expect --
+bind fail out of bound

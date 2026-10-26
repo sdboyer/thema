@@ -1,0 +1,17 @@
+# joinSchema is a scalar type, so every schema is a scalar
+#issue: 22
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "joinScalar"
+	joinSchema: string
+	schemas: [{
+		version: [0, 0]
+		schema: =~"^a"
+	}]
+}
+-- expect --
+bind fail

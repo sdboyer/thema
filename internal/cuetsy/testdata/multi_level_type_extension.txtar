@@ -19,7 +19,7 @@
 } @cuetsy(kind="interface")
 
 #Struct: {
-    #Base
+    #Base...
 	type:        #AType
 	expr:        #InterfaceOne | #InterfaceTwo
 	anotherType: #BType & "e"

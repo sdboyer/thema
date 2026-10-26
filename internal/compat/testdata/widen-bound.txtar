@@ -1,0 +1,7 @@
+# dropping a bound
+-- old.cue --
+n: >=0 & <10
+-- new.cue --
+n: >=0
+-- out --
+compatible

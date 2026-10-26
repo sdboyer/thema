@@ -1,0 +1,7 @@
+# adding an alternative
+-- old.cue --
+u: "x" | "y"
+-- new.cue --
+u: "x" | "y" | "z"
+-- out --
+compatible

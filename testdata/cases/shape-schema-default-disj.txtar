@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "shape-schema-default-disj"
+	name: "shapeSchemaDefaultDisj"
 	schemas: [{
 		version: [0, 0]
 		schema: *{a: int} | {b: string}

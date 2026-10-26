@@ -3,6 +3,7 @@ package cuetsy
 import (
 	"bytes"
 	"fmt"
+	"strings"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/ast"
@@ -40,6 +41,29 @@ func findInstance(raw cue.Value) *build.Instance {
 	}
 
 	return bi
+}
+
+// selectorName returns the CUE representation of sel without any trailing
+// optional (?) or required (!) marker. In CUE v0.18, Selector.String
+// includes these markers; callers here decide optionality separately.
+// Identifiers cannot contain either character, and quoted labels end in a
+// quote, so trimming never alters the label itself.
+func selectorName(sel cue.Selector) string {
+	return strings.TrimRight(sel.String(), "?!")
+}
+
+// dereference returns the value v refers to, or v itself if it is not a reference.
+//
+// It is used instead of cue.Dereference to agree with isReference and
+// Value.Expr. As of CUE v0.18, those treat a disjunction whose defaults are
+// all subsumed by a single reference (#Enum | *"foo") as that reference, but
+// cue.Dereference only resolves values whose sole conjunct is a reference.
+func dereference(v cue.Value) cue.Value {
+	root, path := v.ReferencePath()
+	if len(path.Selectors()) == 0 {
+		return v
+	}
+	return root.LookupPath(path)
 }
 
 func isReference(v cue.Value) bool {
@@ -138,11 +162,11 @@ func targetsKind(v cue.Value, kinds ...TSType) bool {
 // containsCuetsyReference does the same as containsReference, but returns true
 // iff at least one referenced node passes the targetsKind predicate check
 func containsCuetsyReference(v cue.Value, kinds ...TSType) bool {
-	if isReference(v) && targetsKind(cue.Dereference(v), kinds...) {
+	if isReference(v) && targetsKind(dereference(v), kinds...) {
 		return true
 	}
 	for _, dv := range flatten(v) {
-		if isReference(dv) && targetsKind(cue.Dereference(dv), kinds...) {
+		if isReference(dv) && targetsKind(dereference(dv), kinds...) {
 			return true
 		}
 	}
@@ -154,22 +178,42 @@ func hasOverrideValues(v cue.Value, kinds ...TSType) bool {
 	// When a value overrides the parent, its marked as BottomKind with two elements.
 	// It also conflicts with enums with default value, so internally we need to check if
 	// the operator of the second element isn't an OrOp
-	op, values := v.Expr()
-	if op != cue.AndOp || len(values) != 2 {
+	parent, child, ok := overrideConjuncts(v)
+	if !ok {
 		return false
 	}
 
-	if values[1].Kind() != cue.BottomKind || values[1].IncompleteKind() == cue.TopKind {
+	if child.Kind() != cue.BottomKind || child.IncompleteKind() == cue.TopKind {
 		return false
 	}
 
-	for _, dv := range flatten(values[0]) {
-		if isReference(dv) && targetsKind(cue.Dereference(dv), kinds...) {
+	for _, dv := range flatten(parent) {
+		if isReference(dv) && targetsKind(dereference(dv), kinds...) {
 			return true
 		}
 	}
 
 	return false
+}
+
+// overrideConjuncts splits a unification of two values into the overridden
+// parent and the overriding child. ok is false if v is not such a unification.
+//
+// cuetsy originally relied on the evaluator listing a field's inherited
+// conjunct before its own. The CUE v0.18 evaluator lists a field's own
+// conjuncts before those it gets from an embedding, so order is decided by
+// specificity instead: the child is the conjunct the other subsumes.
+func overrideConjuncts(v cue.Value) (parent, child cue.Value, ok bool) {
+	op, values := v.Expr()
+	if op != cue.AndOp || len(values) != 2 {
+		return cue.Value{}, cue.Value{}, false
+	}
+
+	parent, child = values[0], values[1]
+	if child.Subsume(parent) == nil && parent.Subsume(child) != nil {
+		parent, child = child, parent
+	}
+	return parent, child, true
 }
 
 type valuePredicate func(cue.Value) bool
@@ -217,12 +261,15 @@ func flatten(v cue.Value) []cue.Value {
 	all := []cue.Value{v}
 
 	op, dvals := v.Expr()
-	defv, has := v.Default()
-	// if (op != cue.NoOp || has) &&
-	// 	v.Subsume(defv, cue.Raw()) != nil &&
-	// 	defv.Subsume(v, cue.Raw()) != nil {
-	// FIXME clearly wrong for using Equals(), but referencesValueAs currently depends on its wrong-ness
-	if !v.Equals(defv) && (op != cue.NoOp || has) {
+	_, has := v.Default()
+	// Only descend into values with a distinct default. The original check,
+	// !v.Equals(defv), stopped working as of CUE v0.18: Equals compares a
+	// disjunction by its default, so it can no longer tell v from defv.
+	// Default itself only reports has when the default is distinct from v.
+	// NoOp is a leaf: when Expr collapses a disjunction to a sole non-default
+	// disjunct that is not a reference, it reports it under NoOp, and open
+	// lists (whose default is []) report themselves.
+	if has && op != cue.NoOp {
 		all = append(all, dvals...)
 		for _, dv := range dvals {
 			all = append(all, flatten(dv)...)

@@ -1,0 +1,25 @@
+# a new major starts at [1, 1], with no [1, 0]
+#issue: 19
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "versionMajorStartsAtMinorOne"
+	schemas: [{
+		version: [0, 0]
+		schema: {a: int}
+	}, {
+		version: [1, 1]
+		schema: {a: int, b?: int}
+	}]
+	lenses: [{
+		from: [1, 1]
+		to: [0, 0]
+		input: _
+		result: {a: input.a}
+	}]
+}
+-- expect --
+bind fail

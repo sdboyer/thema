@@ -1,0 +1,7 @@
+# a constant field
+-- old.cue --
+a: 1
+-- new.cue --
+a: 1
+-- out --
+compatible

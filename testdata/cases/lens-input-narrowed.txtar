@@ -1,0 +1,25 @@
+# lens input is narrowed, so the lens is undefined for most valid source instances
+#issue: 20
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "lensInputNarrowed"
+	schemas: [{
+		version: [0, 0]
+		schema: {a: string}
+	}, {
+		version: [0, 1]
+		schema: {a: string, b?: int}
+	}]
+	lenses: [{
+		from: [0, 1]
+		to: [0, 0]
+		input: {a: "only-this"}
+		result: {a: input.a}
+	}]
+}
+-- expect --
+bind fail

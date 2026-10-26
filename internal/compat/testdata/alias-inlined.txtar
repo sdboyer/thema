@@ -1,0 +1,8 @@
+# a reference to a definition means its value
+-- old.cue --
+#T: int
+d: #T
+-- new.cue --
+d: int
+-- out --
+compatible

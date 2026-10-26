@@ -5,7 +5,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "join-injects-fields"
+	name: "joinInjectsFields"
 	joinSchema: {kind: string}
 	schemas: [{
 		version: [0, 0]

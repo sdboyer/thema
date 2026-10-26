@@ -48,21 +48,7 @@ lenses: []
       },
       "embedref": {
         "type": "object",
-        "required": [
-          "refField1",
-          "refField2"
-        ],
-        "properties": {
-          "refField1": {
-            "type": "string"
-          },
-          "refField2": {
-            "type": "integer",
-            "enum": [
-              42
-            ]
-          }
-        }
+        "$ref": "#/components/schemas/EmbedRef"
       }
     }
   }
