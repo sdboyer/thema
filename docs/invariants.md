@@ -196,16 +196,33 @@ widening a value, dropping a validator, and adding hidden fields, definitions or
 |---|---|---|
 | `unknown-crossfield` | either schema constrains a field by another field's value (`b?: a`, `c: >a`, a reference to a defaulted field or an open list), and the two differ | keep such constraints identical across minor versions |
 | `unknown-comprehension` | a comprehension over data (`if kind == "x" {...}`) is pending in either schema, and the two differ | bind refuses comprehensions in schemas before the checker runs (see Schema constructs); the rule keeps the checker sound on its own |
-| `unknown-validator` | *new* adds or changes a validator the checker has no rule for (`matchIf`, `matchN`, regexp functions, ...) | keep it identical across minor versions, or express the constraint with bounds |
+| `unknown-validator` | *new* adds or changes a validator the checker has no rule for (`matchIf`, `matchN`, `regexp.Match`, `path.Match`, `net.InCIDR`, ...) | keep it identical across minor versions, or express the constraint with bounds |
 | `unknown-disjunction` | no single alternative of *new* covers an alternative of *prior*, though together they might (`int` → `>=0 \| <0`) | write *new*'s alternatives so that each *prior* alternative fits one |
 | `unknown-patterns` | pattern constraints differ in a way the checker compares only for identity: several patterns on one side, or a narrower pattern replacing a wider one | keep patterns identical across minor versions |
 
-The validators the checker has rules for are `strings.MinRunes`,
-`strings.MaxRunes`, `list.MinItems`, `list.MaxItems`, `list.UniqueItems`,
-`struct.MinFields`, `struct.MaxFields`, `time.Time`, `time.Format`,
-`time.Duration`, `net.IP`, `net.IPv4` and `net.IPv6`. A lower bound may be
-lowered and an upper bound raised; the others must stay identical. Any other
-validator is unknown unless it is identical in both schemas. This set changes
+The validators the checker has rules for, and how each may change between
+compatible versions:
+
+- Bounds: `strings.MinRunes`, `list.MinItems` and `struct.MinFields` may be
+  lowered; `strings.MaxRunes`, `list.MaxItems` and `struct.MaxFields` may be
+  raised.
+- `math.MultipleOf(n)`: n may change to a divisor of the prior n.
+- `strings.HasPrefix`, `strings.HasSuffix` and `strings.Contains`: the
+  argument may change to a prefix, suffix or substring of the prior one.
+- `strings.ContainsAny`: the argument may gain characters, not lose them.
+- Identical only: `list.UniqueItems`, `list.IsSortedStrings`, `list.Contains`,
+  `list.IsSorted`, `math.Signbit`, `strconv.IsPrint`, `strconv.IsGraphic`,
+  `regexp.Valid`, `encoding/json.Valid`, `time.Time`, `time.Format`,
+  `time.Duration`, `net.IP`, `net.IPv4`, `net.IPv6`, `net.IPCIDR`, `net.URL`,
+  `net.AbsURL`, `net.FQDN`, `net.GlobalUnicastIP`,
+  `net.InterfaceLocalMulticastIP`, `net.LinkLocalMulticastIP`,
+  `net.LinkLocalUnicastIP`, `net.LoopbackIP`, `net.MulticastIP` and
+  `net.UnspecifiedIP`. A different argument to `list.Contains` or
+  `list.IsSorted` is a different requirement in both directions.
+
+Any other validator is unknown unless it is identical in both schemas:
+`regexp.Match`, `path.Match` and `net.InCIDR` stay unknown because a changed
+argument can widen or narrow, and the checker cannot tell which. This set changes
 only under the stability policy below. When CUE adds a validator to its
 standard library, no schema written against an earlier CUE can have used it,
 which would in principle let the checker learn a rule for it without

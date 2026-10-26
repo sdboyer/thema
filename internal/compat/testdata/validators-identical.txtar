@@ -1,0 +1,59 @@
+# identical argument-free and identity-only validators
+-- old.cue --
+import (
+	"net"
+	"regexp"
+	"strconv"
+	"list"
+	"math"
+	"encoding/json"
+)
+url: string & net.URL
+absurl: string & net.AbsURL
+fqdn: string & net.FQDN
+ipcidr: string & net.IPCIDR
+globalunicastip: string & net.GlobalUnicastIP
+interfacelocalmulticastip: string & net.InterfaceLocalMulticastIP
+linklocalmulticastip: string & net.LinkLocalMulticastIP
+linklocalunicastip: string & net.LinkLocalUnicastIP
+loopbackip: string & net.LoopbackIP
+multicastip: string & net.MulticastIP
+unspecifiedip: string & net.UnspecifiedIP
+regexp_valid: string & regexp.Valid
+isprint: int & strconv.IsPrint
+isgraphic: int & strconv.IsGraphic
+issortedstrings: [...string] & list.IsSortedStrings
+signbit: number & math.Signbit
+json_valid: string & json.Valid
+list_contains: list.Contains(1)
+issorted: [...int] & list.IsSorted(list.Ascending)
+-- new.cue --
+import (
+	"net"
+	"regexp"
+	"strconv"
+	"list"
+	"math"
+	"encoding/json"
+)
+url: string & net.URL
+absurl: string & net.AbsURL
+fqdn: string & net.FQDN
+ipcidr: string & net.IPCIDR
+globalunicastip: string & net.GlobalUnicastIP
+interfacelocalmulticastip: string & net.InterfaceLocalMulticastIP
+linklocalmulticastip: string & net.LinkLocalMulticastIP
+linklocalunicastip: string & net.LinkLocalUnicastIP
+loopbackip: string & net.LoopbackIP
+multicastip: string & net.MulticastIP
+unspecifiedip: string & net.UnspecifiedIP
+regexp_valid: string & regexp.Valid
+isprint: int & strconv.IsPrint
+isgraphic: int & strconv.IsGraphic
+issortedstrings: [...string] & list.IsSortedStrings
+signbit: number & math.Signbit
+json_valid: string & json.Valid
+list_contains: list.Contains(1)
+issorted: [...int] & list.IsSorted(list.Ascending)
+-- out --
+compatible

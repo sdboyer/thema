@@ -1,0 +1,10 @@
+# strings.ContainsAny tightened
+-- old.cue --
+import "strings"
+s: string & strings.ContainsAny("ab")
+-- new.cue --
+import "strings"
+s: string & strings.ContainsAny("a")
+-- out --
+incompatible
+s must now satisfy strings.ContainsAny("a"), where the prior schema required strings.ContainsAny("ab") (rule validator-added) @ new.cue:2:1
