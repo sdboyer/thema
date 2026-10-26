@@ -101,12 +101,10 @@ var (
 	// or more of the Thema invariants.
 	ErrInvalidLineage = errors.New("invalid lineage")
 
-	// ErrInvalidSchemasOrder indicates that schemas in a lineage are not ordered
-	// by version.
-	ErrInvalidSchemasOrder = errors.New("schemas in lineage are not ordered by version")
-
-	// ErrInvalidLensesOrder indicates that lenses are in the wrong order - they must be sorted by `to`, then `from`.
-	ErrInvalidLensesOrder = errors.New("lenses in lineage are not ordered by version")
+	// ErrNonContiguousVersions indicates that a lineage's schema versions skip a
+	// version: they do not start at 0.0, or a schema's version is neither the next
+	// minor version nor the next major version after its predecessor's.
+	ErrNonContiguousVersions = errors.New("schema versions in lineage are not contiguous")
 
 	// ErrDuplicateLenses indicates that a lens was defined declaratively in CUE, but the same lens
 	// was also provided as a Go function to BindLineage.

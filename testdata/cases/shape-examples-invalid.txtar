@@ -7,15 +7,16 @@ import (
 
 lin: thema.Lineage & {
 	name: "shapeExamplesInvalid"
-	schemas: [{
-		version: [0, 0]
-		schema: {a: int}
-		examples: {
-			extra: {a: 1, bogus: true}
-			incomplete: {a: int}
-			empty: {}
+	schemas: {
+		"0": "0": {
+			schema: {a: int}
+			examples: {
+				extra: {a: 1, bogus: true}
+				incomplete: {a: int}
+				empty: {}
+			}
 		}
-	}]
+	}
 }
 -- expect --
 bind fail

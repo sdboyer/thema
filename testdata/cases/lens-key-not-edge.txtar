@@ -1,0 +1,17 @@
+# a lens key is not an edge between two versions
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "lensKeyNotEdge"
+	schemas: "0": {
+		"0": schema: {a: int}
+		"1": schema: {a: int, b?: int}
+	}
+	lenses: "0.1 to 0.0": {
+		input: _
+		result: {a: input.a}
+	}
+}
+-- expect --
+bind fail "0.1 to 0.0" is not a lens edge

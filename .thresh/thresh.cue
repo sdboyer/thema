@@ -43,6 +43,7 @@ seams: "lineage-kernel": {
 		"every lineage that unifies with thema.Lineage",
 		"the Go facade (bind.go, lineage.go, surface.go)",
 		"Go code that calls thema's CUE pseudofunctions and decodes their output shape (instance.go Translate decodes Translate's out)",
+		"bind.go parseVersionKey, parseLensEdge and lensID.String, which mirror the schemas and lenses key formats (versionKey, edgeKey in lineage.cue)",
 	]
 }
 
@@ -179,17 +180,17 @@ seams: "go-residual-checks": {
 	paths: ["bind.go"]
 	funcs: "check*"
 	declared: {
-		checkGoValidity:        "compat vs declared version delta — CUE can't compute version counts natively (lineage.cue:118)"
-		checkSchemasOrder:      "schema version ordering against the sorted version list"
-		checkExists:            "presence of required lineage parts before deeper checks"
-		checkLineageShape:      "structural shape checks on the raw lineage value"
-		checkNativeValidity:    "runs the CUE-native validity pass and surfaces its errors"
-		checkLensesOrder:       "lens from/to ordering constraints"
-		checkLensCompleteness:   "exactly the required lenses exist (Go or CUE): needs the bound version list, and Translate selects CUE lenses by position, so a missing or extra lens silently shifts the rest"
+		checkGoValidity:         "compat vs declared version delta: needs the compat checker, which closes both schemas and subsumes them in Go; also rejects a major version key with no minors, which struct.MinFields only reports under concrete validation, which abstract schemas never pass"
+		checkSchemaVersions:     "versions must be contiguous from 0.0: in CUE a skipped version is a missing key, which is only an incomplete reference (unification could still supply it), so validation never reports it"
+		checkExists:             "presence of required lineage parts before deeper checks"
+		checkLineageShape:       "structural shape checks on the raw lineage value"
+		checkNativeValidity:     "runs the CUE-native validity pass and surfaces its errors"
+		checkLensEdges:          "the edges with lenses, Go or CUE, are exactly those the versions require; Go lenses have no CUE edge keys to check"
+		checkLensCompleteness:   "exactly the required lenses exist (Go or CUE): needs the bound version list; a missing CUE lens would otherwise surface only when a translation crosses its edge, and an extra one would be silently unused"
 		checkSchemaShapes:       "schemas and joinSchema must be structs, and examples valid instances: CUE can constrain kinds, but reports a schema like _ only once data arrives"
 		checkLensResults:        "static lens checks with input standing for any source instance: needs each lens paired with its source and target schemas, closedness applied at use, and the declared-fields walker"
 		checkLacunas:            "lacuna lists must be enumerable without input, and lacuna field paths declared by the lens's schemas: needs the lineage's schemas, and CUE would only report missing required lacuna fields once data arrives"
-		checkUnknownFields:      "unknown lineage/schema/lens fields; CUE rejects them too, but positions the error at its guard in thema's CUE, while Go can point at the author's line. Known fields are read from thema's CUE, not duplicated"
+		checkUnknownFields:      "unknown lineage/schema/lens fields, and schemas/lenses keys that aren't versions/edges; CUE rejects them too, but positions the error at its guard in thema's CUE, while Go can point at the author's line. Known fields are read from thema's CUE, not duplicated"
 	}
 }
 

@@ -7,19 +7,20 @@ import (
 
 lin: thema.Lineage & {
 	name: "versionMajorStartsAtMinorOne"
-	schemas: [{
-		version: [0, 0]
-		schema: {a: int}
-	}, {
-		version: [1, 1]
-		schema: {a: int, b?: int}
-	}]
-	lenses: [{
-		from: [1, 1]
-		to: [0, 0]
-		input: _
-		result: {a: input.a}
-	}]
+	schemas: {
+		"0": "0": {
+			schema: {a: int}
+		}
+		"1": "1": {
+			schema: {a: int, b?: int}
+		}
+	}
+	lenses: {
+		"1.1->0.0": {
+			input: _
+			result: {a: input.a}
+		}
+	}
 }
 -- expect --
-bind fail
+bind fail schema version 1.1 does not follow 0.0: the next schema must be version 0.1 or 1.0

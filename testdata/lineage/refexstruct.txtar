@@ -4,13 +4,14 @@ import "github.com/sdboyer/thema"
 
 thema.Lineage
 name: "refexstruct"
-schemas: [{
-	version: [0, 0]
-	schema: {
-		aBaz: #Baz
+schemas: {
+	"0": "0": {
+		schema: {
+			aBaz: #Baz
+		}
 	}
-}]
-lenses: []
+}
+lenses: {}
 
 #Baz: {
     run:  string

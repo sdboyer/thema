@@ -8,10 +8,11 @@ import (
 lin: thema.Lineage & {
 	name: "joinScalar"
 	joinSchema: string
-	schemas: [{
-		version: [0, 0]
-		schema: =~"^a"
-	}]
+	schemas: {
+		"0": "0": {
+			schema: =~"^a"
+		}
+	}
 }
 -- expect --
 bind fail

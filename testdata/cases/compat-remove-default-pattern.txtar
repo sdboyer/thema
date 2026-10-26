@@ -7,19 +7,20 @@ import (
 
 lin: thema.Lineage & {
 	name: "compatRemoveDefaultPattern"
-	schemas: [{
-		version: [0, 0]
-		schema: {m: [string]: {a: *1 | int}}
-	}, {
-		version: [0, 1]
-		schema: {m: [string]: {a: int}}
-	}]
-	lenses: [{
-		from: [0, 1]
-		to: [0, 0]
-		input: _
-		result: input
-	}]
+	schemas: {
+		"0": "0": {
+			schema: {m: [string]: {a: *1 | int}}
+		}
+		"0": "1": {
+			schema: {m: [string]: {a: int}}
+		}
+	}
+	lenses: {
+		"0.1->0.0": {
+			input: _
+			result: input
+		}
+	}
 }
 -- expect --
 bind fail

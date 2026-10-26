@@ -7,19 +7,20 @@ import (
 
 lin: thema.Lineage & {
 	name: "validateOpenThenTranslate"
-	schemas: [{
-		version: [0, 0]
-		schema: {a: string, ...}
-	}, {
-		version: [0, 1]
-		schema: {a: string, ...}
-	}]
-	lenses: [{
-		from: [0, 1]
-		to: [0, 0]
-		input: _
-		result: {a: input.a}
-	}]
+	schemas: {
+		"0": "0": {
+			schema: {a: string, ...}
+		}
+		"0": "1": {
+			schema: {a: string, ...}
+		}
+	}
+	lenses: {
+		"0.1->0.0": {
+			input: _
+			result: {a: input.a}
+		}
+	}
 }
 -- expect --
 validate 0.0 ok {a: "x", z: 1}

@@ -1,0 +1,14 @@
+# version 0.0 is declared twice. Schemas are keyed by version, so the two
+# declarations unify, as any CUE field does; here their schemas conflict
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "versionKeyRepeated"
+	schemas: {
+		"0": "0": schema: {a: int}
+		"0": "0": schema: {a: string}
+	}
+}
+-- expect --
+bind fail conflicting values

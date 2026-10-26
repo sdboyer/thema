@@ -7,10 +7,11 @@ import (
 
 lin: thema.Lineage & {
 	name: "shapeSchemaNull"
-	schemas: [{
-		version: [0, 0]
-		schema: null
-	}]
+	schemas: {
+		"0": "0": {
+			schema: null
+		}
+	}
 }
 -- expect --
 bind fail

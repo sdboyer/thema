@@ -7,19 +7,20 @@ import (
 
 lin: thema.Lineage & {
 	name: "compatRemoveDefaultListElem"
-	schemas: [{
-		version: [0, 0]
-		schema: {l: [...{a: *1 | int}]}
-	}, {
-		version: [0, 1]
-		schema: {l: [...{a: int}]}
-	}]
-	lenses: [{
-		from: [0, 1]
-		to: [0, 0]
-		input: _
-		result: {l: input.l}
-	}]
+	schemas: {
+		"0": "0": {
+			schema: {l: [...{a: *1 | int}]}
+		}
+		"0": "1": {
+			schema: {l: [...{a: int}]}
+		}
+	}
+	lenses: {
+		"0.1->0.0": {
+			input: _
+			result: {l: input.l}
+		}
+	}
 }
 -- expect --
 bind fail

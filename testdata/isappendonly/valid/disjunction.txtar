@@ -5,18 +5,20 @@ import "github.com/sdboyer/thema"
 
 lin1: thema.Lineage
 lin1: name: "disjunction"
-lin1: schemas: [{
-	version: [0, 0]
-	schema: {
-		someField: string | [...string]
+lin1: schemas: {
+	"0": "0": {
+		schema: {
+			someField: string | [...string]
+		}
 	}
-}]
+}
 
 lin2: thema.Lineage
 lin2: name: "disjunction"
-lin2: schemas: [{
-	version: [0, 0]
-	schema: {
-		someField: string | [...string]
+lin2: schemas: {
+	"0": "0": {
+		schema: {
+			someField: string | [...string]
+		}
 	}
-}]
+}

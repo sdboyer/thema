@@ -7,14 +7,15 @@ import (
 
 lin: thema.Lineage & {
 	name: "lensMissingBackward"
-	schemas: [{
-		version: [0, 0]
-		schema: {a: int}
-	}, {
-		version: [0, 1]
-		schema: {a: int, b?: int}
-	}]
-	lenses: []
+	schemas: {
+		"0": "0": {
+			schema: {a: int}
+		}
+		"0": "1": {
+			schema: {a: int, b?: int}
+		}
+	}
+	lenses: {}
 }
 -- expect --
 bind fail

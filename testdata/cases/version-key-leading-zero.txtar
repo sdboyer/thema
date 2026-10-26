@@ -1,0 +1,14 @@
+# a minor version key has a leading zero, so the same version could be written
+# under two keys
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "versionKeyLeadingZero"
+	schemas: "0": {
+		"0": schema: {a: int}
+		"01": schema: {a: int, b?: int}
+	}
+}
+-- expect --
+bind fail "01" is not a minor version

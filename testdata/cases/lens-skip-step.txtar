@@ -7,27 +7,27 @@ import (
 
 lin: thema.Lineage & {
 	name: "lensSkipStep"
-	schemas: [{
-		version: [0, 0]
-		schema: {a: int}
-	}, {
-		version: [0, 1]
-		schema: {a: int, b?: int}
-	}, {
-		version: [0, 2]
-		schema: {a: int, b?: int, c?: int}
-	}]
-	lenses: [{
-		from: [0, 1]
-		to: [0, 0]
-		input: _
-		result: {a: input.a}
-	}, {
-		from: [0, 2]
-		to: [0, 0]
-		input: _
-		result: {a: input.a}
-	}]
+	schemas: {
+		"0": "0": {
+			schema: {a: int}
+		}
+		"0": "1": {
+			schema: {a: int, b?: int}
+		}
+		"0": "2": {
+			schema: {a: int, b?: int, c?: int}
+		}
+	}
+	lenses: {
+		"0.1->0.0": {
+			input: _
+			result: {a: input.a}
+		}
+		"0.2->0.0": {
+			input: _
+			result: {a: input.a}
+		}
+	}
 }
 -- expect --
-bind fail
+bind fail lenses not provided for the following version pairs:

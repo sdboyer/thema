@@ -7,24 +7,24 @@ import (
 
 lin: thema.Lineage & {
 	name: "majorHiddenOnly"
-	schemas: [{
-		version: [0, 0]
-		schema: {a: int}
-	}, {
-		version: [1, 0]
-		schema: {a: int, _h: int}
-	}]
-	lenses: [{
-		from: [1, 0]
-		to: [0, 0]
-		input: _
-		result: {a: input.a}
-	}, {
-		from: [0, 0]
-		to: [1, 0]
-		input: _
-		result: {a: input.a}
-	}]
+	schemas: {
+		"0": "0": {
+			schema: {a: int}
+		}
+		"1": "0": {
+			schema: {a: int, _h: int}
+		}
+	}
+	lenses: {
+		"1.0->0.0": {
+			input: _
+			result: {a: input.a}
+		}
+		"0.0->1.0": {
+			input: _
+			result: {a: input.a}
+		}
+	}
 }
 -- expect --
 bind fail

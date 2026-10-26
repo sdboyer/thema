@@ -7,19 +7,20 @@ import (
 
 lin: thema.Lineage & {
 	name: "lensResultInputNonexistentField"
-	schemas: [{
-		version: [0, 0]
-		schema: {a: string}
-	}, {
-		version: [0, 1]
-		schema: {a: string, b?: int}
-	}]
-	lenses: [{
-		from: [0, 1]
-		to: [0, 0]
-		input: _
-		result: {a: input.nope}
-	}]
+	schemas: {
+		"0": "0": {
+			schema: {a: string}
+		}
+		"0": "1": {
+			schema: {a: string, b?: int}
+		}
+	}
+	lenses: {
+		"0.1->0.0": {
+			input: _
+			result: {a: input.nope}
+		}
+	}
 }
 -- expect --
 bind fail
