@@ -48,12 +48,12 @@ func (ic *initCommand) setup(cmd *cobra.Command) {
 	initLineageCmd.AddCommand(initLineageOpenAPICmd)
 	initLineageOpenAPICmd.Flags().StringVar(&ic.srcpath, "src-subpath", "", "Schema path within the OpenAPI document. Default: whole document")
 	initLineageOpenAPICmd.Run = ic.run
-	initLineageOpenAPICmd.PreRunE = ic.processInput
+	initLineageOpenAPICmd.PreRunE = mergeCobraefuncs(ic.processPackageArgs, ic.processInput)
 
 	initLineageCmd.AddCommand(initLineageJSONSchemaCmd)
 	initLineageJSONSchemaCmd.Flags().StringVar(&ic.srcpath, "src-subpath", "", "Schema path within the JSON Schema document (e.g. #/...) Default: whole document")
 	initLineageJSONSchemaCmd.Run = ic.run
-	initLineageJSONSchemaCmd.PreRunE = ic.processInput
+	initLineageJSONSchemaCmd.PreRunE = mergeCobraefuncs(ic.processPackageArgs, ic.processInput)
 }
 
 var initLineageCmd = &cobra.Command{

@@ -28,13 +28,13 @@ func NewLineage(sch cue.Value, name, pkgname string) (*ast.File, error) {
 	}
 	b, err := astutil.FmtNode(x)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert input schema to string: %ww", err)
+		return nil, fmt.Errorf("failed to convert input schema to string: %w", err)
 	}
 
 	vars := linTplVars{
 		PkgName: pkgname,
 		Name:    name,
-		Sch:     string(b),
+		Sch:     string(bytes.TrimSpace(b)),
 	}
 
 	var buf bytes.Buffer
@@ -108,9 +108,7 @@ name: "{{ .Name }}"
 schemas: [
     {
         version: [0, 0]
-        schema: {
-            {{ .Sch }}
-        }
+        schema: {{ .Sch }}
     }
 ]
 `))

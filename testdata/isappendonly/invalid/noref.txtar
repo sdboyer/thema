@@ -34,8 +34,7 @@ lin2: schemas: [{
 }]
 -- out/isappendonly-fail --
 field #Baz not present in {someField:string,#Baz:{run:string,tell:bytes,dat?:int32}}:
-    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:219:11
-    ./in.cue:22:13
+    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:227:11
 field dat not present in {run:string,tell:bytes,dat?:int32}:
     ./in.cue:25:9
 missing field "#Baz"

@@ -93,9 +93,7 @@ func TestIsAppendOnly(t *testing.T) {
 		Name:    "isappendonly",
 		ThemaFS: CueJointFS,
 		ToDo: map[string]string{
-			"isappendonly/valid/withconstraints": "Subsume doesn't support constraints using built-in validators",
-			"isappendonly/valid/disjunction":     "Subsume requires the Final() option to consider two complex disjunctions as equal but this creates false negatives",
-			"isappendonly/valid/maps":            "Subsume requires the Final() option to consider two maps as equal but this creates false negatives",
+			"isappendonly/valid/withconstraints": "Subsume doesn't support constraints using built-in validators (see #18)",
 		},
 	}
 
