@@ -1,0 +1,8 @@
+# a default removed in a list element (compat-remove-default-list-elem)
+-- old.cue --
+l: [...{a: *1 | int}]
+-- new.cue --
+l: [...{a: int}]
+-- out --
+incompatible
+l.[_].a was defaulted and is now required (rule field-now-required) @ new.cue:1:9

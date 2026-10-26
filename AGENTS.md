@@ -20,6 +20,16 @@ from `Source()` (the `Written` view): it depends on how the value was
 constructed, not on what it is. To follow references within a value,
 `cueview.Tree` resolves its exported syntax.
 
+**Concrete is not constant.** `Validate(cue.Concrete(true))` passes for a value
+with a default (`*5 | int`) and for an open list or struct (`[...int]`,
+`{a: 1, ...}`), because each has a concrete instance to offer, yet data can
+still vary all of them. Any analysis that asks "can an instance change this?"
+(reference classification, default detection, deciding whether a field is a
+constant) must also check `Default()` and openness, never concreteness alone.
+`internal/compat.constantTarget` is the reference implementation, and
+`internal/compat/testdata/crossfield-defaulted-target.txtar` the case that
+exposed it.
+
 [github.com/sdboyer/cuerious](https://github.com/sdboyer/cuerious) helps with
 this: `cuerious.ExprTree(v)` builds a walkable tree of a value's expression
 structure, linking each node to its `cue.Value`. It is far from perfect, and it
@@ -36,8 +46,10 @@ thema's CUE takes no position on schema openness. Operations that need closed
 semantics apply them where they are used:
 
 - **Compatibility checks**: `internal/compat` closes both versions
-  (`cuetil.CloseRecursive`) before comparing. Subsumption between open structs
-  gets field additions and removals wrong.
+  (`cuetil.CloseRecursive`) before walking them. An author's `...` survives
+  closing, and is the only openness the walk sees. The rules, their stable IDs
+  and the Unknown cases are in `docs/invariants.md`; every verdict is recorded
+  in the `internal/compat/testdata` corpus (the `compat-verdicts` seam).
 - **`Schema.Validate()`**: closed by default.
 - **Lens results**: closed against the target schema inside `Translate`. In Go,
   the fields each lens *writes* are also checked against what the target schema
@@ -75,6 +87,7 @@ Before finalizing an approach that touches any of these, run `thresh check` and
 read the taps. They are facts about your diff, not opinions, and they never block.
 
 - **bindlineage** (`choke-point`): in *.go, only BindLineage may construct baseLineage. Constructing it elsewhere skips what the choke point enforces.
+- **compat-verdicts** (`shared-kernel`): internal/compat/testdata/*.txtar is co-owned kernel. A change there owes consultation with: every lineage already bound: a verdict that moves can make a published minor step invalid or a major step unnecessary; the rule tables in docs/invariants.md, which must describe the recorded verdicts; the stability policy in docs/invariants.md: after v1 a recorded verdict may not change.
 - **content-hash** (`shared-kernel`): internal/contenthash/*.go, internal/contenthash/testdata/*.txtar is co-owned kernel. A change there owes consultation with: every stored version ID; a change to the golden digests in internal/contenthash/testdata is a change to them; internal/cueview SelfContained and its goldens, which the canonical form is built on; the tip and cut workflow (#65) and lens fixes (#67), which compare schema and lens digests.
 - **cue-dependency** (`shared-kernel`): in go.mod, the lines mentioning cuelang.org/go are co-owned substrate. A change there owes consultation with: every lineage's validity; the Go facade's cue.Value handling; Go code that parses CUE error shapes (validate.go mungeValidateErr matches on Msg() argument counts and types); Go code that works around evaluator behavior (assignable.go detaches values before Subsume); golden error output in testdata, which records CUE's error wording and positions; internal/cueview goldens, which record how CUE presents values as syntax; every check built on a view (lens checks in internal/cuetil) depends on them; version IDs (internal/contenthash goldens): the canonical form is built on how CUE exports values, so an upgrade that changes the export changes stored IDs.
 - **cue-go-binding** (`references-resolve`): Go files (*.go) reach into CUE files (*.cue) by literal path; every such reference must resolve.

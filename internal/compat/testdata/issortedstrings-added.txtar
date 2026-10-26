@@ -1,0 +1,9 @@
+# list.IsSortedStrings added
+-- old.cue --
+s: [...string]
+-- new.cue --
+import "list"
+s: [...string] & list.IsSortedStrings
+-- out --
+incompatible
+s must now satisfy list.IsSortedStrings(), which the prior schema did not require (rule validator-added) @ new.cue:2:1

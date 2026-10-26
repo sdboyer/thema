@@ -1,0 +1,11 @@
+# A reference to a defaulted field is not a constant: an instance may set lim
+# to anything, so the prior c?: <lim accepts {lim: 10, c: 9} and <5 does not.
+-- old.cue --
+lim: *5 | int
+c?:  <lim
+-- new.cue --
+lim: *5 | int
+c?:  <5
+-- out --
+unknown
+c is constrained by lim in the prior schema and not in the new one; the checker cannot compare constraints between fields (rule unknown-crossfield) @ new.cue:2:1

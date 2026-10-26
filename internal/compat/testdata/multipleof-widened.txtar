@@ -1,0 +1,9 @@
+# math.MultipleOf widened: the prior argument implies the new one
+-- old.cue --
+import "math"
+s: int & math.MultipleOf(6)
+-- new.cue --
+import "math"
+s: int & math.MultipleOf(3)
+-- out --
+compatible

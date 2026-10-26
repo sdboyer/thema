@@ -1,0 +1,9 @@
+# identical builtin validator (fp-identical-builtin)
+-- old.cue --
+import "strings"
+s: strings.MinRunes(1)
+-- new.cue --
+import "strings"
+s: strings.MinRunes(1)
+-- out --
+compatible

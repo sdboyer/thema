@@ -1,0 +1,9 @@
+# a let is not data (fp-identical-let)
+-- old.cue --
+let T = int
+a: T
+-- new.cue --
+let T = int
+a: T
+-- out --
+compatible

@@ -1,0 +1,7 @@
+# required to defaulted
+-- old.cue --
+a!: int
+-- new.cue --
+a: *1 | int
+-- out --
+compatible

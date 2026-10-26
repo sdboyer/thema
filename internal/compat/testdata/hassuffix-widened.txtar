@@ -1,0 +1,9 @@
+# strings.HasSuffix widened: the prior argument implies the new one
+-- old.cue --
+import "strings"
+s: string & strings.HasSuffix("bc")
+-- new.cue --
+import "strings"
+s: string & strings.HasSuffix("c")
+-- out --
+compatible
