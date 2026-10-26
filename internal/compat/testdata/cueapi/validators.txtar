@@ -1,0 +1,101 @@
+What the cue API reports for validator calls (see splitValidators and asCall in
+compat.go). Observations relied on:
+
+- A call is a CallOp whose first argument is the callee; strings.MinRunes is a
+  SelectorOp on a package value whose BuildInstance import path is "strings".
+  The selected name comes back as a string value, so it is read with String(),
+  not printed.
+- A predeclared builtin (matchIf, close) has no package; its name is its text.
+- A value conjoined with a validator (string & strings.MinRunes(1)) is an AndOp
+  whose operands are the plain constraint and the call; one that is only a
+  validator (strings.MinRunes(1)) is the call itself, with IncompleteKind
+  string. The checker reads the kind from IncompleteKind and the call from Expr.
+- [...int] & list.MinItems(1) reports IncompleteKind bottom with an error: the
+  open list's default [] fails the validator. Its operands still have kinds;
+  kindOf recovers list from them.
+- close({...}) is a call too, and not a validator.
+-- in.cue --
+import (
+	"strings"
+	"list"
+	"struct"
+	"time"
+)
+
+cases: {
+	calls: {
+		conjoined: string & strings.MinRunes(1)
+		alone:     strings.MinRunes(1)
+		maxItems:  [...int] & list.MaxItems(2)
+		minItems:  [...int] & list.MinItems(1)
+		unique:    [...int] & list.UniqueItems()
+		fields:    {a?: int} & struct.MaxFields(1)
+		format:    time.Format(time.RFC3339)
+		matchIf:   matchIf({x!: _}, {y!: _}, _) & {x?: int, y?: int}
+		closed:    close({a: int})
+	}
+}
+-- out --
+## calls
+kind=_|_ incomplete=_|_ concrete=false err="#closed.matchIf: cannot call non-function matchIf (type struct)"
+expr=& nargs=2 args=[_ ; _|_ // #closed.matchIf: cannot call non-function matchIf (type struct)]
+allowsAnyString=true anyStringLookup=none
+- conjoined (NoLabels) lookup=strings.MinRunes(1)
+    kind=_|_ incomplete=string concrete=false
+    expr=& nargs=2 args=[string ; strings.MinRunes(1)]
+- alone (NoLabels) lookup=strings.MinRunes(1)
+    kind=_|_ incomplete=string concrete=false
+    expr=() nargs=2 args=[strings.MinRunes ; 1]
+    callee=strings.MinRunes
+- maxItems (NoLabels) lookup=[...int]
+    kind=list incomplete=list concrete=true
+    expr=& nargs=2 args=[[...int] ; list.MaxItems(2)]
+    default=[] concrete=true
+    len=uint anyIndexLookup=int
+    - [>=0] (PatternConstraint) lookup=_|_ // cannot look up pattern constraints other than AnyString or AnyIndex
+        kind=_|_ incomplete=int concrete=false
+        expr=NoOp nargs=1
+- minItems (NoLabels) lookup=list.MinItems(1) & [...int]
+    kind=_|_ incomplete=_|_ concrete=false err="#closed.minItems: invalid value [] (does not satisfy list.MinItems(1)): len(list) < MinItems(1) (0 < 1)"
+    expr=& nargs=2 args=[[...int] ; list.MinItems(1)]
+    len=_|_ // len not supported for type _|_ anyIndexLookup=none
+    - [>=0] (PatternConstraint) lookup=_|_ // cannot look up pattern constraints other than AnyString or AnyIndex
+        kind=_|_ incomplete=_|_ concrete=false err="#closed.minItems: field not found: [_]"
+        expr=NoOp nargs=1
+- unique (NoLabels) lookup=[...int]
+    kind=list incomplete=list concrete=true
+    expr=& nargs=2 args=[[...int] ; list.UniqueItems()]
+    default=[] concrete=true
+    len=uint anyIndexLookup=int
+    - [>=0] (PatternConstraint) lookup=_|_ // cannot look up pattern constraints other than AnyString or AnyIndex
+        kind=_|_ incomplete=int concrete=false
+        expr=NoOp nargs=1
+- fields (NoLabels) lookup={}
+    kind=struct incomplete=struct concrete=true
+    expr=& nargs=2 args=[{} ; struct.MaxFields(1)]
+    allowsAnyString=false anyStringLookup=none
+    - a? (OptionalConstraint) lookup=int
+        kind=_|_ incomplete=int concrete=false
+        expr=NoOp nargs=1
+- format (NoLabels) lookup=time.Format("2006-01-02T15:04:05Z07:00")
+    kind=_|_ incomplete=string concrete=false
+    expr=() nargs=2 args=[time.Format ; "2006-01-02T15:04:05Z07:00"]
+    callee=time.Format
+- matchIf (NoLabels) lookup=_|_ // #closed.matchIf: cannot call non-function matchIf (type struct)
+    kind=_|_ incomplete=_|_ concrete=false err="#closed.matchIf: cannot call non-function matchIf (type struct)"
+    expr=& nargs=2 args=[_|_ // #closed.matchIf: cannot call non-function matchIf (type struct) ; {}]
+    allowsAnyString=true anyStringLookup=none
+    - x? (OptionalConstraint) lookup=int
+        kind=_|_ incomplete=int concrete=false
+        expr=NoOp nargs=1
+    - y? (OptionalConstraint) lookup=int
+        kind=_|_ incomplete=int concrete=false
+        expr=NoOp nargs=1
+- closed (NoLabels) lookup={a: int}
+    kind=struct incomplete=struct concrete=false
+    expr=() nargs=2 args=[close ; {a: int}]
+    callee=close (predeclared)
+    allowsAnyString=false anyStringLookup=none
+    - a (NoLabels) lookup=int
+        kind=_|_ incomplete=int concrete=false
+        expr=NoOp nargs=1

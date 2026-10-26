@@ -1,0 +1,10 @@
+# strings.Contains tightened
+-- old.cue --
+import "strings"
+s: string & strings.Contains("bc")
+-- new.cue --
+import "strings"
+s: string & strings.Contains("abc")
+-- out --
+incompatible
+s must now satisfy strings.Contains("abc"), where the prior schema required strings.Contains("bc") (rule validator-added) @ new.cue:2:1

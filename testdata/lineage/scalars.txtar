@@ -621,13 +621,13 @@ schemas: {
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "scalarfields",
+    "title": "scalarFields",
     "version": "0.0"
   },
   "paths": {},
   "components": {
     "schemas": {
-      "scalarfields": {
+      "scalarFields": {
         "type": "object",
         "required": [
           "someUInt8",
@@ -721,7 +721,7 @@ schemas: {
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "scalarfields",
+    "title": "scalarFields",
     "version": "0.0"
   },
   "paths": {},
@@ -800,13 +800,13 @@ schemas: {
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "scalarfields",
+    "title": "scalarFields",
     "version": "0.0"
   },
   "paths": {},
   "components": {
     "schemas": {
-      "scalarfields": {
+      "scalarFields": {
         "type": "object",
         "required": [
           "someUInt8",
@@ -900,7 +900,7 @@ Schema count: 1
 Schema versions: 0.0
 Lenses count: 0
 -- out/encoding/typescript/TestGenerate/nilcfg --
-export interface Scalar-Fields {
+export interface ScalarFields {
   intWithBounds: number;
   nullableIntWithDefault: (number | null);
   nullableIntWithNoDefault: (number | null);
@@ -917,6 +917,6 @@ export interface Scalar-Fields {
   stringWithLength: string;
 }
 
-export const defaultScalar-Fields: Partial<Scalar-Fields> = {
+export const defaultScalarFields: Partial<ScalarFields> = {
   nullableIntWithDefault: 10,
 };

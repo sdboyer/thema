@@ -1,0 +1,9 @@
+# string narrowed to time.Time
+-- old.cue --
+t: string
+-- new.cue --
+import "time"
+t: time.Time
+-- out --
+incompatible
+t must now satisfy time.Time(), which the prior schema did not require (rule validator-added) @ new.cue:2:1

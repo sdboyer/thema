@@ -142,14 +142,20 @@ func (ml *maybeLineage) checkGoValidity(cfg *bindConfig) error {
 
 		sch.def = sch.ref.LookupPath(pathSchDef)
 		if previous != nil && !cfg.skipbuggychecks {
-			compaterr := compat.ThemaCompatible(ml.rt.Context(), previous.def, sch.def)
-			if sch.v[1] == 0 && compaterr == nil {
+			res := compat.Check(ml.rt.Context(), previous.def, sch.def)
+			if sch.v[1] == 0 && res.Compatible() {
 				// Major version change, should be backwards incompatible
 				return errors.Mark(mkerror(sch.ref.LookupPath(pathSch), "schema %s must be backwards incompatible with schema %s: introduce a breaking change, or redeclare as version %s", sch.v, previous.v, synv(previous.v[0], previous.v[1]+1)), terrors.ErrInvalidLineage)
 			}
-			if sch.v[1] != 0 && compaterr != nil {
-				// Minor version change, should be backwards compatible
-				return errors.Mark(mkerror(sch.ref.LookupPath(pathSch), "schema %s is not backwards compatible with schema %s:\n%s", sch.v, previous.v, cerrors.Details(compaterr, nil)), terrors.ErrInvalidLineage)
+			if sch.v[1] != 0 && !res.Compatible() {
+				// Minor version change, should be backwards compatible. An Unknown
+				// verdict counts as incompatible: the author must change the
+				// schema so that the checker can decide, or bump the major version.
+				what := "is not"
+				if res.Verdict() == compat.Unknown {
+					what = "cannot be shown to be"
+				}
+				return errors.Mark(mkerror(sch.ref.LookupPath(pathSch), "schema %s %s backwards compatible with schema %s:\n%s", sch.v, what, previous.v, cerrors.Details(res.Error(), nil)), terrors.ErrInvalidLineage)
 			}
 		}
 

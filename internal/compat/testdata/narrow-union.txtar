@@ -1,0 +1,8 @@
+# an alternative removed (union-reduction)
+-- old.cue --
+u: "x" | "y" | "z"
+-- new.cue --
+u: "x" | "y"
+-- out --
+incompatible
+u is now "x" | "y", which has no alternative for the prior "z" (rule value-narrowed) @ new.cue:1:1

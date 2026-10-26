@@ -1,0 +1,9 @@
+# an identical pending comprehension (fp-identical-conditional)
+-- old.cue --
+kind: string
+if kind == "x" {extra?: int}
+-- new.cue --
+kind: string
+if kind == "x" {extra?: int}
+-- out --
+compatible

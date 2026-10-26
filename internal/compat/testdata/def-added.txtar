@@ -1,0 +1,8 @@
+# a definition is not data (fp-def-added)
+-- old.cue --
+a: int
+-- new.cue --
+a: int
+#D: string
+-- out --
+compatible

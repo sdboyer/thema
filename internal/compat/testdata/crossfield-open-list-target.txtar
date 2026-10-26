@@ -1,0 +1,11 @@
+# An open list is concrete (it fills with []) but an instance may add to it,
+# so a reference to it depends on the instance.
+-- old.cue --
+l: [...int]
+n?: len(l)
+-- new.cue --
+l: [...int]
+n?: int
+-- out --
+unknown
+n is constrained by l in the prior schema and not in the new one; the checker cannot compare constraints between fields (rule unknown-crossfield) @ new.cue:2:1
