@@ -5,34 +5,36 @@ import "github.com/sdboyer/thema"
 
 lin1: thema.Lineage
 lin1: name: "refstruct"
-lin1: schemas: [{
-	version: [0, 0]
-	schema: {
-		aBaz: #Baz
-
-		#Baz: {
-			run:  string
-			tell: bytes
-			dat:  int32
+lin1: schemas: {
+	"0": "0": {
+		schema: {
+			aBaz: #Baz
+	
+			#Baz: {
+				run:  string
+				tell: bytes
+				dat:  int32
+			}
 		}
 	}
-}]
+}
 
 lin2: thema.Lineage
 lin2: name: "refstruct"
-lin2: schemas: [{
-    version: [0, 0]
-    schema: {
-		aBaz: #Baz
-
-		#Baz: {
-			run:  string
-			dat:  int32
-		}
-    }
-}]
+lin2: schemas: {
+	"0": "0": {
+	    schema: {
+			aBaz: #Baz
+	
+			#Baz: {
+				run:  string
+				dat:  int32
+			}
+	    }
+	}
+}
 -- out/isappendonly-fail --
 field aBaz not present in {aBaz:~(#closed.#Baz),#Baz:{run:string,dat:int32}}:
-    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:227:11
+    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:170:11
 missing field "aBaz"
 regular field is constraint in subsumed value: tell

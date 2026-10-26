@@ -4,7 +4,7 @@ import "github.com/sdboyer/thema"
 
 thema.Lineage
 name: "emptySchemas"
-schemas: []
+schemas: {}
 -- out/bindfail --
-schemas: schemas: incompatible list lengths (0 and 1):
-    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:49:12
+invalid lineage, Lineage.schemas must declare at least one schema:
+    ./in.cue:6:1

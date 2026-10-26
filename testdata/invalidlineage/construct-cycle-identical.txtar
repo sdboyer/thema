@@ -9,20 +9,21 @@ import (
 
 lin: thema.Lineage & {
 	name: "fpIdenticalRecursive"
-	schemas: [{
-		version: [0, 0]
-		schema: {#Node: {v: int, next?: #Node}, root: #Node}
-	}, {
-		version: [0, 1]
-		schema: {#Node: {v: int, next?: #Node}, root: #Node}
-	}]
-	lenses: [{
-		from: [0, 1]
-		to: [0, 0]
-		input: _
-		result: input
-	}]
+	schemas: {
+		"0": "0": {
+			schema: {#Node: {v: int, next?: #Node}, root: #Node}
+		}
+		"0": "1": {
+			schema: {#Node: {v: int, next?: #Node}, root: #Node}
+		}
+	}
+	lenses: {
+		"0.1->0.0": {
+			input: _
+			result: input
+		}
+	}
 }
 -- out/bindfail --
 schema 0.0: reference cycle #Node -> #Node; schemas may not contain circular references:
-    ./in.cue:9:28
+    ./in.cue:9:29

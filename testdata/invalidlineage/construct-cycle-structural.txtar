@@ -5,16 +5,15 @@ import "github.com/sdboyer/thema"
 
 thema.Lineage & {
 	name: "cycleStructural"
-	schemas: [{
-		version: [0, 0]
+	schemas: "0": "0": {
 		schema: {
 			a: b
 			b: a
 		}
-	}]
+	}
 }
 -- out/bindfail --
 schema 0.0: reference cycle b -> a -> b; schemas may not contain circular references:
-    ./in.cue:8:4
+    ./in.cue:7:4
 schema 0.0: reference cycle a -> b -> a; schemas may not contain circular references:
-    ./in.cue:9:4
+    ./in.cue:8:4

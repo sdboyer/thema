@@ -16,48 +16,47 @@ import (
 // forward lens fills with a placeholder, and the backward lens drops it.
 const lacunaLineage = `lin: thema.Lineage & {
 	name: "lacunas"
-	schemas: [{
-		version: [0, 0]
-		schema: {a: string}
-	}, {
-		version: [0, 1]
-		schema: {a: string, note?: string}
-	}, {
-		version: [1, 0]
-		schema: {a: string, id: int}
-	}]
-	lenses: [{
-		from: [0, 1]
-		to: [0, 0]
-		input: _
-		result: a: input.a
-		lacunas: [thema.Lacuna & {
-			condition: input.note != _|_
-			sourceFields: [{path: "note", value: input.note}]
-			message: "note dropped"
-			type: thema.LacunaTypes.DroppedField
-		}]
-	}, {
-		from: [1, 0]
-		to: [0, 1]
-		input: _
-		result: a: input.a
-		lacunas: [thema.Lacuna & {
-			sourceFields: [{path: "id", value: input.id}]
-			message: "id dropped"
-			type: thema.LacunaTypes.DroppedField
-		}]
-	}, {
-		from: [0, 1]
-		to: [1, 0]
-		input: _
-		result: {a: input.a, id: -1}
-		lacunas: [thema.Lacuna & {
-			targetFields: [{path: "id", value: result.id}]
-			message: "-1 is a placeholder"
-			type: thema.LacunaTypes.Placeholder
-		}]
-	}]
+	schemas: {
+		"0": "0": {
+			schema: {a: string}
+		}
+		"0": "1": {
+			schema: {a: string, note?: string}
+		}
+		"1": "0": {
+			schema: {a: string, id: int}
+		}
+	}
+	lenses: {
+		"0.1->0.0": {
+			input: _
+			result: a: input.a
+			lacunas: [thema.Lacuna & {
+				condition: input.note != _|_
+				sourceFields: [{path: "note", value: input.note}]
+				message: "note dropped"
+				type: thema.LacunaTypes.DroppedField
+			}]
+		}
+		"1.0->0.1": {
+			input: _
+			result: a: input.a
+			lacunas: [thema.Lacuna & {
+				sourceFields: [{path: "id", value: input.id}]
+				message: "id dropped"
+				type: thema.LacunaTypes.DroppedField
+			}]
+		}
+		"0.1->1.0": {
+			input: _
+			result: {a: input.a, id: -1}
+			lacunas: [thema.Lacuna & {
+				targetFields: [{path: "id", value: result.id}]
+				message: "-1 is a placeholder"
+				type: thema.LacunaTypes.Placeholder
+			}]
+		}
+	}
 }`
 
 func TestLacunaEmission(t *testing.T) {
@@ -138,20 +137,15 @@ func TestLacunaBindChecks(t *testing.T) {
 	lineage := func(lacunas string) string {
 		return `lin: thema.Lineage & {
 	name: "lacunacheck"
-	schemas: [{
-		version: [0, 0]
-		schema: {a: string, nested: {x: int}}
-	}, {
-		version: [0, 1]
-		schema: {a: string, nested: {x: int}, b?: int}
-	}]
-	lenses: [{
-		from: [0, 1]
-		to: [0, 0]
+	schemas: "0": {
+		"0": schema: {a: string, nested: {x: int}}
+		"1": schema: {a: string, nested: {x: int}, b?: int}
+	}
+	lenses: "0.1->0.0": {
 		input: _
 		result: {a: input.a, nested: input.nested}
 		lacunas: ` + lacunas + `
-	}]
+	}
 }`
 	}
 
@@ -189,7 +183,10 @@ func TestGoLensLacunas(t *testing.T) {
 	rt := NewRuntime(ctx)
 	src := `lin: thema.Lineage & {
 	name: "golens"
-	schemas: [{version: [0, 0], schema: {a: string}}, {version: [0, 1], schema: {a: string, b?: int}}]
+	schemas: {
+		"0": "0": {schema: {a: string}}
+		"0": "1": {schema: {a: string, b?: int}}
+	}
 }`
 	bind := func(lacunas []Lacuna) Lineage {
 		t.Helper()

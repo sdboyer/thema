@@ -7,13 +7,14 @@ name: "oneone"
 joinSchema: {
     foo: string
 }
-schemas: [{
-	version: [0, 0]
-	schema: {
-	    bar: string
-	}
-}]
-lenses: []
+schemas: {
+    "0": "0": {
+    	schema: {
+    	    bar: string
+    	}
+    }
+}
+lenses: {}
 -- out/encoding/openapi/TestGenerate/nilcfg --
 == 0.0.json
 {

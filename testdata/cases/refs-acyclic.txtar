@@ -6,8 +6,7 @@ import "github.com/sdboyer/thema"
 
 lin: thema.Lineage & {
 	name: "refsAcyclic"
-	schemas: [{
-		version: [0, 0]
+	schemas: "0": "0": {
 		schema: {
 			#T: int
 			d:  #T
@@ -21,7 +20,7 @@ lin: thema.Lineage & {
 			_lim: 5
 			c?:   <_lim
 		}
-	}]
+	}
 }
 -- expect --
 bind ok

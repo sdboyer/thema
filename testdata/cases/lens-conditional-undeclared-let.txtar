@@ -7,23 +7,24 @@ import (
 
 lin: thema.Lineage & {
 	name: "lensConditionalUndeclaredLet"
-	schemas: [{
-		version: [0, 0]
-		schema: {a: string}
-	}, {
-		version: [0, 1]
-		schema: {a: string, b?: int}
-	}]
-	lenses: [{
-		from: [0, 1]
-		to: [0, 0]
-		input: _
-		result: R
-		let R = {
-			a: input.a
-			if input.a == "boom" {extra: 1}
+	schemas: {
+		"0": "0": {
+			schema: {a: string}
 		}
-	}]
+		"0": "1": {
+			schema: {a: string, b?: int}
+		}
+	}
+	lenses: {
+		"0.1->0.0": {
+			input: _
+			result: R
+			let R = {
+				a: input.a
+				if input.a == "boom" {extra: 1}
+			}
+		}
+	}
 }
 -- expect --
 bind fail

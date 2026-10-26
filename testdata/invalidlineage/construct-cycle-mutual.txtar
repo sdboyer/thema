@@ -4,17 +4,16 @@ import "github.com/sdboyer/thema"
 
 thema.Lineage & {
 	name: "cycleMutual"
-	schemas: [{
-		version: [0, 0]
+	schemas: "0": "0": {
 		schema: {
 			#A: {b?: #B}
 			#B: {a?: #A}
 			a: #A
 		}
-	}]
+	}
 }
 -- out/bindfail --
 schema 0.0: reference cycle #B -> #A -> #B; schemas may not contain circular references:
-    ./in.cue:8:9
+    ./in.cue:7:9
 schema 0.0: reference cycle #A -> #B -> #A; schemas may not contain circular references:
-    ./in.cue:9:9
+    ./in.cue:8:9

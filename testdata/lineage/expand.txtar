@@ -5,71 +5,65 @@ import "github.com/sdboyer/thema"
 
 thema.Lineage
 name: "expand"
-schemas: [{
-    version: [0, 0]
-    schema: {
-        init: string
+schemas: {
+    "0": "0": {
+        schema: {
+            init: string
+        }
     }
-},
-{
-    version: [0, 1]
-    schema: {
-        init:      string
-        optional?: int
+    "0": "1": {
+        schema: {
+            init:      string
+            optional?: int
+        }
     }
-},
-{
-    version: [0, 2]
-    schema: {
-        init:         string
-        optional?:    int
-        withDefault?: *"foo" | "bar"
+    "0": "2": {
+        schema: {
+            init:         string
+            optional?:    int
+            withDefault?: *"foo" | "bar"
+        }
     }
-},
-{
-    version: [0, 3]
-    schema: {
-        init:         string
-        optional?:    int
-        withDefault?: *"foo" | "bar" | "baz"
+    "0": "3": {
+        schema: {
+            init:         string
+            optional?:    int
+            withDefault?: *"foo" | "bar" | "baz"
+        }
     }
-}]
+}
 
-lenses: [{
-    to: [0, 0]
-    from: [0, 1]
-    input: _
-    result: {
-        init: input.init
-    }
-},
-{
-    to: [0, 1]
-    from: [0, 2]
-    input: _
-    result: {
-        init: input.init
-        if input.optional != _|_ {
-            optional: input.optional
+lenses: {
+    "0.1->0.0": {
+        input: _
+        result: {
+            init: input.init
         }
     }
-},
-{
-    to: [0, 2]
-    from: [0, 3]
-    input: _
-    result: {
-        init: input.init
-        if input.optional != _|_ {
-            optional: input.optional
-        }
-        if input.withDefault != _|_ {
-            // if the value is "baz" (not allowed by the to schema), then the to
-            // schema's default value "foo" will be selected by Thema's #Translate
-            withDefault: input.withDefault
+    "0.2->0.1": {
+        input: _
+        result: {
+            init: input.init
+            if input.optional != _|_ {
+                optional: input.optional
+            }
         }
     }
-}]
+    "0.3->0.2": {
+        input: _
+        result: {
+            init: input.init
+            if input.optional != _|_ {
+                optional: input.optional
+            }
+            if input.withDefault != _|_ {
+                // if the value is "baz" (not allowed by the to schema), then the to
+                // schema's default value "foo" will be selected by Thema's #Translate
+                withDefault: input.withDefault
+            }
+        }
+    }
+}
 -- in/validate/TestValidate/invalidEnumValue.data.json --
 {
     "init": "init",
@@ -78,20 +72,20 @@ lenses: [{
 -- out/validate/TestValidate/invalidEnumValue --
 <expand@v0.3>.withDefault: validation failed, data is not an instance:
 	schema expected `"bar"`
-		/in.cue:32:32
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
+		/in.cue:29:36
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
 	but data contained `"invalid value for withDefault"`
 		test:3:20
 <expand@v0.3>.withDefault: validation failed, data is not an instance:
 	schema expected `"baz"`
-		/in.cue:32:40
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
+		/in.cue:29:44
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
 	but data contained `"invalid value for withDefault"`
 		test:3:20
 <expand@v0.3>.withDefault: validation failed, data is not an instance:
 	schema expected `"foo"`
-		/in.cue:32:24
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
+		/in.cue:29:28
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
 	but data contained `"invalid value for withDefault"`
 		test:3:20
 -- out/encoding/openapi/TestGenerate/nilcfg --

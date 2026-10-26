@@ -4,14 +4,13 @@ import "github.com/sdboyer/thema"
 
 thema.Lineage & {
 	name: "cycleDisjunction"
-	schemas: [{
-		version: [0, 0]
+	schemas: "0": "0": {
 		schema: {
 			#Value: string | [...#Value] | {[string]: #Value}
 			v: #Value
 		}
-	}]
+	}
 }
 -- out/bindfail --
 schema 0.0: reference cycle #Value -> #Value; schemas may not contain circular references:
-    ./in.cue:8:25
+    ./in.cue:7:25

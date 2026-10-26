@@ -25,10 +25,11 @@ SearchAndValidate: {
 	let INST = inst
 
 	out: LinkedInstance
-	out: [for _, sch in lin.schemas
+	out: [for _, V in lin._ordered
+	let sch = lin.schemas["\(V[0])"]["\(V[1])"]
 	let closed = ({#closed: sch._schema}).#closed
 	if (INST & closed) != _|_ {
-		v:    sch.version
+		v:    V
 		lin:  LIN
 		inst: INST & closed
 	}, _|_][0]
@@ -39,7 +40,7 @@ ValidFor: {
 	inst: {...} // TODO consistently rename to 'object' or something
 
 	out: SyntacticVersion
-	out: [for _, sch in lin.schemas if (({#closed: sch._schema}).#closed & inst) != _|_ {sch.version}][0]
+	out: [for _, V in lin._ordered if (({#closed: lin.schemas["\(V[0])"]["\(V[1])"]._schema}).#closed & inst) != _|_ {V}][0]
 }
 
 // LinkedInstance represents data that is an instance of some schema, the

@@ -5,8 +5,7 @@ import "github.com/sdboyer/thema"
 
 thema.Lineage & {
 	name: "comprehensionNested"
-	schemas: [{
-		version: [0, 0]
+	schemas: "0": "0": {
 		schema: {
 			a: int
 			m: {
@@ -16,8 +15,8 @@ thema.Lineage & {
 				}
 			}
 		}
-	}]
+	}
 }
 -- out/bindfail --
 schema 0.0: comprehensions are not allowed in schemas:
-    ./in.cue:11:5
+    ./in.cue:10:5

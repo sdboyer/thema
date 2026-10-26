@@ -93,29 +93,27 @@ func TestInstance_LookupPathOnTranslatedInstance(t *testing.T) {
 
 	// Initialize lineage for testing
 	linstr := `name: "simple"
-schemas: [
-	{
-		version: [0, 0]
+schemas: {
+	"0": "0": {
 		schema:
 		{
 			title: string
 		},
-	},
-	{
-		version: [0, 1]
+	}
+	"0": "1": {
 		schema:
 		{
 			title: string
 			header?: string
 		},
-	},
-]
-lenses: [{
-	from: [0, 1]
-	to: [0, 0]
-	input: _
-	result: title: input.title
-}]`
+	}
+}
+lenses: {
+	"0.1->0.0": {
+		input: _
+		result: title: input.title
+	}
+}`
 	linval := rt.Context().CompileString(linstr)
 	lin, err := BindLineage(linval, rt)
 	require.NoError(t, err)

@@ -9,13 +9,14 @@ joinSchema: {
         defLitField: string
     }
 }
-schemas: [{
-	version: [0, 0]
-	schema: {
-		foo: string
-	}
-}]
-lenses: []
+schemas: {
+    "0": "0": {
+    	schema: {
+    		foo: string
+    	}
+    }
+}
+lenses: {}
 -- out/encoding/openapi/TestGenerate/nilcfg --
 == 0.0.json
 {

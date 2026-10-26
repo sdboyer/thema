@@ -5,13 +5,14 @@ import "github.com/sdboyer/thema"
 
 thema.Lineage
 name: "refscalar"
-schemas: [{
-	version: [0, 0]
-	schema: {
-		someField: #Baz
+schemas: {
+	"0": "0": {
+		schema: {
+			someField: #Baz
+		}
 	}
-}]
-lenses: []
+}
+lenses: {}
 
 #Baz: string
 -- out/encoding/openapi/TestGenerate/nilcfg --

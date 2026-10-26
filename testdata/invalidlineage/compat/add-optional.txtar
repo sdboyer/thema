@@ -6,34 +6,33 @@ import "github.com/sdboyer/thema"
 
 lin: thema.Lineage
 lin: name: "addOptional"
-lin: schemas: [{
-    version: [0, 0]
-    schema: {
-        firstfield: string
+lin: schemas: {
+    "0": "0": {
+        schema: {
+            firstfield: string
+        }
     }
-},
-{
-    version: [1, 0]
-    schema: {
-        firstfield: string
-        getsAdded?: int32
+    "1": "0": {
+        schema: {
+            firstfield: string
+            getsAdded?: int32
+        }
     }
-}]
+}
 
-lin: lenses: [{
-	to: [1, 0]
-	from: [0, 0]
-	input: _
-	result: {
-		firstfield: input.firstfield
-	}
-}, {
-	to: [0, 0]
-	from: [1, 0]
-	input: _
-	result: {
-		firstfield: input.firstfield
-	}
-}]
+lin: lenses: {
+    "0.0->1.0": {
+    	input: _
+    	result: {
+    		firstfield: input.firstfield
+    	}
+    }
+    "1.0->0.0": {
+    	input: _
+    	result: {
+    		firstfield: input.firstfield
+    	}
+    }
+}
 -- out/bindfail --
 schema 1.0 must be backwards incompatible with schema 0.0: introduce a breaking change, or redeclare as version 0.1

@@ -4,8 +4,7 @@ import "github.com/sdboyer/thema"
 
 thema.Lineage & {
 	name: "cycleDefinition"
-	schemas: [{
-		version: [0, 0]
+	schemas: "0": "0": {
 		schema: {
 			#N: {
 				v:     int
@@ -13,8 +12,8 @@ thema.Lineage & {
 			}
 			n: #N
 		}
-	}]
+	}
 }
 -- out/bindfail --
 schema 0.0: reference cycle #N -> #N; schemas may not contain circular references:
-    ./in.cue:10:5
+    ./in.cue:9:5

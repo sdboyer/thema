@@ -10,10 +10,9 @@ thema.Lineage & {
 			extra?: int
 		}
 	}
-	schemas: [{
-		version: [0, 0]
+	schemas: "0": "0": {
 		schema: {a: int}
-	}]
+	}
 }
 -- out/bindfail --
 joinSchema: comprehensions are not allowed in schemas:

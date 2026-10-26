@@ -16,12 +16,13 @@ joinSchema: {
         nested: string
     }
 }
-schemas: [{
-	version: [0, 0]
-	schema: {
-	}
-}]
-lenses: []
+schemas: {
+    "0": "0": {
+    	schema: {
+    	}
+    }
+}
+lenses: {}
 -- out/encoding/openapi/TestGenerate/nilcfg --
 == 0.0.json
 {

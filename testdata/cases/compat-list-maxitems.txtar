@@ -8,19 +8,20 @@ import (
 
 lin: thema.Lineage & {
 	name: "compatListMaxitems"
-	schemas: [{
-		version: [0, 0]
-		schema: {l: [...int]}
-	}, {
-		version: [0, 1]
-		schema: {l: [...int] & list.MaxItems(1)}
-	}]
-	lenses: [{
-		from: [0, 1]
-		to: [0, 0]
-		input: _
-		result: {l: input.l}
-	}]
+	schemas: {
+		"0": "0": {
+			schema: {l: [...int]}
+		}
+		"0": "1": {
+			schema: {l: [...int] & list.MaxItems(1)}
+		}
+	}
+	lenses: {
+		"0.1->0.0": {
+			input: _
+			result: {l: input.l}
+		}
+	}
 }
 -- expect --
 bind fail
