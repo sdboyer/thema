@@ -14,6 +14,24 @@ seams: lineages: {
 	format: "thema"
 }
 
+// Every compatibility verdict is part of the versioning contract: a lineage is
+// valid only if its minor steps are compatible and its major steps are not, so
+// a verdict that changes can invalidate lineages already published. The corpus
+// records one verdict per rule; a diff there is a contract change, even when it
+// fixes a bug. (Before v1 verdicts are declared unstable; the diff is still loud.)
+// This is a published language whose consumers are every bound lineage, but
+// thresh's published-language kind only reads version tuples, which the corpus
+// has none of (sdboyer/thresh#6), so it is declared as a kernel to fire on touch.
+seams: "compat-verdicts": {
+	kind:  "shared-kernel"
+	paths: ["internal/compat/testdata/*.txtar"]
+	consult: [
+		"every lineage already bound: a verdict that moves can make a published minor step invalid or a major step unnecessary",
+		"the rule tables in docs/invariants.md, which must describe the recorded verdicts",
+		"the stability policy in docs/invariants.md: after v1 a recorded verdict may not change",
+	]
+}
+
 // --- shared-kernel: co-owners we can name ---------------------------------------
 
 // thema's own CUE definitions are the kernel both halves stand on: every lineage

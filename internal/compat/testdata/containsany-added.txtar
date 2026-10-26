@@ -1,0 +1,9 @@
+# strings.ContainsAny added
+-- old.cue --
+s: string
+-- new.cue --
+import "strings"
+s: string & strings.ContainsAny("ab")
+-- out --
+incompatible
+s must now satisfy strings.ContainsAny("ab"), which the prior schema did not require (rule validator-added) @ new.cue:2:1

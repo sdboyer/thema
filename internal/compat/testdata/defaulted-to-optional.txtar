@@ -1,0 +1,8 @@
+# defaulted to optional: the consumer no longer sees the default
+-- old.cue --
+a: *1 | int
+-- new.cue --
+a?: int
+-- out --
+incompatible
+a was filled when absent and is now left absent (rule default-removed) @ new.cue:1:1

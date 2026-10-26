@@ -1,0 +1,151 @@
+What the cue API reports about closedness, patterns, lists and comprehensions
+(see shape, residuals, lists and pending in compat.go). Observations relied on:
+
+- After CloseRecursive, Allows(AnyString) is true only where every label is
+  accepted: an author's ... or a [string] pattern. A narrower pattern
+  ([=~"^a"]) reports false although it accepts some undeclared labels, so the
+  checker reads patterns from Fields(cue.Patterns(true)) and uses Allows only
+  for "every label".
+- LookupPath(AnyString) returns _ under ..., and a pattern's value for a
+  pattern.
+- A list's Fields reports fixed elements by index and the open tail as the
+  pattern [>=0] (or [>=n]); LookupPath(AnyIndex) returns the tail's constraint,
+  and Len() the length constraint (uint, int & >=1, 2).
+- A struct with a comprehension over data (if kind == "x") reports
+  IncompleteKind bottom and an incomplete error, while Fields still iterates
+  the fields that do not depend on the comprehension. The comprehension itself
+  is invisible to Fields.
+- A pattern's value taken from Fields on a list is not closed (viaFields below),
+  while the same constraint from LookupPath(AnyIndex) is; the lists walk reads
+  both sides by lookup.
+- A struct with a pending comprehension reports Allows(AnyString) true: its
+  closedness is undecided, like its fields. The checker never reads a pending
+  struct's shape.
+-- in.cue --
+cases: {
+	closedness: {
+		closed:    {a: int}
+		open:      {a: int, ...}
+		pattern:   {[string]: int}
+		narrow:    {[=~"^a"]: int}
+		several:   {[=~"^a"]: int, [=~"^b"]: string}
+		mixed:     {a: int, [string]: int}
+	}
+	lists: {
+		open:     [...int]
+		prefixed: [int, ...string]
+		fixed:    [int, int]
+		structs:  [...{a: *1 | int}]
+	}
+	comprehension: {
+		kind: string
+		if kind == "x" {extra?: int}
+	}
+}
+-- out --
+## closedness
+kind=struct incomplete=struct concrete=false
+expr=& nargs=2 args=[_ ; { closed: a: int open: a: int pattern: {} narrow: {} several: {} mixed: a: int }]
+allowsAnyString=false anyStringLookup=none
+- closed (NoLabels) lookup={a: int}
+    kind=struct incomplete=struct concrete=false
+    expr=NoOp nargs=1
+    allowsAnyString=false anyStringLookup=none
+    - a (NoLabels) lookup=int
+        kind=_|_ incomplete=int concrete=false
+        expr=NoOp nargs=1
+- open (NoLabels) lookup={a: int}
+    kind=struct incomplete=struct concrete=false
+    expr=NoOp nargs=1
+    allowsAnyString=true anyStringLookup=_
+    - a (NoLabels) lookup=int
+        kind=_|_ incomplete=int concrete=false
+        expr=NoOp nargs=1
+- pattern (NoLabels) lookup={}
+    kind=struct incomplete=struct concrete=true
+    expr=NoOp nargs=1
+    allowsAnyString=true anyStringLookup=int
+    - [string] (PatternConstraint) lookup=_|_ // cannot look up pattern constraints other than AnyString or AnyIndex
+        kind=_|_ incomplete=int concrete=false
+        expr=NoOp nargs=1
+- narrow (NoLabels) lookup={}
+    kind=struct incomplete=struct concrete=true
+    expr=NoOp nargs=1
+    allowsAnyString=false anyStringLookup=none
+    - [=~"^a"] (PatternConstraint) lookup=_|_ // cannot look up pattern constraints other than AnyString or AnyIndex
+        kind=_|_ incomplete=int concrete=false
+        expr=NoOp nargs=1
+- several (NoLabels) lookup={}
+    kind=struct incomplete=struct concrete=true
+    expr=NoOp nargs=1
+    allowsAnyString=false anyStringLookup=none
+    - [=~"^a"] (PatternConstraint) lookup=_|_ // cannot look up pattern constraints other than AnyString or AnyIndex
+        kind=_|_ incomplete=int concrete=false
+        expr=NoOp nargs=1
+    - [=~"^b"] (PatternConstraint) lookup=_|_ // cannot look up pattern constraints other than AnyString or AnyIndex
+        kind=_|_ incomplete=string concrete=false
+        expr=NoOp nargs=1
+- mixed (NoLabels) lookup={a: int}
+    kind=struct incomplete=struct concrete=false
+    expr=NoOp nargs=1
+    allowsAnyString=true anyStringLookup=int
+    - [string] (PatternConstraint) lookup=_|_ // cannot look up pattern constraints other than AnyString or AnyIndex
+        kind=_|_ incomplete=int concrete=false
+        expr=NoOp nargs=1
+    - a (NoLabels) lookup=int
+        kind=_|_ incomplete=int concrete=false
+        expr=& nargs=2 args=[int ; int]
+## lists
+kind=struct incomplete=struct concrete=false
+expr=& nargs=2 args=[_ ; { open: [...int] prefixed: [int, ...string] fixed: [int, int] structs: [...{a: *1 | int}] }]
+allowsAnyString=false anyStringLookup=none
+- open (NoLabels) lookup=[...int]
+    kind=list incomplete=list concrete=true
+    expr=NoOp nargs=1
+    default=[] concrete=true
+    len=uint anyIndexLookup=int
+    - [>=0] (PatternConstraint) lookup=_|_ // cannot look up pattern constraints other than AnyString or AnyIndex
+        kind=_|_ incomplete=int concrete=false
+        expr=NoOp nargs=1
+- prefixed (NoLabels) lookup=[int, ...string]
+    kind=list incomplete=list concrete=false
+    expr=NoOp nargs=1
+    default=[int] concrete=false
+    len=int & >=1 anyIndexLookup=string
+    - [>=1] (PatternConstraint) lookup=_|_ // cannot look up pattern constraints other than AnyString or AnyIndex
+        kind=_|_ incomplete=string concrete=false
+        expr=NoOp nargs=1
+    - 0 (NoLabels) lookup=int
+        kind=_|_ incomplete=int concrete=false
+        expr=NoOp nargs=1
+- fixed (NoLabels) lookup=[int, int]
+    kind=list incomplete=list concrete=false
+    expr=NoOp nargs=1
+    len=2 anyIndexLookup=none
+    - 0 (NoLabels) lookup=int
+        kind=_|_ incomplete=int concrete=false
+        expr=NoOp nargs=1
+    - 1 (NoLabels) lookup=int
+        kind=_|_ incomplete=int concrete=false
+        expr=NoOp nargs=1
+- structs (NoLabels) lookup=[...{a: *1 | int}]
+    kind=list incomplete=list concrete=true
+    expr=NoOp nargs=1
+    default=[] concrete=true
+    len=uint anyIndexLookup={a: *1 | int}
+    - [>=0] (PatternConstraint) lookup=_|_ // cannot look up pattern constraints other than AnyString or AnyIndex
+        viaFields: allowsAnyString=true
+        kind=struct incomplete=struct concrete=true
+        expr=NoOp nargs=1
+        allowsAnyString=false anyStringLookup=none
+        - a (NoLabels) lookup=*1 | int
+            kind=_|_ incomplete=int concrete=true
+            expr=NoOp nargs=1
+            default=1 concrete=true
+## comprehension
+kind=_|_ incomplete=_|_ concrete=false err="#closed: non-concrete value string in operand to =="
+expr=& nargs=2 args=[_ ; { kind: string if kind == "x" { extra?: int } }]
+allowsAnyString=true anyStringLookup=none
+- kind (NoLabels) lookup=string
+    kind=_|_ incomplete=string concrete=false
+    expr=NoOp nargs=1

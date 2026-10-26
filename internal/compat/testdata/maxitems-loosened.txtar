@@ -1,0 +1,9 @@
+# an upper bound raised
+-- old.cue --
+import "list"
+l: [...int] & list.MaxItems(1)
+-- new.cue --
+import "list"
+l: [...int] & list.MaxItems(2)
+-- out --
+compatible

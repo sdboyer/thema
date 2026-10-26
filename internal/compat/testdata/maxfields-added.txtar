@@ -1,0 +1,9 @@
+# struct.MaxFields added (compat-struct-maxfields)
+-- old.cue --
+m: {...}
+-- new.cue --
+import "struct"
+m: {...} & struct.MaxFields(1)
+-- out --
+incompatible
+m must now satisfy struct.MaxFields(1), which the prior schema did not require (rule validator-added) @ new.cue:2:1

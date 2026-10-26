@@ -1,0 +1,9 @@
+# removing a defaulted field
+-- old.cue --
+a: string
+b: *1 | int
+-- new.cue --
+a: string
+-- out --
+incompatible
+b is declared in the prior schema and not accepted by the new one (rule field-removed) @ old.cue:2:1

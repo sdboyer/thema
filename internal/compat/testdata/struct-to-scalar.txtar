@@ -1,0 +1,8 @@
+# a struct replaced by a scalar
+-- old.cue --
+s: {a: int}
+-- new.cue --
+s: int
+-- out --
+incompatible
+s was struct and is now int (rule value-narrowed) @ new.cue:1:1

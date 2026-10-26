@@ -1,0 +1,8 @@
+# dropping a validator widens
+-- old.cue --
+import "strings"
+s: strings.MinRunes(1)
+-- new.cue --
+s: string
+-- out --
+compatible

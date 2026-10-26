@@ -1,0 +1,9 @@
+# net.UnspecifiedIP added
+-- old.cue --
+s: string
+-- new.cue --
+import "net"
+s: string & net.UnspecifiedIP
+-- out --
+incompatible
+s must now satisfy net.UnspecifiedIP(), which the prior schema did not require (rule validator-added) @ new.cue:2:1

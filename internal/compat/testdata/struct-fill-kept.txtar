@@ -1,0 +1,7 @@
+# a bare struct whose fields all fill is defaulted; same fill
+-- old.cue --
+s: {a: *1 | int}
+-- new.cue --
+s: {a: *1 | int, b?: int}
+-- out --
+compatible

@@ -1,0 +1,120 @@
+What the cue API reports for references (see dataRefs and sameExpr in
+compat.go). Observations relied on:
+
+- ReferencePath gives the target's path from the root of the value the schema
+  was compiled in. Under CloseRecursive every path within the schema starts
+  with #closed; a path without that prefix leaves the schema (an import, or a
+  value beside the schema), and data cannot set it.
+- A reference reached through a definition the field takes (e: #D, with
+  w?: q inside #D) reports the path through the definition, #closed.#D.q, not
+  #closed.e.q. The checker therefore classifies a reference by its last
+  selector and its target's concreteness, not by whether its path crosses a
+  definition.
+- A reference to a constant (c?: <_lim with _lim: 5) is the constant. One to a
+  non-concrete regular field (b?: a) depends on the instance. Concreteness is
+  not the test: Validate(Concrete) passes for a defaulted field (*5 | int) and
+  for an open list or struct, which an instance can still vary, so
+  constantTarget also requires no default and a scalar kind.
+- A reference to a definition (d: #T) or a hidden field (h: _h) is an alias:
+  the field's value is the target's.
+- A bound over a reference (z?: >a) is a BinaryOp whose operand is the
+  reference; dataRefs descends through operators and call arguments.
+- next?: #N inside #N reports the same ReferencePath at every depth, which is
+  how the walk recognizes reentry.
+- time.Time is a SelectorOp into a builtin package, whose root BuildInstance
+  has import path "time"; it is read as a validator, not as a reference.
+-- in.cue --
+import "time"
+
+outside: int
+
+cases: {
+	refs: {
+		a:    int
+		b?:   a
+		z?:   >a
+		_lim: 5
+		c?:   <_lim
+		#T:   int
+		d:    #T
+		_h:   string
+		h:    _h
+		#D: {q: int, w?: q}
+		e: #D
+		g: {q: int, w?: q}
+		#N: {v: int, next?: #N}
+		n: #N
+		o: outside
+		t: time.Time
+	}
+}
+-- out --
+## refs
+kind=struct incomplete=struct concrete=false
+expr=& nargs=2 args=[_ ; { a: int d: int h: string e: q: int g: q: int n: v: int o: int t: time.Time() }]
+allowsAnyString=false anyStringLookup=none
+- a (NoLabels) lookup=int
+    kind=_|_ incomplete=int concrete=false
+    expr=NoOp nargs=1
+- b? (OptionalConstraint) lookup=int
+    kind=_|_ incomplete=int concrete=false
+    expr=. nargs=2 args=[{ a: int d: int h: string e: q: int g: q: int n: v: int o: int t: time.Time() } ; "a"]
+    ref=#closed.a withinSchema=true target=int
+- z? (OptionalConstraint) lookup=>a
+    kind=_|_ incomplete=_|_ concrete=false err="#closed.z: non-concrete value a for bound >"
+    expr=> nargs=1 args=[int]
+    allowsAnyString=false anyStringLookup=none
+- c? (OptionalConstraint) lookup=<5
+    kind=_|_ incomplete=number concrete=false
+    expr=< nargs=1 args=[5]
+- d (NoLabels) lookup=int
+    kind=_|_ incomplete=int concrete=false
+    expr=. nargs=2 args=[{ a: int d: int h: string e: q: int g: q: int n: v: int o: int t: time.Time() } ; "#T"]
+    ref=#closed.#T withinSchema=true target=int
+- h (NoLabels) lookup=string
+    kind=_|_ incomplete=string concrete=false
+    expr=. nargs=2 args=[{ a: int d: int h: string e: q: int g: q: int n: v: int o: int t: time.Time() } ; "_h"]
+    ref=#closed._h withinSchema=true target=string
+- e (NoLabels) lookup={q: int}
+    kind=struct incomplete=struct concrete=false
+    expr=. nargs=2 args=[{ a: int d: int h: string e: q: int g: q: int n: v: int o: int t: time.Time() } ; "#D"]
+    ref=#closed.#D withinSchema=true target={q: int}
+    allowsAnyString=false anyStringLookup=none
+    - q (NoLabels) lookup=int
+        kind=_|_ incomplete=int concrete=false
+        expr=NoOp nargs=1
+    - w? (OptionalConstraint) lookup=int
+        kind=_|_ incomplete=int concrete=false
+        expr=. nargs=2 args=[{q: int} ; "q"]
+        ref=#closed.#D.q withinSchema=true target=int
+- g (NoLabels) lookup={q: int}
+    kind=struct incomplete=struct concrete=false
+    expr=NoOp nargs=1
+    allowsAnyString=false anyStringLookup=none
+    - q (NoLabels) lookup=int
+        kind=_|_ incomplete=int concrete=false
+        expr=NoOp nargs=1
+    - w? (OptionalConstraint) lookup=int
+        kind=_|_ incomplete=int concrete=false
+        expr=. nargs=2 args=[{q: int} ; "q"]
+        ref=#closed.g.q withinSchema=true target=int
+- n (NoLabels) lookup={v: int}
+    kind=struct incomplete=struct concrete=false
+    expr=. nargs=2 args=[{ a: int d: int h: string e: q: int g: q: int n: v: int o: int t: time.Time() } ; "#N"]
+    ref=#closed.#N withinSchema=true target={v: int}
+    allowsAnyString=false anyStringLookup=none
+    - v (NoLabels) lookup=int
+        kind=_|_ incomplete=int concrete=false
+        expr=NoOp nargs=1
+    - next? (OptionalConstraint) lookup=#N
+        kind=_|_ incomplete=_|_ concrete=false err="#closed.#N.next: structural cycle"
+        expr=. nargs=2 args=[{ a: int d: int h: string e: q: int g: q: int n: v: int o: int t: time.Time() } ; "#N"]
+        ref=#closed.#N withinSchema=true target={v: int}
+- o (NoLabels) lookup=int
+    kind=_|_ incomplete=int concrete=false
+    expr=. nargs=2 args=[{ outside: int cases: refs: { a: int d: int h: string e: q: int g: q: int n: v: int o: int t: time.Time() } } ; "outside"]
+    ref=outside withinSchema=false target=int rootImport=""
+- t (NoLabels) lookup=time.Time()
+    kind=_|_ incomplete=string concrete=false
+    expr=. nargs=2 args=[{ Nanosecond: 1 Microsecond: 1000 Millisecond: 1000000 Second: 1000000000 Minute: 60000000000 Hour: 3600000000000 Duration: time.Duration() FormatDuration: time.FormatDuration ParseDuration: time.ParseDuration ANSIC: "Mon Jan _2 15:04:05 2006" UnixDate: "Mon Jan _2 15:04:05 MST 2006" RubyDate: "Mon Jan 02 15:04:05 -0700 2006" RFC822: "02 Jan 06 15:04 MST" RFC822Z: "02 Jan 06 15:04 -0700" RFC850: "Monday, 02-Jan-06 15:04:05 MST" RFC1123: "Mon, 02 Jan 2006 15:04:05 MST" RFC1123Z: "Mon, 02 Jan 2006 15:04:05 -0700" RFC3339: "2006-01-02T15:04:05Z07:00" RFC3339Nano: "2006-01-02T15:04:05.999999999Z07:00" RFC3339Date: "2006-01-02" Kitchen: "3:04PM" Kitchen24: "15:04" January: 1 February: 2 March: 3 April: 4 May: 5 June: 6 July: 7 August: 8 September: 9 October: 10 November: 11 December: 12 Sunday: 0 Monday: 1 Tuesday: 2 Wednesday: 3 Thursday: 4 Friday: 5 Saturday: 6 Time: time.Time() Format: time.Format FormatString: time.FormatString Parse: time.Parse Unix: time.Unix ToUnix: time.ToUnix ToUnixNano: time.ToUnixNano Split: time.Split } ; "Time"]
+    ref=Time withinSchema=false target=time.Time() rootImport="time"
