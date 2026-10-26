@@ -1,0 +1,8 @@
+# a pattern over all labels dropped
+-- old.cue --
+m: [string]: int
+-- new.cue --
+m: {}
+-- out --
+incompatible
+m accepts any field name in the prior schema and is closed in the new one (rule labels-narrowed) @ new.cue:1:1

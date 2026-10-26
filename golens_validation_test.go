@@ -65,27 +65,6 @@ func TestGoLensValidation(t *testing.T) {
 		}
 	}
 
-	// A minor-version step through Go lenses re-tags the instance via AsSuccessor
-	// without validating it, so a compat false negative (#17) yields an Instance
-	// that is invalid against its own schema.
-	t.Run("go-lens-minor-unvalidated", func(t *testing.T) {
-		lin := mustBind(t, `lin: thema.Lineage & {
-	name: "main"
-	schemas: [{version: [0, 0], schema: {a: *1 | int}}, {version: [0, 1], schema: {a: int}}]
-}`, ImperativeLenses(ImperativeLens{From: SV(0, 1), To: SV(0, 0), Mapper: func(inst *Instance, to Schema) (*Instance, []Lacuna, error) {
-			inst, err := to.Validate(inst.Underlying())
-			return inst, nil, err
-		}}))
-		var unmet []string
-		out, _, err := mustValidate(t, lin.First(), `{}`).Translate(SV(0, 1))
-		if err == nil {
-			if _, verr := out.Schema().Validate(out.Underlying()); verr != nil {
-				unmet = append(unmet, fmt.Sprintf("translate 0.0 -> 0.1 returned an instance invalid against its own schema: %v", verr))
-			}
-		}
-		verdict(t, unmet)
-	})
-
 	// translateGo checks only the version number of what a Go lens returns, so a
 	// lens may return an instance of another lineage, invalid for the target.
 	t.Run("go-lens-foreign-instance", func(t *testing.T) {

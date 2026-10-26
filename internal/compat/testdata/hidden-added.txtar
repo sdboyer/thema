@@ -1,0 +1,8 @@
+# a hidden field is not data (fp-hidden-field-added)
+-- old.cue --
+a: int
+-- new.cue --
+a: int
+_h: string
+-- out --
+compatible

@@ -1,0 +1,7 @@
+# a bare a: T is required for data; changing it to a!: T changes nothing
+-- old.cue --
+a: int
+-- new.cue --
+a!: int
+-- out --
+compatible

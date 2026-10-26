@@ -1,0 +1,9 @@
+# list.UniqueItems added (compat-list-unique)
+-- old.cue --
+l: [...int]
+-- new.cue --
+import "list"
+l: [...int] & list.UniqueItems()
+-- out --
+incompatible
+l must now satisfy list.UniqueItems(), which the prior schema did not require (rule validator-added) @ new.cue:2:1

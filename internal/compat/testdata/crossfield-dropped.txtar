@@ -1,0 +1,11 @@
+# Dropping a constraint between fields widens, but the checker does not
+# reason about what the prior constraint admitted, so it is Unknown.
+-- old.cue --
+a:  int
+b?: <a
+-- new.cue --
+a:  int
+b?: int
+-- out --
+unknown
+b is constrained by a in the prior schema and not in the new one; the checker cannot compare constraints between fields (rule unknown-crossfield) @ new.cue:2:1

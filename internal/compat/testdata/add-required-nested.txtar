@@ -1,0 +1,8 @@
+# adding a nested required field (compat-add-required-bang-nested)
+-- old.cue --
+n!: {a!: string}
+-- new.cue --
+n!: {a!: string, b!: int}
+-- out --
+incompatible
+n.b is required in the new schema but not declared in the prior one (rule field-added-required) @ new.cue:1:18
