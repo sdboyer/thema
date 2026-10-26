@@ -7,24 +7,24 @@ import (
 
 lin: thema.Lineage & {
 	name: "lensResultDependsOnOtherLens"
-	schemas: [{
-		version: [0, 0]
-		schema: {a: string}
-	}, {
-		version: [1, 0]
-		schema: {b: string}
-	}]
-	lenses: [{
-		from: [1, 0]
-		to: [0, 0]
-		input: {b: *"default-from-lens-input" | string}
-		result: {a: input.b}
-	}, {
-		from: [0, 0]
-		to: [1, 0]
-		input: _
-		result: {b: lin.lenses[0].result.a}
-	}]
+	schemas: {
+		"0": "0": {
+			schema: {a: string}
+		}
+		"1": "0": {
+			schema: {b: string}
+		}
+	}
+	lenses: {
+		"1.0->0.0": {
+			input: {b: *"default-from-lens-input" | string}
+			result: {a: input.b}
+		}
+		"0.0->1.0": {
+			input: _
+			result: {b: lin.lenses["1.0->0.0"].result.a}
+		}
+	}
 }
 -- expect --
 bind fail

@@ -5,19 +5,20 @@ import "github.com/sdboyer/thema"
 
 lin: thema.Lineage & {
 	name: "extOldDependsOnLatest"
-	schemas: [{
-		version: [0, 0]
-		schema: {a: lin.schemas[len(lin.schemas)-1].schema.a}
-	}, {
-		version: [0, 1]
-		schema: {a: int | string}
-	}]
-	lenses: [{
-		from: [0, 1]
-		to: [0, 0]
-		input: _
-		result: {a: input.a}
-	}]
+	schemas: {
+		"0": "0": {
+			schema: {a: lin.schemas["0"]["\(len(lin.schemas["0"])-1)"].schema.a}
+		}
+		"0": "1": {
+			schema: {a: int | string}
+		}
+	}
+	lenses: {
+		"0.1->0.0": {
+			input: _
+			result: {a: input.a}
+		}
+	}
 }
 -- expect --
 bind fail

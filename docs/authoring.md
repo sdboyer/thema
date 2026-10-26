@@ -27,24 +27,24 @@ When lineages are loaded through thema's Go library, thema serves its own CUE mo
 A lineage is a `thema.Lineage` with two required fields:
 
 1. `name`: the identifier for the thing schematized by the lineage. Use a simple name, not a fully-qualified name. For this tutorial, we'll use [`"Ship"`](https://github.com/sdboyer/thema/blob/main/FAQ.md#where-does-the-name-thema-come-from).
-2. `schemas`: the ordered list of every schema the lineage has ever had.
+2. `schemas`: every schema the lineage has ever had, keyed by major version, then minor version.
 
 ```cue
 import "github.com/sdboyer/thema"
 
 lin: thema.Lineage & {
 	name: "Ship"
-	schemas: []
+	schemas: {}
 }
 ```
 
-A valid lineage requires at least one schema in `schemas`, so this isn't actually a valid lineage yet - it's the minimum structure to start from. Tooling refuses to work with invalid lineages, similar to a failed type check: [loading this lineage in Go](https://pkg.go.dev/github.com/sdboyer/thema#BindLineage) fails with an error about the length of `schemas`.
+A valid lineage requires at least one schema in `schemas`, so this isn't actually a valid lineage yet - it's the minimum structure to start from. Tooling refuses to work with invalid lineages, similar to a failed type check: [loading this lineage in Go](https://pkg.go.dev/github.com/sdboyer/thema#BindLineage) fails because `schemas` declares no schema.
 
 thema checks the fields of a lineage, its schema entries and its lenses: a misspelled `schemass` or `lense` is an error, both in plain CUE and in Go. Hidden fields (`_helper`) and definitions (`#Helper`) are left alone, so you can keep your own helpers alongside a lineage. When you need regular fields next to a lineage, put the lineage in its own field, as above (`lin: thema.Lineage & {...}`), rather than embedding `thema.Lineage` at the top of a file.
 
 ## Defining a schema
 
-Each element of `schemas` declares one schema: its `version`, and the `schema` itself. Schemas are CUE structs, from a single field to highly complex, deeply nested objects. Complex CUE constraints may also be used, though they may limit translatability to other languages.
+Each entry in `schemas` declares one schema, keyed by its version: `"0": "1": {...}` is version 0.1. Keys are non-negative integers, written as strings. An entry holds the `schema` itself, and optionally named `examples` of it; the version is never written inside the entry. Schemas are CUE structs, from a single field to highly complex, deeply nested objects. Complex CUE constraints may also be used, though they may limit translatability to other languages.
 
 Lineages should be sealed structures, as thema's invariants only hold in the context of immutable schema declarations. A schema should refer only to itself and the lineage's `joinSchema`; values from elsewhere, especially from other CUE modules, may change when their source changes.
 
@@ -55,18 +55,19 @@ import "github.com/sdboyer/thema"
 
 lin: thema.Lineage & {
 	name: "Ship"
-	schemas: [{
-		version: [0, 0]
-		schema: {
-			firstfield: string
+	schemas: {
+		"0": "0": {
+			schema: {
+				firstfield: string
+			}
 		}
-	}]
+	}
 }
 ```
 
 And that's it! Congratulations, we now have a valid thema lineage, containing a single schema.
 
-(The first schema's `version` may be omitted, as it can only be `[0, 0]`. Every other schema must declare its version.)
+Because versions are keys, each one is declared once. Writing the same key twice declares one entry, whose two bodies unify like any CUE field's.
 
 ## Adding more schemas
 
@@ -76,7 +77,7 @@ When writing real thema, whether to define a new schema or make additions direct
 
 For this tutorial, we'll sidestep the issue by assuming that publication has happened. Because publication has happened - making the schema immutable - making changes requires creating a new schema.
 
-A schema's version is a pair, `[major, minor]`. Each schema's version must be exactly the next minor version of its predecessor, or the first version (`.0`) of the next major version. Which of the two is correct isn't the author's choice: it is determined by whether the change is backward compatible. A schema that is backward compatible with its predecessor - every instance of the old schema is also an instance of the new one - is the next minor version. A schema that isn't is the next major version.
+A schema's version is a pair, major and minor. Versions are contiguous: the first schema is `0.0`, and each schema's version must be exactly the next minor version of its predecessor, or the first version (`.0`) of the next major version. Which of the two is correct isn't the author's choice: it is determined by whether the change is backward compatible. A schema that is backward compatible with its predecessor - every instance of the old schema is also an instance of the new one - is the next minor version. A schema that isn't is the next major version.
 
 Let's add one more field, `secondfield`, which must be an `int`, as version `0.1`.
 
@@ -85,18 +86,19 @@ import "github.com/sdboyer/thema"
 
 lin: thema.Lineage & {
 	name: "Ship"
-	schemas: [{
-		version: [0, 0]
-		schema: {
-			firstfield: string
+	schemas: {
+		"0": "0": {
+			schema: {
+				firstfield: string
+			}
 		}
-	}, {
-		version: [0, 1]
-		schema: {
-			firstfield:  string
-			secondfield: int
+		"0": "1": {
+			schema: {
+				firstfield:  string
+				secondfield: int
+			}
 		}
-	}]
+	}
 }
 ```
 
@@ -116,26 +118,27 @@ import "github.com/sdboyer/thema"
 
 lin: thema.Lineage & {
 	name: "Ship"
-	schemas: [{
-		version: [0, 0]
-		schema: {
-			firstfield: string
+	schemas: {
+		"0": "0": {
+			schema: {
+				firstfield: string
+			}
 		}
-	}, {
-		version: [0, 1]
-		schema: {
-			firstfield:   string
-			secondfield?: int
+		"0": "1": {
+			schema: {
+				firstfield:   string
+				secondfield?: int
+			}
 		}
-	}]
-	lenses: [{
-		from: [0, 1]
-		to: [0, 0]
-		input: _
-		result: {
-			firstfield: input.firstfield
+	}
+	lenses: {
+		"0.1->0.0": {
+			input: _
+			result: {
+				firstfield: input.firstfield
+			}
 		}
-	}]
+	}
 }
 ```
 
@@ -172,18 +175,19 @@ import "github.com/sdboyer/thema"
 
 lin: thema.Lineage & {
 	name: "Ship"
-	schemas: [{
-		version: [0, 0]
-		schema: {
-			firstfield: string
+	schemas: {
+		"0": "0": {
+			schema: {
+				firstfield: string
+			}
 		}
-	}, {
-		version: [1, 0]
-		schema: {
-			firstfield:  string
-			secondfield: int
+		"1": "0": {
+			schema: {
+				firstfield:  string
+				secondfield: int
+			}
 		}
-	}]
+	}
 }
 ```
 
@@ -204,7 +208,7 @@ A lineage must have exactly these lenses:
 
 Moving forward within a major version needs no lens, as backward compatibility already guarantees an old instance is a new instance.
 
-Each lens has a `from` version, a `to` version, an `input` that stands for an instance of the `from` schema, and a `result`: the instance of the `to` schema, built from `input`. A lens's result may contain only fields its `to` schema declares. thema checks lenses when the lineage is loaded, treating `input` as any instance of its schema: a result that couldn't be an instance of the `to` schema, or that refers to a field `input` can't have, is an error before any data is ever translated.
+Each lens is keyed by the versions it maps between, written `"<from>-><to>"`: `"1.0->0.0"` maps instances of `1.0` to `0.0`. A lens has an `input` that stands for an instance of the `from` schema, and a `result`: the instance of the `to` schema, built from `input`. A lens's result may contain only fields its `to` schema declares. thema checks lenses when the lineage is loaded, treating `input` as any instance of its schema: a result that couldn't be an instance of the `to` schema, or that refers to a field `input` can't have, is an error before any data is ever translated.
 
 The change to the `Ship` schema is trivial, but presents an interesting challenge - because we specifically don't want to make `secondfield` optional or give it a default value, how can we define a forward lens that still produces a valid instance of `Ship@1.0`?
 
@@ -215,37 +219,37 @@ import "github.com/sdboyer/thema"
 
 lin: thema.Lineage & {
 	name: "Ship"
-	schemas: [{
-		version: [0, 0]
-		schema: {
-			firstfield: string
+	schemas: {
+		"0": "0": {
+			schema: {
+				firstfield: string
+			}
 		}
-	}, {
-		version: [1, 0]
-		schema: {
-			firstfield:  string
-			secondfield: int
+		"1": "0": {
+			schema: {
+				firstfield:  string
+				secondfield: int
+			}
 		}
-	}]
-	lenses: [{
-		from:  [1, 0]
-		to:    [0, 0]
-		input: _
-		result: {
-			// Map the first field back
-			firstfield: input.firstfield
+	}
+	lenses: {
+		"1.0->0.0": {
+			input: _
+			result: {
+				// Map the first field back
+				firstfield: input.firstfield
+			}
 		}
-	}, {
-		from:  [0, 0]
-		to:    [1, 0]
-		input: _
-		result: {
-			// Direct mapping of the first field
-			firstfield: input.firstfield
-			// Just some placeholder int, so we have a valid instance of schema 1.0
-			secondfield: -1
+		"0.0->1.0": {
+			input: _
+			result: {
+				// Direct mapping of the first field
+				firstfield: input.firstfield
+				// Just some placeholder int, so we have a valid instance of schema 1.0
+				secondfield: -1
+			}
 		}
-	}]
+	}
 }
 ```
 
@@ -291,50 +295,50 @@ import "github.com/sdboyer/thema"
 
 lin: thema.Lineage & {
 	name: "Ship"
-	schemas: [{
-		version: [0, 0]
-		schema: {
-			firstfield: string
+	schemas: {
+		"0": "0": {
+			schema: {
+				firstfield: string
+			}
 		}
-	}, {
-		version: [1, 0]
-		schema: {
-			firstfield:  string
-			secondfield: int
+		"1": "0": {
+			schema: {
+				firstfield:  string
+				secondfield: int
+			}
 		}
-	}]
-	lenses: [{
-		from:  [1, 0]
-		to:    [0, 0]
-		input: _
-		result: {
-			firstfield: input.firstfield
-		}
-		lacunas: [thema.Lacuna & {
-			sourceFields: [{
-				path:  "secondfield"
-				value: input.secondfield
+	}
+	lenses: {
+		"1.0->0.0": {
+			input: _
+			result: {
+				firstfield: input.firstfield
+			}
+			lacunas: [thema.Lacuna & {
+				sourceFields: [{
+					path:  "secondfield"
+					value: input.secondfield
+				}]
+				message: "secondfield has no equivalent in 0.0 and was dropped"
+				type:    thema.LacunaTypes.DroppedField
 			}]
-			message: "secondfield has no equivalent in 0.0 and was dropped"
-			type:    thema.LacunaTypes.DroppedField
-		}]
-	}, {
-		from:  [0, 0]
-		to:    [1, 0]
-		input: _
-		result: {
-			firstfield:  input.firstfield
-			secondfield: -1
 		}
-		lacunas: [thema.Lacuna & {
-			targetFields: [{
-				path:  "secondfield"
-				value: result.secondfield
+		"0.0->1.0": {
+			input: _
+			result: {
+				firstfield:  input.firstfield
+				secondfield: -1
+			}
+			lacunas: [thema.Lacuna & {
+				targetFields: [{
+					path:  "secondfield"
+					value: result.secondfield
+				}]
+				message: "-1 used as a placeholder value - replace with a real value before persisting!"
+				type:    thema.LacunaTypes.Placeholder
 			}]
-			message: "-1 used as a placeholder value - replace with a real value before persisting!"
-			type:    thema.LacunaTypes.Placeholder
-		}]
-	}]
+		}
+	}
 }
 ```
 

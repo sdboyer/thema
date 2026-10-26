@@ -1,0 +1,14 @@
+# a schema entry declares a version field; the version is the entry's key, so
+# the field is unknown rather than a second, possibly conflicting, declaration
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "versionFieldAuthored"
+	schemas: "0": "0": {
+		version: [0, 0]
+		schema: {a: int}
+	}
+}
+-- expect --
+bind fail version is not a field of a schema entry

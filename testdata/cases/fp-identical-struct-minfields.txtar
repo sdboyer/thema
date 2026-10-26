@@ -8,19 +8,20 @@ import (
 
 lin: thema.Lineage & {
 	name: "fpIdenticalStructMinfields"
-	schemas: [{
-		version: [0, 0]
-		schema: {m: struct.MinFields(1) & {[string]: int}}
-	}, {
-		version: [0, 1]
-		schema: {m: struct.MinFields(1) & {[string]: int}}
-	}]
-	lenses: [{
-		from: [0, 1]
-		to: [0, 0]
-		input: _
-		result: input
-	}]
+	schemas: {
+		"0": "0": {
+			schema: {m: struct.MinFields(1) & {[string]: int}}
+		}
+		"0": "1": {
+			schema: {m: struct.MinFields(1) & {[string]: int}}
+		}
+	}
+	lenses: {
+		"0.1->0.0": {
+			input: _
+			result: input
+		}
+	}
 }
 -- expect --
 bind ok

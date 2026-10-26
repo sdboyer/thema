@@ -68,10 +68,15 @@ func TestGoLensValidation(t *testing.T) {
 	// translateGo checks only the version number of what a Go lens returns, so a
 	// lens may return an instance of another lineage, invalid for the target.
 	t.Run("go-lens-foreign-instance", func(t *testing.T) {
-		other := mustBind(t, `lin: thema.Lineage & {name: "other", schemas: [{version: [0, 0], schema: {a: int}}]}`)
+		other := mustBind(t, `lin: thema.Lineage & {name: "other", schemas: {
+	"0": "0": {schema: {a: int}}
+}}`)
 		lin := mustBind(t, `lin: thema.Lineage & {
 	name: "main"
-	schemas: [{version: [0, 0], schema: {a: string}}, {version: [0, 1], schema: {a: string, b?: int}}]
+	schemas: {
+		"0": "0": {schema: {a: string}}
+		"0": "1": {schema: {a: string, b?: int}}
+	}
 }`, ImperativeLenses(ImperativeLens{From: SV(0, 1), To: SV(0, 0), Mapper: func(inst *Instance, to Schema) (*Instance, []Lacuna, error) {
 			inst, err := other.First().Validate(ctx.CompileString(`{a: 42}`))
 			return inst, nil, err
@@ -88,8 +93,14 @@ func TestGoLensValidation(t *testing.T) {
 	t.Run("go-lens-ignores-cue-lenses", func(t *testing.T) {
 		_, err := bindSrc(t, `lin: thema.Lineage & {
 	name: "main"
-	schemas: [{version: [0, 0], schema: {a: string}}, {version: [0, 1], schema: {a: string, b?: int}}]
-	lenses: [{from: [9, 9], to: [3, 0], input: _, result: {nonsense: true}}, {from: [0, 0], to: [0, 0], input: _, result: {}}]
+	schemas: {
+		"0": "0": {schema: {a: string}}
+		"0": "1": {schema: {a: string, b?: int}}
+	}
+	lenses: {
+		"9.9->3.0": {input: _, result: {nonsense: true}}
+		"0.0->0.0": {input: _, result: {}}
+	}
 }`, ImperativeLenses(ImperativeLens{From: SV(0, 1), To: SV(0, 0), Mapper: func(inst *Instance, to Schema) (*Instance, []Lacuna, error) {
 			inst, err := to.Validate(ctx.CompileString(`{a: "x"}`))
 			return inst, nil, err

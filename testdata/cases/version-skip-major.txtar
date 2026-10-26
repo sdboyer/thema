@@ -7,24 +7,24 @@ import (
 
 lin: thema.Lineage & {
 	name: "versionSkipMajor"
-	schemas: [{
-		version: [0, 0]
-		schema: {a: int}
-	}, {
-		version: [2, 0]
-		schema: {a: string}
-	}]
-	lenses: [{
-		from: [2, 0]
-		to: [0, 0]
-		input: _
-		result: {a: 0}
-	}, {
-		from: [0, 0]
-		to: [2, 0]
-		input: _
-		result: {a: "x"}
-	}]
+	schemas: {
+		"0": "0": {
+			schema: {a: int}
+		}
+		"2": "0": {
+			schema: {a: string}
+		}
+	}
+	lenses: {
+		"2.0->0.0": {
+			input: _
+			result: {a: 0}
+		}
+		"0.0->2.0": {
+			input: _
+			result: {a: "x"}
+		}
+	}
 }
 -- expect --
-bind fail
+bind fail schema version 2.0 does not follow 0.0: the next schema must be version 0.1 or 1.0

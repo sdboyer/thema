@@ -5,19 +5,20 @@ import "github.com/sdboyer/thema"
 
 lin: thema.Lineage & {
 	name: "extOldDependsOnCount"
-	schemas: [{
-		version: [0, 0]
-		schema: {n: <=len(lin.schemas)}
-	}, {
-		version: [0, 1]
-		schema: {n: <=len(lin.schemas), m?: int}
-	}]
-	lenses: [{
-		from: [0, 1]
-		to: [0, 0]
-		input: _
-		result: {n: input.n}
-	}]
+	schemas: {
+		"0": "0": {
+			schema: {n: <=len(lin.schemas)}
+		}
+		"0": "1": {
+			schema: {n: <=len(lin.schemas), m?: int}
+		}
+	}
+	lenses: {
+		"0.1->0.0": {
+			input: _
+			result: {n: input.n}
+		}
+	}
 }
 -- expect --
 bind fail

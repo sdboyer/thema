@@ -7,10 +7,11 @@ import (
 lin: thema.Lineage & {
 	name: "joinInjectsDefault"
 	joinSchema: {a?: *"injected" | string, ...}
-	schemas: [{
-		version: [0, 0]
-		schema: {a: string}
-	}]
+	schemas: {
+		"0": "0": {
+			schema: {a: string}
+		}
+	}
 }
 -- expect --
 bind ok

@@ -5,34 +5,34 @@ import "github.com/sdboyer/thema"
 
 thema.Lineage
 name: "trivialTwoComments"
-schemas: [{
-    version: [0, 0]
+schemas: {
+    "0": "0": {
+    
+        // This should be schema/object-level docs
+        schema: {
+            // TODO some thing to be done
+            firstfield: string
+        }
+    }
+    "0": "1": {
+        // Different schema/object-level docs for the next schema
+        schema: {
+            // TODO some thing to be done
+            firstfield: string
+            // but clearly this one is a great idea
+            secondfield?: int32
+        }
+    }
+}
 
-    // This should be schema/object-level docs
-    schema: {
-        // TODO some thing to be done
-        firstfield: string
+lenses: {
+    "0.1->0.0": {
+        input: _
+        result: {
+            firstfield: input.firstfield
+        }
     }
-},
-{
-    version: [0, 1]
-    // Different schema/object-level docs for the next schema
-    schema: {
-        // TODO some thing to be done
-        firstfield: string
-        // but clearly this one is a great idea
-        secondfield?: int32
-    }
-}]
-
-lenses: [{
-    from: [0, 1]
-    to: [0, 0]
-    input: _
-    result: {
-        firstfield: input.firstfield
-    }
-}]
+}
 -- out/encoding/openapi/TestGenerate/nilcfg --
 == 0.0.json
 {

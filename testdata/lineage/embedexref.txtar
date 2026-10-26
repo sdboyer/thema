@@ -4,13 +4,14 @@ import "github.com/sdboyer/thema"
 
 thema.Lineage
 name: "embedexref"
-schemas: [{
-	version: [0, 0]
-	schema: {
-        #EmbedRef
+schemas: {
+	"0": "0": {
+		schema: {
+	        #EmbedRef
+		}
 	}
-}]
-lenses: []
+}
+lenses: {}
 
 #EmbedRef: {
     refField1: string

@@ -14,93 +14,88 @@ func TestGoMigrations(t *testing.T) {
 	multivlin := `
 name: "basicMultiversion"
 
-schemas: [{
-    version: [0, 0]
-    schema: {
-        init: string
-    }
-    examples: {
-        simple: {
-            init: "some string"
-        }
-        TOwithOptional: {
-            init: "some string"
-        }
-        TOwithoutOptional: {
-            init: "some string"
-        }
-    }
-},
-{
-    version: [0, 1]
-    schema: {
-        init:      string
-        optional?: int32
-    }
-},
-{
-    version: [0, 2]
-    schema: {
-        init:        string
-        optional?:   int32
-        withDefault?: *"foo" | "bar"
-    }
-},
-{
-    version: [0, 3]
-    schema: {
-        init:        string
-        optional?:   int32
-        withDefault?: *"foo" | "bar" | "baz"
-    }
-},
-{
-    version: [1, 0]
-    schema: {
-        renamed:     string
-        optional?:   int32
-        withDefault: "foo" | *"bar" | "baz"
-    }
-},
-{
-    version: [1, 1]
-    schema: {
-        renamed:     string
-        optional?:   int32
-        withDefault: "foo" | *"bar" | "baz" | "bing"
-    }
-},
-{
-    version: [2, 0]
-    schema: {
-        toObj:     {
+schemas: {
+    "0": "0": {
+        schema: {
             init: string
         }
-        optional?:   int32
-        withDefault: "foo" | *"bar" | "baz" | "bing"
-    }
-    examples: {
-		TOsimple: {
-            toObj: {
+        examples: {
+            simple: {
                 init: "some string"
             }
-            withDefault: "bar"
-		}
-        withoutOptional: {
-            toObj: {
+            TOwithOptional: {
                 init: "some string"
             }
-            withDefault: "bing"
-        }
-        withOptional: {
-            toObj: {
+            TOwithoutOptional: {
                 init: "some string"
             }
-            optional: 32
-            withDefault: "bing"
         }
     }
-}]
+    "0": "1": {
+        schema: {
+            init:      string
+            optional?: int32
+        }
+    }
+    "0": "2": {
+        schema: {
+            init:        string
+            optional?:   int32
+            withDefault?: *"foo" | "bar"
+        }
+    }
+    "0": "3": {
+        schema: {
+            init:        string
+            optional?:   int32
+            withDefault?: *"foo" | "bar" | "baz"
+        }
+    }
+    "1": "0": {
+        schema: {
+            renamed:     string
+            optional?:   int32
+            withDefault: "foo" | *"bar" | "baz"
+        }
+    }
+    "1": "1": {
+        schema: {
+            renamed:     string
+            optional?:   int32
+            withDefault: "foo" | *"bar" | "baz" | "bing"
+        }
+    }
+    "2": "0": {
+        schema: {
+            toObj:     {
+                init: string
+            }
+            optional?:   int32
+            withDefault: "foo" | *"bar" | "baz" | "bing"
+        }
+        examples: {
+    		TOsimple: {
+                toObj: {
+                    init: "some string"
+                }
+                withDefault: "bar"
+    		}
+            withoutOptional: {
+                toObj: {
+                    init: "some string"
+                }
+                withDefault: "bing"
+            }
+            withOptional: {
+                toObj: {
+                    init: "some string"
+                }
+                optional: 32
+                withDefault: "bing"
+            }
+        }
+    }
+}
 `
 
 	correctLenses := []ImperativeLens{

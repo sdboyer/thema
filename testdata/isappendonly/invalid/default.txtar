@@ -5,22 +5,24 @@ import "github.com/sdboyer/thema"
 
 lin1: thema.Lineage
 lin1: name: "defaultchange"
-lin1: schemas: [{
-	version: [0, 0]
-	schema: {
-		aunion: *"foo" | "bar" | "baz"
+lin1: schemas: {
+	"0": "0": {
+		schema: {
+			aunion: *"foo" | "bar" | "baz"
+		}
 	}
-}]
+}
 
 lin2: thema.Lineage
 lin2: name: "defaultchange"
-lin2: schemas: [{
-    version: [0, 0]
-    schema: {
-        aunion: "foo" | *"bar" | "baz"
-    }
-}]
+lin2: schemas: {
+	"0": "0": {
+	    schema: {
+	        aunion: "foo" | *"bar" | "baz"
+	    }
+	}
+}
 -- out/isappendonly-fail --
 field aunion not present in {aunion:*"bar" | "foo" | "baz"}:
-    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:227:11
+    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:170:11
 missing field "aunion"

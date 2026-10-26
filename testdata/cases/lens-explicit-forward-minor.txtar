@@ -7,24 +7,24 @@ import (
 
 lin: thema.Lineage & {
 	name: "lensExplicitForwardMinor"
-	schemas: [{
-		version: [0, 0]
-		schema: {a: int}
-	}, {
-		version: [0, 1]
-		schema: {a: int, b?: int}
-	}]
-	lenses: [{
-		from: [0, 1]
-		to: [0, 0]
-		input: _
-		result: {a: input.a}
-	}, {
-		from: [0, 0]
-		to: [0, 1]
-		input: _
-		result: {a: input.a, b: 42}
-	}]
+	schemas: {
+		"0": "0": {
+			schema: {a: int}
+		}
+		"0": "1": {
+			schema: {a: int, b?: int}
+		}
+	}
+	lenses: {
+		"0.1->0.0": {
+			input: _
+			result: {a: input.a}
+		}
+		"0.0->0.1": {
+			input: _
+			result: {a: input.a, b: 42}
+		}
+	}
 }
 -- expect --
 bind fail

@@ -7,10 +7,11 @@ import (
 
 lin: thema.Lineage & {
 	name: "shapeSchemaDisjScalar"
-	schemas: [{
-		version: [0, 0]
-		schema: {a: int} | string
-	}]
+	schemas: {
+		"0": "0": {
+			schema: {a: int} | string
+		}
+	}
 }
 -- expect --
 bind fail

@@ -3,13 +3,14 @@ import "github.com/sdboyer/thema"
 
 thema.Lineage
 name: "typo"
-schemas: [{
-	version: [0, 0]
-	schema: {
-		foo: string
+schemas: {
+	"0": "0": {
+		schema: {
+			foo: string
+		}
 	}
-}]
+}
 lense: []
 -- out/bindfail --
 lense is not a field of a lineage; valid fields are joinSchema, lenses, name, schemas:
-    ./in.cue:11:1
+    ./in.cue:12:1

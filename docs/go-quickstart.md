@@ -18,16 +18,9 @@ import "github.com/sdboyer/thema"
 
 thema.Lineage
 name: "ship"
-seqs: [
-	{
-		schemas: [
-			// v0.0
-			{
-				// TODO (delete me - first schema goes here!)
-			},
-		]
-	},
-]
+schemas: "0": "0": schema: {
+	// TODO (delete me - first schema goes here!)
+}
 ```
 
 Let's define a simple schema as an object containing two fields named `name` of type `string` and `masts` of type `uint8` along with a constraint that masts are not more than 7,  
@@ -39,20 +32,13 @@ import "github.com/sdboyer/thema"
 
 thema.Lineage
 name: "ship"
-seqs: [
-	{
-		schemas: [
-			// v0.0
-			{
-				// name is what we call a ship. It's written in big letters on its hull
-				name: string
-				// masts is the number of masts the ship has. No fully rigged ship
-				// has ever had more than 7: https://oceannavigator.com/the-most-masted-schooner-ever-built/
-				masts: uint8 & < 8
-			},
-		]
-	},
-]
+schemas: "0": "0": schema: {
+	// name is what we call a ship. It's written in big letters on its hull
+	name: string
+	// masts is the number of masts the ship has. No fully rigged ship
+	// has ever had more than 7: https://oceannavigator.com/the-most-masted-schooner-ever-built/
+	masts: uint8 & < 8
+}
 ```
 
 ## Generating Go Types

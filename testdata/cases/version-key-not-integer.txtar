@@ -1,0 +1,10 @@
+# a major version key is not an integer
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "versionKeyNotInteger"
+	schemas: v0: "0": schema: {a: int}
+}
+-- expect --
+bind fail "v0" is not a major version

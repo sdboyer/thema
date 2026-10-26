@@ -7,19 +7,20 @@ import (
 
 lin: thema.Lineage & {
 	name: "fpHiddenFieldAdded"
-	schemas: [{
-		version: [0, 0]
-		schema: {a: int}
-	}, {
-		version: [0, 1]
-		schema: {a: int, _h: int}
-	}]
-	lenses: [{
-		from: [0, 1]
-		to: [0, 0]
-		input: _
-		result: {a: input.a}
-	}]
+	schemas: {
+		"0": "0": {
+			schema: {a: int}
+		}
+		"0": "1": {
+			schema: {a: int, _h: int}
+		}
+	}
+	lenses: {
+		"0.1->0.0": {
+			input: _
+			result: {a: input.a}
+		}
+	}
 }
 -- expect --
 bind ok
