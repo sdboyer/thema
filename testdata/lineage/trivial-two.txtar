@@ -5,28 +5,28 @@ import "github.com/sdboyer/thema"
 
 thema.Lineage
 name: "trivialTwo"
-schemas: [{
-    version: [0, 0]
-    schema: {
-        firstfield: string
+schemas: {
+    "0": "0": {
+        schema: {
+            firstfield: string
+        }
     }
-},
-{
-    version: [0, 1]
-    schema: {
-        firstfield: string
-        secondfield?: int32
+    "0": "1": {
+        schema: {
+            firstfield: string
+            secondfield?: int32
+        }
     }
-}]
+}
 
-lenses: [{
-    from: [0, 1]
-    to: [0, 0]
-    input: _
-    result: {
-        firstfield: input.firstfield
+lenses: {
+    "0.1->0.0": {
+        input: _
+        result: {
+            firstfield: input.firstfield
+        }
     }
-}]
+}
 -- in/validate/TestValidate/firstfieldAsInt32.data.json --
 {
     "firstfield": 42
@@ -34,19 +34,19 @@ lenses: [{
 -- out/validate/TestValidate/firstfieldAsInt32 --
 <trivialTwo@v0.1>.firstfield: validation failed, data is not an instance:
 	schema expected `string`
-		/in.cue:15:21
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
+		/in.cue:14:25
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
 	but data contained `42`
 		test:2:19
 -- out/validate/TestValidate/secondfieldAsString --
 <trivialTwo@v0.1>.secondfield: validation failed, data is not an instance:
 	schema expected `int32`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:227:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
 	but data contained `"foo"`
 		test:2:20
 <trivialTwo@v0.1>.firstfield: validation failed, data is not an instance:
 	schema specifies that field exists with type `string`
-		/in.cue:15:21
+		/in.cue:14:25
 	but field was absent from data
 -- in/validate/TestValidate/secondfieldAsString.data.json --
 {

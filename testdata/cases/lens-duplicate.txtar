@@ -1,4 +1,6 @@
-# two lenses for the same step 0.1 -> 0.0; one is silently ignored
+# the lens for step 0.1 -> 0.0 is declared twice. Lenses are keyed by edge, so
+# the two declarations unify into one lens, as any CUE field does: neither is
+# ignored, and the unified result {a: input.a & 1000} fails for any other a.
 #issue: 20
 -- in.cue --
 import (
@@ -7,24 +9,26 @@ import (
 
 lin: thema.Lineage & {
 	name: "lensDuplicate"
-	schemas: [{
-		version: [0, 0]
-		schema: {a: int}
-	}, {
-		version: [0, 1]
-		schema: {a: int, b?: int}
-	}]
-	lenses: [{
-		from: [0, 1]
-		to: [0, 0]
-		input: _
-		result: {a: input.a}
-	}, {
-		from: [0, 1]
-		to: [0, 0]
-		input: _
-		result: {a: 1000}
-	}]
+	schemas: {
+		"0": "0": {
+			schema: {a: int}
+		}
+		"0": "1": {
+			schema: {a: int, b?: int}
+		}
+	}
+	lenses: {
+		"0.1->0.0": {
+			input: _
+			result: {a: input.a}
+		}
+		"0.1->0.0": {
+			input: _
+			result: {a: 1000}
+		}
+	}
 }
 -- expect --
-bind fail
+bind ok
+translate 0.1 0.0 ok {a: 1000}
+translate 0.1 0.0 fail {a: 5}

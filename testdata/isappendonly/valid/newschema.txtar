@@ -7,68 +7,70 @@ import "github.com/sdboyer/thema"
 
 lin1: thema.Lineage
 lin1: name: "newschema"
-lin1: schemas: [{
-	version: [0, 0]
-	schema: {
-		aunion: *"foo" | "bar" | "baz"
-        anObject: {
-            aField: string
-        }
-        anOptionalField?: int32
-        aBaz: #Baz
-
-		#Baz: {
-			run:  string
-			dat:  int32
+lin1: schemas: {
+	"0": "0": {
+		schema: {
+			aunion: *"foo" | "bar" | "baz"
+	        anObject: {
+	            aField: string
+	        }
+	        anOptionalField?: int32
+	        aBaz: #Baz
+	
+			#Baz: {
+				run:  string
+				dat:  int32
+			}
 		}
 	}
-}]
+}
 
 lin2: thema.Lineage
 lin2: name: "newschema"
-lin2: schemas: [{
-    version: [0, 0]
-	schema: {
-		aunion: *"foo" | "bar" | "baz"
-        anObject: {
-            aField: string
-        }
-        anOptionalField?: int32
-        aBaz: #Baz
-
-		#Baz: {
-			run:  string
-			dat:  int32
+lin2: schemas: {
+	"0": "0": {
+		schema: {
+			aunion: *"foo" | "bar" | "baz"
+	        anObject: {
+	            aField: string
+	        }
+	        anOptionalField?: int32
+	        aBaz: #Baz
+	
+			#Baz: {
+				run:  string
+				dat:  int32
+			}
 		}
 	}
-}, {
-    version: [0, 1]
-	schema: {
-		aunion: *"foo" | "bar" | "baz"
-        anObject: {
-            aField: string
-        }
-        anOptionalField?: int32
-        aBaz: #Baz
-
-		#Baz: {
-			run:  string
-			dat:  int32
-		}
-
-        aNewOptionalField?: int32
-	}
-}]
-lin2: lenses: [{
-	from: [0, 1]
-	to: [0, 0]
-	input: _
-	result: {
-		aunion:   input.aunion
-		anObject: input.anObject
-		aBaz:     input.aBaz
-		if input.anOptionalField != _|_ {
-			anOptionalField: input.anOptionalField
+	"0": "1": {
+		schema: {
+			aunion: *"foo" | "bar" | "baz"
+	        anObject: {
+	            aField: string
+	        }
+	        anOptionalField?: int32
+	        aBaz: #Baz
+	
+			#Baz: {
+				run:  string
+				dat:  int32
+			}
+	
+	        aNewOptionalField?: int32
 		}
 	}
-}]
+}
+lin2: lenses: {
+	"0.1->0.0": {
+		input: _
+		result: {
+			aunion:   input.aunion
+			anObject: input.anObject
+			aBaz:     input.aBaz
+			if input.anOptionalField != _|_ {
+				anOptionalField: input.anOptionalField
+			}
+		}
+	}
+}

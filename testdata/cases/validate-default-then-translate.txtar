@@ -7,19 +7,20 @@ import (
 
 lin: thema.Lineage & {
 	name: "validateDefaultThenTranslate"
-	schemas: [{
-		version: [0, 0]
-		schema: {a: *"x" | string}
-	}, {
-		version: [0, 1]
-		schema: {a: *"x" | string, b?: int}
-	}]
-	lenses: [{
-		from: [0, 1]
-		to: [0, 0]
-		input: _
-		result: {a: input.a}
-	}]
+	schemas: {
+		"0": "0": {
+			schema: {a: *"x" | string}
+		}
+		"0": "1": {
+			schema: {a: *"x" | string, b?: int}
+		}
+	}
+	lenses: {
+		"0.1->0.0": {
+			input: _
+			result: {a: input.a}
+		}
+	}
 }
 -- expect --
 translate 0.1 0.0 ok {}

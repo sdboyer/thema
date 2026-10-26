@@ -7,11 +7,12 @@ import (
 
 lin: thema.Lineage & {
 	name: "versionFirstNotZero"
-	schemas: [{
-		version: [0, 1]
-		schema: {a: int}
-	}]
-	lenses: []
+	schemas: {
+		"0": "1": {
+			schema: {a: int}
+		}
+	}
+	lenses: {}
 }
 -- expect --
-bind fail
+bind fail the first schema must be version 0.0, not 0.1

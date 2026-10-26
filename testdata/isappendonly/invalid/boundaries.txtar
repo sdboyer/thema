@@ -5,22 +5,24 @@ import "github.com/sdboyer/thema"
 
 lin1: thema.Lineage
 lin1: name: "boundaries"
-lin1: schemas: [{
-	version: [0, 0]
-	schema: {
-		anInt: uint32 & >0 & <=24 | *12
+lin1: schemas: {
+	"0": "0": {
+		schema: {
+			anInt: uint32 & >0 & <=24 | *12
+		}
 	}
-}]
+}
 
 lin2: thema.Lineage
 lin2: name: "boundaries"
-lin2: schemas: [{
-	version: [0, 0]
-	schema: {
-		anInt: uint32 & >0 & <=14 | *12
+lin2: schemas: {
+	"0": "0": {
+		schema: {
+			anInt: uint32 & >0 & <=14 | *12
+		}
 	}
-}]
+}
 -- out/isappendonly-fail --
 field anInt not present in {anInt:*12 | >0 & <=24 & int}:
-    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:227:11
+    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:170:11
 missing field "anInt"

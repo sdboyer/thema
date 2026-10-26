@@ -45,7 +45,7 @@ const stdinTestLineage = `package x
 
 import "github.com/sdboyer/thema"
 
-lin: thema.Lineage & {name: "x", schemas: [{version: [0, 0], schema: {a: string}}]}
+lin: thema.Lineage & {name: "x", schemas: "0": "0": {schema: {a: string}}}
 `
 
 // runValidateAny runs `thema data validate-any` against a minimal lineage, with

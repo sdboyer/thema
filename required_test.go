@@ -12,10 +12,11 @@ func TestRequiredSchemaFields(t *testing.T) {
 	rt := NewRuntime(ctx)
 	lin, err := bindString(t, rt, `lin: thema.Lineage & {
 	name: "req"
-	schemas: [{
-		version: [0, 0]
-		schema: {a!: int, b?: string, n?: {c!: string}}
-	}]
+	schemas: {
+		"0": "0": {
+			schema: {a!: int, b?: string, n?: {c!: string}}
+		}
+	}
 }`)
 	if err != nil {
 		t.Fatalf("lineage with required schema fields failed to bind: %v", err)

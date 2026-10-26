@@ -27,15 +27,10 @@ import "github.com/sdboyer/thema"
 
 thema.Lineage
 name: "foo"
-schemas: [
-	{
-		version: [0, 0]
-		schema: {
-			a: string
-			b: int
-		}
-	}
-]
+schemas: "0": "0": schema: {
+	a: string
+	b: int
+}
 `,
 			valid:   `{a: "x", b: 1}`,
 			invalid: `{a: 1, b: 1}`,
@@ -48,15 +43,10 @@ import "github.com/sdboyer/thema"
 
 thema.Lineage
 name: "foo"
-schemas: [
-	{
-		version: [0, 0]
-		schema: a: {
-			b: c: string
-			d: [...int]
-		}
-	}
-]
+schemas: "0": "0": schema: a: {
+	b: c: string
+	d: [...int]
+}
 `,
 			valid:   `{a: {b: {c: "x"}, d: [1, 2]}}`,
 			invalid: `{a: {b: {c: "x"}, d: ["y"]}}`,
@@ -69,16 +59,11 @@ import "github.com/sdboyer/thema"
 
 thema.Lineage
 name: "foo"
-schemas: [
-	{
-		version: [0, 0]
-		schema: {
-			a:  string
-			b?: int
-			c!: bool
-		}
-	}
-]
+schemas: "0": "0": schema: {
+	a:  string
+	b?: int
+	c!: bool
+}
 `,
 			valid:   `{a: "x", c: true}`,
 			invalid: `{a: "x", b: 1}`,
@@ -100,21 +85,16 @@ import "github.com/sdboyer/thema"
 
 thema.Lineage
 name: "foo"
-schemas: [
-	{
-		version: [0, 0]
-		schema: {
-			// a is documented.
-			a: string
-			// n is documented,
-			// across two lines.
-			n: {
-				// x is documented too.
-				x: int
-			}
-		}
+schemas: "0": "0": schema: {
+	// a is documented.
+	a: string
+	// n is documented,
+	// across two lines.
+	n: {
+		// x is documented too.
+		x: int
 	}
-]
+}
 `,
 			valid:   `{a: "x", n: {x: 1}}`,
 			invalid: `{a: "x", n: {x: "y"}}`,
@@ -156,12 +136,7 @@ func TestNewLineageNoPackage(t *testing.T) {
 
 thema.Lineage
 name: "foo"
-schemas: [
-	{
-		version: [0, 0]
-		schema: a: string
-	}
-]
+schemas: "0": "0": schema: a: string
 `
 	if got := string(astutil.FmtNodeP(f)); got != want {
 		t.Fatalf("generated lineage did not match expected:\n--- got\n%s\n--- want\n%s", got, want)

@@ -5,38 +5,38 @@ import "github.com/sdboyer/thema"
 rename: {
 	description: "A field is renamed - a breaking change, necessitating a new sequence."
 	l: thema.Lineage & {
-		schemas: [{
-			version: [0, 0]
-			schema: {
-				before:    string
-				unchanged: string
+		schemas: {
+			"0": "0": {
+				schema: {
+					before:    string
+					unchanged: string
+				}
 			}
-		}, {
-			version: [1, 0]
-			schema: {
-				after:     string
-				unchanged: string
+			"1": "0": {
+				schema: {
+					after:     string
+					unchanged: string
+				}
 			}
-		}]
+		}
 
-		lenses: [{
-			to:    [0, 0]
-			from:  [1, 0]
-			input: _
-			result: {
-				before:    input.after
-				unchanged: input.unchanged
+		lenses: {
+			"1.0->0.0": {
+				input: _
+				result: {
+					before:    input.after
+					unchanged: input.unchanged
+				}
+				lacunas: []
 			}
-			lacunas: []
-		}, {
-			to:    [1, 0]
-			from:  [0, 0]
-			input: _
-			result: {
-				after:     input.before
-				unchanged: input.unchanged
+			"0.0->1.0": {
+				input: _
+				result: {
+					after:     input.before
+					unchanged: input.unchanged
+				}
+				lacunas: []
 			}
-			lacunas: []
-		}]
+		}
 	}
 }

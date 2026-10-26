@@ -5,28 +5,28 @@ import "github.com/sdboyer/thema"
 
 thema.Lineage
 name: "optionalToRequired"
-schemas: [{
-    version: [0, 0]
-    schema: {
-        toUpgrade?: string
+schemas: {
+    "0": "0": {
+        schema: {
+            toUpgrade?: string
+        }
     }
-},
-{
-    version: [0, 1]
-    schema: {
-        toUpgrade: string
+    "0": "1": {
+        schema: {
+            toUpgrade: string
+        }
     }
-}]
+}
 
-lenses: [{
-	from: [0, 1]
-	to: [0, 0]
-	input: _
-	result: {
-		toUpgrade: input.toUpgrade
-	}
-}]
+lenses: {
+    "0.1->0.0": {
+    	input: _
+    	result: {
+    		toUpgrade: input.toUpgrade
+    	}
+    }
+}
 -- out/bindfail --
 schema 0.1 is not backwards compatible with schema 0.0:
 toUpgrade was optional and is now required (rule field-now-required):
-    /in.cue:15:9
+    /in.cue:14:13

@@ -7,13 +7,14 @@ name: "embedref"
 joinSchema: {
     _EmbedRef
 }
-schemas: [{
-	version: [0, 0]
-	schema: {
-		foo: string
-	}
-}]
-lenses: []
+schemas: {
+    "0": "0": {
+    	schema: {
+    		foo: string
+    	}
+    }
+}
+lenses: {}
 
 _EmbedRef: {
 	refField1: string

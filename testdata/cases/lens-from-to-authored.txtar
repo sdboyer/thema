@@ -1,0 +1,20 @@
+# a lens declares from and to fields; its versions are its edge key, so the
+# fields are unknown rather than a second, possibly conflicting, declaration
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "lensFromToAuthored"
+	schemas: "0": {
+		"0": schema: {a: int}
+		"1": schema: {a: int, b?: int}
+	}
+	lenses: "0.1->0.0": {
+		from: [0, 1]
+		to: [0, 0]
+		input: _
+		result: {a: input.a}
+	}
+}
+-- expect --
+bind fail from is not a field of a lens

@@ -39,7 +39,7 @@ Translate: {
 
 	// The instance as an instance of its schema, so that lenses see the schema's
 	// defaults for fields the data omits.
-	let I = inst & L.schemas[(L._flatidx & {v: from}).out]._schema
+	let I = inst & L.schemas["\(from[0])"]["\(from[1])"]._schema
 	let FV = from
 	let TV = to
 
@@ -67,8 +67,6 @@ Translate: {
 		steps: [
 			// to version older/smaller than from version
 			if cmp == 1 {
-				// schrange is the subset of schemas being traversed in this
-				// translation, inclusive of the starting schema.
 				let hi = (L._flatidx & {v: FV}).out
 				let lo = (L._flatidx & {v: TV}).out
 
@@ -76,22 +74,18 @@ Translate: {
 					// alias pointing to the previous item in the list we're building
 					let prior = _accum[i]
 
-					// the actual schema def
-					let schdef = L.schemas[pos]
+					// the version stepped to, and its schema def
+					let V = L._ordered[pos]
+					let schdef = L.schemas["\(V[0])"]["\(V[1])"]
 
 					// TODO does having this field in the result, even hidden, cause a problem? does using an alias cause the computation to run more than once?
-					_lens: L._backwardLenses[(L._flatidx & {v: schdef.version}).out] & {
+					_lens: L.lenses["\(prior.to[0]).\(prior.to[1])->\(V[0]).\(V[1])"] & {
 						// pass the prior result along as the input to this lens
 						input: prior.result
-
-						// guard against bugs in this impl - these are already concretely specified
-						// on the lens itself by the user, so these version numbers must be correct
-						from: prior.to
-						to:   schdef.version
 					}
 
-					from: _lens.from
-					to:   _lens.to
+					from: prior.to
+					to:   V
 					// TODO initial input isn't necessarily unified with schema - does that make translated output meaningfully different?
 					result:  _lens.result & ({#closed: schdef._schema}).#closed
 					lacunas: [for lac in _lens.lacunas if lac.condition {lac}]
@@ -102,40 +96,36 @@ Translate: {
 			},
 			// to version newer/larger than from version
 			if cmp == -1 {
-				// schrange contains the subset of schemas being traversed in this
-				// translation, inclusive of the starting schema.
+				// vrange contains the versions being traversed in this translation,
+				// exclusive of the starting version.
 				let lo = (L._flatidx & {v: FV}).out
 				let hi = (L._flatidx & {v: TV}).out
-				let schrange = list.Slice(L.schemas, lo + 1, hi + 1)
+				let vrange = list.Slice(L._ordered, lo + 1, hi + 1)
 
-				_accum: [{result: I, to: FV}, for i, schdef in schrange {
+				_accum: [{result: I, to: FV}, for i, V in vrange {
 					// alias pointing to the previous item in the list we're building
 					let prior = _accum[i]
+					let schdef = L.schemas["\(V[0])"]["\(V[1])"]
 
-					if prior.to[0] == schdef.version[0] {
+					if prior.to[0] == V[0] {
 						// Only a minor version. Backwards compatibility rules dictate that the mapping
 						// algorithm for the forward lens is generic: simple unification.
 						from:   prior.to
-						to:     schdef.version
+						to:     V
 						result: prior.result & ({#closed: schdef._schema}).#closed
 					}
 
-					if prior.to[0] < schdef.version[0] {
+					if prior.to[0] < V[0] {
 						// Crossing a major version. The forward lens explicitly defined in the schema
 						// provides the mapping algorithm.
 						// TODO does having this field in the result, even hidden, cause a problem? does using an alias cause the computation to run more than once?
-						_lens: L._forwardLenses[schdef.version[0]-1] & {
+						_lens: L.lenses["\(prior.to[0]).\(prior.to[1])->\(V[0]).\(V[1])"] & {
 							// pass the prior result along as the input to this next lens
 							input: prior.result
-
-							// guard against bugs in this impl - these are already concretely specified
-							// on the lens itself by the user, so these version numbers must be correct
-							from: prior.to
-							to:   schdef.version
 						}
 
 						from:    prior.to
-						to:      schdef.version
+						to:      V
 						result:  _lens.result & ({#closed: schdef._schema}).#closed
 						lacunas: [for lac in _lens.lacunas if lac.condition {lac}]
 					}

@@ -7,10 +7,11 @@ _ext: {a: int}
 
 lin: thema.Lineage & {
 	name: "extSchemaOutside"
-	schemas: [{
-		version: [0, 0]
-		schema: _ext
-	}]
+	schemas: {
+		"0": "0": {
+			schema: _ext
+		}
+	}
 }
 -- expect --
 bind fail
