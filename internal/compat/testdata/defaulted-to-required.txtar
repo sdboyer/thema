@@ -5,4 +5,4 @@ a: *1 | int
 a: int
 -- out --
 incompatible
-a: the field was defaulted and is now required [field-now-required]; witness: an instance omitting a @ new.cue:1:1
+a was defaulted and is now required; prior instances that omit it are rejected (rule field-now-required) @ new.cue:1:1

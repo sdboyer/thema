@@ -5,4 +5,4 @@ s: string
 s: =~"^a"
 -- out --
 incompatible
-s: =~"^a" does not accept every value of string: value not an instance [value-narrowed] @ new.cue:1:1
+s is now =~"^a", which does not accept every value of the prior string (rule value-narrowed) @ new.cue:1:1

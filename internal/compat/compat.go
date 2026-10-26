@@ -112,16 +112,23 @@ const (
 )
 
 // Finding is one verdict at one path. Compatible paths produce no finding.
+//
+// Its text reads as a sentence about the value at Path: "<path> <detail>;
+// <effect> (rule <rule>)". The two schemas are "the prior schema" and "the new
+// schema".
 type Finding struct {
 	Path    cue.Path
 	Verdict Verdict
 	Rule    Rule
-	// Detail says what differs, in terms of the two schemas.
+	// Detail says what differs between the schemas at Path, as a predicate
+	// whose subject is the value there: "is required in the new schema but
+	// not declared in the prior one".
 	Detail string
-	// Witness describes an old instance that new mishandles, where one is
-	// known. Empty for Unknown findings and for narrowings reported by CUE's
-	// subsumption.
-	Witness string
+	// Effect says what happens to instances of the prior schema, where that
+	// is known: "prior instances that omit it are rejected". It is what makes
+	// an Incompatible verdict concrete. Empty for Unknown findings and for
+	// narrowings reported by CUE's subsumption.
+	Effect string
 	// Pos is the author's position for the finding: the field in new, or in old
 	// for a field new lacks.
 	Pos token.Pos
@@ -129,10 +136,15 @@ type Finding struct {
 
 func (f Finding) String() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s: %s [%s]", pathString(f.Path), f.Detail, f.Rule)
-	if f.Witness != "" {
-		fmt.Fprintf(&b, "; witness: %s", f.Witness)
+	subject := "the top level"
+	if len(f.Path.Selectors()) > 0 {
+		subject = f.Path.String()
 	}
+	fmt.Fprintf(&b, "%s %s", subject, f.Detail)
+	if f.Effect != "" {
+		fmt.Fprintf(&b, "; %s", f.Effect)
+	}
+	fmt.Fprintf(&b, " (rule %s)", f.Rule)
 	return b.String()
 }
 
@@ -252,7 +264,7 @@ func (w *walker) value(p cue.Path, pred, succ cue.Value) {
 		if !w.sameExpr(pred, succ) {
 			w.add(Finding{
 				Path: p, Verdict: Unknown, Rule: RuleUnknownCrossField,
-				Detail: fmt.Sprintf("new constrains this field by %s", joinPaths(refs)),
+				Detail: fmt.Sprintf("is constrained by %s in the new schema, differently from the prior one; the checker cannot compare constraints between fields", joinPaths(refs)),
 				Pos:    posOf(succ),
 			})
 		}
@@ -285,24 +297,24 @@ func (w *walker) value(p cue.Path, pred, succ cue.Value) {
 			if o.Validate(cue.Concrete(true)) == nil && succ.Unify(o).Validate() != nil {
 				w.add(Finding{
 					Path: p, Verdict: Incompatible, Rule: RuleValueNarrowed,
-					Detail:  fmt.Sprintf("%s does not accept %s", fmtv(succ), fmtv(o)),
-					Witness: fmt.Sprintf("an instance with %s: %s", pathString(p), fmtv(o)),
-					Pos:     posOf(succ, pred),
+					Detail: fmt.Sprintf("is now %s, which has no alternative for the prior %s", fmtv(succ), fmtv(o)),
+					Effect: fmt.Sprintf("prior instances holding %s here are rejected", fmtv(o)),
+					Pos:    posOf(succ, pred),
 				})
 				continue
 			}
 			if ok, nk := kindOf(o), kindOf(succ); ok != cue.BottomKind && ok&nk == 0 {
 				w.add(Finding{
 					Path: p, Verdict: Incompatible, Rule: RuleValueNarrowed,
-					Detail:  fmt.Sprintf("no alternative of %s has the kind %s of the old alternative %s", fmtv(succ), ok, fmtv(o)),
-					Witness: fmt.Sprintf("an instance with any %s at %s", ok, pathString(p)),
-					Pos:     posOf(succ, pred),
+					Detail: fmt.Sprintf("is now %s, no alternative of which has the kind %s of the prior alternative %s", fmtv(succ), ok, fmtv(o)),
+					Effect: fmt.Sprintf("prior instances holding any %s here are rejected", ok),
+					Pos:    posOf(succ, pred),
 				})
 				continue
 			}
 			w.add(Finding{
 				Path: p, Verdict: Unknown, Rule: RuleUnknownDisjunction,
-				Detail: fmt.Sprintf("no single alternative of %s covers the old alternative %s", fmtv(succ), fmtv(o)),
+				Detail: fmt.Sprintf("is now %s, no single alternative of which covers the prior alternative %s; the checker does not combine alternatives", fmtv(succ), fmtv(o)),
 				Pos:    posOf(succ, pred),
 			})
 		}
@@ -360,9 +372,9 @@ func (w *walker) single(p cue.Path, pred, succ, wholeSucc cue.Value) {
 	case okind != cue.BottomKind && okind&nkind == 0:
 		w.add(Finding{
 			Path: p, Verdict: Incompatible, Rule: RuleValueNarrowed,
-			Detail:  fmt.Sprintf("the kind was %s and is now %s", okind, nkind),
-			Witness: fmt.Sprintf("an instance with any %s at %s", okind, pathString(p)),
-			Pos:     posOf(wholeSucc),
+			Detail: fmt.Sprintf("was %s and is now %s", okind, nkind),
+			Effect: fmt.Sprintf("prior instances holding any %s here are rejected", okind),
+			Pos:    posOf(wholeSucc),
 		})
 	default:
 		w.leaf(p, pred, succ, wholeSucc)
@@ -522,7 +534,7 @@ func (w *walker) structs(p cue.Path, pred, succ cue.Value) {
 		if !w.sameSyntax(pred, succ) {
 			w.add(Finding{
 				Path: p, Verdict: Unknown, Rule: RuleUnknownComprehension,
-				Detail: "a comprehension over data decides this struct's fields, and it differs between the versions",
+				Detail: "has fields decided by a comprehension over data, which differs between the schemas; the checker cannot evaluate it",
 				Pos:    posOf(succ, pred),
 			})
 		}
@@ -546,9 +558,9 @@ func (w *walker) structs(p cue.Path, pred, succ cue.Value) {
 			if !ok {
 				w.add(Finding{
 					Path: fp, Verdict: Incompatible, Rule: RuleFieldRemoved,
-					Detail:  "old declares the field and new does not accept it",
-					Witness: fmt.Sprintf("an instance with %s set", pathString(fp)),
-					Pos:     posOf(of.value),
+					Detail: "is declared in the prior schema and not accepted by the new one",
+					Effect: "prior instances that set it are rejected",
+					Pos:    posOf(of.value),
 				})
 				continue
 			}
@@ -572,9 +584,9 @@ func (w *walker) structs(p cue.Path, pred, succ cue.Value) {
 		if nf.class == required {
 			w.add(Finding{
 				Path: fp, Verdict: Incompatible, Rule: RuleFieldAddedRequired,
-				Detail:  "new requires a field old does not declare",
-				Witness: fmt.Sprintf("an instance omitting %s", pathString(fp)),
-				Pos:     posOf(nf.value),
+				Detail: "is required in the new schema but not declared in the prior one",
+				Effect: "prior instances that omit it are rejected",
+				Pos:    posOf(nf.value),
 			})
 			continue
 		}
@@ -598,25 +610,25 @@ func (w *walker) classes(fp cue.Path, of, nf field) {
 		if of.class == defaulted && of.fill.Exists() && nf.fill.Exists() && cuetil.Equal(of.fill, nf.fill) != nil {
 			w.add(Finding{
 				Path: fp, Verdict: Incompatible, Rule: RuleDefaultChanged,
-				Detail:  fmt.Sprintf("the default changed from %s to %s", fmtv(of.fill), fmtv(nf.fill)),
-				Witness: fmt.Sprintf("an instance omitting %s", pathString(fp)),
-				Pos:     posOf(nf.value),
+				Detail: fmt.Sprintf("fills with %s when absent, where the prior schema filled it with %s", fmtv(nf.fill), fmtv(of.fill)),
+				Effect: "prior instances that omit it change value",
+				Pos:    posOf(nf.value),
 			})
 		}
 		// Struct fills are compared field by field, by the walk.
 	case nf.class == required:
 		w.add(Finding{
 			Path: fp, Verdict: Incompatible, Rule: RuleFieldNowRequired,
-			Detail:  fmt.Sprintf("the field was %s and is now required", of.class),
-			Witness: fmt.Sprintf("an instance omitting %s", pathString(fp)),
-			Pos:     posOf(nf.value),
+			Detail: fmt.Sprintf("was %s and is now required", of.class),
+			Effect: "prior instances that omit it are rejected",
+			Pos:    posOf(nf.value),
 		})
 	case of.class == defaulted && nf.class == optional:
 		w.add(Finding{
 			Path: fp, Verdict: Incompatible, Rule: RuleDefaultRemoved,
-			Detail:  "the field was filled when absent and is now left absent",
-			Witness: fmt.Sprintf("an instance omitting %s", pathString(fp)),
-			Pos:     posOf(nf.value),
+			Detail: "was filled when absent and is now left absent",
+			Effect: "prior instances that omit it lose the value",
+			Pos:    posOf(nf.value),
 		})
 	}
 	// required → optional/defaulted and optional → defaulted are compatible:
@@ -641,10 +653,10 @@ func (w *walker) residuals(p cue.Path, pred, succ cue.Value, os, ns structShape)
 	if !newOpen && len(ns.patterns) == 0 {
 		if oldOpen || w.anyLabel(os) {
 			w.add(Finding{
-				Path: anyp, Verdict: Incompatible, Rule: RuleLabelsNarrowed,
-				Detail:  "old accepts any label and new is closed",
-				Witness: fmt.Sprintf("an instance with an undeclared field in %s", pathString(p)),
-				Pos:     posOf(succ, pred),
+				Path: p, Verdict: Incompatible, Rule: RuleLabelsNarrowed,
+				Detail: "accepts any field name in the prior schema and is closed in the new one",
+				Effect: "prior instances with an undeclared field here are rejected",
+				Pos:    posOf(succ, pred),
 			})
 			return
 		}
@@ -652,7 +664,7 @@ func (w *walker) residuals(p cue.Path, pred, succ cue.Value, os, ns structShape)
 		// enumerate them.
 		w.add(Finding{
 			Path: anyp, Verdict: Unknown, Rule: RuleUnknownPatterns,
-			Detail: fmt.Sprintf("old accepts labels matching %s and new declares no pattern for them", patternsString(os.patterns)),
+			Detail: fmt.Sprintf("accepts field names matching %s in the prior schema, and the new one declares no pattern; the checker does not enumerate the names the new schema declares instead", patternsString(os.patterns)),
 			Pos:    posOf(succ, pred),
 		})
 		return
@@ -660,8 +672,8 @@ func (w *walker) residuals(p cue.Path, pred, succ cue.Value, os, ns structShape)
 	if len(os.patterns) > 1 || len(ns.patterns) > 1 {
 		if !w.samePatterns(os, ns) {
 			w.add(Finding{
-				Path: anyp, Verdict: Unknown, Rule: RuleUnknownPatterns,
-				Detail: fmt.Sprintf("several pattern constraints, %s and %s, are compared only for identity", patternsString(os.patterns), patternsString(ns.patterns)),
+				Path: p, Verdict: Unknown, Rule: RuleUnknownPatterns,
+				Detail: fmt.Sprintf("has several pattern constraints, %s in the prior schema and %s in the new one, which the checker compares only for identity", patternsString(os.patterns), patternsString(ns.patterns)),
 				Pos:    posOf(succ, pred),
 			})
 		}
@@ -681,16 +693,16 @@ func (w *walker) residuals(p cue.Path, pred, succ cue.Value, os, ns structShape)
 	if err := newPat.Subsume(oldPat, cue.Raw()); err != nil {
 		if oldOpen {
 			w.add(Finding{
-				Path: anyp, Verdict: Incompatible, Rule: RuleLabelsNarrowed,
-				Detail:  fmt.Sprintf("old accepts any label and new only %s", patternsString(ns.patterns)),
-				Witness: fmt.Sprintf("an instance with a field in %s whose name does not match the pattern", pathString(p)),
-				Pos:     posOf(succ, pred),
+				Path: p, Verdict: Incompatible, Rule: RuleLabelsNarrowed,
+				Detail: fmt.Sprintf("accepts any field name in the prior schema and only names matching %s in the new one", patternsString(ns.patterns)),
+				Effect: "prior instances with a field here whose name does not match are rejected",
+				Pos:    posOf(succ, pred),
 			})
 			return
 		}
 		w.add(Finding{
 			Path: anyp, Verdict: Unknown, Rule: RuleUnknownPatterns,
-			Detail: fmt.Sprintf("the pattern %s does not cover the old pattern %s", patternsString(ns.patterns), patternsString(os.patterns)),
+			Detail: fmt.Sprintf("has the pattern %s in the new schema, which the checker cannot show covers the prior pattern %s", patternsString(ns.patterns), patternsString(os.patterns)),
 			Pos:    posOf(succ, pred),
 		})
 		return
@@ -735,7 +747,8 @@ func (w *walker) lists(p cue.Path, pred, succ cue.Value) {
 	if err := succ.Len().Subsume(pred.Len(), cue.Raw()); err != nil {
 		w.add(Finding{
 			Path: p, Verdict: Incompatible, Rule: RuleLengthNarrowed,
-			Detail: fmt.Sprintf("the length was %s and is now %s", fmtv(pred.Len()), fmtv(succ.Len())),
+			Detail: fmt.Sprintf("had length %s and now has length %s", fmtv(pred.Len()), fmtv(succ.Len())),
+			Effect: "prior instances whose length the new bounds exclude are rejected",
 			Pos:    posOf(succ),
 		})
 	}
@@ -774,9 +787,9 @@ func (w *walker) leaf(p cue.Path, pred, succ, wholeSucc cue.Value) {
 		if cuetil.Equal(pred, succ) != nil {
 			w.add(Finding{
 				Path: p, Verdict: Incompatible, Rule: RuleValueNarrowed,
-				Detail:  fmt.Sprintf("the value %s is now %s", fmtv(pred), fmtv(succ)),
-				Witness: fmt.Sprintf("an instance with %s: %s", pathString(p), fmtv(pred)),
-				Pos:     posOf(wholeSucc),
+				Detail: fmt.Sprintf("was %s and is now %s", fmtv(pred), fmtv(succ)),
+				Effect: fmt.Sprintf("prior instances holding %s here are rejected", fmtv(pred)),
+				Pos:    posOf(wholeSucc),
 			})
 		}
 		return
@@ -786,7 +799,7 @@ func (w *walker) leaf(p cue.Path, pred, succ, wholeSucc cue.Value) {
 	if err := nplain.Subsume(oplain, cue.Raw()); err != nil {
 		w.add(Finding{
 			Path: p, Verdict: Incompatible, Rule: RuleValueNarrowed,
-			Detail: fmt.Sprintf("%s does not accept every value of %s: %s", fmtv(succ), fmtv(pred), err),
+			Detail: fmt.Sprintf("is now %s, which does not accept every value of the prior %s", fmtv(succ), fmtv(pred)),
 			Pos:    posOf(wholeSucc),
 		})
 	}
@@ -930,9 +943,9 @@ func (w *walker) validators(p cue.Path, pred, succ cue.Value) {
 			continue
 		}
 		if _, known := validatorTable[nc.name]; known {
-			detail := fmt.Sprintf("new adds the validator %s", fmtv(nc.v))
+			detail := fmt.Sprintf("must now satisfy %s, which the prior schema did not require", fmtv(nc.v))
 			if counterpart {
-				detail = fmt.Sprintf("new replaces the validator %s with %s", fmtv(counterpartOf(ocalls, nc.name).v), fmtv(nc.v))
+				detail = fmt.Sprintf("must now satisfy %s, where the prior schema required %s", fmtv(nc.v), fmtv(counterpartOf(ocalls, nc.name).v))
 			}
 			w.add(Finding{
 				Path: p, Verdict: Incompatible, Rule: RuleValidatorAdded,
@@ -943,7 +956,7 @@ func (w *walker) validators(p cue.Path, pred, succ cue.Value) {
 		}
 		w.add(Finding{
 			Path: p, Verdict: Unknown, Rule: RuleUnknownValidator,
-			Detail: fmt.Sprintf("new applies %s, which the checker has no rule for", fmtv(nc.v)),
+			Detail: fmt.Sprintf("must now satisfy %s, for which the checker has no rule", fmtv(nc.v)),
 			Pos:    posOf(succ),
 		})
 	}

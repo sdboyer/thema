@@ -7,4 +7,4 @@ import "list"
 l: [...int] & list.MinItems(2)
 -- out --
 incompatible
-l: new replaces the validator list.MinItems(1) with list.MinItems(2) [validator-added] @ new.cue:2:1
+l must now satisfy list.MinItems(2), where the prior schema required list.MinItems(1) (rule validator-added) @ new.cue:2:1

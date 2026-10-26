@@ -31,5 +31,5 @@ lin: lenses: [{
 }]
 -- out/bindfail --
 schema 0.1 is not backwards compatible with schema 0.0:
-getsRemoved: old declares the field and new does not accept it [field-removed]; witness: an instance with getsRemoved set:
+getsRemoved is declared in the prior schema and not accepted by the new one; prior instances that set it are rejected (rule field-removed):
     /in.cue:10:9

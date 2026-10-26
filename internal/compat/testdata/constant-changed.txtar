@@ -5,5 +5,5 @@ a: 1
 a: 2
 -- out --
 incompatible
-a: the default changed from 1 to 2 [default-changed]; witness: an instance omitting a @ new.cue:1:1
-a: the value 1 is now 2 [value-narrowed]; witness: an instance with a: 1 @ new.cue:1:1
+a fills with 2 when absent, where the prior schema filled it with 1; prior instances that omit it change value (rule default-changed) @ new.cue:1:1
+a was 1 and is now 2; prior instances holding 1 here are rejected (rule value-narrowed) @ new.cue:1:1

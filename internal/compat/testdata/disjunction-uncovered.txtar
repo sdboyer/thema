@@ -5,4 +5,4 @@ n: int
 n: >=0 | <0
 -- out --
 unknown
-n: no single alternative of >=0 | <0 covers the old alternative int [unknown-disjunction] @ new.cue:1:1
+n is now >=0 | <0, no single alternative of which covers the prior alternative int; the checker does not combine alternatives (rule unknown-disjunction) @ new.cue:1:1

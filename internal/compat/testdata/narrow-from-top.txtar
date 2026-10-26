@@ -5,4 +5,4 @@ n: _
 n: int
 -- out --
 incompatible
-n: int does not accept every value of _: value not an instance [value-narrowed] @ new.cue:1:1
+n is now int, which does not accept every value of the prior _ (rule value-narrowed) @ new.cue:1:1

@@ -5,4 +5,4 @@ s: {a?: int}
 s?: {a?: int}
 -- out --
 incompatible
-s: the field was filled when absent and is now left absent [default-removed]; witness: an instance omitting s @ new.cue:1:1
+s was filled when absent and is now left absent; prior instances that omit it lose the value (rule default-removed) @ new.cue:1:1

@@ -6,4 +6,4 @@ import "time"
 t: time.Time
 -- out --
 incompatible
-t: new adds the validator time.Time() [validator-added] @ new.cue:2:1
+t must now satisfy time.Time(), which the prior schema did not require (rule validator-added) @ new.cue:2:1

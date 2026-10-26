@@ -5,4 +5,4 @@ m: [string]: int
 m: {}
 -- out --
 incompatible
-m.[_]: old accepts any label and new is closed [labels-narrowed]; witness: an instance with an undeclared field in m @ new.cue:1:1
+m accepts any field name in the prior schema and is closed in the new one; prior instances with an undeclared field here are rejected (rule labels-narrowed) @ new.cue:1:1

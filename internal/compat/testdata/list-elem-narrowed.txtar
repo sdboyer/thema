@@ -5,4 +5,4 @@ l: [...number]
 l: [...int]
 -- out --
 incompatible
-l.[_]: int does not accept every value of number: value not an instance [value-narrowed] @ new.cue:1:8
+l.[_] is now int, which does not accept every value of the prior number (rule value-narrowed) @ new.cue:1:8

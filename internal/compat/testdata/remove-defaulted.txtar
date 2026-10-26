@@ -6,4 +6,4 @@ b: *1 | int
 a: string
 -- out --
 incompatible
-b: old declares the field and new does not accept it [field-removed]; witness: an instance with b set @ old.cue:2:1
+b is declared in the prior schema and not accepted by the new one; prior instances that set it are rejected (rule field-removed) @ old.cue:2:1

@@ -7,4 +7,4 @@ import "strings"
 s: strings.MinRunes(2)
 -- out --
 incompatible
-s: new replaces the validator strings.MinRunes(1) with strings.MinRunes(2) [validator-added] @ new.cue:2:1
+s must now satisfy strings.MinRunes(2), where the prior schema required strings.MinRunes(1) (rule validator-added) @ new.cue:2:1

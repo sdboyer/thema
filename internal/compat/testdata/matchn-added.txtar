@@ -5,4 +5,4 @@ n: int
 n: int & matchN(1, [>0, <0])
 -- out --
 unknown
-n: new applies matchN(1, [>0, <0]), which the checker has no rule for [unknown-validator] @ new.cue:1:1
+n must now satisfy matchN(1, [>0, <0]), for which the checker has no rule (rule unknown-validator) @ new.cue:1:1

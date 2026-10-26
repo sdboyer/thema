@@ -6,4 +6,4 @@ import "list"
 l: [...int] & list.UniqueItems()
 -- out --
 incompatible
-l: new adds the validator list.UniqueItems() [validator-added] @ new.cue:2:1
+l must now satisfy list.UniqueItems(), which the prior schema did not require (rule validator-added) @ new.cue:2:1

@@ -5,4 +5,4 @@ l: [...int]
 l: [int, int]
 -- out --
 incompatible
-l: the length was uint and is now 2 [length-narrowed] @ new.cue:1:1
+l had length uint and now has length 2; prior instances whose length the new bounds exclude are rejected (rule length-narrowed) @ new.cue:1:1

@@ -5,4 +5,4 @@ u: "x" | "y" | "z"
 u: "x" | "y"
 -- out --
 incompatible
-u: "x" | "y" does not accept "z" [value-narrowed]; witness: an instance with u: "z" @ new.cue:1:1
+u is now "x" | "y", which has no alternative for the prior "z"; prior instances holding "z" here are rejected (rule value-narrowed) @ new.cue:1:1

@@ -5,4 +5,4 @@ n: int
 n: string
 -- out --
 incompatible
-n: the kind was int and is now string [value-narrowed]; witness: an instance with any int at n @ new.cue:1:1
+n was int and is now string; prior instances holding any int here are rejected (rule value-narrowed) @ new.cue:1:1

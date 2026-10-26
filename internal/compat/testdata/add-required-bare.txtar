@@ -6,4 +6,4 @@ a: string
 b: int
 -- out --
 incompatible
-b: new requires a field old does not declare [field-added-required]; witness: an instance omitting b @ new.cue:2:1
+b is required in the new schema but not declared in the prior one; prior instances that omit it are rejected (rule field-added-required) @ new.cue:2:1

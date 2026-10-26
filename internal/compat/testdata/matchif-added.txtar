@@ -5,4 +5,4 @@ a: {x?: int, y?: int}
 a: matchIf({x!: _}, {y!: _}, _) & {x?: int, y?: int}
 -- out --
 unknown
-a: new applies matchIf({x!: _}, {y!: _}, _), which the checker has no rule for [unknown-validator] @ new.cue:1:1
+a must now satisfy matchIf({x!: _}, {y!: _}, _), for which the checker has no rule (rule unknown-validator) @ new.cue:1:1

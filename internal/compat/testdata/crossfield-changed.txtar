@@ -7,4 +7,4 @@ a: int
 b?: >a
 -- out --
 unknown
-b: new constrains this field by a [unknown-crossfield] @ new.cue:2:1
+b is constrained by a in the new schema, differently from the prior one; the checker cannot compare constraints between fields (rule unknown-crossfield) @ new.cue:2:1

@@ -5,4 +5,4 @@ l: [...{a: *1 | int}]
 l: [...{a: int}]
 -- out --
 incompatible
-l.[_].a: the field was defaulted and is now required [field-now-required]; witness: an instance omitting l.[_].a @ new.cue:1:9
+l.[_].a was defaulted and is now required; prior instances that omit it are rejected (rule field-now-required) @ new.cue:1:9

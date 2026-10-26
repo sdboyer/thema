@@ -6,4 +6,4 @@ kind: string
 if kind == "x" {extra?: int}
 -- out --
 unknown
-<root>: a comprehension over data decides this struct's fields, and it differs between the versions [unknown-comprehension] @ new.cue:2:4
+the top level has fields decided by a comprehension over data, which differs between the schemas; the checker cannot evaluate it (rule unknown-comprehension) @ new.cue:2:4

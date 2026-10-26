@@ -5,4 +5,4 @@ m: {...}
 m: [=~"^a"]: int
 -- out --
 incompatible
-m.[_]: old accepts any label and new only [=~"^a"] [labels-narrowed]; witness: an instance with a field in m whose name does not match the pattern @ new.cue:1:1
+m accepts any field name in the prior schema and only names matching [=~"^a"] in the new one; prior instances with a field here whose name does not match are rejected (rule labels-narrowed) @ new.cue:1:1

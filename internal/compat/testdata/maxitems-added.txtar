@@ -6,4 +6,4 @@ import "list"
 l: [...int] & list.MaxItems(1)
 -- out --
 incompatible
-l: new adds the validator list.MaxItems(1) [validator-added] @ new.cue:2:1
+l must now satisfy list.MaxItems(1), which the prior schema did not require (rule validator-added) @ new.cue:2:1
