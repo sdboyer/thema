@@ -1,0 +1,8 @@
+# a regular expression constraint added
+-- old.cue --
+s: string
+-- new.cue --
+s: =~"^a"
+-- out --
+incompatible
+s: =~"^a" does not accept every value of string: value not an instance [value-narrowed] @ new.cue:1:1

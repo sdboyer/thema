@@ -28,6 +28,5 @@ lenses: [{
 }]
 -- out/bindfail --
 schema 0.1 is not backwards compatible with schema 0.0:
-field toUpgrade not present in {toUpgrade?:string}:
-    /github.com/sdboyer/thema@v0.1.0/lineage.cue:227:11
-missing field "toUpgrade"
+toUpgrade: the field was optional and is now required [field-now-required]; witness: an instance omitting toUpgrade:
+    /in.cue:15:9

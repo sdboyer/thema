@@ -1,0 +1,8 @@
+# an alternative removed (union-reduction)
+-- old.cue --
+u: "x" | "y" | "z"
+-- new.cue --
+u: "x" | "y"
+-- out --
+incompatible
+u: "x" | "y" does not accept "z" [value-narrowed]; witness: an instance with u: "z" @ new.cue:1:1

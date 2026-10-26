@@ -14,6 +14,17 @@ seams: lineages: {
 	format: "thema"
 }
 
+// Every compatibility verdict is part of the versioning contract: a lineage is
+// valid only if its minor steps are compatible and its major steps are not, so
+// a verdict that changes can invalidate lineages already published. The corpus
+// records one verdict per rule; a diff there is a contract change, even when it
+// fixes a bug. (Before v1 verdicts are declared unstable; the diff is still loud.)
+seams: "compat-verdicts": {
+	kind:   "published-language"
+	paths:  ["internal/compat/testdata/*.txtar"]
+	format: "thema"
+}
+
 // --- shared-kernel: co-owners we can name ---------------------------------------
 
 // thema's own CUE definitions are the kernel both halves stand on: every lineage

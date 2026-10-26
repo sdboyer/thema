@@ -1,0 +1,8 @@
+# a positional element narrowed
+-- old.cue --
+l: [number, ...number]
+-- new.cue --
+l: [int, ...number]
+-- out --
+incompatible
+l[0]: int does not accept every value of number: value not an instance [value-narrowed] @ new.cue:1:5

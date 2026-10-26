@@ -1,0 +1,8 @@
+# a different default (change-default step 2)
+-- old.cue --
+u: *"foo" | "bar" | "baz"
+-- new.cue --
+u: "foo" | "bar" | *"baz"
+-- out --
+incompatible
+u: the default changed from "foo" to "baz" [default-changed]; witness: an instance omitting u @ new.cue:1:1

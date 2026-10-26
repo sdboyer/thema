@@ -36,8 +36,10 @@ thema's CUE takes no position on schema openness. Operations that need closed
 semantics apply them where they are used:
 
 - **Compatibility checks**: `internal/compat` closes both versions
-  (`cuetil.CloseRecursive`) before comparing. Subsumption between open structs
-  gets field additions and removals wrong.
+  (`cuetil.CloseRecursive`) before walking them. An author's `...` survives
+  closing, and is the only openness the walk sees. The rules, their stable IDs
+  and the Unknown cases are in `docs/invariants.md`; every verdict is recorded
+  in the `internal/compat/testdata` corpus (the `compat-verdicts` seam).
 - **`Schema.Validate()`**: closed by default.
 - **Lens results**: closed against the target schema inside `Translate`. In Go,
   the fields each lens *writes* are also checked against what the target schema
@@ -75,6 +77,7 @@ Before finalizing an approach that touches any of these, run `thresh check` and
 read the taps. They are facts about your diff, not opinions, and they never block.
 
 - **bindlineage** (`choke-point`): in *.go, only BindLineage may construct baseLineage. Constructing it elsewhere skips what the choke point enforces.
+- **compat-verdicts** (`published-language`): internal/compat/testdata/*.txtar is a versioned contract for consumers you cannot enumerate. A change owes them compatibility; a breaking change is loud even when correct.
 - **cue-dependency** (`shared-kernel`): in go.mod, the lines mentioning cuelang.org/go are co-owned substrate. A change there owes consultation with: every lineage's validity; the Go facade's cue.Value handling; Go code that parses CUE error shapes (validate.go mungeValidateErr matches on Msg() argument counts and types); Go code that works around evaluator behavior (assignable.go detaches values before Subsume); golden error output in testdata, which records CUE's error wording and positions; internal/cueview goldens, which record how CUE presents values as syntax; every check built on a view (lens checks in internal/cuetil) depends on them.
 - **cue-go-binding** (`references-resolve`): Go files (*.go) reach into CUE files (*.cue) by literal path; every such reference must resolve.
 - **cue-module** (`shared-kernel`): cue.mod/module.cue is co-owned kernel. A change there owes consultation with: everything that evaluates thema's CUE.

@@ -1,0 +1,8 @@
+# optional to required
+-- old.cue --
+a?: int
+-- new.cue --
+a!: int
+-- out --
+incompatible
+a: the field was optional and is now required [field-now-required]; witness: an instance omitting a @ new.cue:1:1

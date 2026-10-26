@@ -1,0 +1,10 @@
+# list.MinItems raised
+-- old.cue --
+import "list"
+l: [...int] & list.MinItems(1)
+-- new.cue --
+import "list"
+l: [...int] & list.MinItems(2)
+-- out --
+incompatible
+l: new replaces the validator list.MinItems(1) with list.MinItems(2) [validator-added] @ new.cue:2:1

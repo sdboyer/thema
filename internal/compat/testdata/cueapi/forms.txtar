@@ -1,0 +1,146 @@
+What the cue API reports for the field forms, defaults and fills the checker
+classifies (see classify and fills in compat.go). Observations relied on:
+
+- Selector.ConstraintType tells ! (RequiredConstraint) and ? (OptionalConstraint)
+  from a regular field (NoLabels). A bare a: int is not concrete, so data must
+  supply it: for data it is required.
+- Default() reports a field's default; Expr() on *1 | int reports NoOp with the
+  default stripped (int), and on *"a" | "a" | "b" the alternatives without the
+  marker. The checker compares alternatives through Expr and defaults through
+  Default.
+- A default on ? or ! is reported like any other, though it never applies to
+  data; the field-form rule forbids writing one.
+- A struct whose fields are all optional has no Default() but is concrete: data
+  omitting it gets {}. One with a required field inside is not filled.
+- An open list [...int] has Default() [] (concrete); [int, ...string] has
+  Default() [int], which is not concrete, so data must supply it.
+- LookupPath does not find optional or required fields ("none" below); Fields
+  with cue.Optional(true) does.
+-- in.cue --
+cases: {
+	forms: {
+		req!: int
+		opt?: int
+		bare: int
+		constant: 1
+		defaulted: *1 | int
+		enumDefault: *"a" | "a" | "b"
+		optDefault?: *1 | int
+		reqDefault!: *1 | int
+	}
+	fills: {
+		allOptional: {x?: int}
+		nestedDefault: {x: *1 | int}
+		hasRequired: {x!: int}
+		hasBare: {x: int}
+		openList: [...int]
+		prefixedList: [int, ...string]
+		fixedList: [int, int]
+		concreteList: [1, 2]
+	}
+}
+-- out --
+## forms
+kind=struct incomplete=struct concrete=false
+expr=& nargs=2 args=[_ ; { req!: int bare: int constant: 1 defaulted: *1 | int enumDefault: *"a" | "b" reqDefault!: *1 | int }]
+allowsAnyString=false anyStringLookup=none
+- req! (RequiredConstraint) lookup=int
+    kind=_|_ incomplete=int concrete=false
+    expr=NoOp nargs=1
+- opt? (OptionalConstraint) lookup=int
+    kind=_|_ incomplete=int concrete=false
+    expr=NoOp nargs=1
+- bare (NoLabels) lookup=int
+    kind=_|_ incomplete=int concrete=false
+    expr=NoOp nargs=1
+- constant (NoLabels) lookup=1
+    kind=int incomplete=int concrete=true
+    expr=NoOp nargs=1
+- defaulted (NoLabels) lookup=*1 | int
+    kind=_|_ incomplete=int concrete=true
+    expr=NoOp nargs=1
+    default=1 concrete=true
+- enumDefault (NoLabels) lookup=*"a" | "b"
+    kind=_|_ incomplete=string concrete=true
+    expr=| nargs=2 args=["a" ; "b"]
+    default="a" concrete=true
+- optDefault? (OptionalConstraint) lookup=*1 | int
+    kind=_|_ incomplete=int concrete=true
+    expr=NoOp nargs=1
+    default=1 concrete=true
+- reqDefault! (RequiredConstraint) lookup=*1 | int
+    kind=_|_ incomplete=int concrete=true
+    expr=NoOp nargs=1
+    default=1 concrete=true
+## fills
+kind=struct incomplete=struct concrete=false
+expr=& nargs=2 args=[_ ; { allOptional: {} nestedDefault: x: *1 | int hasRequired: x!: int hasBare: x: int openList: [...int] prefixedList: [int, ...string] fixedList: [int, int] concreteList: [1, 2] }]
+allowsAnyString=false anyStringLookup=none
+- allOptional (NoLabels) lookup={}
+    kind=struct incomplete=struct concrete=true
+    expr=NoOp nargs=1
+    allowsAnyString=false anyStringLookup=none
+    - x? (OptionalConstraint) lookup=int
+        kind=_|_ incomplete=int concrete=false
+        expr=NoOp nargs=1
+- nestedDefault (NoLabels) lookup={x: *1 | int}
+    kind=struct incomplete=struct concrete=true
+    expr=NoOp nargs=1
+    allowsAnyString=false anyStringLookup=none
+    - x (NoLabels) lookup=*1 | int
+        kind=_|_ incomplete=int concrete=true
+        expr=NoOp nargs=1
+        default=1 concrete=true
+- hasRequired (NoLabels) lookup={x!: int}
+    kind=struct incomplete=struct concrete=false
+    expr=NoOp nargs=1
+    allowsAnyString=false anyStringLookup=none
+    - x! (RequiredConstraint) lookup=int
+        kind=_|_ incomplete=int concrete=false
+        expr=NoOp nargs=1
+- hasBare (NoLabels) lookup={x: int}
+    kind=struct incomplete=struct concrete=false
+    expr=NoOp nargs=1
+    allowsAnyString=false anyStringLookup=none
+    - x (NoLabels) lookup=int
+        kind=_|_ incomplete=int concrete=false
+        expr=NoOp nargs=1
+- openList (NoLabels) lookup=[...int]
+    kind=list incomplete=list concrete=true
+    expr=NoOp nargs=1
+    default=[] concrete=true
+    len=uint anyIndexLookup=int
+    - [>=0] (PatternConstraint) lookup=_|_ // cannot look up pattern constraints other than AnyString or AnyIndex
+        kind=_|_ incomplete=int concrete=false
+        expr=NoOp nargs=1
+- prefixedList (NoLabels) lookup=[int, ...string]
+    kind=list incomplete=list concrete=false
+    expr=NoOp nargs=1
+    default=[int] concrete=false
+    len=int & >=1 anyIndexLookup=string
+    - [>=1] (PatternConstraint) lookup=_|_ // cannot look up pattern constraints other than AnyString or AnyIndex
+        kind=_|_ incomplete=string concrete=false
+        expr=NoOp nargs=1
+    - 0 (NoLabels) lookup=int
+        kind=_|_ incomplete=int concrete=false
+        expr=NoOp nargs=1
+- fixedList (NoLabels) lookup=[int, int]
+    kind=list incomplete=list concrete=false
+    expr=NoOp nargs=1
+    len=2 anyIndexLookup=none
+    - 0 (NoLabels) lookup=int
+        kind=_|_ incomplete=int concrete=false
+        expr=NoOp nargs=1
+    - 1 (NoLabels) lookup=int
+        kind=_|_ incomplete=int concrete=false
+        expr=NoOp nargs=1
+- concreteList (NoLabels) lookup=[1, 2]
+    kind=list incomplete=list concrete=true
+    expr=NoOp nargs=1
+    len=2 anyIndexLookup=none
+    - 0 (NoLabels) lookup=1
+        kind=int incomplete=int concrete=true
+        expr=NoOp nargs=1
+    - 1 (NoLabels) lookup=2
+        kind=int incomplete=int concrete=true
+        expr=NoOp nargs=1

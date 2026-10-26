@@ -1,0 +1,8 @@
+# ... replaced by a pattern that rejects some labels
+-- old.cue --
+m: {...}
+-- new.cue --
+m: [=~"^a"]: int
+-- out --
+incompatible
+m.[_]: old accepts any label and new only [=~"^a"] [labels-narrowed]; witness: an instance with a field in m whose name does not match the pattern @ new.cue:1:1

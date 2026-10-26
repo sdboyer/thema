@@ -1,0 +1,7 @@
+# a pattern replaced by ...
+-- old.cue --
+m: [string]: int
+-- new.cue --
+m: {...}
+-- out --
+compatible

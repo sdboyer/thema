@@ -1,0 +1,9 @@
+# a constant changed
+-- old.cue --
+a: 1
+-- new.cue --
+a: 2
+-- out --
+incompatible
+a: the default changed from 1 to 2 [default-changed]; witness: an instance omitting a @ new.cue:1:1
+a: the value 1 is now 2 [value-narrowed]; witness: an instance with a: 1 @ new.cue:1:1

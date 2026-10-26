@@ -1,0 +1,9 @@
+# adding a bare field, which data must supply
+-- old.cue --
+a: string
+-- new.cue --
+a: string
+b: int
+-- out --
+incompatible
+b: new requires a field old does not declare [field-added-required]; witness: an instance omitting b @ new.cue:2:1

@@ -1,0 +1,8 @@
+# a bound added
+-- old.cue --
+n: int
+-- new.cue --
+n: int & >=0
+-- out --
+incompatible
+n: uint does not accept every value of int: value not an instance [value-narrowed] @ new.cue:1:1

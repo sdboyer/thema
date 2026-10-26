@@ -1,0 +1,10 @@
+# strings.MinRunes raised
+-- old.cue --
+import "strings"
+s: strings.MinRunes(1)
+-- new.cue --
+import "strings"
+s: strings.MinRunes(2)
+-- out --
+incompatible
+s: new replaces the validator strings.MinRunes(1) with strings.MinRunes(2) [validator-added] @ new.cue:2:1

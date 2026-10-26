@@ -1,0 +1,9 @@
+# struct.MaxFields added (compat-struct-maxfields)
+-- old.cue --
+m: {...}
+-- new.cue --
+import "struct"
+m: {...} & struct.MaxFields(1)
+-- out --
+incompatible
+m: new adds the validator struct.MaxFields(1) [validator-added] @ new.cue:2:1

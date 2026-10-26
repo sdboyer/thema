@@ -1,0 +1,9 @@
+# removing a defaulted field
+-- old.cue --
+a: string
+b: *1 | int
+-- new.cue --
+a: string
+-- out --
+incompatible
+b: old declares the field and new does not accept it [field-removed]; witness: an instance with b set @ old.cue:2:1

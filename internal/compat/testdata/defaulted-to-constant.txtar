@@ -1,0 +1,8 @@
+# a defaulted field fixed to its default
+-- old.cue --
+a: *1 | int
+-- new.cue --
+a: 1
+-- out --
+incompatible
+a: 1 does not accept every value of int: value not an instance [value-narrowed] @ new.cue:1:1

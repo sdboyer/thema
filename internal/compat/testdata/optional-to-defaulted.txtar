@@ -1,0 +1,7 @@
+# optional to defaulted: an absent optional field behaves like an undeclared one
+-- old.cue --
+a?: int
+-- new.cue --
+a: *1 | int
+-- out --
+compatible

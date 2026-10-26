@@ -1,0 +1,8 @@
+# a default removed in a nested struct (compat-remove-default-nested)
+-- old.cue --
+s: {a: *1 | int}
+-- new.cue --
+s: {a: int}
+-- out --
+incompatible
+s.a: the field was defaulted and is now required [field-now-required]; witness: an instance omitting s.a @ new.cue:1:5

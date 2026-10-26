@@ -1,0 +1,8 @@
+# several patterns on each side, not identical
+-- old.cue --
+m: {[=~"^a"]: int, [=~"^b"]: string}
+-- new.cue --
+m: {[=~"^a"]: int, [=~"^b"]: number}
+-- out --
+unknown
+m.[_]: several pattern constraints, [=~"^a"], [=~"^b"] and [=~"^a"], [=~"^b"], are compared only for identity [unknown-patterns] @ new.cue:1:1

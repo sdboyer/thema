@@ -1,0 +1,8 @@
+# list elements narrowed
+-- old.cue --
+l: [...number]
+-- new.cue --
+l: [...int]
+-- out --
+incompatible
+l.[_]: int does not accept every value of number: value not an instance [value-narrowed] @ new.cue:1:8

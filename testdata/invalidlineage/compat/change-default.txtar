@@ -46,6 +46,5 @@ lenses: [
 ]
 -- out/bindfail --
 schema 0.2 is not backwards compatible with schema 0.1:
-field aunion not present in {aunion:*"foo" | "bar" | "baz"}:
-    /github.com/sdboyer/thema@v0.1.0/lineage.cue:227:11
-missing field "aunion"
+aunion: the default changed from "foo" to "baz" [default-changed]; witness: an instance omitting aunion:
+    /in.cue:22:7

@@ -1,0 +1,7 @@
+# adding an optional field in a nested struct
+-- old.cue --
+n: {a: int}
+-- new.cue --
+n: {a: int, b?: int}
+-- out --
+compatible

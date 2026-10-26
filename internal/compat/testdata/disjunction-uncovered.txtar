@@ -1,0 +1,8 @@
+# no single new alternative covers the old one, though together they do
+-- old.cue --
+n: int
+-- new.cue --
+n: >=0 | <0
+-- out --
+unknown
+n: no single alternative of >=0 | <0 covers the old alternative int [unknown-disjunction] @ new.cue:1:1

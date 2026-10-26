@@ -1,0 +1,8 @@
+# time.Time widened to string
+-- old.cue --
+import "time"
+t: time.Time
+-- new.cue --
+t: string
+-- out --
+compatible

@@ -1,0 +1,8 @@
+# a pattern's value narrowed
+-- old.cue --
+m: [string]: int
+-- new.cue --
+m: [string]: >0
+-- out --
+incompatible
+m.[_]: >0 does not accept every value of int: value not an instance [value-narrowed] @ new.cue:1:4

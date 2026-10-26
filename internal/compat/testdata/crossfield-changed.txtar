@@ -1,0 +1,10 @@
+# a cross-field reference changed
+-- old.cue --
+a: int
+b?: a
+-- new.cue --
+a: int
+b?: >a
+-- out --
+unknown
+b: new constrains this field by a [unknown-crossfield] @ new.cue:2:1

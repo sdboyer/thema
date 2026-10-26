@@ -1,0 +1,8 @@
+# a bare struct that filled {} made optional
+-- old.cue --
+s: {a?: int}
+-- new.cue --
+s?: {a?: int}
+-- out --
+incompatible
+s: the field was filled when absent and is now left absent [default-removed]; witness: an instance omitting s @ new.cue:1:1

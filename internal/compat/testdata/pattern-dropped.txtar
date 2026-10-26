@@ -1,0 +1,8 @@
+# a pattern over all labels dropped
+-- old.cue --
+m: [string]: int
+-- new.cue --
+m: {}
+-- out --
+incompatible
+m.[_]: old accepts any label and new is closed [labels-narrowed]; witness: an instance with an undeclared field in m @ new.cue:1:1

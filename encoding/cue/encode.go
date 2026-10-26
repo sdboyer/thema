@@ -127,7 +127,7 @@ func appendlin(lin thema.Lineage, sch cue.Value) (ast.Node, error) {
 
 	lv := lin.Latest().Version()
 	lsch := thema.SchemaP(lin, lv)
-	if err := compat.ThemaCompatible(lin.Runtime().Context(), lsch.Underlying(), sch); err == nil {
+	if compat.Check(lin.Runtime().Context(), lsch.Underlying(), sch).Compatible() {
 		// Is compatible, bump minor version
 		tgtv := thema.SyntacticVersion{lv[0], lv[1] + 1}
 		ast.AddComment(schnode, versionComment(tgtv))

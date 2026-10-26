@@ -1,0 +1,8 @@
+# _ narrowed
+-- old.cue --
+n: _
+-- new.cue --
+n: int
+-- out --
+incompatible
+n: int does not accept every value of _: value not an instance [value-narrowed] @ new.cue:1:1

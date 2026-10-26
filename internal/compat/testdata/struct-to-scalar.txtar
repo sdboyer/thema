@@ -1,0 +1,8 @@
+# a struct replaced by a scalar
+-- old.cue --
+s: {a: int}
+-- new.cue --
+s: int
+-- out --
+incompatible
+s: the kind was struct and is now int [value-narrowed]; witness: an instance with any struct at s @ new.cue:1:1

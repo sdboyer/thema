@@ -1,0 +1,9 @@
+# string narrowed to time.Time
+-- old.cue --
+t: string
+-- new.cue --
+import "time"
+t: time.Time
+-- out --
+incompatible
+t: new adds the validator time.Time() [validator-added] @ new.cue:2:1

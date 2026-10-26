@@ -1,0 +1,9 @@
+# an author's ... removed
+-- old.cue --
+a: int
+...
+-- new.cue --
+a: int
+-- out --
+incompatible
+[_]: old accepts any label and new is closed [labels-narrowed]; witness: an instance with an undeclared field in <root> @ -

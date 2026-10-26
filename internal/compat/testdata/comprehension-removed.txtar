@@ -1,0 +1,9 @@
+# a comprehension over data removed: the fields it added are now rejected
+-- old.cue --
+kind: string
+if kind == "x" {extra?: int}
+-- new.cue --
+kind: string
+-- out --
+unknown
+<root>: a comprehension over data decides this struct's fields, and it differs between the versions [unknown-comprehension] @ old.cue:2:4

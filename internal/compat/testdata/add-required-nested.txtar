@@ -1,0 +1,8 @@
+# adding a nested required field (compat-add-required-bang-nested)
+-- old.cue --
+n!: {a!: string}
+-- new.cue --
+n!: {a!: string, b!: int}
+-- out --
+incompatible
+n.b: new requires a field old does not declare [field-added-required]; witness: an instance omitting n.b @ new.cue:1:18

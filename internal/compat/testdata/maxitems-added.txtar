@@ -1,0 +1,9 @@
+# list.MaxItems added (compat-list-maxitems)
+-- old.cue --
+l: [...int]
+-- new.cue --
+import "list"
+l: [...int] & list.MaxItems(1)
+-- out --
+incompatible
+l: new adds the validator list.MaxItems(1) [validator-added] @ new.cue:2:1

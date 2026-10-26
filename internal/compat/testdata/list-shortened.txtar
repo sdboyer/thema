@@ -1,0 +1,8 @@
+# an open list fixed in length
+-- old.cue --
+l: [...int]
+-- new.cue --
+l: [int, int]
+-- out --
+incompatible
+l: the length was uint and is now 2 [length-narrowed] @ new.cue:1:1

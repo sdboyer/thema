@@ -1,0 +1,9 @@
+# list.UniqueItems added (compat-list-unique)
+-- old.cue --
+l: [...int]
+-- new.cue --
+import "list"
+l: [...int] & list.UniqueItems()
+-- out --
+incompatible
+l: new adds the validator list.UniqueItems() [validator-added] @ new.cue:2:1

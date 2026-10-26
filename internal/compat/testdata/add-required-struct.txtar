@@ -1,0 +1,9 @@
+# adding a bare struct field with a required field inside
+-- old.cue --
+a: int
+-- new.cue --
+a: int
+s: {x!: int}
+-- out --
+incompatible
+s: new requires a field old does not declare [field-added-required]; witness: an instance omitting s @ new.cue:2:1
