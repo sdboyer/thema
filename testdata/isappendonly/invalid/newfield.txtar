@@ -22,5 +22,5 @@ lin2: schemas: [{
     }
 }]
 -- out/isappendonly-fail --
-regular field is constraint in subsumed value: secondfield
+field not allowed in closed struct: secondfield
 value not an instance
