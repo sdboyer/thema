@@ -251,12 +251,25 @@ func (w *walker) value(p cue.Path, pred, succ cue.Value) {
 	// A reference to another data field makes the constraint depend on the
 	// instance. Identical in both versions is fine; anything else is beyond
 	// the checker.
-	if refs := w.dataRefs(succ, w.newRoot, nil); len(refs) > 0 {
+	orefs := w.dataRefs(pred, w.oldRoot, nil)
+	nrefs := w.dataRefs(succ, w.newRoot, nil)
+	if len(orefs) > 0 || len(nrefs) > 0 {
 		if !w.sameExpr(pred, succ) {
+			var detail string
+			switch {
+			case len(orefs) > 0 && len(nrefs) > 0 && joinPaths(orefs) == joinPaths(nrefs):
+				detail = fmt.Sprintf("is constrained by %s in both schemas, differently", joinPaths(orefs))
+			case len(orefs) > 0 && len(nrefs) > 0:
+				detail = fmt.Sprintf("is constrained by %s in the prior schema and by %s in the new one", joinPaths(orefs), joinPaths(nrefs))
+			case len(nrefs) > 0:
+				detail = fmt.Sprintf("is constrained by %s in the new schema and not in the prior one", joinPaths(nrefs))
+			default:
+				detail = fmt.Sprintf("is constrained by %s in the prior schema and not in the new one", joinPaths(orefs))
+			}
 			w.add(Finding{
 				Path: p, Verdict: Unknown, Rule: RuleUnknownCrossField,
-				Detail: fmt.Sprintf("is constrained by %s in the new schema, differently from the prior one; the checker cannot compare constraints between fields", joinPaths(refs)),
-				Pos:    posOf(succ),
+				Detail: detail + "; the checker cannot compare constraints between fields",
+				Pos:    posOf(succ, pred),
 			})
 		}
 		return
@@ -960,7 +973,7 @@ func (w *walker) dataRefs(v, root cue.Value, acc []cue.Path) []cue.Path {
 		if cuetil.PathHasPrefix(rp, root.Path()) {
 			sels := rp.Selectors()
 			last := sels[len(sels)-1]
-			if last.LabelType() == cue.StringLabel && cue.Dereference(v).Validate(cue.Concrete(true)) != nil {
+			if last.LabelType() == cue.StringLabel && !constantTarget(cue.Dereference(v)) {
 				acc = append(acc, cuetil.TrimPathPrefix(rp, root.Path()))
 			}
 		}
@@ -977,6 +990,20 @@ func (w *walker) dataRefs(v, root cue.Value, acc []cue.Path) []cue.Path {
 		acc = w.dataRefs(a, root, acc)
 	}
 	return acc
+}
+
+// constantTarget reports whether a referenced value is a constant for data: a
+// scalar with exactly one instance. A default makes a value concrete without
+// fixing it (lim: *5 | int accepts lim: 10), and an open list or struct is
+// concrete but accepts more, so neither is a constant.
+func constantTarget(d cue.Value) bool {
+	if _, hasDefault := d.Default(); hasDefault {
+		return false
+	}
+	if d.IncompleteKind()&(cue.StructKind|cue.ListKind) != 0 {
+		return false
+	}
+	return d.Validate(cue.Concrete(true)) == nil
 }
 
 // sameExpr reports whether old and new are the same expression: the same

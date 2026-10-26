@@ -6,4 +6,4 @@ e: {q: int, w?: int}
 e: #D
 -- out --
 unknown
-e.w is constrained by #D.q in the new schema, differently from the prior one; the checker cannot compare constraints between fields (rule unknown-crossfield) @ new.cue:1:14
+e.w is constrained by #D.q in the new schema and not in the prior one; the checker cannot compare constraints between fields (rule unknown-crossfield) @ new.cue:1:14

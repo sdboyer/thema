@@ -10,9 +10,11 @@ compat.go). Observations relied on:
   #closed.e.q. The checker therefore classifies a reference by its last
   selector and its target's concreteness, not by whether its path crosses a
   definition.
-- A reference to a concrete value (h: _lim) has a concrete target: it is a
-  constant for data. One to a non-concrete regular field (b?: a) depends on the
-  instance.
+- A reference to a constant (c?: <_lim with _lim: 5) is the constant. One to a
+  non-concrete regular field (b?: a) depends on the instance. Concreteness is
+  not the test: Validate(Concrete) passes for a defaulted field (*5 | int) and
+  for an open list or struct, which an instance can still vary, so
+  constantTarget also requires no default and a scalar kind.
 - A reference to a definition (d: #T) or a hidden field (h: _h) is an alias:
   the field's value is the target's.
 - A bound over a reference (z?: >a) is a BinaryOp whose operand is the

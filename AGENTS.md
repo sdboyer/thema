@@ -20,6 +20,16 @@ from `Source()` (the `Written` view): it depends on how the value was
 constructed, not on what it is. To follow references within a value,
 `cueview.Tree` resolves its exported syntax.
 
+**Concrete is not constant.** `Validate(cue.Concrete(true))` passes for a value
+with a default (`*5 | int`) and for an open list or struct (`[...int]`,
+`{a: 1, ...}`), because each has a concrete instance to offer, yet data can
+still vary all of them. Any analysis that asks "can an instance change this?"
+(reference classification, default detection, deciding whether a field is a
+constant) must also check `Default()` and openness, never concreteness alone.
+`internal/compat.constantTarget` is the reference implementation, and
+`internal/compat/testdata/crossfield-defaulted-target.txtar` the case that
+exposed it.
+
 [github.com/sdboyer/cuerious](https://github.com/sdboyer/cuerious) helps with
 this: `cuerious.ExprTree(v)` builds a walkable tree of a value's expression
 structure, linking each node to its `cue.Value`. It is far from perfect, and it

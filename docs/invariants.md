@@ -166,7 +166,7 @@ widening a value, dropping a validator, and adding hidden fields, definitions or
 
 | Rule | Unknown when | What to do |
 |---|---|---|
-| `unknown-crossfield` | *new* constrains a field by another field's value (`b?: a`, `c: >a`), differently from *prior* | keep such constraints identical across minor versions |
+| `unknown-crossfield` | either schema constrains a field by another field's value (`b?: a`, `c: >a`, a reference to a defaulted field or an open list), and the two differ | keep such constraints identical across minor versions |
 | `unknown-comprehension` | a comprehension over data (`if kind == "x" {...}`) is pending in either schema, and the two differ | keep the comprehension identical across minor versions |
 | `unknown-validator` | *new* adds or changes a validator the checker has no rule for (`matchIf`, `matchN`, regexp functions, ...) | keep it identical across minor versions, or express the constraint with bounds |
 | `unknown-disjunction` | no single alternative of *new* covers an alternative of *prior*, though together they might (`int` → `>=0 \| <0`) | write *new*'s alternatives so that each *prior* alternative fits one |
