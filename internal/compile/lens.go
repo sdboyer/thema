@@ -2,6 +2,7 @@ package compile
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"cuelang.org/go/cue"
@@ -11,6 +12,7 @@ import (
 	"cuelang.org/go/cue/token"
 
 	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/internal/cueview"
 )
 
 // An entry is one mapping in a lens body, after the body's nesting has been
@@ -21,11 +23,12 @@ type entry struct {
 	// path the dropped field would have had in the target, used only to
 	// check that the target does not require it.
 	target cue.Path
-	// source is the source path a move reads, or the path a drop drops.
+	// source is the source path a move, orelse, remap or each reads, or the
+	// path a drop drops.
 	source cue.Path
-	// expr is the author's expression: the reference of a move, or the
-	// literal of a constant. Nil for derived entries, whose expression is
-	// built at emission.
+	// expr is the author's expression: the reference of a move, the literal
+	// of a constant, the whole call of an operation. Nil for derived entries,
+	// whose expression is built at emission.
 	expr ast.Expr
 	// pos is where the entry is positioned: the author's field, or for a
 	// derived entry the construct it was derived from.
@@ -36,6 +39,22 @@ type entry struct {
 	comments []*ast.CommentGroup
 	// derived entries were produced by derivation, not written.
 	derived bool
+
+	// fallback is orelse's second argument: a constant, or a reference.
+	fallback ast.Expr
+	// arms and catchAll are remap's table.
+	arms     []arm
+	catchAll *arm
+	// body is each's element body.
+	body *ast.StructLit
+}
+
+// An arm is one entry of a remap table.
+type arm struct {
+	key    string
+	value  ast.Expr
+	lacuna *lacunaAttr
+	pos    token.Pos
 }
 
 type entryKind int
@@ -44,6 +63,24 @@ const (
 	kindMove entryKind = iota
 	kindConst
 	kindDrop
+	kindOrElse
+	kindRemap
+	kindEach
+)
+
+// The operations a lens body may call, and the arguments each takes.
+const (
+	opDrop   = "drop"
+	opOrElse = "orelse"
+	opRemap  = "remap"
+	opEach   = "each"
+	opArity  = 2
+)
+
+// The roots references start from: input in a lens body, item in an each body.
+const (
+	rootInput = "input"
+	rootItem  = "item"
 )
 
 // A lacunaAttr is a parsed @lacuna(Type, "message") or @lacuna("message").
@@ -53,7 +90,8 @@ type lacunaAttr struct {
 }
 
 // A rebase says that target fields under target copy, when not mapped, from
-// source fields under source: the effect of a nested body embedding input.m.
+// source fields under source: the effect of a nested body embedding a
+// reference.
 type rebase struct {
 	target, source cue.Path
 }
@@ -113,17 +151,33 @@ const (
 	backward
 )
 
-// An edge compiles the two lenses between consecutive versions.
+// An edge compiles one lens between consecutive versions. An each body is
+// compiled by a sub-edge over the element types, with item as its root.
 type edge struct {
-	ctx      *cue.Context
-	from, to *version
+	ctx *cue.Context
 	// S and T are the source and target schema values of the lens being
-	// compiled; the author's input and result.
+	// compiled; the author's input and result. For an each body, the element
+	// values.
 	S, T     cue.Value
 	sv, tv   thema.SyntacticVersion
 	dir      direction
 	blockPos token.Pos
-	errs     cerrors.Error
+	// root is the identifier references start from: input, or item inside
+	// an each body.
+	root string
+	// each is set for the sub-edge compiling an each body.
+	each *eachScope
+	errs cerrors.Error
+}
+
+// An eachScope is what an each body's sub-edge knows about its list.
+type eachScope struct {
+	// list is the source list's path, from input.
+	list cue.Path
+	// target is the target list's path.
+	target cue.Path
+	// n numbers the body's generated lets within the lens.
+	n int
 }
 
 func (e *edge) errf(p token.Pos, format string, args ...any) {
@@ -139,9 +193,9 @@ func (e *edge) parseBody(lit *ast.StructLit, tbase, sbase cue.Path, b *body) {
 		case *ast.Field:
 			e.parseField(d, tbase, sbase, b)
 		case *ast.EmbedDecl:
-			e.errf(d.Pos(), "a lens body has no embeddings; a nested body may embed input.<path> to copy from it")
+			e.errf(d.Pos(), "a lens body has no embeddings; a nested body may embed %s.<path> to copy from it", e.root)
 		case *ast.Comprehension:
-			e.errf(d.Pos(), "comprehensions are not allowed in a lens body; a reference to an optional field is guarded for you")
+			e.errf(d.Pos(), "comprehensions are not allowed in a lens body; a reference to an optional field is guarded for you, and orelse(ref, fallback) decides what to use when it is absent")
 		case *ast.LetClause:
 			e.errf(d.Pos(), "let is not allowed in a lens body")
 		default:
@@ -159,15 +213,17 @@ func (e *edge) parseField(f *ast.Field, tbase, sbase cue.Path, b *body) {
 	tpath := appendPath(tbase, cue.Str(name))
 	spath := appendPath(sbase, cue.Str(name))
 	b.claim(tpath)
-	lac, ok := e.lacunaAttr(f)
+	lac, ok := e.lacunaAttr(f.Attrs)
 	if !ok {
 		return
 	}
+	en := entry{target: tpath, expr: f.Value, pos: f.Pos(), lacuna: lac, comments: ast.Comments(f)}
 
 	switch x := f.Value.(type) {
 	case *ast.Ident:
-		if x.Name == "drop" {
-			b.add(entry{kind: kindDrop, target: tpath, source: spath, expr: x, pos: f.Pos(), lacuna: lac, comments: ast.Comments(f)})
+		if x.Name == opDrop {
+			en.kind, en.source = kindDrop, spath
+			b.add(en)
 			return
 		}
 	case *ast.StructLit:
@@ -175,9 +231,9 @@ func (e *edge) parseField(f *ast.Field, tbase, sbase cue.Path, b *body) {
 		var elts []ast.Decl
 		for _, d := range x.Elts {
 			if emb, ok := d.(*ast.EmbedDecl); ok {
-				p, ok := refPath(emb.Expr)
+				p, ok := e.refPath(emb.Expr)
 				if !ok {
-					e.errf(emb.Pos(), "a nested body may embed only input.<path>, to copy from it")
+					e.errf(emb.Pos(), "a nested body may embed only %s.<path>, to copy from it", e.root)
 					return
 				}
 				base = p
@@ -191,23 +247,153 @@ func (e *edge) parseField(f *ast.Field, tbase, sbase cue.Path, b *body) {
 		b.rebases = append(b.rebases, rebase{target: tpath, source: base})
 		e.parseBody(&ast.StructLit{Lbrace: x.Lbrace, Elts: elts, Rbrace: x.Rbrace}, tpath, base, b)
 		return
+	case *ast.CallExpr:
+		if fn, ok := x.Fun.(*ast.Ident); ok {
+			switch fn.Name {
+			case opOrElse:
+				e.parseOrElse(x, &en, b)
+				return
+			case opRemap:
+				e.parseRemap(x, &en, b)
+				return
+			case opEach:
+				e.parseEach(x, &en, b)
+				return
+			}
+		}
 	}
-	if p, ok := refPath(f.Value); ok {
-		b.add(entry{kind: kindMove, target: tpath, source: p, expr: f.Value, pos: f.Pos(), lacuna: lac, comments: ast.Comments(f)})
+	if p, ok := e.refPath(f.Value); ok {
+		en.kind, en.source = kindMove, p
+		b.add(en)
 		return
 	}
 	if isLiteral(f.Value) {
-		b.add(entry{kind: kindConst, target: tpath, expr: f.Value, pos: f.Pos(), lacuna: lac, comments: ast.Comments(f)})
+		en.kind = kindConst
+		b.add(en)
 		return
 	}
-	e.errf(f.Value.Pos(), "%s: a mapping is a reference to input, a constant, a nested body or drop; other expressions are not supported yet", name)
+	e.errf(f.Value.Pos(), "%s: a mapping is a reference to %s, a constant, a nested body, drop, orelse, remap or each; other expressions are not supported yet", name, e.root)
 }
 
-// lacunaAttr reads the field's @lacuna attribute. A second @lacuna, or any
+// parseOrElse reads orelse(ref, fallback): ref must refer to an optional
+// source field, and fallback must be a constant or a reference the source
+// always has.
+func (e *edge) parseOrElse(x *ast.CallExpr, en *entry, b *body) {
+	if len(x.Args) != opArity {
+		e.errf(x.Pos(), "orelse takes two arguments: orelse(%s.<path>, fallback)", e.root)
+		return
+	}
+	p, ok := e.refPath(x.Args[0])
+	if !ok {
+		e.errf(x.Args[0].Pos(), "orelse's first argument must be a reference to %s; computed expressions are not supported yet", e.root)
+		return
+	}
+	fb := x.Args[1]
+	if _, ok := e.refPath(fb); !ok && !isLiteral(fb) {
+		e.errf(fb.Pos(), "orelse's fallback must be a constant or a reference to %s", e.root)
+		return
+	}
+	en.kind, en.source, en.fallback = kindOrElse, p, fb
+	b.add(*en)
+}
+
+// parseRemap reads remap(ref, {key: value, ..., [_]: value}).
+func (e *edge) parseRemap(x *ast.CallExpr, en *entry, b *body) {
+	if len(x.Args) != opArity {
+		e.errf(x.Pos(), "remap takes two arguments: remap(%s.<path>, {...})", e.root)
+		return
+	}
+	p, ok := e.refPath(x.Args[0])
+	if !ok {
+		e.errf(x.Args[0].Pos(), "remap's first argument must be a reference to %s", e.root)
+		return
+	}
+	table, ok := x.Args[1].(*ast.StructLit)
+	if !ok {
+		e.errf(x.Args[1].Pos(), "remap's table must be a struct of value: value entries, with an optional [_] arm")
+		return
+	}
+	en.kind, en.source = kindRemap, p
+	for _, d := range table.Elts {
+		f, ok := d.(*ast.Field)
+		if !ok {
+			if _, ok := d.(*ast.CommentGroup); ok {
+				continue
+			}
+			e.errf(d.Pos(), "a remap table holds only value: value entries")
+			return
+		}
+		if !isLiteral(f.Value) {
+			e.errf(f.Value.Pos(), "a remap arm's value must be a constant")
+			return
+		}
+		lac, lok := e.lacunaAttr(f.Attrs)
+		if !lok {
+			return
+		}
+		a := arm{value: f.Value, lacuna: lac, pos: f.Pos()}
+		if isCatchAll(f.Label) {
+			if en.catchAll != nil {
+				e.errf(f.Pos(), "a remap table has at most one [_] arm")
+				return
+			}
+			if lac == nil {
+				e.errf(f.Pos(), "the [_] arm collapses every unmapped value into one: declare what is lost with @lacuna(Type, \"message\")")
+				return
+			}
+			en.catchAll = &a
+			continue
+		}
+		key, _, err := ast.LabelName(f.Label)
+		if err != nil {
+			e.errf(f.Label.Pos(), "a remap key is a string")
+			return
+		}
+		a.key = key
+		en.arms = append(en.arms, a)
+	}
+	b.add(*en)
+}
+
+// isCatchAll reports whether a label is [_].
+func isCatchAll(l ast.Label) bool {
+	list, ok := l.(*ast.ListLit)
+	if !ok || len(list.Elts) != 1 {
+		return false
+	}
+	id, ok := list.Elts[0].(*ast.Ident)
+	return ok && id.Name == "_"
+}
+
+// parseEach reads each(ref, {body}).
+func (e *edge) parseEach(x *ast.CallExpr, en *entry, b *body) {
+	if len(x.Args) != opArity {
+		e.errf(x.Pos(), "each takes two arguments: each(%s.<list>, {...})", e.root)
+		return
+	}
+	p, ok := e.refPath(x.Args[0])
+	if !ok {
+		e.errf(x.Args[0].Pos(), "each's first argument must be a reference to a list in %s", e.root)
+		return
+	}
+	bodyLit, ok := x.Args[1].(*ast.StructLit)
+	if !ok {
+		e.errf(x.Args[1].Pos(), "each's body must be a struct of mappings over item")
+		return
+	}
+	if en.lacuna != nil {
+		e.errf(en.lacuna.pos, "a lacuna attaches to a mapping inside the each body, not to each")
+		return
+	}
+	en.kind, en.source, en.body = kindEach, p, bodyLit
+	b.add(*en)
+}
+
+// lacunaAttr reads a field's @lacuna attribute. A second @lacuna, or any
 // other attribute, is an error.
-func (e *edge) lacunaAttr(f *ast.Field) (*lacunaAttr, bool) {
+func (e *edge) lacunaAttr(attrs []*ast.Attribute) (*lacunaAttr, bool) {
 	var out *lacunaAttr
-	for _, a := range f.Attrs {
+	for _, a := range attrs {
 		key, bodyText := a.Split()
 		if key != "lacuna" {
 			e.errf(a.Pos(), "@%s is not an attribute of a mapping; only @lacuna is", key)
@@ -256,25 +442,31 @@ func isLacunaType(s string) bool {
 	return false
 }
 
-// refPath returns the path of a reference input.a.b, if x is one.
-func refPath(x ast.Expr) (cue.Path, bool) {
+// refPath returns the path of a reference <root>.a.b, if x is one.
+func (e *edge) refPath(x ast.Expr) (cue.Path, bool) {
+	root, p, ok := refPathAny(x)
+	if !ok || root != e.root {
+		return cue.Path{}, false
+	}
+	return p, true
+}
+
+// refPathAny returns the root and path of a reference root.a.b.
+func refPathAny(x ast.Expr) (string, cue.Path, bool) {
 	var sels []cue.Selector
 	for {
 		switch s := x.(type) {
 		case *ast.SelectorExpr:
 			name, _, err := ast.LabelName(s.Sel)
 			if err != nil {
-				return cue.Path{}, false
+				return "", cue.Path{}, false
 			}
 			sels = append([]cue.Selector{cue.Str(name)}, sels...)
 			x = s.X
 		case *ast.Ident:
-			if s.Name != "input" {
-				return cue.Path{}, false
-			}
-			return cue.MakePath(sels...), true
+			return s.Name, cue.MakePath(sels...), true
 		default:
-			return cue.Path{}, false
+			return "", cue.Path{}, false
 		}
 	}
 }
@@ -306,7 +498,7 @@ type node struct {
 	// For a leaf: the entry producing it.
 	leaf *entry
 	// guard, if non-empty, is an optional source path the leaf must be
-	// guarded on: if input.<guard> != _|_ {...}.
+	// guarded on: if <root>.<guard> != _|_ {...}.
 	guard cue.Path
 	pos   token.Pos
 }
@@ -344,12 +536,16 @@ func (n *node) has(p cue.Path) *node {
 
 // A compiledLens is the outcome of assembling one lens.
 type compiledLens struct {
-	// result is the lens's result, and lacunas its lacunas.
+	// result is the lens's result, lacunas its lacunas, and lets the
+	// declarations each bodies need beside them.
 	result  *ast.StructLit
 	lacunas []ast.Expr
+	lets    []ast.Decl
 	// effective is every move the lens makes, written or implicit, and every
 	// drop. Derivation inverts these.
 	effective []entry
+	// lets counts the lets generated so far, for naming.
+	nlets int
 }
 
 // assemble builds the lens for e from b: explicit entries, implicit copies at
@@ -357,6 +553,11 @@ type compiledLens struct {
 // unmapped source fields.
 func (e *edge) assemble(b *body) *compiledLens {
 	out := &compiledLens{}
+	e.assembleInto(b, out)
+	return out
+}
+
+func (e *edge) assembleInto(b *body, out *compiledLens) {
 	root := &node{}
 	consumed := make(map[string]bool)
 	dropped := make(map[string]bool)
@@ -387,7 +588,7 @@ func (e *edge) assemble(b *body) *compiledLens {
 			}
 			if e.optional(e.S, en.source) {
 				if e.required(e.T, en.target) {
-					e.errf(en.pos, "%s is optional in %s and %s requires %s: orelse(input.%s, <fallback>) would decide what to use when it is absent, but is not supported yet", en.source, e.sv, e.tv, en.target, en.source)
+					e.errf(en.pos, "%s is optional in %s and %s requires %s: write orelse(%s.%s, <fallback>) to say what to use when it is absent", en.source, e.sv, e.tv, en.target, e.root, en.source)
 					continue
 				}
 				root.has(en.target).guard = en.source
@@ -398,14 +599,36 @@ func (e *edge) assemble(b *body) *compiledLens {
 			if !e.place(root, en) {
 				continue
 			}
-			lit := e.ctx.BuildExpr(en.expr)
-			if err := lookup(e.T, en.target).Unify(lit).Validate(); err != nil {
-				e.errf(en.expr.Pos(), "%s is not an instance of %s's %s: %s", exprText(en.expr), e.tv, en.target, oneLine(cerrors.Details(err, nil)))
+			if !e.instance(en.expr, en.target) {
 				continue
 			}
+		case kindOrElse:
+			consumed[en.source.String()] = true
+			if p, ok := e.refPath(en.fallback); ok {
+				consumed[p.String()] = true
+			}
+			if !e.checkOrElse(en) || !e.place(root, en) {
+				continue
+			}
+			out.effective = append(out.effective, *en)
+		case kindRemap:
+			consumed[en.source.String()] = true
+			if !e.checkRemap(en) || !e.place(root, en) {
+				continue
+			}
+			out.effective = append(out.effective, *en)
+			e.remapLacunas(out, en)
+			continue
+		case kindEach:
+			consumed[en.source.String()] = true
+			if !e.place(root, en) || !e.compileEach(en, out) {
+				continue
+			}
+			out.effective = append(out.effective, *en)
+			continue
 		}
 		if en.kind != kindDrop && en.lacuna != nil {
-			out.lacunas = append(out.lacunas, e.declaredLacuna(en, "targetFields", "result"))
+			out.lacunas = append(out.lacunas, e.declaredLacuna(en, e.entryCondition(en)))
 		}
 	}
 
@@ -413,7 +636,211 @@ func (e *edge) assemble(b *body) *compiledLens {
 	e.unmapped(b, consumed, out)
 
 	out.result = e.emit(root, cue.MakePath())
-	return out
+}
+
+// instance checks that a constant is an instance of the target field.
+func (e *edge) instance(x ast.Expr, tpath cue.Path) bool {
+	lit := e.ctx.BuildExpr(x)
+	if err := lookup(e.T, tpath).Unify(lit).Validate(); err != nil {
+		e.errf(x.Pos(), "%s is not an instance of %s's %s: %s", exprText(x), e.tv, tpath, oneLine(cerrors.Details(err, nil)))
+		return false
+	}
+	return true
+}
+
+// checkOrElse checks an orelse entry: its reference is to an optional source
+// field, and its fallback is total for the target.
+func (e *edge) checkOrElse(en *entry) bool {
+	if !lookup(e.S, en.source).Exists() {
+		e.errf(en.expr.Pos(), "%s does not declare %s", e.sv, en.source)
+		return false
+	}
+	if !e.optional(e.S, en.source) {
+		e.errf(en.expr.Pos(), "%s always has %s, so orelse's fallback could never apply: write %s: %s.%s", e.sv, en.source, en.target, e.root, en.source)
+		return false
+	}
+	if p, ok := e.refPath(en.fallback); ok {
+		if !lookup(e.S, p).Exists() {
+			e.errf(en.fallback.Pos(), "%s does not declare %s", e.sv, p)
+			return false
+		}
+		if e.optional(e.S, p) {
+			e.errf(en.fallback.Pos(), "%s is optional in %s, so it cannot be orelse's fallback: the fallback must always exist", p, e.sv)
+			return false
+		}
+		return true
+	}
+	return e.instance(en.fallback, en.target)
+}
+
+// checkRemap checks a remap entry: every arm value is an instance of the
+// target, and every value the source may hold reaches an arm, the catch-all,
+// or passes through to a target that accepts it.
+func (e *edge) checkRemap(en *entry) bool {
+	if !lookup(e.S, en.source).Exists() {
+		e.errf(en.expr.Pos(), "%s does not declare %s", e.sv, en.source)
+		return false
+	}
+	seen := make(map[string]bool)
+	for _, a := range en.arms {
+		if seen[a.key] {
+			e.errf(a.pos, "remap maps %q twice", a.key)
+			return false
+		}
+		seen[a.key] = true
+		if !e.instance(a.value, en.target) {
+			return false
+		}
+	}
+	if en.catchAll != nil && !e.instance(en.catchAll.value, en.target) {
+		return false
+	}
+	if en.catchAll != nil {
+		return true
+	}
+	// Without a catch-all, every source value must be keyed or pass through.
+	sv, tv := lookup(e.S, en.source), lookup(e.T, en.target)
+	alts, finite := literalAlternatives(sv)
+	if !finite {
+		if err := tv.Subsume(sv, cue.Raw()); err != nil {
+			e.errf(en.expr.Pos(), "remap of %s is not total: %s's %s may hold values that no arm maps and %s's %s does not accept; add a [_] arm", en.source, e.sv, en.source, e.tv, en.target)
+			return false
+		}
+		return true
+	}
+	for _, a := range alts {
+		if s, err := a.String(); err == nil && seen[s] {
+			continue
+		}
+		if tv.Unify(a).Validate() != nil {
+			e.errf(en.expr.Pos(), "remap of %s is not total: %s's %s may be %s, which no arm maps and %s's %s does not accept; add an arm for it, or a [_] arm", en.source, e.sv, en.source, fmtv(a), e.tv, en.target)
+			return false
+		}
+	}
+	return true
+}
+
+// literalAlternatives returns the alternatives of v if it is a finite
+// disjunction of concrete values (or one concrete value).
+func literalAlternatives(v cue.Value) ([]cue.Value, bool) {
+	if d, ok := v.Default(); ok {
+		_ = d
+	}
+	op, args := v.Expr()
+	if op != cue.OrOp {
+		if v.Validate(cue.Concrete(true)) == nil && v.IncompleteKind()&(cue.StructKind|cue.ListKind) == 0 {
+			if _, hasDefault := v.Default(); !hasDefault {
+				return []cue.Value{v}, true
+			}
+		}
+		return nil, false
+	}
+	var out []cue.Value
+	for _, a := range args {
+		sub, ok := literalAlternatives(a)
+		if !ok {
+			return nil, false
+		}
+		out = append(out, sub...)
+	}
+	return out, true
+}
+
+// passthrough reports whether a remap needs a passthrough branch: some
+// source value that no arm keys may be accepted by the target.
+func (e *edge) passthrough(en *entry) bool {
+	sv, tv := lookup(e.S, en.source), lookup(e.T, en.target)
+	keyed := make(map[string]bool)
+	for _, a := range en.arms {
+		keyed[a.key] = true
+	}
+	alts, finite := literalAlternatives(sv)
+	if !finite {
+		return true
+	}
+	for _, a := range alts {
+		if s, err := a.String(); err == nil && keyed[s] {
+			continue
+		}
+		if tv.Unify(a).Validate() == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// targetType returns the target field's constraint as syntax, for a remap's
+// passthrough test. Only a self-contained type expression can be restated:
+// one with references into the schema cannot (#62, Q7).
+func (e *edge) targetType(en *entry) (ast.Expr, bool) {
+	n, err := cueview.Evaluated(lookup(e.T, en.target))
+	if err != nil {
+		return nil, false
+	}
+	x, ok := n.(ast.Expr)
+	if !ok {
+		return nil, false
+	}
+	selfContained := true
+	ast.Walk(x, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.Ident:
+			if !isTypeIdent(n.Name) {
+				selfContained = false
+			}
+		case *ast.SelectorExpr, *ast.CallExpr, *ast.StructLit, *ast.Comprehension:
+			selfContained = false
+		}
+		return selfContained
+	}, nil)
+	return x, selfContained
+}
+
+func isTypeIdent(name string) bool {
+	switch name {
+	case "_", "bool", "string", "bytes", "number", "int", "float", "null", "true", "false",
+		"int8", "int16", "int32", "int64", "int128", "uint", "uint8", "uint16", "uint32", "uint64", "uint128",
+		"float32", "float64", "rune", "byte":
+		return true
+	}
+	return false
+}
+
+// compileEach compiles an each body as a sub-edge over the element types.
+func (e *edge) compileEach(en *entry, out *compiledLens) bool {
+	sl, tl := lookup(e.S, en.source), lookup(e.T, en.target)
+	if !sl.Exists() {
+		e.errf(en.expr.Pos(), "%s does not declare %s", e.sv, en.source)
+		return false
+	}
+	if sl.IncompleteKind() != cue.ListKind || tl.IncompleteKind() != cue.ListKind {
+		e.errf(en.expr.Pos(), "each maps a list to a list; %s's %s and %s's %s must both be lists", e.sv, en.source, e.tv, en.target)
+		return false
+	}
+	selem, telem := sl.LookupPath(cue.MakePath(cue.AnyIndex)), tl.LookupPath(cue.MakePath(cue.AnyIndex))
+	if !selem.Exists() || !telem.Exists() {
+		e.errf(en.expr.Pos(), "each maps the elements of open lists ([...T]); a fixed-length list is not supported")
+		return false
+	}
+	if e.each != nil {
+		e.errf(en.expr.Pos(), "each inside each is not supported yet")
+		return false
+	}
+	sub := &edge{ctx: e.ctx, S: selem, T: telem, sv: e.sv, tv: e.tv, dir: e.dir, blockPos: en.pos, root: rootItem,
+		each: &eachScope{list: en.source, target: en.target, n: out.nlets}}
+	b := &body{}
+	sub.parseBody(en.body, cue.MakePath(), cue.MakePath(), b)
+	subOut := &compiledLens{nlets: out.nlets}
+	sub.assembleInto(b, subOut)
+	e.errs = cerrors.Append(e.errs, sub.errs)
+	if sub.errs != nil {
+		return false
+	}
+	out.lacunas = append(out.lacunas, subOut.lacunas...)
+	out.lets = append(out.lets, subOut.lets...)
+	out.nlets = subOut.nlets
+	en.body = subOut.result
+	return true
 }
 
 // place puts an explicit entry into the result tree, checking the target
@@ -458,7 +885,7 @@ func (e *edge) fill(n *node, tbase cue.Path, b *body, consumed, dropped map[stri
 		spath := appendPath(sbase, cue.Str(name))
 		if sv := lookup(e.S, spath); sv.Exists() && !dropped[spath.String()] {
 			tv := lookup(e.T, tpath)
-			if isStruct(sv) && isStruct(tv) && !e.covers(sv, tv, spath, tpath) {
+			if isStruct(sv) && isStruct(tv) && !e.covers(sv, tv) {
 				c := n.child(name)
 				c.pos = e.blockPos
 				e.fill(c, tpath, b, consumed, dropped, out)
@@ -466,7 +893,7 @@ func (e *edge) fill(n *node, tbase cue.Path, b *body, consumed, dropped map[stri
 			}
 			en := entry{kind: kindMove, target: tpath, source: spath, pos: e.blockPos, derived: true}
 			if e.optional(e.S, spath) && e.required(e.T, tpath) {
-				e.errf(lookup(e.T, tpath).Pos(), "%s is optional in %s and required in %s: map it with orelse(input.%s, <fallback>), which is not supported yet", spath, e.sv, e.tv, spath)
+				e.errf(lookup(e.T, tpath).Pos(), "%s is optional in %s and required in %s: write %s: orelse(%s.%s, <fallback>) to say what to use when it is absent", spath, e.sv, e.tv, tpath, e.root, spath)
 				continue
 			}
 			c := n.child(name)
@@ -494,7 +921,7 @@ func (e *edge) unmapped(b *body, consumed map[string]bool, out *compiledLens) {
 		}
 		switch e.dir {
 		case forward:
-			e.errf(e.blockPos, "%s declares %s and %s does not, and nothing maps it: write <field>: input.%s to move it, or %s: drop", e.sv, spath, e.tv, spath, spath)
+			e.errf(e.blockPos, "%s declares %s and %s does not, and nothing maps it: write <field>: %s.%s to move it, or %s: drop", e.sv, spath, e.tv, e.root, spath, spath)
 		case backward:
 			en := entry{kind: kindDrop, source: spath, target: spath, pos: lookup(e.S, spath).Pos(), derived: true}
 			out.effective = append(out.effective, en)
@@ -529,31 +956,119 @@ func (e *edge) emit(n *node, tbase cue.Path) *ast.StructLit {
 	s := &ast.StructLit{}
 	for _, name := range e.order(n, tbase) {
 		c := n.fields[name]
-		var val ast.Expr
-		switch {
-		case c.leaf == nil:
-			val = e.emit(c, appendPath(tbase, cue.Str(name)))
-		case c.leaf.expr != nil:
-			val = c.leaf.expr
-		default:
-			val = at(c.pos, inputRef(c.leaf.source))
-		}
-		f := at(c.pos, &ast.Field{Label: at(c.pos, ast.NewIdent(name)), Value: val})
-		if c.leaf != nil {
-			for _, cg := range c.leaf.comments {
-				ast.AddComment(f, cg)
-			}
-		}
-		if len(c.guard.Selectors()) > 0 {
-			s.Elts = append(s.Elts, at(c.pos, &ast.Comprehension{
-				Clauses: []ast.Clause{at(c.pos, &ast.IfClause{Condition: at(c.pos, ast.NewBinExpr(token.NEQ, at(c.pos, inputRef(c.guard)), at(c.pos, &ast.BottomLit{})))})},
-				Value:   at(c.pos, &ast.StructLit{Elts: []ast.Decl{f}}),
-			}))
+		if c.leaf == nil {
+			s.Elts = append(s.Elts, at(c.pos, &ast.Field{Label: at(c.pos, ast.NewIdent(name)), Value: e.emit(c, appendPath(tbase, cue.Str(name)))}))
 			continue
 		}
-		s.Elts = append(s.Elts, f)
+		s.Elts = append(s.Elts, e.emitLeaf(name, c)...)
 	}
 	return s
+}
+
+// emitLeaf renders one produced field: a plain field, a guarded field, or
+// the branches of an orelse or remap.
+func (e *edge) emitLeaf(name string, c *node) []ast.Decl {
+	en, p := c.leaf, c.pos
+	field := func(val ast.Expr) *ast.Field {
+		f := at(p, &ast.Field{Label: at(p, ast.NewIdent(name)), Value: val})
+		for _, cg := range en.comments {
+			ast.AddComment(f, cg)
+		}
+		return f
+	}
+	branch := func(cond ast.Expr, val ast.Expr) ast.Decl {
+		return at(p, &ast.Comprehension{
+			Clauses: []ast.Clause{at(p, &ast.IfClause{Condition: cond})},
+			Value:   at(p, &ast.StructLit{Elts: []ast.Decl{field(val)}}),
+		})
+	}
+	switch en.kind {
+	case kindOrElse:
+		return []ast.Decl{
+			branch(e.present(p, en.source), at(p, e.ref(en.source))),
+			branch(e.absent(p, en.source), en.fallback),
+		}
+	case kindRemap:
+		var out []ast.Decl
+		var keys []ast.Expr
+		for _, a := range en.arms {
+			keys = append(keys, at(p, ast.NewString(a.key)))
+			out = append(out, branch(e.matches(p, en.source, at(p, ast.NewString(a.key))), a.value))
+		}
+		var unkeyed ast.Expr
+		if len(keys) > 0 {
+			unkeyed = e.notMatches(p, en.source, at(p, &ast.ParenExpr{X: ast.NewBinExpr(token.OR, keys...)}))
+		}
+		pass := e.passthrough(en)
+		if pass || en.catchAll != nil {
+			ttype, ok := e.targetType(en)
+			if !ok {
+				e.errf(en.expr.Pos(), "remap of %s: %s's %s is not a self-contained type, so values cannot be tested against it for the passthrough; map every value with an arm", en.source, e.tv, en.target)
+				return nil
+			}
+			accepts := e.matches(p, en.source, at(p, &ast.ParenExpr{X: ttype}))
+			if pass {
+				out = append(out, branch(and(unkeyed, accepts), at(p, e.ref(en.source))))
+			}
+			if en.catchAll != nil {
+				rejects := e.notMatches(p, en.source, at(p, &ast.ParenExpr{X: ttype}))
+				out = append(out, branch(and(unkeyed, rejects), en.catchAll.value))
+			}
+		}
+		return out
+	case kindEach:
+		list := at(p, &ast.ListLit{Elts: []ast.Expr{at(p, &ast.Comprehension{
+			Clauses: []ast.Clause{at(p, &ast.ForClause{Value: at(p, ast.NewIdent(rootItem)), Source: at(p, e.ref(en.source))})},
+			Value:   en.body,
+		})}})
+		return []ast.Decl{field(list)}
+	}
+	var val ast.Expr
+	if en.expr != nil {
+		val = en.expr
+	} else {
+		val = at(p, e.ref(en.source))
+	}
+	if len(c.guard.Selectors()) > 0 {
+		return []ast.Decl{branch(e.present(p, c.guard), val)}
+	}
+	return []ast.Decl{field(val)}
+}
+
+// Condition builders. Each is positioned at p.
+
+func (e *edge) present(p token.Pos, path cue.Path) ast.Expr {
+	return at(p, ast.NewBinExpr(token.NEQ, at(p, e.ref(path)), at(p, &ast.BottomLit{})))
+}
+
+func (e *edge) absent(p token.Pos, path cue.Path) ast.Expr {
+	return at(p, ast.NewBinExpr(token.EQL, at(p, e.ref(path)), at(p, &ast.BottomLit{})))
+}
+
+// matches is (<root>.<path> & x) != _|_.
+func (e *edge) matches(p token.Pos, path cue.Path, x ast.Expr) ast.Expr {
+	return at(p, ast.NewBinExpr(token.NEQ, at(p, &ast.ParenExpr{X: ast.NewBinExpr(token.AND, at(p, e.ref(path)), x)}), at(p, &ast.BottomLit{})))
+}
+
+// notMatches is (<root>.<path> & x) == _|_.
+func (e *edge) notMatches(p token.Pos, path cue.Path, x ast.Expr) ast.Expr {
+	return at(p, ast.NewBinExpr(token.EQL, at(p, &ast.ParenExpr{X: ast.NewBinExpr(token.AND, at(p, e.ref(path)), x)}), at(p, &ast.BottomLit{})))
+}
+
+func and(a, b ast.Expr) ast.Expr {
+	if a == nil {
+		return b
+	}
+	return ast.NewBinExpr(token.LAND, a, b)
+}
+
+// entryCondition is the condition under which an entry's declared lacuna
+// applies: the fallback branch for orelse, nil (always) otherwise.
+func (e *edge) entryCondition(en *entry) ast.Expr {
+	if en.kind == kindOrElse {
+		return e.absent(en.lacuna.pos, en.source)
+	}
+	return nil
 }
 
 // order returns n's fields in the target schema's order, then any the target
@@ -577,56 +1092,132 @@ func (e *edge) order(n *node, tbase cue.Path) []string {
 
 // dropLacuna adds the derived DroppedField lacuna for a drop, its message
 // refined by the drop's @lacuna if that has no type or the same type. A
-// @lacuna of another type adds a declared lacuna as well.
+// @lacuna of another type adds a declared lacuna as well. Inside an each
+// body, the lacuna is aggregated over the list's elements.
 func (e *edge) dropLacuna(out *compiledLens, en *entry) {
-	msg := fmt.Sprintf("%s has no equivalent in %s and was dropped", en.source, e.tv)
+	msg := e.dropMessage(en.source)
 	if en.lacuna != nil && (en.lacuna.typ == "" || en.lacuna.typ == lacunaDropped) {
 		msg = en.lacuna.msg
 	} else if en.lacuna != nil {
-		out.lacunas = append(out.lacunas, e.declaredLacuna(en, "sourceFields", "input"))
+		out.lacunas = append(out.lacunas, e.declaredLacuna(en, nil))
 	}
 	p := en.pos
 	elts := []ast.Decl{at(p, &ast.Attribute{Text: "@thema(derived)"})}
-	if e.optional(e.S, en.source) {
-		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("condition")), Value: at(p, ast.NewBinExpr(token.NEQ, at(p, inputRef(en.source)), at(p, &ast.BottomLit{})))}))
+	if e.each != nil {
+		// let _d_<n> = [for i, item in input.<list> if item.<p> != _|_ {path: "<list>[\(i)].<p>", value: item.<p>}]
+		name := fmt.Sprintf("_d_%d", out.nlets)
+		out.nlets++
+		clauses := []ast.Clause{at(p, &ast.ForClause{Key: at(p, ast.NewIdent("i")), Value: at(p, ast.NewIdent(rootItem)), Source: at(p, ref(rootInput, e.each.list))})}
+		if e.optional(e.S, en.source) {
+			clauses = append(clauses, at(p, &ast.IfClause{Condition: e.present(p, en.source)}))
+		}
+		pathLit := at(p, &ast.Interpolation{Elts: []ast.Expr{
+			at(p, ast.NewLit(token.STRING, strconv.Quote(e.each.list.String() + "[")[:len(strconv.Quote(e.each.list.String()+"["))-1]+`\(`)),
+			at(p, ast.NewIdent("i")),
+			at(p, ast.NewLit(token.STRING, `)].`+en.source.String()+`"`)),
+		}})
+		comp := at(p, &ast.Comprehension{Clauses: clauses, Value: at(p, &ast.StructLit{Elts: []ast.Decl{
+			at(p, &ast.Field{Label: at(p, ast.NewIdent("path")), Value: pathLit}),
+			at(p, &ast.Field{Label: at(p, ast.NewIdent("value")), Value: at(p, e.ref(en.source))}),
+		}})})
+		out.lets = append(out.lets, at(p, &ast.LetClause{Ident: at(p, ast.NewIdent(name)), Expr: at(p, &ast.ListLit{Elts: []ast.Expr{comp}})}))
+		elts = append(elts,
+			at(p, &ast.Field{Label: at(p, ast.NewIdent("condition")), Value: at(p, ast.NewBinExpr(token.GTR, at(p, &ast.CallExpr{Fun: at(p, ast.NewIdent("len")), Args: []ast.Expr{at(p, ast.NewIdent(name))}}), at(p, ast.NewLit(token.INT, "0"))))}),
+			at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewIdent(name))}),
+		)
+	} else {
+		if e.optional(e.S, en.source) {
+			elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("condition")), Value: e.present(p, en.source)}))
+		}
+		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewList(e.fieldRef(p, en.source, e.root)))}))
 	}
 	elts = append(elts,
-		at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewList(fieldRef(p, en.source, "input")))}),
 		at(p, &ast.Field{Label: at(p, ast.NewIdent("message")), Value: at(p, ast.NewString(msg))}),
 		at(p, &ast.Field{Label: at(p, ast.NewIdent("type")), Value: at(p, ast.NewString(lacunaDropped))}),
 	)
 	out.lacunas = append(out.lacunas, at(p, &ast.StructLit{Elts: elts}))
 }
 
-// declaredLacuna builds the lacuna an entry's @lacuna declares, referring to
-// the entry's field through side ("targetFields" or "sourceFields") and root
-// ("result" or "input").
-func (e *edge) declaredLacuna(en *entry, side, root string) ast.Expr {
-	p := en.lacuna.pos
-	path := en.target
-	if side == "sourceFields" {
-		path = en.source
+// dropMessage is the derived lacuna's default message for dropping p.
+func (e *edge) dropMessage(p cue.Path) string {
+	if e.each != nil {
+		return fmt.Sprintf("%s[].%s has no equivalent in %s and was dropped", e.each.list, p, e.tv)
 	}
-	typ := en.lacuna.typ
-	if typ == "" {
-		e.errf(p, "a lacuna on a mapping needs a type: @lacuna(Type, %q)", en.lacuna.msg)
+	return fmt.Sprintf("%s has no equivalent in %s and was dropped", p, e.tv)
+}
+
+// remapLacunas adds the lacuna declared on each arm, conditioned on the arm.
+func (e *edge) remapLacunas(out *compiledLens, en *entry) {
+	for _, a := range en.arms {
+		if a.lacuna != nil {
+			out.lacunas = append(out.lacunas, e.lacunaFor(en, a.lacuna, e.matches(a.lacuna.pos, en.source, at(a.lacuna.pos, ast.NewString(a.key)))))
+		}
 	}
-	return at(p, &ast.StructLit{Elts: []ast.Decl{
-		at(p, &ast.Field{Label: at(p, ast.NewIdent(side)), Value: at(p, ast.NewList(fieldRef(p, path, root)))}),
-		at(p, &ast.Field{Label: at(p, ast.NewIdent("message")), Value: at(p, ast.NewString(en.lacuna.msg))}),
-		at(p, &ast.Field{Label: at(p, ast.NewIdent("type")), Value: at(p, ast.NewString(typ))}),
-	}})
+	if en.catchAll != nil {
+		p := en.catchAll.lacuna.pos
+		ttype, ok := e.targetType(en)
+		if !ok {
+			return // emitLeaf reports it
+		}
+		var keys []ast.Expr
+		for _, a := range en.arms {
+			keys = append(keys, at(p, ast.NewString(a.key)))
+		}
+		var unkeyed ast.Expr
+		if len(keys) > 0 {
+			unkeyed = e.notMatches(p, en.source, at(p, &ast.ParenExpr{X: ast.NewBinExpr(token.OR, keys...)}))
+		}
+		out.lacunas = append(out.lacunas, e.lacunaFor(en, en.catchAll.lacuna, and(unkeyed, e.notMatches(p, en.source, at(p, &ast.ParenExpr{X: ttype})))))
+	}
+	if en.lacuna != nil {
+		e.errf(en.lacuna.pos, "a lacuna on a remap attaches to one of its arms, not to the mapping")
+	}
+}
+
+// declaredLacuna builds the lacuna an entry's @lacuna declares, applying
+// under cond (nil for always).
+func (e *edge) declaredLacuna(en *entry, cond ast.Expr) ast.Expr {
+	return e.lacunaFor(en, en.lacuna, cond)
+}
+
+func (e *edge) lacunaFor(en *entry, lac *lacunaAttr, cond ast.Expr) ast.Expr {
+	p := lac.pos
+	if lac.typ == "" {
+		e.errf(p, "a lacuna on a mapping needs a type: @lacuna(Type, %q)", lac.msg)
+	}
+	var elts []ast.Decl
+	if cond != nil {
+		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("condition")), Value: cond}))
+	}
+	if en.kind == kindDrop {
+		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewList(e.fieldRef(p, en.source, e.root)))}))
+	} else {
+		if len(en.source.Selectors()) > 0 {
+			src := e.fieldRef(p, en.source, e.root)
+			if e.optional(e.S, en.source) {
+				src = at(p, &ast.Comprehension{Clauses: []ast.Clause{at(p, &ast.IfClause{Condition: e.present(p, en.source)})}, Value: src})
+			}
+			elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewList(src))}))
+		}
+		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("targetFields")), Value: at(p, ast.NewList(e.fieldRef(p, en.target, "result")))}))
+	}
+	elts = append(elts,
+		at(p, &ast.Field{Label: at(p, ast.NewIdent("message")), Value: at(p, ast.NewString(lac.msg))}),
+		at(p, &ast.Field{Label: at(p, ast.NewIdent("type")), Value: at(p, ast.NewString(lac.typ))}),
+	)
+	return at(p, &ast.StructLit{Elts: elts})
 }
 
 // fieldRef builds {path: "<p>", value: <root>.<p>}.
-func fieldRef(pos token.Pos, p cue.Path, root string) ast.Expr {
+func (e *edge) fieldRef(pos token.Pos, p cue.Path, root string) ast.Expr {
 	return at(pos, &ast.StructLit{Elts: []ast.Decl{
 		at(pos, &ast.Field{Label: at(pos, ast.NewIdent("path")), Value: at(pos, ast.NewString(p.String()))}),
 		at(pos, &ast.Field{Label: at(pos, ast.NewIdent("value")), Value: at(pos, ref(root, p))}),
 	}})
 }
 
-func inputRef(p cue.Path) ast.Expr { return ref("input", p) }
+// ref builds <root>.<p>, with the edge's root.
+func (e *edge) ref(p cue.Path) ast.Expr { return ref(e.root, p) }
 
 func ref(root string, p cue.Path) ast.Expr {
 	var names []string
@@ -638,7 +1229,8 @@ func ref(root string, p cue.Path) ast.Expr {
 
 // derive builds the backward body implied by a forward lens: the inverse of
 // every single-use move. Authored backward entries override derived ones at
-// the same target path, or beneath it.
+// the same target path, or beneath it; an authored drop of a move's target
+// suppresses its inverse.
 func (e *edge) derive(fwd *compiledLens, authored *body) *body {
 	uses := make(map[string]int)
 	for _, en := range fwd.effective {
@@ -658,6 +1250,7 @@ func (e *edge) derive(fwd *compiledLens, authored *body) *body {
 	}
 	b.entries = append(b.entries, authored.entries...)
 	b.rebases = authored.rebases
+	b.claimed = authored.claimed
 	return b
 }
 
@@ -698,8 +1291,7 @@ func (e *edge) fields(v cue.Value, p cue.Path) []string {
 // struct, depth first.
 func (e *edge) leaves(v cue.Value, p cue.Path) []cue.Path {
 	var out []cue.Path
-	names := e.fields(v, p)
-	for _, name := range names {
+	for _, name := range e.fields(v, p) {
 		fp := appendPath(p, cue.Str(name))
 		if isStruct(lookup(v, fp)) {
 			if sub := e.leaves(v, fp); len(sub) > 0 {
@@ -712,16 +1304,16 @@ func (e *edge) leaves(v cue.Value, p cue.Path) []cue.Path {
 	return out
 }
 
-// covers reports whether the target declares, at tp, every path the source
-// declares under sp, so that the source's struct can be copied whole.
-func (e *edge) covers(sv, tv cue.Value, sp, tp cue.Path) bool {
+// covers reports whether the target declares every path the source declares
+// under it, so that the source's struct can be copied whole.
+func (e *edge) covers(sv, tv cue.Value) bool {
 	for _, name := range e.fields(sv, cue.MakePath()) {
 		t := lookup(tv, cue.MakePath(cue.Str(name)))
 		if !t.Exists() {
 			return false
 		}
 		s := lookup(sv, cue.MakePath(cue.Str(name)))
-		if isStruct(s) && isStruct(t) && !e.covers(s, t, appendPath(sp, cue.Str(name)), appendPath(tp, cue.Str(name))) {
+		if isStruct(s) && isStruct(t) && !e.covers(s, t) {
 			return false
 		}
 	}
@@ -794,6 +1386,11 @@ func pathHasPrefix(p, prefix cue.Path) bool {
 		}
 	}
 	return true
+}
+
+// fmtv renders a value for a message.
+func fmtv(v cue.Value) string {
+	return fmt.Sprint(v)
 }
 
 func oneLine(s string) string {

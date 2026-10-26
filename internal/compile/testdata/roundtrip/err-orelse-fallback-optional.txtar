@@ -1,0 +1,17 @@
+orelse whose fallback is itself optional in the source.
+-- ship/history/0.0.thema --
+schema: {
+	a?: string
+	b?: string
+}
+-- ship/1.0.thema --
+schema: {
+	c: string
+}
+
+forward: {
+	c: orelse(input.a, input.b)
+}
+-- out/error --
+b is optional in 0.0, so it cannot be orelse's fallback: the fallback must always exist:
+    1.0.thema:6:21

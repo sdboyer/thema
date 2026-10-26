@@ -1,0 +1,107 @@
+each: a list of structs mapped element by element, with a rename and a drop
+inside the body. The drop's derived lacuna aggregates over the elements. each
+has no derived inverse, so the backward lens is authored.
+-- ship/history/0.0.thema --
+schema: {
+	items: [...{
+		title:   string
+		legacy?: string
+	}]
+}
+-- ship/1.0.thema --
+schema: {
+	items: [...{
+		name: string
+	}]
+}
+
+forward: {
+	items: each(input.items, {
+		name:   item.title
+		legacy: drop
+	})
+}
+
+backward: {
+	items: each(input.items, {
+		title: item.name
+	})
+}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+schema:
+	items: [...{
+		name: string
+	}]
+
+forward:
+	items: each(input.items,
+		{
+			name:   item.title
+			legacy: drop
+		})
+
+backward:
+	items: each(input.items,
+		{
+			title: item.name
+		})
+-- out/decompiled/history/0.0.thema --
+schema:
+	items: [...{
+		title:   string
+		legacy?: string
+	}]
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				items: [...{
+					title:   string
+					legacy?: string
+				}]
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				items: [...{
+					name: string
+				}]
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		input: _
+		let _d_0 = [for i, item in input.items if item.legacy != _|_ {
+			path:  "items[\(i)].legacy"
+			value: item.legacy
+		}]
+		result: {
+			items: [for item in input.items {
+				name: item.title
+			}]
+		}
+		lacunas: [{
+			@thema(derived)
+			condition:    len(_d_0) > 0
+			sourceFields: _d_0
+			message:      "items[].legacy has no equivalent in 1.0 and was dropped"
+			type:         "DroppedField"
+		}]
+	}
+	"1.0->0.0": {
+		input: _
+		result: {
+			items: [for item in input.items {
+				title: item.name
+			}]
+		}
+	}
+}

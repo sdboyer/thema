@@ -1,0 +1,20 @@
+A [_] arm without a lacuna: it collapses every unmapped value into one, and
+must say so.
+-- ship/history/0.0.thema --
+schema: {
+	kind: string
+}
+-- ship/1.0.thema --
+schema: {
+	kind: int
+}
+
+forward: {
+	kind: remap(input.kind, {
+		"a": 1
+		[_]: 0
+	})
+}
+-- out/error --
+the [_] arm collapses every unmapped value into one: declare what is lost with @lacuna(Type, "message"):
+    1.0.thema:8:3

@@ -1,0 +1,101 @@
+orelse: an optional source field feeding a required target field, with a
+constant fallback and with a reference fallback, and a lacuna on the fallback.
+-- ship/history/0.0.thema --
+schema: {
+	name:  string
+	nick?: string
+	rank?: int
+}
+-- ship/1.0.thema --
+schema: {
+	name: string
+	nick: string
+	rank: int
+}
+
+forward: {
+	nick: orelse(input.nick, input.name)
+	rank: orelse(input.rank, 0) @lacuna(Placeholder, "rank was absent; 0 is a placeholder")
+}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+schema: {
+	name: string
+	nick: string
+	rank: int
+}
+
+forward: {
+	nick: orelse(input.nick, input.name)
+	rank: orelse(input.rank, 0) @lacuna(Placeholder, "rank was absent; 0 is a placeholder")
+}
+-- out/decompiled/history/0.0.thema --
+schema: {
+	name:  string
+	nick?: string
+	rank?: int
+}
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				name:  string
+				nick?: string
+				rank?: int
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				name: string
+				nick: string
+				rank: int
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		input: _
+		result: {
+			name: input.name
+			if input.nick != _|_ {
+				nick: input.nick
+			}
+			if input.nick == _|_ {
+				nick: input.name
+			}
+			if input.rank != _|_ {
+				rank: input.rank
+			}
+			if input.rank == _|_ {
+				rank: 0
+			}
+		}
+		lacunas: [{
+			condition: input.rank == _|_
+			sourceFields: [if input.rank != _|_ {
+				path:  "rank"
+				value: input.rank
+			}]
+			targetFields: [{
+				path:  "rank"
+				value: result.rank
+			}]
+			message: "rank was absent; 0 is a placeholder"
+			type:    "Placeholder"
+		}]
+	}
+	"1.0->0.0": {
+		input: _
+		result: {
+			name: input.name
+			nick: input.nick
+			rank: input.rank
+		}
+	}
+}

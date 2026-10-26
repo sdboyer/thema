@@ -14,5 +14,5 @@ forward: {
 	b: input.a + 1
 }
 -- out/error --
-b: a mapping is a reference to input, a constant, a nested body or drop; other expressions are not supported yet:
+b: a mapping is a reference to input, a constant, a nested body, drop, orelse, remap or each; other expressions are not supported yet:
     1.0.thema:7:5

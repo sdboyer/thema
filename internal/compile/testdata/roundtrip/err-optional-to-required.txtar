@@ -16,5 +16,5 @@ forward: {
 	c: true
 }
 -- out/error --
-b is optional in 0.0 and required in 1.0: map it with orelse(input.b, <fallback>), which is not supported yet:
+b is optional in 0.0 and required in 1.0: write b: orelse(input.b, <fallback>) to say what to use when it is absent:
     1.0.thema:3:2

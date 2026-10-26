@@ -82,7 +82,7 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 		}
 
 		// Forward: previous version to this one. Only a major version has one.
-		fe := &edge{ctx: ctx, from: prev, to: v, S: vals[i-1], T: vals[i], sv: prev.v, tv: v.v, dir: forward, blockPos: v.header()}
+		fe := &edge{ctx: ctx, S: vals[i-1], T: vals[i], sv: prev.v, tv: v.v, dir: forward, blockPos: v.header(), root: rootInput}
 		fb := &body{}
 		if v.forward != nil {
 			fe.blockPos = v.forward.Pos()
@@ -105,7 +105,7 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 
 		// Backward: this version to the previous one, derived from the forward
 		// lens and overridden by what the author wrote.
-		be := &edge{ctx: ctx, from: v, to: prev, S: vals[i], T: vals[i-1], sv: v.v, tv: prev.v, dir: backward, blockPos: v.header()}
+		be := &edge{ctx: ctx, S: vals[i], T: vals[i-1], sv: v.v, tv: prev.v, dir: backward, blockPos: v.header(), root: rootInput}
 		ab := &body{}
 		if v.backward != nil {
 			be.blockPos = v.backward.Pos()
@@ -131,8 +131,9 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 func lensField(p token.Pos, from, to thema.SyntacticVersion, l *compiledLens) *ast.Field {
 	elts := []ast.Decl{
 		at(p, &ast.Field{Label: at(p, ast.NewIdent("input")), Value: at(p, ast.NewIdent("_"))}),
-		at(p, &ast.Field{Label: at(p, ast.NewIdent("result")), Value: at(p, l.result)}),
 	}
+	elts = append(elts, l.lets...)
+	elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("result")), Value: at(p, l.result)}))
 	if len(l.lacunas) > 0 {
 		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("lacunas")), Value: at(p, ast.NewList(l.lacunas...))}))
 	}
