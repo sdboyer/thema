@@ -263,7 +263,7 @@ Lenses count: 0
   }
 }
 -- out/encoding/typescript/TestGenerate/nilcfg --
-export interface Go-Any {
+export interface GoAny {
   emptyMap: Record<string, unknown>;
   optional?: (string | boolean);
   structVal: {

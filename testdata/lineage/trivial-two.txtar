@@ -197,10 +197,10 @@ Schema count: 2
 Schema versions: 0.0, 0.1
 Lenses count: 1
 -- out/encoding/typescript/TestGenerate/nilcfg --
-export interface Trivial-Two {
+export interface TrivialTwo {
   firstfield: string;
 }
-export interface Trivial-Two {
+export interface TrivialTwo {
   firstfield: string;
   secondfield?: number;
 }
