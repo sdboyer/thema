@@ -1,0 +1,19 @@
+# a for comprehension is not allowed in a schema even over constant data,
+# though the evaluator expands it: the rule is syntactic (#77)
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+thema.Lineage & {
+	name: "comprehensionForConstant"
+	schemas: [{
+		version: [0, 0]
+		schema: {
+			for k in ["a", "b"] {
+				(k): int
+			}
+		}
+	}]
+}
+-- out/bindfail --
+schema 0.0: comprehensions are not allowed in schemas:
+    ./in.cue:8:4

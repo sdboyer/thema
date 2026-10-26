@@ -1,0 +1,27 @@
+# references that do not form a cycle are allowed: to a definition, to a
+# sibling field, through a selector into a struct that refers back to a
+# different field (#78)
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "refsAcyclic"
+	schemas: [{
+		version: [0, 0]
+		schema: {
+			#T: int
+			d:  #T
+			a:  int
+			b?: a
+			x:  y.z
+			y: {
+				z: int
+				w: x
+			}
+			_lim: 5
+			c?:   <_lim
+		}
+	}]
+}
+-- expect --
+bind ok

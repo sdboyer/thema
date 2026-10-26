@@ -52,6 +52,34 @@ Go Assignability is a case-specific definition of the more general [CUE subsumpt
 * At most one level of pointer indirection is permitted on any otherwise valid Go type.
 
 TODO Go pointers, uints, runes, smaller number sizes, CUE & Go embeds, CUE references, improve optionality, nullability, disjunctions
+## Schema constructs
+
+A schema is a declaration of what instances look like. Two CUE constructs make
+that declaration depend on something other than what the author wrote, and
+thema refuses them in schemas and in the `joinSchema`, at bind, with the error
+positioned at the construct. Both are refused from the conservative side: CUE
+evaluates them without complaint, but the checks that follow (compatibility,
+lens results, lacunas) describe schemas by walking their fields and paths, and
+neither construct has fields or paths they can describe. Admitting either
+later would refuse nothing that binds today.
+
+**No comprehensions.** An `if` or `for` clause anywhere in a schema is
+refused, even over constant data that the evaluator would expand (`for k in
+["a", "b"] {(k): int}`, which has a plain spelling). A comprehension over an
+instance's own fields (`if kind == "x" {extra?: int}`) would make the
+schema's fields a function of the data.
+
+**No reference cycles.** A chain of references within a schema that returns to
+a value on the chain is refused: a definition that refers to itself
+(`#N: {v: int, next?: #N}`), two that refer to each other, or regular fields
+that do (`a: b, b: a`), which CUE resolves but no schema needs. A reference to
+a value outside the schema that contains the schema (`lin.schemas`) is a cycle
+too. Other references that leave the schema are not followed. Non-circular
+references are fine: `d: #T`, `b?: a`, `x: y.z`. Trees and JSON-like values
+(`#Value: string | [...#Value] | {[string]: #Value}`) are the cost; a lens
+over one would have to be recursive, a lacuna's path unbounded, and a lens
+compiled to a copy-only target impossible.
+
 ## Backwards compatibility
 
 A lineage may take a minor version step only when the new schema is backwards
@@ -167,7 +195,7 @@ widening a value, dropping a validator, and adding hidden fields, definitions or
 | Rule | Unknown when | What to do |
 |---|---|---|
 | `unknown-crossfield` | either schema constrains a field by another field's value (`b?: a`, `c: >a`, a reference to a defaulted field or an open list), and the two differ | keep such constraints identical across minor versions |
-| `unknown-comprehension` | a comprehension over data (`if kind == "x" {...}`) is pending in either schema, and the two differ | keep the comprehension identical across minor versions |
+| `unknown-comprehension` | a comprehension over data (`if kind == "x" {...}`) is pending in either schema, and the two differ | bind refuses comprehensions in schemas before the checker runs (see Schema constructs); the rule keeps the checker sound on its own |
 | `unknown-validator` | *new* adds or changes a validator the checker has no rule for (`matchIf`, `matchN`, regexp functions, ...) | keep it identical across minor versions, or express the constraint with bounds |
 | `unknown-disjunction` | no single alternative of *new* covers an alternative of *prior*, though together they might (`int` → `>=0 \| <0`) | write *new*'s alternatives so that each *prior* alternative fits one |
 | `unknown-patterns` | pattern constraints differ in a way the checker compares only for identity: several patterns on one side, or a narrower pattern replacing a wider one | keep patterns identical across minor versions |

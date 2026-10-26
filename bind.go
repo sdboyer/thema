@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"cuelang.org/go/cue"
+	"cuelang.org/go/cue/ast"
 	cerrors "cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/token"
 	"github.com/cockroachdb/errors"
@@ -16,6 +17,7 @@ import (
 	terrors "github.com/sdboyer/thema/errors"
 	"github.com/sdboyer/thema/internal/compat"
 	"github.com/sdboyer/thema/internal/cuetil"
+	"github.com/sdboyer/thema/internal/cueview"
 	"github.com/sdboyer/thema/internal/embedreg"
 )
 
@@ -75,6 +77,13 @@ func (ml *maybeLineage) checkGoValidity(cfg *bindConfig) error {
 	}
 	vpath := cue.MakePath(cue.Str("version"))
 
+	// thema's default joinSchema is _, which joins nothing.
+	if join := ml.uni.LookupPath(cue.MakePath(cue.Str("joinSchema"))); join.IncompleteKind() != cue.TopKind {
+		if err := ml.checkSchemaConstructs(join, "joinSchema"); err != nil {
+			return err
+		}
+	}
+
 	var previous *schemaDef
 	for schiter.Next() {
 		sch := &schemaDef{ref: schiter.Value()}
@@ -89,6 +98,9 @@ func (ml *maybeLineage) checkGoValidity(cfg *bindConfig) error {
 		}
 
 		sch.def = sch.ref.LookupPath(pathSchDef)
+		if err := ml.checkSchemaConstructs(sch.ref.LookupPath(pathSch), fmt.Sprintf("schema %s", sch.v)); err != nil {
+			return err
+		}
 		if previous != nil && !cfg.skipbuggychecks {
 			res := compat.Check(ml.rt.Context(), previous.def, sch.def)
 			if sch.v[1] == 0 && res.Compatible() {
@@ -354,6 +366,134 @@ func (ml *maybeLineage) checkSchemaShapes() error {
 		return errors.Mark(errs, terrors.ErrInvalidLineage)
 	}
 	return nil
+}
+
+// checkSchemaConstructs rejects, in one schema (or the joinSchema), the
+// constructs thema does not support: comprehensions and reference cycles. A
+// comprehension makes a schema's fields depend on evaluation, and a cycle makes
+// its paths unbounded; no later check (compatibility, lens results, lacunas)
+// can describe either, so they are refused before any of them reads the
+// schema. Admitting either later refuses nothing that binds today.
+func (ml *maybeLineage) checkSchemaConstructs(v cue.Value, name string) error {
+	var errs cerrors.Error
+	t, err := cueview.NewTree(v)
+	if err != nil {
+		return errors.Mark(cerrors.Newf(userPos(v), "%s: %s", name, err), terrors.ErrInvalidLineage)
+	}
+	ast.Walk(t.File, func(n ast.Node) bool {
+		c, ok := n.(*ast.Comprehension)
+		if !ok {
+			return true
+		}
+		errs = cerrors.Append(errs, cerrors.Newf(c.Pos(), "%s: comprehensions are not allowed in schemas", name))
+		return false
+	}, nil)
+
+	w := &cycleWalker{name: name, root: v, reported: make(map[string]bool)}
+	w.walk(v)
+	errs = cerrors.Append(errs, w.errs)
+
+	if errs != nil {
+		return errors.Mark(errs, terrors.ErrInvalidLineage)
+	}
+	return nil
+}
+
+// maxReferenceDepth bounds the chain of references cycleWalker follows. A
+// schema's references form a finite tree once cycles are excluded; a chain this
+// long is reported rather than followed further.
+const maxReferenceDepth = 64
+
+// cycleWalker walks a schema value, following every reference within the
+// schema with the chain of referenced paths on a stack. A reference to a path
+// already on the stack closes a cycle, reported at that reference, as does one
+// to a value outside the schema that contains it.
+type cycleWalker struct {
+	name     string
+	root     cue.Value
+	stack    []cue.Path
+	reported map[string]bool
+	errs     cerrors.Error
+}
+
+func (w *cycleWalker) walk(v cue.Value) {
+	if _, p := v.ReferencePath(); len(p.Selectors()) > 0 {
+		if !cuetil.PathHasPrefix(p, w.root.Path()) {
+			// A reference that leaves the schema is not followed: what lies
+			// outside (thema's own definitions, imports) is not the author's. One
+			// to a value that contains the schema still closes a cycle.
+			if cuetil.PathHasPrefix(w.root.Path(), p) {
+				w.errs = cerrors.Append(w.errs, cerrors.Newf(v.Pos(), "%s: reference to %s, which contains the schema; schemas may not contain circular references", w.name, p))
+			}
+			return
+		}
+		key := p.String()
+		for i, s := range w.stack {
+			if s.String() == key {
+				if !w.reported[key] {
+					w.reported[key] = true
+					w.errs = cerrors.Append(w.errs, cerrors.Newf(v.Pos(), "%s: reference cycle %s; schemas may not contain circular references", w.name, w.chain(i)))
+				}
+				return
+			}
+		}
+		if len(w.stack) >= maxReferenceDepth {
+			w.errs = cerrors.Append(w.errs, cerrors.Newf(v.Pos(), "%s: chain of references deeper than %d at %s", w.name, maxReferenceDepth, w.rel(p)))
+			return
+		}
+		w.stack = append(w.stack, p)
+		w.walk(cue.Dereference(v))
+		w.stack = w.stack[:len(w.stack)-1]
+		return
+	}
+
+	if op, args := v.Expr(); op != cue.NoOp {
+		for _, a := range args {
+			w.walk(a)
+		}
+		return
+	}
+
+	switch v.IncompleteKind() {
+	case cue.StructKind:
+		iter, err := v.Fields(cue.Optional(true), cue.Hidden(true), cue.Definitions(true), cue.Patterns(true))
+		if err != nil {
+			return
+		}
+		for iter.Next() {
+			w.walk(iter.Value())
+		}
+	case cue.ListKind:
+		iter, err := v.List()
+		if err != nil {
+			return
+		}
+		for iter.Next() {
+			w.walk(iter.Value())
+		}
+		if elem := v.LookupPath(cue.MakePath(cue.AnyIndex)); elem.Exists() {
+			w.walk(elem)
+		}
+	}
+}
+
+// chain renders the cycle that begins at stack[from], ending where it began.
+func (w *cycleWalker) chain(from int) string {
+	var parts []string
+	for _, p := range w.stack[from:] {
+		parts = append(parts, w.rel(p))
+	}
+	parts = append(parts, w.rel(w.stack[from]))
+	return strings.Join(parts, " -> ")
+}
+
+// rel renders a referenced path relative to the schema where it lies within
+// it, and in full where it leaves it.
+func (w *cycleWalker) rel(p cue.Path) string {
+	if cuetil.PathHasPrefix(p, w.root.Path()) {
+		return cuetil.TrimPathPrefix(p, w.root.Path()).String()
+	}
+	return p.String()
 }
 
 // checkLensResults statically checks each CUE lens against its schemas, with its
