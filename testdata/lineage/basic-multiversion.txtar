@@ -1278,50 +1278,50 @@ Lenses count: 8
   }
 }
 -- out/encoding/typescript/TestGenerate/nilcfg --
-export interface Basic-Multiversion {
+export interface BasicMultiversion {
   init: string;
 }
-export interface Basic-Multiversion {
+export interface BasicMultiversion {
   init: string;
   optional?: number;
 }
-export interface Basic-Multiversion {
+export interface BasicMultiversion {
   init: string;
   optional?: number;
   withDefault?: ('foo' | 'bar');
 }
 
-export const defaultBasic-Multiversion: Partial<Basic-Multiversion> = {
+export const defaultBasicMultiversion: Partial<BasicMultiversion> = {
   withDefault: 'foo',
 };
-export interface Basic-Multiversion {
+export interface BasicMultiversion {
   init: string;
   optional?: number;
   withDefault?: ('foo' | 'bar' | 'baz');
 }
 
-export const defaultBasic-Multiversion: Partial<Basic-Multiversion> = {
+export const defaultBasicMultiversion: Partial<BasicMultiversion> = {
   withDefault: 'foo',
 };
-export interface Basic-Multiversion {
+export interface BasicMultiversion {
   optional?: number;
   renamed: string;
   withDefault: ('foo' | 'bar' | 'baz');
 }
 
-export const defaultBasic-Multiversion: Partial<Basic-Multiversion> = {
+export const defaultBasicMultiversion: Partial<BasicMultiversion> = {
   withDefault: 'bar',
 };
-export interface Basic-Multiversion {
+export interface BasicMultiversion {
   optional?: number;
   renamed: string;
   withDefault: ('foo' | 'bar' | 'baz' | 'bing');
 }
 
-export const defaultBasic-Multiversion: Partial<Basic-Multiversion> = {
+export const defaultBasicMultiversion: Partial<BasicMultiversion> = {
   withDefault: 'bar',
 };
-export interface Basic-Multiversion {
+export interface BasicMultiversion {
   optional?: number;
   toObj: {
     init: string;
@@ -1329,6 +1329,6 @@ export interface Basic-Multiversion {
   withDefault: ('foo' | 'bar' | 'baz' | 'bing');
 }
 
-export const defaultBasic-Multiversion: Partial<Basic-Multiversion> = {
+export const defaultBasicMultiversion: Partial<BasicMultiversion> = {
   withDefault: 'bar',
 };
