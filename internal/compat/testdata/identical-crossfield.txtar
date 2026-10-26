@@ -1,0 +1,9 @@
+# an identical cross-field reference
+-- old.cue --
+a: int
+b?: a
+-- new.cue --
+a: int
+b?: a
+-- out --
+compatible

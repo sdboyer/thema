@@ -1,0 +1,9 @@
+# math.Signbit added
+-- old.cue --
+s: number
+-- new.cue --
+import "math"
+s: number & math.Signbit
+-- out --
+incompatible
+s must now satisfy math.Signbit(), which the prior schema did not require (rule validator-added) @ new.cue:2:1

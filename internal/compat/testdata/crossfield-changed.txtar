@@ -1,0 +1,10 @@
+# a cross-field reference changed
+-- old.cue --
+a: int
+b?: a
+-- new.cue --
+a: int
+b?: >a
+-- out --
+unknown
+b is constrained by a in both schemas, differently; the checker cannot compare constraints between fields (rule unknown-crossfield) @ new.cue:2:1

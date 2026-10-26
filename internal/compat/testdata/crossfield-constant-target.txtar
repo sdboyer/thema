@@ -1,0 +1,10 @@
+# A reference to a constant field is the constant: c?: <lim with lim: 5 is
+# c?: <5, so replacing one with the other changes nothing.
+-- old.cue --
+lim: 5
+c?:  <lim
+-- new.cue --
+lim: 5
+c?:  <5
+-- out --
+compatible

@@ -1,0 +1,7 @@
+# a fixed-length list opened
+-- old.cue --
+l: [int]
+-- new.cue --
+l: [int, ...int]
+-- out --
+compatible

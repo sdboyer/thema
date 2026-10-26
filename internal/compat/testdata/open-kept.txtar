@@ -1,0 +1,9 @@
+# an author's ... survives in both
+-- old.cue --
+a: int
+...
+-- new.cue --
+a: int
+...
+-- out --
+compatible

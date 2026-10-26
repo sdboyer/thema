@@ -1,0 +1,10 @@
+# strings.HasPrefix tightened
+-- old.cue --
+import "strings"
+s: string & strings.HasPrefix("ab")
+-- new.cue --
+import "strings"
+s: string & strings.HasPrefix("abc")
+-- out --
+incompatible
+s must now satisfy strings.HasPrefix("abc"), where the prior schema required strings.HasPrefix("ab") (rule validator-added) @ new.cue:2:1

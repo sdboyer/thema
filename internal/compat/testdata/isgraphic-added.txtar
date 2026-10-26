@@ -1,0 +1,9 @@
+# strconv.IsGraphic added
+-- old.cue --
+s: int
+-- new.cue --
+import "strconv"
+s: int & strconv.IsGraphic
+-- out --
+incompatible
+s must now satisfy strconv.IsGraphic(), which the prior schema did not require (rule validator-added) @ new.cue:2:1

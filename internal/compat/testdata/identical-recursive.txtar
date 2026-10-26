@@ -1,0 +1,9 @@
+# a recursive definition (fp-identical-recursive)
+-- old.cue --
+#N: {v: int, next?: #N}
+n: #N
+-- new.cue --
+#N: {v: int, next?: #N}
+n: #N
+-- out --
+compatible

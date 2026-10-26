@@ -1,0 +1,9 @@
+# list.IsSorted added
+-- old.cue --
+s: [...int]
+-- new.cue --
+import "list"
+s: [...int] & list.IsSorted(list.Ascending)
+-- out --
+incompatible
+s must now satisfy list.IsSorted({ T: number | string x: number | string y: number | string less: bool & x < y }), which the prior schema did not require (rule validator-added) @ new.cue:2:1
