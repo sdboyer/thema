@@ -1,0 +1,44 @@
+Data (count: 20) passes through the forward lens's mapping (from.count, line 7
+of 1.0) and violates schema 1.0's bound (<10, line 3). Only Translate finds it.
+
+The positions are the bound and the data, never the mapping that carried the
+value: the evaluator cites values, and the lens's reference is not a conjunct
+where the conflict arises. A second error, from the comprehension in
+translate.cue that builds the steps, adds a kernel position. Paths are
+Translate's internals (Translate.out.steps._accum.1.result.count).
+-- ship/history/0.0.thema --
+schema: {
+	title: string
+	count?: int
+}
+-- ship/1.0.thema --
+schema: {
+	title: string
+	count: int & <10
+}
+
+forward: {
+	count: from.count
+}
+
+backward: {
+	count: to.count
+}
+-- data.json --
+{"title": "a", "count": 20}
+-- out/error --
+Translate.out.steps: error in call to list.Drop: invalid value 20 (out of bound <10):
+    /github.com/sdboyer/thema/translate.cue:135:5
+    data.json:1:25
+    ship/1.0.thema:3:15
+Translate.out.steps._accum.1.result.count: invalid value 20 (out of bound <10):
+    ship/1.0.thema:3:15
+    data.json:1:25
+-- out/positions --
+Translate.out.steps: error in call to list.Drop: invalid value 20 (out of bound <10)
+	kernel /github.com/sdboyer/thema/translate.cue:135:5
+	data data.json:1:25
+	authored ship/1.0.thema:3:15
+Translate.out.steps._accum.1.result.count: invalid value 20 (out of bound <10)
+	authored ship/1.0.thema:3:15
+	data data.json:1:25

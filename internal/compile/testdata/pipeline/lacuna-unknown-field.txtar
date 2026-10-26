@@ -1,0 +1,37 @@
+A lacuna field thema doesn't define (severity, line 12 of 1.0).
+
+Only the pattern constraint in thema's lacuna.cue catches it, by evaluating to
+error(). The error is positioned at that call in the kernel, and the authored
+position is lost entirely. checkUnknownFields, which points at the author's
+line, covers lineages, schema entries and lenses, but not lacunas. A compiler
+that owns the lacuna syntax can reject unknown keys itself.
+-- ship/history/0.0.thema --
+schema: {
+	title: string
+	count?: int
+}
+-- ship/1.0.thema --
+schema: {
+	title: string
+	count: int & <10
+}
+
+forward: {
+	count: from.count
+	lacuna: {
+		kind: "Placeholder"
+		target: "count"
+		message: "count is a placeholder"
+		severity: "high"
+	}
+}
+
+backward: {
+	count: to.count
+}
+-- out/error --
+Lineage.lenses."0.0->1.0".lacunas.0.severity: severity is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type:
+    /github.com/sdboyer/thema/lacuna.cue:39:68
+-- out/positions --
+Lineage.lenses."0.0->1.0".lacunas.0.severity: severity is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type
+	kernel /github.com/sdboyer/thema/lacuna.cue:39:68
