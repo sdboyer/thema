@@ -10,37 +10,57 @@ schema: {
 	aunion: "foo" | *"bar" | "baz"
 }
 
-forward: {
-	aunion: remap(input.aunion, {
-		"foo": "bar" @lacuna(ChangedDefault, "aunion was the source default, \"foo\", and was changed to the target default, \"bar\"")
-	})
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		aunion: remap(v0_0.aunion, {
+			"foo": "bar" @lacuna(ChangedDefault, "aunion was the source default, \"foo\", and was changed to the target default, \"bar\"")
+		})
+	}
 }
 
-backward: {
-	aunion: remap(input.aunion, {
-		"bar": "foo" @lacuna(ChangedDefault, "aunion was the source default, \"bar\", and was changed to the target default, \"foo\"")
-	})
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		aunion: remap(v1_0.aunion, {
+			"bar": "foo" @lacuna(ChangedDefault, "aunion was the source default, \"bar\", and was changed to the target default, \"foo\"")
+		})
+	}
 }
 -- out/bind --
 ok
 -- out/decompiled/1.0.thema --
-schema:
+schema: {
 	aunion: "foo" | *"bar" | "baz"
+}
 
-forward:
-	aunion: remap(input.aunion,
-		{
-			"foo": "bar" @lacuna(ChangedDefault, "aunion was the source default, \"foo\", and was changed to the target default, \"bar\"")
-		})
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		aunion: remap(
+			v0_0.aunion,
+			{
+				"foo": "bar" @lacuna(ChangedDefault, "aunion was the source default, \"foo\", and was changed to the target default, \"bar\"")
+			},
+		)
+	}
+}
 
-backward:
-	aunion: remap(input.aunion,
-		{
-			"bar": "foo" @lacuna(ChangedDefault, "aunion was the source default, \"bar\", and was changed to the target default, \"foo\"")
-		})
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		aunion: remap(
+			v1_0.aunion,
+			{
+				"bar": "foo" @lacuna(ChangedDefault, "aunion was the source default, \"bar\", and was changed to the target default, \"foo\"")
+			},
+		)
+	}
+}
 -- out/decompiled/history/0.0.thema --
-schema:
+schema: {
 	aunion: *"foo" | "bar" | "baz"
+}
 -- out/normal.cue --
 name: "ship"
 schemas: {

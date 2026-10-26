@@ -9,5 +9,5 @@ schema: {
 	b: int
 }
 -- out/error --
-1.0 requires b, and nothing produces it: map it in forward:
+1.0 requires b, and nothing produces it: map it in ForwardLens:
     1.0.thema:3:2

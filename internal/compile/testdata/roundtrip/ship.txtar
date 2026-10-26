@@ -10,13 +10,19 @@ schema: {
 	secondfield: int
 }
 
-forward: {
-	// 0.0 has no data for secondfield.
-	secondfield: -1 @lacuna(Placeholder, "-1 used as a placeholder value - replace with a real value before persisting!")
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		// 0.0 has no data for secondfield.
+		secondfield: -1 @lacuna(Placeholder, "-1 used as a placeholder value - replace with a real value before persisting!")
+	}
 }
 
-backward: {
-	secondfield: drop @lacuna("secondfield is new in 1.0; 0.0 has nowhere to keep it")
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		secondfield: drop @lacuna("secondfield is new in 1.0; 0.0 has nowhere to keep it")
+	}
 }
 -- out/bind --
 ok
@@ -26,17 +32,24 @@ schema: {
 	secondfield: int
 }
 
-forward: {
-	// 0.0 has no data for secondfield.
-	secondfield: -1 @lacuna(Placeholder, "-1 used as a placeholder value - replace with a real value before persisting!")
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		// 0.0 has no data for secondfield.
+		secondfield: -1 @lacuna(Placeholder, "-1 used as a placeholder value - replace with a real value before persisting!")
+	}
 }
 
-backward: {
-	secondfield: drop @lacuna("secondfield is new in 1.0; 0.0 has nowhere to keep it")
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		secondfield: drop @lacuna("secondfield is new in 1.0; 0.0 has nowhere to keep it")
+	}
 }
 -- out/decompiled/history/0.0.thema --
-schema:
+schema: {
 	firstfield: string
+}
 -- out/normal.cue --
 name: "ship"
 schemas: {

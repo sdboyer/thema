@@ -9,9 +9,12 @@ schema: {
 	b: int
 }
 
-forward: {
-	b: "one"
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		b: "one"
+	}
 }
 -- out/error --
 "one" is not an instance of 1.0's b: schema.b: conflicting values int and "one" (mismatched types int and string):
-    1.0.thema:7:5
+    1.0.thema:9:6

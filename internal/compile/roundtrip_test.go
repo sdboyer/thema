@@ -5,12 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"cuelang.org/go/cue/ast"
 	"cuelang.org/go/cue/cuecontext"
 	cerrors "cuelang.org/go/cue/errors"
-	"cuelang.org/go/cue/format"
-	"cuelang.org/go/cue/parser"
-	"cuelang.org/go/cue/token"
 
 	"github.com/google/go-cmp/cmp"
 
@@ -70,14 +66,14 @@ func TestRoundTrip(t *testing.T) {
 			}
 			want := make(map[string]string)
 			for _, f := range inputs {
-				want[f.Path] = canonical(t, f.Path, f.Text)
+				want[f.Path] = formatted(t, f.Path, f.Text)
 			}
 			for _, f := range dfiles {
 				got["out/decompiled/"+f.Path] = string(f.Text)
 				if w, ok := want[f.Path]; !ok {
 					t.Errorf("decompiled %s, which was not an input", f.Path)
-				} else if diff := cmp.Diff(w, canonical(t, f.Path, f.Text)); diff != "" {
-					t.Errorf("decompiled %s differs from the input (-input +decompiled):\n%s", f.Path, diff)
+				} else if diff := cmp.Diff(w, string(f.Text)); diff != "" {
+					t.Errorf("decompiled %s differs from the formatted input (-input +decompiled):\n%s", f.Path, diff)
 				}
 				delete(want, f.Path)
 			}
@@ -94,7 +90,7 @@ func TestRoundTrip(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if diff := cmp.Diff(canonical(t, "normal.cue", []byte(text)), canonical(t, "normal.cue", []byte(text2))); diff != "" {
+			if diff := cmp.Diff(formatted(t, "normal.cue", []byte(text)), formatted(t, "normal.cue", []byte(text2))); diff != "" {
 				t.Errorf("recompiled normal form differs (-first +recompiled):\n%s", diff)
 			}
 			a.compare(t, got)
@@ -102,20 +98,10 @@ func TestRoundTrip(t *testing.T) {
 	}
 }
 
-// canonical formats CUE text with its layout forgotten, so that two texts
-// compare equal when they differ only in formatting: braces around a single
-// field, blank lines, alignment.
-func canonical(t *testing.T, name string, text []byte) string {
+// formatted returns text in thema's layout, which is what Decompile emits.
+func formatted(t *testing.T, name string, text []byte) string {
 	t.Helper()
-	f, err := parser.ParseFile(name, text, parser.ParseComments)
-	if err != nil {
-		t.Fatalf("%s: %v", name, err)
-	}
-	ast.Walk(f, func(n ast.Node) bool {
-		ast.SetPos(n, token.NoPos)
-		return true
-	}, nil)
-	b, err := format.Node(f)
+	b, err := Format(text)
 	if err != nil {
 		t.Fatalf("%s: %v", name, err)
 	}

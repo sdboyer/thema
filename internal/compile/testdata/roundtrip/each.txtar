@@ -15,44 +15,54 @@ schema: {
 	}]
 }
 
-forward: {
-	items: each(input.items, {
-		name:   item.title
-		legacy: drop
-	})
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		items: each(v0_0.items, {
+			name:   item.title
+			legacy: drop
+		})
+	}
 }
 
-backward: {
-	items: each(input.items, {
-		title: item.name
-	})
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		items: each(v1_0.items, {
+			title: item.name
+		})
+	}
 }
 -- out/bind --
 ok
 -- out/decompiled/1.0.thema --
-schema:
-	items: [...{
-		name: string
-	}]
+schema: {
+	items: [...{name: string}]
+}
 
-forward:
-	items: each(input.items,
-		{
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		items: each(v0_0.items, {
 			name:   item.title
 			legacy: drop
 		})
+	}
+}
 
-backward:
-	items: each(input.items,
-		{
-			title: item.name
-		})
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		items: each(v1_0.items, {title: item.name})
+	}
+}
 -- out/decompiled/history/0.0.thema --
-schema:
+schema: {
 	items: [...{
 		title:   string
 		legacy?: string
 	}]
+}
 -- out/normal.cue --
 name: "ship"
 schemas: {

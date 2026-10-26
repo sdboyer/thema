@@ -9,13 +9,19 @@ schema: {
 	after: string
 }
 
-forward: {
-	after: input.before
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		after: v0_0.before
+	}
 }
 
-backward: {
-	after: drop
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		after: drop
+	}
 }
 -- out/error --
-0.0 requires before, and nothing produces it: map it in backward:
+0.0 requires before, and nothing produces it: map it in BackwardLens:
     history/0.0.thema:2:2

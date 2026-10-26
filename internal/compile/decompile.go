@@ -45,7 +45,7 @@ func Decompile(lin cue.Value) (name string, files []File, err error) {
 			fkey, bkey := edgeKey(prev.v, v.v), edgeKey(v.v, prev.v)
 			var fwdEntries []dentry
 			if l, ok := lenses[fkey]; ok {
-				fwd, err = decompileLens(l, fkey, v.v)
+				fwd, err = decompileLens(l, fkey, prev.v, v.v)
 				if err != nil {
 					return "", nil, err
 				}
@@ -55,13 +55,17 @@ func Decompile(lin cue.Value) (name string, files []File, err error) {
 			if !ok {
 				return "", nil, fmt.Errorf("no lens at %s", bkey)
 			}
-			bwd, err = decompileLens(l, bkey, prev.v)
+			bwd, err = decompileLens(l, bkey, v.v, prev.v)
 			if err != nil {
 				return "", nil, err
 			}
 			bwd.entries = stripDerived(bwd.entries, fwdEntries, v.schema, prev.schema)
 		}
-		text, err := versionText(v, fwd, bwd)
+		var prev thema.SyntacticVersion
+		if i > 0 {
+			prev = vs[i-1].v
+		}
+		text, err := versionText(v, prev, fwd, bwd)
 		if err != nil {
 			return "", nil, err
 		}
@@ -139,10 +143,11 @@ type dentry struct {
 }
 
 // A dbody is a lens body read back from the normal form, in result order
-// with drops last.
+// with drops last. root is the normal form's root for references (input or
+// item); name is the authoring form's (v0_0 or item).
 type dbody struct {
-	root    string
-	entries []dentry
+	root, name string
+	entries    []dentry
 }
 
 // A branch is one `if cond {field}` of a result, before it is understood.
@@ -151,9 +156,8 @@ type branch struct {
 	field *ast.Field
 }
 
-// decompileLens reads the mappings of the lens at key, whose target version
-// is tv.
-func decompileLens(l cue.Value, key string, tv thema.SyntacticVersion) (*dbody, error) {
+// decompileLens reads the mappings of the lens at key, from sv to tv.
+func decompileLens(l cue.Value, key string, sv, tv thema.SyntacticVersion) (*dbody, error) {
 	// The whole lens is exported, so that references to input stay references
 	// (exported alone, result's references to it would become a generated let).
 	n, err := cueview.Documented(l)
@@ -184,7 +188,7 @@ func decompileLens(l cue.Value, key string, tv thema.SyntacticVersion) (*dbody, 
 	if result == nil {
 		return nil, fmt.Errorf("lens %s is outside the authoring form: its result is not a struct literal", key)
 	}
-	b := &dbody{root: rootInput}
+	b := &dbody{root: rootInput, name: paramName(sv)}
 	if werr := b.walk(result.Elts, cue.MakePath(), key); werr != nil {
 		return nil, werr
 	}
@@ -279,7 +283,7 @@ func (b *dbody) eachOf(x ast.Expr, key string) (eachSyntax, bool) {
 	if !ok {
 		return eachSyntax{}, false
 	}
-	body := &dbody{root: rootItem}
+	body := &dbody{root: rootItem, name: rootItem}
 	err := body.walk(s.Elts, cue.MakePath(), key)
 	return eachSyntax{source: p, body: body, err: err}, true
 }
@@ -728,8 +732,9 @@ func stripDerived(entries, fwd []dentry, newer, older cue.Value) []dentry {
 	return out
 }
 
-// versionText renders a version file.
-func versionText(v dversion, fwd, bwd *dbody) (string, error) {
+// versionText renders a version file; prev is the previous version, whose
+// edge the lenses are on.
+func versionText(v dversion, prev thema.SyntacticVersion, fwd, bwd *dbody) (string, error) {
 	n, err := cueview.Documented(v.schema)
 	if err != nil {
 		return "", fmt.Errorf("%s: schema: %w", v.v, err)
@@ -738,13 +743,6 @@ func versionText(v dversion, fwd, bwd *dbody) (string, error) {
 	if !ok {
 		return "", fmt.Errorf("%s: schema is outside the authoring form: it needs imports", v.v)
 	}
-	// The exported syntax has no layout; give every field a line of its own.
-	ast.Walk(expr, func(n ast.Node) bool {
-		if f, ok := n.(*ast.Field); ok {
-			ast.SetPos(f, token.NoPos.WithRel(token.Newline))
-		}
-		return true
-	}, nil)
 	var parts []string
 	for _, block := range []struct {
 		name string
@@ -755,9 +753,17 @@ func versionText(v dversion, fwd, bwd *dbody) (string, error) {
 			if block.b == nil || len(block.b.entries) == 0 {
 				continue
 			}
-			val = block.b.syntax()
+			from, to := prev, v.v
+			if block.name == fieldBackward {
+				from, to = v.v, prev
+			}
+			param := &ast.Field{Label: ast.NewIdent(paramName(from)), Value: ast.NewIdent("_")}
+			result := &ast.Field{Label: ast.NewIdent(paramName(to)), Value: block.b.syntax()}
+			val = &ast.StructLit{Elts: []ast.Decl{param, result}}
 		}
-		text, err := format.Node(&ast.Field{Label: ast.NewIdent(block.name), Value: val})
+		field := &ast.Field{Label: ast.NewIdent(block.name), Value: val}
+		layout(field)
+		text, err := format.Node(field)
 		if err != nil {
 			return "", err
 		}
@@ -779,9 +785,7 @@ func (b *dbody) syntax() *ast.StructLit {
 			if !ok {
 				c = &ast.StructLit{}
 				structs[k] = c
-				nf := &ast.Field{Label: ast.NewIdent(sels[i].Unquoted()), Value: c}
-				ast.SetPos(nf, token.NoPos.WithRel(token.Newline))
-				s.Elts = append(s.Elts, nf)
+				s.Elts = append(s.Elts, &ast.Field{Label: ast.NewIdent(sels[i].Unquoted()), Value: c})
 			}
 			s = c
 		}
@@ -793,33 +797,34 @@ func (b *dbody) syntax() *ast.StructLit {
 		var val ast.Expr
 		switch en.kind {
 		case kindMove:
-			val = ref(b.root, en.source)
+			val = ref(b.name, en.source)
 		case kindConst:
 			val = en.expr
 		case kindDrop:
 			val = ast.NewIdent(opDrop)
 		case kindOrElse:
-			val = &ast.CallExpr{Fun: ast.NewIdent(opOrElse), Args: []ast.Expr{ref(b.root, en.source), en.fallback}}
+			fallback := en.fallback
+			if root, p, ok := refPathAny(fallback); ok && root == b.root {
+				fallback = ref(b.name, p)
+			}
+			val = &ast.CallExpr{Fun: ast.NewIdent(opOrElse), Args: []ast.Expr{ref(b.name, en.source), fallback}}
 		case kindRemap:
 			table := &ast.StructLit{}
 			for _, a := range en.arms {
 				f := &ast.Field{Label: ast.NewString(a.key), Value: a.value}
-				ast.SetPos(f, token.NoPos.WithRel(token.Newline))
 				addLacuna(f, a.lacuna)
 				table.Elts = append(table.Elts, f)
 			}
 			if en.catchAll != nil {
 				f := &ast.Field{Label: &ast.ListLit{Elts: []ast.Expr{ast.NewIdent("_")}}, Value: en.catchAll.value}
-				ast.SetPos(f, token.NoPos.WithRel(token.Newline))
 				addLacuna(f, en.catchAll.lacuna)
 				table.Elts = append(table.Elts, f)
 			}
-			val = &ast.CallExpr{Fun: ast.NewIdent(opRemap), Args: []ast.Expr{ref(b.root, en.source), table}}
+			val = &ast.CallExpr{Fun: ast.NewIdent(opRemap), Args: []ast.Expr{ref(b.name, en.source), table}}
 		case kindEach:
-			val = &ast.CallExpr{Fun: ast.NewIdent(opEach), Args: []ast.Expr{ref(b.root, en.source), en.body.syntax()}}
+			val = &ast.CallExpr{Fun: ast.NewIdent(opEach), Args: []ast.Expr{ref(b.name, en.source), en.body.syntax()}}
 		}
 		f := &ast.Field{Label: ast.NewIdent(sels[len(sels)-1].Unquoted()), Value: val}
-		ast.SetPos(f, token.NoPos.WithRel(token.Newline))
 		addLacuna(f, en.lacuna)
 		for _, cg := range en.comments {
 			ast.AddComment(f, cg)

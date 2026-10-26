@@ -162,9 +162,10 @@ type edge struct {
 	sv, tv   thema.SyntacticVersion
 	dir      direction
 	blockPos token.Pos
-	// root is the identifier references start from: input, or item inside
-	// an each body.
-	root string
+	// root is the identifier the author's references start from: the
+	// version's parameter (v0_0), or item inside an each body. emitRoot is
+	// what the normal form uses for it: input, or item.
+	root, emitRoot string
 	// each is set for the sub-edge compiling an each body.
 	each *eachScope
 	errs cerrors.Error
@@ -826,7 +827,7 @@ func (e *edge) compileEach(en *entry, out *compiledLens) bool {
 		e.errf(en.expr.Pos(), "each inside each is not supported yet")
 		return false
 	}
-	sub := &edge{ctx: e.ctx, S: selem, T: telem, sv: e.sv, tv: e.tv, dir: e.dir, blockPos: en.pos, root: rootItem,
+	sub := &edge{ctx: e.ctx, S: selem, T: telem, sv: e.sv, tv: e.tv, dir: e.dir, blockPos: en.pos, root: rootItem, emitRoot: rootItem,
 		each: &eachScope{list: en.source, target: en.target, n: out.nlets}}
 	b := &body{}
 	sub.parseBody(en.body, cue.MakePath(), cue.MakePath(), b)
@@ -984,9 +985,13 @@ func (e *edge) emitLeaf(name string, c *node) []ast.Decl {
 	}
 	switch en.kind {
 	case kindOrElse:
+		fallback := en.fallback
+		if fp, ok := e.refPath(en.fallback); ok {
+			fallback = at(en.fallback.Pos(), e.ref(fp))
+		}
 		return []ast.Decl{
 			branch(e.present(p, en.source), at(p, e.ref(en.source))),
-			branch(e.absent(p, en.source), en.fallback),
+			branch(e.absent(p, en.source), fallback),
 		}
 	case kindRemap:
 		var out []ast.Decl
@@ -1024,9 +1029,14 @@ func (e *edge) emitLeaf(name string, c *node) []ast.Decl {
 		return []ast.Decl{field(list)}
 	}
 	var val ast.Expr
-	if en.expr != nil {
+	switch {
+	case en.kind == kindMove && en.expr != nil:
+		// The author's reference, rebuilt from the normal form's root at the
+		// author's position.
+		val = at(en.expr.Pos(), e.ref(en.source))
+	case en.expr != nil:
 		val = en.expr
-	} else {
+	default:
 		val = at(p, e.ref(en.source))
 	}
 	if len(c.guard.Selectors()) > 0 {
@@ -1129,7 +1139,7 @@ func (e *edge) dropLacuna(out *compiledLens, en *entry) {
 		if e.optional(e.S, en.source) {
 			elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("condition")), Value: e.present(p, en.source)}))
 		}
-		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewList(e.fieldRef(p, en.source, e.root)))}))
+		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewList(e.fieldRef(p, en.source, e.emitRoot)))}))
 	}
 	elts = append(elts,
 		at(p, &ast.Field{Label: at(p, ast.NewIdent("message")), Value: at(p, ast.NewString(msg))}),
@@ -1190,10 +1200,10 @@ func (e *edge) lacunaFor(en *entry, lac *lacunaAttr, cond ast.Expr) ast.Expr {
 		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("condition")), Value: cond}))
 	}
 	if en.kind == kindDrop {
-		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewList(e.fieldRef(p, en.source, e.root)))}))
+		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewList(e.fieldRef(p, en.source, e.emitRoot)))}))
 	} else {
 		if len(en.source.Selectors()) > 0 {
-			src := e.fieldRef(p, en.source, e.root)
+			src := e.fieldRef(p, en.source, e.emitRoot)
 			if e.optional(e.S, en.source) {
 				src = at(p, &ast.Comprehension{Clauses: []ast.Clause{at(p, &ast.IfClause{Condition: e.present(p, en.source)})}, Value: src})
 			}
@@ -1217,7 +1227,7 @@ func (e *edge) fieldRef(pos token.Pos, p cue.Path, root string) ast.Expr {
 }
 
 // ref builds <root>.<p>, with the edge's root.
-func (e *edge) ref(p cue.Path) ast.Expr { return ref(e.root, p) }
+func (e *edge) ref(p cue.Path) ast.Expr { return ref(e.emitRoot, p) }
 
 func ref(root string, p cue.Path) ast.Expr {
 	var names []string

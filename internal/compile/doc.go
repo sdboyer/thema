@@ -7,20 +7,23 @@
 // file per version: <major>.<minor>.thema, at the top of the directory or
 // under history/. Each file is CUE syntax with at most three fields:
 //
-//	schema: {...}    // the version's schema
-//	forward: {...}   // mappings from the previous version to this one
-//	backward: {...}  // mappings from this version to the previous one
+//	schema: {...}
+//	ForwardLens:  {v0_0: _, v1_0: {...}}   // from the previous version to this one
+//	BackwardLens: {v1_0: _, v0_0: {...}}   // from this version to the previous one
 //
-// A lens body is a struct shaped like its target: each entry is a target
-// field, and its value says where the field comes from. The vocabulary is
+// A lens reads like a function: the field whose value is _ declares the
+// instance it takes, named by its version, and the other field is the body
+// producing the instance it returns, shaped like that version's schema. Each
+// entry of the body is a target field, and its value says where the field
+// comes from. The vocabulary is
 //
-//	after: input.before                      // a move: a reference into the source
-//	kind:  "v2"                              // a constant
-//	meta: {owner: input.name}                // a nested body; {input.m, x: 1} copies from m
-//	legacy: drop                             // a drop, keyed by the source field
-//	nick:  orelse(input.nick, input.name)    // an optional source: the fallback when absent
-//	kind:  remap(input.kind, {"a": 1, [_]: 0 @lacuna(...)})  // a value table, with an optional catch-all
-//	items: each(input.items, {name: item.title})            // a list, mapped element by element
+//	after: v0_0.before                      // a move: a reference into the instance
+//	kind:  "v2"                             // a constant
+//	meta: {owner: v0_0.name}                // a nested body; {v0_0.m, x: 1} copies from m
+//	legacy: drop                            // a drop, keyed by the source field
+//	nick:  orelse(v0_0.nick, v0_0.name)     // an optional source: the fallback when absent
+//	kind:  remap(v0_0.kind, {"a": 1, [_]: 0 @lacuna(...)})  // a value table, with an optional catch-all
+//	items: each(v0_0.items, {name: item.title})            // a list, mapped element by element
 //
 // A field both schemas declare, that no entry mentions, is copied. A reference
 // to an optional source field is guarded; where the target requires the
@@ -32,7 +35,7 @@
 // dropped. A required target field must be produced. The backward lens is
 // derived from the forward lens (the inverse of each single-use move, and a
 // drop of each field the version added, with a derived lacuna); what the
-// author writes in backward overrides it. orelse, remap and each have no
+// author writes in BackwardLens overrides it. orelse, remap and each have no
 // derived inverse. A minor version, which the compatibility check derives,
 // has no forward lens and its file is usually just its schema.
 //
@@ -41,6 +44,13 @@
 // an arm and applies when the arm does. On a drop, @lacuna("message") refines
 // the derived lacuna's message. Computed expressions are not accepted yet;
 // orelse over a computed primary and the curated builtin table are next.
+//
+// # Layout
+//
+// Format lays authoring text out in thema's style: every struct keeps its
+// braces and every field has its own line. CUE has no normal form and this
+// is not one; it is the one layout Decompile produces, so that decompiling a
+// formatted file gives back its text.
 //
 // # Positions
 //

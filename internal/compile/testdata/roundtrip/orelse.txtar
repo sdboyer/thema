@@ -13,9 +13,12 @@ schema: {
 	rank: int
 }
 
-forward: {
-	nick: orelse(input.nick, input.name)
-	rank: orelse(input.rank, 0) @lacuna(Placeholder, "rank was absent; 0 is a placeholder")
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		nick: orelse(v0_0.nick, v0_0.name)
+		rank: orelse(v0_0.rank, 0) @lacuna(Placeholder, "rank was absent; 0 is a placeholder")
+	}
 }
 -- out/bind --
 ok
@@ -26,9 +29,12 @@ schema: {
 	rank: int
 }
 
-forward: {
-	nick: orelse(input.nick, input.name)
-	rank: orelse(input.rank, 0) @lacuna(Placeholder, "rank was absent; 0 is a placeholder")
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		nick: orelse(v0_0.nick, v0_0.name)
+		rank: orelse(v0_0.rank, 0) @lacuna(Placeholder, "rank was absent; 0 is a placeholder")
+	}
 }
 -- out/decompiled/history/0.0.thema --
 schema: {

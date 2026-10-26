@@ -8,9 +8,12 @@ schema: {
 	b: string
 }
 
-forward: {
-	b: orelse(input.a, "x")
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		b: orelse(v0_0.a, "x")
+	}
 }
 -- out/error --
-0.0 always has a, so orelse's fallback could never apply: write b: input.a:
-    1.0.thema:6:5
+0.0 always has a, so orelse's fallback could never apply: write b: v0_0.a:
+    1.0.thema:8:6
