@@ -4,7 +4,7 @@
 import "github.com/sdboyer/thema"
 
 thema.Lineage
-name: "change-default"
+name: "changeDefault"
 schemas: [
     {
         version: [0, 0]
@@ -46,6 +46,5 @@ lenses: [
 ]
 -- out/bindfail --
 schema 0.2 is not backwards compatible with schema 0.1:
-field aunion not present in {aunion:*"foo" | "bar" | "baz"}:
-    /github.com/sdboyer/thema@v0.1.0/lineage.cue:223:11
-missing field "aunion"
+aunion fills with "baz" when absent, where the prior schema filled it with "foo" (rule default-changed):
+    /in.cue:22:7

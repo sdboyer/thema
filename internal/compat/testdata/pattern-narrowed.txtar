@@ -1,0 +1,8 @@
+# a pattern that matches fewer labels
+-- old.cue --
+m: [string]: int
+-- new.cue --
+m: [=~"^a"]: int
+-- out --
+incompatible
+m accepts any field name in the prior schema and only names matching [=~"^a"] in the new one (rule labels-narrowed) @ new.cue:1:1

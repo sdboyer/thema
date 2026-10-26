@@ -1,0 +1,9 @@
+# identical struct.MinFields (fp-identical-struct-minfields)
+-- old.cue --
+import "struct"
+s: {a?: int} & struct.MinFields(1)
+-- new.cue --
+import "struct"
+s: {a?: int} & struct.MinFields(1)
+-- out --
+compatible

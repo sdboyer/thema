@@ -74,10 +74,10 @@ _EmbedRef: {
   "paths": {},
   "components": {
     "schemas": {
-      "refField1": {
+      "foo": {
         "type": "string"
       },
-      "foo": {
+      "refField1": {
         "type": "string"
       },
       "refField2": {
@@ -104,14 +104,11 @@ _EmbedRef: {
         "type": "object",
         "required": [
           "refField1",
-          "foo",
-          "refField2"
+          "refField2",
+          "foo"
         ],
         "properties": {
           "refField1": {
-            "type": "string"
-          },
-          "foo": {
             "type": "string"
           },
           "refField2": {
@@ -119,6 +116,9 @@ _EmbedRef: {
             "enum": [
               42
             ]
+          },
+          "foo": {
+            "type": "string"
           }
         }
       }

@@ -7,62 +7,66 @@ The most fundamental task in thema is writing a lineage. Writing a lineage is si
 
 This tutorial focuses on the second key difference: expressing collections of schemas as a valid lineage.
 
-**Note:** A primer on writing CUE is available using the [official CUE tutorials](https://cuelang.org/docs/tutorials/) and [CUE Playground](https://tip.cuelang.org/play/?id=#cue@export@cue). 
+**Note:** A primer on writing CUE is available using the [official CUE tutorials](https://cuelang.org/docs/tutorials/) and [CUE Playground](https://cuelang.org/play/).
 
 ## Before you begin
 
 Read the [Thema overview](overview.md) before beginning this tutorial.
 
-**NOTE: lineage validity is not yet [fully enforced](invariants.md) in pure CUE. Consequently, lineages described as "invalid" by this tutorial may not complain when you `cue eval` them.**
+Lineages are written in a CUE module that depends on thema's CUE module, `github.com/sdboyer/thema@v0`:
+
+```bash
+cue mod init github.com/example/ships
+cue mod get github.com/sdboyer/thema@v0
+```
+
+When lineages are loaded through thema's Go library, thema serves its own CUE module from the copy built into the library, and the version in your `cue.mod/module.cue` must match it exactly. See [CUE modules](cue-modules.md).
 
 ## Scaffolding
 
-Thema lineages require only two fields to be explicitly defined: 
+A lineage is a `thema.Lineage` with two required fields:
 
-1. `name`: the identifier for the thing schematized by the lineage. Use a simple name, not a fully-qualified name - you'll define the fully-qualified name later. For this tutorial, we'll use [`"Ship"`](https://github.com/sdboyer/thema/blob/main/FAQ.md#where-does-the-name-thema-come-from).
-2. `seqs`: contains the list of all sequences of all schemas within the lineage, and the lenses that map between them. It's basically a two-dimensional array.
+1. `name`: the identifier for the thing schematized by the lineage. Use a simple name, not a fully-qualified name. For this tutorial, we'll use [`"Ship"`](https://github.com/sdboyer/thema/blob/main/FAQ.md#where-does-the-name-thema-come-from).
+2. `schemas`: the ordered list of every schema the lineage has ever had.
 
 ```cue
 import "github.com/sdboyer/thema"
 
-lin: thema.Lineage 
-lin: name: "Ship"
-lin: seqs: [
-    {
-        schemas: []
-    }
-]
+lin: thema.Lineage & {
+	name: "Ship"
+	schemas: []
+}
 ```
 
-A valid lineage requires at least one sequence in `seqs`, which in turn must contain at least one schema in its `schemas` list. As a result, our example isn't actually a valid lineage. Rather, it's the minimum necessary structure to begin defining a lineage. (Note that the outermost `lin` can be omitted, in which case the entire file is the lineage.)
+A valid lineage requires at least one schema in `schemas`, so this isn't actually a valid lineage yet - it's the minimum structure to start from. Tooling refuses to work with invalid lineages, similar to a failed type check: [loading this lineage in Go](https://pkg.go.dev/github.com/sdboyer/thema#BindLineage) fails with an error about the length of `schemas`.
 
-Supporting tooling must refuse to work with invalid lineages, similar to a failed type check. As a result, attempting to `cue eval`, [load the lineage for use in Go](https://pkg.go.dev/github.com/sdboyer/thema#BindLineage), or otherwise doing anything with the example here, ([should](TODOlinktoissue)) fail with a message that the length of `schemas` is less than one.
+thema checks the fields of a lineage, its schema entries and its lenses: a misspelled `schemass` or `lense` is an error, both in plain CUE and in Go. Hidden fields (`_helper`) and definitions (`#Helper`) are left alone, so you can keep your own helpers alongside a lineage. When you need regular fields next to a lineage, put the lineage in its own field, as above (`lin: thema.Lineage & {...}`), rather than embedding `thema.Lineage` at the top of a file.
 
 ## Defining a schema
 
-Each element in the `schemas` list is treated as a single schema. By default, these schema definitions can be any CUE value, from a simple primitive `bool` to a highly complex, deeply nested object. Complex CUE constraints may also be used, though [this may limit translatability](TODO).
+Each element of `schemas` declares one schema: its `version`, and the `schema` itself. Schemas are CUE structs, from a single field to highly complex, deeply nested objects. Complex CUE constraints may also be used, though they may limit translatability to other languages.
 
-Lineages should be sealed structures, as thema invariants only hold in the context of immutable schema declarations. Referencing CUE values from externally imported CUE modules within thema schema can undermine this, as those values may change when the version of the imported module is changed.
+Lineages should be sealed structures, as thema's invariants only hold in the context of immutable schema declarations. A schema should refer only to itself and the lineage's `joinSchema`; values from elsewhere, especially from other CUE modules, may change when their source changes.
 
 Let's define our first schema as an object containing a single field named `firstfield`, which must be of type `string`.
 
 ```cue
 import "github.com/sdboyer/thema"
 
-lin: thema.Lineage 
-lin: name: "Ship"
-lin: seqs: [
-    {
-        schemas: [
-            {
-                firstfield: string
-            }
-        ]
-    }
-]
+lin: thema.Lineage & {
+	name: "Ship"
+	schemas: [{
+		version: [0, 0]
+		schema: {
+			firstfield: string
+		}
+	}]
+}
 ```
 
 And that's it! Congratulations, we now have a valid thema lineage, containing a single schema.
+
+(The first schema's `version` may be omitted, as it can only be `[0, 0]`. Every other schema must declare its version.)
 
 ## Adding more schemas
 
@@ -70,39 +74,38 @@ The schema we wrote isn't terribly exciting. But we can add to it.
 
 When writing real thema, whether to define a new schema or make additions directly to the existing one is determined by whether the latest existing schema has been published, as published schema must be immutable. That makes the definition of "published" quite important.
 
-For this tutorial, we'll sidestep the issue by assuming that publication has happened. Because publication has happened - making the schema immutable - making changes requires creating a new schema. 
+For this tutorial, we'll sidestep the issue by assuming that publication has happened. Because publication has happened - making the schema immutable - making changes requires creating a new schema.
 
-Let's add one more field, `secondfield`, which must be an `int`.
+A schema's version is a pair, `[major, minor]`. Each schema's version must be exactly the next minor version of its predecessor, or the first version (`.0`) of the next major version. Which of the two is correct isn't the author's choice: it is determined by whether the change is backward compatible. A schema that is backward compatible with its predecessor - every instance of the old schema is also an instance of the new one - is the next minor version. A schema that isn't is the next major version.
 
-**Note:** in thema, schema version is determined by its position within the two-dimensional array structure of `seqs`, rather than through arbitrary choice by the author. These structurally-determined version numbers are indicated as comments.
+Let's add one more field, `secondfield`, which must be an `int`, as version `0.1`.
 
 ```cue
 import "github.com/sdboyer/thema"
 
-lin: thema.Lineage 
-lin: name: "Ship"
-lin: seqs: [
-    {
-        schemas: [
-            { // 0.0
-                firstfield: string
-            },
-            { // 0.1
-                firstfield: string // You can manually recreate the prior schema...
-                schemas[0] // ...or just embed a reference to it.
-                secondfield: int
-            }
-        ]
-    }
-]
+lin: thema.Lineage & {
+	name: "Ship"
+	schemas: [{
+		version: [0, 0]
+		schema: {
+			firstfield: string
+		}
+	}, {
+		version: [0, 1]
+		schema: {
+			firstfield:  string
+			secondfield: int
+		}
+	}]
+}
 ```
 
-This isn't a valid lineage, though. `secondfield` is required and lacks a default, which means that valid instances of `0.0` will be invalid with respect to `0.1`. Our change is backward incompatible, which breaks the rules of thema.
+This isn't a valid lineage, though. `secondfield` is required and lacks a default, which means that valid instances of `0.0` will be invalid with respect to `0.1`. Our change is backward incompatible, so it can't be a minor version.
 
 There are three approaches to fixing this:
 - make `secondfield` optional
 - give `secondfield` a default[^defaultcompat]
-- start a new sequence
+- make the new schema a new major version
 
 ## Optional fields
 
@@ -111,52 +114,44 @@ The simplest fix involves just one character: `?`. This indicates that `secondfi
 ```cue
 import "github.com/sdboyer/thema"
 
-lin: thema.Lineage 
-lin: name: "Ship"
-lin: seqs: [
-    {
-        schemas: [
-            { // 0.0
-                firstfield: string
-            },
-            { // 0.1
-                firstfield: string
-                secondfield?: int
-            }
-        ]
-    }
-]
+lin: thema.Lineage & {
+	name: "Ship"
+	schemas: [{
+		version: [0, 0]
+		schema: {
+			firstfield: string
+		}
+	}, {
+		version: [0, 1]
+		schema: {
+			firstfield:   string
+			secondfield?: int
+		}
+	}]
+	lenses: [{
+		from: [0, 1]
+		to: [0, 0]
+		input: _
+		result: {
+			firstfield: input.firstfield
+		}
+	}]
+}
 ```
+
+Every schema needs a lens back to its predecessor; for a minor version, that lens is simple, as it only needs to leave out what the newer schema added. Lenses are covered [below](#defining-lenses).
 
 Marking added fields as optional is often a good option, but it's not without implications. By making `secondfield` optional, we have nontrivially expanded the set of valid values to which consumers of `Ship` must assign semantics/program behavior. Before, it was "all valid values of `int`". Now, it's that, plus "an absence of a value."
 
-If the behavior of a program accepting `Ship` behaves in a meaningfully different way absent this value rather than any valid `int`, this outcome may be acceptable. But if the program treats the _absence_ of a `Ship.secondfield` as equivalent to the _presence_ of some particular `int` value, it's better to set a default.
+If the behavior of a program accepting `Ship` behaves in a meaningfully different way absent this value rather than any valid `int`, this outcome may be acceptable. But if the program treats the _absence_ of a `Ship.secondfield` as equivalent to the _presence_ of some particular `int` value, a default is the more natural fit.
 
 ## Setting defaults
 
-CUE allows [specifying default values](https://cuelang.org/docs/tutorials/tour/types/defaults/) for fields. We can do so with `secondfield`, which will (may[^defaultcompat]) make `0.1` backward compatible with `0.0`, making our lineage valid. In this example, specify `42` as the default value.
+CUE allows [specifying default values](https://cuelang.org/docs/tour/types/defaults/) for fields: `secondfield: int | *42` gives `secondfield` a default of `42`. Every instance of `0.0` is still an instance of a schema that adds a defaulted field, so this should be backward compatible.
 
-```cue
-import "github.com/sdboyer/thema"
+However, thema does not yet treat adding a field with a default as a backward compatible change[^defaultcompat], so for now, prefer optional fields.
 
-lin: thema.Lineage 
-lin: name: "Ship"
-lin: seqs: [
-    {
-        schemas: [
-            { // 0.0
-                firstfield: string
-            },
-            { // 0.1
-                firstfield: string
-                secondfield: int | *42
-            }
-        ]
-    }
-]
-```
-
-Choosing between optional and default values for added fields is a subtle, surprisingly hard problem that lacks a single, universally correct answer. (In most schema-writing cases, using both at once is discouraged, as it just muddles the issue further.) In general, prefer: 
+Choosing between optional and default values for added fields is a subtle, surprisingly hard problem that lacks a single, universally correct answer. (In most schema-writing cases, using both at once is discouraged, as it just muddles the issue further.) In general, prefer:
 
 * Optional fields when the absence of said field most naturally corresponds to an absence of a class of behavior in the consuming program
 * Default values when the absence of said field most naturally corresponds to the behavior when a particular value is present
@@ -164,118 +159,97 @@ Choosing between optional and default values for added fields is a subtle, surpr
 Other considerations:
 
 * Optional values may not translate well into the language you want to work in. TypeScript has a direct symbolic equivalent, but in Go, the only sane representation is to represent the field as a pointer type and treat `nil` as absence.
-* Once a default value is published, changing it is always considered a breaking change, requiring the creation of a new lineage 
+* Once a default value is published, changing it is always considered a breaking change, requiring a new major version.
 
 ## Safe breaking changes
 
-The third option for making our lineage valid is to rely on thema's foundational feature: making breaking changes safely. We choose this path over the others for some reason that's important to the semantics of a newer version of our program - the field is indeed required for all future correct behavior, and relies on information - say, some user input - that simply wasn't a part of the initial schema. Requirements evolve, and programs naturally evolve them. 
+The third option for making our lineage valid is to rely on thema's foundational feature: making breaking changes safely. We choose this path over the others for some reason that's important to the semantics of a newer version of our program - the field is indeed required for all future correct behavior, and relies on information - say, some user input - that simply wasn't a part of the initial schema. Requirements evolve, and programs naturally evolve them.
 
-In this approach, rather than adding `secondfield` to a schema in the same sequence, we place our schema in a new sequence, thereby granting the new schema the version number `1.0`.
+In this approach, the new schema is a new major version: `1.0`.
 
 ```cue
 import "github.com/sdboyer/thema"
 
-lin: thema.Lineage 
-lin: name: "Ship"
-lin: seqs: [
-    {
-        schemas: [
-            { // 0.0
-                firstfield: string
-            },
-        ]
-    },
-    {
-        schemas: [
-            { // 1.0
-                firstfield: string
-                secondfield: int
-            }
-        ]
-    }
-]
+lin: thema.Lineage & {
+	name: "Ship"
+	schemas: [{
+		version: [0, 0]
+		schema: {
+			firstfield: string
+		}
+	}, {
+		version: [1, 0]
+		schema: {
+			firstfield:  string
+			secondfield: int
+		}
+	}]
+}
 ```
 
-Whereas successive schema in the same sequence must be backward compatible, a successor schema in a _different_ sequence must be backward _in_compatible_. (The logical inverse holds.) As a result, making `secondfield` here either optional or giving it a default will make this lineage invalid.
+Whereas a minor version must be backward compatible with its predecessor, a major version must be backward _in_compatible. (The logical inverse holds.) As a result, making `secondfield` here either optional or giving it a default will make this lineage invalid.
 
-But this lineage is already invalid, because all sequences after the first requires the author to _also_ define a Lens.
+But this lineage is already invalid, because crossing a major version also requires the author to define lenses.
 
-## Defining a lens
+## Defining lenses
 
-Lenses define a bidirectional mapping back and forth between sequences, logically connecting the final schema in one sequence to the first schema in its successor sequence. They're the magical connectivity that provide thema's foundational guarantee - translatability of a valid instance of a schema to other versions of that schema.
+Lenses define mappings between schemas. They're the magical connectivity that provide thema's foundational guarantee - translatability of a valid instance of a schema to other versions of that schema.
 
 But - as in all software - where there be magic, [there be dragons](https://en.wikipedia.org/wiki/Here_be_dragons). Checking syntactic, type-level backward compatibility is trivial thanks to CUE, but _semantics_, best thought of as the intended behavior of the programs consuming schema instances, are the only reasonable motivation for making a breaking change. Because [no general algorithm can exist for specifying semantic correctness](https://en.wikipedia.org/wiki/Rice%27s_theorem), it's the responsibility of lineage authors to ensure that their lenses capture semantics correctly.
 
-The only help thema, or any generic system, can provide is linting; for example, "field `x` isn't mapped to the new sequence - did you mean to do that?"
+A lineage must have exactly these lenses:
 
-TODO move ^ to concepts/termdef section on lenses
+- one from every schema back to its predecessor
+- one forward across every major version boundary, from the last schema of one major version to the first of the next
 
-Lenses map to the new sequence (`forward`) and back (`reverse`). In both directions, there's a schema being mapped `from` and `to`, and the actual mapping is encapsulated within the `rel` field.
+Moving forward within a major version needs no lens, as backward compatibility already guarantees an old instance is a new instance.
 
-The change to the `Ship` schema is trivial, but presents an interesting challenge - because we specifically don't want to make `secondfield` optional or give it a default value, how can we define a `rel` that still produces a valid instance of `Ship@1.0` on the other side of the `forward` mapping? (Guaranteed valid concrete lens output [is a property we hope to generically enforce, but don't yet](TODOlinktoissue).)
+Each lens has a `from` version, a `to` version, an `input` that stands for an instance of the `from` schema, and a `result`: the instance of the `to` schema, built from `input`. A lens's result may contain only fields its `to` schema declares. thema checks lenses when the lineage is loaded, treating `input` as any instance of its schema: a result that couldn't be an instance of the `to` schema, or that refers to a field `input` can't have, is an error before any data is ever translated.
+
+The change to the `Ship` schema is trivial, but presents an interesting challenge - because we specifically don't want to make `secondfield` optional or give it a default value, how can we define a forward lens that still produces a valid instance of `Ship@1.0`?
 
 The only real answer is to add a placeholder value - here, `-1`.
 
 ```cue
 import "github.com/sdboyer/thema"
 
-lin: thema.Lineage
-lin: name: "Ship"
-lin: seqs: [
-    {
-        schemas: [
-            { // 0.0
-                firstfield: string
-            },
-        ]
-    },
-    {
-        schemas: [
-            { // 1.0
-                firstfield: string
-                secondfield: int
-            }
-        ]
-
-        lens: forward: {
-            from: seqs[0].schemas[0]
-            to: seqs[1].schemas[0]
-            rel: {
-                // Direct mapping of the first field
-                firstfield: from.firstfield
-                // Just some placeholder int, so we have a valid instance of schema 1.0
-                secondfield: -1
-            }
-            translated: to & rel
-        }
-        lens: reverse: {
-            from: seqs[1].schemas[0]
-            to: seqs[0].schemas[0]
-            rel: {
-                // Map the first field back
-                firstfield: from.firstfield
-            }
-            translated: to & rel
-        }
-    }
-]
-```
-
-Applied to some concrete JSON (with a `version` field implicitly added to the schema), this lens would produce the following:
-
-```json
-{
-    "input": {
-        "version": [0, 0],
-        "firstfield": "foobar",
-    },
-    "output": {
-        "version": [1, 0],
-        "firstfield": "foobar",
-        "secondfield": -1
-    }
+lin: thema.Lineage & {
+	name: "Ship"
+	schemas: [{
+		version: [0, 0]
+		schema: {
+			firstfield: string
+		}
+	}, {
+		version: [1, 0]
+		schema: {
+			firstfield:  string
+			secondfield: int
+		}
+	}]
+	lenses: [{
+		from:  [1, 0]
+		to:    [0, 0]
+		input: _
+		result: {
+			// Map the first field back
+			firstfield: input.firstfield
+		}
+	}, {
+		from:  [0, 0]
+		to:    [1, 0]
+		input: _
+		result: {
+			// Direct mapping of the first field
+			firstfield: input.firstfield
+			// Just some placeholder int, so we have a valid instance of schema 1.0
+			secondfield: -1
+		}
+	}]
 }
 ```
+
+Translating `{"firstfield": "foobar"}` from `0.0` to `1.0` produces `{"firstfield": "foobar", "secondfield": -1}`.
 
 The output is valid, but less than ideal. Are we just going to have `-1` values littered all over our instances of `Ship.secondfield`? When would those get cleaned up? Does choosing `-1` as a placeholder grant special semantics to that particular value in perpetuity?
 
@@ -289,107 +263,125 @@ To prevent this outcome, what we really need is a pressure release valve. Which 
 
 Lacunas represent a gap or flaw in a lens translation. As a lineage author, you add a lacuna to your lens when the translation results in a message that, while syntactically valid (it conforms to schema), has problematic semantics. Lacunas are accumulated during translation, and returned alongside the translated instance itself.
 
-Thema defines a limited set of lacuna types that correspond to different types of flaws. (This area is under active development.) For our case, we should emit a `Placeholder` lacuna.
+A lens lists every lacuna it can emit in its `lacunas` field. Each lacuna has:
+
+- `type`: the kind of gap, one of `thema.LacunaTypes`
+- `message`: a human-readable description of the gap
+- `sourceFields` and `targetFields`: the fields, in the `from` and `to` schemas, that the gap concerns, as a CUE path (`"a.b"`) and the field's value
+- `condition`: whether the gap applies to the instance being translated (default `true`)
+
+Lacunas are always listed unconditionally, with `condition` deciding whether each applies - not wrapped in an `if`. That way, every lacuna a lens can emit is known when the lineage is loaded, and thema checks that its field paths exist in the schemas they refer to.
+
+The lacuna types are:
+
+| Type | The gap |
+|---|---|
+| `Placeholder` | A target field holds a lens-invented value standing in for data the source didn't have, meant to be replaced |
+| `DroppedField` | Source data was discarded |
+| `LossyFieldMapping` | Some source values have no clear mapping to a target value (e.g. a coercion only some values survive) |
+| `ChangedDefault` | The source value was the source schema's default, and was changed to the target schema's differing default |
+| `PrecisionLoss` | Every value maps, but with reduced fidelity (e.g. seconds to whole milliseconds) |
+| `AmbiguousMapping` | The lens chose one of several equally valid target values |
+| `Defaulted` | A target field holds the target schema's default, because the source had no corresponding data |
+
+For our case, the forward lens should emit a `Placeholder` lacuna, and the backward lens a `DroppedField` - which gives us the complete `Ship` lineage, also available as [`ship.cue`](ship.cue):
 
 ```cue
 import "github.com/sdboyer/thema"
 
-lin: thema.Lineage
-lin: name: "Ship"
-lin: seqs: [
-    {
-        schemas: [
-            { // 0.0
-                firstfield: string
-            },
-        ]
-    },
-    {
-        schemas: [
-            { // 1.0
-                firstfield: string
-                secondfield: int
-            }
-        ]
-
-        lens: forward: {
-            from: seqs[0].schemas[0]
-            to: seqs[1].schemas[0]
-            rel: {
-                firstfield: from.firstfield
-                secondfield: -1
-            }
-            lacunas: [
-                thema.Lacuna & {
-                    targetFields: [{
-                        path: "secondfield"
-                        value: to.secondfield
-                    }]
-                    message: "-1 used as a placeholder value - replace with a real value before persisting!"
-                    type: thema.LacunaTypes.Placeholder
-                }
-            ]
-            translated: to & rel
-        }
-        lens: reverse: {
-            from: seqs[1].schemas[0]
-            to: seqs[0].schemas[0]
-            rel: {
-                // Map the first field back
-                firstfield: from.firstfield
-            }
-            translated: to & rel
-        }
-    }
-]
+lin: thema.Lineage & {
+	name: "Ship"
+	schemas: [{
+		version: [0, 0]
+		schema: {
+			firstfield: string
+		}
+	}, {
+		version: [1, 0]
+		schema: {
+			firstfield:  string
+			secondfield: int
+		}
+	}]
+	lenses: [{
+		from:  [1, 0]
+		to:    [0, 0]
+		input: _
+		result: {
+			firstfield: input.firstfield
+		}
+		lacunas: [thema.Lacuna & {
+			sourceFields: [{
+				path:  "secondfield"
+				value: input.secondfield
+			}]
+			message: "secondfield has no equivalent in 0.0 and was dropped"
+			type:    thema.LacunaTypes.DroppedField
+		}]
+	}, {
+		from:  [0, 0]
+		to:    [1, 0]
+		input: _
+		result: {
+			firstfield:  input.firstfield
+			secondfield: -1
+		}
+		lacunas: [thema.Lacuna & {
+			targetFields: [{
+				path:  "secondfield"
+				value: result.secondfield
+			}]
+			message: "-1 used as a placeholder value - replace with a real value before persisting!"
+			type:    thema.LacunaTypes.Placeholder
+		}]
+	}]
+}
 ```
 
-Basic inputs and outputs:
+Translating `{"firstfield": "foobar"}` from `0.0` to `1.0` now yields, alongside the instance, one translation step with its lacunas:
 
 ```json
-{
-    "input": {
-        "version": [0, 0],
-        "firstfield": "foobar",
-    },
-    "output": {
-        "instance": {
-            "version": [1, 0],
-            "firstfield": "foobar",
-            "secondfield": -1
-        },
+[
+    {
+        "from": [0, 0],
+        "to": [1, 0],
         "lacunas": [
             {
-                "sourceFields": [],
                 "targetFields": [
                     {
                         "path": "secondfield",
                         "value": -1
                     }
                 ],
-                "message": "-1 used as a placeholder value - replace with a real value before persisting!",
-                "type": "Placeholder"
+                "type": "Placeholder",
+                "message": "-1 used as a placeholder value - replace with a real value before persisting!"
             }
         ]
     }
-}
+]
 ```
+
+A translation across several versions reports the lacunas of each step separately, in that step's terms.
 
 Encapsulating translation flaws as lacunas relieves pressure on the schemas and translation. Schemas need not carry extraneous, legacy fields to reflect translation flaws, and lacunas can disambiguate for the calling program between translations with flaws, and those without. In this case, we can imagine `secondfield` is actually a serial identifier/foreign key, and the calling program can be constructed to look for a `Placeholder` lacuna on `secondfield`, then replace that `-1` with a correct value derived from another source.
 
-Knowing when to emit a lacuna, and which type to emit, is nontrivial. The set of lacuna types and precise rules for when and how to use them appropriately are under active development. We will, in future, provide documentation specific to each lacuna type. In the meantime, the [exemplars directory](https://github.com/sdboyer/thema/tree/main/exemplars) contains a number of examples of lacuna use.
+Knowing when to emit a lacuna, and which type to emit, is nontrivial. The [exemplars directory](https://github.com/sdboyer/thema/tree/main/exemplars) contains further examples, including conditional lacunas.
 
 ## Advanced: schema openness
 
-TODO
+thema takes no position on whether a schema is open or closed: a schema means exactly what its author wrote. Operations that need closed semantics apply them where they're used:
 
-## Advanced: constraining with `joinSchema`
+- checking backward compatibility compares schemas as if closed
+- validating data closes the schema by default, so data may contain only fields the schema defines (the Go library can instead validate against a schema exactly as written)
+- a lens's result may contain only fields its target schema declares, even where the schema is open
 
-TODO
+## Advanced: `joinSchema`
+
+A lineage's `joinSchema` is unified into every one of its schemas: its fields, constraints and defaults become part of every version. It must be a struct, and like a lineage's name, it must never change as the lineage evolves.
 
 ## Wrap up
 
 You've now seen all the component parts of thema and how they work together, which provides a sense of how to express schemas using thema. In the [next tutorial](go-mapping.md), we'll map the `Ship` lineage created here to a general-purpose language (Go), which is prerequisite to writing useful programs around lineages.
 
 [^defaultcompat]:
-    Including a default [may or may not](https://github.com/grafana/thema/discussions/15) ultimately be considered a backwards compatible change by Thema. For now, prefer using optional fields.
+    Whether adding a field with a default should be backward compatible is an [open question](https://github.com/sdboyer/thema/issues/18). Every old instance remains valid, but thema's compatibility check currently rejects it.

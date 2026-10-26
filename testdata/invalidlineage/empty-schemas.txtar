@@ -3,8 +3,8 @@
 import "github.com/sdboyer/thema"
 
 thema.Lineage
-name: "empty-schemas"
+name: "emptySchemas"
 schemas: []
 -- out/bindfail --
 schemas: schemas: incompatible list lengths (0 and 1):
-    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:45:12
+    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:49:12

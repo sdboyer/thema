@@ -17,17 +17,17 @@ Components and operations are exposed as exported structs definitions in CUE (no
 Thema is built from six fundamental logical components:
 
 * **Schema:** The common meaning - a specification for the shape of some data.
-* **Sequence:** An ordered list of schema, each backward compatible with its predecessors.
-* **Lens:** A bidirectional mapping between the final schema in one sequence, and the first schema in another sequence.
-* **Lineage:** An ordered list of sequences, linked tail-to-head by lenses, that collectively contain the history of all schemas for a single kind of object.
+* **Sequence:** The schemas sharing a major version: an ordered list of schema, each backward compatible with its predecessors.
+* **Lens:** A mapping from one schema to an adjacent one. Every schema has a lens back to its predecessor; crossing from one sequence to the next also requires a lens forward.
+* **Lineage:** An ordered list of schemas, grouped into sequences and connected by lenses, that collectively contain the history of all schemas for a single kind of object.
 * **Instance:** Some data that is valid with respect to a schema.
 * **Lacuna:** A gap in a lens's mapping logic such that a particular instance, having passed through that lens, has some meaningful semantic deficiency.
 
-These logical components are deeply interlinked as illustrated below. The first four components - schema, sequence, lens, and lineage - can be understood independent of a program that is running a useful operation. If we had a valid lineage containing two sequences, each containing two schema, and thus necessarily one explicitly-defined lens, it would look like this:
+These logical components are deeply interlinked as illustrated below. The first four components - schema, sequence, lens, and lineage - can be understood independent of a program that is running a useful operation. If we had a valid lineage containing two sequences, each containing two schema, it would look like this:
 
 ![Abstract Lineage](lineage-structure.png)
 
-Lenses within a sequence are implicit, because that's precisely what backward compatibility means: instances of old schema remain valid with respect to newer schema, without the need for translation. (NOTE: diagram notwithstanding, this is clearly not true in reverse - this is a [TODO](https://github.com/grafana/thema/issues/6).)
+Lenses forward within a sequence are implicit, because that's precisely what backward compatibility means: instances of old schema remain valid with respect to newer schema, without the need for translation. The reverse doesn't hold - a newer schema may add fields an older one lacks - so every schema needs an explicit lens back to its predecessor, even within a sequence.
 
 The remaining two concepts - instance and lacuna - are most easily understood in the context of a program performing operations on a lineage. Beyond that, it's useful to review concrete examples, either via the [Lineage authoring tutorial](authoring.md) or by looking at the [exemplars](https://github.com/sdboyer/thema/tree/main/exemplars).
 

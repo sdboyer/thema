@@ -4,7 +4,7 @@
 import "github.com/sdboyer/thema"
 
 thema.Lineage
-name: "optional-to-required"
+name: "optionalToRequired"
 schemas: [{
     version: [0, 0]
     schema: {
@@ -28,6 +28,5 @@ lenses: [{
 }]
 -- out/bindfail --
 schema 0.1 is not backwards compatible with schema 0.0:
-field toUpgrade not present in {toUpgrade?:string}:
-    /github.com/sdboyer/thema@v0.1.0/lineage.cue:223:11
-missing field "toUpgrade"
+toUpgrade was optional and is now required (rule field-now-required):
+    /in.cue:15:9

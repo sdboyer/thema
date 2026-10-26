@@ -1,0 +1,26 @@
+# minor bump adds struct.MaxFields(1); {m: {a: 1, b: 2}} was valid at 0.0 and is invalid at 0.1
+#issue: 17
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+	"struct"
+)
+
+lin: thema.Lineage & {
+	name: "compatStructMaxfields"
+	schemas: [{
+		version: [0, 0]
+		schema: {m: [string]: int}
+	}, {
+		version: [0, 1]
+		schema: {m: struct.MaxFields(1) & {[string]: int}}
+	}]
+	lenses: [{
+		from: [0, 1]
+		to: [0, 0]
+		input: _
+		result: {m: input.m}
+	}]
+}
+-- expect --
+bind fail

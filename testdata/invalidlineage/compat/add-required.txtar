@@ -5,7 +5,7 @@
 import "github.com/sdboyer/thema"
 
 lin: thema.Lineage
-lin: name: "add-required"
+lin: name: "addRequired"
 lin: schemas: [{
     version: [0, 0]
     schema: {
@@ -30,5 +30,5 @@ lin: lenses: [{
 }]
 -- out/bindfail --
 schema 0.1 is not backwards compatible with schema 0.0:
-regular field is constraint in subsumed value: added
-value not an instance
+added is required in the new schema but not declared in the prior one (rule field-added-required):
+    /in.cue:16:9

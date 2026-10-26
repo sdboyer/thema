@@ -1,0 +1,27 @@
+# input data reached through a let is copied, not computed: an open target may
+# receive fields it tolerates, as with a direct reference to input
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "lensLetCopy"
+	schemas: [{
+		version: [0, 0]
+		schema: {a: string, n: {p: int, ...}}
+	}, {
+		version: [0, 1]
+		schema: {a: string, n: {p: int, ...}, b?: int}
+	}]
+	lenses: [{
+		from: [0, 1]
+		to: [0, 0]
+		input: _
+		let N = input.n
+		result: {a: input.a, n: N}
+	}]
+}
+-- expect --
+bind ok
+translate 0.1 0.0 ok {a: "x", n: {p: 1, q: 2}}

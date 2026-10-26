@@ -1,0 +1,25 @@
+# lens result unconditionally contains a field its target schema does not declare
+#issue: 20
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "lensResultUndeclaredConstant"
+	schemas: [{
+		version: [0, 0]
+		schema: {a: string}
+	}, {
+		version: [0, 1]
+		schema: {a: string, b?: int}
+	}]
+	lenses: [{
+		from: [0, 1]
+		to: [0, 0]
+		input: _
+		result: {a: input.a, bogus: true}
+	}]
+}
+-- expect --
+bind fail

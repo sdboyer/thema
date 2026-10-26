@@ -1,0 +1,7 @@
+# int to number
+-- old.cue --
+n: int
+-- new.cue --
+n: number
+-- out --
+compatible

@@ -1,0 +1,10 @@
+# strings.HasSuffix tightened
+-- old.cue --
+import "strings"
+s: string & strings.HasSuffix("bc")
+-- new.cue --
+import "strings"
+s: string & strings.HasSuffix("abc")
+-- out --
+incompatible
+s must now satisfy strings.HasSuffix("abc"), where the prior schema required strings.HasSuffix("bc") (rule validator-added) @ new.cue:2:1

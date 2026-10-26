@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "lens-result-depends-on-other-lens"
+	name: "lensResultDependsOnOtherLens"
 	schemas: [{
 		version: [0, 0]
 		schema: {a: string}

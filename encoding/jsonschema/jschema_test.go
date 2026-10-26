@@ -20,7 +20,6 @@ func init() {
 }
 
 func TestExemplarExportIsValid(t *testing.T) {
-	t.Skip("TODO(#1): OpenAPI generation not yet ported to CUE v0.18")
 	all := exemplars.All(rt)
 	for name, lin := range all {
 		t.Run(name, func(t *testing.T) {

@@ -1,0 +1,9 @@
+# identical time.Format (fp-identical-time-format)
+-- old.cue --
+import "time"
+t: time.Format(time.RFC3339)
+-- new.cue --
+import "time"
+t: time.Format(time.RFC3339)
+-- out --
+compatible

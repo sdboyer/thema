@@ -1,0 +1,9 @@
+# removing a required field
+-- old.cue --
+a: string
+b: int
+-- new.cue --
+a: string
+-- out --
+incompatible
+b is declared in the prior schema and not accepted by the new one (rule field-removed) @ old.cue:2:1

@@ -6,7 +6,7 @@ import "github.com/sdboyer/thema"
 _table: {x: "from-outside"}
 
 lin: thema.Lineage & {
-	name: "ext-lens-table"
+	name: "extLensTable"
 	schemas: [{
 		version: [0, 0]
 		schema: {a: string}

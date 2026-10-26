@@ -1,0 +1,8 @@
+# optional to required
+-- old.cue --
+a?: int
+-- new.cue --
+a!: int
+-- out --
+incompatible
+a was optional and is now required (rule field-now-required) @ new.cue:1:1

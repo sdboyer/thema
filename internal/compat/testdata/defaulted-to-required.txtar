@@ -1,0 +1,8 @@
+# defaulted to required (compat-remove-default)
+-- old.cue --
+a: *1 | int
+-- new.cue --
+a: int
+-- out --
+incompatible
+a was defaulted and is now required (rule field-now-required) @ new.cue:1:1

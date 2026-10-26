@@ -1,0 +1,9 @@
+# a comprehension over data added
+-- old.cue --
+kind: string
+-- new.cue --
+kind: string
+if kind == "x" {extra?: int}
+-- out --
+unknown
+the top level has fields decided by a comprehension over data, which differs between the schemas; the checker cannot evaluate it (rule unknown-comprehension) @ new.cue:2:4

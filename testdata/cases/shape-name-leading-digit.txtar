@@ -1,0 +1,12 @@
+# lineage name starts with a digit
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "2ship"
+	schemas: [{version: [0, 0], schema: {a: int}}]
+}
+-- expect --
+bind fail out of bound

@@ -1,0 +1,263 @@
+The shape of what the views return, and how they treat everyday constructs.
+
+- A value that needs an import, even of a builtin package (strings), is an
+  *ast.File with bare top-level declarations; otherwise an expression.
+- evaluated half-evaluates interpolations ("v\(5)"); final and data finish them.
+- final is not data: it keeps required fields (r!: int) and non-concrete
+  references, drops optional fields, close() and ..., and takes defaults.
+- data fails on any non-concrete value. (Syntax(cue.Concrete(true)) alone would
+  write _|_ with the message in a comment, and report no error.)
+- An error is exported as _|_ with its message in a comment, not as an export
+  failure: in evaluated at the field (conflict.a), in final for the whole value.
+  It can be told from an author's _|_ only by that comment.
+- written: Expr() splits close({...}) into the call, with no source, and its
+  argument.
+-- in.cue --
+import "strings"
+
+input: _
+ext:   5
+cases: {
+	imports:       {u: strings.ToUpper(input.s)}
+	interpolation: {r: "v\(ext)"}
+	defaults:      {r: *"a" | "b", s: int | *1}
+	markers:       {r!: int, o?: string}
+	closed:        close({r: int})
+	open:          {r: int, ...}
+	patterns:      {[=~"^x"]: int, xa: 1}
+	concrete:      {a: 1, b: [1, "x"]}
+	conflict:      {a: 1 & 2}
+}
+-- conjunct 0 --
+imports: {u: strings.ToUpper(input.s)}
+## interpolation
+-- conjunct 0 --
+interpolation: {r: "v\(ext)"}
+## defaults
+-- conjunct 0 --
+defaults: {r: *"a" | "b", s: int | *1}
+## markers
+-- conjunct 0 --
+markers: {r!: int, o?: string}
+## closed
+-- conjunct 0 --
+<nil>
+-- conjunct 1 --
+{r: int}
+## open
+-- conjunct 0 --
+open: {r: int, ...}
+## patterns
+-- conjunct 0 --
+patterns: {[=~"^x"]: int, xa: 1}
+## concrete
+-- conjunct 0 --
+concrete: {a: 1, b: [1, "x"]}
+## conflict
+-- conjunct 0 --
+conflict: {a: 1 & 2}
+-- out/written --
+## imports
+>> operand 0
+imports: {u: strings.ToUpper(input.s)}
+## interpolation
+>> operand 0
+interpolation: {r: "v\(ext)"}
+## defaults
+>> operand 0
+defaults: {r: *"a" | "b", s: int | *1}
+## markers
+>> operand 0
+markers: {r!: int, o?: string}
+## closed
+>> operand 0
+<nil>
+>> operand 1
+{r: int}
+## open
+>> operand 0
+open: {r: int, ...}
+## patterns
+>> operand 0
+patterns: {[=~"^x"]: int, xa: 1}
+## concrete
+>> operand 0
+concrete: {a: 1, b: [1, "x"]}
+## conflict
+>> operand 0
+conflict: {a: 1 & 2}
+-- out/evaluated --
+## imports
+import "strings"
+
+u: strings.ToUpper(INPUT.s)
+
+//cue:path: input
+let INPUT = _
+## interpolation
+{r: "v\(5)"}
+## defaults
+{
+	r: *"a" | "b"
+	s: int | *1
+}
+## markers
+{
+	r!: int
+	o?: string
+}
+## closed
+close({r: int})
+## open
+{
+	r: int
+	...
+}
+## patterns
+{
+	[=~"^x"]: int
+	xa:       1
+}
+## concrete
+{
+	a: 1
+	b: [1, "x"]
+}
+## conflict
+{
+	a: _|_ // conflicting values 2 and 1
+}
+-- out/raw --
+## imports
+import "strings"
+
+u: strings.ToUpper(input.s)
+## interpolation
+{r: "v\(ext)"}
+## defaults
+{
+	r: *"a" | "b"
+	s: int | *1
+}
+## markers
+{
+	r!: int
+	o?: string
+}
+## closed
+close({r: int})
+## open
+{
+	r: int
+	...
+}
+## patterns
+{
+	[=~"^x"]: int
+	xa:       1
+}
+## concrete
+{
+	a: 1
+	b: [1, "x"]
+}
+## conflict
+{
+	a: _|_ // conflicting values 2 and 1
+}
+-- out/final --
+## imports
+import "strings"
+
+u: strings.ToUpper(INPUT.s)
+
+//cue:path: input
+let INPUT = _
+## interpolation
+{r: "v5"}
+## defaults
+{
+	r: "a"
+	s: 1
+}
+## markers
+{r!: int}
+## closed
+{r: int}
+## open
+{r: int}
+## patterns
+{xa: 1}
+## concrete
+{
+	a: 1
+	b: [1, "x"]
+}
+## conflict
+_|_ // cases.conflict.a: conflicting values 2 and 1
+-- out/data --
+## imports
+error: cases.imports.u: input.s undefined as input is incomplete (type _)
+## interpolation
+{r: "v5"}
+## defaults
+{
+	r: "a"
+	s: 1
+}
+## markers
+error: cases.markers.r: field is required but not present
+## closed
+error: cases.closed.r: incomplete value int
+## open
+error: cases.open.r: incomplete value int
+## patterns
+{xa: 1}
+## concrete
+{
+	a: 1
+	b: [1, "x"]
+}
+## conflict
+error: cases.conflict.a: conflicting values 2 and 1
+-- out/documented --
+## imports
+import "strings"
+
+u: strings.ToUpper(INPUT.s)
+
+//cue:path: input
+let INPUT = _
+## interpolation
+{r: "v\(5)"}
+## defaults
+{
+	r: *"a" | "b"
+	s: int | *1
+}
+## markers
+{
+	r!: int
+	o?: string
+}
+## closed
+close({r: int})
+## open
+{
+	r: int
+	...
+}
+## patterns
+{
+	[=~"^x"]: int
+	xa:       1
+}
+## concrete
+{
+	a: 1
+	b: [1, "x"]
+}
+## conflict
+{
+	a: _|_ // conflicting values 2 and 1
+}

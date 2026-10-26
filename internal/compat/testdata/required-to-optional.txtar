@@ -1,0 +1,7 @@
+# required to optional: no old instance omits it
+-- old.cue --
+a!: int
+-- new.cue --
+a?: int
+-- out --
+compatible

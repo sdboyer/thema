@@ -4,7 +4,7 @@
 import "github.com/sdboyer/thema"
 
 lin: thema.Lineage & {
-	name: "ext-old-depends-on-latest"
+	name: "extOldDependsOnLatest"
 	schemas: [{
 		version: [0, 0]
 		schema: {a: lin.schemas[len(lin.schemas)-1].schema.a}
