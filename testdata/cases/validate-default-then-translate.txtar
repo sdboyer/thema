@@ -1,0 +1,25 @@
+# an instance valid only via a schema default cannot be translated: lenses see the raw input, without defaults
+#issue: 24
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "validateDefaultThenTranslate"
+	schemas: [{
+		version: [0, 0]
+		schema: {a: *"x" | string}
+	}, {
+		version: [0, 1]
+		schema: {a: *"x" | string, b?: int}
+	}]
+	lenses: [{
+		from: [0, 1]
+		to: [0, 0]
+		input: _
+		result: {a: input.a}
+	}]
+}
+-- expect --
+translate 0.1 0.0 ok {}

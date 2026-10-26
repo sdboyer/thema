@@ -5,7 +5,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "join-injects-default"
+	name: "joinInjectsDefault"
 	joinSchema: {a?: *"injected" | string, ...}
 	schemas: [{
 		version: [0, 0]

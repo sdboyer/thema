@@ -17,8 +17,12 @@ import (
 Lineage: {
 	// The name of the thing specified by the schemas in this lineage.
 	//
-	// A lineage's name must not change as it evolves.
-	name!: string
+	// A lineage's name must not change as it evolves. It must start with an
+	// ASCII letter, followed by ASCII letters and digits only, so that every
+	// language code is generated for can derive identifiers, package names and
+	// file names from it mechanically, without sanitizing that could make two
+	// names collide.
+	name!: =~"^[A-Za-z][A-Za-z0-9]*$"
 
 	// joinSchema governs the shape of schema that may be expressed in a
 	// lineage. It is the least upper bound, or join, of the acceptable schema

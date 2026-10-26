@@ -1,0 +1,26 @@
+# identical schema using a let binding is judged backwards incompatible
+#issue: 18
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "fpIdenticalLet"
+	schemas: [{
+		version: [0, 0]
+		schema: {let T = int, a: T}
+	}, {
+		version: [0, 1]
+		schema: {let T = int, a: T}
+	}]
+	lenses: [{
+		from: [0, 1]
+		to: [0, 0]
+		input: _
+		result: input
+	}]
+}
+-- expect --
+bind ok
+translate 0.0 0.1 ok {a: 1}

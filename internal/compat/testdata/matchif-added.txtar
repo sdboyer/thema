@@ -1,0 +1,8 @@
+# matchIf added (compat-matchif)
+-- old.cue --
+a: {x?: int, y?: int}
+-- new.cue --
+a: matchIf({x!: _}, {y!: _}, _) & {x?: int, y?: int}
+-- out --
+unknown
+a must now satisfy matchIf({x!: _}, {y!: _}, _), for which the checker has no rule (rule unknown-validator) @ new.cue:1:1

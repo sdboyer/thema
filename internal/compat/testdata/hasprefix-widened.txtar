@@ -1,0 +1,9 @@
+# strings.HasPrefix widened: the prior argument implies the new one
+-- old.cue --
+import "strings"
+s: string & strings.HasPrefix("ab")
+-- new.cue --
+import "strings"
+s: string & strings.HasPrefix("a")
+-- out --
+compatible

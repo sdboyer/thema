@@ -1,0 +1,8 @@
+# a different kind
+-- old.cue --
+n: int
+-- new.cue --
+n: string
+-- out --
+incompatible
+n was int and is now string (rule value-narrowed) @ new.cue:1:1

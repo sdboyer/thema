@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "join-refs-schema"
+	name: "joinRefsSchema"
 	joinSchema: lin.schemas[len(lin.schemas)-1].schema
 	schemas: [{
 		version: [0, 0]

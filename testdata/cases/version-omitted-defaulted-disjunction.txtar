@@ -1,0 +1,10 @@
+# a version written as a disjunction whose default is 0.0 is still rejected, not resolved to thema's default
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "x"
+	schemas: [{version: *[0, 0] | [1, 0], schema: {a: int}}]
+}
+-- expect --
+bind fail

@@ -1,0 +1,294 @@
+How hidden fields are presented. (Their semantics, such as closedness and
+package scope, are tested in internal/cuetil.)
+
+- evaluated/raw/documented show hidden fields; final and data omit them.
+  cue.Hidden(false) has no effect on evaluated.
+- A field referring to a hidden sibling keeps the reference in evaluated
+  (r: _h), so a comprehension under _h appears only under _h. final resolves it
+  (referenced: {a: 2}).
+- An embedded hidden field stays an embedding in evaluated ({_h, _h: ...}),
+  though its fields surface in the embedding struct once they exist.
+- Selecting into a hidden field's struct (selected) shows its comprehension at
+  the top.
+- Hidden labels are package-scoped, but the text shows only the bare name: a
+  hidden field of another package prints the same as one of this package.
+-- in.cue --
+input: _
+_hidden: {if input.x != _|_ {extra: 1}}
+h: {_h: {if input.x != _|_ {extra: 1}}, r: _h}
+
+cases: {
+	plain:       {a: 1, _h: 2}
+	referenced:  {a: _h, _h: 2}
+	comprehensionUnderHidden: h
+	selected:    h.r
+	viaOutsideHidden: {k: _hidden}
+	embedded:    {_h: {if input.x != _|_ {extra: 1}}, _h}
+	#D: {a: int, _h: a}
+	inDefinition: #D
+}
+-- conjunct 0 --
+plain: {a: 1, _h: 2}
+## referenced
+-- conjunct 0 --
+referenced: {a: _h, _h: 2}
+## comprehensionUnderHidden
+-- conjunct 0 --
+<nil>
+-- conjunct 1 --
+h
+## selected
+-- conjunct 0 --
+h
+-- conjunct 1 --
+<nil>
+## viaOutsideHidden
+-- conjunct 0 --
+viaOutsideHidden: {k: _hidden}
+## embedded
+-- conjunct 0 --
+_h
+-- conjunct 1 --
+<nil>
+## inDefinition
+-- conjunct 0 --
+<nil>
+-- conjunct 1 --
+#D
+-- conjunct 0 --
+plain: {a: 1, _h: 2}
+## referenced
+-- conjunct 0 --
+referenced: {a: _h, _h: 2}
+## comprehensionUnderHidden
+-- conjunct 0 --
+<nil>
+-- conjunct 1 --
+h
+## selected
+-- conjunct 0 --
+h
+-- conjunct 1 --
+<nil>
+## viaOutsideHidden
+-- conjunct 0 --
+viaOutsideHidden: {k: _hidden}
+## embedded
+-- conjunct 0 --
+_h
+-- conjunct 1 --
+<nil>
+## inDefinition
+-- conjunct 0 --
+<nil>
+-- conjunct 1 --
+#D
+-- out/written --
+## plain
+>> operand 0
+plain: {a: 1, _h: 2}
+## referenced
+>> operand 0
+referenced: {a: _h, _h: 2}
+## comprehensionUnderHidden
+>> operand 0
+<nil>
+>> operand 1
+h
+## selected
+>> operand 0
+h
+>> operand 1
+<nil>
+## viaOutsideHidden
+>> operand 0
+viaOutsideHidden: {k: _hidden}
+## embedded
+>> operand 0
+_h
+>> operand 1
+<nil>
+## inDefinition
+>> operand 0
+<nil>
+>> operand 1
+#D
+-- out/evaluated --
+## plain
+{
+	a:  1
+	_h: 2
+}
+## referenced
+{
+	a:  _h
+	_h: 2
+}
+## comprehensionUnderHidden
+{
+	_h: {if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}}
+	r: _h
+
+	//cue:path: input
+	let INPUT = _
+}
+## selected
+{
+	if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## viaOutsideHidden
+{
+	k: {if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}}
+
+	//cue:path: input
+	let INPUT = _
+}
+## embedded
+{
+	_h
+	_h: {if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}}
+
+	//cue:path: input
+	let INPUT = _
+}
+## inDefinition
+{
+	_#def
+	_#def: {
+		a:  int
+		_h: a
+	}
+}
+-- out/raw --
+## plain
+{
+	a:  1
+	_h: 2
+}
+## referenced
+{
+	a:  _h
+	_h: 2
+}
+## comprehensionUnderHidden
+h
+## selected
+h.r
+## viaOutsideHidden
+{k: _hidden}
+## embedded
+{
+	_h
+	_h: {if input.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}}
+}
+## inDefinition
+#D
+-- out/final --
+## plain
+{a: 1}
+## referenced
+{a: 2}
+## comprehensionUnderHidden
+{r: {}}
+## selected
+{}
+## viaOutsideHidden
+{k: {}}
+## embedded
+{}
+## inDefinition
+{a: int}
+-- out/data --
+## plain
+{a: 1}
+## referenced
+{a: 2}
+## comprehensionUnderHidden
+{r: {}}
+## selected
+{}
+## viaOutsideHidden
+{k: {}}
+## embedded
+{}
+## inDefinition
+error: cases.inDefinition.a: incomplete value int
+-- out/documented --
+## plain
+{
+	a:  1
+	_h: 2
+}
+## referenced
+{
+	a:  _h
+	_h: 2
+}
+## comprehensionUnderHidden
+{
+	_h: {if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}}
+	r: _h
+
+	//cue:path: input
+	let INPUT = _
+}
+## selected
+{
+	if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## viaOutsideHidden
+{
+	k: {if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}}
+
+	//cue:path: input
+	let INPUT = _
+}
+## embedded
+{
+	_h
+	_h: {if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}}
+
+	//cue:path: input
+	let INPUT = _
+}
+## inDefinition
+{
+	_#def
+	_#def: {
+		a:  int
+		_h: a
+	}
+}

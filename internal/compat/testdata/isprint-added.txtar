@@ -1,0 +1,9 @@
+# strconv.IsPrint added
+-- old.cue --
+s: int
+-- new.cue --
+import "strconv"
+s: int & strconv.IsPrint
+-- out --
+incompatible
+s must now satisfy strconv.IsPrint(), which the prior schema did not require (rule validator-added) @ new.cue:2:1

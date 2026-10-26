@@ -111,15 +111,19 @@ func (sch *schemaDef) Validate(data cue.Value, opts ...ValidateOption) (*Instanc
 }
 
 // undeclaredErr describes fields at paths that the schema does not declare.
-func (sch *schemaDef) undeclaredErr(paths []cue.Path) error {
+func (sch *schemaDef) undeclaredErr(paths []string) error {
 	if len(paths) == 0 {
 		return nil
 	}
+	return fmt.Errorf("fields not declared by schema %s: %s", sch.Version(), strings.Join(paths, ", "))
+}
+
+func pathStrings(paths []cue.Path) []string {
 	strs := make([]string, len(paths))
 	for i, p := range paths {
 		strs[i] = p.String()
 	}
-	return fmt.Errorf("fields not declared by schema %s: %s", sch.Version(), strings.Join(strs, ", "))
+	return strs
 }
 
 // Successor returns the next schema in the lineage, or nil if it is the last schema.

@@ -1,0 +1,7 @@
+# adding null as an alternative
+-- old.cue --
+n: int
+-- new.cue --
+n: int | null
+-- out --
+compatible

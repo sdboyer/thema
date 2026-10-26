@@ -1,6 +1,7 @@
 package thema
 
 import (
+	"strings"
 	"testing"
 
 	"cuelang.org/go/cue"
@@ -71,6 +72,14 @@ func TestLensResultsMayNotInventFields(t *testing.T) {
 		result: `+result+`
 	}]
 }`)
+			if name != "valid" {
+				// Invented fields are visible in the lens without any data, so they're
+				// rejected when the lineage is bound.
+				if err == nil || !strings.Contains(err.Error(), "lens 0.0 -> 1.0") {
+					t.Fatalf("lens result with an invented field was not rejected at bind: %v", err)
+				}
+				return
+			}
 			if err != nil {
 				t.Fatalf("binding failed: %v", err)
 			}

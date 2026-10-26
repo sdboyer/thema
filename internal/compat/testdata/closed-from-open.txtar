@@ -1,0 +1,9 @@
+# an author's ... removed
+-- old.cue --
+a: int
+...
+-- new.cue --
+a: int
+-- out --
+incompatible
+the top level accepts any field name in the prior schema and is closed in the new one (rule labels-narrowed) @ -

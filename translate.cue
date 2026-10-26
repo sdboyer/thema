@@ -41,7 +41,10 @@ Translate: {
 	// Nested structs below declare their own from/to fields, so bind the
 	// arguments to names that can't be shadowed.
 	let L = lin
-	let I = inst
+
+	// The instance as an instance of its schema, so that lenses see the schema's
+	// defaults for fields the data omits.
+	let I = inst & L.schemas[(L._flatidx & {v: from}).out]._schema
 	let FV = from
 	let TV = to
 

@@ -1,0 +1,7 @@
+# list elements widened
+-- old.cue --
+l: [...int]
+-- new.cue --
+l: [...number]
+-- out --
+compatible

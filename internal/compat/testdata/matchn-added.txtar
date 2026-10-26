@@ -1,0 +1,8 @@
+# matchN added
+-- old.cue --
+n: int
+-- new.cue --
+n: int & matchN(1, [>0, <0])
+-- out --
+unknown
+n must now satisfy matchN(1, [>0, <0]), for which the checker has no rule (rule unknown-validator) @ new.cue:1:1

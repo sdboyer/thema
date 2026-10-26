@@ -1,4 +1,5 @@
-# identical schema containing a conditional field is judged backwards incompatible
+# identical schemas containing a conditional field fail to bind: a pending comprehension
+# makes the schema's kind bottom, which checkSchemaShapes rejects as "not a struct"
 #issue: 18
 -- in.cue --
 import (
@@ -6,7 +7,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "fp-identical-conditional"
+	name: "fpIdenticalConditional"
 	schemas: [{
 		version: [0, 0]
 		schema: {kind: string, if kind == "x" {extra?: int}}

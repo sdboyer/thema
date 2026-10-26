@@ -1,0 +1,25 @@
+Verifies that required (!) fields are generated as plain, non-optional
+TypeScript fields, alongside optional (?) and regular fields.
+
+-- cue --
+I1: {
+  Required!: string
+  Optional?: string
+  Regular: string
+  Nested: {
+    Required!: number
+    Optional?: number
+  }
+} @cuetsy(kind="interface")
+
+-- ts --
+
+export interface I1 {
+  Nested: {
+    Required: number;
+    Optional?: number;
+  };
+  Optional?: string;
+  Regular: string;
+  Required: string;
+}

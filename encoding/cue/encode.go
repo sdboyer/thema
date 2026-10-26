@@ -16,8 +16,9 @@ import (
 // NewLineage constructs a CUE ast.File with a new lineage declaration in it,
 // using the provided cue.Value as the 0.0 schema.
 //
-// The name parameter is used as the lineage name, and must be a non-empty
-// string. pkgname is used as the returned file's package declaration. If
+// The name parameter is used as the lineage name, and must be a valid one: an
+// ASCII letter followed by ASCII letters and digits (see thema.Lineage.name in
+// lineage.cue). pkgname is used as the returned file's package declaration. If
 // pkgname is empty, the resulting file will have no package declaration.
 func NewLineage(sch cue.Value, name, pkgname string) (*ast.File, error) {
 	x := astutil.Format(sch)
@@ -126,7 +127,7 @@ func appendlin(lin thema.Lineage, sch cue.Value) (ast.Node, error) {
 
 	lv := lin.Latest().Version()
 	lsch := thema.SchemaP(lin, lv)
-	if err := compat.ThemaCompatible(lin.Runtime().Context(), lsch.Underlying(), sch); err == nil {
+	if compat.Check(lin.Runtime().Context(), lsch.Underlying(), sch).Compatible() {
 		// Is compatible, bump minor version
 		tgtv := thema.SyntacticVersion{lv[0], lv[1] + 1}
 		ast.AddComment(schnode, versionComment(tgtv))

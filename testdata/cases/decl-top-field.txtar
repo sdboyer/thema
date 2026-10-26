@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "decl-top-field"
+	name: "declTopField"
 	schemas: [{
 		version: [0, 0]
 		schema: {a: string, meta: _}

@@ -33,7 +33,7 @@ lin2: schemas: [{
 }]
 -- out/isappendonly-fail --
 field aBaz not present in {aBaz:~(lin2.schemas.0.schema.#Baz),#Baz:{run:string,dat:int32}}:
-    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:215:11
+    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:219:11
     ./in.cue:22:13
 missing field "aBaz"
 regular field is constraint in subsumed value: tell

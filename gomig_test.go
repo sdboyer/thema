@@ -12,7 +12,7 @@ import (
 
 func TestGoMigrations(t *testing.T) {
 	multivlin := `
-name: "basic-multiversion"
+name: "basicMultiversion"
 
 schemas: [{
     version: [0, 0]

@@ -1,0 +1,9 @@
+# net.FQDN added
+-- old.cue --
+s: string
+-- new.cue --
+import "net"
+s: string & net.FQDN
+-- out --
+incompatible
+s must now satisfy net.FQDN(), which the prior schema did not require (rule validator-added) @ new.cue:2:1

@@ -6,7 +6,7 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "lens-optional-source-field"
+	name: "lensOptionalSourceField"
 	schemas: [{
 		version: [0, 0]
 		schema: {a: string}
