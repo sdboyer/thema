@@ -1,0 +1,7 @@
+# the same pattern constraint
+-- old.cue --
+m: [string]: int
+-- new.cue --
+m: [string]: int
+-- out --
+compatible

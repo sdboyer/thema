@@ -1,0 +1,7 @@
+# a struct alternative added
+-- old.cue --
+s: {a: int} | {b: int}
+-- new.cue --
+s: {a: int} | {b: int} | {c: int}
+-- out --
+compatible

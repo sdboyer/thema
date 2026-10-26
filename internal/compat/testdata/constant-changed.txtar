@@ -1,0 +1,9 @@
+# a constant changed
+-- old.cue --
+a: 1
+-- new.cue --
+a: 2
+-- out --
+incompatible
+a fills with 2 when absent, where the prior schema filled it with 1 (rule default-changed) @ new.cue:1:1
+a was 1 and is now 2 (rule value-narrowed) @ new.cue:1:1

@@ -1,0 +1,8 @@
+# adding an optional field
+-- old.cue --
+a: int
+-- new.cue --
+a: int
+b?: int
+-- out --
+compatible

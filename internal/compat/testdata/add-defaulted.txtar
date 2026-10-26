@@ -1,0 +1,8 @@
+# adding a defaulted field: old instances never had it, new fills it (fp-new-field-with-default)
+-- old.cue --
+a: int
+-- new.cue --
+a: int
+b: *1 | int
+-- out --
+compatible
