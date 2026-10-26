@@ -73,8 +73,8 @@ Typos at thema-owned levels are caught twice:
 - In CUE, a pattern constraint over unknown labels evaluates to `error()`.
 - In Go, `checkUnknownFields` points at the author's line.
 
-`#LatestVersion` is the one intentional definition: it lets a user's package
-reference a computed member without it appearing in exported data.
+The few intentional definitions, and why each is one, are declared in the
+`kernel-definitions` seam.
 
 Never weaken a constraint, validator or closedness guarantee (e.g. by adding
 `...`) to make a failure go away. Find the root cause, and if a constraint
@@ -97,6 +97,7 @@ read the taps. They are facts about your diff, not opinions, and they never bloc
 - **embedded-module-root** (`shared-kernel`): internal/embedreg/embedreg.go is co-owned kernel. A change there owes consultation with: users reading error positions (the path is user-facing); golden error output in testdata.
 - **embedded-registry** (`choke-point`): in internal/embedreg/*.go, only Configure may construct registry. Constructing it elsewhere skips what the choke point enforces.
 - **go-residual-checks** (`declared-set`): the check* functions in bind.go are an intentional, enumerated set (11 declared). Adding one requires declaring why it belongs.
+- **kernel-definitions** (`declared-set`): the *#* definitions in lineage.cue, translate.cue, lacuna.cue, traverse.cue are an intentional, enumerated set (1 declared). Adding one requires declaring why it belongs.
 - **lacuna-types** (`shared-kernel`): lacuna.go is co-owned kernel. A change there owes consultation with: LacunaTypes in lacuna.cue (lockstep test TestLacunaTypesMatchCUE); Go lenses, whose lacunas are validated against these types at translation.
 - **lens-result-fields** (`shared-kernel`): internal/cuetil/declared.go, internal/cuetil/syntax.go, internal/cueview/tree.go is co-owned kernel. A change there owes consultation with: bind.go checkGoLensCompleteness and checkLacunas, and instance.go Translate (Go lenses) and checkLensResultFields (CUE lenses): all must apply the same rule; AGENTS.md, Lens results; testdata/cases/lens-* and the construction-independence tests in internal/cuetil.
 - **lineage-kernel** (`shared-kernel`): lineage.cue, translate.cue, lacuna.cue, traverse.cue is co-owned kernel. A change there owes consultation with: every lineage that unifies with thema.Lineage; the Go facade (bind.go, lineage.go, surface.go); Go code that calls thema's CUE pseudofunctions and decodes their output shape (instance.go Translate decodes Translate's out).
