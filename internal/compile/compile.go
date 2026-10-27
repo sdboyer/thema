@@ -9,6 +9,7 @@ import (
 	"cuelang.org/go/cue/ast"
 	cerrors "cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/format"
+	"cuelang.org/go/cue/literal"
 	"cuelang.org/go/cue/token"
 
 	"github.com/sdboyer/thema"
@@ -42,7 +43,7 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 	vals := make([]cue.Value, len(vs))
 	var errs cerrors.Error
 	for i, v := range vs {
-		sv := ctx.BuildFile(&ast.File{Decls: []ast.Decl{v.schemaField()}}).LookupPath(cue.MakePath(cue.Str(normalSchema)))
+		sv := ctx.BuildFile(&ast.File{Decls: append(v.importDecls(), v.schemaField())}).LookupPath(cue.MakePath(cue.Str(normalSchema)))
 		if err := sv.Err(); err != nil {
 			errs = cerrors.Append(errs, diag.Convert(err, diag.Context{Op: diag.OpCompile, Generic: diag.E0112}))
 			continue
@@ -167,13 +168,30 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 	}
 
 	out.File = &ast.File{}
-	if len(imports) > 0 {
-		// The packages the lenses' expressions call into, in a fixed order.
-		var specs []*ast.ImportSpec
-		for _, pkg := range slices.Sorted(maps.Keys(imports)) {
-			specs = append(specs, ast.NewImport(nil, pkg))
+	// One import per package: those the version files import, whose specs
+	// the schemas' references were bound to (references bound to another
+	// file's spec for the same package resolve to it too), then those the
+	// lenses' expressions call into. In a fixed order.
+	specs := make(map[string]*ast.ImportSpec)
+	for _, v := range vs {
+		for _, spec := range v.imports {
+			path, _ := literal.Unquote(spec.Path.Value)
+			if _, ok := specs[path]; !ok {
+				specs[path] = spec
+			}
 		}
-		out.File.Decls = append(out.File.Decls, &ast.ImportDecl{Specs: specs})
+	}
+	for pkg := range imports {
+		if _, ok := specs[pkg]; !ok {
+			specs[pkg] = ast.NewImport(nil, pkg)
+		}
+	}
+	if len(specs) > 0 {
+		decl := &ast.ImportDecl{}
+		for _, path := range slices.Sorted(maps.Keys(specs)) {
+			decl.Specs = append(decl.Specs, specs[path])
+		}
+		out.File.Decls = append(out.File.Decls, decl)
 	}
 	out.File.Decls = append(out.File.Decls,
 		at(tip.header(), &ast.Field{Label: at(tip.header(), ast.NewIdent("name")), Value: at(tip.header(), ast.NewString(name))}),

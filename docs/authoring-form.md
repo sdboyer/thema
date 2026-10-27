@@ -53,7 +53,7 @@ BackwardLens: {
 - `ForwardLens` maps instances of the previous version to this one. Only a major version has one: a minor version is backwards compatible, so translating to it needs no lens.
 - `BackwardLens` maps instances of this version to the previous one. Every version after the first has one. It is derived from the forward lens unless written, as described under [the backward lens](#the-backward-lens).
 
-Each of the three is written as a block in braces. The file has no package clause and no imports.
+Each of the three is written as a block in braces. The file has no package clause. It may import CUE's standard packages for its `Schema`'s constraints, such as `strings.MinRunes(1)` or `time.Format(time.RFC3339)`; it imports nothing else, and only what the `Schema` uses, since a lens calls the `strings` functions without an import. A standard constraint is written alone, `name: strings.MinRunes(1)`, since it already says the value is a string.
 
 ## Lenses
 
@@ -171,7 +171,6 @@ A `when` replaces the implied condition. It is a comparison or combination of so
 
 Each of these is refused with an error naming what to write instead, rather than compiled approximately:
 
-- **Constraints from CUE's standard packages** in a schema, such as `strings.MinRunes` or `time.Format`, since a version file imports nothing ([#104](https://github.com/sdboyer/thema/issues/104)).
 - **`each` inside `each`**, and a reference to the whole source instance from inside an `each` body.
 - **Lacunas inside `each`** other than the `DroppedField` refinement ([#103](https://github.com/sdboyer/thema/issues/103)).
 - **A match passthrough into a target whose type refers to other fields.** The passthrough tests the value against the target's type, which must stand on its own to be restated; match every value with an arm instead.

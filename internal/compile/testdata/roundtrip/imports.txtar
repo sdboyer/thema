@@ -1,0 +1,139 @@
+A schema that uses CUE's builtin packages: the version file imports them, the
+normal form imports each once however many versions do, and decompiling gives
+the imports back. 1.0's lens calls strings without an import, as a lens does.
+A builtin validator is written alone, strings.MinRunes(1), not
+string & strings.MinRunes(1): it implies the kind, and CUE exports the
+latter as strings.MinRunes(1) & {string}, which would not round-trip.
+-- ship/history/0.0.thema --
+import "strings"
+
+Schema: {
+	name: strings.MinRunes(1)
+}
+-- ship/1.0.thema --
+import (
+	"strings"
+	"time"
+)
+
+Schema: {
+	name:    strings.MinRunes(1)
+	label:   string
+	created: time.Format(time.RFC3339)
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		label:   strings.ToUpper(v0_0.name)
+		created: "1970-01-01T00:00:00Z"
+	}
+	lacunas: {
+		created: [{
+			type:    Placeholder
+			message: "0.0 has no creation time"
+		}]
+	}
+}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+import (
+	"strings"
+	"time"
+)
+
+Schema: {
+	name:    strings.MinRunes(1)
+	label:   string
+	created: time.Format(time.RFC3339)
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		label:   strings.ToUpper(v0_0.name)
+		created: "1970-01-01T00:00:00Z"
+	}
+	lacunas: {
+		created: [{
+			type:    Placeholder
+			message: "0.0 has no creation time"
+		}]
+	}
+}
+-- out/decompiled/history/0.0.thema --
+import "strings"
+
+Schema: {
+	name: strings.MinRunes(1)
+}
+-- out/normal.cue --
+import (
+	"strings"
+	"time"
+)
+
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				name: strings.MinRunes(1)
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				name:    strings.MinRunes(1)
+				label:   string
+				created: time.Format(time.RFC3339)
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			name:    v0_0.name
+			label:   strings.ToUpper(v0_0.name)
+			created: "1970-01-01T00:00:00Z"
+		}
+		lacunas: [{
+			targetFields: [{
+				path:  "created"
+				value: v1_0.created
+			}]
+			message: "0.0 has no creation time"
+			type:    "Placeholder"
+		}]
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			name: v1_0.name
+		}
+		lacunas: [
+			{
+				@thema(derived)
+				sourceFields: [{
+					path:  "label"
+					value: v1_0.label
+				}]
+				message: "label has no equivalent in 0.0 and was dropped"
+				type:    "DroppedField"
+			},
+			{
+				@thema(derived)
+				sourceFields: [{
+					path:  "created"
+					value: v1_0.created
+				}]
+				message: "created has no equivalent in 0.0 and was dropped"
+				type:    "DroppedField"
+			}
+		]
+	}
+}

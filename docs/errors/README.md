@@ -19,7 +19,7 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0101](E0101.md) | error | a file in the lineage's directory is not a version file |
 | [E0102](E0102.md) | error | a version file is not CUE syntax |
 | [E0103](E0103.md) | error | a version file has a package clause |
-| [E0104](E0104.md) | error | a version file imports a package |
+| [E0104](E0104.md) | error | retired: a version file imports a package |
 | [E0105](E0105.md) | error | a version file has a field that is not schema, ForwardLens or BackwardLens |
 | [E0106](E0106.md) | error | a version file declares a field twice |
 | [E0107](E0107.md) | error | a lens block is not a struct |
@@ -51,6 +51,7 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0144](E0144.md) | error | a lens refers to a schema of the lineage |
 | [E0145](E0145.md) | error | a lens refers to another lens of the lineage |
 | [E0146](E0146.md) | error | a reference cannot be resolved statically |
+| [E0147](E0147.md) | error | a version file imports a package its Schema does not use |
 | [E0201](E0201.md) | error | the first schema is not version 0.0 |
 | [E0202](E0202.md) | error | a schema's version does not follow its predecessor's |
 | [E0203](E0203.md) | error | a major version declares no schemas |
