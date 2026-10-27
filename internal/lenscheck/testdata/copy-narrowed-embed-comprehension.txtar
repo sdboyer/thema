@@ -1,0 +1,17 @@
+# The whole input embedded beside a comprehension, carrying a field the target does not declare: the embedding is a copy however it is exported.
+-- source.cue --
+a!: int
+o?: int
+-- target.cue --
+a!: int
+x!: int
+-- lens.cue --
+v0_0: _
+v1_0: {
+	v0_0
+	if v0_0.o != _|_ {x: 1}
+	if v0_0.o == _|_ {x: 0}
+}
+-- out --
+not total
+v1_0 copies v0_0, whose o is declared in the source schema and not accepted by the new one (compat rule field-removed) (rule copy-narrowed) @ lens.cue:3:2

@@ -1,0 +1,26 @@
+# the whole input is copied into a schema whose field has another default: an
+# instance omitting the field arrives as the source default disjunction, and in
+# the target it has two defaults and no value
+#issue: 107
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "lensCopyDefaultChanged"
+	schemas: {
+		"0": "0": {schema: {a: *1 | int}}
+		"1": "0": {schema: {a: *2 | int}}
+	}
+	lenses: {
+		"0.0->1.0": {
+			v0_0: _
+			v1_0: v0_0
+		}
+		"1.0->0.0": {
+			v1_0: _
+			v0_0: {a: 0}
+		}
+	}
+}
+-- expect --
+bind fail copy-narrowed

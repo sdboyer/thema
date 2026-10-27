@@ -1,0 +1,15 @@
+# The whole input embedded beside a comprehension that fills a field the target requires and the source makes optional.
+-- source.cue --
+a!: int
+x?: int
+-- target.cue --
+a!: int
+x!: int
+-- lens.cue --
+v0_0: _
+v1_0: {
+	v0_0
+	if v0_0.x == _|_ {x: 0}
+}
+-- out --
+total
