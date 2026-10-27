@@ -843,7 +843,7 @@ func (w *walker) fits(s shape, c *exprCtx, repeated bool, expr string) {
 	}
 	switch s.kind {
 	case cue.BoolKind:
-		for _, b := range []string{"true", "false"} {
+		for _, b := range []string{trueName, falseName} {
 			if tgt.Unify(w.ctx.CompileString(b)).Validate(cue.Concrete(true)) != nil {
 				w.fail(c, NotTotal, RuleComputedNarrowed, fmt.Sprintf("is a bool (%s) that may be %s, which the target schema (%s) does not accept", expr, b, fmtv(tgt)))
 				return

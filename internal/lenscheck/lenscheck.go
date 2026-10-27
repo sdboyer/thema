@@ -582,9 +582,15 @@ func (w *walker) predeclared(id *ast.Ident) bool {
 	return id.Node == nil || w.tree.Parent(id.Node) == nil
 }
 
+// The predeclared bool values, as written.
+const (
+	trueName  = "true"
+	falseName = "false"
+)
+
 // isBoolName reports whether name is one of the predeclared bool values.
 func isBoolName(name string) bool {
-	return name == "true" || name == "false"
+	return name == trueName || name == falseName
 }
 
 // copy proves the copy of input p into result q under guards gs.
@@ -1116,11 +1122,7 @@ func (w *walker) walkLacunas() {
 		if !ok {
 			continue
 		}
-		for i, elt := range l.Elts {
-			x, ok := elt.(ast.Expr)
-			if !ok {
-				continue
-			}
+		for i, x := range l.Elts {
 			switch x.(type) {
 			case *ast.Ellipsis, *ast.Comprehension:
 				// thema's [...Lacuna]; a conditional list is rejected by bind.
@@ -1162,7 +1164,7 @@ func (w *walker) lacunaCondition(lp cue.Path, x ast.Expr) []guard {
 	for _, c := range w.tree.Conjuncts(x) {
 		switch e := c.Expr.(type) {
 		case *ast.Ident:
-			if w.predeclared(e) && (e.Name == "bool" || e.Name == "true" || e.Name == "false") {
+			if w.predeclared(e) && (e.Name == "bool" || isBoolName(e.Name)) {
 				continue
 			}
 		case *ast.BasicLit:
@@ -1187,11 +1189,7 @@ func (w *walker) lacunaRefs(lp cue.Path, name string, x ast.Expr, gs []guard) {
 		if !ok {
 			continue
 		}
-		for j, elt := range l.Elts {
-			ex, ok := elt.(ast.Expr)
-			if !ok {
-				continue
-			}
+		for j, ex := range l.Elts {
 			rp := appendPath(appendPath(lp, cue.Str(name)), cue.Index(j))
 			for _, rc := range w.tree.Conjuncts(ex) {
 				s, ok := rc.Expr.(*ast.StructLit)
