@@ -90,7 +90,6 @@ type arg struct {
 // image, as in the basic maths notion of the output from a function
 type image struct {
 	str string
-	lac lacuna.TranslationLacunas
 	err error
 }
 
