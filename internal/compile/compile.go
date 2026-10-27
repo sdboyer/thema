@@ -36,7 +36,7 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 	vals := make([]cue.Value, len(vs))
 	var errs cerrors.Error
 	for i, v := range vs {
-		sv := ctx.BuildFile(&ast.File{Decls: []ast.Decl{v.schema}}).LookupPath(cue.MakePath(cue.Str("schema")))
+		sv := ctx.BuildFile(&ast.File{Decls: []ast.Decl{v.schemaField()}}).LookupPath(cue.MakePath(cue.Str(normalSchema)))
 		if err := sv.Err(); err != nil {
 			errs = cerrors.Append(errs, cerrors.Promote(err, v.path))
 			continue
@@ -60,7 +60,7 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 			majors[v.v[0]] = m
 			schemas.Elts = append(schemas.Elts, at(v.header(), &ast.Field{Label: at(v.header(), ast.NewString(fmt.Sprint(v.v[0]))), Value: m}))
 		}
-		entry := at(v.header(), &ast.StructLit{Elts: []ast.Decl{v.schema}})
+		entry := at(v.header(), &ast.StructLit{Elts: []ast.Decl{v.schemaField()}})
 		m.Elts = append(m.Elts, at(v.header(), &ast.Field{Label: at(v.header(), ast.NewString(fmt.Sprint(v.v[1]))), Value: entry}))
 
 		if i == 0 {
@@ -142,6 +142,10 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 	}}
 	return out, nil
 }
+
+// normalSchema is the normal form's name for a version's schema field; the
+// authoring form writes it as Schema.
+const normalSchema = "schema"
 
 // paramName is the identifier a lens binds an instance of version v to:
 // v0_0 for 0.0.

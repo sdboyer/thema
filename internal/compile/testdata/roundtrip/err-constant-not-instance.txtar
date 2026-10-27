@@ -1,10 +1,10 @@
 A constant that is not an instance of the target field's type.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	a: string
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	a: string
 	b: int
 }

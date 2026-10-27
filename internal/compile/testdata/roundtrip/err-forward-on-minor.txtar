@@ -1,11 +1,11 @@
 A minor version with forward entries: translating forward is implicit for a
 compatible change, so the entries are refused.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	a: string
 }
 -- ship/0.1.thema --
-schema: {
+Schema: {
 	a:  string
 	b?: int
 }

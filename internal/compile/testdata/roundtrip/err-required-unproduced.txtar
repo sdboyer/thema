@@ -1,10 +1,10 @@
 A required target field that nothing produces, and that the source lacks.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	a: string
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	a: string
 	b: int
 }

@@ -1,13 +1,13 @@
 orelse: an optional source field feeding a required target field, with a
 constant fallback and with a reference fallback, and a lacuna on the fallback.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	name:  string
 	nick?: string
 	rank?: int
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	name: string
 	nick: string
 	rank: int
@@ -29,7 +29,7 @@ ForwardLens: {
 -- out/bind --
 ok
 -- out/decompiled/1.0.thema --
-schema: {
+Schema: {
 	name: string
 	nick: string
 	rank: int
@@ -49,7 +49,7 @@ ForwardLens: {
 	}
 }
 -- out/decompiled/history/0.0.thema --
-schema: {
+Schema: {
 	name:  string
 	nick?: string
 	rank?: int

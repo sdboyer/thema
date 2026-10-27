@@ -3,11 +3,11 @@ changes, so each direction matches the old default to the new one, with a
 ChangedDefault lacuna when the arm applies. Neither direction derives from
 the other.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	aunion: *"foo" | "bar" | "baz"
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	aunion: "foo" | *"bar" | "baz"
 }
 
@@ -41,7 +41,7 @@ BackwardLens: {
 -- out/bind --
 ok
 -- out/decompiled/1.0.thema --
-schema: {
+Schema: {
 	aunion: "foo" | *"bar" | "baz"
 }
 
@@ -73,7 +73,7 @@ BackwardLens: {
 	}
 }
 -- out/decompiled/history/0.0.thema --
-schema: {
+Schema: {
 	aunion: *"foo" | "bar" | "baz"
 }
 -- out/normal.cue --

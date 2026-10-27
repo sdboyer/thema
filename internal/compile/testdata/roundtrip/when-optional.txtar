@@ -3,14 +3,14 @@ lacuna concerns only instances that have it: the condition compiles to a head
 over a presence test. flag, optional, named bare, tests its presence;
 deprecated, a required bool named bare, is its value.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	name:       string
 	deprecated: bool
 	count?:     int
 	flag?:      bool
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	name:       string
 	deprecated: bool
 	count:      int
@@ -43,7 +43,7 @@ ForwardLens: {
 -- out/bind --
 ok
 -- out/decompiled/1.0.thema --
-schema: {
+Schema: {
 	name:       string
 	deprecated: bool
 	count:      int
@@ -74,7 +74,7 @@ ForwardLens: {
 	}
 }
 -- out/decompiled/history/0.0.thema --
-schema: {
+Schema: {
 	name:       string
 	deprecated: bool
 	count?:     int

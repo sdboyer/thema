@@ -2,11 +2,11 @@ A lacuna without a when on a match that has no [_] arm: the condition a
 match implies is its [_] arm's, so there is nothing for the lacuna to apply
 under.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	aunion: *"foo" | "bar" | "baz"
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	aunion: "foo" | *"bar" | "baz"
 }
 

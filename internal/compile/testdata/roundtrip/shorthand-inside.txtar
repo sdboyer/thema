@@ -1,0 +1,91 @@
+CUE's struct shorthand beneath a version file's top-level fields, in a schema
+and in a lens body. It compiles as the braced form does, and decompiles to
+the one layout, with braces, which is also what Format gives the input.
+-- ship/history/0.0.thema --
+Schema: {
+	meta: owner: string
+}
+-- ship/1.0.thema --
+Schema: {
+	meta: {
+		owner: string
+		team:  string
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: meta: team: "unassigned"
+}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+Schema: {
+	meta: {
+		owner: string
+		team:  string
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		meta: {
+			team: "unassigned"
+		}
+	}
+}
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	meta: {
+		owner: string
+	}
+}
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				meta: owner: string
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				meta: {
+					owner: string
+					team:  string
+				}
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			meta: {
+				owner: v0_0.meta.owner
+				team:  "unassigned"
+			}
+		}
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			meta:
+				owner: v1_0.meta.owner
+		}
+		lacunas: [{
+			@thema(derived)
+			sourceFields: [{
+				path:  "meta.team"
+				value: v1_0.meta.team
+			}]
+			message: "meta.team has no equivalent in 0.0 and was dropped"
+			type:    "DroppedField"
+		}]
+	}
+}

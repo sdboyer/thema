@@ -1,11 +1,11 @@
 docs/ship.cue in authoring form: a major version adding a required field, with
 a placeholder forward and a refined message on the derived backward drop.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	firstfield: string
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	firstfield:  string
 	secondfield: int
 }
@@ -39,7 +39,7 @@ BackwardLens: {
 -- out/bind --
 ok
 -- out/decompiled/1.0.thema --
-schema: {
+Schema: {
 	firstfield:  string
 	secondfield: int
 }
@@ -71,7 +71,7 @@ BackwardLens: {
 	}
 }
 -- out/decompiled/history/0.0.thema --
-schema: {
+Schema: {
 	firstfield: string
 }
 -- out/normal.cue --

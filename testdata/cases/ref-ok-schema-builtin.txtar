@@ -1,0 +1,28 @@
+# CUE's builtin packages are part of the substrate thema pins, not something an
+# author can edit, so a schema may call into them
+#issue: 21
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+	"list"
+	"strings"
+	"time"
+)
+
+lin: thema.Lineage & {
+	name: "refOkSchemaBuiltin"
+	schemas: {
+		"0": "0": {
+			schema: {
+				name: string & strings.MinRunes(1)
+				when: time.Time
+				tags: [...string] & list.MaxItems(3)
+			}
+		}
+	}
+}
+-- expect --
+bind ok
+validate 0.0 ok {name: "a", when: "2024-01-01T00:00:00Z", tags: ["x"]}
+validate 0.0 fail {name: "", when: "2024-01-01T00:00:00Z", tags: []}
+validate 0.0 fail {name: "a", when: "2024-01-01T00:00:00Z", tags: ["a", "b", "c", "d"]}

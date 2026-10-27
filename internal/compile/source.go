@@ -23,7 +23,7 @@ const Ext = ".thema"
 
 // The fields of a version file.
 const (
-	fieldSchema   = "schema"
+	fieldSchema   = "Schema"
 	fieldForward  = "ForwardLens"
 	fieldBackward = "BackwardLens"
 )
@@ -81,6 +81,14 @@ func (v *version) header() token.Pos {
 	return v.tf.Pos(0, token.NoRelPos)
 }
 
+// schemaField is the version's Schema field under the normal form's name,
+// schema, at the authored field's position, with its comments.
+func (v *version) schemaField() *ast.Field {
+	f := *v.schema
+	f.Label = at(v.schema.Label.Pos(), ast.NewIdent(normalSchema))
+	return &f
+}
+
 // parseVersion parses one version file. Its name gives its version; its
 // contents are at most a schema, a forward block and a backward block.
 func parseVersion(f File) (*version, error) {
@@ -108,7 +116,7 @@ func parseVersion(f File) (*version, error) {
 		case *ast.Field:
 			name, _, err := ast.LabelName(d.Label)
 			if err != nil {
-				errs = cerrors.Append(errs, cerrors.Newf(d.Pos(), "a version file has only schema, ForwardLens and BackwardLens"))
+				errs = cerrors.Append(errs, cerrors.Newf(d.Pos(), "a version file has only Schema, ForwardLens and BackwardLens"))
 				continue
 			}
 			var slot **ast.Field
@@ -120,7 +128,7 @@ func parseVersion(f File) (*version, error) {
 			case fieldBackward:
 				slot = &v.backward
 			default:
-				errs = cerrors.Append(errs, cerrors.Newf(d.Pos(), "%s is not a field of a version file; a version file has only schema, ForwardLens and BackwardLens", name))
+				errs = cerrors.Append(errs, cerrors.Newf(d.Pos(), "%s is not a field of a version file; a version file has only Schema, ForwardLens and BackwardLens", name))
 				continue
 			}
 			if *slot != nil {
@@ -133,46 +141,38 @@ func parseVersion(f File) (*version, error) {
 					continue
 				}
 			}
+			errs = cerrors.Append(errs, noShorthand(d))
 			*slot = d
 		default:
-			errs = cerrors.Append(errs, cerrors.Newf(d.Pos(), "a version file has only schema, ForwardLens and BackwardLens"))
+			errs = cerrors.Append(errs, cerrors.Newf(d.Pos(), "a version file has only Schema, ForwardLens and BackwardLens"))
 		}
 	}
 	if v.schema == nil {
-		errs = cerrors.Append(errs, cerrors.Newf(v.header(), "%s declares no schema", f.Path))
+		errs = cerrors.Append(errs, cerrors.Newf(v.header(), "%s declares no Schema", f.Path))
 	}
-	errs = cerrors.Append(errs, noShorthand(af))
 	if errs != nil {
 		return nil, errs
 	}
 	return v, nil
 }
 
-// noShorthand rejects CUE's struct shorthand, a: b: c, anywhere in a version
-// file: a version file writes every struct with its braces, so that a lens
-// body, a lacunas key and a schema read the same way. The parser leaves the
-// shorthand's struct without a brace position.
-func noShorthand(af *ast.File) cerrors.Error {
-	var errs cerrors.Error
-	ast.Walk(af, func(n ast.Node) bool {
-		f, ok := n.(*ast.Field)
-		if !ok {
-			return true
-		}
-		s, ok := f.Value.(*ast.StructLit)
-		if !ok || s.Lbrace.IsValid() || len(s.Elts) != 1 {
-			return true
-		}
-		inner, ok := s.Elts[0].(*ast.Field)
-		if !ok {
-			return true
-		}
-		outer, _, _ := ast.LabelName(f.Label)
-		label, _, _ := ast.LabelName(inner.Label)
-		errs = cerrors.Append(errs, cerrors.Newf(inner.Pos(), "%s: %s: ... is CUE's struct shorthand, which a version file does not use: write %s: {%s: ...}", outer, label, outer, label))
-		return true
-	}, nil)
-	return errs
+// noShorthand rejects CUE's struct shorthand on a version file's top-level
+// field: Schema: a: int collapses the field into one line, and the file's
+// three fields are written with their braces so that each reads as the block
+// it is. Beneath them the shorthand is accepted; Format expands it. The
+// parser leaves a shorthand's struct without a brace position.
+func noShorthand(f *ast.Field) cerrors.Error {
+	s, ok := f.Value.(*ast.StructLit)
+	if !ok || s.Lbrace.IsValid() || len(s.Elts) != 1 {
+		return nil
+	}
+	inner, ok := s.Elts[0].(*ast.Field)
+	if !ok {
+		return nil
+	}
+	outer, _, _ := ast.LabelName(f.Label)
+	label, _, _ := ast.LabelName(inner.Label)
+	return cerrors.Newf(inner.Pos(), "%s: %s: ... is CUE's struct shorthand; a version file writes %s with its braces: %s: {%s: ...}", outer, label, outer, outer, label)
 }
 
 // parseVersions parses every file and orders the versions, which must be

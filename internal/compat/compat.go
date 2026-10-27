@@ -948,7 +948,7 @@ func packageMember(v cue.Value) (string, bool) {
 			bi = root.BuildInstance()
 		}
 	}
-	if bi == nil || !isBuiltinPackage(bi.ImportPath) {
+	if bi == nil || !IsBuiltinPackage(bi.ImportPath) {
 		return "", false
 	}
 	name, err := args[1].String()
@@ -958,9 +958,9 @@ func packageMember(v cue.Value) (string, bool) {
 	return bi.ImportPath + "." + name, true
 }
 
-// isBuiltinPackage reports whether an import path names one of CUE's builtin
+// IsBuiltinPackage reports whether an import path names one of CUE's builtin
 // packages: their first element has no dot, unlike a module path.
-func isBuiltinPackage(path string) bool {
+func IsBuiltinPackage(path string) bool {
 	first, _, _ := strings.Cut(path, "/")
 	return first != "" && !strings.Contains(first, ".")
 }

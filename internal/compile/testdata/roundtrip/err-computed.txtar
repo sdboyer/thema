@@ -1,11 +1,11 @@
 A computed expression in a mapping, which slice 1 of the lens language does
 not support.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	a: int
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	a: int
 	b: int
 }

@@ -2,12 +2,12 @@ A when that tests an optional field's presence and reads it. Reading it
 already restricts the lacuna to the instances that have it, and to test
 presence alone the field is named bare.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	name:   string
 	count?: int
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	name:  string
 	count: int
 }

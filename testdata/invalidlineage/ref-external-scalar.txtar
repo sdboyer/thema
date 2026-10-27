@@ -1,0 +1,22 @@
+# a field is a scalar definition declared outside the schema, at the top of the file: the file is the lineage, so what it declares beside the
+# schemas is declared in the lineage outside the schema (rule ref-lineage-meta).
+# Was testdata/lineage: schema contains a reference to an external type of a scalar kind
+#issue: 21
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+thema.Lineage
+name: "refscalar"
+schemas: {
+	"0": "0": {
+		schema: {
+			someField: #Baz
+		}
+	}
+}
+lenses: {}
+
+#Baz: string
+-- out/bindfail --
+schema 0.0: someField refers to #Baz, which is declared in the lineage outside the schema; a schema may refer only to its own body and CUE's builtin packages (rule ref-lineage-meta):
+    ./in.cue:8:15

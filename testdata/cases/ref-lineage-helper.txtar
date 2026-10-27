@@ -1,0 +1,19 @@
+# a hidden helper declared at the lineage level is shared by every schema that
+# reads it, so editing it edits published versions: it is declared in the
+# lineage outside the schema (rule ref-lineage-meta). Each schema declares its
+# own copy (ref-ok-schema-local).
+#issue: 21
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "refLineageHelper"
+	_shared: {x: int}
+	schemas: {
+		"0": "0": {
+			schema: {a: _shared}
+		}
+	}
+}
+-- expect --
+bind fail ref-lineage-meta

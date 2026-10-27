@@ -3,14 +3,14 @@ inside the body. The drop's derived lacuna aggregates over the elements, and
 its message is refined by a DroppedField lacuna keyed through the list. each
 has no derived inverse, so the backward lens is authored.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	items: [...{
 		title:   string
 		legacy?: string
 	}]
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	items: [...{
 		name: string
 	}]
@@ -45,7 +45,7 @@ BackwardLens: {
 -- out/bind --
 ok
 -- out/decompiled/1.0.thema --
-schema: {
+Schema: {
 	items: [...{name: string}]
 }
 
@@ -74,7 +74,7 @@ BackwardLens: {
 	}
 }
 -- out/decompiled/history/0.0.thema --
-schema: {
+Schema: {
 	items: [...{
 		title:   string
 		legacy?: string

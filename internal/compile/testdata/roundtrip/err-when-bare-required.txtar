@@ -2,11 +2,11 @@ A required field that is not a bool, named bare as a when. A bare reference
 is a presence test for an optional field and a value for a required bool;
 anything else is not a condition.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	name: string
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	name:  string
 	count: int
 }
