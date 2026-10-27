@@ -1,0 +1,17 @@
+# The negation of a conjunction is not a pattern, and a conjunction does not short-circuit: the equality is evaluated where the path is absent.
+-- source.cue --
+o?: int
+-- target.cue --
+n!: int
+-- lens.cue --
+input: _
+result: {
+	if input.o != _|_ && input.o == 5 {n: 1}
+	if !(input.o != _|_ && input.o == 5) {n: 0}
+}
+-- out --
+not total
+result is under the pattern input.o == 5, but input.o may be absent (input.o is optional in the source schema), and comparing an absent field is an error rather than false; test presence first: if input.o != _|_ (rule pattern-absent) @ lens.cue:3:2
+result has fields under !(input.o != _|_ && input.o == 5), which is not a pattern: a presence test (p != _|_), an equality (p == c) or a type test ((p & T) != _|_) on an input field, or a conjunction (&&) of these (rule unknown-pattern) @ lens.cue:4:2
+result.n is required by the target schema, and is written only under !(input.o != _|_ && input.o == 5); input.o != _|_ && input.o == 5, which the checker cannot show cover every instance; write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field (rule unknown-exhaustive) @ lens.cue:2:1
+result.n is written as 1 and as 0, and the two unify, so one may reject the other's value; write the field once (rule write-conflict) @ lens.cue:4:2

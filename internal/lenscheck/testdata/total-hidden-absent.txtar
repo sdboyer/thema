@@ -1,0 +1,14 @@
+# A hidden result field reading an optional source field: absent, it is incomplete, which is harmless for a field that is not data.
+-- source.cue --
+a!: int
+o?: int
+-- target.cue --
+b!: int
+-- lens.cue --
+input: _
+result: {
+	b:  input.a
+	_h: input.o
+}
+-- out --
+total

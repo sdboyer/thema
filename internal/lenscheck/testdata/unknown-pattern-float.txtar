@@ -1,0 +1,16 @@
+# An equality on a path that may be a float: CUE compares numbers by value (5.0 == 5), so the pattern does not fix the kind.
+-- source.cue --
+a!: number
+-- target.cue --
+b!: int
+-- lens.cue --
+input: _
+result: {
+	if input.a == 5 {b: input.a}
+	if input.a != 5 {b: 0}
+}
+-- out --
+not total
+result is under the pattern input.a == 5, but input.a may be a float, and CUE compares numbers by value (5.0 == 5), so the equality does not say what input.a holds; test its type first: if (input.a & int) != _|_ (rule unknown-pattern) @ lens.cue:3:2
+result is under the pattern input.a != 5, but input.a may be a float, and CUE compares numbers by value (5.0 == 5), so the equality does not say what input.a holds; test its type first: if (input.a & int) != _|_ (rule unknown-pattern) @ lens.cue:4:2
+result.b copies input.a, which is now int, which does not accept every value of the prior number (compat rule value-narrowed) (rule copy-narrowed) @ lens.cue:3:2

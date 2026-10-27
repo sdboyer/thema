@@ -1,0 +1,14 @@
+# A copy under an equality that admits the default: the omitting instance takes that arm and copies the disjunction.
+-- source.cue --
+d: *1 | int
+-- target.cue --
+d: *2 | int
+-- lens.cue --
+input: _
+result: {
+	if input.d == 1 {d: input.d}
+	if input.d != 1 {d: input.d}
+}
+-- out --
+not total
+result.d copies input.d, which an instance may omit; it then fills with 1 in the source schema and with 2 in the target schema, and the copy has no single value (rule copy-narrowed) @ lens.cue:3:2

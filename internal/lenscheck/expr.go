@@ -7,6 +7,7 @@ import (
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/ast"
+	"cuelang.org/go/cue/literal"
 	"cuelang.org/go/cue/token"
 
 	"github.com/sdboyer/thema/internal/compat"
@@ -282,6 +283,13 @@ func contiguous(ps []*big.Int) bool {
 type shape struct {
 	kind cue.Kind
 	iv   interval
+	// exact reports that the ends of iv are values the expression takes, as
+	// they are for a literal, an operand whose bounds are read exactly
+	// (intervalOf) and arithmetic over these. A containing interval, such as
+	// len's (a length fits int64, but no string has every length) or a
+	// quotient's, cannot refute: a value outside the target is not shown to
+	// occur.
+	exact bool
 	// dead is set where a refined operand has no alternatives left: the
 	// expression is in an arm no instance reaches.
 	dead bool
@@ -308,6 +316,10 @@ type exprCtx struct {
 	pos    token.Pos
 	paths  map[string]int // occurrences of each input path read
 	failed bool
+	// hidden is set for a hidden result field (see walker.hidden): an absent
+	// operand leaves it incomplete, which is not an error, and nothing requires
+	// its value.
+	hidden bool
 }
 
 func (w *walker) fail(c *exprCtx, verdict Verdict, rule Rule, detail string) {
@@ -328,9 +340,9 @@ func (w *walker) computed(x ast.Expr, q cue.Path, gs []pattern, pos token.Pos) {
 		return
 	}
 	w.record(&write{q: q, patterns: gs, kind: computedW, text: text(x), pos: pos})
-	c := &exprCtx{q: q, subj: subject(q), gs: gs, pos: pos, paths: map[string]int{}}
+	c := &exprCtx{q: q, subj: subject(q), gs: gs, pos: pos, paths: map[string]int{}, hidden: w.hidden > 0}
 	sh, ok := w.shape(x, c)
-	if !ok || sh.dead {
+	if !ok || sh.dead || c.hidden {
 		return
 	}
 	repeated := false
@@ -353,7 +365,7 @@ func (w *walker) shape(x ast.Expr, c *exprCtx) (shape, bool) {
 				w.fail(c, Unknown, RuleUnknownOp, fmt.Sprintf("uses the literal %s, which the checker cannot read as an integer", e.Value))
 				return shape{}, false
 			}
-			return shape{kind: cue.IntKind, iv: point(n)}, true
+			return shape{kind: cue.IntKind, iv: point(n), exact: true}, true
 		case token.STRING:
 			return shape{kind: cue.StringKind}, true
 		case token.FLOAT:
@@ -382,7 +394,7 @@ func (w *walker) shape(x ast.Expr, c *exprCtx) (shape, bool) {
 				w.fail(c, Unknown, RuleUnknownOp, fmt.Sprintf("negates %s", s))
 				return shape{}, false
 			}
-			return w.arith(c, shape{kind: cue.IntKind, iv: s.iv.neg()}, text(x))
+			return w.arith(c, shape{kind: cue.IntKind, iv: s.iv.neg(), exact: s.exact}, text(x))
 		case token.NOT:
 			if s.kind != cue.BoolKind {
 				w.fail(c, Unknown, RuleUnknownOp, fmt.Sprintf("applies ! to %s", s))
@@ -428,7 +440,9 @@ func (w *walker) binary(e *ast.BinaryExpr, c *exprCtx) (shape, bool) {
 	switch e.Op {
 	case token.EQL, token.NEQ:
 		if gs, ok := w.parsePattern(e); ok {
-			w.checkPatterns(gs, c.gs, c.subj, c.pos)
+			if !c.hidden {
+				w.checkPatterns(gs, c.gs, c.subj, c.pos)
+			}
 			return shape{kind: cue.BoolKind}, true
 		}
 	case token.QUO:
@@ -455,15 +469,15 @@ func (w *walker) binary(e *ast.BinaryExpr, c *exprCtx) (shape, bool) {
 			return shape{kind: cue.StringKind}, true
 		}
 		if l.kind == cue.IntKind && r.kind == cue.IntKind {
-			return w.arith(c, shape{kind: cue.IntKind, iv: l.iv.add(r.iv)}, text(e))
+			return w.arith(c, shape{kind: cue.IntKind, iv: l.iv.add(r.iv), exact: l.exact && r.exact}, text(e))
 		}
 	case token.SUB:
 		if l.kind == cue.IntKind && r.kind == cue.IntKind {
-			return w.arith(c, shape{kind: cue.IntKind, iv: l.iv.sub(r.iv)}, text(e))
+			return w.arith(c, shape{kind: cue.IntKind, iv: l.iv.sub(r.iv), exact: l.exact && r.exact}, text(e))
 		}
 	case token.MUL:
 		if l.kind == cue.IntKind && r.kind == cue.IntKind {
-			return w.arith(c, shape{kind: cue.IntKind, iv: l.iv.mul(r.iv)}, text(e))
+			return w.arith(c, shape{kind: cue.IntKind, iv: l.iv.mul(r.iv), exact: l.exact && r.exact}, text(e))
 		}
 	case token.EQL, token.NEQ, token.LSS, token.GTR, token.LEQ, token.GEQ:
 		if l.kind == r.kind && (l.kind == cue.IntKind || l.kind == cue.StringKind || (l.kind == cue.BoolKind && (e.Op == token.EQL || e.Op == token.NEQ))) {
@@ -483,13 +497,18 @@ func (w *walker) binary(e *ast.BinaryExpr, c *exprCtx) (shape, bool) {
 
 // arith checks an integer operation's result: where it has finite bounds, it
 // must lie within int64. An unbounded result is carried to the target check,
-// which refutes it by a finite side or reports its bounds unknown.
+// which refutes it by a finite side or reports its bounds unknown. Only an
+// exact interval over operands read once refutes; otherwise the overflow is
+// not shown to occur.
 func (w *walker) arith(c *exprCtx, s shape, op string) (shape, bool) {
 	if !s.iv.bounded() {
 		return s, true
 	}
 	if !s.iv.int64() {
 		verdict, rule := NotTotal, RuleArithOverflow
+		if !s.exact {
+			verdict, rule = Unknown, RuleUnknownBounds
+		}
 		for _, n := range c.paths {
 			if n > 1 {
 				verdict, rule = Unknown, RuleUnknownBounds
@@ -524,8 +543,8 @@ func (w *walker) operand(x ast.Expr, c *exprCtx) (shape, bool) {
 				w.fail(c, NotTotal, RuleSourceUndeclared, fmt.Sprintf("reads %s, which the source schema does not declare", inputRef(p)))
 				return shape{}, false
 			}
-			if !src.present {
-				w.fail(c, NotTotal, RuleSourceAbsent, fmt.Sprintf("reads %s, which may be absent: %s; write the field under if %s != _|_", inputRef(p), src.why, inputRef(p)))
+			if !src.present && !c.hidden {
+				w.fail(c, NotTotal, RuleSourceAbsent, fmt.Sprintf("reads %s, which may be absent: %s; %s", inputRef(p), src.why, w.absent(p)))
 				return shape{}, false
 			}
 			s, ok = w.shapeOf(src.branches, p, c)
@@ -567,7 +586,7 @@ func (w *walker) operand(x ast.Expr, c *exprCtx) (shape, bool) {
 			w.fail(c, Unknown, RuleUnknownOp, fmt.Sprintf("reads %s, which may be %s or %s; the checker needs operands of one kind: write it under a type test", text(x), *out, s))
 			return shape{}, false
 		}
-		out.iv = out.iv.hull(s.iv)
+		out.iv, out.exact = out.iv.hull(s.iv), out.exact && s.exact
 	}
 	if out == nil {
 		return shape{dead: true}, true
@@ -581,7 +600,7 @@ func (w *walker) shapeOf(branches []cue.Value, p cue.Path, c *exprCtx) (shape, b
 	if len(branches) == 0 {
 		return shape{dead: true}, true
 	}
-	var out shape
+	out := shape{exact: true}
 	for i, b := range branches {
 		k := b.IncompleteKind()
 		switch k {
@@ -596,12 +615,13 @@ func (w *walker) shapeOf(branches []cue.Value, p cue.Path, c *exprCtx) (shape, b
 		}
 		out.kind = k
 		if k == cue.IntKind {
-			iv, _, _ := intervalOf(b)
+			iv, exact, _ := intervalOf(b)
 			if i == 0 {
 				out.iv = iv
 			} else {
 				out.iv = out.iv.hull(iv)
 			}
+			out.exact = out.exact && exact
 		}
 	}
 	return out, true
@@ -636,7 +656,7 @@ func (w *walker) call(e *ast.CallExpr, c *exprCtx) (shape, bool) {
 		if !ok {
 			break
 		}
-		path, _ := literalString(spec.Path)
+		path, _ := literal.Unquote(spec.Path.Value)
 		name, _, err := ast.LabelName(fun.Sel)
 		if err != nil {
 			break
@@ -716,6 +736,9 @@ func (w *walker) stringCall(e *ast.CallExpr, sig stringSig, c *exprCtx) (shape, 
 
 // length analyzes len(x): a non-negative integer that, being a Go length,
 // fits int64; for a list read from the input, within the list's length bounds.
+// The interval is containing, not exact: no string has every length, and a
+// list's length may be bounded by a validator (list.MaxItems) its Len() does
+// not show.
 func (w *walker) length(x ast.Expr, c *exprCtx) (shape, bool) {
 	if p, ok := w.pathOf(x); ok {
 		src := w.lookupSource(p, c.gs)
@@ -724,8 +747,8 @@ func (w *walker) length(x ast.Expr, c *exprCtx) (shape, bool) {
 		case !src.declared:
 			w.fail(c, NotTotal, RuleSourceUndeclared, fmt.Sprintf("reads %s, which the source schema does not declare", inputRef(p)))
 			return shape{}, false
-		case !src.present:
-			w.fail(c, NotTotal, RuleSourceAbsent, fmt.Sprintf("reads %s, which may be absent: %s; write the field under if %s != _|_", inputRef(p), src.why, inputRef(p)))
+		case !src.present && !c.hidden:
+			w.fail(c, NotTotal, RuleSourceAbsent, fmt.Sprintf("reads %s, which may be absent: %s; %s", inputRef(p), src.why, w.absent(p)))
 			return shape{}, false
 		}
 		var out *interval
@@ -862,7 +885,7 @@ func (w *walker) fits(s shape, c *exprCtx, repeated bool, expr string) {
 		if s.iv.within(tiv) && s.iv.int64() {
 			return
 		}
-		if !repeated {
+		if !repeated && s.exact {
 			switch {
 			case tiv.lo != nil && s.iv.lo != nil && s.iv.lo.Cmp(tiv.lo) < 0:
 				w.fail(c, NotTotal, RuleComputedNarrowed, fmt.Sprintf("is %s, which may be as low as %s, where the target schema requires >=%s", expr, s.iv.lo, tiv.lo))
@@ -872,7 +895,7 @@ func (w *walker) fits(s shape, c *exprCtx, repeated bool, expr string) {
 				return
 			}
 		}
-		w.fail(c, Unknown, RuleUnknownBounds, fmt.Sprintf("is an integer computed by %s, in %s, which the checker cannot show within int64 and the target's %s%s; bound the fields it reads (int32, >=0 & <=100)", expr, s.iv, fmtv(tgt), repeatedNote(repeated)))
+		w.fail(c, Unknown, RuleUnknownBounds, fmt.Sprintf("is an integer computed by %s, in %s, which the checker cannot show within int64 and the target's %s%s%s; bound the fields it reads (int32, >=0 & <=100)", expr, s.iv, fmtv(tgt), repeatedNote(repeated), exactNote(s)))
 	}
 }
 
@@ -883,9 +906,19 @@ func repeatedNote(repeated bool) string {
 	return ""
 }
 
+func exactNote(s shape) string {
+	if !s.exact {
+		return " (the bounds contain every value the expression takes, but it need not take them, so they do not refute either)"
+	}
+	return ""
+}
+
 // head is [if cond {then}, els][0]: then when cond holds, otherwise els.
 type head struct {
 	cond, then, els ast.Expr
+	// conditional is set where the fallback is itself a comprehension, so
+	// that the list may be empty.
+	conditional bool
 }
 
 // divisionArity is the number of arguments of quo, rem, div and mod.
@@ -920,13 +953,21 @@ func asHead(x ast.Expr) (head, bool) {
 	if !ok || len(s.Elts) != 1 {
 		return head{}, false
 	}
-	emb, ok := s.Elts[0].(*ast.EmbedDecl)
-	if !ok {
+	h := head{cond: ifc.Condition}
+	switch emb := s.Elts[0].(type) {
+	case *ast.EmbedDecl:
+		h.then = emb.Expr
+	case ast.Expr:
+		h.then = emb
+	default:
 		return head{}, false
 	}
-	h := head{cond: ifc.Condition, then: emb.Expr}
 	if len(l.Elts) == headWithFallback {
-		h.els = l.Elts[1]
+		if _, cond := l.Elts[1].(*ast.Comprehension); cond {
+			h.conditional = true
+		} else {
+			h.els = l.Elts[1]
+		}
 	}
 	return h, true
 }
@@ -937,8 +978,12 @@ func (w *walker) head(h head, q cue.Path, gs []pattern, pos token.Pos) {
 	full := "[if " + text(h.cond) + " {...}, ...][0]"
 	w.record(&write{q: q, patterns: gs, kind: computedW, text: full, pos: pos})
 	if h.els == nil {
+		fallback := "with no fallback"
+		if h.conditional {
+			fallback = "whose fallback is itself conditional"
+		}
 		w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownHead,
-			Detail: fmt.Sprintf("takes the first element of a list built by if %s with no fallback, so when the condition is false the list is empty and the index fails; add a fallback element: [if c {x}, y][0]", text(h.cond)), Pos: pos})
+			Detail: fmt.Sprintf("takes the first element of a list built by if %s %s, so when the conditions are false the list is empty and the index fails; add an unconditional fallback element: [if c {x}, y][0]", text(h.cond), fallback), Pos: pos})
 		return
 	}
 	g, ok := w.parsePattern(h.cond)
@@ -1021,11 +1066,16 @@ func (w *walker) table(t table, q cue.Path, gs []pattern, pos token.Pos) {
 		return
 	case !src.present:
 		w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleSourceAbsent,
-			Detail: fmt.Sprintf("indexes a table by %s, which may be absent: %s; write the field under if %s != _|_", inputRef(p), src.why, inputRef(p)), Pos: pos})
+			Detail: fmt.Sprintf("indexes a table by %s, which may be absent: %s; %s", inputRef(p), src.why, w.absent(p)), Pos: pos})
 		return
 	}
+	// An entry is a regular field: an optional or required one ({x?: 1}["x"])
+	// cannot be selected, and one inside a comprehension may not exist.
 	entries := map[string]*ast.Field{}
 	for _, fd := range cueview.FieldDecls(t.lit.Elts, w.embedded) {
+		if fd.Conditional || fd.Field.Constraint != token.ILLEGAL {
+			continue
+		}
 		if name, _, err := ast.LabelName(fd.Field.Label); err == nil {
 			entries[name] = fd.Field
 		}

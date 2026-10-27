@@ -1,0 +1,29 @@
+# a lacuna message copies an integer where thema requires a string
+# #issue: 107
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "lensLacunaMessageCopy"
+	schemas: {
+		"0": "0": {schema: {a!: int}}
+		"1": "0": {schema: {b!: int}}
+	}
+	lenses: {
+		"0.0->1.0": {
+			input: _
+			result: {b: input.a}
+			lacunas: [{
+				sourceFields: [{path: "a", value: input.a}]
+				message: input.a
+				type:    "DroppedField"
+			}]
+		}
+		"1.0->0.0": {
+			input: _
+			result: {a: input.b}
+		}
+	}
+}
+-- expect --
+bind fail copy-narrowed

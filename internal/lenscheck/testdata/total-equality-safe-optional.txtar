@@ -1,0 +1,14 @@
+# The type-test form of an equality, (p & c) != _|_, is false where p is absent, so it tests an optional field without a presence test and establishes presence in its arm.
+-- source.cue --
+o?: "a" | "b"
+-- target.cue --
+n!: int
+v?: "a" | "b"
+-- lens.cue --
+input: _
+result: {
+	if (input.o & "a") != _|_ {n: 1, v: input.o}
+	if (input.o & "a") == _|_ {n: 0}
+}
+-- out --
+total

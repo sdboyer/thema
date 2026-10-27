@@ -8,4 +8,4 @@ input: _
 result: {if input.withDefault != _|_ {withDefault: input.withDefault}}
 -- out --
 not total
-result.withDefault copies input.withDefault, which was *"foo" | "bar" | "baz" and is now *"foo" | "bar" (compat rule value-narrowed) (rule copy-narrowed) @ lens.cue:2:10
+result.withDefault copies input.withDefault, which may be "baz", which the target schema does not accept: 2 errors in empty disjunction: (rule copy-narrowed) @ lens.cue:2:10

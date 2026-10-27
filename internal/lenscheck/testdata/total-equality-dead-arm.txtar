@@ -1,0 +1,13 @@
+# An equality with a literal the source never holds: the arm is dead, and the copy under it has no alternatives rather than the literal.
+-- source.cue --
+a!: "x" | "y"
+-- target.cue --
+b!: "x" | "y"
+-- lens.cue --
+input: _
+result: {
+	if input.a == "z" {b: input.a}
+	if input.a != "z" {b: input.a}
+}
+-- out --
+total

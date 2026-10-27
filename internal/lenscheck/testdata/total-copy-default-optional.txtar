@@ -1,0 +1,12 @@
+# A copy of an optional defaulted field: an instance omitting it stays absent, so no default is copied.
+-- source.cue --
+a?: *1 | int
+-- target.cue --
+a?: *2 | int
+-- lens.cue --
+input: _
+result: {
+	if input.a != _|_ {a: input.a}
+}
+-- out --
+total

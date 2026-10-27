@@ -14,4 +14,4 @@ lacunas: [{
 }]
 -- out --
 not total
-lacunas[0].sourceFields[0].value reads input.o, which may be absent when the lacuna applies: input.o is optional in the source schema; add input.o != _|_ to the condition (rule source-absent) @ lens.cue:4:36
+lacunas[0].sourceFields[0].value reads input.o, which may be absent when the lacuna applies: input.o is optional in the source schema; add input.o != _|_ to the lacuna's condition (rule source-absent) @ lens.cue:4:36

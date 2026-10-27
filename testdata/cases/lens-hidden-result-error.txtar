@@ -1,0 +1,27 @@
+# a hidden result field fails to evaluate: not data, but evaluated at translate
+# #issue: 107
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "lensHiddenResultError"
+	schemas: {
+		"0": "0": {schema: {a!: int}}
+		"1": "0": {schema: {b!: int}}
+	}
+	lenses: {
+		"0.0->1.0": {
+			input: _
+			result: {
+				b:  input.a
+				_h: input.a + "x"
+			}
+		}
+		"1.0->0.0": {
+			input: _
+			result: {a: input.b}
+		}
+	}
+}
+-- expect --
+bind fail unknown-op

@@ -1,0 +1,13 @@
+# A bare boolean field as a condition, and its negation.
+-- source.cue --
+f!: bool
+-- target.cue --
+n!: int
+-- lens.cue --
+input: _
+result: {
+	if input.f {n: 1}
+	if !input.f {n: 0}
+}
+-- out --
+total

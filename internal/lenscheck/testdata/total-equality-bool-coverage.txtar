@@ -1,0 +1,13 @@
+# Equalities with true and with false cover a boolean field.
+-- source.cue --
+f!: bool
+-- target.cue --
+n!: int
+-- lens.cue --
+input: _
+result: {
+	if input.f == true {n: 1}
+	if input.f == false {n: 0}
+}
+-- out --
+total

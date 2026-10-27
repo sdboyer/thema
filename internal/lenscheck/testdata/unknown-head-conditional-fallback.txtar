@@ -1,0 +1,14 @@
+# A head whose fallback element is itself a comprehension: both conditions false leave the list empty.
+-- source.cue --
+o!: int
+p!: int
+-- target.cue --
+n!: int
+-- lens.cue --
+input: _
+result: {
+	n: [if input.o == 1 {input.o}, if input.p == 1 {input.p}][0]
+}
+-- out --
+unknown
+result.n takes the first element of a list built by if input.o == 1 whose fallback is itself conditional, so when the conditions are false the list is empty and the index fails; add an unconditional fallback element: [if c {x}, y][0] (rule unknown-head) @ lens.cue:3:5

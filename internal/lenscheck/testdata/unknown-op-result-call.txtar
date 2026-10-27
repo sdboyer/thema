@@ -1,0 +1,13 @@
+# A result constrained by a call the checker does not prove.
+-- source.cue --
+a!: int
+-- target.cue --
+a!: int
+-- lens.cue --
+import "struct"
+
+input: _
+result: {a: input.a} & struct.MinFields(1)
+-- out --
+unknown
+result is constrained by struct.MinFields(1), a call the checker does not prove; write result as a struct (rule unknown-op) @ lens.cue:4:9
