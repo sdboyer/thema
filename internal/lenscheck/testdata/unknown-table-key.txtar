@@ -5,8 +5,8 @@ t: string
 u: 1 | 2
 -- lens.cue --
 _T: {a: 1, b: 2}
-input: _
-result: {u: _T[input.t]}
+v0_0: _
+v1_0: {u: _T[v0_0.t]}
 -- out --
 unknown
-result.u indexes a table by input.t, which may be string rather than one of a finite set of string constants; the checker needs every possible key (rule unknown-table-key) @ lens.cue:3:13
+v1_0.u indexes a table by v0_0.t, which may be string rather than one of a finite set of string constants; the checker needs every possible key (rule unknown-table-key) @ lens.cue:3:11

@@ -85,9 +85,9 @@ compiled to a copy-only target impossible.
 A schema declares what instances look like, and a lens declares how an
 instance of one schema becomes an instance of another. thema's invariants hold
 only while those declarations are sealed: a published schema must mean
-tomorrow what it means today, and a lens's result must be determined by its
-input. Both are true only when whatever a schema or lens refers to is as fixed
-as the schema or lens itself. CUE resolves a reference to anything in lexical
+tomorrow what it means today, and what a lens returns must be determined by
+the instance it takes. Both are true only when whatever a schema or lens
+refers to is as fixed as the schema or lens itself. CUE resolves a reference to anything in lexical
 scope, so a sibling schema, the lineage's `name`, a helper declared beside the
 lineage or a definition in another package all evaluate without complaint, and
 each of them can change without the referring schema's own text changing.
@@ -105,10 +105,12 @@ edits. The `joinSchema` is a schema for this purpose: it refers only to its
 own body. A schema does not refer to the `joinSchema`; thema unifies it into
 every schema itself.
 
-**A lens refers only to `input`, its own body and CUE's builtin packages.**
-Its body is `result`, `lacunas` and anything else declared inside the lens,
-such as a hidden lookup table or a `let`. thema's own package is part of the
-substrate, so `thema.Lacuna` and `thema.LacunaTypes` are fine.
+**A lens refers only to the instance it takes, its own body and CUE's builtin
+packages.** The instance it takes is the field named after its from version,
+`v1_0` for a lens from 1.0, and its body is the instance it returns (`v0_0`),
+`lacunas` and anything else declared inside the lens, such as a hidden lookup
+table or a `let`. thema's own package is part of the substrate, so
+`thema.Lacuna` and `thema.LacunaTypes` are fine.
 
 Everything else is refused when the lineage binds, with the error positioned
 at the referring field. The refused thing is spelled where it is used: a
@@ -354,7 +356,7 @@ to prove it, and says what the verdicts are worth across thema releases.
 A lens from schema *S* to schema *T* is total when, for every instance *i* of
 *S*:
 
-1. evaluating the lens with *i* as its input gives a result that is an instance
+1. evaluating the lens with *i* as the instance it takes gives an instance
    of *T*, closed, with every field *T* requires, and
 2. every lacuna's condition and reported field values evaluate to concrete
    values.
@@ -418,15 +420,15 @@ implies.
 **Operations.** The computed operations thema proves, over integers, strings
 and booleans:
 
-- Scalar remaps: `==` and `!=` as values. A table `{k: v, ...}[input.p]`, when
-  every alternative of `input.p` is a string constant with an entry. The head
+- Scalar remaps: `==` and `!=` as values. A table `{k: v, ...}[v0_0.p]`, when
+  every alternative of `v0_0.p` is a string constant with an entry. The head
   of a list, `[if c {x}, y][0]`, when the last element is unconditional.
 - Integer arithmetic: `+`, `-`, `*`, unary `-`, `quo`, `rem`, `div`, `mod` and
   `len`. Each operand needs finite bounds, from a sized type (`int32`), a
   bounds expression (`>=0 & <=100`) or constant alternatives. The result must
   fit `int64` and the target's bounds, and a divisor's bounds must exclude
   zero. `/` yields a float in CUE and is not proven. Each occurrence of an
-  operand is bounded on its own, so `input.n - input.n` is bounded like any
+  operand is bounded on its own, so `v0_0.n - v0_0.n` is bounded like any
   difference and is never refuted.
 - Strings: concatenation and interpolation of strings and integers, and
   `strings.ToUpper`, `ToLower`, `TrimSpace`, `Trim`, `TrimLeft`, `TrimRight`,
@@ -458,7 +460,7 @@ the lacuna field. It reads
 
 for example
 
-    result.a copies input.c, which may be absent: input.c is optional in the source schema; write the field under if input.c != _|_ (rule source-absent)
+    v1_0.a copies v0_0.c, which may be absent: v0_0.c is optional in the source schema; write the field under if v0_0.c != _|_ (rule source-absent)
 
 | Rule | Not total when |
 |---|---|

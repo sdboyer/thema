@@ -1,5 +1,5 @@
 exemplars/defaultchange.cue in authoring form: the default of an enum field
-changes, so each direction remaps the old default to the new one, with a
+changes, so each direction matches the old default to the new one, with a
 ChangedDefault lacuna when the arm applies. Neither direction derives from
 the other.
 -- ship/history/0.0.thema --
@@ -14,7 +14,7 @@ schema: {
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		aunion: remap(v0_0.aunion, {"foo": "bar"})
+		aunion: match(v0_0.aunion, {"foo": "bar"})
 	}
 	lacunas: {
 		aunion: [{
@@ -28,7 +28,7 @@ ForwardLens: {
 BackwardLens: {
 	v1_0: _
 	v0_0: {
-		aunion: remap(v1_0.aunion, {"bar": "foo"})
+		aunion: match(v1_0.aunion, {"bar": "foo"})
 	}
 	lacunas: {
 		aunion: [{
@@ -48,7 +48,7 @@ schema: {
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		aunion: remap(v0_0.aunion, {"foo": "bar"})
+		aunion: match(v0_0.aunion, {"foo": "bar"})
 	}
 	lacunas: {
 		aunion: [{
@@ -62,7 +62,7 @@ ForwardLens: {
 BackwardLens: {
 	v1_0: _
 	v0_0: {
-		aunion: remap(v1_0.aunion, {"bar": "foo"})
+		aunion: match(v1_0.aunion, {"bar": "foo"})
 	}
 	lacunas: {
 		aunion: [{
@@ -96,48 +96,48 @@ schemas: {
 }
 lenses: {
 	"0.0->1.0": {
-		input: _
-		result: {
-			if (input.aunion & "foo") != _|_ {
+		v0_0: _
+		v1_0: {
+			if (v0_0.aunion & "foo") != _|_ {
 				aunion: "bar"
 			}
-			if (input.aunion & ("foo")) == _|_ && (input.aunion & ("foo" | *"bar" | "baz")) != _|_ {
-				aunion: input.aunion
+			if (v0_0.aunion & ("foo")) == _|_ && (v0_0.aunion & ("foo" | *"bar" | "baz")) != _|_ {
+				aunion: v0_0.aunion
 			}
 		}
 		lacunas: [{
-			condition: input.aunion == "foo"
+			condition: v0_0.aunion == "foo"
 			sourceFields: [{
 				path:  "aunion"
-				value: input.aunion
+				value: v0_0.aunion
 			}]
 			targetFields: [{
 				path:  "aunion"
-				value: result.aunion
+				value: v1_0.aunion
 			}]
 			message: "aunion was the source default, \"foo\", and was changed to the target default, \"bar\""
 			type:    "ChangedDefault"
 		}]
 	}
 	"1.0->0.0": {
-		input: _
-		result: {
-			if (input.aunion & "bar") != _|_ {
+		v1_0: _
+		v0_0: {
+			if (v1_0.aunion & "bar") != _|_ {
 				aunion: "foo"
 			}
-			if (input.aunion & ("bar")) == _|_ && (input.aunion & (*"foo" | "bar" | "baz")) != _|_ {
-				aunion: input.aunion
+			if (v1_0.aunion & ("bar")) == _|_ && (v1_0.aunion & (*"foo" | "bar" | "baz")) != _|_ {
+				aunion: v1_0.aunion
 			}
 		}
 		lacunas: [{
-			condition: input.aunion == "bar"
+			condition: v1_0.aunion == "bar"
 			sourceFields: [{
 				path:  "aunion"
-				value: input.aunion
+				value: v1_0.aunion
 			}]
 			targetFields: [{
 				path:  "aunion"
-				value: result.aunion
+				value: v0_0.aunion
 			}]
 			message: "aunion was the source default, \"bar\", and was changed to the target default, \"foo\""
 			type:    "ChangedDefault"

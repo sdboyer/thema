@@ -11,6 +11,7 @@ import (
 	terrors "github.com/sdboyer/thema/errors"
 	"github.com/sdboyer/thema/internal/cuetil"
 	"github.com/sdboyer/thema/internal/util"
+	"github.com/sdboyer/thema/lacuna"
 )
 
 // BindInstanceType produces a TypedInstance, given an Instance and a
@@ -100,7 +101,7 @@ func (i *Instance) Dehydrate() *Instance {
 
 // AsSuccessor translates the instance into the form specified by the successor
 // schema.
-func (i *Instance) AsSuccessor() (*Instance, TranslationLacunas, error) {
+func (i *Instance) AsSuccessor() (*Instance, lacuna.TranslationLacunas, error) {
 	i.check()
 	// A minor version upgrade needs no lens: backwards compatibility means the
 	// data is already an instance of the successor. Validate rather than assume
@@ -112,14 +113,14 @@ func (i *Instance) AsSuccessor() (*Instance, TranslationLacunas, error) {
 		if err != nil {
 			return nil, nil, errors.Mark(fmt.Errorf("instance of %s is not an instance of its successor %s: %w", i.Schema().Version(), nsch.Version(), err), terrors.ErrInvalidData)
 		}
-		return ni, TranslationLacunas{{From: i.Schema().Version(), To: nsch.Version(), Lacunas: []Lacuna{}}}, nil
+		return ni, lacuna.TranslationLacunas{{From: lacuna.SyntacticVersion(i.Schema().Version()), To: lacuna.SyntacticVersion(nsch.Version()), Lacunas: []lacuna.Lacuna{}}}, nil
 	}
 	return i.Translate(i.sch.Successor().Version())
 }
 
 // AsPredecessor translates the instance into the form specified by the predecessor
 // schema.
-func (i *Instance) AsPredecessor() (*Instance, TranslationLacunas, error) {
+func (i *Instance) AsPredecessor() (*Instance, lacuna.TranslationLacunas, error) {
 	i.check()
 	return i.Translate(i.sch.Predecessor().Version())
 }
@@ -209,7 +210,7 @@ func (inst *TypedInstance[T]) ValueP() T {
 // Errors only occur in cases where lenses were written in an unexpected way -
 // for example, not all fields were mapped over, and the resulting object is not
 // concrete. All errors returned from this func will children of [terrors.ErrInvalidLens].
-func (i *Instance) Translate(to SyntacticVersion) (*Instance, TranslationLacunas, error) {
+func (i *Instance) Translate(to SyntacticVersion) (*Instance, lacuna.TranslationLacunas, error) {
 	i.check()
 
 	// TODO define this in terms of AsSuccessor and AsPredecessor, rather than those in terms of this.
@@ -253,7 +254,7 @@ func (i *Instance) Translate(to SyntacticVersion) (*Instance, TranslationLacunas
 		return nil, nil, errors.Mark(err, terrors.ErrLensResultIsInvalidData)
 	}
 
-	var lac TranslationLacunas
+	var lac lacuna.TranslationLacunas
 	if err := out.LookupPath(cue.MakePath(cue.Str("steps"))).Decode(&lac); err != nil {
 		return nil, nil, errors.Mark(fmt.Errorf("lens produced invalid lacunas: %s", cerrors.Details(err, nil)), terrors.ErrInvalidLens)
 	}
@@ -276,17 +277,25 @@ func (i *Instance) checkLensResultFields(out cue.Value) error {
 		if !lens.Exists() {
 			continue
 		}
-		result := lens.LookupPath(cue.MakePath(cue.Str("result")))
-		var to SyntacticVersion
+		var from, to SyntacticVersion
+		if err := steps.Value().LookupPath(cue.MakePath(cue.Str("from"))).Decode(&from); err != nil {
+			return err
+		}
 		if err := steps.Value().LookupPath(cue.MakePath(cue.Str("to"))).Decode(&to); err != nil {
 			return err
 		}
+		result := lens.LookupPath(cue.MakePath(cue.Str(lensParam(to))))
 		sch, err := i.Schema().Lineage().Schema(to)
 		if err != nil {
 			return err
 		}
 		def := sch.(*schemaDef)
-		syn, err := cuetil.ParseLens(lens)
+		// The lens's syntax is read from the lineage's lens, not from the step's
+		// copy of it: the syntax depends only on what the lens is, and the
+		// step's copy, filled with the instance, is not exportable (CUE's
+		// exporter cannot name a path through the lens's edge key).
+		declared := i.Schema().Lineage().Underlying().LookupPath(cue.MakePath(cue.Str("lenses"), cue.Str(lensID{From: from, To: to}.String())))
+		syn, err := cuetil.ParseLens(declared, lensParam(from), lensParam(to))
 		if err != nil {
 			return fmt.Errorf("lens to %s: %w", to, err)
 		}

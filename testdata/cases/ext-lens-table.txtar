@@ -1,8 +1,8 @@
-# a lens looks its result up in a table declared outside the lineage: the key
-# is a finite set of constants, each with an entry, so the lens is total; what
-# is wrong is where the table lives. A lens may refer only to input, its own
-# body and CUE's builtin packages (rule ref-outside-lineage); the table belongs
-# inside the lens, as a hidden field (ref-ok-lens-table).
+# a lens looks a field up in a table declared outside the lineage: the key is
+# a finite set of constants, each with an entry, so the lens is total; what is
+# wrong is where the table lives. A lens may refer only to the instance it
+# takes, its own body and CUE's builtin packages (rule ref-outside-lineage);
+# the table belongs inside the lens, as a hidden field (ref-ok-lens-table).
 #issue: 21
 -- in.cue --
 import "github.com/sdboyer/thema"
@@ -21,12 +21,12 @@ lin: thema.Lineage & {
 	}
 	lenses: {
 		"1.0->0.0": {
-			input: _
-			result: {a: _table[input.b]}
+			v1_0: _
+			v0_0: {a: _table[v1_0.b]}
 		}
 		"0.0->1.0": {
-			input: _
-			result: {b: "x"}
+			v0_0: _
+			v1_0: {b: "x"}
 		}
 	}
 }

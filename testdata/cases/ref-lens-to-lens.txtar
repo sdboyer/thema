@@ -1,6 +1,6 @@
 # a lens reads a hidden field of another lens through the lineage: a lens may
-# refer only to input, its own body and CUE's builtin packages (rule
-# ref-lens-to-lens). Each lens declares what it needs.
+# refer only to the instance it takes, its own body and CUE's builtin packages
+# (rule ref-lens-to-lens). Each lens declares what it needs.
 #issue: 21
 -- in.cue --
 import "github.com/sdboyer/thema"
@@ -17,13 +17,13 @@ lin: thema.Lineage & {
 	}
 	lenses: {
 		"1.0->0.0": {
-			input: _
+			v1_0: _
 			_fallback: "x"
-			result: {a: input.b}
+			v0_0: {a: v1_0.b}
 		}
 		"0.0->1.0": {
-			input: _
-			result: {b: lin.lenses["1.0->0.0"]._fallback}
+			v0_0: _
+			v1_0: {b: lin.lenses["1.0->0.0"]._fallback}
 		}
 	}
 }

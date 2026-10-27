@@ -18,12 +18,12 @@ lin: thema.Lineage & {
 	}
 	lenses: {
 		"1.0->0.0": {
-			input: _
-			result: {a: strings.ToUpper(input.b)}
+			v1_0: _
+			v0_0: {a: strings.ToUpper(v1_0.b)}
 		}
 		"0.0->1.0": {
-			input: _
-			result: {b: strings.ToLower(input.a)}
+			v0_0: _
+			v1_0: {b: strings.ToLower(v0_0.a)}
 		}
 	}
 }

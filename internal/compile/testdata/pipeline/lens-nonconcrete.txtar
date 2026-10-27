@@ -29,14 +29,14 @@ backward: {
 -- out/error --
 lens 0.0->1.0 is not total over schema 0.0:
     ship/1.0.thema:6:1
-lens 0.0->1.0: result.count copies input.count, which is now int & <10, which does not accept every value of the prior int (compat rule value-narrowed) (rule copy-narrowed):
+lens 0.0->1.0: v1_0.count copies v0_0.count, which is now int & <10, which does not accept every value of the prior int (compat rule value-narrowed) (rule copy-narrowed):
     ship/1.0.thema:7:9
-lens 0.0->1.0: result.count copies input.count, which may be absent: input.count is optional in the source schema; write the field under if input.count != _|_ (rule source-absent):
+lens 0.0->1.0: v1_0.count copies v0_0.count, which may be absent: v0_0.count is optional in the source schema; write the field under if v0_0.count != _|_ (rule source-absent):
     ship/1.0.thema:7:9
 -- out/positions --
 lens 0.0->1.0 is not total over schema 0.0
 	authored ship/1.0.thema:6:1
-lens 0.0->1.0: result.count copies input.count, which is now int & <10, which does not accept every value of the prior int (compat rule value-narrowed) (rule copy-narrowed)
+lens 0.0->1.0: v1_0.count copies v0_0.count, which is now int & <10, which does not accept every value of the prior int (compat rule value-narrowed) (rule copy-narrowed)
 	authored ship/1.0.thema:7:9
-lens 0.0->1.0: result.count copies input.count, which may be absent: input.count is optional in the source schema; write the field under if input.count != _|_ (rule source-absent)
+lens 0.0->1.0: v1_0.count copies v0_0.count, which may be absent: v0_0.count is optional in the source schema; write the field under if v0_0.count != _|_ (rule source-absent)
 	authored ship/1.0.thema:7:9

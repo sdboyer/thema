@@ -21,7 +21,7 @@ const outFile = "out"
 
 // TestVerdicts runs the corpus in testdata/*.txtar: each archive holds a
 // source.cue and a target.cue, both schemas written as a file's top-level
-// fields, and a lens.cue holding the lens (input, result, lacunas) as a file's
+// fields, and a lens.cue holding the lens (v0_0, v1_0, lacunas) as a file's
 // top-level fields, and records in out the verdict of [Check] and its findings.
 // The archive comment says what the case exercises and which rule it belongs
 // to.
@@ -70,7 +70,7 @@ func TestVerdicts(t *testing.T) {
 				}
 			}
 
-			got := render(Check(ctx, lens, source, target))
+			got := render(Check(ctx, lens, source, target, "v0_0", "v1_0"))
 			if envvars.UpdateGoldenFiles {
 				f := txtar.File{Name: outFile, Data: []byte(got)}
 				if outIdx >= 0 {

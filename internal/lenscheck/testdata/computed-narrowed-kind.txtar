@@ -4,8 +4,8 @@ a: string
 -- target.cue --
 n: int
 -- lens.cue --
-input: _
-result: {n: "x\(input.a)"}
+v0_0: _
+v1_0: {n: "x\(v0_0.a)"}
 -- out --
 not total
-result.n is a string ("x\(input.a)"), which the target schema does not accept: it wants int (rule computed-narrowed) @ lens.cue:2:13
+v1_0.n is a string ("x\(v0_0.a)"), which the target schema does not accept: it wants int (rule computed-narrowed) @ lens.cue:2:11

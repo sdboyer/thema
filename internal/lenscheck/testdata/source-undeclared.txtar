@@ -4,8 +4,8 @@ a: string
 -- target.cue --
 a: string
 -- lens.cue --
-input: _
-result: {a: input.nope}
+v0_0: _
+v1_0: {a: v0_0.nope}
 -- out --
 not total
-result.a copies input.nope, which the source schema does not declare (rule source-undeclared) @ lens.cue:2:13
+v1_0.a copies v0_0.nope, which the source schema does not declare (rule source-undeclared) @ lens.cue:2:11

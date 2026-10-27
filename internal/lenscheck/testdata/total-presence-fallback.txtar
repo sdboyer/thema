@@ -4,10 +4,10 @@ o?: int
 -- target.cue --
 o: int
 -- lens.cue --
-input: _
-result: {
-	if input.o != _|_ {o: input.o}
-	if input.o == _|_ {o: 0}
+v0_0: _
+v1_0: {
+	if v0_0.o != _|_ {o: v0_0.o}
+	if v0_0.o == _|_ {o: 0}
 }
 -- out --
 total

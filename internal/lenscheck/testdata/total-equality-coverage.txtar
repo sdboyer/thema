@@ -4,10 +4,10 @@ t: 1 | 2
 -- target.cue --
 u: "a" | "b"
 -- lens.cue --
-input: _
-result: {
-	if input.t == 1 {u: "a"}
-	if input.t == 2 {u: "b"}
+v0_0: _
+v1_0: {
+	if v0_0.t == 1 {u: "a"}
+	if v0_0.t == 2 {u: "b"}
 }
 -- out --
 total

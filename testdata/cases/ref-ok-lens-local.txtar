@@ -1,7 +1,8 @@
-# a lens's own body is input, result, lacunas and anything declared inside the
-# lens: a let, a hidden field and a field alias (visible within the struct that
-# declares it) are all fine to refer to, and so is thema's own package
-# (thema.Lacuna, thema.LacunaTypes), which is part of the substrate
+# a lens's own body is the instance it takes, the one it returns, lacunas and
+# anything declared inside the lens: a let, a hidden field and a field alias
+# (visible within the struct that declares it) are all fine to refer to, and
+# so is thema's own package (thema.Lacuna, thema.LacunaTypes), which is part
+# of the substrate
 #issue: 21
 -- in.cue --
 import "github.com/sdboyer/thema"
@@ -18,24 +19,24 @@ lin: thema.Lineage & {
 	}
 	lenses: {
 		"1.0->0.0": {
-			input: _
-			let B = input.b
+			v1_0: _
+			let B = v1_0.b
 			_suffix: ""
-			result: {
+			v0_0: {
 				a~(A): B + _suffix
-				n:     input.m
+				n:     v1_0.m
 				_echo: A
 			}
 			lacunas: [thema.Lacuna & {
-				condition: input.m == 0
-				targetFields: [{path: "a", value: result.a}]
+				condition: v1_0.m == 0
+				targetFields: [{path: "a", value: v0_0.a}]
 				message: "m was the placeholder value"
 				type:    thema.LacunaTypes.Placeholder
 			}]
 		}
 		"0.0->1.0": {
-			input: _
-			result: {b: input.a, m: input.n}
+			v0_0: _
+			v1_0: {b: v0_0.a, m: v0_0.n}
 		}
 	}
 }

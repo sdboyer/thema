@@ -19,8 +19,9 @@ import (
 // author does about each are in docs/invariants.md, References.
 //
 // A schema may refer only to its own body (anything declared inside it, at any
-// depth) and to CUE's builtin packages. A lens may refer only to input, its own
-// body and the builtin packages. thema's own package is part of the substrate
+// depth) and to CUE's builtin packages. A lens may refer only to the instance
+// it takes (the field named after its from version, v1_0 for a lens from 1.0),
+// its own body and the builtin packages. thema's own package is part of the substrate
 // (thema.Lacuna, thema.LacunaTypes), not something an author can edit, so it
 // is allowed too.
 //
@@ -68,6 +69,9 @@ type refOwner struct {
 	// lens says whether the owner is a lens; otherwise it is a schema or the
 	// joinSchema, which follow the schema rules.
 	lens bool
+	// takes is the name of the field a lens binds the instance it takes to
+	// (cuetil.LensParam), for the lens rule's wording.
+	takes string
 }
 
 // refFinding is one reference that breaks a rule.
@@ -123,7 +127,7 @@ func (o refOwner) kind() string {
 
 func (o refOwner) may() string {
 	if o.lens {
-		return "a lens may refer only to input, its own body and CUE's builtin packages"
+		return "a lens may refer only to " + o.takes + ", the instance it takes, its own body and CUE's builtin packages"
 	}
 	return "a " + o.kind() + " may refer only to its own body and CUE's builtin packages"
 }

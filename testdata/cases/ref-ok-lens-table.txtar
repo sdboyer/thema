@@ -1,6 +1,6 @@
-# a value table a lens looks its result up in lives inside the lens, as a
-# hidden field: the lens's own body (compare ext-lens-table, where the same
-# table outside the lineage is refused)
+# a value table a lens looks a field up in lives inside the lens, as a hidden
+# field: the lens's own body (compare ext-lens-table, where the same table
+# outside the lineage is refused)
 #issue: 21
 -- in.cue --
 import "github.com/sdboyer/thema"
@@ -17,13 +17,13 @@ lin: thema.Lineage & {
 	}
 	lenses: {
 		"1.0->0.0": {
-			input: _
+			v1_0: _
 			_table: {x: "ex", y: "why"}
-			result: {a: _table[input.b]}
+			v0_0: {a: _table[v1_0.b]}
 		}
 		"0.0->1.0": {
-			input: _
-			result: {b: "x"}
+			v0_0: _
+			v1_0: {b: "x"}
 		}
 	}
 }

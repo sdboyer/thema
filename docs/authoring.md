@@ -133,9 +133,9 @@ lin: thema.Lineage & {
 	}
 	lenses: {
 		"0.1->0.0": {
-			input: _
-			result: {
-				firstfield: input.firstfield
+			v0_1: _
+			v0_0: {
+				firstfield: v0_1.firstfield
 			}
 		}
 	}
@@ -208,7 +208,7 @@ A lineage must have exactly these lenses:
 
 Moving forward within a major version needs no lens, as backward compatibility already guarantees an old instance is a new instance.
 
-Each lens is keyed by the versions it maps between, written `"<from>-><to>"`: `"1.0->0.0"` maps instances of `1.0` to `0.0`. A lens has an `input` that stands for an instance of the `from` schema, and a `result`: the instance of the `to` schema, built from `input`. A lens's result may contain only fields its `to` schema declares, and a lens may refer only to `input`, its own body and CUE's builtin packages (see the [invariants](invariants.md#references)). thema checks lenses when the lineage is loaded, treating `input` as any instance of its schema: a result that couldn't be an instance of the `to` schema, or that refers to a field `input` can't have, is an error before any data is ever translated.
+Each lens is keyed by the versions it maps between, written `"<from>-><to>"`: `"1.0->0.0"` maps instances of `1.0` to `0.0`. A lens binds the instance it takes to a field named after the `from` version (`v1_0` for a lens from `1.0`), and builds the instance it returns in a field named after the `to` version (`v0_0`). The instance it returns may contain only fields its `to` schema declares, and a lens may refer only to the instance it takes, its own body and CUE's builtin packages (see the [invariants](invariants.md#references)). thema checks lenses when the lineage is loaded, treating the instance it takes as any instance of its schema: a returned value that couldn't be an instance of the `to` schema, or that refers to a field the taken instance can't have, is an error before any data is ever translated.
 
 The change to the `Ship` schema is trivial, but presents an interesting challenge - because we specifically don't want to make `secondfield` optional or give it a default value, how can we define a forward lens that still produces a valid instance of `Ship@1.0`?
 
@@ -234,17 +234,17 @@ lin: thema.Lineage & {
 	}
 	lenses: {
 		"1.0->0.0": {
-			input: _
-			result: {
+			v1_0: _
+			v0_0: {
 				// Map the first field back
-				firstfield: input.firstfield
+				firstfield: v1_0.firstfield
 			}
 		}
 		"0.0->1.0": {
-			input: _
-			result: {
+			v0_0: _
+			v1_0: {
 				// Direct mapping of the first field
-				firstfield: input.firstfield
+				firstfield: v0_0.firstfield
 				// Just some placeholder int, so we have a valid instance of schema 1.0
 				secondfield: -1
 			}
@@ -310,29 +310,29 @@ lin: thema.Lineage & {
 	}
 	lenses: {
 		"1.0->0.0": {
-			input: _
-			result: {
-				firstfield: input.firstfield
+			v1_0: _
+			v0_0: {
+				firstfield: v1_0.firstfield
 			}
 			lacunas: [thema.Lacuna & {
 				sourceFields: [{
 					path:  "secondfield"
-					value: input.secondfield
+					value: v1_0.secondfield
 				}]
 				message: "secondfield has no equivalent in 0.0 and was dropped"
 				type:    thema.LacunaTypes.DroppedField
 			}]
 		}
 		"0.0->1.0": {
-			input: _
-			result: {
-				firstfield:  input.firstfield
+			v0_0: _
+			v1_0: {
+				firstfield:  v0_0.firstfield
 				secondfield: -1
 			}
 			lacunas: [thema.Lacuna & {
 				targetFields: [{
 					path:  "secondfield"
-					value: result.secondfield
+					value: v1_0.secondfield
 				}]
 				message: "-1 used as a placeholder value - replace with a real value before persisting!"
 				type:    thema.LacunaTypes.Placeholder

@@ -32,7 +32,7 @@ lenses: {}
 <nearoptional@v0.0>.alist.0: validation failed, data is not an instance:
 	schema expected `string`
 		/in.cue:13:24
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:177:19
 	but data contained `42`
 		test:3:15
 -- in/validate/TestValidate/wrongTypeInListItem.data.json --

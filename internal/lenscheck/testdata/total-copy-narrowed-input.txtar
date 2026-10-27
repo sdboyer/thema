@@ -4,7 +4,7 @@ b: string
 -- target.cue --
 a: string
 -- lens.cue --
-input: {b: *"d" | string}
-result: {a: input.b}
+v0_0: {b: *"d" | string}
+v1_0: {a: v0_0.b}
 -- out --
 total

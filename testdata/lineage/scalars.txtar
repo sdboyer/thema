@@ -137,7 +137,7 @@ schemas: {
 -- out/validate/TestValidate/someInt8 --
 <scalarFields@v0.0>.someInt8: validation failed, data is not an instance:
 	schema expected `int8`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:177:19
 	but data contained `null`
 		test:2:17
 <scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
@@ -150,12 +150,12 @@ schemas: {
 -- out/validate/TestValidate/someInt16 --
 <scalarFields@v0.0>.someInt16: validation failed, data is not an instance:
 	schema expected `int16`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:177:19
 	but data contained `null`
 		test:3:18
 <scalarFields@v0.0>.someUInt16: validation failed, data is not an instance:
 	schema expected `uint16`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:177:19
 	but data contained `null`
 		test:4:19
 <scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
@@ -168,7 +168,7 @@ schemas: {
 -- out/validate/TestValidate/someUInt16 --
 <scalarFields@v0.0>.someUInt16: validation failed, data is not an instance:
 	schema expected `uint16`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:177:19
 	but data contained `null`
 		test:2:19
 <scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
@@ -187,7 +187,7 @@ schemas: {
 -- out/validate/TestValidate/someUInt32 --
 <scalarFields@v0.0>.someUInt32: validation failed, data is not an instance:
 	schema expected `uint32`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:177:19
 	but data contained `null`
 		test:2:19
 <scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
@@ -209,7 +209,7 @@ schemas: {
 -- out/validate/TestValidate/someUInt64 --
 <scalarFields@v0.0>.someUInt64: validation failed, data is not an instance:
 	schema expected `uint64`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:177:19
 	but data contained `null`
 		test:3:19
 <scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
@@ -231,7 +231,7 @@ schemas: {
 -- out/validate/TestValidate/someUInt8 --
 <scalarFields@v0.0>.someUInt8: validation failed, data is not an instance:
 	schema expected `uint8`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:177:19
 	but data contained `null`
 		test:2:18
 <scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
@@ -407,7 +407,7 @@ schemas: {
 -- out/validate/TestValidate/someInt32 --
 <scalarFields@v0.0>.someInt32: validation failed, data is not an instance:
 	schema expected `int32`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:177:19
 	but data contained `"not an int"`
 		test:2:18
 <scalarFields@v0.0>.someUInt8: validation failed, data is not an instance:
@@ -453,7 +453,7 @@ schemas: {
 -- out/validate/TestValidate/someInt64 --
 <scalarFields@v0.0>.someInt64: validation failed, data is not an instance:
 	schema expected `int64`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:177:19
 	but data contained `"not an int64"`
 		test:2:18
 <scalarFields@v0.0>.someUInt8: validation failed, data is not an instance:
@@ -499,7 +499,7 @@ schemas: {
 -- out/validate/TestValidate/someFloat32 --
 <scalarFields@v0.0>.someFloat32: validation failed, data is not an instance:
 	schema expected `float32`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:177:19
 	but data contained `"I am a string"`
 		test:2:20
 <scalarFields@v0.0>.someUInt8: validation failed, data is not an instance:
@@ -545,7 +545,7 @@ schemas: {
 -- out/validate/TestValidate/someFloat64 --
 <scalarFields@v0.0>.someFloat64: validation failed, data is not an instance:
 	schema expected `float64`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
+		/github.com/sdboyer/thema@v0.1.0/lineage.cue:177:19
 	but data contained `"I am a string"`
 		test:2:20
 <scalarFields@v0.0>.someUInt8: validation failed, data is not an instance:

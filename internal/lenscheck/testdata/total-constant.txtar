@@ -6,7 +6,7 @@ a: int
 s: "x" | "y"
 d: *"foo" | "bar"
 -- lens.cue --
-input: _
-result: {a: 1, s: "x", d: "bar"}
+v0_0: _
+v1_0: {a: 1, s: "x", d: "bar"}
 -- out --
 total

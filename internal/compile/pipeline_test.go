@@ -64,10 +64,10 @@ func (s ship) lineage() *ast.File {
 	}
 	s1 := at(v1.at("schema: {"), strct(s1elts...))
 
-	lens := func(header, resultPos token.Pos, result []ast.Decl, lacunas []ast.Expr) ast.Expr {
+	lens := func(from, to string, header, resultPos token.Pos, result []ast.Decl, lacunas []ast.Expr) ast.Expr {
 		elts := []ast.Decl{
-			field("input", at(header, ident("_"))),
-			field("result", at(resultPos, strct(result...))),
+			field(from, at(header, ident("_"))),
+			field(to, at(resultPos, strct(result...))),
 		}
 		if lacunas != nil {
 			elts = append(elts, field("lacunas", at(header, ast.NewList(lacunas...))))
@@ -77,7 +77,7 @@ func (s ship) lineage() *ast.File {
 	bwd, fwd := v1.at("backward: {"), v1.at("forward: {")
 	fwdCount := s.fwdCount
 	if fwdCount == nil {
-		fwdCount = sel(v1.at("from.count"), "input", "count")
+		fwdCount = sel(v1.at("from.count"), "v0_0", "count")
 	}
 	fwdResultPos := fwd
 	if s.unpositioned {
@@ -85,7 +85,7 @@ func (s ship) lineage() *ast.File {
 	}
 	fwdResult := append([]ast.Decl{
 		// Implicit copy: title isn't mentioned in the forward lens.
-		field("title", sel(fwdResultPos, "input", "title")),
+		field("title", sel(fwdResultPos, "v0_0", "title")),
 		field("count", fwdCount),
 	}, s.fwdExtra...)
 
@@ -96,17 +96,17 @@ func (s ship) lineage() *ast.File {
 			key("1", at(v1.header(), strct(key("0", at(v1.header(), strct(field("schema", s1))))))),
 		))),
 		field("lenses", at(v1.header(), strct(
-			key("1.0->0.0", lens(bwd, bwd, []ast.Decl{
-				field("title", sel(bwd, "input", "title")),
-				field("count", sel(v1.at("to.count"), "input", "count")),
+			key("1.0->0.0", lens("v1_0", "v0_0", bwd, bwd, []ast.Decl{
+				field("title", sel(bwd, "v1_0", "title")),
+				field("count", sel(v1.at("to.count"), "v1_0", "count")),
 			}, nil)),
-			key("0.0->1.0", lens(fwd, fwdResultPos, fwdResult, s.fwdLacunas)),
+			key("0.0->1.0", lens("v0_0", "v1_0", fwd, fwdResultPos, fwdResult, s.fwdLacunas)),
 		))),
 	}}
 }
 
-// lacuna builds a lacuna positioned at p, with the given fields.
-func lacuna(p token.Pos, fields ...*ast.Field) ast.Expr {
+// lacunaLit builds a lacuna positioned at p, with the given fields.
+func lacunaLit(p token.Pos, fields ...*ast.Field) ast.Expr {
 	elts := make([]ast.Decl, len(fields))
 	for i, f := range fields {
 		elts[i] = f
@@ -155,8 +155,8 @@ var pipelineCases = map[string]pipelineCase{
 						at(v1.at("schema: {"), strct(field("title", at(v1.at("int"), ident("int"))))))))),
 				)))))),
 				field("lenses", at(v1.header(), strct(key("0.1->0.0", at(v1.at("backward: {"), strct(
-					field("input", at(v1.at("backward: {"), ident("_"))),
-					field("result", at(v1.at("backward: {"), strct(
+					field("v0_1", at(v1.at("backward: {"), ident("_"))),
+					field("v0_0", at(v1.at("backward: {"), strct(
 						field("title", at(v1.at(`"untitled"`), ast.NewString("untitled"))),
 					))),
 				)))))),
@@ -215,7 +215,7 @@ var pipelineCases = map[string]pipelineCase{
 		build: func(t *testing.T, a *archive) *ast.File {
 			s := shipFrom(t, a)
 			p := s.v1.at("lacuna: {")
-			s.fwdLacunas = []ast.Expr{lacuna(p,
+			s.fwdLacunas = []ast.Expr{lacunaLit(p,
 				field("targetFields", fieldRefs(s.v1.at(`"cuont"`), "cuont")),
 				field("message", str(p, "count is a placeholder")),
 				field("type", str(p, "Placeholder")),
@@ -228,7 +228,7 @@ var pipelineCases = map[string]pipelineCase{
 		build: func(t *testing.T, a *archive) *ast.File {
 			s := shipFrom(t, a)
 			p := s.v1.at("lacuna: {")
-			s.fwdLacunas = []ast.Expr{lacuna(p,
+			s.fwdLacunas = []ast.Expr{lacunaLit(p,
 				field("targetFields", fieldRefs(p, "count")),
 				field("message", str(p, "count is a placeholder")),
 				field("type", str(s.v1.at(`"Guess"`), "Guess")),
@@ -241,7 +241,7 @@ var pipelineCases = map[string]pipelineCase{
 		build: func(t *testing.T, a *archive) *ast.File {
 			s := shipFrom(t, a)
 			p := s.v1.at("lacuna: {")
-			s.fwdLacunas = []ast.Expr{lacuna(p,
+			s.fwdLacunas = []ast.Expr{lacunaLit(p,
 				field("targetFields", fieldRefs(p, "count")),
 				field("message", str(p, "count is a placeholder")),
 				field("type", str(p, "Placeholder")),

@@ -22,15 +22,15 @@ lin: schemas: {
 
 lin: lenses: {
     "0.0->1.0": {
-    	input: _
-    	result: {
-    		firstfield: input.firstfield
+    	v0_0: _
+    	v1_0: {
+    		firstfield: v0_0.firstfield
     	}
     }
     "1.0->0.0": {
-    	input: _
-    	result: {
-    		firstfield: input.firstfield
+    	v1_0: _
+    	v0_0: {
+    		firstfield: v1_0.firstfield
     	}
     }
 }

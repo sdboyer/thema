@@ -5,8 +5,8 @@ d: int32
 -- target.cue --
 q: int
 -- lens.cue --
-input: _
-result: {q: quo(input.n, input.d)}
+v0_0: _
+v1_0: {q: quo(v0_0.n, v0_0.d)}
 -- out --
 not total
-result.q divides by input.d, which may be 0 (rule division-by-zero) @ lens.cue:2:17
+v1_0.q divides by v0_0.d, which may be 0 (rule division-by-zero) @ lens.cue:2:15

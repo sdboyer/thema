@@ -133,7 +133,7 @@ type dentry struct {
 	source   cue.Path
 	expr     ast.Expr
 	comments []*ast.CommentGroup
-	// fallback is orelse's fallback; arms and catchAll are remap's table;
+	// fallback is orelse's fallback; arms and catchAll are match's arms;
 	// body is each's body.
 	fallback ast.Expr
 	arms     []arm
@@ -145,14 +145,14 @@ type dentry struct {
 }
 
 // A dbody is a lens body read back from the normal form, in result order
-// with drops last. root is the normal form's root for references (input or
-// item); name is the authoring form's (v0_0 or item). lacunas are the lens's
+// with drops last. root is the field references start from, the same in the
+// normal and the authoring form (v0_0, or item). lacunas are the lens's
 // declared lacunas in list order, keyed by full path; only the lens's body
 // holds them, not an each body's.
 type dbody struct {
-	root, name string
-	entries    []dentry
-	lacunas    []dlacuna
+	root    string
+	entries []dentry
+	lacunas []dlacuna
 }
 
 // A dlacuna is a declared lacuna read back from the normal form.
@@ -192,7 +192,7 @@ func decompileLens(l cue.Value, key string, sv, tv thema.SyntacticVersion) (*dbo
 		case *ast.Field:
 			name, _, _ := ast.LabelName(d.Label)
 			switch name {
-			case "result":
+			case paramName(tv):
 				result, _ = d.Value.(*ast.StructLit)
 			case "lacunas":
 				lacunas, _ = d.Value.(*ast.ListLit)
@@ -202,7 +202,7 @@ func decompileLens(l cue.Value, key string, sv, tv thema.SyntacticVersion) (*dbo
 	if result == nil {
 		return nil, fmt.Errorf("lens %s is outside the authoring form: its result is not a struct literal", key)
 	}
-	b := &dbody{root: rootInput, name: paramName(sv)}
+	b := &dbody{root: paramName(sv)}
 	if werr := b.walk(result.Elts, cue.MakePath(), key); werr != nil {
 		return nil, werr
 	}
@@ -229,7 +229,7 @@ func (b *dbody) walk(decls []ast.Decl, tbase cue.Path, key string) error {
 		case *ast.Comprehension:
 			br, ok := singleBranch(d)
 			if !ok {
-				return fmt.Errorf("lens %s is outside the authoring form: a comprehension in its result that is not a guard or a branch", key)
+				return fmt.Errorf("lens %s is outside the authoring form: a comprehension in its result that is not an arm", key)
 			}
 			branches = append(branches, br)
 		default:
@@ -294,7 +294,7 @@ func (b *dbody) eachOf(x ast.Expr, key string) (eachSyntax, bool) {
 	if !ok {
 		return eachSyntax{}, false
 	}
-	body := &dbody{root: rootItem, name: rootItem}
+	body := &dbody{root: rootItem}
 	err := body.walk(s.Elts, cue.MakePath(), key)
 	return eachSyntax{source: p, body: body, err: err}, true
 }
@@ -384,8 +384,8 @@ func (b *dbody) tests(cond ast.Expr) ([]test, bool) {
 	return nil, false
 }
 
-// branches interprets the comprehensions of one struct: a guarded copy or
-// move, the two branches of an orelse, or the arms of a remap.
+// branches interprets the comprehensions of one struct: a copy or move under
+// a presence test, the two arms of an orelse, or the arms of a match.
 func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 	type group struct {
 		name string
@@ -445,12 +445,12 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 		switch {
 		case len(arms) > 0 || len(passthrough) > 0 || len(catchAll) > 0:
 			if len(present)+len(absent) > 0 || len(passthrough) > 1 || len(catchAll) > 1 {
-				return fmt.Errorf("lens %s is outside the authoring form: the branches of %s are not a remap", key, tpath)
+				return fmt.Errorf("lens %s is outside the authoring form: the arms of %s are not a match", key, tpath)
 			}
-			en.kind, en.source = kindRemap, source
+			en.kind, en.source = kindMatch, source
 			for i, br := range arms {
 				if !isLiteral(br.field.Value) {
-					return fmt.Errorf("lens %s is outside the authoring form: remap arm %q of %s is not a constant", key, armKeys[i], tpath)
+					return fmt.Errorf("lens %s is outside the authoring form: match arm %q of %s is not a constant", key, armKeys[i], tpath)
 				}
 				en.arms = append(en.arms, arm{key: armKeys[i], value: br.field.Value})
 			}
@@ -463,7 +463,7 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 		case len(present) == 1 && len(absent) == 1:
 			root, p, ok := refPathAny(present[0].field.Value)
 			if !ok || root != b.root || p.String() != source.String() {
-				return fmt.Errorf("lens %s is outside the authoring form: the branches of %s are not an orelse", key, tpath)
+				return fmt.Errorf("lens %s is outside the authoring form: the arms of %s are not an orelse", key, tpath)
 			}
 			fb := absent[0].field.Value
 			if _, _, isRef := refPathAny(fb); !isRef && !isLiteral(fb) {
@@ -473,11 +473,11 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 		case len(present) == 1 && len(absent) == 0:
 			root, p, ok := refPathAny(present[0].field.Value)
 			if !ok || root != b.root || p.String() != source.String() {
-				return fmt.Errorf("lens %s is outside the authoring form: the guard on %s does not guard its own reference", key, tpath)
+				return fmt.Errorf("lens %s is outside the authoring form: the presence test on %s does not test its own reference", key, tpath)
 			}
 			en.kind, en.source, en.expr, en.implicit = kindMove, p, present[0].field.Value, p.String() == tpath.String()
 		default:
-			return fmt.Errorf("lens %s is outside the authoring form: the branches of %s", key, tpath)
+			return fmt.Errorf("lens %s is outside the authoring form: the arms of %s", key, tpath)
 		}
 		b.entries = append(b.entries, en)
 	}
@@ -590,9 +590,8 @@ func (b *dbody) find(p cue.Path, drop bool) *dentry {
 
 // when turns a lacuna's condition into the authored when: nil, and
 // structural, if the condition is the one en implies (none for a move or a
-// constant; the fallback for an orelse; the [_] arm for a remap; presence
-// for a drop), else the condition with references renamed to the authoring
-// form's root.
+// constant; the fallback for an orelse; the [_] arm for a match; presence
+// for a drop), else the condition as written.
 func (b *dbody) when(en *dentry, cond ast.Expr) (when ast.Expr, structural bool) {
 	if cond == nil {
 		return nil, en.kind != kindEach
@@ -605,7 +604,7 @@ func (b *dbody) when(en *dentry, cond ast.Expr) (when ast.Expr, structural bool)
 			if len(ts) == 1 && last.operand == nil && !last.present && last.path.String() == en.source.String() {
 				return nil, true
 			}
-		case kindRemap:
+		case kindMatch:
 			if last.operand != nil && !last.present && en.catchAll != nil {
 				return nil, true
 			}
@@ -615,30 +614,7 @@ func (b *dbody) when(en *dentry, cond ast.Expr) (when ast.Expr, structural bool)
 			}
 		}
 	}
-	renameRoot(cond, b.root, b.name)
 	return cond, false
-}
-
-// renameRoot renames the references from <from> in x to start from <to>.
-func renameRoot(x ast.Expr, from, to string) {
-	labels := make(map[*ast.Ident]bool)
-	ast.Walk(x, func(n ast.Node) bool {
-		switch n := n.(type) {
-		case *ast.SelectorExpr:
-			if id, ok := n.Sel.(*ast.Ident); ok {
-				labels[id] = true
-			}
-		case *ast.Field:
-			if id, ok := n.Label.(*ast.Ident); ok {
-				labels[id] = true
-			}
-		case *ast.Ident:
-			if !labels[n] && n.Name == from {
-				n.Name = to
-			}
-		}
-		return true
-	}, nil)
 }
 
 func joinPath(p, q cue.Path) cue.Path {
@@ -654,7 +630,7 @@ func stringLit(x ast.Expr) (string, error) {
 }
 
 // fieldPaths reads the paths of a lacuna's sourceFields or targetFields: a
-// list of {path: "..."} structs, each possibly guarded, or a reference to a
+// list of {path: "..."} structs, each possibly under a presence test, or a reference to a
 // let holding the list an each body's drop aggregates, in which case the
 // list's path is returned too.
 func fieldPaths(exprs []ast.Expr, lets map[string]ast.Expr) (paths []cue.Path, each *cue.Path, err error) {
@@ -871,7 +847,7 @@ func (b *dbody) syntax() *ast.StructLit {
 		var val ast.Expr
 		switch en.kind {
 		case kindMove:
-			val = ref(b.name, en.source)
+			val = ref(b.root, en.source)
 		case kindConst:
 			val = en.expr
 		case kindDrop:
@@ -879,20 +855,20 @@ func (b *dbody) syntax() *ast.StructLit {
 		case kindOrElse:
 			fallback := en.fallback
 			if root, p, ok := refPathAny(fallback); ok && root == b.root {
-				fallback = ref(b.name, p)
+				fallback = ref(b.root, p)
 			}
-			val = &ast.CallExpr{Fun: ast.NewIdent(opOrElse), Args: []ast.Expr{ref(b.name, en.source), fallback}}
-		case kindRemap:
-			table := &ast.StructLit{}
+			val = &ast.CallExpr{Fun: ast.NewIdent(opOrElse), Args: []ast.Expr{ref(b.root, en.source), fallback}}
+		case kindMatch:
+			arms := &ast.StructLit{}
 			for _, a := range en.arms {
-				table.Elts = append(table.Elts, &ast.Field{Label: ast.NewString(a.key), Value: a.value})
+				arms.Elts = append(arms.Elts, &ast.Field{Label: ast.NewString(a.key), Value: a.value})
 			}
 			if en.catchAll != nil {
-				table.Elts = append(table.Elts, &ast.Field{Label: &ast.ListLit{Elts: []ast.Expr{ast.NewIdent("_")}}, Value: en.catchAll.value})
+				arms.Elts = append(arms.Elts, &ast.Field{Label: &ast.ListLit{Elts: []ast.Expr{ast.NewIdent("_")}}, Value: en.catchAll.value})
 			}
-			val = &ast.CallExpr{Fun: ast.NewIdent(opRemap), Args: []ast.Expr{ref(b.name, en.source), table}}
+			val = &ast.CallExpr{Fun: ast.NewIdent(opMatch), Args: []ast.Expr{ref(b.root, en.source), arms}}
 		case kindEach:
-			val = &ast.CallExpr{Fun: ast.NewIdent(opEach), Args: []ast.Expr{ref(b.name, en.source), en.body.syntax()}}
+			val = &ast.CallExpr{Fun: ast.NewIdent(opEach), Args: []ast.Expr{ref(b.root, en.source), en.body.syntax()}}
 		}
 		f := n.add(en.target, val)
 		for _, cg := range en.comments {

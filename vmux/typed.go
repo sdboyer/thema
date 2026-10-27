@@ -4,11 +4,12 @@ import (
 	"fmt"
 
 	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/lacuna"
 )
 
 // TypedMux is a version multiplexer that maps a []byte containing data at any
 // schematized version to a [thema.TypedInstance] at a particular schematized version.
-type TypedMux[T thema.Assignee] func(b []byte) (*thema.TypedInstance[T], thema.TranslationLacunas, error)
+type TypedMux[T thema.Assignee] func(b []byte) (*thema.TypedInstance[T], lacuna.TranslationLacunas, error)
 
 // NewTypedMux creates a [TypedMux] func from the provided [thema.TypedSchema].
 //
@@ -17,7 +18,7 @@ type TypedMux[T thema.Assignee] func(b []byte) (*thema.TypedInstance[T], thema.T
 //   - Decode the input []byte using the provided [Decoder], then
 //   - Pass the result to [thema.TypedSchema.ValidateTyped], then
 //   - Call [thema.Instance.Translate] on the result, to the version of the provided [thema.TypedSchema], then
-//   - Return the resulting [thema.TypedInstance], [thema.TranslationLacunas], and error
+//   - Return the resulting [thema.TypedInstance], [lacuna.TranslationLacunas], and error
 //
 // The returned error may be from any of the above steps.
 func NewTypedMux[T thema.Assignee](sch thema.TypedSchema[T], dec Decoder) TypedMux[T] {
@@ -25,7 +26,7 @@ func NewTypedMux[T thema.Assignee](sch thema.TypedSchema[T], dec Decoder) TypedM
 	// Prepare no-match error string once for reuse
 	vstring := allvstr(sch)
 
-	return func(b []byte) (*thema.TypedInstance[T], thema.TranslationLacunas, error) {
+	return func(b []byte) (*thema.TypedInstance[T], lacuna.TranslationLacunas, error) {
 		v, err := dec.Decode(ctx, b)
 		if err != nil {
 			// TODO wrap error for use with errors.Is

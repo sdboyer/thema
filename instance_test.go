@@ -10,6 +10,7 @@ import (
 	"cuelang.org/go/cue"
 
 	"github.com/sdboyer/thema/internal/txtartest/vanilla"
+	"github.com/sdboyer/thema/lacuna"
 
 	"cuelang.org/go/cue/cuecontext"
 	"github.com/stretchr/testify/require"
@@ -51,7 +52,7 @@ func TestInstance_Translate(t *testing.T) {
 	})
 }
 
-func writeGolden(tc *vanilla.Test, to SyntacticVersion, example *Instance, result cue.Value, lacunas TranslationLacunas) {
+func writeGolden(tc *vanilla.Test, to SyntacticVersion, example *Instance, result cue.Value, lacunas lacuna.TranslationLacunas) {
 	tc.Helper()
 
 	fromStr := example.Schema().Version().String()
@@ -110,8 +111,8 @@ schemas: {
 }
 lenses: {
 	"0.1->0.0": {
-		input: _
-		result: title: input.title
+		v0_1: _
+		v0_0: title: v0_1.title
 	}
 }`
 	linval := rt.Context().CompileString(linstr)

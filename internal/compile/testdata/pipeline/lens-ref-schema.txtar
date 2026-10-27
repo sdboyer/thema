@@ -1,8 +1,8 @@
 The forward lens's count (line 7 of 1.0) refers to schema 1.0's count through
-the lineage rather than to input, found by checkReferences at bind. A lens may
-refer only to input, its own body and CUE's builtin packages.
+the lineage rather than to v0_0, found by checkReferences at bind. A lens may
+refer only to the instance it takes, its own body and CUE's builtin packages.
 
-The position is the referring result field, looked up in the lens value by
+The position is the referring field of v1_0, looked up in the lens value by
 the finding's path, so the error lands on the author's line. The reference
 itself is read from the lens's syntax, which has no positions.
 -- ship/history/0.0.thema --
@@ -24,8 +24,8 @@ backward: {
 	count: to.count
 }
 -- out/error --
-lens 0.0->1.0: result.count refers to schemas["1"]["0"].schema.count, a schema; a lens may refer only to input, its own body and CUE's builtin packages (rule ref-lens-to-schema):
+lens 0.0->1.0: v1_0.count refers to schemas["1"]["0"].schema.count, a schema; a lens may refer only to v0_0, the instance it takes, its own body and CUE's builtin packages (rule ref-lens-to-schema):
     ship/1.0.thema:7:9
 -- out/positions --
-lens 0.0->1.0: result.count refers to schemas["1"]["0"].schema.count, a schema; a lens may refer only to input, its own body and CUE's builtin packages (rule ref-lens-to-schema)
+lens 0.0->1.0: v1_0.count refers to schemas["1"]["0"].schema.count, a schema; a lens may refer only to v0_0, the instance it takes, its own body and CUE's builtin packages (rule ref-lens-to-schema)
 	authored ship/1.0.thema:7:9

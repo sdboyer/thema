@@ -17,9 +17,9 @@ lin: thema.Lineage & {
 	}
 	lenses: {
 		"0.1->0.0": {
-			input: _
-			let N = input.n
-			result: {a: input.a, n: N}
+			v0_1: _
+			let N = v0_1.n
+			v0_0: {a: v0_1.a, n: N}
 		}
 	}
 }

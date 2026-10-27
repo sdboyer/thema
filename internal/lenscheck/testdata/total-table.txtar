@@ -5,7 +5,7 @@ t: "a" | "b"
 u: 1 | 2
 -- lens.cue --
 _T: {a: 1, b: 2}
-input: _
-result: {u: _T[input.t]}
+v0_0: _
+v1_0: {u: _T[v0_0.t]}
 -- out --
 total

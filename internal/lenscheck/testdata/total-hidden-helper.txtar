@@ -5,8 +5,8 @@ a: string
 a: string
 b: int
 -- lens.cue --
-input: _
-result: {a: input.a, b: _h}
+v0_0: _
+v1_0: {a: v0_0.a, b: _h}
 _h: 2
 -- out --
 total

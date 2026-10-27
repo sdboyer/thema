@@ -4,8 +4,8 @@ a: int
 -- target.cue --
 l: [int]
 -- lens.cue --
-input: _
-result: {l: [input.a, 1]}
+v0_0: _
+v1_0: {l: [v0_0.a, 1]}
 -- out --
 not total
-result.l is a list of 2 elements, which the target schema does not accept: incompatible list lengths (1 and 2) (rule literal-not-instance) @ lens.cue:2:10
+v1_0.l is a list of 2 elements, which the target schema does not accept: incompatible list lengths (1 and 2) (rule literal-not-instance) @ lens.cue:2:8

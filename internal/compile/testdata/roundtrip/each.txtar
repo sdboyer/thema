@@ -47,13 +47,13 @@ BackwardLens: {
 -- out/bind --
 lens 0.0->1.0 cannot be shown total over schema 0.0:
     1.0.thema:7:1
-lens 0.0->1.0: result.items builds list elements with a comprehension, so how many there are and what they hold depends on the instance; write each element (rule unknown-dynamic):
+lens 0.0->1.0: v1_0.items builds list elements with a comprehension, so how many there are and what they hold depends on the instance; write each element (rule unknown-dynamic):
     1.0.thema:10:3
 lens 0.0->1.0: lacunas[0].condition is len(_d_0) > 0, which is not a pattern: a presence test (p != _|_), an equality (p == c) or a type test ((p & T) != _|_) on an input field, or a conjunction (&&) of these (rule unknown-pattern):
     1.0.thema:12:4
 lens 1.0->0.0 cannot be shown total over schema 1.0:
     1.0.thema:25:1
-lens 1.0->0.0: result.items builds list elements with a comprehension, so how many there are and what they hold depends on the instance; write each element (rule unknown-dynamic):
+lens 1.0->0.0: v0_0.items builds list elements with a comprehension, so how many there are and what they hold depends on the instance; write each element (rule unknown-dynamic):
     1.0.thema:28:3
 -- out/decompiled/1.0.thema --
 schema: {
@@ -116,13 +116,13 @@ schemas: {
 }
 lenses: {
 	"0.0->1.0": {
-		input: _
-		let _d_0 = [for i, item in input.items if item.legacy != _|_ {
+		v0_0: _
+		let _d_0 = [for i, item in v0_0.items if item.legacy != _|_ {
 			path:  "items[\(i)].legacy"
 			value: item.legacy
 		}]
-		result: {
-			items: [for item in input.items {
+		v1_0: {
+			items: [for item in v0_0.items {
 				name: item.title
 			}]
 		}
@@ -135,9 +135,9 @@ lenses: {
 		}]
 	}
 	"1.0->0.0": {
-		input: _
-		result: {
-			items: [for item in input.items {
+		v1_0: _
+		v0_0: {
+			items: [for item in v1_0.items {
 				title: item.name
 			}]
 		}
