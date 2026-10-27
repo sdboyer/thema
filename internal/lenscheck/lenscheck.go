@@ -1424,7 +1424,11 @@ func (w *walker) walkLacunas() {
 	w.quiet++
 	defer func() { w.quiet-- }()
 	w.absentAdvice = func(p cue.Path) string {
-		return fmt.Sprintf("add %s != _|_ to the lacuna's condition", w.inputRef(p))
+		// A presence test in the condition establishes the field for the
+		// values the lacuna reports. A read of the field in the condition
+		// itself must sit under the test: && does not short-circuit, so a
+		// read beside the test is an error where the field is absent.
+		return fmt.Sprintf("add %s != _|_ to the lacuna's condition, and read it only under that test: [if %s != _|_ {...}, false][0]", w.inputRef(p), w.inputRef(p))
 	}
 	defer func() { w.absentAdvice = nil }()
 	for _, c := range w.syn.LacunaConjuncts() {
@@ -1530,7 +1534,24 @@ func (w *walker) lacunaCondition(lp cue.Path, x ast.Expr) []pattern {
 // establishes nothing about the source, so it is kept as an opaque pattern,
 // under which the lacuna's values must be present for every instance.
 func (w *walker) guard(x ast.Expr, subj string, pos token.Pos) {
-	c := &exprCtx{subj: subj, pos: pos, paths: map[string]int{}}
+	var gs []pattern
+	if h, ok := asHead(x); ok {
+		// [if <patterns> {cond}, false][0]: cond under the patterns, which is
+		// how a condition over optional fields applies only where they are
+		// present.
+		g, ok := w.parsePattern(h.cond)
+		if !ok {
+			w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownPattern,
+				Detail: fmt.Sprintf("chooses by %s, which is not a pattern (a presence test, an equality or a type test on an input field, or a conjunction of these)", text(h.cond)), Pos: pos})
+			return
+		}
+		w.checkPatterns(g, nil, subj, pos)
+		if h.els != nil {
+			w.guard(h.els, subj, pos)
+		}
+		gs, x = g, h.then
+	}
+	c := &exprCtx{subj: subj, pos: pos, gs: gs, paths: map[string]int{}}
 	sh, ok := w.shape(x, c)
 	switch {
 	case !ok, sh.dead:

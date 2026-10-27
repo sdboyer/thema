@@ -368,6 +368,8 @@ func (w *walker) shape(x ast.Expr, c *exprCtx) (shape, bool) {
 			return shape{kind: cue.IntKind, iv: point(n), exact: true}, true
 		case token.STRING:
 			return shape{kind: cue.StringKind}, true
+		case token.TRUE, token.FALSE:
+			return shape{kind: cue.BoolKind}, true
 		case token.FLOAT:
 			w.fail(c, Unknown, RuleUnknownOp, fmt.Sprintf("uses the float literal %s; floats are outside the provable set, which has integers, strings and bools", e.Value))
 			return shape{}, false

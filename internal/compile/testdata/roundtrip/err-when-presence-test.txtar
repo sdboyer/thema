@@ -1,0 +1,30 @@
+A when that tests an optional field's presence and reads it. Reading it
+already restricts the lacuna to the instances that have it, and to test
+presence alone the field is named bare.
+-- ship/history/0.0.thema --
+schema: {
+	name:   string
+	count?: int
+}
+-- ship/1.0.thema --
+schema: {
+	name:  string
+	count: int
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		count: orelse(v0_0.count, 0)
+	}
+	lacunas: {
+		count: [{
+			type:    PrecisionLoss
+			message: "counts above 1000 are rounded downstream"
+			when:    v0_0.count != _|_ && v0_0.count > 1000
+		}]
+	}
+}
+-- out/error --
+a condition reading v0_0.count concerns only the instances that have it, so its presence need not be tested; to test presence alone, write when: v0_0.count:
+    1.0.thema:15:13

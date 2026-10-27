@@ -524,10 +524,11 @@ func (e *edge) parseLacuna(x ast.Expr, p cue.Path) *lacunaDecl {
 			}
 			d.msg = msg
 		case fieldWhen:
-			if !e.condition(f.Value) {
+			cond, ok := e.condition(f.Value)
+			if !ok {
 				return nil
 			}
-			d.when = f.Value
+			d.when = cond
 		default:
 			e.errf(f.Pos(), "%s is not a field of a lacuna; %s", name, shape)
 			return nil
@@ -540,13 +541,39 @@ func (e *edge) parseLacuna(x ast.Expr, p cue.Path) *lacunaDecl {
 	return d
 }
 
-// condition checks an authored condition, whose references the normal form
-// keeps as written. A condition reads fields the source always has, tests
-// the presence of any source field (<ref> != _|_, <ref> == _|_), and uses
-// CUE's builtins; reading an optional field is not supported yet, since
-// nothing proves the condition evaluates when it is absent.
-func (e *edge) condition(x ast.Expr) bool {
+// condition compiles an authored when, whose references the normal form
+// keeps as written, and returns the condition the lacuna applies under.
+//
+// A condition that reads an optional field concerns only the instances that
+// have it: it is compiled to [if <field> != _|_ {<when>}, false][0], since
+// CUE's && does not short-circuit over an absent field. An optional field
+// named bare, when: v0_0.p, tests its presence; a required bool named bare is
+// its value; any other bare reference is an error. A presence test written
+// out (<ref> != _|_) is refused in favor of the bare form, while an absence
+// test (<ref> == _|_) is a condition like any other. Beyond references, a
+// condition uses CUE's operators, len and the integer divisions: what the
+// totality proof proves a boolean.
+func (e *edge) condition(x ast.Expr) (ast.Expr, bool) {
+	pos := x.Pos()
+	if p, isRef := e.refPath(x); isRef {
+		switch {
+		case !lookup(e.S, p).Exists():
+			e.errf(pos, "%s does not declare %s", e.sv, p)
+			return nil, false
+		case e.optional(e.S, p):
+			e.unbind(rootIdent(x))
+			return e.present(pos, p), true
+		case lookup(e.S, p).IncompleteKind() == cue.BoolKind:
+			e.unbind(rootIdent(x))
+			return x, true
+		default:
+			e.errf(pos, "%s.%s is %s, not a condition: compare it; an optional field named bare tests its presence", e.root, p, lookup(e.S, p).IncompleteKind())
+			return nil, false
+		}
+	}
 	ok := true
+	var optional []cue.Path
+	seen := make(map[string]bool)
 	labels := make(map[*ast.Ident]bool)
 	ast.Walk(x, func(n ast.Node) bool {
 		switch n := n.(type) {
@@ -558,8 +585,12 @@ func (e *edge) condition(x ast.Expr) bool {
 				return true
 			}
 			if p, isRef := e.refPath(n.X); isRef {
-				if !lookup(e.S, p).Exists() {
+				switch {
+				case !lookup(e.S, p).Exists():
 					e.errf(n.X.Pos(), "%s does not declare %s", e.sv, p)
+					ok = false
+				case n.Op == token.NEQ:
+					e.errf(n.Pos(), "a condition reading %s.%s concerns only the instances that have it, so its presence need not be tested; to test presence alone, write %s: %s.%s", e.root, p, fieldWhen, e.root, p)
 					ok = false
 				}
 				e.unbind(rootIdent(n.X))
@@ -571,9 +602,9 @@ func (e *edge) condition(x ast.Expr) bool {
 				case !lookup(e.S, p).Exists():
 					e.errf(n.Pos(), "%s does not declare %s", e.sv, p)
 					ok = false
-				case e.optional(e.S, p):
-					e.errf(n.Pos(), "%s is optional in %s, and a condition reading an optional field is not supported yet; a condition may test its presence: %s.%s != _|_", p, e.sv, e.root, p)
-					ok = false
+				case e.optional(e.S, p) && !seen[p.String()]:
+					seen[p.String()] = true
+					optional = append(optional, p)
 				}
 				e.unbind(rootIdent(n))
 				return false
@@ -598,7 +629,31 @@ func (e *edge) condition(x ast.Expr) bool {
 		}
 		return true
 	}, nil)
-	return ok
+	if !ok {
+		return nil, false
+	}
+	if len(optional) == 0 {
+		return x, true
+	}
+	// Only the instances that have every optional field read.
+	var tests []ast.Expr
+	for _, p := range optional {
+		tests = append(tests, e.present(pos, p))
+	}
+	guard := tests[0]
+	for _, t := range tests[1:] {
+		guard = at(pos, ast.NewBinExpr(token.LAND, guard, t))
+	}
+	return at(pos, &ast.IndexExpr{
+		X: at(pos, &ast.ListLit{Elts: []ast.Expr{
+			at(pos, &ast.Comprehension{
+				Clauses: []ast.Clause{at(pos, &ast.IfClause{Condition: guard})},
+				Value:   at(pos, &ast.StructLit{Elts: []ast.Decl{at(pos, &ast.EmbedDecl{Expr: x})}}),
+			}),
+			at(pos, ast.NewBool(false)),
+		}}),
+		Index: at(pos, ast.NewLit(token.INT, "0")),
+	}), true
 }
 
 // unbind drops the binding the parser gave id, to the authoring file's
