@@ -50,6 +50,20 @@ var placeholder embed.FS
 
 const releaseURL = "https://github.com/sdboyer/thema-playground/releases/download/%[1]s/thema-playground-%[1]s.tar.gz"
 
+// The bundle is go generate's to write and go:embed's to read; its files are
+// the generator's own.
+const (
+	dirPerm  = 0o750
+	filePerm = 0o600
+)
+
+// fetchTimeout bounds downloading a frontend release.
+const fetchTimeout = 2 * time.Minute
+
+// maxEntrySize bounds one file of a frontend release. An entry claiming more
+// is not a frontend file.
+const maxEntrySize = 64 << 20
+
 func main() {
 	out := flag.String("out", "dist", "directory to write the bundle to; emptied first")
 	version := flag.String("version", "VERSION", "file pinning the frontend release")
@@ -68,48 +82,49 @@ func run(out, versionFile string) error {
 	if out, err = filepath.Abs(out); err != nil {
 		return err
 	}
-	pin, err := os.ReadFile(versionFile)
+	pin, err := os.ReadFile(versionFile) //nolint:gosec // the pin file named by -version
 	if err != nil {
 		return err
 	}
-	if err := os.RemoveAll(out); err != nil {
+	if err = os.RemoveAll(out); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(out, 0o750); err != nil {
+	if err = os.MkdirAll(out, dirPerm); err != nil {
 		return err
 	}
 
 	m := playground.Manifest{ThemaVersion: util.ThemaModuleVersion}
-	switch fields := strings.Fields(string(pin)); {
-	case len(fields) == 1 && fields[0] == "placeholder":
-		m.UI = "placeholder"
-		if err := copyFS(out, placeholder, "placeholder"); err != nil {
+	tag, digest, pinned := strings.Cut(strings.TrimSpace(string(pin)), " ")
+	switch {
+	case !pinned && tag == "placeholder":
+		m.UI = tag
+		if err = copyFS(out, placeholder, "placeholder"); err != nil {
 			return err
 		}
-	case len(fields) == 2:
-		m.UI = fields[0]
-		if err := fetchUI(out, fields[0], fields[1]); err != nil {
+	case pinned:
+		m.UI = tag
+		if err = fetchUI(out, tag, digest); err != nil {
 			return err
 		}
 	default:
-		return fmt.Errorf("%s holds %q; want \"<tag> <sha256>\" or \"placeholder\"", versionFile, strings.TrimSpace(string(pin)))
+		return fmt.Errorf("%s holds %q; want \"<tag> <sha256>\" or \"placeholder\"", versionFile, tag)
 	}
 
 	wasm := filepath.Join(out, "thema.wasm")
-	build := exec.Command("go", "build", "-trimpath", "-ldflags=-s -w", "-o", wasm, "./cmd/thema-wasm")
+	build := exec.Command("go", "build", "-trimpath", "-ldflags=-s -w", "-o", wasm, "./cmd/thema-wasm") //nolint:gosec // builds thema.wasm into -out
 	build.Dir = root
 	build.Env = append(os.Environ(), "GOOS=js", "GOARCH=wasm")
 	build.Stderr = os.Stderr
-	if err := build.Run(); err != nil {
+	if err = build.Run(); err != nil {
 		return fmt.Errorf("building thema.wasm: %w", err)
 	}
-	b, err := os.ReadFile(wasm)
+	b, err := os.ReadFile(wasm) //nolint:gosec // the file go build just wrote
 	if err != nil {
 		return err
 	}
 	sum := sha256.Sum256(b)
 	m.WasmSHA256 = hex.EncodeToString(sum[:])
-	if err := writeGzip(wasm+".gz", b); err != nil {
+	if err = writeGzip(wasm+".gz", b); err != nil {
 		return err
 	}
 
@@ -123,7 +138,7 @@ func run(out, versionFile string) error {
 		"types.ts":     filepath.Join(root, "playground", "types.ts"),
 	}
 	for name, src := range copies {
-		if err := copyFile(filepath.Join(out, name), src); err != nil {
+		if err = copyFile(filepath.Join(out, name), src); err != nil {
 			return err
 		}
 	}
@@ -132,7 +147,7 @@ func run(out, versionFile string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(out, "MANIFEST.json"), append(mb, '\n'), 0o600)
+	return os.WriteFile(filepath.Join(out, "MANIFEST.json"), append(mb, '\n'), filePerm)
 }
 
 // moduleRoot is the directory of thema's go.mod.
@@ -151,7 +166,7 @@ func moduleRoot() (string, error) {
 // fetchUI downloads the frontend release tag, checks it against its pinned
 // digest, and unpacks it into out.
 func fetchUI(out, tag, want string) error {
-	client := &http.Client{Timeout: 2 * time.Minute}
+	client := &http.Client{Timeout: fetchTimeout}
 	resp, err := client.Get(fmt.Sprintf(releaseURL, tag))
 	if err != nil {
 		return err
@@ -194,18 +209,18 @@ func untar(out string, r io.Reader) error {
 		dst := filepath.Join(out, name)
 		switch h.Typeflag {
 		case tar.TypeDir:
-			if err := os.MkdirAll(dst, 0o750); err != nil {
+			if err := os.MkdirAll(dst, dirPerm); err != nil {
 				return err
 			}
 		case tar.TypeReg:
-			if err := os.MkdirAll(filepath.Dir(dst), 0o750); err != nil {
+			if err := os.MkdirAll(filepath.Dir(dst), dirPerm); err != nil {
 				return err
 			}
-			f, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+			f, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, filePerm) //nolint:gosec // name is checked to be local above
 			if err != nil {
 				return err
 			}
-			if _, err := io.Copy(f, io.LimitReader(tr, 64<<20)); err != nil {
+			if _, err := io.Copy(f, io.LimitReader(tr, maxEntrySize)); err != nil {
 				_ = f.Close()
 				return err
 			}
@@ -228,16 +243,16 @@ func copyFS(out string, fsys fs.FS, dir string) error {
 			return err
 		}
 		rel := strings.TrimPrefix(p, dir+"/")
-		return os.WriteFile(filepath.Join(out, filepath.FromSlash(rel)), b, 0o600)
+		return os.WriteFile(filepath.Join(out, filepath.FromSlash(rel)), b, filePerm)
 	})
 }
 
 func copyFile(dst, src string) error {
-	b, err := os.ReadFile(src)
+	b, err := os.ReadFile(src) //nolint:gosec // a file of this module or of the Go that built it
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(dst, b, 0o600)
+	return os.WriteFile(dst, b, filePerm) //nolint:gosec // one of the bundle's fixed names, under -out
 }
 
 func writeGzip(dst string, b []byte) error {
@@ -252,5 +267,5 @@ func writeGzip(dst string, b []byte) error {
 	if err := zw.Close(); err != nil {
 		return err
 	}
-	return os.WriteFile(dst, buf.Bytes(), 0o600)
+	return os.WriteFile(dst, buf.Bytes(), filePerm)
 }
