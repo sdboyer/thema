@@ -105,8 +105,8 @@ func (s ship) lineage() *ast.File {
 	}}
 }
 
-// lacuna builds a lacuna positioned at p, with the given fields.
-func lacuna(p token.Pos, fields ...*ast.Field) ast.Expr {
+// lacunaLit builds a lacuna positioned at p, with the given fields.
+func lacunaLit(p token.Pos, fields ...*ast.Field) ast.Expr {
 	elts := make([]ast.Decl, len(fields))
 	for i, f := range fields {
 		elts[i] = f
@@ -180,7 +180,7 @@ var pipelineCases = map[string]pipelineCase{
 	"lens-nonconcrete": {
 		build:     func(t *testing.T, a *archive) *ast.File { return shipFrom(t, a).lineage() },
 		translate: true,
-		is:        terrors.ErrLensIncomplete,
+		is:        terrors.ErrInvalidLens,
 	},
 	"lens-undeclared": {
 		build: func(t *testing.T, a *archive) *ast.File {
@@ -195,7 +195,7 @@ var pipelineCases = map[string]pipelineCase{
 		build: func(t *testing.T, a *archive) *ast.File {
 			s := shipFrom(t, a)
 			p := s.v1.at("lacuna: {")
-			s.fwdLacunas = []ast.Expr{lacuna(p,
+			s.fwdLacunas = []ast.Expr{lacunaLit(p,
 				field("targetFields", fieldRefs(s.v1.at(`"cuont"`), "cuont")),
 				field("message", str(p, "count is a placeholder")),
 				field("type", str(p, "Placeholder")),
@@ -208,7 +208,7 @@ var pipelineCases = map[string]pipelineCase{
 		build: func(t *testing.T, a *archive) *ast.File {
 			s := shipFrom(t, a)
 			p := s.v1.at("lacuna: {")
-			s.fwdLacunas = []ast.Expr{lacuna(p,
+			s.fwdLacunas = []ast.Expr{lacunaLit(p,
 				field("targetFields", fieldRefs(p, "count")),
 				field("message", str(p, "count is a placeholder")),
 				field("type", str(s.v1.at(`"Guess"`), "Guess")),
@@ -221,7 +221,7 @@ var pipelineCases = map[string]pipelineCase{
 		build: func(t *testing.T, a *archive) *ast.File {
 			s := shipFrom(t, a)
 			p := s.v1.at("lacuna: {")
-			s.fwdLacunas = []ast.Expr{lacuna(p,
+			s.fwdLacunas = []ast.Expr{lacunaLit(p,
 				field("targetFields", fieldRefs(p, "count")),
 				field("message", str(p, "count is a placeholder")),
 				field("type", str(p, "Placeholder")),

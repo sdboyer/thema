@@ -1,0 +1,10 @@
+# An equality as a value: a bool the target accepts.
+-- source.cue --
+s: string
+-- target.cue --
+b: bool
+-- lens.cue --
+input: _
+result: {b: input.s == "yes"}
+-- out --
+total

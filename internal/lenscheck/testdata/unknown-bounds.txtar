@@ -1,0 +1,11 @@
+# Arithmetic over an unbounded operand into a bounded target.
+-- source.cue --
+n: int
+-- target.cue --
+m: int32
+-- lens.cue --
+input: _
+result: {m: input.n + 1}
+-- out --
+unknown
+result.m is an integer computed by input.n + 1, in [-inf, +inf], which the checker cannot show within int64 and the target's int32; bound the fields it reads (int32, >=0 & <=100) (rule unknown-bounds) @ lens.cue:2:13

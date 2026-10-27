@@ -71,6 +71,10 @@ func NewTree(v cue.Value) (*Tree, error) {
 type Conjunct struct {
 	Expr ast.Expr
 	Via  *ast.Field
+	// Disjunction is the outermost | expression Expr is an alternative of, if
+	// the references passed through one: Expr is then one of the values the
+	// field may be, not the value it is.
+	Disjunction ast.Expr
 }
 
 // Root returns the conjuncts of the whole exported value.
@@ -104,6 +108,11 @@ func (t *Tree) conjuncts(x ast.Expr, via *ast.Field, seen map[ast.Node]bool) []C
 		var out []Conjunct
 		for _, op := range ops {
 			out = append(out, t.conjuncts(op, via, seen)...)
+		}
+		if be, ok := x.(*ast.BinaryExpr); ok && be.Op == token.OR {
+			for i := range out {
+				out[i].Disjunction = x
+			}
 		}
 		return out
 	}
@@ -295,6 +304,12 @@ func (t *Tree) Within(n ast.Node, f *ast.Field) bool {
 		}
 	}
 	return false
+}
+
+// Parent returns the node n is directly within, or nil at the root (or for a
+// node that is not part of the tree).
+func (t *Tree) Parent(n ast.Node) ast.Node {
+	return t.parent[n]
 }
 
 func scopeFields(scope ast.Node) []*ast.Field {

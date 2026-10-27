@@ -1,0 +1,11 @@
+# A string built by interpolation for a target that can only be met through regex containment (#20).
+-- source.cue --
+a!: string
+-- target.cue --
+id!: =~"^[a-z]+$"
+-- lens.cue --
+input: _
+result: {id: "x\(input.a)"}
+-- out --
+unknown
+result.id is a string built by "x\(input.a)", and the target schema accepts only some strings (=~"^[a-z]+$"); the checker does not reason about string contents: make the target accept any string, or copy a field the target already constrains (rule unknown-target-constraint) @ lens.cue:2:14

@@ -1,0 +1,19 @@
+orelse over a field the source always has: the fallback could never apply.
+-- ship/history/0.0.thema --
+schema: {
+	a: string
+}
+-- ship/1.0.thema --
+schema: {
+	b: string
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		b: orelse(v0_0.a, "x")
+	}
+}
+-- out/error --
+0.0 always has a, so orelse's fallback could never apply: write b: v0_0.a:
+    1.0.thema:8:6

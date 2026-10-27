@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"cuelang.org/go/cue"
+	"cuelang.org/go/cue/ast"
 	cerrors "cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/token"
 	"github.com/cockroachdb/errors"
@@ -18,7 +19,9 @@ import (
 	terrors "github.com/sdboyer/thema/errors"
 	"github.com/sdboyer/thema/internal/compat"
 	"github.com/sdboyer/thema/internal/cuetil"
+	"github.com/sdboyer/thema/internal/cueview"
 	"github.com/sdboyer/thema/internal/embedreg"
+	"github.com/sdboyer/thema/internal/lenscheck"
 )
 
 // maybeLineage is an intermediate processing structure used to validate
@@ -48,10 +51,6 @@ type maybeLineage struct {
 	schlist []*schemaDef
 
 	allv []SyntacticVersion
-
-	implens []ImperativeLens
-
-	lensmap map[lensID]ImperativeLens
 
 	// The raw input value is the root of a package instance
 	// rawIsPackage bool
@@ -134,6 +133,13 @@ func (ml *maybeLineage) checkGoValidity(cfg *bindConfig) error {
 		return cmp.Or(cmp.Compare(a.v[0], b.v[0]), cmp.Compare(a.v[1], b.v[1]))
 	})
 
+	// thema's default joinSchema is _, which joins nothing.
+	if join := ml.uni.LookupPath(cue.MakePath(cue.Str("joinSchema"))); join.IncompleteKind() != cue.TopKind {
+		if err := ml.checkSchemaConstructs(join, "joinSchema"); err != nil {
+			return err
+		}
+	}
+
 	var previous *schemaDef
 	for _, sch := range schlist {
 		if err := ml.checkSchemaVersions(previous, sch); err != nil {
@@ -141,6 +147,9 @@ func (ml *maybeLineage) checkGoValidity(cfg *bindConfig) error {
 		}
 
 		sch.def = sch.ref.LookupPath(pathSchDef)
+		if err := ml.checkSchemaConstructs(sch.ref.LookupPath(pathSch), fmt.Sprintf("schema %s", sch.v)); err != nil {
+			return err
+		}
 		if previous != nil && !cfg.skipbuggychecks {
 			res := compat.Check(ml.rt.Context(), previous.def, sch.def)
 			if sch.v[1] == 0 && res.Compatible() {
@@ -385,6 +394,134 @@ func (ml *maybeLineage) checkSchemaShapes() error {
 	return nil
 }
 
+// checkSchemaConstructs rejects, in one schema (or the joinSchema), the
+// constructs thema does not support: comprehensions and reference cycles. A
+// comprehension makes a schema's fields depend on evaluation, and a cycle makes
+// its paths unbounded; no later check (compatibility, lens results, lacunas)
+// can describe either, so they are refused before any of them reads the
+// schema. Admitting either later refuses nothing that binds today.
+func (ml *maybeLineage) checkSchemaConstructs(v cue.Value, name string) error {
+	var errs cerrors.Error
+	t, err := cueview.NewTree(v)
+	if err != nil {
+		return errors.Mark(cerrors.Newf(userPos(v), "%s: %s", name, err), terrors.ErrInvalidLineage)
+	}
+	ast.Walk(t.File, func(n ast.Node) bool {
+		c, ok := n.(*ast.Comprehension)
+		if !ok {
+			return true
+		}
+		errs = cerrors.Append(errs, cerrors.Newf(c.Pos(), "%s: comprehensions are not allowed in schemas", name))
+		return false
+	}, nil)
+
+	w := &cycleWalker{name: name, root: v, reported: make(map[string]bool)}
+	w.walk(v)
+	errs = cerrors.Append(errs, w.errs)
+
+	if errs != nil {
+		return errors.Mark(errs, terrors.ErrInvalidLineage)
+	}
+	return nil
+}
+
+// maxReferenceDepth bounds the chain of references cycleWalker follows. A
+// schema's references form a finite tree once cycles are excluded; a chain this
+// long is reported rather than followed further.
+const maxReferenceDepth = 64
+
+// cycleWalker walks a schema value, following every reference within the
+// schema with the chain of referenced paths on a stack. A reference to a path
+// already on the stack closes a cycle, reported at that reference, as does one
+// to a value outside the schema that contains it.
+type cycleWalker struct {
+	name     string
+	root     cue.Value
+	stack    []cue.Path
+	reported map[string]bool
+	errs     cerrors.Error
+}
+
+func (w *cycleWalker) walk(v cue.Value) {
+	if _, p := v.ReferencePath(); len(p.Selectors()) > 0 {
+		if !cuetil.PathHasPrefix(p, w.root.Path()) {
+			// A reference that leaves the schema is not followed: what lies
+			// outside (thema's own definitions, imports) is not the author's. One
+			// to a value that contains the schema still closes a cycle.
+			if cuetil.PathHasPrefix(w.root.Path(), p) {
+				w.errs = cerrors.Append(w.errs, cerrors.Newf(v.Pos(), "%s: reference to %s, which contains the schema; schemas may not contain circular references", w.name, p))
+			}
+			return
+		}
+		key := p.String()
+		for i, s := range w.stack {
+			if s.String() == key {
+				if !w.reported[key] {
+					w.reported[key] = true
+					w.errs = cerrors.Append(w.errs, cerrors.Newf(v.Pos(), "%s: reference cycle %s; schemas may not contain circular references", w.name, w.chain(i)))
+				}
+				return
+			}
+		}
+		if len(w.stack) >= maxReferenceDepth {
+			w.errs = cerrors.Append(w.errs, cerrors.Newf(v.Pos(), "%s: chain of references deeper than %d at %s", w.name, maxReferenceDepth, w.rel(p)))
+			return
+		}
+		w.stack = append(w.stack, p)
+		w.walk(cue.Dereference(v))
+		w.stack = w.stack[:len(w.stack)-1]
+		return
+	}
+
+	if op, args := v.Expr(); op != cue.NoOp {
+		for _, a := range args {
+			w.walk(a)
+		}
+		return
+	}
+
+	switch v.IncompleteKind() {
+	case cue.StructKind:
+		iter, err := v.Fields(cue.Optional(true), cue.Hidden(true), cue.Definitions(true), cue.Patterns(true))
+		if err != nil {
+			return
+		}
+		for iter.Next() {
+			w.walk(iter.Value())
+		}
+	case cue.ListKind:
+		iter, err := v.List()
+		if err != nil {
+			return
+		}
+		for iter.Next() {
+			w.walk(iter.Value())
+		}
+		if elem := v.LookupPath(cue.MakePath(cue.AnyIndex)); elem.Exists() {
+			w.walk(elem)
+		}
+	}
+}
+
+// chain renders the cycle that begins at stack[from], ending where it began.
+func (w *cycleWalker) chain(from int) string {
+	var parts []string
+	for _, p := range w.stack[from:] {
+		parts = append(parts, w.rel(p))
+	}
+	parts = append(parts, w.rel(w.stack[from]))
+	return strings.Join(parts, " -> ")
+}
+
+// rel renders a referenced path relative to the schema where it lies within
+// it, and in full where it leaves it.
+func (w *cycleWalker) rel(p cue.Path) string {
+	if cuetil.PathHasPrefix(p, w.root.Path()) {
+		return cuetil.TrimPathPrefix(p, w.root.Path()).String()
+	}
+	return p.String()
+}
+
 // checkLensResults statically checks each CUE lens against its schemas, with its
 // input standing for any instance of its source schema (closed, so references to
 // fields the source can't have are errors). The lens's input must accept every
@@ -392,9 +529,6 @@ func (ml *maybeLineage) checkSchemaShapes() error {
 // target schema and build only fields the target declares. This catches at bind
 // time what would otherwise fail only when a matching instance is translated.
 func (ml *maybeLineage) checkLensResults() error {
-	if len(ml.implens) > 0 {
-		return nil
-	}
 	ctx := ml.rt.Context()
 	byVersion := make(map[SyntacticVersion]*schemaDef, len(ml.schlist))
 	for _, sch := range ml.schlist {
@@ -526,76 +660,68 @@ func (ml *maybeLineage) checkLacunas() error {
 	return nil
 }
 
-// checkLensEdges checks that the edges a lineage has lenses for, whether in Go or
-// in CUE, are exactly those its schema versions require.
-func (ml *maybeLineage) checkLensEdges() error {
-	cuelenses := ml.cueLenses()
-	// Two distinct validation paths, depending on whether the lenses were defined in
-	// Go or CUE.
-	if len(ml.implens) > 0 {
-		// A lineage's lenses come from Go or from CUE, never both: with Go lenses
-		// supplied, CUE lenses would be neither used nor checked.
-		if len(cuelenses) > 0 {
-			return errors.Mark(errors.New("lineage declares CUE lenses, but Go lenses were supplied: a lineage's lenses must all be in Go or all in CUE"), terrors.ErrErroneousLenses)
-		}
-		ids := make([]lensID, 0, len(ml.implens))
-		for _, lens := range ml.implens {
-			if lens.Mapper == nil {
-				return fmt.Errorf("nil Go migration func for %s", lid(lens.From, lens.To))
-			}
-			ids = append(ids, lid(lens.From, lens.To))
-		}
-		if err := ml.checkLensCompleteness(ids, "Go migrations"); err != nil {
-			return err
-		}
-		ml.lensmap = make(map[lensID]ImperativeLens, len(ml.implens))
-		for _, lens := range ml.implens {
-			ml.lensmap[lid(lens.From, lens.To)] = lens
-		}
+// checkLensTotality proves each CUE lens total: for every instance of its source
+// schema, the result is an instance of its target schema, with every required
+// field, and nothing in the lens fails to evaluate on the way. The walk
+// (internal/lenscheck) reads the lens's syntax and queries the schemas: a copy is
+// judged by the compatibility checker, a constant or computation by what the
+// target accepts, a comprehension by whether its patterns cover every instance.
+// What it cannot decide is an error too, saying what the author can do. CUE
+// evaluates a lens only against data, so without this a lens that drops a field
+// or overflows a bound surfaces at translate, for the instance that hits it.
+//
+// SkipBuggyChecks skips it: the corpus has lenses the check correctly refuses
+// (exemplars/expand, 0.3->0.2, drops "baz"), which #87 migrates.
+func (ml *maybeLineage) checkLensTotality(cfg *bindConfig) error {
+	if cfg.skipbuggychecks {
 		return nil
 	}
-
-	ids := make([]lensID, 0, len(cuelenses))
-	for _, cl := range cuelenses {
-		ids = append(ids, cl.id)
+	ctx := ml.rt.Context()
+	byVersion := make(map[SyntacticVersion]*schemaDef, len(ml.schlist))
+	for _, sch := range ml.schlist {
+		byVersion[sch.v] = sch
 	}
-	return ml.checkLensCompleteness(ids, "lenses")
+
+	var errs cerrors.Error
+	for _, cl := range ml.cueLenses() {
+		lens, from, to := cl.v, cl.id.From, cl.id.To
+		fsch, tsch := byVersion[from], byVersion[to]
+		if fsch == nil || tsch == nil {
+			continue
+		}
+		res := lenscheck.Check(ctx, lens, fsch.def, tsch.def)
+		if res.Total() {
+			continue
+		}
+		verb := "is not total over"
+		if res.Verdict() == lenscheck.Unknown {
+			verb = "cannot be shown total over"
+		}
+		errs = cerrors.Append(errs, cerrors.Newf(userPos(lens), "lens %s->%s %s schema %s", from, to, verb, from))
+		for _, f := range res.Findings {
+			errs = cerrors.Append(errs, cerrors.Newf(f.Pos, "lens %s->%s: %s", from, to, f))
+		}
+	}
+
+	if errs != nil {
+		return errors.Mark(errs, terrors.ErrInvalidLens)
+	}
+	return nil
 }
 
-// cueLens is a lens declared in a lineage's CUE, and the edge it is declared at.
-type cueLens struct {
-	id lensID
-	v  cue.Value
-}
-
-// cueLenses returns the lenses declared in the lineage's CUE. Their keys have
-// already been checked by checkUnknownFields.
-func (ml *maybeLineage) cueLenses() []cueLens {
-	iter, err := ml.uni.LookupPath(cue.MakePath(cue.Str("lenses"))).Fields()
-	if err != nil {
-		return nil
-	}
-	var lenses []cueLens
-	for iter.Next() {
-		id, _ := parseLensEdge(iter.Selector().Unquoted())
-		lenses = append(lenses, cueLens{id: id, v: iter.Value()})
-	}
-	return lenses
-}
-
-// checkLensCompleteness checks that a lineage has exactly the lenses its schema
+// checkLensEdges checks that a lineage has exactly the lenses its schema
 // versions require: a lens from every schema back to its predecessor, and a lens
-// forward across every major version boundary. Duplicates, self-lenses, lenses
-// between nonexistent or non-adjacent versions, and forward lenses across minor
-// versions (which are implicit) are all errors. kind names the lenses in errors,
-// e.g. "CUE lenses".
-func (ml *maybeLineage) checkLensCompleteness(ids []lensID, kind string) error {
-	all := make(map[lensID]bool)
-	for _, id := range ids {
-		if all[id] {
-			return errors.Mark(fmt.Errorf("duplicate %s for %s", kind, id), terrors.ErrErroneousLenses)
-		}
-		all[id] = true
+// forward across every major version boundary. Self-lenses, lenses between
+// nonexistent or non-adjacent versions, and forward lenses across minor versions
+// (which are implicit) are all errors. Lenses are keyed by edge, so an edge
+// can't repeat.
+func (ml *maybeLineage) checkLensEdges() error {
+	lenses := ml.cueLenses()
+	ids := make([]lensID, 0, len(lenses))
+	all := make(map[lensID]bool, len(lenses))
+	for _, cl := range lenses {
+		ids = append(ids, cl.id)
+		all[cl.id] = true
 	}
 
 	var missing []lensID
@@ -628,7 +754,7 @@ func (ml *maybeLineage) checkLensCompleteness(ids []lensID, kind string) error {
 	if len(missing) > 0 {
 		b := new(bytes.Buffer)
 
-		fmt.Fprintf(b, "%s not provided for the following version pairs:\n", kind)
+		b.WriteString("lenses not provided for the following version pairs:\n")
 		for _, mlid := range missing {
 			fmt.Fprint(b, "\t", mlid, "\n")
 		}
@@ -638,7 +764,7 @@ func (ml *maybeLineage) checkLensCompleteness(ids []lensID, kind string) error {
 	if len(all) > 0 {
 		b := new(bytes.Buffer)
 
-		fmt.Fprintf(b, "%s erroneously provided for the following version pairs:\n", kind)
+		b.WriteString("lenses erroneously provided for the following version pairs:\n")
 		// walk the slice so output is reliably ordered
 		for _, elid := range ids {
 			// if it's not in the list it's because it was expected & already processed
@@ -651,6 +777,27 @@ func (ml *maybeLineage) checkLensCompleteness(ids []lensID, kind string) error {
 	}
 
 	return nil
+}
+
+// cueLens is a lens declared in a lineage's CUE, and the edge it is declared at.
+type cueLens struct {
+	id lensID
+	v  cue.Value
+}
+
+// cueLenses returns the lenses declared in the lineage's CUE. Their keys have
+// already been checked by checkUnknownFields.
+func (ml *maybeLineage) cueLenses() []cueLens {
+	iter, err := ml.uni.LookupPath(cue.MakePath(cue.Str("lenses"))).Fields()
+	if err != nil {
+		return nil
+	}
+	var lenses []cueLens
+	for iter.Next() {
+		id, _ := parseLensEdge(iter.Selector().Unquoted())
+		lenses = append(lenses, cueLens{id: id, v: iter.Value()})
+	}
+	return lenses
 }
 
 // erroneousLensReason explains why a lens the lineage doesn't require is wrong.

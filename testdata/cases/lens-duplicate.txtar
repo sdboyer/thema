@@ -1,6 +1,7 @@
 # the lens for step 0.1 -> 0.0 is declared twice. Lenses are keyed by edge, so
 # the two declarations unify into one lens, as any CUE field does: neither is
 # ignored, and the unified result {a: input.a & 1000} fails for any other a.
+# The totality check sees the field written twice with values that may disagree.
 #issue: 20
 -- in.cue --
 import (
@@ -29,6 +30,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind ok
-translate 0.1 0.0 ok {a: 1000}
-translate 0.1 0.0 fail {a: 5}
+bind fail write-conflict

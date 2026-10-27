@@ -1,0 +1,22 @@
+A field the new version removes, that nothing maps or drops: a forgotten
+rename would otherwise be silent data loss.
+-- ship/history/0.0.thema --
+schema: {
+	before:    string
+	unchanged: string
+}
+-- ship/1.0.thema --
+schema: {
+	after:     string
+	unchanged: string
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		after: "x"
+	}
+}
+-- out/error --
+0.0 declares before and 1.0 does not, and nothing maps it: write <field>: v0_0.before to move it, or before: drop:
+    1.0.thema:6:1

@@ -35,7 +35,7 @@ func TestLacunaTypesMatchCUE(t *testing.T) {
 		cueTypes = append(cueTypes, s)
 	}
 	var goTypes []string
-	for lt := range lacuna.Types {
+	for _, lt := range lacuna.Types() {
 		goTypes = append(goTypes, string(lt))
 		if !lt.Known() {
 			t.Errorf("%s is listed as a lacuna type but Known() reports it is not", lt)

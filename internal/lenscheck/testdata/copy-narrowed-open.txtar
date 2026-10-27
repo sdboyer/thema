@@ -1,0 +1,14 @@
+# The whole input copied: the source accepts any extra field, and the target types one of them (testdata/known/lens-copy-not-total, #46).
+-- source.cue --
+a: string
+...
+-- target.cue --
+a: string
+zzz?: string
+...
+-- lens.cue --
+input: _
+result: input
+-- out --
+not total
+result copies input, whose zzz is now string, which does not accept every value of the prior _ (compat rule value-narrowed) (rule copy-narrowed) @ lens.cue:2:9

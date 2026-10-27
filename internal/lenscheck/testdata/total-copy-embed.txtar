@@ -1,0 +1,11 @@
+# The input embedded beside a constant for a field the source lacks.
+-- source.cue --
+a: string
+-- target.cue --
+a: string
+extra: int
+-- lens.cue --
+input: _
+result: {input, extra: 1}
+-- out --
+total

@@ -1,0 +1,32 @@
+# lens builds a string by interpolation into a field constrained by a regular
+# expression, which the valid input {a: "Q 1"} does not satisfy (#20, value-level
+# case "interpolation"); the checker does not reason about string contents
+#issue: 20
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "lensInterpolationRegex"
+	schemas: {
+		"0": "0": {
+			schema: {id!: =~"^[a-z]+$"}
+		}
+		"1": "0": {
+			schema: {a!: string}
+		}
+	}
+	lenses: {
+		"1.0->0.0": {
+			input: _
+			result: {id: "x\(input.a)"}
+		}
+		"0.0->1.0": {
+			input: _
+			result: {a: input.id}
+		}
+	}
+}
+-- expect --
+bind fail unknown-target-constraint

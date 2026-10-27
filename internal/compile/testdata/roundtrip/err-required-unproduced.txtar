@@ -1,0 +1,13 @@
+A required target field that nothing produces, and that the source lacks.
+-- ship/history/0.0.thema --
+schema: {
+	a: string
+}
+-- ship/1.0.thema --
+schema: {
+	a: string
+	b: int
+}
+-- out/error --
+1.0.thema has no ForwardLens, and 1.0 requires b: write ForwardLens: {v0_0: _, v1_0: {b: <mapping>}}:
+    1.0.thema:1:1

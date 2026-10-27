@@ -1,0 +1,11 @@
+# A write to a path the target does not declare.
+-- source.cue --
+a: string
+-- target.cue --
+a: string
+-- lens.cue --
+input: _
+result: {a: input.a, bogus: 1}
+-- out --
+not total
+result.bogus is not declared by the target schema (rule target-undeclared) @ lens.cue:2:22

@@ -1,0 +1,12 @@
+# A write beneath a disjunction of structs in the target.
+-- source.cue --
+a: string
+-- target.cue --
+rootfield: {branch: 1, one: string} | {branch: 2, two: string}
+-- lens.cue --
+input: _
+result: {rootfield: {branch: 1, one: input.a}}
+-- out --
+unknown
+result.rootfield.branch is written beneath result.rootfield, which is a disjunction in the target schema; the checker descends only into a single struct or list, so write result.rootfield as one value (rule unknown-target-constraint) @ lens.cue:2:22
+result.rootfield.one is written beneath result.rootfield, which is a disjunction in the target schema; the checker descends only into a single struct or list, so write result.rootfield as one value (rule unknown-target-constraint) @ lens.cue:2:38

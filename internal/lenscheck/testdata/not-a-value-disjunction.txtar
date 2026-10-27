@@ -1,0 +1,12 @@
+# A result field whose value is a disjunction, reached through a helper: one of several values, not a value (testdata/known/lens-result-depends-on-other-lens, #20).
+-- source.cue --
+a: string
+-- target.cue --
+b: string
+-- lens.cue --
+_h: *"default" | string
+input: _
+result: {b: _h}
+-- out --
+not total
+result.b is *"default" | string, a disjunction rather than a value; a result field must have one concrete value (rule not-a-value) @ lens.cue:3:13

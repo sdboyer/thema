@@ -1,0 +1,119 @@
+A nested restructure: a field moves into a struct that embeds its source, and
+an untouched sibling struct is copied whole.
+-- ship/history/0.0.thema --
+schema: {
+	ownerName: string
+	meta: {
+		created: string
+	}
+	dims: {
+		w: int
+		h: int
+	}
+}
+-- ship/1.0.thema --
+schema: {
+	meta: {
+		created: string
+		owner:   string
+	}
+	dims: {
+		w: int
+		h: int
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		meta: {
+			owner: v0_0.ownerName
+		}
+	}
+}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+schema: {
+	meta: {
+		created: string
+		owner:   string
+	}
+	dims: {
+		w: int
+		h: int
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		meta: {
+			owner: v0_0.ownerName
+		}
+	}
+}
+-- out/decompiled/history/0.0.thema --
+schema: {
+	ownerName: string
+	meta: {
+		created: string
+	}
+	dims: {
+		w: int
+		h: int
+	}
+}
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				ownerName: string
+				meta: {
+					created: string
+				}
+				dims: {
+					w: int
+					h: int
+				}
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				meta: {
+					created: string
+					owner:   string
+				}
+				dims: {
+					w: int
+					h: int
+				}
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		input: _
+		result: {
+			meta: {
+				created: input.meta.created
+				owner:   input.ownerName
+			}
+			dims: input.dims
+		}
+	}
+	"1.0->0.0": {
+		input: _
+		result: {
+			ownerName: input.meta.owner
+			meta:
+				created: input.meta.created
+			dims: input.dims
+		}
+	}
+}

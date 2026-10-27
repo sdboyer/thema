@@ -1,0 +1,11 @@
+# Division with /, which yields a float in CUE.
+-- source.cue --
+n: int32
+-- target.cue --
+h: int
+-- lens.cue --
+input: _
+result: {h: input.n / 2}
+-- out --
+unknown
+result.h divides with /, which yields a float in CUE; use quo or div for integer division (rule unknown-op) @ lens.cue:2:13

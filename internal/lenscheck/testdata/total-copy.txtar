@@ -1,0 +1,12 @@
+# Copies of required fields whose source values fit the target.
+-- source.cue --
+a: string
+n: int32
+-- target.cue --
+b: string
+n: int32
+-- lens.cue --
+input: _
+result: {b: input.a, n: input.n}
+-- out --
+total

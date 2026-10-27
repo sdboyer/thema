@@ -1,0 +1,13 @@
+# Equalities with every constant alternative of the tested field.
+-- source.cue --
+t: 1 | 2
+-- target.cue --
+u: "a" | "b"
+-- lens.cue --
+input: _
+result: {
+	if input.t == 1 {u: "a"}
+	if input.t == 2 {u: "b"}
+}
+-- out --
+total

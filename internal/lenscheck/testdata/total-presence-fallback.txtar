@@ -1,0 +1,13 @@
+# An optional source field copied under a presence test, with a constant under its negation, into a required target field.
+-- source.cue --
+o?: int
+-- target.cue --
+o: int
+-- lens.cue --
+input: _
+result: {
+	if input.o != _|_ {o: input.o}
+	if input.o == _|_ {o: 0}
+}
+-- out --
+total

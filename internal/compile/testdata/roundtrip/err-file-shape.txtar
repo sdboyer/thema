@@ -1,0 +1,30 @@
+A version file with an import, a package clause and a stray field.
+-- ship/history/0.0.thema --
+schema: {
+	a: string
+}
+-- ship/1.0.thema --
+package ship
+
+import "strings"
+
+schema: {
+	a: string
+	b: int
+}
+
+extra: 1
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		b: 1
+	}
+}
+-- out/error --
+a version file has no package clause:
+    1.0.thema:1:1
+imports are not allowed in a version file:
+    1.0.thema:3:1
+extra is not a field of a version file; a version file has only schema, ForwardLens and BackwardLens:
+    1.0.thema:10:1

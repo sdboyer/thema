@@ -1,0 +1,19 @@
+# regular fields that refer to each other are a reference cycle, though CUE
+# resolves it (#78)
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+thema.Lineage & {
+	name: "cycleStructural"
+	schemas: "0": "0": {
+		schema: {
+			a: b
+			b: a
+		}
+	}
+}
+-- out/bindfail --
+schema 0.0: reference cycle b -> a -> b; schemas may not contain circular references:
+    ./in.cue:7:4
+schema 0.0: reference cycle a -> b -> a; schemas may not contain circular references:
+    ./in.cue:8:4

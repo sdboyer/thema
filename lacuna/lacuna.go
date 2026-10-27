@@ -12,7 +12,10 @@
 // name fields its schemas declare, live with the callers that have CUE.
 package lacuna
 
-import "strconv"
+import (
+	"slices"
+	"strconv"
+)
 
 // TranslationLacunas holds the lacunas emitted by a translation, step by step.
 //
@@ -94,16 +97,18 @@ const (
 	Defaulted         Type = "Defaulted"
 )
 
-// lacunaTypes holds every known Type. It must match LacunaTypes in thema's
-// CUE, which a test checks.
-var lacunaTypes = map[Type]bool{
-	Placeholder: true, DroppedField: true, LossyFieldMapping: true, ChangedDefault: true,
-	PrecisionLoss: true, AmbiguousMapping: true, Defaulted: true,
+// types lists every known Type, in the order thema's CUE declares them. It must
+// match LacunaTypes in lacuna.cue, which a test checks.
+var types = []Type{Placeholder, DroppedField, LossyFieldMapping, ChangedDefault, PrecisionLoss, AmbiguousMapping, Defaulted}
+
+// Types returns every known Type, in the order thema's CUE declares them.
+func Types() []Type {
+	return slices.Clone(types)
 }
 
 // Known reports whether t is one of the lacuna types thema defines.
 func (t Type) Known() bool {
-	return lacunaTypes[t]
+	return slices.Contains(types, t)
 }
 
 // FieldRef identifies a field in an instance being translated, and its value at

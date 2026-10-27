@@ -1,0 +1,23 @@
+An optional source field copied to a required target field: an instance that
+lacks it would have nothing to put there.
+-- ship/history/0.0.thema --
+schema: {
+	a:  string
+	b?: int
+}
+-- ship/1.0.thema --
+schema: {
+	a: string
+	b: int
+	c: bool
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		c: true
+	}
+}
+-- out/error --
+b is optional in 0.0 and required in 1.0: write b: orelse(v0_0.b, <fallback>) to say what to use when it is absent:
+    1.0.thema:3:2

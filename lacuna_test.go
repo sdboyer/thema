@@ -153,7 +153,8 @@ func TestLacunaBindChecks(t *testing.T) {
 		lacunas string
 		errText string
 	}{
-		"valid":                          {`[thema.Lacuna & {sourceFields: [{path: "b", value: input.b}], targetFields: [{path: "nested.x", value: result.nested.x}], message: "m", type: "DroppedField"}]`, ""},
+		"well-formed":                    {`[thema.Lacuna & {condition: input.b != _|_, sourceFields: [{path: "b", value: input.b}], targetFields: [{path: "nested.x", value: result.nested.x}], message: "m", type: "DroppedField"}]`, ""},
+		"value may be absent":            {`[thema.Lacuna & {sourceFields: [{path: "b", value: input.b}], message: "m", type: "DroppedField"}]`, "source-absent"},
 		"conditional list":               {`[if input.b != _|_ {thema.Lacuna & {message: "m", type: "DroppedField"}}]`, "listed unconditionally"},
 		"conditional list via let":       {"L\n\t\tlet L = [if input.b != _|_ {thema.Lacuna & {message: \"m\", type: \"DroppedField\"}}]", "listed unconditionally"},
 		"source path not in from schema": {`[thema.Lacuna & {sourceFields: [{path: "nope", value: 1}], message: "m", type: "DroppedField"}]`, `"nope" is not declared by schema 0.1`},
@@ -173,60 +174,6 @@ func TestLacunaBindChecks(t *testing.T) {
 				t.Fatal("bind succeeded, want an error")
 			case c.errText != "" && !strings.Contains(cerrors.Details(err, nil), c.errText):
 				t.Fatalf("error does not mention %q: %v", c.errText, cerrors.Details(err, nil))
-			}
-		})
-	}
-}
-
-func TestGoLensLacunas(t *testing.T) {
-	ctx := cuecontext.New()
-	rt := NewRuntime(ctx)
-	src := `lin: thema.Lineage & {
-	name: "golens"
-	schemas: {
-		"0": "0": {schema: {a: string}}
-		"0": "1": {schema: {a: string, b?: int}}
-	}
-}`
-	bind := func(lacunas []lacuna.Lacuna) Lineage {
-		t.Helper()
-		v := loadLineageValue(t, ctx, src)
-		lin, err := BindLineage(v, rt, ImperativeLenses(ImperativeLens{From: SV(0, 1), To: SV(0, 0),
-			Mapper: func(_ *Instance, to Schema) (*Instance, []lacuna.Lacuna, error) {
-				out, err := to.Validate(ctx.CompileString(`{a: "x"}`))
-				return out, lacunas, err
-			}}))
-		if err != nil {
-			t.Fatal(err)
-		}
-		return lin
-	}
-	translate := func(lin Lineage) (lacuna.TranslationLacunas, error) {
-		inst, err := lin.Latest().Validate(ctx.CompileString(`{a: "x", b: 2}`))
-		if err != nil {
-			t.Fatal(err)
-		}
-		_, lac, err := inst.Translate(SV(0, 0))
-		return lac, err
-	}
-
-	lac, err := translate(bind([]lacuna.Lacuna{{Type: lacuna.DroppedField, Message: "b dropped", SourceFields: []lacuna.FieldRef{{Path: "b", Value: 2}}}}))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(lac) != 1 || lac[0].From != lacuna.SyntacticVersion(SV(0, 1)) || lac[0].To != lacuna.SyntacticVersion(SV(0, 0)) || len(lac[0].Lacunas) != 1 || lac[0].Lacunas[0].Type != lacuna.DroppedField {
-		t.Fatalf("unexpected lacunas: %+v", lac)
-	}
-
-	for name, l := range map[string]lacuna.Lacuna{
-		"unknown type":      {Type: "Bogus", Message: "m"},
-		"missing message":   {Type: lacuna.DroppedField},
-		"undeclared path":   {Type: lacuna.DroppedField, Message: "m", SourceFields: []lacuna.FieldRef{{Path: "nope"}}},
-		"wrong side's path": {Type: lacuna.DroppedField, Message: "m", TargetFields: []lacuna.FieldRef{{Path: "b"}}},
-	} {
-		t.Run(name, func(t *testing.T) {
-			if _, err := translate(bind([]lacuna.Lacuna{l})); err == nil {
-				t.Error("invalid lacuna from a Go lens was accepted")
 			}
 		})
 	}

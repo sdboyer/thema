@@ -1,0 +1,16 @@
+# A lacuna reporting a result field written only under a condition the lacuna does not imply.
+-- source.cue --
+k: "x" | "y"
+-- target.cue --
+a?: string
+-- lens.cue --
+input: _
+result: {if input.k == "x" {a: "1"}}
+lacunas: [{
+	targetFields: [{path: "a", value: result.a}]
+	message: "set"
+	type: "Placeholder"
+}]
+-- out --
+unknown
+lacunas[0].targetFields[0].value refers to result.a, which is written only under input.k == "x": neither covering every instance nor implied by the lacuna's condition (rule unknown-exhaustive) @ lens.cue:4:36

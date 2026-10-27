@@ -1,0 +1,11 @@
+# A table indexed by a field whose alternatives are string constants, each a key.
+-- source.cue --
+t: "a" | "b"
+-- target.cue --
+u: 1 | 2
+-- lens.cue --
+_T: {a: 1, b: 2}
+input: _
+result: {u: _T[input.t]}
+-- out --
+total

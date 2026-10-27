@@ -1,0 +1,11 @@
+# The whole input copied into a target that accepts every source instance.
+-- source.cue --
+a: string
+-- target.cue --
+a: string
+z?: int
+-- lens.cue --
+input: _
+result: input
+-- out --
+total

@@ -1,0 +1,128 @@
+docs/ship.cue in authoring form: a major version adding a required field, with
+a placeholder forward and a refined message on the derived backward drop.
+-- ship/history/0.0.thema --
+schema: {
+	firstfield: string
+}
+-- ship/1.0.thema --
+schema: {
+	firstfield:  string
+	secondfield: int
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		// 0.0 has no data for secondfield.
+		secondfield: -1
+	}
+	lacunas: {
+		secondfield: [{
+			type:    Placeholder
+			message: "-1 used as a placeholder value - replace with a real value before persisting!"
+		}]
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		secondfield: drop
+	}
+	lacunas: {
+		secondfield: [{
+			type:    DroppedField
+			message: "secondfield is new in 1.0; 0.0 has nowhere to keep it"
+		}]
+	}
+}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+schema: {
+	firstfield:  string
+	secondfield: int
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		// 0.0 has no data for secondfield.
+		secondfield: -1
+	}
+	lacunas: {
+		secondfield: [{
+			type:    Placeholder
+			message: "-1 used as a placeholder value - replace with a real value before persisting!"
+		}]
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		secondfield: drop
+	}
+	lacunas: {
+		secondfield: [{
+			type:    DroppedField
+			message: "secondfield is new in 1.0; 0.0 has nowhere to keep it"
+		}]
+	}
+}
+-- out/decompiled/history/0.0.thema --
+schema: {
+	firstfield: string
+}
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				firstfield: string
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				firstfield:  string
+				secondfield: int
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		input: _
+		result: {
+			firstfield: input.firstfield
+			// 0.0 has no data for secondfield.
+			secondfield: -1
+		}
+		lacunas: [{
+			targetFields: [{
+				path:  "secondfield"
+				value: result.secondfield
+			}]
+			message: "-1 used as a placeholder value - replace with a real value before persisting!"
+			type:    "Placeholder"
+		}]
+	}
+	"1.0->0.0": {
+		input: _
+		result: {
+			firstfield: input.firstfield
+		}
+		lacunas: [{
+			@thema(derived)
+			sourceFields: [{
+				path:  "secondfield"
+				value: input.secondfield
+			}]
+			message: "secondfield is new in 1.0; 0.0 has nowhere to keep it"
+			type:    "DroppedField"
+		}]
+	}
+}

@@ -1,0 +1,11 @@
+# A string computed for an integer target.
+-- source.cue --
+a: string
+-- target.cue --
+n: int
+-- lens.cue --
+input: _
+result: {n: "x\(input.a)"}
+-- out --
+not total
+result.n is a string ("x\(input.a)"), which the target schema does not accept: it wants int (rule computed-narrowed) @ lens.cue:2:13

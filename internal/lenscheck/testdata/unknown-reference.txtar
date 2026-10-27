@@ -1,0 +1,12 @@
+# A selection into the input the checker cannot follow.
+-- source.cue --
+k: string
+m: [string]: int
+-- target.cue --
+v: int
+-- lens.cue --
+input: _
+result: {v: input.m[input.k]}
+-- out --
+unknown
+result.v reads input.m[input.k], a selection into the input the checker cannot follow (a computed index or label); select fields by name (rule unknown-reference) @ lens.cue:2:13

@@ -1,0 +1,11 @@
+# A bool computed for a target that accepts only true.
+-- source.cue --
+s: string
+-- target.cue --
+b: true
+-- lens.cue --
+input: _
+result: {b: input.s == "yes"}
+-- out --
+not total
+result.b is a bool (input.s == "yes") that may be false, which the target schema (true) does not accept (rule computed-narrowed) @ lens.cue:2:13

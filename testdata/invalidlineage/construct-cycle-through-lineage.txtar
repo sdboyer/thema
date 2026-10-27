@@ -1,0 +1,27 @@
+# a schema that refers to the lineage it belongs to refers, through it, to
+# itself: the hazard in #21 is a reference cycle (#78)
+#issue: 21
+#lineagePath: lin
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "extOldDependsOnCount"
+	schemas: {
+		"0": "0": {
+			schema: {n: <=len(lin.schemas)}
+		}
+		"0": "1": {
+			schema: {n: <=len(lin.schemas), m?: int}
+		}
+	}
+	lenses: {
+		"0.1->0.0": {
+			input: _
+			result: {n: input.n}
+		}
+	}
+}
+-- out/bindfail --
+schema 0.0: reference to lin.schemas, which contains the schema; schemas may not contain circular references:
+    ./in.cue:7:22
