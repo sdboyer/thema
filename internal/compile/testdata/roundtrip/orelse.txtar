@@ -17,7 +17,13 @@ ForwardLens: {
 	v0_0: _
 	v1_0: {
 		nick: orelse(v0_0.nick, v0_0.name)
-		rank: orelse(v0_0.rank, 0) @lacuna(Placeholder, "rank was absent; 0 is a placeholder")
+		rank: orelse(v0_0.rank, 0)
+	}
+	lacunas: {
+		rank: [{
+			type:    Placeholder
+			message: "rank was absent; 0 is a placeholder"
+		}]
 	}
 }
 -- out/bind --
@@ -33,7 +39,13 @@ ForwardLens: {
 	v0_0: _
 	v1_0: {
 		nick: orelse(v0_0.nick, v0_0.name)
-		rank: orelse(v0_0.rank, 0) @lacuna(Placeholder, "rank was absent; 0 is a placeholder")
+		rank: orelse(v0_0.rank, 0)
+	}
+	lacunas: {
+		rank: [{
+			type:    Placeholder
+			message: "rank was absent; 0 is a placeholder"
+		}]
 	}
 }
 -- out/decompiled/history/0.0.thema --

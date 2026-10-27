@@ -1,5 +1,6 @@
 each: a list of structs mapped element by element, with a rename and a drop
-inside the body. The drop's derived lacuna aggregates over the elements. each
+inside the body. The drop's derived lacuna aggregates over the elements, and
+its message is refined by a DroppedField lacuna keyed through the list. each
 has no derived inverse, so the backward lens is authored.
 -- ship/history/0.0.thema --
 schema: {
@@ -22,6 +23,14 @@ ForwardLens: {
 			name:   item.title
 			legacy: drop
 		})
+	}
+	lacunas: {
+		items: {
+			legacy: [{
+				type:    DroppedField
+				message: "1.0 items have no legacy field; the old one is dropped"
+			}]
+		}
 	}
 }
 
@@ -47,6 +56,14 @@ ForwardLens: {
 			name:   item.title
 			legacy: drop
 		})
+	}
+	lacunas: {
+		items: {
+			legacy: [{
+				type:    DroppedField
+				message: "1.0 items have no legacy field; the old one is dropped"
+			}]
+		}
 	}
 }
 
@@ -102,7 +119,7 @@ lenses: {
 			@thema(derived)
 			condition:    len(_d_0) > 0
 			sourceFields: _d_0
-			message:      "items[].legacy has no equivalent in 1.0 and was dropped"
+			message:      "1.0 items have no legacy field; the old one is dropped"
 			type:         "DroppedField"
 		}]
 	}

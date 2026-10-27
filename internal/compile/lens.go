@@ -2,6 +2,7 @@ package compile
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -33,12 +34,12 @@ type entry struct {
 	// pos is where the entry is positioned: the author's field, or for a
 	// derived entry the construct it was derived from.
 	pos token.Pos
-	// lacuna is the entry's @lacuna attribute, if any.
-	lacuna *lacunaAttr
 	// comments are the author's comments on the field, carried to the result.
 	comments []*ast.CommentGroup
 	// derived entries were produced by derivation, not written.
 	derived bool
+	// ok is set once the entry has passed its checks and been placed.
+	ok bool
 
 	// fallback is orelse's second argument: a constant, or a reference.
 	fallback ast.Expr
@@ -51,10 +52,9 @@ type entry struct {
 
 // An arm is one entry of a remap table.
 type arm struct {
-	key    string
-	value  ast.Expr
-	lacuna *lacunaAttr
-	pos    token.Pos
+	key   string
+	value ast.Expr
+	pos   token.Pos
 }
 
 type entryKind int
@@ -83,10 +83,43 @@ const (
 	rootItem  = "item"
 )
 
-// A lacunaAttr is a parsed @lacuna(Type, "message") or @lacuna("message").
-type lacunaAttr struct {
+// The fields of a lens block beside its two versions, and of a lacuna.
+const (
+	fieldLacunas = "lacunas"
+	fieldType    = "type"
+	fieldMessage = "message"
+	fieldWhen    = "when"
+)
+
+// A lacunaDecl is one entry of a lens's lacunas field: a lacuna declared on
+// the mapping keyed path, which is the mapping's key in the lens body.
+type lacunaDecl struct {
+	path     cue.Path
 	typ, msg string
-	pos      token.Pos
+	// when is the author's condition; nil means the one the mapping implies.
+	when ast.Expr
+	pos  token.Pos
+	// used is set once a mapping has taken the declaration; emit is the
+	// lacuna built for it, when the mapping builds it early (a drop).
+	used bool
+	emit ast.Expr
+}
+
+// A lacunaTable holds a lens's declared lacunas in authored order, keyed by
+// full target path. An each body's sub-edge shares its lens's table.
+type lacunaTable struct {
+	decls []*lacunaDecl
+}
+
+// at returns the declarations keyed p.
+func (t *lacunaTable) at(p cue.Path) []*lacunaDecl {
+	var out []*lacunaDecl
+	for _, d := range t.decls {
+		if d.path.String() == p.String() {
+			out = append(out, d)
+		}
+	}
+	return out
 }
 
 // A rebase says that target fields under target copy, when not mapped, from
@@ -166,9 +199,20 @@ type edge struct {
 	// version's parameter (v0_0), or item inside an each body. emitRoot is
 	// what the normal form uses for it: input, or item.
 	root, emitRoot string
+	// lacunas is the lens's declared lacunas.
+	lacunas *lacunaTable
 	// each is set for the sub-edge compiling an each body.
 	each *eachScope
 	errs cerrors.Error
+}
+
+// key is the lacunas key of an entry of e: its target path, under the list's
+// path inside an each body.
+func (e *edge) key(en *entry) cue.Path {
+	if e.each == nil {
+		return en.target
+	}
+	return joinPath(e.each.target, en.target)
 }
 
 // An eachScope is what an each body's sub-edge knows about its list.
@@ -214,11 +258,10 @@ func (e *edge) parseField(f *ast.Field, tbase, sbase cue.Path, b *body) {
 	tpath := appendPath(tbase, cue.Str(name))
 	spath := appendPath(sbase, cue.Str(name))
 	b.claim(tpath)
-	lac, ok := e.lacunaAttr(f.Attrs)
-	if !ok {
+	if !e.noAttrs(f) {
 		return
 	}
-	en := entry{target: tpath, expr: f.Value, pos: f.Pos(), lacuna: lac, comments: ast.Comments(f)}
+	en := entry{target: tpath, expr: f.Value, pos: f.Pos(), comments: ast.Comments(f)}
 
 	switch x := f.Value.(type) {
 	case *ast.Ident:
@@ -241,9 +284,6 @@ func (e *edge) parseField(f *ast.Field, tbase, sbase cue.Path, b *body) {
 				continue
 			}
 			elts = append(elts, d)
-		}
-		if lac != nil {
-			e.errf(lac.pos, "a lacuna attaches to a mapping, not to a nested body")
 		}
 		b.rebases = append(b.rebases, rebase{target: tpath, source: base})
 		e.parseBody(&ast.StructLit{Lbrace: x.Lbrace, Elts: elts, Rbrace: x.Rbrace}, tpath, base, b)
@@ -328,18 +368,13 @@ func (e *edge) parseRemap(x *ast.CallExpr, en *entry, b *body) {
 			e.errf(f.Value.Pos(), "a remap arm's value must be a constant")
 			return
 		}
-		lac, lok := e.lacunaAttr(f.Attrs)
-		if !lok {
+		if !e.noAttrs(f) {
 			return
 		}
-		a := arm{value: f.Value, lacuna: lac, pos: f.Pos()}
+		a := arm{value: f.Value, pos: f.Pos()}
 		if isCatchAll(f.Label) {
 			if en.catchAll != nil {
 				e.errf(f.Pos(), "a remap table has at most one [_] arm")
-				return
-			}
-			if lac == nil {
-				e.errf(f.Pos(), "the [_] arm collapses every unmapped value into one: declare what is lost with @lacuna(Type, \"message\")")
 				return
 			}
 			en.catchAll = &a
@@ -382,66 +417,223 @@ func (e *edge) parseEach(x *ast.CallExpr, en *entry, b *body) {
 		e.errf(x.Args[1].Pos(), "each's body must be a struct of mappings over item")
 		return
 	}
-	if en.lacuna != nil {
-		e.errf(en.lacuna.pos, "a lacuna attaches to a mapping inside the each body, not to each")
-		return
-	}
 	en.kind, en.source, en.body = kindEach, p, bodyLit
 	b.add(*en)
 }
 
-// lacunaAttr reads a field's @lacuna attribute. A second @lacuna, or any
-// other attribute, is an error.
-func (e *edge) lacunaAttr(attrs []*ast.Attribute) (*lacunaAttr, bool) {
-	var out *lacunaAttr
-	for _, a := range attrs {
-		key, bodyText := a.Split()
-		if key != "lacuna" {
-			e.errf(a.Pos(), "@%s is not an attribute of a mapping; only @lacuna is", key)
-			return nil, false
-		}
-		if out != nil {
-			e.errf(a.Pos(), "a mapping has at most one @lacuna")
-			return nil, false
-		}
-		typ, msg, err := parseLacunaBody(bodyText)
-		if err != nil {
-			e.errf(a.Pos(), "@lacuna: %v", err)
-			return nil, false
-		}
-		out = &lacunaAttr{typ: typ, msg: msg, pos: a.Pos()}
+// noAttrs rejects attributes on a mapping or an arm: a lacuna is declared in
+// the lens's lacunas field, and nothing else attaches to a mapping.
+func (e *edge) noAttrs(f *ast.Field) bool {
+	if len(f.Attrs) == 0 {
+		return true
 	}
-	return out, true
+	e.errf(f.Attrs[0].Pos(), "a mapping has no attributes; a lacuna is declared in the lens's %s field, keyed by the mapping", fieldLacunas)
+	return false
 }
 
-// parseLacunaBody parses `Type, "message"` or `"message"`.
-func parseLacunaBody(s string) (typ, msg string, err error) {
-	s = strings.TrimSpace(s)
-	if !strings.HasPrefix(s, `"`) {
-		typ, s, _ = strings.Cut(s, ",")
-		typ = strings.TrimSpace(typ)
-		s = strings.TrimSpace(s)
-		if !isLacunaType(typ) {
-			return "", "", fmt.Errorf("%q is not a lacuna type", typ)
+// parseLacunas reads a lens's lacunas field into t. Its keys nest like the
+// lens body's: a struct descends, a list declares the lacunas of the mapping
+// at that key.
+func (e *edge) parseLacunas(lit *ast.StructLit, base cue.Path, t *lacunaTable) {
+	for _, d := range lit.Elts {
+		f, ok := d.(*ast.Field)
+		if !ok {
+			if _, ok := d.(*ast.CommentGroup); ok {
+				continue
+			}
+			e.errf(d.Pos(), "%s holds only <mapping>: [...] entries, nested like the mappings they describe", fieldLacunas)
+			continue
+		}
+		name, _, err := ast.LabelName(f.Label)
+		if err != nil || f.Constraint != token.ILLEGAL || len(f.Attrs) > 0 {
+			e.errf(f.Pos(), "a %s key is a plain field name, the key of the mapping it describes", fieldLacunas)
+			continue
+		}
+		p := appendPath(base, cue.Str(name))
+		switch x := f.Value.(type) {
+		case *ast.StructLit:
+			e.parseLacunas(x, p, t)
+		case *ast.ListLit:
+			if len(t.at(p)) > 0 {
+				e.errf(f.Pos(), "%s names %s twice", fieldLacunas, p)
+				continue
+			}
+			for _, el := range x.Elts {
+				if d := e.parseLacuna(el, p); d != nil {
+					t.decls = append(t.decls, d)
+				}
+			}
+		default:
+			e.errf(f.Value.Pos(), "%s.%s is a list of the mapping's lacunas, or a struct of keys beneath it", fieldLacunas, p)
 		}
 	}
-	msg, err = literal.Unquote(s)
-	if err != nil {
-		return "", "", fmt.Errorf("the message must be a quoted string")
+}
+
+// parseLacuna reads one lacuna: {type: Type, message: "...", when: cond},
+// when being optional.
+func (e *edge) parseLacuna(x ast.Expr, p cue.Path) *lacunaDecl {
+	const shape = `a lacuna is {type: Type, message: "..."}, with an optional when: <condition>`
+	s, ok := x.(*ast.StructLit)
+	if !ok {
+		e.errf(x.Pos(), "%s", shape)
+		return nil
 	}
-	return typ, msg, nil
+	d := &lacunaDecl{path: p, pos: x.Pos()}
+	seen := make(map[string]bool)
+	for _, el := range s.Elts {
+		f, ok := el.(*ast.Field)
+		if !ok {
+			if _, ok := el.(*ast.CommentGroup); ok {
+				continue
+			}
+			e.errf(el.Pos(), "%s", shape)
+			return nil
+		}
+		name, _, err := ast.LabelName(f.Label)
+		if err != nil || f.Constraint != token.ILLEGAL || len(f.Attrs) > 0 {
+			e.errf(f.Pos(), "%s", shape)
+			return nil
+		}
+		if seen[name] {
+			e.errf(f.Pos(), "a lacuna has one %s", name)
+			return nil
+		}
+		seen[name] = true
+		switch name {
+		case fieldType:
+			id, ok := f.Value.(*ast.Ident)
+			if !ok || !isLacunaType(id.Name) {
+				e.errf(f.Value.Pos(), "%s is not a lacuna type; the types are %s", exprText(f.Value), strings.Join(lacunaTypes, ", "))
+				return nil
+			}
+			d.typ = id.Name
+		case fieldMessage:
+			lit, ok := f.Value.(*ast.BasicLit)
+			if !ok || lit.Kind != token.STRING {
+				e.errf(f.Value.Pos(), "a lacuna's message is a string")
+				return nil
+			}
+			msg, err := literal.Unquote(lit.Value)
+			if err != nil {
+				e.errf(f.Value.Pos(), "a lacuna's message is a string")
+				return nil
+			}
+			d.msg = msg
+		case fieldWhen:
+			if !e.condition(f.Value) {
+				return nil
+			}
+			d.when = f.Value
+		default:
+			e.errf(f.Pos(), "%s is not a field of a lacuna; %s", name, shape)
+			return nil
+		}
+	}
+	if d.typ == "" || !seen[fieldMessage] {
+		e.errf(x.Pos(), "%s", shape)
+		return nil
+	}
+	return d
+}
+
+// condition checks an authored condition and rewrites its references to the
+// normal form's root. A condition reads fields the source always has, tests
+// the presence of any source field (<ref> != _|_, <ref> == _|_), and uses
+// CUE's builtins; reading an optional field is not supported yet, since
+// nothing proves the condition evaluates when it is absent.
+func (e *edge) condition(x ast.Expr) bool {
+	ok := true
+	labels := make(map[*ast.Ident]bool)
+	ast.Walk(x, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.BinaryExpr:
+			if n.Op != token.NEQ && n.Op != token.EQL {
+				return true
+			}
+			if _, isBottom := n.Y.(*ast.BottomLit); !isBottom {
+				return true
+			}
+			if p, isRef := e.refPath(n.X); isRef {
+				if !lookup(e.S, p).Exists() {
+					e.errf(n.X.Pos(), "%s does not declare %s", e.sv, p)
+					ok = false
+				}
+				e.rebind(rootIdent(n.X))
+				return false
+			}
+		case *ast.SelectorExpr:
+			if p, isRef := e.refPath(n); isRef {
+				switch {
+				case !lookup(e.S, p).Exists():
+					e.errf(n.Pos(), "%s does not declare %s", e.sv, p)
+					ok = false
+				case e.optional(e.S, p):
+					e.errf(n.Pos(), "%s is optional in %s, and a condition reading an optional field is not supported yet; a condition may test its presence: %s.%s != _|_", p, e.sv, e.root, p)
+					ok = false
+				}
+				e.rebind(rootIdent(n))
+				return false
+			}
+			if id, isID := n.Sel.(*ast.Ident); isID {
+				labels[id] = true
+			}
+		case *ast.Field:
+			if id, isID := n.Label.(*ast.Ident); isID {
+				labels[id] = true
+			}
+		case *ast.Ident:
+			if labels[n] || isTypeIdent(n.Name) || isBuiltin(n.Name) {
+				return false
+			}
+			if n.Name == e.root {
+				e.rebind(n)
+				return false
+			}
+			e.errf(n.Pos(), "%s is not defined in a lens; a condition refers to %s and to CUE's builtins", n.Name, e.root)
+			ok = false
+		}
+		return true
+	}, nil)
+	return ok
+}
+
+// rebind makes id refer to the normal form's root. The parser bound it to the
+// authoring file's parameter field; the binding is dropped so that the
+// evaluator resolves the name in the normal form.
+func (e *edge) rebind(id *ast.Ident) {
+	id.Name = e.emitRoot
+	id.Node = nil
+	id.Scope = nil
+}
+
+// rootIdent is the identifier a reference <root>.a.b starts from.
+func rootIdent(x ast.Expr) *ast.Ident {
+	for {
+		switch s := x.(type) {
+		case *ast.SelectorExpr:
+			x = s.X
+		case *ast.Ident:
+			return s
+		default:
+			panic(fmt.Sprintf("rootIdent of %T", x))
+		}
+	}
+}
+
+func isBuiltin(name string) bool {
+	switch name {
+	case "len", "and", "or", "div", "mod", "quo", "rem", "close":
+		return true
+	}
+	return false
 }
 
 // lacunaDropped is the type of the lacuna a drop derives.
 const lacunaDropped = "DroppedField"
 
-func isLacunaType(s string) bool {
-	switch s {
-	case "Placeholder", lacunaDropped, "LossyFieldMapping", "ChangedDefault", "PrecisionLoss", "AmbiguousMapping", "Defaulted":
-		return true
-	}
-	return false
-}
+var lacunaTypes = []string{"Placeholder", lacunaDropped, "LossyFieldMapping", "ChangedDefault", "PrecisionLoss", "AmbiguousMapping", "Defaulted"}
+
+func isLacunaType(s string) bool { return slices.Contains(lacunaTypes, s) }
 
 // refPath returns the path of a reference <root>.a.b, if x is one.
 func (e *edge) refPath(x ast.Expr) (cue.Path, bool) {
@@ -538,9 +730,12 @@ func (n *node) has(p cue.Path) *node {
 // A compiledLens is the outcome of assembling one lens.
 type compiledLens struct {
 	// result is the lens's result, lacunas its lacunas, and lets the
-	// declarations each bodies need beside them.
+	// declarations each bodies need beside them. derived holds the lacunas
+	// of drops no declaration refines, until the declared ones are emitted
+	// ahead of them.
 	result  *ast.StructLit
 	lacunas []ast.Expr
+	derived []ast.Expr
 	lets    []ast.Decl
 	// effective is every move the lens makes, written or implicit, and every
 	// drop. Derivation inverts these.
@@ -618,25 +813,108 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 				continue
 			}
 			out.effective = append(out.effective, *en)
-			e.remapLacunas(out, en)
-			continue
 		case kindEach:
 			consumed[en.source.String()] = true
 			if !e.place(root, en) || !e.compileEach(en, out) {
 				continue
 			}
 			out.effective = append(out.effective, *en)
-			continue
 		}
-		if en.kind != kindDrop && en.lacuna != nil {
-			out.lacunas = append(out.lacunas, e.declaredLacuna(en, e.entryCondition(en)))
-		}
+		en.ok = true
 	}
 
 	e.fill(root, cue.MakePath(), b, consumed, dropped, out)
 	e.unmapped(b, consumed, out)
+	if e.each == nil {
+		e.declare(b, out)
+		out.lacunas = append(out.lacunas, out.derived...)
+		out.derived = nil
+	}
 
 	out.result = e.emit(root, cue.MakePath())
+}
+
+// declare emits the lacunas the lens declares, in declared order, each under
+// its when or the condition its mapping implies: for an orelse, that the
+// fallback was used; for a remap, that the [_] arm was; for a drop, that the
+// field was present. A [_] arm must have a lacuna under its condition.
+func (e *edge) declare(b *body, out *compiledLens) {
+	catchAllLacuna := make(map[*entry]bool)
+	for _, d := range e.lacunas.decls {
+		if d.used {
+			if d.emit != nil {
+				out.lacunas = append(out.lacunas, d.emit)
+			}
+			continue
+		}
+		en := b.find(d.path)
+		switch {
+		case en == nil && b.findEach(d.path) != nil:
+			e.errf(d.pos, "%s.%s: a lacuna on a mapping inside each is not supported yet; a %s lacuna on a drop refines the drop's", fieldLacunas, d.path, lacunaDropped)
+			continue
+		case en == nil:
+			e.errf(d.pos, "%s.%s: %s has no mapping keyed %s", fieldLacunas, d.path, e.dir, d.path)
+			continue
+		case !en.ok:
+			continue
+		}
+		cond := d.when
+		switch en.kind {
+		case kindDrop:
+			if cond == nil && e.optional(e.S, en.source) {
+				cond = e.present(d.pos, en.source)
+			}
+		case kindOrElse:
+			if cond == nil {
+				cond = e.absent(d.pos, en.source)
+			}
+		case kindRemap:
+			if cond == nil {
+				if en.catchAll == nil {
+					e.errf(d.pos, "%s.%s: a lacuna on a remap applies when its [_] arm does, and this remap has none: say when it applies with %s: <condition>", fieldLacunas, d.path, fieldWhen)
+					continue
+				}
+				cond = e.catchAllCondition(en, d.pos)
+				if cond == nil {
+					continue // emitLeaf reports it
+				}
+				catchAllLacuna[en] = true
+			}
+		case kindEach:
+			if cond == nil {
+				e.errf(d.pos, "%s.%s: a lacuna on each needs %s: <condition>", fieldLacunas, d.path, fieldWhen)
+				continue
+			}
+		}
+		d.used = true
+		out.lacunas = append(out.lacunas, e.lacunaFor(en, d, cond))
+	}
+	for i := range b.entries {
+		en := &b.entries[i]
+		if en.ok && en.kind == kindRemap && en.catchAll != nil && !catchAllLacuna[en] {
+			e.errf(en.catchAll.pos, "the [_] arm collapses every unmapped value into one: declare what is lost in %s: {%s: [{%s: Type, %s: \"...\"}]}", fieldLacunas, en.target, fieldType, fieldMessage)
+		}
+	}
+}
+
+// find returns the authored entry keyed p, if any.
+func (b *body) find(p cue.Path) *entry {
+	for i := range b.entries {
+		if b.entries[i].target.String() == p.String() {
+			return &b.entries[i]
+		}
+	}
+	return nil
+}
+
+// findEach returns the each entry p lies beneath, if any.
+func (b *body) findEach(p cue.Path) *entry {
+	for i := range b.entries {
+		if b.entries[i].kind == kindEach && pathHasPrefix(p, b.entries[i].target) {
+			return &b.entries[i]
+		}
+	}
+	return nil
 }
 
 // instance checks that a constant is an instance of the target field.
@@ -828,7 +1106,7 @@ func (e *edge) compileEach(en *entry, out *compiledLens) bool {
 		return false
 	}
 	sub := &edge{ctx: e.ctx, S: selem, T: telem, sv: e.sv, tv: e.tv, dir: e.dir, blockPos: en.pos, root: rootItem, emitRoot: rootItem,
-		each: &eachScope{list: en.source, target: en.target, n: out.nlets}}
+		lacunas: e.lacunas, each: &eachScope{list: en.source, target: en.target, n: out.nlets}}
 	b := &body{}
 	sub.parseBody(en.body, cue.MakePath(), cue.MakePath(), b)
 	subOut := &compiledLens{nlets: out.nlets}
@@ -837,7 +1115,7 @@ func (e *edge) compileEach(en *entry, out *compiledLens) bool {
 	if sub.errs != nil {
 		return false
 	}
-	out.lacunas = append(out.lacunas, subOut.lacunas...)
+	out.derived = append(out.derived, subOut.derived...)
 	out.lets = append(out.lets, subOut.lets...)
 	out.nlets = subOut.nlets
 	en.body = subOut.result
@@ -1072,15 +1350,6 @@ func and(a, b ast.Expr) ast.Expr {
 	return ast.NewBinExpr(token.LAND, a, b)
 }
 
-// entryCondition is the condition under which an entry's declared lacuna
-// applies: the fallback branch for orelse, nil (always) otherwise.
-func (e *edge) entryCondition(en *entry) ast.Expr {
-	if en.kind == kindOrElse {
-		return e.absent(en.lacuna.pos, en.source)
-	}
-	return nil
-}
-
 // order returns n's fields in the target schema's order, then any the target
 // does not declare in insertion order (place has already rejected those).
 func (e *edge) order(n *node, tbase cue.Path) []string {
@@ -1100,16 +1369,32 @@ func (e *edge) order(n *node, tbase cue.Path) []string {
 	return out
 }
 
-// dropLacuna adds the derived DroppedField lacuna for a drop, its message
-// refined by the drop's @lacuna if that has no type or the same type. A
-// @lacuna of another type adds a declared lacuna as well. Inside an each
-// body, the lacuna is aggregated over the list's elements.
+// dropLacuna builds the derived DroppedField lacuna for a drop. A declared
+// DroppedField lacuna keyed by the drop refines it: its message replaces the
+// derived one, and its when the derived condition; the declaration then emits
+// it in declared order. Inside an each body, the lacuna is aggregated over
+// the list's elements, and has no when.
 func (e *edge) dropLacuna(out *compiledLens, en *entry) {
 	msg := e.dropMessage(en.source)
-	if en.lacuna != nil && (en.lacuna.typ == "" || en.lacuna.typ == lacunaDropped) {
-		msg = en.lacuna.msg
-	} else if en.lacuna != nil {
-		out.lacunas = append(out.lacunas, e.declaredLacuna(en, nil))
+	var decl *lacunaDecl
+	var decls []*lacunaDecl
+	if !en.derived {
+		decls = e.lacunas.at(e.key(en))
+	}
+	for _, d := range decls {
+		if d.typ != lacunaDropped {
+			continue
+		}
+		if decl != nil {
+			e.errf(d.pos, "%s.%s: a drop has one %s lacuna, which refines the one it derives", fieldLacunas, d.path, lacunaDropped)
+			return
+		}
+		if d.when != nil && e.each != nil {
+			e.errf(d.when.Pos(), "%s.%s: a drop inside each aggregates over the list, and its lacuna has no %s", fieldLacunas, d.path, fieldWhen)
+			return
+		}
+		decl, msg = d, d.msg
+		d.used = true
 	}
 	p := en.pos
 	elts := []ast.Decl{at(p, &ast.Attribute{Text: "@thema(derived)"})}
@@ -1136,7 +1421,10 @@ func (e *edge) dropLacuna(out *compiledLens, en *entry) {
 			at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewIdent(name))}),
 		)
 	} else {
-		if e.optional(e.S, en.source) {
+		switch {
+		case decl != nil && decl.when != nil:
+			elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("condition")), Value: decl.when}))
+		case e.optional(e.S, en.source):
 			elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("condition")), Value: e.present(p, en.source)}))
 		}
 		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewList(e.fieldRef(p, en.source, e.emitRoot)))}))
@@ -1145,7 +1433,12 @@ func (e *edge) dropLacuna(out *compiledLens, en *entry) {
 		at(p, &ast.Field{Label: at(p, ast.NewIdent("message")), Value: at(p, ast.NewString(msg))}),
 		at(p, &ast.Field{Label: at(p, ast.NewIdent("type")), Value: at(p, ast.NewString(lacunaDropped))}),
 	)
-	out.lacunas = append(out.lacunas, at(p, &ast.StructLit{Elts: elts}))
+	lac := at(p, &ast.StructLit{Elts: elts})
+	if decl != nil {
+		decl.emit = lac
+		return
+	}
+	out.derived = append(out.derived, lac)
 }
 
 // dropMessage is the derived lacuna's default message for dropping p.
@@ -1156,45 +1449,29 @@ func (e *edge) dropMessage(p cue.Path) string {
 	return fmt.Sprintf("%s has no equivalent in %s and was dropped", p, e.tv)
 }
 
-// remapLacunas adds the lacuna declared on each arm, conditioned on the arm.
-func (e *edge) remapLacunas(out *compiledLens, en *entry) {
+// catchAllCondition is the condition under which a remap's [_] arm applies:
+// no arm keys the value and the target rejects it. Nil if the target's type
+// cannot be restated, which emitLeaf reports.
+func (e *edge) catchAllCondition(en *entry, p token.Pos) ast.Expr {
+	ttype, ok := e.targetType(en)
+	if !ok {
+		return nil
+	}
+	var keys []ast.Expr
 	for _, a := range en.arms {
-		if a.lacuna != nil {
-			out.lacunas = append(out.lacunas, e.lacunaFor(en, a.lacuna, e.matches(a.lacuna.pos, en.source, at(a.lacuna.pos, ast.NewString(a.key)))))
-		}
+		keys = append(keys, at(p, ast.NewString(a.key)))
 	}
-	if en.catchAll != nil {
-		p := en.catchAll.lacuna.pos
-		ttype, ok := e.targetType(en)
-		if !ok {
-			return // emitLeaf reports it
-		}
-		var keys []ast.Expr
-		for _, a := range en.arms {
-			keys = append(keys, at(p, ast.NewString(a.key)))
-		}
-		var unkeyed ast.Expr
-		if len(keys) > 0 {
-			unkeyed = e.notMatches(p, en.source, at(p, &ast.ParenExpr{X: ast.NewBinExpr(token.OR, keys...)}))
-		}
-		out.lacunas = append(out.lacunas, e.lacunaFor(en, en.catchAll.lacuna, and(unkeyed, e.notMatches(p, en.source, at(p, &ast.ParenExpr{X: ttype})))))
+	var unkeyed ast.Expr
+	if len(keys) > 0 {
+		unkeyed = e.notMatches(p, en.source, at(p, &ast.ParenExpr{X: ast.NewBinExpr(token.OR, keys...)}))
 	}
-	if en.lacuna != nil {
-		e.errf(en.lacuna.pos, "a lacuna on a remap attaches to one of its arms, not to the mapping")
-	}
+	return and(unkeyed, e.notMatches(p, en.source, at(p, &ast.ParenExpr{X: ttype})))
 }
 
-// declaredLacuna builds the lacuna an entry's @lacuna declares, applying
-// under cond (nil for always).
-func (e *edge) declaredLacuna(en *entry, cond ast.Expr) ast.Expr {
-	return e.lacunaFor(en, en.lacuna, cond)
-}
-
-func (e *edge) lacunaFor(en *entry, lac *lacunaAttr, cond ast.Expr) ast.Expr {
-	p := lac.pos
-	if lac.typ == "" {
-		e.errf(p, "a lacuna on a mapping needs a type: @lacuna(Type, %q)", lac.msg)
-	}
+// lacunaFor builds the lacuna d declares on en, applying under cond (nil for
+// always).
+func (e *edge) lacunaFor(en *entry, d *lacunaDecl, cond ast.Expr) ast.Expr {
+	p := d.pos
 	var elts []ast.Decl
 	if cond != nil {
 		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("condition")), Value: cond}))
@@ -1212,8 +1489,8 @@ func (e *edge) lacunaFor(en *entry, lac *lacunaAttr, cond ast.Expr) ast.Expr {
 		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("targetFields")), Value: at(p, ast.NewList(e.fieldRef(p, en.target, "result")))}))
 	}
 	elts = append(elts,
-		at(p, &ast.Field{Label: at(p, ast.NewIdent("message")), Value: at(p, ast.NewString(lac.msg))}),
-		at(p, &ast.Field{Label: at(p, ast.NewIdent("type")), Value: at(p, ast.NewString(lac.typ))}),
+		at(p, &ast.Field{Label: at(p, ast.NewIdent("message")), Value: at(p, ast.NewString(d.msg))}),
+		at(p, &ast.Field{Label: at(p, ast.NewIdent("type")), Value: at(p, ast.NewString(d.typ))}),
 	)
 	return at(p, &ast.StructLit{Elts: elts})
 }

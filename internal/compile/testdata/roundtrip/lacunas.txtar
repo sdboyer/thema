@@ -1,0 +1,217 @@
+lacunas: several lacunas on one mapping, a lacuna with its own when, and a
+key nested like the mapping it describes. count's first lacuna applies when
+the orelse fallback does, its second under the author's condition; name's
+applies under a condition over a field 0.0 always has. The backward lens is
+wholly derived.
+-- ship/history/0.0.thema --
+schema: {
+	name: string
+	meta: {
+		owner: string
+	}
+	count?: int
+}
+-- ship/1.0.thema --
+schema: {
+	name: string
+	meta: {
+		owner: string
+		team:  string
+	}
+	count: int
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		name: v0_0.name
+		meta: {
+			team: "unassigned"
+		}
+		count: orelse(v0_0.count, 0)
+	}
+	lacunas: {
+		name: [{
+			type:    LossyFieldMapping
+			message: "names longer than 64 characters are truncated downstream"
+			when:    len(v0_0.name) > 64
+		}]
+		meta: {
+			team: [{
+				type:    Placeholder
+				message: "0.0 has no team; \"unassigned\" is a placeholder"
+			}]
+		}
+		count: [{
+			type:    Placeholder
+			message: "count was absent; 0 is a placeholder"
+		}, {
+			type:    AmbiguousMapping
+			message: "legacy records never recorded a count, so 0 may be real"
+			when:    v0_0.name == "legacy"
+		}]
+	}
+}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+schema: {
+	name: string
+	meta: {
+		owner: string
+		team:  string
+	}
+	count: int
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		name: v0_0.name
+		meta: {
+			team: "unassigned"
+		}
+		count: orelse(v0_0.count, 0)
+	}
+	lacunas: {
+		name: [{
+			type:    LossyFieldMapping
+			message: "names longer than 64 characters are truncated downstream"
+			when:    len(v0_0.name) > 64
+		}]
+		meta: {
+			team: [{
+				type:    Placeholder
+				message: "0.0 has no team; \"unassigned\" is a placeholder"
+			}]
+		}
+		count: [{
+			type:    Placeholder
+			message: "count was absent; 0 is a placeholder"
+		}, {
+			type:    AmbiguousMapping
+			message: "legacy records never recorded a count, so 0 may be real"
+			when:    v0_0.name == "legacy"
+		}]
+	}
+}
+-- out/decompiled/history/0.0.thema --
+schema: {
+	name: string
+	meta: {
+		owner: string
+	}
+	count?: int
+}
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				name: string
+				meta: {
+					owner: string
+				}
+				count?: int
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				name: string
+				meta: {
+					owner: string
+					team:  string
+				}
+				count: int
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		input: _
+		result: {
+			name: input.name
+			meta: {
+				owner: input.meta.owner
+				team:  "unassigned"
+			}
+			if input.count != _|_ {
+				count: input.count
+			}
+			if input.count == _|_ {
+				count: 0
+			}
+		}
+		lacunas: [
+			{
+				condition: len(input.name) > 64
+				sourceFields: [{
+					path:  "name"
+					value: input.name
+				}]
+				targetFields: [{
+					path:  "name"
+					value: result.name
+				}]
+				message: "names longer than 64 characters are truncated downstream"
+				type:    "LossyFieldMapping"
+			},
+			{
+				targetFields: [{
+					path:  "meta.team"
+					value: result.meta.team
+				}]
+				message: "0.0 has no team; \"unassigned\" is a placeholder"
+				type:    "Placeholder"
+			},
+			{
+				condition: input.count == _|_
+				sourceFields: [if input.count != _|_ {
+					path:  "count"
+					value: input.count
+				}]
+				targetFields: [{
+					path:  "count"
+					value: result.count
+				}]
+				message: "count was absent; 0 is a placeholder"
+				type:    "Placeholder"
+			},
+			{
+				condition: input.name == "legacy"
+				sourceFields: [if input.count != _|_ {
+					path:  "count"
+					value: input.count
+				}]
+				targetFields: [{
+					path:  "count"
+					value: result.count
+				}]
+				message: "legacy records never recorded a count, so 0 may be real"
+				type:    "AmbiguousMapping"
+			}
+		]
+	}
+	"1.0->0.0": {
+		input: _
+		result: {
+			name: input.name
+			meta:
+				owner: input.meta.owner
+			count: input.count
+		}
+		lacunas: [{
+			@thema(derived)
+			sourceFields: [{
+				path:  "meta.team"
+				value: input.meta.team
+			}]
+			message: "meta.team has no equivalent in 0.0 and was dropped"
+			type:    "DroppedField"
+		}]
+	}
+}

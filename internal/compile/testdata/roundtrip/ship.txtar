@@ -14,14 +14,26 @@ ForwardLens: {
 	v0_0: _
 	v1_0: {
 		// 0.0 has no data for secondfield.
-		secondfield: -1 @lacuna(Placeholder, "-1 used as a placeholder value - replace with a real value before persisting!")
+		secondfield: -1
+	}
+	lacunas: {
+		secondfield: [{
+			type:    Placeholder
+			message: "-1 used as a placeholder value - replace with a real value before persisting!"
+		}]
 	}
 }
 
 BackwardLens: {
 	v1_0: _
 	v0_0: {
-		secondfield: drop @lacuna("secondfield is new in 1.0; 0.0 has nowhere to keep it")
+		secondfield: drop
+	}
+	lacunas: {
+		secondfield: [{
+			type:    DroppedField
+			message: "secondfield is new in 1.0; 0.0 has nowhere to keep it"
+		}]
 	}
 }
 -- out/bind --
@@ -36,14 +48,26 @@ ForwardLens: {
 	v0_0: _
 	v1_0: {
 		// 0.0 has no data for secondfield.
-		secondfield: -1 @lacuna(Placeholder, "-1 used as a placeholder value - replace with a real value before persisting!")
+		secondfield: -1
+	}
+	lacunas: {
+		secondfield: [{
+			type:    Placeholder
+			message: "-1 used as a placeholder value - replace with a real value before persisting!"
+		}]
 	}
 }
 
 BackwardLens: {
 	v1_0: _
 	v0_0: {
-		secondfield: drop @lacuna("secondfield is new in 1.0; 0.0 has nowhere to keep it")
+		secondfield: drop
+	}
+	lacunas: {
+		secondfield: [{
+			type:    DroppedField
+			message: "secondfield is new in 1.0; 0.0 has nowhere to keep it"
+		}]
 	}
 }
 -- out/decompiled/history/0.0.thema --

@@ -59,7 +59,7 @@ func Decompile(lin cue.Value) (name string, files []File, err error) {
 			if err != nil {
 				return "", nil, err
 			}
-			bwd.entries = stripDerived(bwd.entries, fwdEntries, v.schema, prev.schema)
+			bwd.entries = stripDerived(bwd.entries, fwdEntries, bwd.lacunas, v.schema, prev.schema)
 		}
 		var prev thema.SyntacticVersion
 		if i > 0 {
@@ -133,21 +133,35 @@ type dentry struct {
 	source   cue.Path
 	expr     ast.Expr
 	comments []*ast.CommentGroup
-	lacuna   *lacunaAttr
 	// fallback is orelse's fallback; arms and catchAll are remap's table;
 	// body is each's body.
 	fallback ast.Expr
 	arms     []arm
 	catchAll *arm
 	body     *dbody
+	// implicit marks a copy (a move from a path to itself) Compile would
+	// regenerate, which is omitted unless a lacuna names it.
+	implicit bool
 }
 
 // A dbody is a lens body read back from the normal form, in result order
 // with drops last. root is the normal form's root for references (input or
-// item); name is the authoring form's (v0_0 or item).
+// item); name is the authoring form's (v0_0 or item). lacunas are the lens's
+// declared lacunas in list order, keyed by full path; only the lens's body
+// holds them, not an each body's.
 type dbody struct {
 	root, name string
 	entries    []dentry
+	lacunas    []dlacuna
+}
+
+// A dlacuna is a declared lacuna read back from the normal form.
+type dlacuna struct {
+	path     cue.Path
+	typ, msg string
+	// when is the authored condition, nil where the condition is the one the
+	// mapping implies.
+	when ast.Expr
 }
 
 // A branch is one `if cond {field}` of a result, before it is understood.
@@ -236,10 +250,7 @@ func (b *dbody) field(f *ast.Field, tbase cue.Path, key string) error {
 	}
 	en := dentry{target: tpath, expr: f.Value, comments: ast.Comments(f)}
 	if root, p, ok := refPathAny(f.Value); ok && root == b.root {
-		if p.String() == tpath.String() {
-			return nil // an implicit copy
-		}
-		en.kind, en.source = kindMove, p
+		en.kind, en.source, en.implicit = kindMove, p, p.String() == tpath.String()
 	} else if isLiteral(f.Value) {
 		en.kind = kindConst
 	} else if each, ok := b.eachOf(f.Value, key); ok {
@@ -464,10 +475,7 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 			if !ok || root != b.root || p.String() != source.String() {
 				return fmt.Errorf("lens %s is outside the authoring form: the guard on %s does not guard its own reference", key, tpath)
 			}
-			if p.String() == tpath.String() {
-				continue // an implicit copy
-			}
-			en.kind, en.source, en.expr = kindMove, p, present[0].field.Value
+			en.kind, en.source, en.expr, en.implicit = kindMove, p, present[0].field.Value, p.String() == tpath.String()
 		default:
 			return fmt.Errorf("lens %s is outside the authoring form: the branches of %s", key, tpath)
 		}
@@ -527,89 +535,114 @@ func (b *dbody) lacuna(x ast.Expr, lets map[string]ast.Expr, key string, tv them
 		if typ != lacunaDropped || len(srcPaths) != 1 || len(tgtPaths) != 0 {
 			return fmt.Errorf("lens %s is outside the authoring form: a derived lacuna of type %s", key, typ)
 		}
-		body, p := b, srcPaths[0]
+		body, p, path := b, srcPaths[0], srcPaths[0]
 		if srcEach != nil {
 			// A drop inside an each body: find the each over that list.
 			body = nil
 			for i := range b.entries {
 				if b.entries[i].kind == kindEach && b.entries[i].source.String() == srcEach.String() {
 					body = b.entries[i].body
+					path = joinPath(b.entries[i].target, p)
 				}
 			}
 			if body == nil {
 				return fmt.Errorf("lens %s is outside the authoring form: a lacuna over %s[], which no each maps", key, srcEach)
 			}
+			cond = nil // the aggregate's len(_d_n) > 0
 		}
 		en := dentry{kind: kindDrop, source: p, target: p}
-		if msg != dropMessageFor(srcEach, p, tv) {
-			en.lacuna = &lacunaAttr{msg: msg}
-		}
 		body.entries = append(body.entries, en)
+		when, structural := b.when(&en, cond)
+		if msg != dropMessageFor(srcEach, p, tv) || !structural {
+			b.lacunas = append(b.lacunas, dlacuna{path: path, typ: lacunaDropped, msg: msg, when: when})
+		}
 		return nil
 	}
 
-	a := &lacunaAttr{typ: typ, msg: msg}
+	var en *dentry
 	switch {
 	case len(tgtPaths) == 1:
-		return b.attach(tgtPaths[0], false, a, cond, key)
+		en = b.find(tgtPaths[0], false)
 	case len(srcPaths) == 1 && len(tgtPaths) == 0:
-		return b.attach(srcPaths[0], true, a, cond, key)
+		en = b.find(srcPaths[0], true)
+	default:
+		return fmt.Errorf("lens %s is outside the authoring form: a lacuna over several fields", key)
 	}
-	return fmt.Errorf("lens %s is outside the authoring form: a lacuna over several fields", key)
+	if en == nil {
+		return fmt.Errorf("lens %s is outside the authoring form: a lacuna on a field no mapping produces", key)
+	}
+	en.implicit = false // the author wrote the copy, to key the lacuna
+	when, _ := b.when(en, cond)
+	b.lacunas = append(b.lacunas, dlacuna{path: en.target, typ: typ, msg: msg, when: when})
+	return nil
 }
 
-// attach puts a declared lacuna on the entry producing p (or dropping p),
-// at the arm or branch its condition selects.
-func (b *dbody) attach(p cue.Path, drop bool, a *lacunaAttr, cond ast.Expr, key string) error {
+// find returns the entry keyed p: a drop of p, or the mapping producing p.
+func (b *dbody) find(p cue.Path, drop bool) *dentry {
 	for i := range b.entries {
 		en := &b.entries[i]
-		if (en.kind == kindDrop) != drop {
-			continue
+		if (en.kind == kindDrop) == drop && en.target.String() == p.String() {
+			return en
 		}
-		if drop && en.source.String() != p.String() || !drop && en.target.String() != p.String() {
-			continue
-		}
-		var ts []test
-		if cond != nil {
-			var ok bool
-			if ts, ok = b.tests(cond); !ok {
-				return fmt.Errorf("lens %s is outside the authoring form: a lacuna on %s with a condition the authoring form cannot express", key, p)
-			}
-		}
+	}
+	return nil
+}
+
+// when turns a lacuna's condition into the authored when: nil, and
+// structural, if the condition is the one en implies (none for a move or a
+// constant; the fallback for an orelse; the [_] arm for a remap; presence
+// for a drop), else the condition with references renamed to the authoring
+// form's root.
+func (b *dbody) when(en *dentry, cond ast.Expr) (when ast.Expr, structural bool) {
+	if cond == nil {
+		return nil, en.kind != kindEach
+	}
+	ts, ok := b.tests(cond)
+	if ok {
+		last := ts[len(ts)-1]
 		switch en.kind {
 		case kindOrElse:
-			if len(ts) != 1 || ts[0].operand != nil || ts[0].present {
-				return fmt.Errorf("lens %s is outside the authoring form: a lacuna on %s that is not on its fallback", key, p)
+			if len(ts) == 1 && last.operand == nil && !last.present && last.path.String() == en.source.String() {
+				return nil, true
 			}
 		case kindRemap:
-			if len(ts) == 1 && ts[0].present {
-				if k, isKey := ts[0].key(); isKey {
-					for j := range en.arms {
-						if en.arms[j].key == k {
-							en.arms[j].lacuna = a
-							return nil
-						}
-					}
-					return fmt.Errorf("lens %s is outside the authoring form: a lacuna on %s for an arm it does not have", key, p)
-				}
+			if last.operand != nil && !last.present && en.catchAll != nil {
+				return nil, true
 			}
-			if len(ts) > 0 && ts[len(ts)-1].operand != nil && !ts[len(ts)-1].present && en.catchAll != nil {
-				en.catchAll.lacuna = a
-				return nil
-			}
-			return fmt.Errorf("lens %s is outside the authoring form: a lacuna on %s that is not on an arm", key, p)
-		default:
-			if len(ts) > 0 {
-				return fmt.Errorf("lens %s is outside the authoring form: a lacuna on %s with a condition", key, p)
+		case kindDrop:
+			if len(ts) == 1 && last.operand == nil && last.present && last.path.String() == en.source.String() {
+				return nil, true
 			}
 		}
-		if en.lacuna != nil {
-			return fmt.Errorf("lens %s is outside the authoring form: two lacunas on %s", key, p)
-		}
-		en.lacuna = a
-		return nil
 	}
-	return fmt.Errorf("lens %s is outside the authoring form: a lacuna on %s, which no mapping produces", key, p)
+	renameRoot(cond, b.root, b.name)
+	return cond, false
+}
+
+// renameRoot renames the references from <from> in x to start from <to>.
+func renameRoot(x ast.Expr, from, to string) {
+	labels := make(map[*ast.Ident]bool)
+	ast.Walk(x, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.SelectorExpr:
+			if id, ok := n.Sel.(*ast.Ident); ok {
+				labels[id] = true
+			}
+		case *ast.Field:
+			if id, ok := n.Label.(*ast.Ident); ok {
+				labels[id] = true
+			}
+		case *ast.Ident:
+			if !labels[n] && n.Name == from {
+				n.Name = to
+			}
+		}
+		return true
+	}, nil)
+}
+
+func joinPath(p, q cue.Path) cue.Path {
+	return cue.MakePath(append(append([]cue.Selector{}, p.Selectors()...), q.Selectors()...)...)
 }
 
 func stringLit(x ast.Expr) (string, error) {
@@ -701,8 +734,12 @@ func dropMessageFor(each *cue.Path, p cue.Path, tv thema.SyntacticVersion) strin
 
 // stripDerived removes from a backward body the entries derivation would
 // produce from the forward entries: the inverse of each single-use move, and
-// the default-message drop of each field the newer version added.
-func stripDerived(entries, fwd []dentry, newer, older cue.Value) []dentry {
+// the drop of each field the newer version added, where no lacuna refines it.
+func stripDerived(entries, fwd []dentry, lacunas []dlacuna, newer, older cue.Value) []dentry {
+	named := make(map[string]bool)
+	for _, l := range lacunas {
+		named[l.path.String()] = true
+	}
 	uses := make(map[string]int)
 	for _, en := range fwd {
 		if en.kind == kindMove {
@@ -723,7 +760,7 @@ func stripDerived(entries, fwd []dentry, newer, older cue.Value) []dentry {
 				continue
 			}
 		case kindDrop:
-			if en.lacuna == nil && lookup(newer, en.source).Exists() && !lookup(older, en.source).Exists() {
+			if !named[en.target.String()] && lookup(newer, en.source).Exists() && !lookup(older, en.source).Exists() {
 				continue
 			}
 		}
@@ -750,7 +787,7 @@ func versionText(v dversion, prev thema.SyntacticVersion, fwd, bwd *dbody) (stri
 	}{{fieldSchema, nil}, {fieldForward, fwd}, {fieldBackward, bwd}} {
 		val := expr
 		if block.name != fieldSchema {
-			if block.b == nil || len(block.b.entries) == 0 {
+			if block.b == nil || block.b.empty() {
 				continue
 			}
 			from, to := prev, v.v
@@ -759,7 +796,11 @@ func versionText(v dversion, prev thema.SyntacticVersion, fwd, bwd *dbody) (stri
 			}
 			param := &ast.Field{Label: ast.NewIdent(paramName(from)), Value: ast.NewIdent("_")}
 			result := &ast.Field{Label: ast.NewIdent(paramName(to)), Value: block.b.syntax()}
-			val = &ast.StructLit{Elts: []ast.Decl{param, result}}
+			lens := &ast.StructLit{Elts: []ast.Decl{param, result}}
+			if len(block.b.lacunas) > 0 {
+				lens.Elts = append(lens.Elts, &ast.Field{Label: ast.NewIdent(fieldLacunas), Value: block.b.lacunasSyntax()})
+			}
+			val = lens
 		}
 		field := &ast.Field{Label: ast.NewIdent(block.name), Value: val}
 		layout(field)
@@ -772,28 +813,61 @@ func versionText(v dversion, prev thema.SyntacticVersion, fwd, bwd *dbody) (stri
 	return strings.Join(parts, "\n"), nil
 }
 
+// empty reports whether the body has nothing to write: no entry but the
+// implicit copies, and no lacuna.
+func (b *dbody) empty() bool {
+	for _, en := range b.entries {
+		if !en.implicit {
+			return false
+		}
+	}
+	return len(b.lacunas) == 0
+}
+
+// A nesting builds a struct of fields keyed by path, nesting by path.
+type nesting struct {
+	root    *ast.StructLit
+	structs map[string]*ast.StructLit
+}
+
+func newNesting() *nesting {
+	root := &ast.StructLit{}
+	return &nesting{root: root, structs: map[string]*ast.StructLit{"": root}}
+}
+
+// at returns the struct at p, creating the fields down to it.
+func (n *nesting) at(p cue.Path) *ast.StructLit {
+	sels := p.Selectors()
+	s := n.root
+	for i := range sels {
+		k := cue.MakePath(sels[:i+1]...).String()
+		c, ok := n.structs[k]
+		if !ok {
+			c = &ast.StructLit{}
+			n.structs[k] = c
+			s.Elts = append(s.Elts, &ast.Field{Label: ast.NewIdent(sels[i].Unquoted()), Value: c})
+		}
+		s = c
+	}
+	return s
+}
+
+// add puts the field p: val in place.
+func (n *nesting) add(p cue.Path, val ast.Expr) *ast.Field {
+	sels := p.Selectors()
+	f := &ast.Field{Label: ast.NewIdent(sels[len(sels)-1].Unquoted()), Value: val}
+	parent := n.at(cue.MakePath(sels[:len(sels)-1]...))
+	parent.Elts = append(parent.Elts, f)
+	return f
+}
+
 // syntax renders the body's entries as a struct, nesting by target path.
 func (b *dbody) syntax() *ast.StructLit {
-	root := &ast.StructLit{}
-	structs := map[string]*ast.StructLit{"": root}
-	at := func(p cue.Path) *ast.StructLit {
-		sels := p.Selectors()
-		s := root
-		for i := range sels {
-			k := cue.MakePath(sels[:i+1]...).String()
-			c, ok := structs[k]
-			if !ok {
-				c = &ast.StructLit{}
-				structs[k] = c
-				s.Elts = append(s.Elts, &ast.Field{Label: ast.NewIdent(sels[i].Unquoted()), Value: c})
-			}
-			s = c
-		}
-		return s
-	}
+	n := newNesting()
 	for _, en := range b.entries {
-		sels := en.target.Selectors()
-		parent := at(cue.MakePath(sels[:len(sels)-1]...))
+		if en.implicit {
+			continue
+		}
 		var val ast.Expr
 		switch en.kind {
 		case kindMove:
@@ -811,36 +885,43 @@ func (b *dbody) syntax() *ast.StructLit {
 		case kindRemap:
 			table := &ast.StructLit{}
 			for _, a := range en.arms {
-				f := &ast.Field{Label: ast.NewString(a.key), Value: a.value}
-				addLacuna(f, a.lacuna)
-				table.Elts = append(table.Elts, f)
+				table.Elts = append(table.Elts, &ast.Field{Label: ast.NewString(a.key), Value: a.value})
 			}
 			if en.catchAll != nil {
-				f := &ast.Field{Label: &ast.ListLit{Elts: []ast.Expr{ast.NewIdent("_")}}, Value: en.catchAll.value}
-				addLacuna(f, en.catchAll.lacuna)
-				table.Elts = append(table.Elts, f)
+				table.Elts = append(table.Elts, &ast.Field{Label: &ast.ListLit{Elts: []ast.Expr{ast.NewIdent("_")}}, Value: en.catchAll.value})
 			}
 			val = &ast.CallExpr{Fun: ast.NewIdent(opRemap), Args: []ast.Expr{ref(b.name, en.source), table}}
 		case kindEach:
 			val = &ast.CallExpr{Fun: ast.NewIdent(opEach), Args: []ast.Expr{ref(b.name, en.source), en.body.syntax()}}
 		}
-		f := &ast.Field{Label: ast.NewIdent(sels[len(sels)-1].Unquoted()), Value: val}
-		addLacuna(f, en.lacuna)
+		f := n.add(en.target, val)
 		for _, cg := range en.comments {
 			ast.AddComment(f, cg)
 		}
-		parent.Elts = append(parent.Elts, f)
 	}
-	return root
+	return n.root
 }
 
-func addLacuna(f *ast.Field, a *lacunaAttr) {
-	if a == nil {
-		return
+// lacunasSyntax renders the lens's lacunas field: a list per key, nesting by
+// path, keys in order of first appearance.
+func (b *dbody) lacunasSyntax() *ast.StructLit {
+	n := newNesting()
+	lists := make(map[string]*ast.ListLit)
+	for _, l := range b.lacunas {
+		list, ok := lists[l.path.String()]
+		if !ok {
+			list = &ast.ListLit{}
+			lists[l.path.String()] = list
+			n.add(l.path, list)
+		}
+		elts := []ast.Decl{
+			&ast.Field{Label: ast.NewIdent(fieldType), Value: ast.NewIdent(l.typ)},
+			&ast.Field{Label: ast.NewIdent(fieldMessage), Value: ast.NewString(l.msg)},
+		}
+		if l.when != nil {
+			elts = append(elts, &ast.Field{Label: ast.NewIdent(fieldWhen), Value: l.when})
+		}
+		list.Elts = append(list.Elts, &ast.StructLit{Elts: elts})
 	}
-	text := "@lacuna(" + literal.String.Quote(a.msg) + ")"
-	if a.typ != "" {
-		text = "@lacuna(" + a.typ + ", " + literal.String.Quote(a.msg) + ")"
-	}
-	f.Attrs = append(f.Attrs, &ast.Attribute{Text: text})
+	return n.root
 }

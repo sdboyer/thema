@@ -1,7 +1,8 @@
 exemplars/narrowing.cue in authoring form: a string-or-bool field narrows to a
 bool. The remap keys the two strings, lets a bool pass through, and sends any
-other string to the [_] arm, whose lacuna is required. Backward is a move,
-since 0.0's boolish accepts a bool.
+other string to the [_] arm, which must have a lacuna: the one declared on
+properbool without a when. Backward is a move, since 0.0's boolish accepts a
+bool.
 -- ship/history/0.0.thema --
 schema: {
 	boolish: "true" | "false" | bool | string
@@ -17,8 +18,14 @@ ForwardLens: {
 		properbool: remap(v0_0.boolish, {
 			"true":  true
 			"false": false
-			[_]:     false @lacuna(LossyFieldMapping, "boolish was a string but neither \"true\" nor \"false\"; fallback to treating as false")
+			[_]:     false
 		})
+	}
+	lacunas: {
+		properbool: [{
+			type:    LossyFieldMapping
+			message: "boolish was a string but neither \"true\" nor \"false\"; fallback to treating as false"
+		}]
 	}
 }
 
@@ -46,8 +53,14 @@ ForwardLens: {
 		properbool: remap(v0_0.boolish, {
 			"true":  true
 			"false": false
-			[_]:     false @lacuna(LossyFieldMapping, "boolish was a string but neither \"true\" nor \"false\"; fallback to treating as false")
+			[_]:     false
 		})
+	}
+	lacunas: {
+		properbool: [{
+			type:    LossyFieldMapping
+			message: "boolish was a string but neither \"true\" nor \"false\"; fallback to treating as false"
+		}]
 	}
 }
 

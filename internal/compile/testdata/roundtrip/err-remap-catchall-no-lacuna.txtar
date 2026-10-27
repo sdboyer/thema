@@ -19,5 +19,5 @@ ForwardLens: {
 	}
 }
 -- out/error --
-the [_] arm collapses every unmapped value into one: declare what is lost with @lacuna(Type, "message"):
+the [_] arm collapses every unmapped value into one: declare what is lost in lacunas: {kind: [{type: Type, message: "..."}]}:
     1.0.thema:10:4
