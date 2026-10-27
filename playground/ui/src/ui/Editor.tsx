@@ -7,7 +7,7 @@ import { lintGutter, setDiagnostics } from "@codemirror/lint";
 import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
 import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView, drawSelection, highlightActiveLine, keymap, lineNumbers } from "@codemirror/view";
-import { useEffect, useRef } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { cue } from "./cue-lang";
 import type { Marker } from "./markers";
 
@@ -76,8 +76,12 @@ export function Editor({ text, language, onChange, markers, readOnly, label }: P
   }, []);
 
   // A new text from outside (another file opened, an example loaded)
-  // replaces the document; an edit from this editor is already in it.
-  useEffect(() => {
+  // replaces the document; an edit from this editor is already in it. This
+  // must be a layout effect: a plain effect waits for a frame, and a keystroke
+  // arriving before it would leave text one edit behind the document, so the
+  // effect would put the old text back, report it as an edit, and the parent
+  // and the editor would trade the two texts forever.
+  useLayoutEffect(() => {
     const v = view.current;
     if (v && v.state.doc.toString() !== text) {
       v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: text } });
