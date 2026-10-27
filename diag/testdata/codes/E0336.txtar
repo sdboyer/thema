@@ -1,0 +1,47 @@
+#op: compile
+match takes two arguments: a reference into the source instance, and its
+arms, a struct of `value: value` entries with an optional `[_]` catch-all.
+-- ship/history/0.0.thema --
+Schema: {
+	kind: "a" | "b"
+}
+-- ship/1.0.thema --
+Schema: {
+	kind: 1 | 2
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		kind: match(v0_0.kind)
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0336",
+      "severity": "error",
+      "headline": "match takes two arguments: match(v0_0.<path>, {...})",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 8,
+        "col": 9,
+        "offset": 67,
+        "origin": "user"
+      }
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0336]: match takes two arguments: match(v0_0.<path>, {...})
+ --> 1.0.thema:8:9
+  |
+8 |         kind: match(v0_0.kind)
+  |               ^^^^^
+  |

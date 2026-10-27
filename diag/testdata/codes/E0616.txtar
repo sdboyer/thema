@@ -1,0 +1,29 @@
+#op: cli
+#args: lineage fmt -l ship
+#readonly: ship/0.0.thema
+A command could not write a file it needed to: here `thema lineage fmt`
+rewriting a version file that is not in the authoring form's layout, which
+the author's permissions do not let it change. The detail is the operating
+system's reason.
+-- ship/0.0.thema --
+Schema: {name: string, count: int}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0616",
+      "severity": "error",
+      "headline": "ship/0.0.thema cannot be written",
+      "detail": "permission denied"
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0616]: ship/0.0.thema cannot be written
+  |
+  = detail: permission denied

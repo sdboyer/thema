@@ -1,0 +1,84 @@
+#op: bind
+A lacuna's source fields are fields of the lens's source schema, and its target
+fields are fields of its target schema. This lacuna names a field neither
+schema declares.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+		"1": {
+			schema: {
+				a:  string
+				b?: int
+			}
+		}
+	}
+}
+lenses: {
+	"0.1->0.0": {
+		v0_1: _
+		v0_0: {
+			a: v0_1.a
+		}
+		lacunas: [
+			{
+				type:         "DroppedField"
+				message:      "b was dropped"
+				condition:    v0_1.b != _|_
+				sourceFields: [{path: "nope", value: 1}]
+			},
+		]
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0404",
+      "severity": "error",
+      "headline": "lacuna 0 of lens 0.1->0.0 names nope in sourceFields[0], which schema 0.1 does not declare",
+      "path": [
+        "lenses",
+        "0.1->0.0",
+        "lacunas",
+        "0"
+      ],
+      "address": {
+        "from": [
+          0,
+          1
+        ],
+        "index": 0,
+        "kind": "lacuna",
+        "to": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 28,
+        "col": 21,
+        "offset": 339,
+        "origin": "user"
+      }
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0404]: lacuna 0 of lens 0.1->0.0 names nope in sourceFields[0], which schema 0.1 does not declare
+  --> lineage.cue:28:21
+   |
+28 |                 sourceFields: [{path: "nope", value: 1}]
+   |                                 ^^^^
+   |

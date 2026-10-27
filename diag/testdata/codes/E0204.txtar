@@ -1,0 +1,60 @@
+#op: compile
+A version has one file, at the top of the lineage's directory or under
+`history/`, not both. Two files declaring the same version would be two
+schemas for it.
+-- ship/history/0.0.thema --
+Schema: {
+	a: string
+}
+-- ship/0.0.thema --
+Schema: {
+	a: string
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0204",
+      "severity": "error",
+      "headline": "history/0.0.thema and 0.0.thema both declare version 0.0",
+      "primary": {
+        "file": "0.0.thema",
+        "line": 1,
+        "col": 1,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "pos": {
+            "file": "history/0.0.thema",
+            "line": 1,
+            "col": 1,
+            "origin": "user"
+          },
+          "label": "the other is here"
+        }
+      ],
+      "help": [
+        "a version has one file, at the top of the lineage's directory or under history/"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0204]: history/0.0.thema and 0.0.thema both declare version 0.0
+ --> 0.0.thema:1:1
+  |
+1 | Schema: {
+  | ^^^^^^
+  |
+ ::: history/0.0.thema:1:1
+  |
+1 | Schema: {
+  | ------ the other is here
+  |
+  = help: a version has one file, at the top of the lineage's directory or under history/

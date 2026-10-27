@@ -1,0 +1,76 @@
+#op: bind
+The checker shows a disjunction compatible by finding, for each alternative of
+the predecessor, one alternative of the new schema that covers it. Alternatives
+that cover it only together are not combined, so the checker cannot decide.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				n: int
+			}
+		}
+		"1": {
+			schema: {
+				n: >=0 | <0
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0233",
+      "severity": "error",
+      "headline": "n in schema 0.1 is now >=0 | <0, no single alternative of which covers the prior alternative int; the checker does not combine alternatives",
+      "path": [
+        "schemas",
+        "0",
+        "1",
+        "schema",
+        "n"
+      ],
+      "address": {
+        "field": [
+          "n"
+        ],
+        "kind": "schemaField",
+        "version": [
+          0,
+          1
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 11,
+        "col": 5,
+        "offset": 100,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule unknown-disjunction)"
+        }
+      ],
+      "help": [
+        "change the schema so the checker can decide, or make this version 1.0"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0233]: n in schema 0.1 is now >=0 | <0, no single alternative of which covers the prior alternative int; the checker does not combine alternatives
+  --> lineage.cue:11:5
+   |
+11 |                 n: >=0 | <0
+   |                 ^
+   |
+   = note: schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule unknown-disjunction)
+   = help: change the schema so the checker can decide, or make this version 1.0

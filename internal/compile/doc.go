@@ -19,6 +19,7 @@
 //
 //	after: v0_0.before                      // a move: a reference into the instance
 //	kind:  "v2"                             // a constant
+//	area:  v0_0.w * v0_0.h                  // a computed value
 //	meta: {owner: v0_0.name}                // a nested body; {v0_0.m, x: 1} copies from m
 //	legacy: drop                            // a drop, keyed by the source field
 //	nick:  orelse(v0_0.nick, v0_0.name)     // an optional source: the fallback when absent
@@ -51,13 +52,21 @@
 // always, for a move or a constant; when the fallback is used, for an orelse;
 // when the [_] arm applies, for a match; when the field is present, for a
 // drop. A DroppedField lacuna on a drop refines the derived one's message. A
-// when replaces the implied condition; it may read fields the source always
-// has, test any source field's presence (v0_0.x != _|_), compare and
-// combine with CUE's operators, and call len and the integer divisions
-// (quo, rem, div, mod): what the totality proof proves a boolean. Inside an each body, only the DroppedField refinement is
-// supported yet, keyed through the list (items: {legacy: [...]}). Computed
-// expressions are not accepted yet; orelse over a computed primary, the
-// curated builtin table, and conditions reading optional fields are next.
+// when replaces the implied condition. It compares and combines source
+// fields with CUE's operators, len and the integer divisions (quo, rem, div,
+// mod): what the totality proof proves a boolean. A when that reads an
+// optional field concerns only the instances that have it; an optional field
+// named bare, when: v0_0.x, tests its presence, and a required bool named
+// bare is its value. Inside an each body, only the DroppedField refinement is
+// supported yet, keyed through the list (items: {legacy: [...]}).
+//
+// A computed value is built from source fields with CUE's operators, len,
+// the integer divisions and the strings functions the totality proof proves
+// (lenscheck.Builtins and lenscheck.StringFuncs, the one list of each); the
+// file needs no import for strings. A computed value that reads optional
+// fields is written only where they are present, so a target field that
+// requires it takes orelse(<expression>, fallback), which uses the fallback
+// where any of them is absent.
 //
 // # Layout
 //

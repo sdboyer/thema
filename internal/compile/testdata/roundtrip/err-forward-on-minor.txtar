@@ -17,5 +17,11 @@ ForwardLens: {
 	}
 }
 -- out/error --
-0.1.thema: this version is backward compatible with 0.0, so translating forward is implicit: remove the ForwardLens entries, or make the change breaking:
-    0.1.thema:6:1
+error[E0355]: 0.1.thema is backward compatible with 0.0, so it has no ForwardLens
+ --> 0.1.thema:6:1
+  |
+6 | ForwardLens: {
+  | ^^^^^^^^^^^
+  |
+  = note: an instance of a version is already an instance of its minor successor; translating forward is implicit
+  = help: remove the ForwardLens, or make a breaking change

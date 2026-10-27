@@ -69,11 +69,14 @@ func (b *irBuilder) result() []lensir.Node {
 	return *b.stack[0]
 }
 
-// path converts a path within the input or the result.
+// path converts a path within the input or the result; the open element of a
+// list, inside an each, is Any.
 func (b *irBuilder) path(p cue.Path) lensir.Path {
 	out := make(lensir.Path, 0, len(p.Selectors()))
 	for _, sel := range p.Selectors() {
 		switch {
+		case isAnyIndex(sel):
+			out = append(out, lensir.Any())
 		case sel.Type().LabelType() == cue.IndexLabel:
 			out = append(out, lensir.Index(sel.Index()))
 		case sel.IsString():
@@ -334,7 +337,28 @@ func (b *irBuilder) fieldRef(name string, rp cue.Path, value lensir.Expr) {
 	if err != nil {
 		b.failf("%s is not a string: %v", pp, err)
 	}
-	ref := lensir.FieldRef{Path: p, Value: value}
+	b.addFieldRef(name, lensir.FieldRef{Path: p, Value: value})
+}
+
+// fieldRefUnder records a field a lacuna reports only where the patterns gs
+// hold (an entry written as an if comprehension). The entry does not evaluate
+// without an input, so its path is read from the syntax, where it must be a
+// string literal.
+func (b *irBuilder) fieldRefUnder(name string, rp cue.Path, path ast.Expr, gs []pattern, value lensir.Expr) {
+	lit, ok := path.(*ast.BasicLit)
+	if !ok || lit.Kind != token.STRING {
+		b.failf("%s has a path that is not a string literal, which the IR carries only for an entry written unconditionally", rp)
+		return
+	}
+	p, err := literal.Unquote(lit.Value)
+	if err != nil {
+		b.failf("%s: %v", appendPath(rp, cue.Str("path")), err)
+		return
+	}
+	b.addFieldRef(name, lensir.FieldRef{Path: p, When: b.tests(gs), Value: value})
+}
+
+func (b *irBuilder) addFieldRef(name string, ref lensir.FieldRef) {
 	if strings.HasPrefix(name, "source") {
 		b.lacuna.SourceFields = append(b.lacuna.SourceFields, ref)
 	} else {

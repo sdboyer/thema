@@ -1,0 +1,48 @@
+#op: compile
+Nothing attaches to a mapping. A lacuna is declared in the lens's lacunas
+field, keyed by the mapping it describes, not as an attribute on the mapping.
+-- ship/history/0.0.thema --
+Schema: {
+	firstfield: string
+}
+-- ship/1.0.thema --
+Schema: {
+	firstfield:  string
+	secondfield: int
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		secondfield: -1 @lacuna(Placeholder, "-1 is a placeholder")
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0332",
+      "severity": "error",
+      "headline": "a mapping has no attributes; a lacuna is declared in the lens's lacunas field, keyed by the mapping",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 9,
+        "col": 19,
+        "offset": 103,
+        "origin": "user"
+      }
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0332]: a mapping has no attributes; a lacuna is declared in the lens's lacunas field, keyed by the mapping
+ --> 1.0.thema:9:19
+  |
+9 |         secondfield: -1 @lacuna(Placeholder, "-1 is a placeholder")
+  |                         ^
+  |

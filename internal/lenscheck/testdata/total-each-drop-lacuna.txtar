@@ -1,0 +1,22 @@
+# A list mapped element by element with a field dropped in the body. The drop's lacuna is aggregated over the elements through a let: its condition is a guard over the let's length, and its sourceFields report each element that had the field, under the comprehension's own presence test.
+-- source.cue --
+items: [...{title: string, legacy?: string}]
+-- target.cue --
+items: [...{name: string}]
+-- lens.cue --
+v0_0: _
+let _d_0 = [for i, item in v0_0.items if item.legacy != _|_ {
+	path:  "items[\(i)].legacy"
+	value: item.legacy
+}]
+v1_0: {items: [for item in v0_0.items {name: item.title}]}
+lacunas: [{
+	condition:    len(_d_0) > 0
+	sourceFields: _d_0
+	message:      "legacy dropped"
+	type:         "DroppedField"
+}]
+-- out --
+total
+-- ir --
+no program: _d_0 is not an expression the IR carries

@@ -32,6 +32,27 @@ jobs:
       - name: Test
         run: go test ./...
 
+  # The playground compiled to WebAssembly: its tests under Go's js/wasm
+  # runner (node), and the CLI built with the bundle embedded. The test job's
+  # TestWasmSmoke runs the JS bridge the way a browser loads it.
+  wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Test the playground under wasm
+        run: PATH="$PATH:$(go env GOROOT)/lib/wasm" GOOS=js GOARCH=wasm go test ./playground/...
+
+      - name: Build the CLI with the playground
+        run: |
+          go generate ./cmd/thema/playground
+          go build -tags playgroundui -o /dev/null ./cmd/thema
+
   lint:
     runs-on: ubuntu-latest
     permissions:

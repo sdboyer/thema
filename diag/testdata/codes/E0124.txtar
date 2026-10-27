@@ -1,0 +1,48 @@
+#op: bind
+Schemas are keyed by major version, then minor version, each a non-negative
+integer written as a string: `"0": "0"` is version 0.0. A key that is not such
+an integer is not a version.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"v0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0124",
+      "severity": "error",
+      "headline": "\"v0\" is not a major version",
+      "primary": {
+        "file": "lineage.cue",
+        "line": 3,
+        "col": 2,
+        "offset": 25,
+        "origin": "user"
+      },
+      "help": [
+        "schemas are keyed by major, then minor version, each a non-negative integer such as \"0\""
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0124]: "v0" is not a major version
+ --> lineage.cue:3:2
+  |
+3 |     "v0": {
+  |     ^^^^
+  |
+  = help: schemas are keyed by major, then minor version, each a non-negative integer such as "0"

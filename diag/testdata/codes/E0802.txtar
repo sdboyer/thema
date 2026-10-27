@@ -1,0 +1,28 @@
+#op: playground
+#call: bind
+A request names a lineage in exactly one form: the authoring form's files,
+with the lineage's name, or one normal-form file. This one gives neither.
+-- request.json --
+{"lineage": {}}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0802",
+      "severity": "error",
+      "headline": "no lineage was given",
+      "help": [
+        "send the authoring form's files, or one normal-form file"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0802]: no lineage was given
+  |
+  = help: send the authoring form's files, or one normal-form file

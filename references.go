@@ -10,6 +10,7 @@ import (
 	"cuelang.org/go/cue/literal"
 	"cuelang.org/go/cue/token"
 
+	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/internal/compat"
 	"github.com/sdboyer/thema/internal/cueview"
 	"github.com/sdboyer/thema/internal/embedreg"
@@ -63,6 +64,9 @@ type refOwner struct {
 	// name is how the owner is referred to in errors: "schema 0.1",
 	// "joinSchema", "lens 0.1->0.0".
 	name string
+	// addr is the owner as a diagnostic's subject, named in the author's
+	// vocabulary when the lineage was compiled from the authoring form.
+	addr diag.Address
 	// v is the owner within the raw lineage.
 	v cue.Value
 	// rel is the owner's path relative to the lineage.
@@ -96,6 +100,15 @@ func (f refFinding) String(o refOwner) string {
 	if len(f.field) > 0 {
 		subject = o.name + ": " + strings.Join(f.field, ".")
 	}
+	if f.rule == refUnresolved {
+		return fmt.Sprintf("%s refers to %s, %s; %s (rule %s)", subject, f.expr, f.what(o), f.help(o), f.rule)
+	}
+	return fmt.Sprintf("%s refers to %s, %s; %s (rule %s)", subject, f.expr, f.what(o), o.may(), f.rule)
+}
+
+// what says what the reference reaches, as the end of "<subject> refers to
+// <expr>, ...".
+func (f refFinding) what(o refOwner) string {
 	var what string
 	switch f.rule {
 	case refSiblingSchema:
@@ -111,9 +124,17 @@ func (f refFinding) String(o refOwner) string {
 	case refImport:
 		what = fmt.Sprintf("in package %q, which is not one of CUE's builtin packages", f.pkg)
 	case refUnresolved:
-		return fmt.Sprintf("%s refers to %s, which thema cannot resolve statically; write the reference with constant labels, or declare what it needs inside the %s (rule %s)", subject, f.expr, o.kind(), f.rule)
+		what = "which thema cannot resolve statically"
 	}
-	return fmt.Sprintf("%s refers to %s, %s; %s (rule %s)", subject, f.expr, what, o.may(), f.rule)
+	return what
+}
+
+// help says what to do about the finding.
+func (f refFinding) help(o refOwner) string {
+	if f.rule == refUnresolved {
+		return "write the reference with constant labels, or declare what it needs inside the " + o.kind()
+	}
+	return o.may()
 }
 
 func (o refOwner) kind() string {

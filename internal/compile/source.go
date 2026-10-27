@@ -2,7 +2,6 @@ package compile
 
 import (
 	"errors"
-	"fmt"
 	"io/fs"
 	"path"
 	"regexp"
@@ -16,6 +15,7 @@ import (
 	"cuelang.org/go/cue/token"
 
 	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/diag"
 )
 
 // Ext is the extension of authoring files.
@@ -44,7 +44,7 @@ func Load(fsys fs.FS, dir string) (name string, files []File, err error) {
 			if d != dir && errors.Is(err, fs.ErrNotExist) {
 				continue
 			}
-			return "", nil, err
+			return "", nil, diag.New(diag.E0601).Headlinef("%s cannot be read", d).Detail(diag.OSReason(err)).Err()
 		}
 		for _, e := range ents {
 			if e.IsDir() || !strings.HasSuffix(e.Name(), Ext) {
@@ -53,7 +53,7 @@ func Load(fsys fs.FS, dir string) (name string, files []File, err error) {
 			p := path.Join(d, e.Name())
 			b, err := fs.ReadFile(fsys, p)
 			if err != nil {
-				return "", nil, err
+				return "", nil, diag.New(diag.E0601).Headlinef("%s cannot be read", p).Detail(diag.OSReason(err)).Err()
 			}
 			files = append(files, File{Path: strings.TrimPrefix(p, dir+"/"), Text: b})
 		}
@@ -94,29 +94,39 @@ func (v *version) schemaField() *ast.Field {
 func parseVersion(f File) (*version, error) {
 	m := versionFile.FindStringSubmatch(f.Path)
 	if m == nil {
-		return nil, fmt.Errorf("%s: a version file is named <major>.<minor>%s, in the lineage's directory or its history directory", f.Path, Ext)
+		return nil, diag.New(diag.E0101).
+			Headlinef("%s is not a version file", f.Path).
+			Helpf("a version file is named <major>.<minor>%s, in the lineage's directory or its history directory", Ext).
+			Err()
 	}
 	af, err := parser.ParseFile(f.Path, f.Text, parser.ParseComments)
 	if err != nil {
-		return nil, err
+		return nil, diag.Convert(err, diag.Context{Op: diag.OpCompile, Generic: diag.E0102})
 	}
 	v := &version{path: f.Path, file: af, tf: af.Pos().File()}
 	major, _ := strconv.ParseUint(m[1], 10, 64)
 	minor, _ := strconv.ParseUint(m[2], 10, 64)
 	v.v = thema.SV(uint(major), uint(minor))
 
+	const only = "a version file has only Schema, ForwardLens and BackwardLens"
+	fields := []string{fieldSchema, fieldForward, fieldBackward}
 	var errs cerrors.Error
+	report := func(code diag.Code, p token.Pos, format string, args ...any) *diag.B {
+		b := diag.New(code).At(p).Headlinef(format, args...)
+		errs = cerrors.Append(errs, b.Err())
+		return b
+	}
 	for _, d := range af.Decls {
 		switch d := d.(type) {
 		case *ast.Package:
-			errs = cerrors.Append(errs, cerrors.Newf(d.Pos(), "a version file has no package clause"))
+			report(diag.E0103, d.Pos(), "%s has a package clause", f.Path).Help("a version file is not a CUE package; remove the clause")
 		case *ast.ImportDecl:
-			errs = cerrors.Append(errs, cerrors.Newf(d.Pos(), "imports are not allowed in a version file"))
+			report(diag.E0104, d.Pos(), "%s imports a package", f.Path).Help("a version file imports nothing; a schema uses only CUE's builtins")
 		case *ast.CommentGroup:
 		case *ast.Field:
 			name, _, err := ast.LabelName(d.Label)
 			if err != nil {
-				errs = cerrors.Append(errs, cerrors.Newf(d.Pos(), "a version file has only Schema, ForwardLens and BackwardLens"))
+				report(diag.E0105, d.Pos(), "%s has a field whose label is not a name", f.Path).Help(only)
 				continue
 			}
 			var slot **ast.Field
@@ -128,27 +138,32 @@ func parseVersion(f File) (*version, error) {
 			case fieldBackward:
 				slot = &v.backward
 			default:
-				errs = cerrors.Append(errs, cerrors.Newf(d.Pos(), "%s is not a field of a version file; a version file has only Schema, ForwardLens and BackwardLens", name))
+				b := report(diag.E0105, d.Pos(), "%s is not a field of a version file", name)
+				if want, ok := diag.Suggest(name, fields); ok {
+					b.Helpf("did you mean %s?", want)
+				} else {
+					b.Help(only)
+				}
 				continue
 			}
 			if *slot != nil {
-				errs = cerrors.Append(errs, cerrors.Newf(d.Pos(), "%s is declared twice", name))
+				report(diag.E0106, d.Pos(), "%s declares %s twice", f.Path, name).Note((*slot).Pos(), "first declared here")
 				continue
 			}
 			if name != fieldSchema {
 				if _, ok := d.Value.(*ast.StructLit); !ok {
-					errs = cerrors.Append(errs, cerrors.Newf(d.Value.Pos(), "%s must be a struct: {v<from>: _, v<to>: {...}}", name))
+					report(diag.E0107, d.Value.Pos(), "%s is not a struct", name).Helpf("a lens block is {v<from>: _, v<to>: {...}}")
 					continue
 				}
 			}
 			errs = cerrors.Append(errs, noShorthand(d))
 			*slot = d
 		default:
-			errs = cerrors.Append(errs, cerrors.Newf(d.Pos(), "a version file has only Schema, ForwardLens and BackwardLens"))
+			report(diag.E0105, d.Pos(), "%s has a declaration that is not a field", f.Path).Help(only)
 		}
 	}
 	if v.schema == nil {
-		errs = cerrors.Append(errs, cerrors.Newf(v.header(), "%s declares no Schema", f.Path))
+		report(diag.E0108, v.header(), "%s declares no Schema", f.Path).Help("every version file declares Schema: {...}")
 	}
 	if errs != nil {
 		return nil, errs
@@ -172,7 +187,11 @@ func noShorthand(f *ast.Field) cerrors.Error {
 	}
 	outer, _, _ := ast.LabelName(f.Label)
 	label, _, _ := ast.LabelName(inner.Label)
-	return cerrors.Newf(inner.Pos(), "%s: %s: ... is CUE's struct shorthand; a version file writes %s with its braces: %s: {%s: ...}", outer, label, outer, outer, label)
+	return diag.New(diag.E0109).At(inner.Pos()).
+		Headlinef("%s: %s: ... is CUE's struct shorthand, which a version file's %s does not use", outer, label, outer).
+		Note(token.NoPos, "a version file's three fields keep their braces, so that each reads as the block it is").
+		Helpf("write %s: {%s: ...}", outer, label).
+		Err()
 }
 
 // parseVersions parses every file and orders the versions, which must be
@@ -193,7 +212,10 @@ func parseVersions(files []File) ([]*version, error) {
 		return nil, errs
 	}
 	if len(vs) == 0 {
-		return nil, errors.New("no version files")
+		return nil, diag.New(diag.E0110).
+			Headline("the lineage has no version files").
+			Helpf("a lineage is a directory of version files, <major>.<minor>%s, starting at 0.0%s", Ext, Ext).
+			Err()
 	}
 	sort.Slice(vs, func(i, j int) bool { return vs[i].v.Less(vs[j].v) })
 	for i, v := range vs {
@@ -201,7 +223,11 @@ func parseVersions(files []File) ([]*version, error) {
 		if i > 0 {
 			prev := vs[i-1].v
 			if v.v == prev {
-				return nil, cerrors.Newf(v.header(), "%s and %s both declare version %s", vs[i-1].path, v.path, v.v)
+				return nil, diag.New(diag.E0204).At(v.header()).
+					Headlinef("%s and %s both declare version %s", vs[i-1].path, v.path, v.v).
+					Note(vs[i-1].header(), "the other is here").
+					Help("a version has one file, at the top of the lineage's directory or under history/").
+					Err()
 			}
 			if v.v[0] == prev[0] {
 				want = thema.SV(prev[0], prev[1]+1)
@@ -210,7 +236,12 @@ func parseVersions(files []File) ([]*version, error) {
 			}
 		}
 		if v.v != want {
-			return nil, cerrors.Newf(v.header(), "%s: versions must be contiguous; after %s comes %s", v.path, vs[max(i-1, 0)].v, want)
+			b := diag.New(diag.E0205).At(v.header()).
+				Headlinef("%s skips a version: after %s comes %s", v.path, vs[max(i-1, 0)].v, want)
+			if i == 0 {
+				b.Headlinef("%s is not the first version: a lineage starts at 0.0", v.path)
+			}
+			return nil, b.Helpf("rename the file %s%s, or add the versions between", want, Ext).Err()
 		}
 	}
 	return vs, nil

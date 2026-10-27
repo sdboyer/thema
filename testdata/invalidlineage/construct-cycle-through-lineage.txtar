@@ -23,5 +23,10 @@ lin: thema.Lineage & {
 	}
 }
 -- out/bindfail --
-schema 0.0: reference to lin.schemas, which contains the schema; schemas may not contain circular references:
-    ./in.cue:7:22
+error[E0134]: schema 0.0 refers to schemas, which contains it
+ --> /in.cue:7:22
+  |
+7 |             schema: {n: <=len(lin.schemas)}
+  |                               ^^^
+  |
+  = note: a schema's references may not form a cycle: no check can describe a schema whose paths are unbounded

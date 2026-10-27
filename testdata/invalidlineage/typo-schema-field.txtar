@@ -11,5 +11,10 @@ schemas: {
 	}
 }
 -- out/bindfail --
-shcema is not a field of a schema entry; valid fields are examples, schema:
-    ./in.cue:7:3
+error[E0123]: shcema is not a field of a schema entry
+ --> /in.cue:7:3
+  |
+7 |         shcema: {
+  |         ^^^^^^
+  |
+  = help: did you mean schema?

@@ -1,0 +1,78 @@
+#op: bind
+A minor version accepts every value its predecessor accepts at every path. A
+bound, a narrower kind or a smaller disjunction rejects values the predecessor
+accepted. A field the predecessor admitted only through `...` is the same case
+(see also issue #47): it may already hold any value, so declaring it with a type
+narrows it.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				n: int
+			}
+		}
+		"1": {
+			schema: {
+				n: int & >=0
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0215",
+      "severity": "error",
+      "headline": "n in schema 0.1 is now uint, which does not accept every value of the prior int",
+      "path": [
+        "schemas",
+        "0",
+        "1",
+        "schema",
+        "n"
+      ],
+      "address": {
+        "field": [
+          "n"
+        ],
+        "kind": "schemaField",
+        "version": [
+          0,
+          1
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 11,
+        "col": 5,
+        "offset": 100,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule value-narrowed)"
+        }
+      ],
+      "help": [
+        "make the change compatible, or make this version 1.0"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0215]: n in schema 0.1 is now uint, which does not accept every value of the prior int
+  --> lineage.cue:11:5
+   |
+11 |                 n: int & >=0
+   |                 ^
+   |
+   = note: schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule value-narrowed)
+   = help: make the change compatible, or make this version 1.0

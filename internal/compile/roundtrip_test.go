@@ -1,6 +1,7 @@
 package compile
 
 import (
+	"bytes"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -11,6 +12,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/diag"
+	"github.com/sdboyer/thema/internal/diagtest"
 )
 
 // TestRoundTrip compiles each archive in testdata/roundtrip, binds the result
@@ -37,7 +40,12 @@ func TestRoundTrip(t *testing.T) {
 			ctx := cuecontext.New()
 			c, err := Compile(ctx, name, inputs)
 			if err != nil {
-				got["out/error"] = cerrors.Details(err, nil)
+				ds := diag.Diagnostics(err)
+				if len(ds) == 0 {
+					t.Fatalf("a compile failure is made of diagnostics, got: %v", err)
+				}
+				diagtest.Lint(t, ds, diagtest.Authoring)
+				got["out/error"] = rendered(ds, a)
 				a.compare(t, got)
 				return
 			}
@@ -51,8 +59,15 @@ func TestRoundTrip(t *testing.T) {
 			if v.Err() != nil {
 				t.Fatalf("building the normal form: %v", cerrors.Details(v.Err(), nil))
 			}
-			if _, berr := thema.BindLineage(v, thema.NewRuntime(ctx)); berr != nil {
-				got["out/bind"] = cerrors.Details(berr, nil)
+			// Bound with the authoring form's vocabulary, so that what bind
+			// reports names the author's files and lenses.
+			if _, berr := thema.BindLineage(v, thema.NewRuntime(ctx), thema.WithVocabulary(Vocabulary(c))); berr != nil {
+				ds := diag.Diagnostics(berr)
+				if len(ds) == 0 {
+					t.Fatalf("a bind failure is made of diagnostics, got: %v", berr)
+				}
+				diagtest.Lint(t, ds, diagtest.Authoring)
+				got["out/bind"] = rendered(ds, a)
 			} else {
 				got["out/bind"] = "ok\n"
 			}
@@ -96,6 +111,22 @@ func TestRoundTrip(t *testing.T) {
 			a.compare(t, got)
 		})
 	}
+}
+
+// rendered is the diagnostics as the author sees them, with the archive's
+// authoring files as the source of excerpts. Positions name the files by their
+// path under the lineage's directory.
+func rendered(ds []diag.Diagnostic, a *archive) string {
+	var b bytes.Buffer
+	diag.Render(&b, ds, diag.RenderOptions{Source: func(file string) ([]byte, bool) {
+		for _, f := range a.ar.Files {
+			if f.Name == file || strings.HasSuffix(f.Name, "/"+file) {
+				return f.Data, true
+			}
+		}
+		return nil, false
+	}})
+	return b.String()
 }
 
 // formatted returns text in thema's layout, which is what Decompile emits.

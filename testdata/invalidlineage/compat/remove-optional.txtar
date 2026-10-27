@@ -29,6 +29,11 @@ lin: lenses: {
     }
 }
 -- out/bindfail --
-schema 0.1 is not backwards compatible with schema 0.0:
-getsRemoved is declared in the prior schema and not accepted by the new one (rule field-removed):
-    /in.cue:10:13
+error[E0211]: getsRemoved in schema 0.1 is declared in the prior schema and not accepted by the new one
+  --> /in.cue:10:13
+   |
+10 |             getsRemoved?: int32
+   |             ^^^^^^^^^^^
+   |
+   = note: schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule field-removed)
+   = help: make the change compatible, or make this version 1.0

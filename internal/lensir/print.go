@@ -57,6 +57,8 @@ func (pr *printer) node(n Node) {
 		default:
 			pr.block(out(n.To)+":", n.Children)
 		}
+	case *Each:
+		pr.block(fmt.Sprintf("%s = each %s", out(n.To), in(n.Source)), n.Body)
 	case *Branch:
 		pr.block("if "+tests(n.When), n.Then)
 	case *Head:
@@ -95,16 +97,26 @@ func (pr *printer) lacuna(l Lacuna) {
 		pr.linef("when %s", expr(l.When))
 	}
 	for _, f := range l.SourceFields {
-		pr.linef("source %s = %s", f.Path, expr(f.Value))
+		pr.fieldRef("source", f)
 	}
 	for _, f := range l.TargetFields {
-		pr.linef("target %s = %s", f.Path, expr(f.Value))
+		pr.fieldRef("target", f)
 	}
 	if l.Message != nil {
 		pr.linef("message %s", expr(l.Message))
 	}
 	pr.indent--
 	pr.linef("}")
+}
+
+// fieldRef prints a field a lacuna reports, under its own condition if it
+// has one.
+func (pr *printer) fieldRef(list string, f FieldRef) {
+	if len(f.When) > 0 {
+		pr.linef("%s if %s { %s = %s }", list, tests(f.When), f.Path, expr(f.Value))
+		return
+	}
+	pr.linef("%s %s = %s", list, f.Path, expr(f.Value))
 }
 
 // in and out name an input and a result path.
@@ -208,6 +220,8 @@ func expr(e Expr) string {
 		return e.Fn + "(" + strings.Join(args, ", ") + ")"
 	case *Match:
 		return tests(e.Tests)
+	case *Cond:
+		return "(if " + tests(e.When) + " then " + expr(e.Then) + " else " + expr(e.Else) + ")"
 	}
 	return fmt.Sprintf("<%T>", e)
 }

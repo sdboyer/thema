@@ -1,0 +1,37 @@
+#op: schema
+#version: 9.9
+A schema was asked for by a version the lineage does not have. The help lists
+the versions it does.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0240",
+      "severity": "error",
+      "headline": "lineage ship has no schema 9.9",
+      "help": [
+        "its versions are 0.0"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0240]: lineage ship has no schema 9.9
+  |
+  = help: its versions are 0.0

@@ -10,7 +10,7 @@ import (
 	"cuelang.org/go/cue/cuecontext"
 	cerrors "cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/token"
-	"github.com/cockroachdb/errors"
+	"errors"
 
 	"github.com/sdboyer/thema"
 	terrors "github.com/sdboyer/thema/errors"

@@ -11,6 +11,8 @@
 //   - [Copy]: a result path takes an input path;
 //   - [Constant]: a result path takes a literal;
 //   - [Wrap]: a struct or list literal, whose fields or elements are nodes;
+//   - [Each]: a list with an element for each element of a source list, whose
+//     body is nodes over the open element ([for item in list {body}]);
 //   - [Branch]: nodes written under a condition (an if comprehension);
 //   - [Head]: one of two values, chosen by a condition ([if c {x}, y][0]);
 //   - [Table]: a value looked up by an input field among proven entries;
@@ -91,16 +93,17 @@ type Program struct {
 	Lacunas []Lacuna
 }
 
-// A Path is a path within an instance: field labels and list indices. The
-// empty path is the instance itself.
+// A Path is a path within an instance: field labels, list indices and, inside
+// an Each, the open element of a list. The empty path is the instance itself.
 type Path []Step
 
-// A Step is one step of a Path: a field, by label, or a list element, by
-// index.
+// A Step is one step of a Path: a field, by label, a list element, by index,
+// or the open element of a list (every element, inside an Each).
 type Step struct {
 	Label   string
 	Index   int
 	IsIndex bool
+	IsAny   bool
 }
 
 // Field returns the step selecting the field label.
@@ -109,12 +112,17 @@ func Field(label string) Step { return Step{Label: label} }
 // Index returns the step selecting the list element i.
 func Index(i int) Step { return Step{Index: i, IsIndex: true} }
 
-// String formats the path as CUE would: a.b[0], with a label that is not an
-// identifier quoted.
+// Any returns the step selecting the open element of a list.
+func Any() Step { return Step{IsAny: true} }
+
+// String formats the path as CUE would: a.b[0], the open element [_], with a
+// label that is not an identifier quoted.
 func (p Path) String() string {
 	s := ""
 	for _, st := range p {
 		switch {
+		case st.IsAny:
+			s += "[_]"
 		case st.IsIndex:
 			s += "[" + strconv.Itoa(st.Index) + "]"
 		case isIdent(st.Label):
@@ -185,6 +193,16 @@ const (
 	ListWrap
 )
 
+// Each writes to To a list with one element for each element of the input
+// list at Source: a lens's [for item in list {body}]. Body writes the open
+// element, To[_], from the source's open element, Source[_]; the proof has
+// shown the source is a list whose length the target accepts.
+type Each struct {
+	To     Path
+	Source Path
+	Body   []Node
+}
+
 // Branch writes Then where When holds. The lens writes the same path in
 // another branch, or unconditionally, where When does not hold; the proof
 // has shown the branches together cover every instance and agree where they
@@ -227,6 +245,7 @@ type Computed struct {
 func (*Copy) node()     {}
 func (*Constant) node() {}
 func (*Wrap) node()     {}
+func (*Each) node()     {}
 func (*Branch) node()   {}
 func (*Head) node()     {}
 func (*Table) node()    {}
@@ -333,6 +352,15 @@ type Match struct {
 	Tests []Test
 }
 
+// Cond is Then where When holds and Else otherwise: a lens's
+// [if c {x}, y][0] in expression position (a lacuna's condition over
+// optional fields: [if p != _|_ {p > 5}, false][0]).
+type Cond struct {
+	When []Test
+	Then Expr
+	Else Expr
+}
+
 func (*Ref) expr()       {}
 func (*ResultRef) expr() {}
 func (*Unary) expr()     {}
@@ -340,13 +368,14 @@ func (*Binary) expr()    {}
 func (*Interp) expr()    {}
 func (*Call) expr()      {}
 func (*Match) expr()     {}
+func (*Cond) expr()      {}
 func (Literal) expr()    {}
 
 // A Lacuna is one the lens declares, and the translation reports where When
 // holds.
 type Lacuna struct {
 	// When is the condition: nil where the lacuna always applies, otherwise a
-	// Match of the patterns tested, or a Bool literal.
+	// Match of the patterns tested, a guard expression, or a Bool literal.
 	When         Expr
 	SourceFields []FieldRef
 	TargetFields []FieldRef
@@ -357,8 +386,10 @@ type Lacuna struct {
 }
 
 // A FieldRef is a field a lacuna reports: its path, as the lens declares it,
-// and the value reported for it.
+// and the value reported for it. When is the patterns under which the entry
+// is reported at all (an entry written [if p != _|_ {...}]); nil is always.
 type FieldRef struct {
 	Path  string
+	When  []Test
 	Value Expr
 }

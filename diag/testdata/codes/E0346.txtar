@@ -1,0 +1,40 @@
+#op: compile
+A lens produces every field its target requires. Here the new version adds a
+required field the source lacks, and no lens says where it comes from.
+-- ship/history/0.0.thema --
+Schema: {
+	a: string
+}
+-- ship/1.0.thema --
+Schema: {
+	a: string
+	b: int
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0346",
+      "severity": "error",
+      "headline": "1.0.thema has no ForwardLens, and 1.0 requires b: write ForwardLens: {v0_0: _, v1_0: {b: <mapping>}}",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 1,
+        "col": 1,
+        "origin": "user"
+      }
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0346]: 1.0.thema has no ForwardLens, and 1.0 requires b: write ForwardLens: {v0_0: _, v1_0: {b: <mapping>}}
+ --> 1.0.thema:1:1
+  |
+1 | Schema: {
+  | ^^^^^^
+  |

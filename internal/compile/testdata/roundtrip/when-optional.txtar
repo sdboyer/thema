@@ -1,0 +1,182 @@
+A when over optional fields. count's reads count, which 0.0 may omit, so the
+lacuna concerns only instances that have it: the condition compiles to a head
+over a presence test. flag, optional, named bare, tests its presence;
+deprecated, a required bool named bare, is its value.
+-- ship/history/0.0.thema --
+Schema: {
+	name:       string
+	deprecated: bool
+	count?:     int
+	flag?:      bool
+}
+-- ship/1.0.thema --
+Schema: {
+	name:       string
+	deprecated: bool
+	count:      int
+	flag?:      bool
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		name:  v0_0.name
+		count: orelse(v0_0.count, 0)
+	}
+	lacunas: {
+		name: [{
+			type:    AmbiguousMapping
+			message: "flagged records were renamed by hand"
+			when:    v0_0.flag
+		}, {
+			type:    LossyFieldMapping
+			message: "deprecated records are archived"
+			when:    v0_0.deprecated
+		}]
+		count: [{
+			type:    PrecisionLoss
+			message: "counts above 1000 are rounded downstream"
+			when:    v0_0.count > 1000
+		}]
+	}
+}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+Schema: {
+	name:       string
+	deprecated: bool
+	count:      int
+	flag?:      bool
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		name:  v0_0.name
+		count: orelse(v0_0.count, 0)
+	}
+	lacunas: {
+		name: [{
+			type:    AmbiguousMapping
+			message: "flagged records were renamed by hand"
+			when:    v0_0.flag
+		}, {
+			type:    LossyFieldMapping
+			message: "deprecated records are archived"
+			when:    v0_0.deprecated
+		}]
+		count: [{
+			type:    PrecisionLoss
+			message: "counts above 1000 are rounded downstream"
+			when:    v0_0.count > 1000
+		}]
+	}
+}
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	name:       string
+	deprecated: bool
+	count?:     int
+	flag?:      bool
+}
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				name:       string
+				deprecated: bool
+				count?:     int
+				flag?:      bool
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				name:       string
+				deprecated: bool
+				count:      int
+				flag?:      bool
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			name:       v0_0.name
+			deprecated: v0_0.deprecated
+			if v0_0.count != _|_ {
+				count: v0_0.count
+			}
+			if v0_0.count == _|_ {
+				count: 0
+			}
+			if v0_0.flag != _|_ {
+				flag: v0_0.flag
+			}
+		}
+		lacunas: [
+			{
+				condition: v0_0.flag != _|_
+				sourceFields: [{
+					path:  "name"
+					value: v0_0.name
+				}]
+				targetFields: [{
+					path:  "name"
+					value: v1_0.name
+				}]
+				message: "flagged records were renamed by hand"
+				type:    "AmbiguousMapping"
+			},
+			{
+				condition: v0_0.deprecated
+				sourceFields: [{
+					path:  "name"
+					value: v0_0.name
+				}]
+				targetFields: [{
+					path:  "name"
+					value: v1_0.name
+				}]
+				message: "deprecated records are archived"
+				type:    "LossyFieldMapping"
+			},
+			{
+				condition: [
+					if v0_0.count != _|_ {
+						v0_0.count > 1000
+					},
+					false
+				][
+					0]
+				sourceFields: [if v0_0.count != _|_ {
+					path:  "count"
+					value: v0_0.count
+				}]
+				targetFields: [{
+					path:  "count"
+					value: v1_0.count
+				}]
+				message: "counts above 1000 are rounded downstream"
+				type:    "PrecisionLoss"
+			}
+		]
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			name:       v1_0.name
+			deprecated: v1_0.deprecated
+			count:      v1_0.count
+			if v1_0.flag != _|_ {
+				flag: v1_0.flag
+			}
+		}
+	}
+}

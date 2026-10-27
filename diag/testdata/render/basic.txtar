@@ -1,0 +1,38 @@
+A primary position with a note above it in the same file (lines between them
+elided), a positionless note, and help.
+-- diag.json --
+[{
+  "code": "E0202",
+  "severity": "error",
+  "headline": "schema version 0.2 does not follow 0.0",
+  "primary": {"file": "ship.cue", "line": 7, "col": 3, "origin": "user"},
+  "notes": [
+    {"pos": {"file": "ship.cue", "line": 4, "col": 3, "origin": "user"}, "label": "0.0 is declared here"},
+    {"label": "versions are contiguous: each is the next minor version of its predecessor, or the first of the next major"}
+  ],
+  "help": ["rename this version 0.1 or 1.0"]
+}]
+-- ship.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {a: string}
+		}
+		"2": {
+			schema: {a: string, b: int}
+		}
+	}
+}
+-- out/text --
+error[E0202]: schema version 0.2 does not follow 0.0
+ --> ship.cue:7:3
+  |
+4 |         "0": {
+  |         --- 0.0 is declared here
+...
+7 |         "2": {
+  |         ^^^
+  |
+  = note: versions are contiguous: each is the next minor version of its predecessor, or the first of the next major
+  = help: rename this version 0.1 or 1.0

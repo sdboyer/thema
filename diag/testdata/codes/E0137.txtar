@@ -1,0 +1,56 @@
+#op: bind
+A lineage's name is an identifier: a letter followed by letters and digits. It
+names the thing the schemas describe in generated code and in error messages,
+so it must be usable as a name everywhere thema emits it.
+-- lineage.cue --
+name: "ship-v2"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0137",
+      "severity": "error",
+      "headline": "the lineage's name is \"ship-v2\", which is not an identifier",
+      "path": [
+        "name"
+      ],
+      "address": {
+        "kind": "name"
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 1,
+        "col": 7,
+        "offset": 6,
+        "origin": "user"
+      },
+      "help": [
+        "a name starts with a letter and continues with letters and digits"
+      ],
+      "detail": "name: invalid value \"ship-v2\" (out of bound =~\"^[A-Za-z][A-Za-z0-9]*$\")"
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0137]: the lineage's name is "ship-v2", which is not an identifier
+ --> lineage.cue:1:7
+  |
+1 | name: "ship-v2"
+  |       ^^^^^^^^^
+  |
+  = detail: name: invalid value "ship-v2" (out of bound =~"^[A-Za-z][A-Za-z0-9]*$")
+  = help: a name starts with a letter and continues with letters and digits

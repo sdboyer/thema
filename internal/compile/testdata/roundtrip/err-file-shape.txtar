@@ -22,9 +22,26 @@ ForwardLens: {
 	}
 }
 -- out/error --
-a version file has no package clause:
-    1.0.thema:1:1
-imports are not allowed in a version file:
-    1.0.thema:3:1
-extra is not a field of a version file; a version file has only Schema, ForwardLens and BackwardLens:
-    1.0.thema:10:1
+error[E0103]: 1.0.thema has a package clause
+ --> 1.0.thema:1:1
+  |
+1 | package ship
+  | ^^^^^^^
+  |
+  = help: a version file is not a CUE package; remove the clause
+
+error[E0104]: 1.0.thema imports a package
+ --> 1.0.thema:3:1
+  |
+3 | import "strings"
+  | ^^^^^^
+  |
+  = help: a version file imports nothing; a schema uses only CUE's builtins
+
+error[E0105]: extra is not a field of a version file
+  --> 1.0.thema:10:1
+   |
+10 | extra: 1
+   | ^^^^^
+   |
+   = help: a version file has only Schema, ForwardLens and BackwardLens

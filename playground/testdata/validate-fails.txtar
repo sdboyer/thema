@@ -1,0 +1,112 @@
+#op: validate
+Data that is not an instance is reported at the data's line, with the
+schema's declaration as a note.
+-- request.json --
+{"version": "1.0"}
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": "0": {
+		schema: {
+			name: string
+		}
+	}
+	"1": "0": {
+		schema: {
+			title: string
+			crew:  int | *1
+		}
+	}
+}
+lenses: {
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			name: v1_0.title
+		}
+		lacunas: [{
+			sourceFields: [{path: "crew", value: v1_0.crew}]
+			message: "crew is dropped"
+			type:    "DroppedField"
+		}]
+	}
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			title: v0_0.name
+			crew:  1
+		}
+		lacunas: [{
+			targetFields: [{path: "crew", value: v1_0.crew}]
+			message: "crew is a placeholder"
+			type:    "Placeholder"
+		}]
+	}
+}
+-- data.json --
+{"title": "Argo", "crew": "three"}
+-- out/response.json --
+{
+  "ok": false,
+  "diagnostics": [
+    {
+      "code": "E0505",
+      "severity": "error",
+      "headline": "crew in the data matches none of the alternatives schema 1.0 allows",
+      "path": [
+        "crew"
+      ],
+      "address": {
+        "field": [
+          "crew"
+        ],
+        "kind": "data",
+        "version": [
+          1,
+          0
+        ]
+      },
+      "primary": {
+        "file": "data.json",
+        "line": 1,
+        "col": 27,
+        "offset": 26,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "pos": {
+            "file": "lineage.cue",
+            "line": 11,
+            "col": 11,
+            "offset": 124,
+            "origin": "user"
+          },
+          "label": "the alternatives are declared here"
+        },
+        {
+          "pos": {
+            "file": "data.json",
+            "line": 1,
+            "col": 27,
+            "offset": 26,
+            "origin": "user"
+          },
+          "label": "crew: conflicting values \"three\" and 1 (mismatched types string and int)"
+        },
+        {
+          "pos": {
+            "file": "data.json",
+            "line": 1,
+            "col": 27,
+            "offset": 26,
+            "origin": "user"
+          },
+          "label": "crew: conflicting values \"three\" and int (mismatched types string and int)"
+        }
+      ],
+      "detail": "crew: 2 errors in empty disjunction:"
+    }
+  ],
+  "version": "1.0"
+}

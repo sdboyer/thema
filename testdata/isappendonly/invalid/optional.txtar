@@ -24,5 +24,12 @@ lin2: schemas: {
 	}
 }
 -- out/isappendonly-fail --
-field not allowed in closed struct: aNewOptionalField
-value not an instance
+error[E0243]: schema 0.0 differs from the published one
+  --> /in.cue:17:6
+   |
+17 |         schema: {
+   |         ^^^^^^
+   |
+   = detail: field not allowed in closed struct: aNewOptionalField
+             value not an instance
+   = help: a published schema is never changed; add a new version instead

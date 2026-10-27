@@ -1,0 +1,77 @@
+#op: bind
+#path: lin
+A schema reads a field of another schema through the lineage. A schema may
+refer only to its own body and CUE's builtin packages: one reached through the
+lineage's schemas is another schema, and this schema's meaning would then live
+in that one (reference rule ref-sibling-schema). Each schema declares its own
+fields.
+-- lineage.cue --
+lin: {
+	name: "ship"
+	schemas: {
+		"0": "0": {
+			schema: {a: int}
+		}
+		"0": "1": {
+			schema: {a: lin.schemas["0"]["0"].schema.a, b?: int}
+		}
+	}
+	lenses: {
+		"0.1->0.0": {
+			v0_1: _
+			v0_0: {a: v0_1.a}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0140",
+      "severity": "error",
+      "headline": "a in schema 0.1 refers to lin.schemas[\"0\"][\"0\"].schema.a, a schema in the lineage",
+      "path": [
+        "schemas",
+        "0",
+        "1",
+        "schema"
+      ],
+      "address": {
+        "kind": "schema",
+        "version": [
+          0,
+          1
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 8,
+        "col": 16,
+        "offset": 100,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "reference rule ref-sibling-schema"
+        }
+      ],
+      "help": [
+        "a schema may refer only to its own body and CUE's builtin packages"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0140]: a in schema 0.1 refers to lin.schemas["0"]["0"].schema.a, a schema in the lineage
+ --> lineage.cue:8:16
+  |
+8 |             schema: {a: lin.schemas["0"]["0"].schema.a, b?: int}
+  |                         ^^^
+  |
+  = note: reference rule ref-sibling-schema
+  = help: a schema may refer only to its own body and CUE's builtin packages

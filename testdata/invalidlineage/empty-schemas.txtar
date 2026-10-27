@@ -6,5 +6,10 @@ thema.Lineage
 name: "emptySchemas"
 schemas: {}
 -- out/bindfail --
-invalid lineage, Lineage.schemas must declare at least one schema:
-    ./in.cue:6:1
+error[E0122]: the lineage declares no schemas
+ --> /in.cue:6:1
+  |
+6 | schemas: {}
+  | ^^^^^^^
+  |
+  = help: declare at least version 0.0 under schemas

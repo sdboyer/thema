@@ -1,0 +1,46 @@
+#op: cli
+#args: data validate -l pkg -p lin data.json
+The lineage imports a package no module provides. Only thema's own module
+is built in; another module must be listed in the deps of a cue.mod/module.cue
+above the lineage, for the loader to fetch it.
+-- pkg/x.cue --
+package x
+
+import "example.com/nothere"
+
+lin: nothere.Lineage
+-- data.json --
+{"a": "Argo"}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0608",
+      "severity": "error",
+      "headline": "the lineage imports example.com/nothere, which is not available here",
+      "primary": {
+        "file": "pkg/x.cue",
+        "line": 3,
+        "col": 8,
+        "offset": 18,
+        "origin": "user"
+      },
+      "help": [
+        "only github.com/sdboyer/thema is built in; another module must be declared in the deps of a cue.mod/module.cue above the lineage"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0608]: the lineage imports example.com/nothere, which is not available here
+ --> pkg/x.cue:3:8
+  |
+3 | import "example.com/nothere"
+  |        ^^^^^^^^^^^^^^^^^^^^^
+  |
+  = help: only github.com/sdboyer/thema is built in; another module must be declared in the deps of a cue.mod/module.cue above the lineage

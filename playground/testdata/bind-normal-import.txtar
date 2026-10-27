@@ -1,0 +1,30 @@
+#op: bind
+A normal-form file that imports thema is loaded as a package, against the
+embedded thema module, and the lineage looked up at its path.
+-- request.json --
+{"path": "lin"}
+-- lineage.cue --
+package ship
+
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "ship"
+	schemas: {
+		"0": "0": {
+			schema: {
+				name: string
+			}
+		}
+	}
+}
+-- out/response.json --
+{
+  "ok": true,
+  "diagnostics": [],
+  "name": "ship",
+  "versions": [
+    "0.0"
+  ],
+  "normal": "package ship\n\nimport \"github.com/sdboyer/thema\"\n\nlin: thema.Lineage \u0026 {\n\tname: \"ship\"\n\tschemas: {\n\t\t\"0\": \"0\": {\n\t\t\tschema: {\n\t\t\t\tname: string\n\t\t\t}\n\t\t}\n\t}\n}\n"
+}

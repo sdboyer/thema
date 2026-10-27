@@ -1,0 +1,77 @@
+#op: compile
+A constant written in a lens is an instance of the target field it fills. Here
+a string is written where the target declares an int; CUE's account of the
+conflict is in the detail.
+-- ship/history/0.0.thema --
+Schema: {
+	a: string
+}
+-- ship/1.0.thema --
+Schema: {
+	a: string
+	b: int
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		b: "one"
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0344",
+      "severity": "error",
+      "headline": "\"one\" is not an instance of 1.0's b",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 9,
+        "col": 6,
+        "offset": 70,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "pos": {
+            "file": "1.0.thema",
+            "line": 3,
+            "col": 5,
+            "offset": 25,
+            "origin": "user"
+          },
+          "label": "here"
+        },
+        {
+          "pos": {
+            "file": "1.0.thema",
+            "line": 9,
+            "col": 6,
+            "offset": 70,
+            "origin": "user"
+          },
+          "label": "also here"
+        }
+      ],
+      "detail": "schema.b: conflicting values int and \"one\" (mismatched types int and string)"
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0344]: "one" is not an instance of 1.0's b
+ --> 1.0.thema:9:6
+  |
+3 |     b: int
+  |        --- here
+...
+9 |         b: "one"
+  |            ^^^^^
+  |            ----- also here
+  |
+  = detail: schema.b: conflicting values int and "one" (mismatched types int and string)

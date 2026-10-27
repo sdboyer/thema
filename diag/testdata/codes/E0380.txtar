@@ -1,0 +1,148 @@
+#op: bind
+The totality checker judges a copy with the compatibility checker: does the
+target accept every value the source allows? Where the source constrains the
+field by another field's value, the compatibility checker cannot decide, so
+neither can the totality checker. A lens that cannot be shown total does not
+bind.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: int
+				b: <a
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				b: int
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			b: v0_0.b
+		}
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			a: 1
+			b: 0
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0380",
+      "severity": "error",
+      "headline": "b in the result of lens 0.0->1.0 is not total for some instance",
+      "path": [
+        "lenses",
+        "0.0->1.0",
+        "v1_0",
+        "b"
+      ],
+      "address": {
+        "field": [
+          "b"
+        ],
+        "from": [
+          0,
+          0
+        ],
+        "kind": "lensResultField",
+        "to": [
+          1,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 23,
+        "col": 7,
+        "offset": 193,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "b in the result of lens 0.0->1.0 copies v0_0.b, which is constrained by a in the source schema and not in the new one; the checker cannot compare constraints between fields (compat rule unknown-crossfield)"
+        },
+        {
+          "label": "a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule unknown-copy)"
+        }
+      ],
+      "help": [
+        "write the mapping in a form the checker can follow, or add a lacuna where it cannot decide"
+      ]
+    },
+    {
+      "code": "E0366",
+      "severity": "error",
+      "headline": "b in the result of lens 1.0->0.0 is the constant 0, which the target schema does not accept: non-concrete value a for bound <",
+      "path": [
+        "lenses",
+        "1.0->0.0",
+        "v0_0",
+        "b"
+      ],
+      "address": {
+        "field": [
+          "b"
+        ],
+        "from": [
+          1,
+          0
+        ],
+        "kind": "lensResultField",
+        "to": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 30,
+        "col": 4,
+        "offset": 253,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "a lens must be total: every instance of schema 1.0 must translate to an instance of schema 0.0 (totality rule literal-not-instance)"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 2,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0380]: b in the result of lens 0.0->1.0 is not total for some instance
+  --> lineage.cue:23:7
+   |
+23 |             b: v0_0.b
+   |                ^^^^
+   |
+   = note: b in the result of lens 0.0->1.0 copies v0_0.b, which is constrained by a in the source schema and not in the new one; the checker cannot compare constraints between fields (compat rule unknown-crossfield)
+   = note: a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule unknown-copy)
+   = help: write the mapping in a form the checker can follow, or add a lacuna where it cannot decide
+
+error[E0366]: b in the result of lens 1.0->0.0 is the constant 0, which the target schema does not accept: non-concrete value a for bound <
+  --> lineage.cue:30:4
+   |
+30 |             b: 0
+   |             ^
+   |
+   = note: a lens must be total: every instance of schema 1.0 must translate to an instance of schema 0.0 (totality rule literal-not-instance)

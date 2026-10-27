@@ -1,0 +1,78 @@
+#op: bind
+Every lacuna has a type, one of the lacuna types, saying what kind of gap it
+describes. This one has none.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+		"1": {
+			schema: {
+				a:  string
+				b?: int
+			}
+		}
+	}
+}
+lenses: {
+	"0.1->0.0": {
+		v0_1: _
+		v0_0: {
+			a: v0_1.a
+		}
+		lacunas: [
+			{message: "b was dropped", condition: v0_1.b != _|_},
+		]
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0403",
+      "severity": "error",
+      "headline": "lacuna 0 of lens 0.1->0.0 has no type",
+      "path": [
+        "lenses",
+        "0.1->0.0",
+        "lacunas",
+        "0"
+      ],
+      "address": {
+        "from": [
+          0,
+          1
+        ],
+        "index": 0,
+        "kind": "lacuna",
+        "to": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 24,
+        "col": 4,
+        "offset": 218,
+        "origin": "user"
+      }
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0403]: lacuna 0 of lens 0.1->0.0 has no type
+  --> lineage.cue:24:4
+   |
+24 |             {message: "b was dropped", condition: v0_1.b != _|_},
+   |             ^
+   |

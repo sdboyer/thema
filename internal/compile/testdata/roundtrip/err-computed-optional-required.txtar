@@ -1,0 +1,26 @@
+A computed mapping reading an optional field into a field the target
+requires: orelse says what to use when it is absent.
+-- ship/history/0.0.thema --
+Schema: {
+	count?: int32
+}
+-- ship/1.0.thema --
+Schema: {
+	total: int64
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		total: v0_0.count * 2
+		count: drop
+	}
+}
+-- out/error --
+error[E0343]: v0_0.count * 2 reads v0_0.count, which 0.0 may omit, and 1.0 requires total
+ --> 1.0.thema:8:3
+  |
+8 |         total: v0_0.count * 2
+  |         ^^^^^
+  |
+  = help: write orelse(v0_0.count * 2, <fallback>) to say what to use when it is absent

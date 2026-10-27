@@ -1,0 +1,82 @@
+#op: validate
+A value in the data is of a kind the schema does not accept: a string where the
+schema declares an int. The headline names both kinds; the note points at the
+schema's declaration.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				name:  string
+				count: int
+			}
+		}
+	}
+}
+-- data.json --
+{
+	"name":  "Argo",
+	"count": "three"
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0503",
+      "severity": "error",
+      "headline": "count in the data is string, but schema 0.0 declares it as int",
+      "path": [
+        "count"
+      ],
+      "address": {
+        "field": [
+          "count"
+        ],
+        "kind": "data",
+        "version": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "data.json",
+        "line": 3,
+        "col": 11,
+        "offset": 30,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "pos": {
+            "file": "lineage.cue",
+            "line": 7,
+            "col": 5,
+            "offset": 76,
+            "origin": "user"
+          },
+          "label": "declared here"
+        }
+      ],
+      "detail": "count: conflicting values \"three\" and int (mismatched types string and int)"
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0503]: count in the data is string, but schema 0.0 declares it as int
+ --> data.json:3:11
+  |
+3 |     "count": "three"
+  |              ^^^^^^^
+  |
+ ::: lineage.cue:7:5
+  |
+7 |                 count: int
+  |                 ----- declared here
+  |
+  = detail: count: conflicting values "three" and int (mismatched types string and int)

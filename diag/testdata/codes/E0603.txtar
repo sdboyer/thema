@@ -1,0 +1,63 @@
+#op: cli
+#args: data validate -l two -p lin data.json
+A directory given with -l holds more than one CUE package, and more than
+one of them holds a lineage. thema cannot choose; name one file, or move the
+lineages apart.
+-- two/a.cue --
+package a
+
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "a"
+	schemas: {
+		"0": {
+			"0": {
+				schema: {
+					a: string
+				}
+			}
+		}
+	}
+}
+-- two/b.cue --
+package b
+
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "b"
+	schemas: {
+		"0": {
+			"0": {
+				schema: {
+					a: string
+				}
+			}
+		}
+	}
+}
+-- data.json --
+{"a": "Argo"}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0603",
+      "severity": "error",
+      "headline": "packages a and b at the lineage path both hold a lineage",
+      "help": [
+        "name one package's file with -l, or move the lineages apart"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0603]: packages a and b at the lineage path both hold a lineage
+  |
+  = help: name one package's file with -l, or move the lineages apart

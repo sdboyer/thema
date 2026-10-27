@@ -1,0 +1,133 @@
+#op: validate
+A value in the data is of the right kind but outside what the schema allows:
+out of a bound the schema sets, failing a validator it applies, or not the
+constant it fixes. Here the schema bounds `count` and fixes `kind`.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				kind:  "ship"
+				count: int & >=0 & <10
+			}
+		}
+	}
+}
+-- data.json --
+{
+	"kind":  "boat",
+	"count": 12
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0504",
+      "severity": "error",
+      "headline": "kind in the data is \"boat\", but schema 0.0 requires \"ship\"",
+      "path": [
+        "kind"
+      ],
+      "address": {
+        "field": [
+          "kind"
+        ],
+        "kind": "data",
+        "version": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "data.json",
+        "line": 2,
+        "col": 11,
+        "offset": 12,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "pos": {
+            "file": "lineage.cue",
+            "line": 6,
+            "col": 5,
+            "offset": 58,
+            "origin": "user"
+          },
+          "label": "required here"
+        }
+      ],
+      "detail": "kind: conflicting values \"ship\" and \"boat\""
+    },
+    {
+      "code": "E0504",
+      "severity": "error",
+      "headline": "count in the data is 12, outside the bound <10 that schema 0.0 sets",
+      "path": [
+        "count"
+      ],
+      "address": {
+        "field": [
+          "count"
+        ],
+        "kind": "data",
+        "version": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "data.json",
+        "line": 3,
+        "col": 11,
+        "offset": 30,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "pos": {
+            "file": "lineage.cue",
+            "line": 7,
+            "col": 12,
+            "offset": 83,
+            "origin": "user"
+          },
+          "label": "the bound is set here"
+        }
+      ],
+      "detail": "count: invalid value 12 (out of bound <10)"
+    }
+  ],
+  "summary": {
+    "errors": 2,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0504]: kind in the data is "boat", but schema 0.0 requires "ship"
+ --> data.json:2:11
+  |
+2 |     "kind":  "boat",
+  |              ^^^^^^
+  |
+ ::: lineage.cue:6:5
+  |
+6 |                 kind:  "ship"
+  |                 ---- required here
+  |
+  = detail: kind: conflicting values "ship" and "boat"
+
+error[E0504]: count in the data is 12, outside the bound <10 that schema 0.0 sets
+ --> data.json:3:11
+  |
+3 |     "count": 12
+  |              ^^
+  |
+ ::: lineage.cue:7:12
+  |
+7 |                 count: int & >=0 & <10
+  |                        --- the bound is set here
+  |
+  = detail: count: invalid value 12 (out of bound <10)

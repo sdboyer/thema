@@ -1,0 +1,66 @@
+#op: compile
+orelse takes two arguments: a reference into the source instance, and the
+fallback to use when the referenced field is absent.
+-- ship/history/0.0.thema --
+Schema: {
+	a?: string
+}
+-- ship/1.0.thema --
+Schema: {
+	b: string
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		b: orelse(v0_0.a)
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0335",
+      "severity": "error",
+      "headline": "orelse takes two arguments: orelse(v0_0.<path>, fallback)",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 8,
+        "col": 6,
+        "offset": 62,
+        "origin": "user"
+      }
+    },
+    {
+      "code": "E0347",
+      "severity": "error",
+      "headline": "0.0 declares a and 1.0 does not, and nothing maps it: write <field>: v0_0.a to move it, or a: drop",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 5,
+        "col": 1,
+        "offset": 24,
+        "origin": "user"
+      }
+    }
+  ],
+  "summary": {
+    "errors": 2,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0335]: orelse takes two arguments: orelse(v0_0.<path>, fallback)
+ --> 1.0.thema:8:6
+  |
+8 |         b: orelse(v0_0.a)
+  |            ^^^^^^
+  |
+
+error[E0347]: 0.0 declares a and 1.0 does not, and nothing maps it: write <field>: v0_0.a to move it, or a: drop
+ --> 1.0.thema:5:1
+  |
+5 | ForwardLens: {
+  | ^^^^^^^^^^^
+  |

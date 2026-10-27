@@ -1,0 +1,81 @@
+#op: validate
+The data has no value for a field the schema requires. A schema field with no
+default is required: `count: int` must be present in every instance. The
+primary position is the data document; the note points at the schema's
+declaration.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				name:  string
+				count: int
+			}
+		}
+	}
+}
+-- data.json --
+{
+	"name": "Argo"
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0501",
+      "severity": "error",
+      "headline": "the data lacks count, which schema 0.0 declares as int",
+      "path": [
+        "count"
+      ],
+      "address": {
+        "field": [
+          "count"
+        ],
+        "kind": "data",
+        "version": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "data.json",
+        "line": 1,
+        "col": 1,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "pos": {
+            "file": "lineage.cue",
+            "line": 7,
+            "col": 5,
+            "offset": 76,
+            "origin": "user"
+          },
+          "label": "declared here"
+        }
+      ],
+      "detail": "count: incomplete value int"
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0501]: the data lacks count, which schema 0.0 declares as int
+ --> data.json:1:1
+  |
+1 | {
+  | ^
+  |
+ ::: lineage.cue:7:5
+  |
+7 |                 count: int
+  |                 ----- declared here
+  |
+  = detail: count: incomplete value int

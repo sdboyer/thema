@@ -7,6 +7,7 @@ import (
 
 	"cuelang.org/go/cue"
 
+	"github.com/sdboyer/thema/diag"
 	terrors "github.com/sdboyer/thema/errors"
 	"github.com/sdboyer/thema/internal/envvars"
 )
@@ -160,6 +161,18 @@ type bindOption func(c *bindConfig)
 // Internal bind-time configuration options.
 type bindConfig struct {
 	skipbuggychecks bool
+	vocab           diag.Vocabulary
+}
+
+// WithVocabulary makes [BindLineage] describe the lineage, in its diagnostics,
+// in the terms of the form it was written in. Without it, diagnostics use the
+// terms of the normal form: schemas, lenses, input and result. A compiler that
+// produces the normal form from another form passes the vocabulary of that
+// form, so that an author reads about what they wrote.
+func WithVocabulary(v diag.Vocabulary) BindOption {
+	return func(c *bindConfig) {
+		c.vocab = v
+	}
 }
 
 // SkipBuggyChecks indicates that [BindLineage] should skip validation checks

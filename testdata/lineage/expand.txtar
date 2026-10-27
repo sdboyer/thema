@@ -84,24 +84,20 @@ lenses: {
     "withDefault": "invalid value for withDefault"
 }
 -- out/validate/TestValidate/invalidEnumValue --
-<expand@v0.3>.withDefault: validation failed, data is not an instance:
-	schema expected `"bar"`
-		/in.cue:29:36
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:177:19
-	but data contained `"invalid value for withDefault"`
-		test:3:20
-<expand@v0.3>.withDefault: validation failed, data is not an instance:
-	schema expected `"baz"`
-		/in.cue:29:44
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:177:19
-	but data contained `"invalid value for withDefault"`
-		test:3:20
-<expand@v0.3>.withDefault: validation failed, data is not an instance:
-	schema expected `"foo"`
-		/in.cue:29:28
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:177:19
-	but data contained `"invalid value for withDefault"`
-		test:3:20
+error[E0505]: withDefault in the data matches none of the alternatives schema 0.3 allows
+  --> in/validate/TestValidate/invalidEnumValue.data.json:3:20
+   |
+ 3 |     "withDefault": "invalid value for withDefault"
+   |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+  ::: /in.cue:29:28
+   |
+29 |             withDefault?: *"foo" | "bar" | "baz"
+   |                            ----- withDefault: conflicting values "foo" and "invalid value for withDefault"
+   |                                    ----- withDefault: conflicting values "bar" and "invalid value for withDefault"
+   |                                            ----- withDefault: conflicting values "baz" and "invalid value for withDefault"
+   |
+   = detail: withDefault: 3 errors in empty disjunction:
 -- out/encoding/openapi/TestGenerate/nilcfg --
 == 0.0.json
 {

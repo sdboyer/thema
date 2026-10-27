@@ -22,5 +22,11 @@ lenses: {}
     dat:  int32
 }
 -- out/bindfail --
-schema 0.0: aBaz refers to #Baz, which is declared in the lineage outside the schema; a schema may refer only to its own body and CUE's builtin packages (rule ref-lineage-meta):
-    ./in.cue:8:10
+error[E0141]: aBaz in schema 0.0 refers to #Baz, which is declared in the lineage outside the schema
+ --> /in.cue:8:10
+  |
+8 |             aBaz: #Baz
+  |                   ^^^^
+  |
+  = note: reference rule ref-lineage-meta
+  = help: a schema may refer only to its own body and CUE's builtin packages

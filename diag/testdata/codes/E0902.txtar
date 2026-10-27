@@ -1,0 +1,58 @@
+#op: unify
+The CUE evaluator reported an error that none of thema's codes describes. The
+detail holds CUE's message verbatim, and every position CUE attached to it is
+kept: the first in the author's files as the primary, the rest as notes. Nothing
+CUE said is dropped, but thema has not yet learned to explain it; each shape of
+error that reaches this code is a candidate for a code of its own.
+-- a.cue --
+x: 1
+-- b.cue --
+x: "one"
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0902",
+      "severity": "error",
+      "headline": "CUE reported an error thema does not recognize",
+      "primary": {
+        "file": "a.cue",
+        "line": 1,
+        "col": 4,
+        "offset": 3,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "pos": {
+            "file": "b.cue",
+            "line": 1,
+            "col": 4,
+            "offset": 3,
+            "origin": "user"
+          },
+          "label": "also here"
+        }
+      ],
+      "detail": "x: conflicting values 1 and \"one\" (mismatched types int and string)"
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0902]: CUE reported an error thema does not recognize
+ --> a.cue:1:4
+  |
+1 | x: 1
+  |    ^
+  |
+ ::: b.cue:1:4
+  |
+1 | x: "one"
+  |    ----- also here
+  |
+  = detail: x: conflicting values 1 and "one" (mismatched types int and string)
