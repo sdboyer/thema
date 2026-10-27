@@ -3,11 +3,11 @@ A lacunas key names a mapping of the lens. A key that names none is usually a
 typo. A derived mapping, such as the backward drop of a field the version
 added, is not one: to refine its lacuna, write the drop.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	firstfield: string
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	firstfield:  string
 	secondfield: int
 }

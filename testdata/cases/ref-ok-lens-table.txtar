@@ -1,0 +1,33 @@
+# a value table a lens looks a field up in lives inside the lens, as a hidden
+# field: the lens's own body (compare ext-lens-table, where the same table
+# outside the lineage is refused)
+#issue: 21
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "refOkLensTable"
+	schemas: {
+		"0": "0": {
+			schema: {a: string}
+		}
+		"1": "0": {
+			schema: {b: "x" | "y"}
+		}
+	}
+	lenses: {
+		"1.0->0.0": {
+			v1_0: _
+			_table: {x: "ex", y: "why"}
+			v0_0: {a: _table[v1_0.b]}
+		}
+		"0.0->1.0": {
+			v0_0: _
+			v1_0: {b: "x"}
+		}
+	}
+}
+-- expect --
+bind ok
+translate 1.0 0.0 ok {b: "y"}
+translate 0.0 1.0 ok {a: "anything"}

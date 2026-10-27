@@ -4,7 +4,7 @@ so that every version of a lineage is self-contained.
 -- ship/0.0.thema --
 import "strings"
 
-schema: {
+Schema: {
 	a: strings.MinRunes(1)
 }
 -- out/json --

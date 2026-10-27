@@ -22,16 +22,16 @@ schemas: {
 }
 lenses: {
 	"0.0->1.0": {
-		input: _
-		result: {
-			if input.n > 5 {
+		v0_0: _
+		v1_0: {
+			if v0_0.n > 5 {
 				big: true
 			}
 		}
 	}
 	"1.0->0.0": {
-		input: _
-		result: {
+		v1_0: _
+		v0_0: {
 			n: 0
 		}
 	}
@@ -46,7 +46,7 @@ lenses: {
       "path": [
         "lenses",
         "0.0->1.0",
-        "result"
+        "v1_0"
       ],
       "address": {
         "from": [
@@ -63,12 +63,12 @@ lenses: {
         "file": "lineage.cue",
         "line": 22,
         "col": 4,
-        "offset": 189,
+        "offset": 186,
         "origin": "user"
       },
       "notes": [
         {
-          "label": "the result of lens 0.0->1.0 has fields under input.n > 5, which is not a pattern: a presence test (p != _|_), an equality (p == c) or a type test ((p & T) != _|_) on an input field, or a conjunction (&&) of these"
+          "label": "the result of lens 0.0->1.0 has fields under v0_0.n > 5, which is not a pattern: a presence test (p != _|_), an equality (p == c) or a type test ((p & T) != _|_) on an input field, or a conjunction (&&) of these"
         },
         {
           "label": "a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule unknown-pattern)"
@@ -89,9 +89,9 @@ lenses: {
 error[E0381]: the result of lens 0.0->1.0 is not total for some instance
   --> lineage.cue:22:4
    |
-22 |             if input.n > 5 {
+22 |             if v0_0.n > 5 {
    |             ^^
    |
-   = note: the result of lens 0.0->1.0 has fields under input.n > 5, which is not a pattern: a presence test (p != _|_), an equality (p == c) or a type test ((p & T) != _|_) on an input field, or a conjunction (&&) of these
+   = note: the result of lens 0.0->1.0 has fields under v0_0.n > 5, which is not a pattern: a presence test (p != _|_), an equality (p == c) or a type test ((p & T) != _|_) on an input field, or a conjunction (&&) of these
    = note: a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule unknown-pattern)
    = help: write the mapping in a form the checker can follow, or add a lacuna where it cannot decide

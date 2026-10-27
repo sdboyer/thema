@@ -2,11 +2,11 @@
 A lacuna's type is one of thema's lacuna types, written as a bare name. The
 message lists them.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	a: string
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	a: string
 	b: int
 }

@@ -16,25 +16,25 @@ defaultchange: {
 
 		lenses: {
 			"1.0->0.0": {
-				input: _
-				result: {
-					if input.aunion == "bar" {
+				v1_0: _
+				v0_0: {
+					if v1_0.aunion == "bar" {
 						aunion: "foo"
 					}
-					if input.aunion != "bar" {
-						aunion: input.aunion
+					if v1_0.aunion != "bar" {
+						aunion: v1_0.aunion
 					}
 				}
 				lacunas: [
 					thema.Lacuna & {
-						condition: input.aunion == "bar"
+						condition: v1_0.aunion == "bar"
 						sourceFields: [{
 							path:  "aunion"
-							value: input.aunion
+							value: v1_0.aunion
 						}]
 						targetFields: [{
 							path:  "aunion"
-							value: result.aunion
+							value: v0_0.aunion
 						}]
 						message: "aunion was the source default, \"bar\", and was changed to the target default, \"foo\""
 						type:    thema.LacunaTypes.ChangedDefault
@@ -42,26 +42,26 @@ defaultchange: {
 				]
 			}
 			"0.0->1.0": {
-				input: _
-				result: {
+				v0_0: _
+				v1_0: {
 					// FIXME lenses need more structure to allow disambiguating absence and presence in the instance
-					if input.aunion == "foo" {
+					if v0_0.aunion == "foo" {
 						aunion: "bar"
 					}
-					if input.aunion != "foo" {
-						aunion: input.aunion
+					if v0_0.aunion != "foo" {
+						aunion: v0_0.aunion
 					}
 				}
 				lacunas: [
 					thema.Lacuna & {
-						condition: input.aunion == "foo"
+						condition: v0_0.aunion == "foo"
 						sourceFields: [{
 							path:  "aunion"
-							value: input.aunion
+							value: v0_0.aunion
 						}]
 						targetFields: [{
 							path:  "aunion"
-							value: result.aunion
+							value: v1_0.aunion
 						}]
 						message: "aunion was the source default, \"foo\", and was changed to the target default, \"bar\""
 						type:    thema.LacunaTypes.ChangedDefault

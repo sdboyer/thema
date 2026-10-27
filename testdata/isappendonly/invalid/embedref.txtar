@@ -43,7 +43,7 @@ error[E0243]: schema 0.0 differs from the published one
     |                        - here
     |
     = note: in thema's own CUE
-     --> thema/lineage.cue:170:11
+     --> thema/lineage.cue:177:11
     = detail: field refField2 not present in {refField1:string,refField2:1}
               field #EmbedRef not present in {#EmbedRef:{refField1:string,refField2:1},refField1:string,refField2:1}
               missing field "#EmbedRef"

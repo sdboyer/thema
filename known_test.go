@@ -23,8 +23,10 @@ import (
 // currently mishandles, each paired with the behavior thema should exhibit.
 //
 // Each .txtar file has a comment header containing `#issue: N`, an in.cue file
-// declaring the lineage (at path `lin` if present, else the root), and an expect
-// file stating the correct behavior, one assertion per line:
+// declaring the lineage (at path `lin` if present, else the root), any further
+// .cue files as other packages of the same module (common/common.cue is package
+// "example.com/m/common"), and an expect file stating the correct behavior, one
+// assertion per line:
 //
 //	bind ok|fail [text the error must contain]
 //	validate <version> ok|fail <cue data>
@@ -54,20 +56,9 @@ func TestKnownViolations(t *testing.T) {
 				t.Fatalf("%s has no #issue line", f)
 			}
 
-			var src, expect string
-			for _, af := range ar.Files {
-				switch af.Name {
-				case "in.cue":
-					src = string(af.Data)
-				case "expect":
-					expect = string(af.Data)
-				}
-			}
-			if src == "" || expect == "" {
-				t.Fatalf("%s must have in.cue and expect files", f)
-			}
+			src, expect, extra := caseFiles(t, f, ar)
 
-			unmet := checkExpectations(t, src, expect)
+			unmet := checkExpectations(t, src, expect, extra)
 			if len(unmet) > 0 {
 				t.Skipf("TODO(#%s): %d expectation(s) not met:\n%s", issue[1], len(unmet), strings.Join(unmet, "\n"))
 			}
@@ -90,28 +81,39 @@ func TestCases(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			var src, expect string
-			for _, af := range ar.Files {
-				switch af.Name {
-				case "in.cue":
-					src = string(af.Data)
-				case "expect":
-					expect = string(af.Data)
-				}
-			}
-			if src == "" || expect == "" {
-				t.Fatalf("%s must have in.cue and expect files", f)
-			}
-			if unmet := checkExpectations(t, src, expect); len(unmet) > 0 {
+			src, expect, extra := caseFiles(t, f, ar)
+			if unmet := checkExpectations(t, src, expect, extra); len(unmet) > 0 {
 				t.Errorf("%d expectation(s) not met:\n%s", len(unmet), strings.Join(unmet, "\n"))
 			}
 		})
 	}
 }
 
+// caseFiles splits a case archive into the lineage source (in.cue), the
+// expectations (expect) and the other .cue files, by name.
+func caseFiles(t *testing.T, f string, ar *txtar.Archive) (src, expect string, extra map[string]string) {
+	t.Helper()
+	extra = make(map[string]string)
+	for _, af := range ar.Files {
+		switch {
+		case af.Name == "in.cue":
+			src = string(af.Data)
+		case af.Name == "expect":
+			expect = string(af.Data)
+		case strings.HasSuffix(af.Name, ".cue"):
+			extra[af.Name] = string(af.Data)
+		}
+	}
+	if src == "" || expect == "" {
+		t.Fatalf("%s must have in.cue and expect files", f)
+	}
+	return src, expect, extra
+}
+
 // checkExpectations runs each expectation in expect against the lineage in src,
-// returning a description of each one that isn't met.
-func checkExpectations(t *testing.T, src, expect string) (unmet []string) {
+// returning a description of each one that isn't met. extra holds other .cue
+// files of the module, by path relative to its root.
+func checkExpectations(t *testing.T, src, expect string, extra map[string]string) (unmet []string) {
 	t.Helper()
 	if !strings.Contains(src, "package ") {
 		src = "package m\n" + src
@@ -124,6 +126,9 @@ func checkExpectations(t *testing.T, src, expect string) (unmet []string) {
 			"/m/cue.mod/module.cue": load.FromString(util.ModuleFile("example.com/m")),
 			"/m/in.cue":             load.FromString(src),
 		},
+	}
+	for name, data := range extra {
+		cfg.Overlay["/m/"+name] = load.FromString(data)
 	}
 	if err := embedreg.Configure(cfg, CueJointFS); err != nil {
 		t.Fatal(err)

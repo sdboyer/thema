@@ -78,7 +78,7 @@ func num(s string) *ast.BasicLit {
 	return ast.NewLit(token.INT, s)
 }
 
-// sel builds input.<name>, positioned at p.
+// sel builds <base>.<name>, positioned at p.
 func sel(p token.Pos, base, name string) ast.Expr {
 	return at(p, &ast.SelectorExpr{X: at(p, ident(base)), Sel: at(p, ident(name))})
 }

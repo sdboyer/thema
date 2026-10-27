@@ -1,0 +1,66 @@
+#op: bind
+#path: lin
+A schema reads something the lineage declares outside the schema: its name,
+#LatestVersion, the joinSchema, the lenses or a helper field (reference rule
+ref-lineage-meta). The schema writes the literal it wants.
+-- lineage.cue --
+lin: {
+	name: "ship"
+	schemas: {
+		"0": "0": {
+			schema: {a: string, n: lin.name}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0141",
+      "severity": "error",
+      "headline": "n in schema 0.0 refers to lin.name, which is declared in the lineage outside the schema",
+      "path": [
+        "schemas",
+        "0",
+        "0",
+        "schema"
+      ],
+      "address": {
+        "kind": "schema",
+        "version": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 5,
+        "col": 27,
+        "offset": 73,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "reference rule ref-lineage-meta"
+        }
+      ],
+      "help": [
+        "a schema may refer only to its own body and CUE's builtin packages"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0141]: n in schema 0.0 refers to lin.name, which is declared in the lineage outside the schema
+ --> lineage.cue:5:27
+  |
+5 |             schema: {a: string, n: lin.name}
+  |                                    ^^^
+  |
+  = note: reference rule ref-lineage-meta
+  = help: a schema may refer only to its own body and CUE's builtin packages

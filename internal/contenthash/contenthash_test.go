@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -46,31 +47,66 @@ func mustLensForm(t *testing.T, lin cue.Value, v Version) string {
 	return f
 }
 
+// versions lists the versions of lin's schemas, in key order: by major, then
+// minor.
+func versions(t *testing.T, lin cue.Value) []Version {
+	t.Helper()
+	var out []Version
+	majors, err := lin.LookupPath(pathSchemas).Fields()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for majors.Next() {
+		minors, err := majors.Value().Fields()
+		if err != nil {
+			t.Fatal(err)
+		}
+		for minors.Next() {
+			var v Version
+			for i, s := range []string{majors.Selector().Unquoted(), minors.Selector().Unquoted()} {
+				n, err := strconv.ParseUint(s, 10, 64)
+				if err != nil {
+					t.Fatalf("schema key %q: %v", s, err)
+				}
+				v[i] = uint(n)
+			}
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
 // lineage returns a lineage with versions 0.0, 0.1 and 1.0, whose lens from 1.0
 // to 0.1 has the result back.
 func lineage(back string) string {
 	return `lin: {
-	schemas: [
-		{version: [0, 0], schema: {a: string}},
-		{version: [0, 1], schema: {a: string, b?: int}},
-		{version: [1, 0], schema: {a: string, b: int}},
-	]
-	lenses: [{
-		from: [0, 1], to: [0, 0], input: _
-		result: {a: input.a}
-	}, {
-		from: [0, 1], to: [1, 0], input: _
-		result: {a: input.a, b: *input.b | 0}
-	}, {
-		from: [1, 0], to: [0, 1], input: _
-		result: ` + back + `
-	}]
+	schemas: {
+		"0": {
+			"0": {schema: {a: string}}
+			"1": {schema: {a: string, b?: int}}
+		}
+		"1": {"0": {schema: {a: string, b: int}}}
+	}
+	lenses: {
+		"0.1->0.0": {
+			v0_1: _
+			v0_0: {a: v0_1.a}
+		}
+		"0.1->1.0": {
+			v0_1: _
+			v1_0: {a: v0_1.a, b: *v0_1.b | 0}
+		}
+		"1.0->0.1": {
+			v1_0: _
+			v0_1: ` + back + `
+		}
+	}
 }`
 }
 
 // Which lenses each version's lens digest covers: the edge into it.
 func TestLensFormEdge(t *testing.T) {
-	lin := compileLineage(t, lineage(`{a: input.a, b: input.b}`))
+	lin := compileLineage(t, lineage(`{a: v1_0.a, b: v1_0.b}`))
 
 	// The first version has no edge into it: its lens form is that of no
 	// lenses, a constant.
@@ -102,8 +138,8 @@ func TestLensFormEdge(t *testing.T) {
 // Fixing a published lens changes the lens digest of the version whose edge
 // it is on, and nothing else.
 func TestLensFix(t *testing.T) {
-	buggy := compileLineage(t, lineage(`{a: input.a, b: input.b}`))
-	fixed := compileLineage(t, lineage(`{a: input.a, if input.b > 0 {b: input.b}}`))
+	buggy := compileLineage(t, lineage(`{a: v1_0.a, b: v1_0.b}`))
+	fixed := compileLineage(t, lineage(`{a: v1_0.a, if v1_0.b > 0 {b: v1_0.b}}`))
 	for _, v := range []Version{{0, 0}, {0, 1}, {1, 0}} {
 		b, f := mustID(t, buggy, v), mustID(t, fixed, v)
 		if b.Schema != f.Schema {
@@ -119,8 +155,8 @@ func TestLensFix(t *testing.T) {
 // holds the ones it has.
 func TestLensFormMissing(t *testing.T) {
 	lin := compileLineage(t, `lin: {
-	schemas: [{version: [0, 0], schema: {a: string}}, {version: [1, 0], schema: {b: string}}]
-	lenses: [{from: [1, 0], to: [0, 0], input: _, result: {a: input.b}}]
+	schemas: {"0": {"0": {schema: {a: string}}}, "1": {"0": {schema: {b: string}}}}
+	lenses: {"1.0->0.0": {v1_0: _, v0_0: {a: v1_0.b}}}
 }`)
 	got := mustLensForm(t, lin, Version{1, 0})
 	if strings.Contains(got, "forward") || !strings.Contains(got, "backward") {
@@ -132,24 +168,24 @@ func TestLensFormMissing(t *testing.T) {
 // lenses, numbered differently, have the same IDs.
 func TestIDPositionIndependent(t *testing.T) {
 	a := compileLineage(t, `lin: {
-	schemas: [{version: [0, 0], schema: {a: string}}, {version: [1, 0], schema: {b: string}}]
-	lenses: [
-		{from: [0, 0], to: [1, 0], input: _, result: {b: input.a}},
-		{from: [1, 0], to: [0, 0], input: _, result: {a: input.b}},
-	]
+	schemas: {"0": {"0": {schema: {a: string}}}, "1": {"0": {schema: {b: string}}}}
+	lenses: {
+		"0.0->1.0": {v0_0: _, v1_0: {b: v0_0.a}}
+		"1.0->0.0": {v1_0: _, v0_0: {a: v1_0.b}}
+	}
 }`)
 	b := compileLineage(t, `lin: {
-	schemas: [
-		{version: [0, 0], schema: {z: string}},
-		{version: [1, 0], schema: {a: string}},
-		{version: [2, 0], schema: {b: string}},
-	]
-	lenses: [
-		{from: [0, 0], to: [1, 0], input: _, result: {a: input.z}},
-		{from: [1, 0], to: [0, 0], input: _, result: {z: input.a}},
-		{from: [1, 0], to: [2, 0], input: _, result: {b: input.a}},
-		{from: [2, 0], to: [1, 0], input: _, result: {a: input.b}},
-	]
+	schemas: {
+		"0": {"0": {schema: {z: string}}}
+		"1": {"0": {schema: {a: string}}}
+		"2": {"0": {schema: {b: string}}}
+	}
+	lenses: {
+		"0.0->1.0": {v0_0: _, v1_0: {a: v0_0.z}}
+		"1.0->0.0": {v1_0: _, v0_0: {z: v1_0.a}}
+		"1.0->2.0": {v1_0: _, v2_0: {b: v1_0.a}}
+		"2.0->1.0": {v2_0: _, v1_0: {a: v2_0.b}}
+	}
 }`)
 	if ida, idb := mustID(t, a, Version{1, 0}), mustID(t, b, Version{2, 0}); ida != idb {
 		t.Errorf("a 1.0 %s != b 2.0 %s", ida, idb)
@@ -161,26 +197,26 @@ func TestLensFormConstruction(t *testing.T) {
 	form := func(lens string) string {
 		t.Helper()
 		lin := compileLineage(t, `lin: {
-	schemas: [{version: [0, 0], schema: {a: string, b: int}}, {version: [0, 1], schema: {a: string, b: int, c?: int}}]
-	lenses: [{from: [0, 1], to: [0, 0], input: _, `+lens+`}]
+	schemas: {"0": {"0": {schema: {a: string, b: int}}, "1": {schema: {a: string, b: int, c?: int}}}}
+	lenses: {"0.1->0.0": {v0_1: _, `+lens+`}}
 }`)
 		return mustLensForm(t, lin, Version{0, 1})
 	}
-	base := form(`result: {a: input.a, b: input.b}`)
+	base := form(`v0_0: {a: v0_1.a, b: v0_1.b}`)
 	for name, c := range map[string]struct {
 		lens  string
 		equal bool
 		why   string
 	}{
-		"field order": {`result: {b: input.b, a: input.a}`, true,
+		"field order": {`v0_0: {b: v0_1.b, a: v0_1.a}`, true,
 			"as for schemas"},
-		"let beside result": {`let A = input.a, result: {a: A, b: input.b}`, true,
+		"let beside result": {`let A = v0_1.a, v0_0: {a: A, b: v0_1.b}`, true,
 			"each field of a lens is exported on its own, so a let outside it is inlined by CUE's export"},
-		"alias of input": {`input: _, let I = input, result: {a: I.a, b: input.b}`, true,
+		"alias of input": {`v0_1: _, let I = v0_1, v0_0: {a: I.a, b: v0_1.b}`, true,
 			"as for a let beside result"},
-		"let inside result": {`result: {let A = input.a, a: A, b: input.b}`, false,
+		"let inside result": {`v0_0: {let A = v0_1.a, a: A, b: v0_1.b}`, false,
 			"lets within a value are kept: see the let vs inline case for schemas"},
-		"empty lacunas": {`result: {a: input.a, b: input.b}, lacunas: []`, false,
+		"empty lacunas": {`v0_0: {a: v0_1.a, b: v0_1.b}, lacunas: []`, false,
 			"lacunas: [] is written, and lacunas absent is not; thema's kernel fills it in only when the lineage is unified with thema.Lineage, which a hashed lineage isn't"},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -235,15 +271,7 @@ func TestGoldens(t *testing.T) {
 
 			got := map[string][]byte{}
 			var order []string
-			iter, err := lin.LookupPath(pathSchemas).List()
-			if err != nil {
-				t.Fatal(err)
-			}
-			for iter.Next() {
-				ver, err := schemaVersion(iter.Value())
-				if err != nil {
-					t.Fatal(err)
-				}
+			for _, ver := range versions(t, lin) {
 				id := mustID(t, lin, ver)
 				sch, err := SchemaForm(lin, ver)
 				if err != nil {

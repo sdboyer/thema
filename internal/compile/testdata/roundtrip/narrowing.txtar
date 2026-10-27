@@ -1,21 +1,21 @@
 exemplars/narrowing.cue in authoring form: a string-or-bool field narrows to a
-bool. The remap keys the two strings, lets a bool pass through, and sends any
+bool. The match keys the two strings, lets a bool pass through, and sends any
 other string to the [_] arm, which must have a lacuna: the one declared on
 properbool without a when. Backward is a move, since 0.0's boolish accepts a
 bool.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	boolish: "true" | "false" | bool | string
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	properbool: bool
 }
 
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		properbool: remap(v0_0.boolish, {
+		properbool: match(v0_0.boolish, {
 			"true":  true
 			"false": false
 			[_]:     false
@@ -42,27 +42,27 @@ error[E0382]: properbool in the ForwardLens in 1.0.thema is not total for some i
 5 | ForwardLens: {
   | ^^^^^^^^^^^
   |
-  = note: properbool in the ForwardLens in 1.0.thema is required by 1.0.thema, and is written only under (v0_0.boolish & "true" | "false") == _|_ && (v0_0.boolish & bool) != _|_; (v0_0.boolish & "true" | "false") == _|_ && (v0_0.boolish & bool) == _|_; v0_0.boolish == "false"; v0_0.boolish == "true", which the checker cannot show cover every instance; write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field
+  = note: properbool in the ForwardLens in 1.0.thema is required by 1.0.thema, and is written only under (v0_0.boolish & "false") != _|_; (v0_0.boolish & "true" | "false") == _|_ && (v0_0.boolish & bool) != _|_; (v0_0.boolish & "true" | "false") == _|_ && (v0_0.boolish & bool) == _|_; (v0_0.boolish & "true") != _|_, which the checker cannot show cover every instance; write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field
   = note: a lens must be total: every instance of the schema in history/0.0.thema must translate to an instance of the schema in 1.0.thema (totality rule unknown-exhaustive)
   = help: write the mapping in a form the checker can follow, or add a lacuna where it cannot decide
 
 error[E0369]: properbool in the ForwardLens in 1.0.thema is not total for some instance
  --> 1.0.thema:8:3
   |
-8 |         properbool: remap(v0_0.boolish, {
+8 |         properbool: match(v0_0.boolish, {
   |         ^^^^^^^^^^
   |
   = note: properbool in the ForwardLens in 1.0.thema is written as true and as false, and the two unify, so one may reject the other's value; write the field once
   = note: a lens must be total: every instance of the schema in history/0.0.thema must translate to an instance of the schema in 1.0.thema (totality rule write-conflict)
 -- out/decompiled/1.0.thema --
-schema: {
+Schema: {
 	properbool: bool
 }
 
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		properbool: remap(v0_0.boolish, {
+		properbool: match(v0_0.boolish, {
 			"true":  true
 			"false": false
 			[_]:     false
@@ -83,7 +83,7 @@ BackwardLens: {
 	}
 }
 -- out/decompiled/history/0.0.thema --
-schema: {
+Schema: {
 	boolish: "true" | "false" | bool | string
 }
 -- out/normal.cue --
@@ -106,39 +106,39 @@ schemas: {
 }
 lenses: {
 	"0.0->1.0": {
-		input: _
-		result: {
-			if (input.boolish & "true") != _|_ {
+		v0_0: _
+		v1_0: {
+			if (v0_0.boolish & "true") != _|_ {
 				properbool: true
 			}
-			if (input.boolish & "false") != _|_ {
+			if (v0_0.boolish & "false") != _|_ {
 				properbool: false
 			}
-			if (input.boolish & ("true" | "false")) == _|_ && (input.boolish & (bool)) != _|_ {
-				properbool: input.boolish
+			if (v0_0.boolish & ("true" | "false")) == _|_ && (v0_0.boolish & (bool)) != _|_ {
+				properbool: v0_0.boolish
 			}
-			if (input.boolish & ("true" | "false")) == _|_ && (input.boolish & (bool)) == _|_ {
+			if (v0_0.boolish & ("true" | "false")) == _|_ && (v0_0.boolish & (bool)) == _|_ {
 				properbool: false
 			}
 		}
 		lacunas: [{
-			condition: (input.boolish & ("true" | "false")) == _|_ && (input.boolish & (bool)) == _|_
+			condition: (v0_0.boolish & ("true" | "false")) == _|_ && (v0_0.boolish & (bool)) == _|_
 			sourceFields: [{
 				path:  "boolish"
-				value: input.boolish
+				value: v0_0.boolish
 			}]
 			targetFields: [{
 				path:  "properbool"
-				value: result.properbool
+				value: v1_0.properbool
 			}]
 			message: "boolish was a string but neither \"true\" nor \"false\"; fallback to treating as false"
 			type:    "LossyFieldMapping"
 		}]
 	}
 	"1.0->0.0": {
-		input: _
-		result: {
-			boolish: input.properbool
+		v1_0: _
+		v0_0: {
+			boolish: v1_0.properbool
 		}
 	}
 }

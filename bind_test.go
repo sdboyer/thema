@@ -23,7 +23,7 @@ func TestLensSyntaxErrorPositions(t *testing.T) {
 	name: "positions"
 	schemas: "0": {"0": schema: {a: string}, "1": schema: {a: string, b?: int}}
 	lenses: "0.1->0.0": {
-		input: _
+		v0_1: _
 ` + body + `
 	}
 }`
@@ -34,19 +34,19 @@ func TestLensSyntaxErrorPositions(t *testing.T) {
 		err    string
 	}{
 		"conditional result": {
-			body:   "\t\tresult: {a: input.a, if input.a == \"x\" {extra: 1}}",
-			marker: "result:", err: "extra",
+			body:   "\t\tv0_0: {a: v0_1.a, if v0_1.a == \"x\" {extra: 1}}",
+			marker: "v0_0:", err: "extra",
 		},
 		"conditional result via let": {
-			body:   "\t\tresult: R\n\t\tlet R = {a: input.a, if input.a == \"x\" {extra: 1}}",
-			marker: "result:", err: "extra",
+			body:   "\t\tv0_0: R\n\t\tlet R = {a: v0_1.a, if v0_1.a == \"x\" {extra: 1}}",
+			marker: "v0_0:", err: "extra",
 		},
 		"conditional lacunas": {
-			body:   "\t\tresult: {a: input.a}\n\t\tlacunas: [if input.b != _|_ {thema.Lacuna & {message: \"m\", type: \"DroppedField\"}}]",
+			body:   "\t\tv0_0: {a: v0_1.a}\n\t\tlacunas: [if v0_1.b != _|_ {thema.Lacuna & {message: \"m\", type: \"DroppedField\"}}]",
 			marker: "lacunas:", err: unconditional,
 		},
 		"conditional lacunas via let": {
-			body:   "\t\tresult: {a: input.a}\n\t\tlacunas: L\n\t\tlet L = [if input.b != _|_ {thema.Lacuna & {message: \"m\", type: \"DroppedField\"}}]",
+			body:   "\t\tv0_0: {a: v0_1.a}\n\t\tlacunas: L\n\t\tlet L = [if v0_1.b != _|_ {thema.Lacuna & {message: \"m\", type: \"DroppedField\"}}]",
 			marker: "lacunas:", err: unconditional,
 		},
 	} {

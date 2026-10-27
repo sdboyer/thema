@@ -283,6 +283,9 @@ func TestShapesCovered(t *testing.T) {
 // The kernel interpolates the offending key with \(K); as a CUE error message
 // that is %v. The kernel files are the lineage-kernel seam; this is one of the
 // consultations a change there owes.
+// interpolation matches one \(...) in a CUE string, without nested parentheses.
+var interpolation = regexp.MustCompile(`\\\([^()]*(?:\([^()]*\)[^()]*)*\)`)
+
 func TestKernelShapes(t *testing.T) {
 	guards := map[string]bool{}
 	re := regexp.MustCompile(`error\("((?:[^"\\]|\\.)*)"\)`)
@@ -292,7 +295,10 @@ func TestKernelShapes(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, m := range re.FindAllStringSubmatch(string(src), -1) {
-			msg := strings.ReplaceAll(m[1], `\(K)`, "%v")
+			// CUE reports each interpolation in an error() message as a %v
+			// argument, whatever it interpolates: the offending key \(K), and
+			// values such as a lens's version-named fields alike.
+			msg := interpolation.ReplaceAllString(m[1], "%v")
 			msg = strings.ReplaceAll(msg, `\"`, `"`)
 			guards[msg] = true
 		}

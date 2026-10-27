@@ -2,11 +2,11 @@ A lacunas key that names no mapping of the lens. A derived mapping (here,
 the backward drop of secondfield) is not one: to refine its lacuna, write
 the drop.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	firstfield: string
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	firstfield:  string
 	secondfield: int
 }

@@ -2,7 +2,7 @@
 A version file's schema is evaluated on its own before the lineage is
 assembled, and this one has an error of its own: a conflict CUE reports.
 -- ship/0.0.thema --
-schema: {
+Schema: {
 	a: 1
 	a: 2
 }

@@ -33,20 +33,11 @@ func PosOf(p token.Pos) *Pos {
 	}
 }
 
-// AuthorPos returns the position of the author's text for v: the first
-// conjunct of v whose position is not in thema's own CUE. It reports false
-// when v has no such conjunct and no position of its own.
+// AuthorPos is [embedreg.AuthorPos], reporting whether the position is the
+// author's: false when v has only positions in thema's own CUE, or none.
 func AuthorPos(v cue.Value) (token.Pos, bool) {
-	_, args := v.Expr()
-	for _, a := range args {
-		if p := a.Pos(); p.IsValid() && !embedreg.IsKernelFile(p.Filename()) {
-			return p, true
-		}
-	}
-	if p := v.Pos(); p.IsValid() {
-		return p, !embedreg.IsKernelFile(p.Filename())
-	}
-	return token.NoPos, false
+	p := embedreg.AuthorPos(v)
+	return p, p.IsValid() && !embedreg.IsKernel(p)
 }
 
 // dedup removes invalid and repeated positions, keeping order.

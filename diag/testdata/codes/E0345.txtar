@@ -2,11 +2,11 @@
 Each target field is mapped once. Two mappings for one field would have to
 agree on every instance, and the lens language has no way to say which wins.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	a: string
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	b: string
 }
 

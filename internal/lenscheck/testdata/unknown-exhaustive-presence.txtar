@@ -4,8 +4,8 @@ o?: int
 -- target.cue --
 o: int
 -- lens.cue --
-input: _
-result: {if input.o != _|_ {o: input.o}}
+v0_0: _
+v1_0: {if v0_0.o != _|_ {o: v0_0.o}}
 -- out --
 unknown
-result.o is required by the target schema, and is written only under input.o != _|_, which the checker cannot show cover every instance; write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field (rule unknown-exhaustive) @ lens.cue:2:1
+v1_0.o is required by the target schema, and is written only under v0_0.o != _|_, which the checker cannot show cover every instance; write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field (rule unknown-exhaustive) @ lens.cue:2:1

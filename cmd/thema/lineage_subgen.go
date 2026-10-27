@@ -330,7 +330,7 @@ func (gc *genCommand) runGoBindings(cmd *cobra.Command, args []string) error {
 func findModRoot(abspath string) (rootfind, error) {
 	stat, err := os.Stat(abspath)
 	if err != nil {
-		return rootfind{}, diag.New(diag.E0601).Headlinef("%s cannot be read", displayPath(abspath)).Detail(err.Error()).Err()
+		return rootfind{}, diag.New(diag.E0601).Headlinef("%s cannot be read", displayPath(abspath)).Detail(diag.OSReason(err)).Err()
 	}
 	if !stat.IsDir() {
 		abspath = filepath.Dir(abspath)

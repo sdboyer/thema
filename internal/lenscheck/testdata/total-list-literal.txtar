@@ -4,7 +4,7 @@ a: int
 -- target.cue --
 l: [...int]
 -- lens.cue --
-input: _
-result: {l: [input.a, 1]}
+v0_0: _
+v1_0: {l: [v0_0.a, 1]}
 -- out --
 total

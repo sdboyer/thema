@@ -3,11 +3,11 @@ each maps the elements of an open list, `[...T]`, in the source to an open list
 in the target, element by element. A source field that is not a list has no
 elements to map.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	name: string
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	names: [...string]
 }
 

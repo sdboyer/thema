@@ -2,13 +2,13 @@
 A nested body may embed a path into the source instance, `{v0_0.meta, x: 1}`,
 to copy the fields found there and add to them. It may embed nothing else.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	meta: {
 		owner: string
 	}
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	meta: {
 		owner: string
 		team:  string

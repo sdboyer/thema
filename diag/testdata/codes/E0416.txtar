@@ -2,12 +2,12 @@
 A drop derives a DroppedField lacuna of its own; a DroppedField lacuna written
 on the drop refines that one's message, so there is at most one.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	a: string
 	b: int
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	a: string
 }
 

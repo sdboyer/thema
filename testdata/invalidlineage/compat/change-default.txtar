@@ -25,15 +25,15 @@ schemas: {
 
 lenses: {
     "0.1->0.0": {
-        input: _
-        result: {
-            aunion: input.aunion
+        v0_1: _
+        v0_0: {
+            aunion: v0_1.aunion
         }
     }
     "0.2->0.1": {
-        input: _
-        result: {
-            aunion: input.aunion
+        v0_2: _
+        v0_1: {
+            aunion: v0_2.aunion
         }
     }
 }

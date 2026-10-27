@@ -23,15 +23,15 @@ schemas: {
 }
 lenses: {
 	"0.0->1.0": {
-		input: _
-		result: {
-			a: input.c
+		v0_0: _
+		v1_0: {
+			a: v0_0.c
 		}
 	}
 	"1.0->0.0": {
-		input: _
-		result: {
-			b: input.a
+		v1_0: _
+		v0_0: {
+			b: v1_0.a
 		}
 	}
 }
@@ -45,7 +45,7 @@ lenses: {
       "path": [
         "lenses",
         "0.0->1.0",
-        "result",
+        "v1_0",
         "a"
       ],
       "address": {
@@ -66,12 +66,12 @@ lenses: {
         "file": "lineage.cue",
         "line": 23,
         "col": 7,
-        "offset": 208,
+        "offset": 205,
         "origin": "user"
       },
       "notes": [
         {
-          "label": "a in the result of lens 0.0->1.0 copies input.c, which may be absent: input.c is optional in the source schema; write the field under if input.c != _|_"
+          "label": "a in the result of lens 0.0->1.0 copies v0_0.c, which may be absent: v0_0.c is optional in the source schema; write the field under if v0_0.c != _|_"
         },
         {
           "label": "a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule source-absent)"
@@ -89,8 +89,8 @@ lenses: {
 error[E0361]: a in the result of lens 0.0->1.0 is not total for some instance
   --> lineage.cue:23:7
    |
-23 |             a: input.c
-   |                ^^^^^
+23 |             a: v0_0.c
+   |                ^^^^
    |
-   = note: a in the result of lens 0.0->1.0 copies input.c, which may be absent: input.c is optional in the source schema; write the field under if input.c != _|_
+   = note: a in the result of lens 0.0->1.0 copies v0_0.c, which may be absent: v0_0.c is optional in the source schema; write the field under if v0_0.c != _|_
    = note: a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule source-absent)

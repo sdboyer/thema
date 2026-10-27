@@ -398,6 +398,12 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 				t.Fatal(err)
 			}
 		}
+		// #readonly names a file the command may read but not write.
+		if ro, ok := dirs["readonly"]; ok {
+			if err := os.Chmod(filepath.Join(dir, ro), 0o400); err != nil {
+				t.Fatal(err)
+			}
+		}
 		cmd := exec.Command(themaBinary(t), append(strings.Fields(args), "--diag-format", "json")...) //nolint:gosec // the arguments are the test's
 		cmd.Dir = dir
 		var stdout, stderr bytes.Buffer

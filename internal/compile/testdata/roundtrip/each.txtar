@@ -1,18 +1,16 @@
 each: a list of structs mapped element by element, with a rename and a drop
 inside the body. The drop's derived lacuna aggregates over the elements, and
 its message is refined by a DroppedField lacuna keyed through the list. each
-has no derived inverse, so the backward lens is authored. The totality check
-does not prove a list comprehension yet, so the lineage does not bind (#98);
-out/bind records the findings until it does.
+has no derived inverse, so the backward lens is authored.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	items: [...{
 		title:   string
 		legacy?: string
 	}]
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	items: [...{
 		name: string
 	}]
@@ -45,37 +43,9 @@ BackwardLens: {
 	}
 }
 -- out/bind --
-error[E0381]: condition of a lacuna of the ForwardLens in 1.0.thema is not total for some instance
-  --> 1.0.thema:12:4
-   |
-12 |             legacy: drop
-   |             ^^^^^^
-   |
-   = note: condition of a lacuna of the ForwardLens in 1.0.thema is len(_d_0) > 0, which is not a pattern: a presence test (p != _|_), an equality (p == c) or a type test ((p & T) != _|_) on a field of v0_0, or a conjunction (&&) of these
-   = note: a lens must be total: every instance of the schema in history/0.0.thema must translate to an instance of the schema in 1.0.thema (totality rule unknown-pattern)
-   = help: write the mapping in a form the checker can follow, or add a lacuna where it cannot decide
-
-error[E0384]: items in the ForwardLens in 1.0.thema is not total for some instance
-  --> 1.0.thema:10:3
-   |
-10 |         items: each(v0_0.items, {
-   |         ^^^^^
-   |
-   = note: items in the ForwardLens in 1.0.thema builds list elements with a comprehension, so how many there are and what they hold depends on the instance; write each element
-   = note: a lens must be total: every instance of the schema in history/0.0.thema must translate to an instance of the schema in 1.0.thema (totality rule unknown-dynamic)
-   = help: write the mapping in a form the checker can follow, or add a lacuna where it cannot decide
-
-error[E0384]: items in the BackwardLens in 1.0.thema is not total for some instance
-  --> 1.0.thema:28:3
-   |
-28 |         items: each(v1_0.items, {
-   |         ^^^^^
-   |
-   = note: items in the BackwardLens in 1.0.thema builds list elements with a comprehension, so how many there are and what they hold depends on the instance; write each element
-   = note: a lens must be total: every instance of the schema in 1.0.thema must translate to an instance of the schema in history/0.0.thema (totality rule unknown-dynamic)
-   = help: write the mapping in a form the checker can follow, or add a lacuna where it cannot decide
+ok
 -- out/decompiled/1.0.thema --
-schema: {
+Schema: {
 	items: [...{name: string}]
 }
 
@@ -104,7 +74,7 @@ BackwardLens: {
 	}
 }
 -- out/decompiled/history/0.0.thema --
-schema: {
+Schema: {
 	items: [...{
 		title:   string
 		legacy?: string
@@ -135,13 +105,13 @@ schemas: {
 }
 lenses: {
 	"0.0->1.0": {
-		input: _
-		let _d_0 = [for i, item in input.items if item.legacy != _|_ {
+		v0_0: _
+		let _d_0 = [for i, item in v0_0.items if item.legacy != _|_ {
 			path:  "items[\(i)].legacy"
 			value: item.legacy
 		}]
-		result: {
-			items: [for item in input.items {
+		v1_0: {
+			items: [for item in v0_0.items {
 				name: item.title
 			}]
 		}
@@ -154,9 +124,9 @@ lenses: {
 		}]
 	}
 	"1.0->0.0": {
-		input: _
-		result: {
-			items: [for item in input.items {
+		v1_0: _
+		v0_0: {
+			items: [for item in v1_0.items {
 				title: item.name
 			}]
 		}

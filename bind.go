@@ -77,6 +77,11 @@ func parseVersionKey(key string) (uint, bool) {
 	return uint(n), true
 }
 
+// lensParam names the field a lens binds an instance of version v to.
+func lensParam(v SyntacticVersion) string {
+	return cuetil.LensParam(v[0], v[1])
+}
+
 // parseLensEdge parses a lens's key in a lineage's lenses: the versions it maps
 // from and to, e.g. "1.0->0.1".
 func parseLensEdge(key string) (lensID, bool) {
@@ -234,9 +239,13 @@ func (ml *maybeLineage) checkExists(cfg *bindConfig) error {
 // The set of known fields is read from thema's CUE, so it cannot drift from it.
 func (ml *maybeLineage) checkUnknownFields() error {
 	var errs []error
-	check := func(v cue.Value, def cue.Value, what string) {
+	check := func(v cue.Value, def cue.Value, what string, extra ...string) {
 		known := make(map[string]bool)
 		var names []string
+		for _, name := range extra {
+			known[name] = true
+			names = append(names, name)
+		}
 		kiter, err := def.Fields(cue.Optional(true))
 		if err != nil {
 			panic(fmt.Sprintf("unreachable - thema's own %s must be a struct: %v", what, err))
@@ -268,7 +277,7 @@ func (ml *maybeLineage) checkUnknownFields() error {
 	}
 	// each calls fn with each regular field of v whose key is valid, and reports
 	// those whose key isn't.
-	each := func(v cue.Value, valid func(string) bool, code diag.Code, badkey, help string, fn func(cue.Value)) {
+	each := func(v cue.Value, valid func(string) bool, code diag.Code, badkey, help string, fn func(string, cue.Value)) {
 		iter, err := v.Fields(cue.Optional(true))
 		if err != nil {
 			return
@@ -284,7 +293,7 @@ func (ml *maybeLineage) checkUnknownFields() error {
 					Err())
 				continue
 			}
-			fn(iter.Value())
+			fn(iter.Selector().Unquoted(), iter.Value())
 		}
 	}
 	isVersion := func(key string) bool {
@@ -301,23 +310,24 @@ func (ml *maybeLineage) checkUnknownFields() error {
 	rtv := ml.rt.Underlying()
 	schdef, lensdef := rtv.LookupPath(cue.MakePath(cue.Str("SchemaDef"))), rtv.LookupPath(cue.MakePath(cue.Str("Lens")))
 	check(ml.raw, ml.rt.linDef(), "a lineage")
-	each(ml.raw.LookupPath(cue.MakePath(cue.Str("schemas"))), isVersion, diag.E0124, "a major version", versionKeys, func(major cue.Value) {
-		each(major, isVersion, diag.E0124, "a minor version", versionKeys, func(sch cue.Value) {
+	each(ml.raw.LookupPath(cue.MakePath(cue.Str("schemas"))), isVersion, diag.E0124, "a major version", versionKeys, func(_ string, major cue.Value) {
+		each(major, isVersion, diag.E0124, "a minor version", versionKeys, func(_ string, sch cue.Value) {
 			check(sch, schdef, "a schema entry")
 		})
 	})
-	each(ml.raw.LookupPath(cue.MakePath(cue.Str("lenses"))), isEdge, diag.E0125, "a lens edge", edgeKeys, func(lens cue.Value) {
-		check(lens, lensdef, "a lens")
+	each(ml.raw.LookupPath(cue.MakePath(cue.Str("lenses"))), isEdge, diag.E0125, "a lens edge", edgeKeys, func(key string, lens cue.Value) {
+		// A lens's fields are named after the versions its edge names: thema's
+		// Lens is a pseudofunction of them, and names the two in takes and
+		// returns, since out constrains them by pattern rather than declaring
+		// them.
+		id, _ := parseLensEdge(key)
+		def := lensdef.FillPath(cue.MakePath(cue.Str("from")), id.From).FillPath(cue.MakePath(cue.Str("to")), id.To)
+		takes, _ := def.LookupPath(cue.MakePath(cue.Str("takes"))).String()
+		returns, _ := def.LookupPath(cue.MakePath(cue.Str("returns"))).String()
+		check(lens, def.LookupPath(cue.MakePath(cue.Str("out"))), "a lens", takes, returns)
 	})
 
 	return diag.Join(errs...)
-}
-
-// userPos returns the position of the first conjunct of v that is not in thema's
-// own CUE, or v's position if there is none.
-func userPos(v cue.Value) token.Pos {
-	p, _ := diag.AuthorPos(v)
-	return p
 }
 
 func (ml *maybeLineage) checkLineageShape(cfg *bindConfig) error {
@@ -577,8 +587,6 @@ func (ml *maybeLineage) checkLensResults() error {
 	for _, sch := range ml.schlist {
 		byVersion[sch.v] = sch
 	}
-	inputPath, resultPath := cue.MakePath(cue.Str("input")), cue.MakePath(cue.Str("result"))
-
 	var errs []error
 	for _, cl := range ml.cueLenses() {
 		lens, from, to := cl.v, cl.id.From, cl.id.To
@@ -589,14 +597,29 @@ func (ml *maybeLineage) checkLensResults() error {
 		lensA := lensAddr(from, to)
 		inputA, resultA := lensA, lensA
 		inputA.Kind, resultA.Kind = diag.AddrLensInput, diag.AddrLensResult
+		inputPath, resultPath := cue.MakePath(cue.Str(lensParam(from))), cue.MakePath(cue.Str(lensParam(to)))
 
 		source := cuetil.CloseRecursive(ctx, fsch.def)
 		input := lens.LookupPath(inputPath)
+		if !input.Exists() {
+			errs = append(errs, ml.diag(diag.E0310).AtValue(lens).Addr(lensA).
+				Headlinef("%s does not declare %s, the instance of %s it takes", ml.term(lensA), lensParam(from), from).
+				Helpf("write %s: _", lensParam(from)).
+				Err())
+			continue
+		}
+		if !lens.LookupPath(resultPath).Exists() {
+			errs = append(errs, ml.diag(diag.E0311).AtValue(lens).Addr(lensA).
+				Headlinef("%s does not declare %s, the instance of %s it returns", ml.term(lensA), lensParam(to), to).
+				Helpf("write %s: {...}, mapping each field of %s", lensParam(to), to).
+				Err())
+			continue
+		}
 		if err := input.Subsume(source); err != nil {
 			errs = append(errs, ml.diag(diag.E0303).AtValue(input).Addr(inputA).
 				Headlinef("%s does not accept every instance of %s", ml.term(inputA), ml.term(schemaAddr(from))).
 				Cause(err).
-				Help("a lens's input stands for any instance of its source schema; leave it as _").
+				Helpf("%s stands for any instance of its source schema; leave it as _", lensParam(from)).
 				Err())
 			continue
 		}
@@ -615,7 +638,7 @@ func (ml *maybeLineage) checkLensResults() error {
 				Err())
 			continue
 		}
-		syn, err := cuetil.ParseLens(lens)
+		syn, err := cuetil.ParseLens(lens, lensParam(from), lensParam(to))
 		if err != nil {
 			errs = append(errs, diag.InternalErr(err))
 			continue
@@ -664,7 +687,7 @@ func (ml *maybeLineage) checkLacunas() error {
 		// resolves to []. A list built conditionally has no concrete length at all.
 		raw := lens.LookupPath(cue.MakePath(cue.Str("lacunas")))
 		lacunas, _ := raw.Default()
-		syn, err := cuetil.ParseLens(lens)
+		syn, err := cuetil.ParseLens(lens, lensParam(from), lensParam(to))
 		if err != nil {
 			errs = append(errs, diag.InternalErr(err))
 			continue
@@ -727,6 +750,46 @@ func (ml *maybeLineage) checkLacunas() error {
 	return diag.Join(errs...)
 }
 
+// checkReferences checks what each schema, the joinSchema and each CUE lens
+// refer to: a schema only its own body and CUE's builtin packages, a lens only
+// the instance it takes, its own body and the builtin packages
+// (docs/invariants.md, References). CUE resolves any reference in lexical
+// scope, so a schema that reads a sibling schema, the lineage's name or a
+// file-level helper evaluates without complaint; the rule is thema's.
+// References are read from each value's syntax (the Raw view), the only place
+// every one is visible as written: the evaluator resolves lets and index
+// expressions and leaves the bodies of pending comprehensions unevaluated
+// (references.go says more). Schemas are checked first, and a lineage whose
+// schemas fail is reported without its lenses: a lens is judged against
+// schemas that mean what they say.
+func (ml *maybeLineage) checkReferences() error {
+	rc := newRefChecker(ml.rt.Context(), ml.raw)
+	var errs []error
+	check := func(o refOwner) {
+		for _, f := range rc.check(o) {
+			errs = append(errs, ml.refDiag(o, f))
+		}
+	}
+
+	for _, sch := range ml.schlist {
+		rel := cue.MakePath(cue.Str(labelSchemas), cue.Str(strconv.Itoa(int(sch.v[0]))), cue.Str(strconv.Itoa(int(sch.v[1]))), cue.Str("schema"))
+		check(refOwner{name: fmt.Sprintf("schema %s", sch.v), addr: schemaAddr(sch.v), v: ml.raw.LookupPath(rel), rel: rel})
+	}
+	// thema's default joinSchema is _, which joins nothing and is not the author's.
+	if rel := cue.MakePath(cue.Str(labelJoinSchema)); ml.raw.LookupPath(rel).IncompleteKind() != cue.TopKind {
+		check(refOwner{name: labelJoinSchema, addr: diag.Address{Kind: diag.AddrJoinSchema}, v: ml.raw.LookupPath(rel), rel: rel})
+	}
+	if len(errs) > 0 {
+		return diag.Join(errs...)
+	}
+
+	for _, cl := range ml.cueLenses() {
+		rel := cue.MakePath(cue.Str(labelLenses), cue.Str(cl.id.String()))
+		check(refOwner{name: fmt.Sprintf("lens %s", cl.id), addr: lensAddr(cl.id.From, cl.id.To), v: ml.raw.LookupPath(rel), rel: rel, lens: true, takes: lensParam(cl.id.From)})
+	}
+	return diag.Join(errs...)
+}
+
 // checkLensTotality proves each CUE lens total: for every instance of its source
 // schema, the result is an instance of its target schema, with every required
 // field, and nothing in the lens fails to evaluate on the way. The walk
@@ -769,7 +832,7 @@ func (ml *maybeLineage) totalityFindings(lens cue.Value, fsch, tsch *schemaDef) 
 		return nil
 	}
 	var errs []error
-	res := lenscheck.Check(ml.rt.Context(), lens, fsch.def, tsch.def)
+	res := lenscheck.Check(ml.rt.Context(), lens, fsch.def, tsch.def, lensParam(fsch.v), lensParam(tsch.v))
 	for _, f := range res.Findings {
 		if f.Verdict != lenscheck.Total {
 			errs = append(errs, ml.totalityDiag(f, fsch.v, tsch.v))

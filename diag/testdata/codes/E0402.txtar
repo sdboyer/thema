@@ -20,12 +20,12 @@ schemas: {
 }
 lenses: {
 	"0.1->0.0": {
-		input: _
-		result: {
-			a: input.a
+		v0_1: _
+		v0_0: {
+			a: v0_1.a
 		}
 		lacunas: [
-			{type: "DroppedField", condition: input.b != _|_},
+			{type: "DroppedField", condition: v0_1.b != _|_},
 		]
 	}
 }
@@ -58,7 +58,7 @@ lenses: {
         "file": "lineage.cue",
         "line": 24,
         "col": 4,
-        "offset": 222,
+        "offset": 218,
         "origin": "user"
       }
     }
@@ -73,6 +73,6 @@ lenses: {
 error[E0402]: lacuna 0 of lens 0.1->0.0 has no message
   --> lineage.cue:24:4
    |
-24 |             {type: "DroppedField", condition: input.b != _|_},
+24 |             {type: "DroppedField", condition: v0_1.b != _|_},
    |             ^
    |

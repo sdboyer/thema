@@ -1,0 +1,31 @@
+# the schema embeds a definition declared outside it, at the top of the file: the file is the lineage, so what it declares beside the
+# schemas is declared in the lineage outside the schema (rule ref-lineage-meta).
+# Was testdata/lineage: schema is an embedded struct, where struct is a def outside the schema
+#issue: 21
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+thema.Lineage
+name: "embedexref"
+schemas: {
+	"0": "0": {
+		schema: {
+	        #EmbedRef
+		}
+	}
+}
+lenses: {}
+
+#EmbedRef: {
+    refField1: string
+    refField2: 42
+}
+-- out/bindfail --
+error[E0141]: schema 0.0 refers to #EmbedRef, which is declared in the lineage outside the schema
+ --> /in.cue:7:3
+  |
+7 |         schema: {
+  |         ^^^^^^
+  |
+  = note: reference rule ref-lineage-meta
+  = help: a schema may refer only to its own body and CUE's builtin packages

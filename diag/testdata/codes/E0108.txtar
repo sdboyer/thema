@@ -2,7 +2,7 @@
 Every version file declares a schema; that is what a version is. A file with
 only lenses has nothing for them to map to.
 -- ship/0.0.thema --
-schema: {
+Schema: {
 	a: string
 }
 -- ship/1.0.thema --
@@ -18,7 +18,7 @@ ForwardLens: {
     {
       "code": "E0108",
       "severity": "error",
-      "headline": "1.0.thema declares no schema",
+      "headline": "1.0.thema declares no Schema",
       "primary": {
         "file": "1.0.thema",
         "line": 1,
@@ -26,7 +26,7 @@ ForwardLens: {
         "origin": "user"
       },
       "help": [
-        "every version file declares schema: {...}"
+        "every version file declares Schema: {...}"
       ]
     }
   ],
@@ -37,10 +37,10 @@ ForwardLens: {
   }
 }
 -- out/text --
-error[E0108]: 1.0.thema declares no schema
+error[E0108]: 1.0.thema declares no Schema
  --> 1.0.thema:1:1
   |
 1 | ForwardLens: {
   | ^^^^^^^^^^^
   |
-  = help: every version file declares schema: {...}
+  = help: every version file declares Schema: {...}

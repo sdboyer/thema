@@ -1,0 +1,29 @@
+# two versions share a definition declared outside the lineage, at the top of
+# the file: a reference to it leaves the lineage (rule ref-outside-lineage),
+# and editing the definition edits both versions, one of them published.
+# Each schema declares the definition it uses (ref-ok-schema-local).
+#issue: 21
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+#Color: "red" | "blue"
+
+lin: thema.Lineage & {
+	name: "refOutsideLineage"
+	schemas: {
+		"0": "0": {
+			schema: {c: #Color}
+		}
+		"0": "1": {
+			schema: {c: #Color, d?: #Color}
+		}
+	}
+	lenses: {
+		"0.1->0.0": {
+			v0_1: _
+			v0_0: {c: v0_1.c}
+		}
+	}
+}
+-- expect --
+bind fail ref-outside-lineage

@@ -4,8 +4,8 @@ a!: int
 -- target.cue --
 a!: int & <10
 -- lens.cue --
-input: _
-result: {a: input.a}
+v0_0: _
+v1_0: {a: v0_0.a}
 -- out --
 not total
-result.a copies input.a, which is now int & <10, which does not accept every value of the prior int (compat rule value-narrowed) (rule copy-narrowed) @ lens.cue:2:13
+v1_0.a copies v0_0.a, which is now int & <10, which does not accept every value of the prior int (compat rule value-narrowed) (rule copy-narrowed) @ lens.cue:2:11

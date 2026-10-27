@@ -4,8 +4,8 @@ a: string
 -- target.cue --
 a: int
 -- lens.cue --
-input: _
-result: {a: "x"}
+v0_0: _
+v1_0: {a: "x"}
 -- out --
 not total
-result.a is the constant "x", which the target schema does not accept: conflicting values int and "x" (mismatched types int and string) (rule literal-not-instance) @ lens.cue:2:10
+v1_0.a is the constant "x", which the target schema does not accept: conflicting values int and "x" (mismatched types int and string) (rule literal-not-instance) @ lens.cue:2:8

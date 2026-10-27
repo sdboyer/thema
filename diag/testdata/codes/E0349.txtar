@@ -3,12 +3,12 @@ orelse's fallback is what the lens uses when the field is absent, so the
 fallback itself must always exist: a constant, or a field the source always
 has. An optional field may be absent too.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	a?: string
 	b?: string
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	c: string
 }
 

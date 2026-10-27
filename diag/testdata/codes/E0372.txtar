@@ -22,14 +22,14 @@ schemas: {
 lenses: {
 	"0.0->1.0": {
 		_T: {a: 1, b: 2}
-		input: _
-		result: {
-			u: _T[input.t]
+		v0_0: _
+		v1_0: {
+			u: _T[v0_0.t]
 		}
 	}
 	"1.0->0.0": {
-		input: _
-		result: {
+		v1_0: _
+		v0_0: {
 			t: "a"
 		}
 	}
@@ -40,11 +40,11 @@ lenses: {
     {
       "code": "E0372",
       "severity": "error",
-      "headline": "u in the result of lens 0.0->1.0 indexes a table by input.t, which may be \"c\", for which the table has no entry",
+      "headline": "u in the result of lens 0.0->1.0 indexes a table by v0_0.t, which may be \"c\", for which the table has no entry",
       "path": [
         "lenses",
         "0.0->1.0",
-        "result",
+        "v1_0",
         "u"
       ],
       "address": {
@@ -65,7 +65,7 @@ lenses: {
         "file": "lineage.cue",
         "line": 23,
         "col": 7,
-        "offset": 219,
+        "offset": 216,
         "origin": "user"
       },
       "notes": [
@@ -82,10 +82,10 @@ lenses: {
   }
 }
 -- out/text --
-error[E0372]: u in the result of lens 0.0->1.0 indexes a table by input.t, which may be "c", for which the table has no entry
+error[E0372]: u in the result of lens 0.0->1.0 indexes a table by v0_0.t, which may be "c", for which the table has no entry
   --> lineage.cue:23:7
    |
-23 |             u: _T[input.t]
+23 |             u: _T[v0_0.t]
    |                ^^
    |
    = note: a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule table-key-missing)

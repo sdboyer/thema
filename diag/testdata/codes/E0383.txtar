@@ -24,14 +24,14 @@ schemas: {
 }
 lenses: {
 	"0.0->1.0": {
-		input: _
-		result: {
-			n: strconv.Atoi(input.s)
+		v0_0: _
+		v1_0: {
+			n: strconv.Atoi(v0_0.s)
 		}
 	}
 	"1.0->0.0": {
-		input: _
-		result: {
+		v1_0: _
+		v0_0: {
 			s: "0"
 		}
 	}
@@ -46,7 +46,7 @@ lenses: {
       "path": [
         "lenses",
         "0.0->1.0",
-        "result",
+        "v1_0",
         "n"
       ],
       "address": {
@@ -67,7 +67,7 @@ lenses: {
         "file": "lineage.cue",
         "line": 24,
         "col": 7,
-        "offset": 207,
+        "offset": 204,
         "origin": "user"
       },
       "notes": [
@@ -93,7 +93,7 @@ lenses: {
 error[E0383]: n in the result of lens 0.0->1.0 is not total for some instance
   --> lineage.cue:24:7
    |
-24 |             n: strconv.Atoi(input.s)
+24 |             n: strconv.Atoi(v0_0.s)
    |                ^^^^^^^
    |
    = note: n in the result of lens 0.0->1.0 calls strconv.Atoi, which is outside the provable set (len; quo, rem, div, mod; strings.Contains, strings.HasPrefix, strings.HasSuffix, strings.Replace, strings.ToLower, strings.ToUpper, strings.Trim, strings.TrimLeft, strings.TrimPrefix, strings.TrimRight, strings.TrimSpace, strings.TrimSuffix)

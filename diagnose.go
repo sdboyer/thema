@@ -1,6 +1,7 @@
 package thema
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -170,9 +171,9 @@ func addressOfNormalForm(path []string) (diag.Address, bool) {
 			return a, true
 		}
 		switch rest[0] {
-		case "input":
+		case lensParam(id.From):
 			a.Kind = diag.AddrLensInput
-		case "result":
+		case lensParam(id.To):
 			a.Kind = diag.AddrLensResult
 			if len(rest) > 1 {
 				a.Kind, a.Field = diag.AddrLensResultField, rest[1:]
@@ -256,18 +257,18 @@ func (ml *maybeLineage) totalityDiag(f lenscheck.Finding, from, to SyntacticVers
 	return b.Err()
 }
 
-// lensAddress parses a totality finding's path within a lens: "result.a.b",
-// "lacunas[0].condition", "input".
+// lensAddress parses a totality finding's path within a lens: "v1_0.a.b",
+// "lacunas[0].condition", "v0_0".
 func lensAddress(path string, from, to SyntacticVersion) diag.Address {
 	a := diag.Address{Kind: diag.AddrLens, From: diag.Version(from), To: diag.Version(to)}
 	head, rest, _ := strings.Cut(path, ".")
 	switch {
-	case head == "result":
+	case head == lensParam(to):
 		a.Kind = diag.AddrLensResult
 		if rest != "" {
 			a.Kind, a.Field = diag.AddrLensResultField, strings.Split(rest, ".")
 		}
-	case head == "input":
+	case head == lensParam(from):
 		a.Kind = diag.AddrLensInput
 	case strings.HasPrefix(head, "lacunas["):
 		a.Kind = diag.AddrLacuna
@@ -349,17 +350,19 @@ func (lin *baseLineage) translateContext(out cue.Value) diag.Context {
 				// A minor step has no lens; its result is the prior one.
 				return cue.Value{}, false
 			}
-			v := lens.LookupPath(cue.MakePath(cue.Str("result"))).LookupPath(fieldPath(field))
+			from, to, ok := edge(st)
+			if !ok {
+				return cue.Value{}, false
+			}
+			v := lens.LookupPath(cue.MakePath(cue.Str(lensParam(to)))).LookupPath(fieldPath(field))
 			if !v.Exists() {
 				return cue.Value{}, false
 			}
 			// The lens as thema evaluated it has the kernel's conjuncts; the
 			// author's are on the lineage's own copy of the lens.
-			if from, to, ok := edge(st); ok {
-				own := lin.uni.LookupPath(cue.MakePath(cue.Str("lenses"), cue.Str(lid(from, to).String()), cue.Str("result"))).LookupPath(fieldPath(field))
-				if own.Exists() {
-					return own, true
-				}
+			own := lin.uni.LookupPath(cue.MakePath(cue.Str("lenses"), cue.Str(lid(from, to).String()), cue.Str(lensParam(to)))).LookupPath(fieldPath(field))
+			if own.Exists() {
+				return own, true
 			}
 			return v, true
 		},
@@ -394,4 +397,36 @@ func pathSegments(p cue.Path) []string {
 		}
 	}
 	return out
+}
+
+// refCodes is the code of each reference rule (docs/invariants.md,
+// References). Each rule has one code; TestRefCodes keeps the two in lockstep.
+var refCodes = map[refRule]diag.Code{
+	refSiblingSchema:  diag.E0140,
+	refLineageMeta:    diag.E0141,
+	refOutsideLineage: diag.E0142,
+	refImport:         diag.E0143,
+	refLensToSchema:   diag.E0144,
+	refLensToLens:     diag.E0145,
+	refUnresolved:     diag.E0146,
+}
+
+// refDiag describes a reference that breaks a rule, at the field holding it.
+func (ml *maybeLineage) refDiag(o refOwner, f refFinding) error {
+	code, ok := refCodes[f.rule]
+	if !ok {
+		return diag.InternalErr(fmt.Errorf("reference rule %s has no code", f.rule))
+	}
+	subject := ml.term(o.addr)
+	if len(f.field) > 0 {
+		subject = strings.Join(f.field, ".") + " in " + subject
+	}
+	b := ml.diag(code).At(refPos(o, f.field)).Addr(o.addr)
+	sentence := fmt.Sprintf("%s refers to %s, %s", subject, f.expr, f.what(o))
+	if len(sentence) <= diag.MaxHeadline {
+		b.Headline(sentence)
+	} else {
+		b.Headlinef("%s refers to %s", subject, f.expr).Note(token.NoPos, sentence)
+	}
+	return b.Notef(token.NoPos, "reference rule %s", f.rule).Help(f.help(o)).Err()
 }

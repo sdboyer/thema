@@ -1,0 +1,69 @@
+#op: bind
+#path: lin
+A schema refers to a definition declared outside the lineage, at the top of
+the file. Editing the definition would edit every version that refers to it,
+published ones included (reference rule ref-outside-lineage). Each schema
+declares the definition it uses.
+-- lineage.cue --
+#Color: "red" | "blue"
+
+lin: {
+	name: "ship"
+	schemas: {
+		"0": "0": {
+			schema: {c: #Color}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0142",
+      "severity": "error",
+      "headline": "c in schema 0.0 refers to #Color, which is declared outside the lineage",
+      "path": [
+        "schemas",
+        "0",
+        "0",
+        "schema"
+      ],
+      "address": {
+        "kind": "schema",
+        "version": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 7,
+        "col": 16,
+        "offset": 86,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "reference rule ref-outside-lineage"
+        }
+      ],
+      "help": [
+        "a schema may refer only to its own body and CUE's builtin packages"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0142]: c in schema 0.0 refers to #Color, which is declared outside the lineage
+ --> lineage.cue:7:16
+  |
+7 |             schema: {c: #Color}
+  |                         ^^^^^^
+  |
+  = note: reference rule ref-outside-lineage
+  = help: a schema may refer only to its own body and CUE's builtin packages

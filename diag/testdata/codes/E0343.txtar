@@ -3,12 +3,12 @@ A field optional in the source and required in the target cannot simply be
 copied: an instance that lacks it would have nothing to put there. orelse says
 what to use when it is absent.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	a:  string
 	b?: int
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	a: string
 	b: int
 	c: bool

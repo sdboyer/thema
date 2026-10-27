@@ -30,7 +30,7 @@ error[E0243]: schema 0.0 differs from the published one
     |         ^^^^^^
     |
     = note: in thema's own CUE
-     --> thema/lineage.cue:170:11
+     --> thema/lineage.cue:177:11
     = detail: field aunion not present in {aunion:*"bar" | "foo" | "baz"}
               missing field "aunion"
     = help: a published schema is never changed; add a new version instead

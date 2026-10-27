@@ -22,16 +22,16 @@ schemas: {
 }
 lenses: {
 	"0.0->1.0": {
-		input: _
-		result: {
-			a: input.a
+		v0_0: _
+		v1_0: {
+			a: v0_0.a
 			n: int
 		}
 	}
 	"1.0->0.0": {
-		input: _
-		result: {
-			a: input.a
+		v1_0: _
+		v0_0: {
+			a: v1_0.a
 		}
 	}
 }
@@ -45,7 +45,7 @@ lenses: {
       "path": [
         "lenses",
         "0.0->1.0",
-        "result",
+        "v1_0",
         "n"
       ],
       "address": {
@@ -66,7 +66,7 @@ lenses: {
         "file": "lineage.cue",
         "line": 24,
         "col": 4,
-        "offset": 214,
+        "offset": 210,
         "origin": "user"
       },
       "notes": [

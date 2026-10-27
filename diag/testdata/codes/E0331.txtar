@@ -2,11 +2,11 @@
 A mapping's key is a plain field name: the target field it produces. A quoted,
 computed or pattern label is not one.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	a: string
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	b: string
 }
 

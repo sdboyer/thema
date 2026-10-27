@@ -2,11 +2,11 @@
 A mapping produces a field its target version does not declare. A lens writes
 only what its target declares, however open the author wrote the schema.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	a: string
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	b: string
 }
 

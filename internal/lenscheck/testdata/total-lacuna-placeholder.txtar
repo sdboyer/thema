@@ -5,10 +5,10 @@ firstfield: string
 firstfield: string
 secondfield: int
 -- lens.cue --
-input: _
-result: {firstfield: input.firstfield, secondfield: -1}
+v0_0: _
+v1_0: {firstfield: v0_0.firstfield, secondfield: -1}
 lacunas: [{
-	targetFields: [{path: "secondfield", value: result.secondfield}]
+	targetFields: [{path: "secondfield", value: v1_0.secondfield}]
 	message: "placeholder"
 	type: "Placeholder"
 }]

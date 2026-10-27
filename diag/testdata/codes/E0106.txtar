@@ -2,11 +2,11 @@
 A version file declares each of its fields once. CUE would unify two
 declarations of schema; a version file has one schema, written in one place.
 -- ship/0.0.thema --
-schema: {
+Schema: {
 	a: string
 }
 
-schema: {
+Schema: {
 	b: int
 }
 -- out/json --
@@ -15,7 +15,7 @@ schema: {
     {
       "code": "E0106",
       "severity": "error",
-      "headline": "0.0.thema declares schema twice",
+      "headline": "0.0.thema declares Schema twice",
       "primary": {
         "file": "0.0.thema",
         "line": 5,
@@ -43,12 +43,12 @@ schema: {
   }
 }
 -- out/text --
-error[E0106]: 0.0.thema declares schema twice
+error[E0106]: 0.0.thema declares Schema twice
  --> 0.0.thema:5:1
   |
-1 | schema: {
+1 | Schema: {
   | ------ first declared here
 ...
-5 | schema: {
+5 | Schema: {
   | ^^^^^^
   |

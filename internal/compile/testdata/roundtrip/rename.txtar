@@ -1,12 +1,12 @@
 exemplars/rename.cue in authoring form: a rename is one forward entry; the
 backward entry is derived, and the unchanged field is copied implicitly.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	before:    string
 	unchanged: string
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	after:     string
 	unchanged: string
 }
@@ -20,7 +20,7 @@ ForwardLens: {
 -- out/bind --
 ok
 -- out/decompiled/1.0.thema --
-schema: {
+Schema: {
 	after:     string
 	unchanged: string
 }
@@ -32,7 +32,7 @@ ForwardLens: {
 	}
 }
 -- out/decompiled/history/0.0.thema --
-schema: {
+Schema: {
 	before:    string
 	unchanged: string
 }
@@ -58,17 +58,17 @@ schemas: {
 }
 lenses: {
 	"0.0->1.0": {
-		input: _
-		result: {
-			after:     input.before
-			unchanged: input.unchanged
+		v0_0: _
+		v1_0: {
+			after:     v0_0.before
+			unchanged: v0_0.unchanged
 		}
 	}
 	"1.0->0.0": {
-		input: _
-		result: {
-			before:    input.after
-			unchanged: input.unchanged
+		v1_0: _
+		v0_0: {
+			before:    v1_0.after
+			unchanged: v1_0.unchanged
 		}
 	}
 }

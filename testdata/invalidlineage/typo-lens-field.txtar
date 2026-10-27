@@ -17,15 +17,15 @@ schemas: {
 }
 lenses: {
 	"1.0->0.0": {
-		input: _
+		v1_0: _
 		reslt: {
-			foo: input.bar
+			foo: v1_0.bar
 		}
 	}
 	"0.0->1.0": {
-		input: _
-		result: {
-			bar: input.foo
+		v0_0: _
+		v1_0: {
+			bar: v0_0.foo
 		}
 	}
 }
@@ -36,4 +36,4 @@ error[E0123]: reslt is not a field of a lens
 20 |         reslt: {
    |         ^^^^^
    |
-   = help: did you mean result?
+   = help: a lens has only lacunas, v0_0, v1_0

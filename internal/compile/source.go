@@ -23,7 +23,7 @@ const Ext = ".thema"
 
 // The fields of a version file.
 const (
-	fieldSchema   = "schema"
+	fieldSchema   = "Schema"
 	fieldForward  = "ForwardLens"
 	fieldBackward = "BackwardLens"
 )
@@ -44,7 +44,7 @@ func Load(fsys fs.FS, dir string) (name string, files []File, err error) {
 			if d != dir && errors.Is(err, fs.ErrNotExist) {
 				continue
 			}
-			return "", nil, err
+			return "", nil, diag.New(diag.E0601).Headlinef("%s cannot be read", d).Detail(diag.OSReason(err)).Err()
 		}
 		for _, e := range ents {
 			if e.IsDir() || !strings.HasSuffix(e.Name(), Ext) {
@@ -53,7 +53,7 @@ func Load(fsys fs.FS, dir string) (name string, files []File, err error) {
 			p := path.Join(d, e.Name())
 			b, err := fs.ReadFile(fsys, p)
 			if err != nil {
-				return "", nil, err
+				return "", nil, diag.New(diag.E0601).Headlinef("%s cannot be read", p).Detail(diag.OSReason(err)).Err()
 			}
 			files = append(files, File{Path: strings.TrimPrefix(p, dir+"/"), Text: b})
 		}
@@ -81,6 +81,14 @@ func (v *version) header() token.Pos {
 	return v.tf.Pos(0, token.NoRelPos)
 }
 
+// schemaField is the version's Schema field under the normal form's name,
+// schema, at the authored field's position, with its comments.
+func (v *version) schemaField() *ast.Field {
+	f := *v.schema
+	f.Label = at(v.schema.Label.Pos(), ast.NewIdent(normalSchema))
+	return &f
+}
+
 // parseVersion parses one version file. Its name gives its version; its
 // contents are at most a schema, a forward block and a backward block.
 func parseVersion(f File) (*version, error) {
@@ -100,7 +108,7 @@ func parseVersion(f File) (*version, error) {
 	minor, _ := strconv.ParseUint(m[2], 10, 64)
 	v.v = thema.SV(uint(major), uint(minor))
 
-	const only = "a version file has only schema, ForwardLens and BackwardLens"
+	const only = "a version file has only Schema, ForwardLens and BackwardLens"
 	fields := []string{fieldSchema, fieldForward, fieldBackward}
 	var errs cerrors.Error
 	report := func(code diag.Code, p token.Pos, format string, args ...any) *diag.B {
@@ -148,50 +156,42 @@ func parseVersion(f File) (*version, error) {
 					continue
 				}
 			}
+			errs = cerrors.Append(errs, noShorthand(d))
 			*slot = d
 		default:
 			report(diag.E0105, d.Pos(), "%s has a declaration that is not a field", f.Path).Help(only)
 		}
 	}
 	if v.schema == nil {
-		report(diag.E0108, v.header(), "%s declares no schema", f.Path).Help("every version file declares schema: {...}")
+		report(diag.E0108, v.header(), "%s declares no Schema", f.Path).Help("every version file declares Schema: {...}")
 	}
-	errs = cerrors.Append(errs, noShorthand(af))
 	if errs != nil {
 		return nil, errs
 	}
 	return v, nil
 }
 
-// noShorthand rejects CUE's struct shorthand, a: b: c, anywhere in a version
-// file: a version file writes every struct with its braces, so that a lens
-// body, a lacunas key and a schema read the same way. The parser leaves the
-// shorthand's struct without a brace position.
-func noShorthand(af *ast.File) cerrors.Error {
-	var errs cerrors.Error
-	ast.Walk(af, func(n ast.Node) bool {
-		f, ok := n.(*ast.Field)
-		if !ok {
-			return true
-		}
-		s, ok := f.Value.(*ast.StructLit)
-		if !ok || s.Lbrace.IsValid() || len(s.Elts) != 1 {
-			return true
-		}
-		inner, ok := s.Elts[0].(*ast.Field)
-		if !ok {
-			return true
-		}
-		outer, _, _ := ast.LabelName(f.Label)
-		label, _, _ := ast.LabelName(inner.Label)
-		errs = cerrors.Append(errs, diag.New(diag.E0109).At(inner.Pos()).
-			Headlinef("%s: %s: ... is CUE's struct shorthand, which a version file does not use", outer, label).
-			Note(token.NoPos, "every struct in a version file keeps its braces, so that a lens body, a lacunas key and a schema read the same way").
-			Helpf("write %s: {%s: ...}", outer, label).
-			Err())
-		return true
-	}, nil)
-	return errs
+// noShorthand rejects CUE's struct shorthand on a version file's top-level
+// field: Schema: a: int collapses the field into one line, and the file's
+// three fields are written with their braces so that each reads as the block
+// it is. Beneath them the shorthand is accepted; Format expands it. The
+// parser leaves a shorthand's struct without a brace position.
+func noShorthand(f *ast.Field) cerrors.Error {
+	s, ok := f.Value.(*ast.StructLit)
+	if !ok || s.Lbrace.IsValid() || len(s.Elts) != 1 {
+		return nil
+	}
+	inner, ok := s.Elts[0].(*ast.Field)
+	if !ok {
+		return nil
+	}
+	outer, _, _ := ast.LabelName(f.Label)
+	label, _, _ := ast.LabelName(inner.Label)
+	return diag.New(diag.E0109).At(inner.Pos()).
+		Headlinef("%s: %s: ... is CUE's struct shorthand, which a version file's %s does not use", outer, label, outer).
+		Note(token.NoPos, "a version file's three fields keep their braces, so that each reads as the block it is").
+		Helpf("write %s: {%s: ...}", outer, label).
+		Err()
 }
 
 // parseVersions parses every file and orders the versions, which must be

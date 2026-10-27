@@ -4,7 +4,7 @@ n: "a" | "b"
 -- target.cue --
 s: string
 -- lens.cue --
-input: _
-result: {s: [if input.n == "a" {"x"}, "y"][0]}
+v0_0: _
+v1_0: {s: [if v0_0.n == "a" {"x"}, "y"][0]}
 -- out --
 total

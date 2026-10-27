@@ -1,0 +1,27 @@
+# schema 0.0 is defined in terms of the latest schema, so appending a version
+# rewrites it. A schema may refer only to its own body and CUE's builtin
+# packages; one it reaches through the lineage's schemas is another schema
+# (rule ref-sibling-schema), whichever version the index picks out.
+#issue: 21
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "extOldDependsOnLatest"
+	schemas: {
+		"0": "0": {
+			schema: {a: lin.schemas["0"]["\(len(lin.schemas["0"])-1)"].schema.a}
+		}
+		"0": "1": {
+			schema: {a: int | string}
+		}
+	}
+	lenses: {
+		"0.1->0.0": {
+			v0_1: _
+			v0_0: {a: v0_1.a}
+		}
+	}
+}
+-- expect --
+bind fail ref-sibling-schema

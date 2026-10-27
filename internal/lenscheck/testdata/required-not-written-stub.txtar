@@ -4,8 +4,8 @@ a: string
 -- target.cue --
 rootfield: {branch: 1} | {branch: 2}
 -- lens.cue --
-input: _
-result: {}
+v0_0: _
+v1_0: {}
 -- out --
 not total
-result.rootfield is required by the target schema and never written (rule required-not-written) @ lens.cue:2:1
+v1_0.rootfield is required by the target schema and never written (rule required-not-written) @ lens.cue:2:1

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/sdboyer/thema/internal/cuetil"
 )
 
 // AddrKind says what construct an Address names.
@@ -99,7 +101,8 @@ func RewriteFor(v Vocabulary, a Address, sentence string) string {
 }
 
 // NormalForm is the Vocabulary of a lineage written as thema.Lineage CUE:
-// schemas keyed by version, lenses keyed by edge, with input and result.
+// schemas keyed by version, lenses keyed by edge, each with the instance it
+// takes and the one it returns named after their versions (v0_0, v1_0).
 var NormalForm Vocabulary = normalForm{}
 
 type normalForm struct{}
@@ -125,11 +128,11 @@ func (normalForm) Path(a Address) []string {
 	case AddrLens, AddrStep:
 		return lens()
 	case AddrLensInput:
-		return append(lens(), "input")
+		return append(lens(), cuetil.LensParam(a.From[0], a.From[1]))
 	case AddrLensResult:
-		return append(lens(), "result")
+		return append(lens(), cuetil.LensParam(a.To[0], a.To[1]))
 	case AddrLensResultField:
-		return append(append(lens(), "result"), a.Field...)
+		return append(append(lens(), cuetil.LensParam(a.To[0], a.To[1])), a.Field...)
 	case AddrLacuna:
 		return append(lens(), "lacunas", fmt.Sprint(a.Index))
 	case AddrLacunaField:

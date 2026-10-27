@@ -3,11 +3,11 @@ A version has one file, at the top of the lineage's directory or under
 `history/`, not both. Two files declaring the same version would be two
 schemas for it.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	a: string
 }
 -- ship/0.0.thema --
-schema: {
+Schema: {
 	a: string
 }
 -- out/json --
@@ -49,12 +49,12 @@ schema: {
 error[E0204]: history/0.0.thema and 0.0.thema both declare version 0.0
  --> 0.0.thema:1:1
   |
-1 | schema: {
+1 | Schema: {
   | ^^^^^^
   |
  ::: history/0.0.thema:1:1
   |
-1 | schema: {
+1 | Schema: {
   | ------ the other is here
   |
   = help: a version has one file, at the top of the lineage's directory or under history/

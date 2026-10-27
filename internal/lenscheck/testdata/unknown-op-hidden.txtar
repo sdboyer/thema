@@ -1,0 +1,14 @@
+# A hidden result field that fails to evaluate: hidden fields are not data, but they are evaluated.
+-- source.cue --
+a!: int
+-- target.cue --
+b!: int
+-- lens.cue --
+v0_0: _
+v1_0: {
+	b:  v0_0.a
+	_h: v0_0.a + "x"
+}
+-- out --
+unknown
+v1_0._h applies + to an integer in [-inf, +inf] and a string (rule unknown-op) @ lens.cue:2:1

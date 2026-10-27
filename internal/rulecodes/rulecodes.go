@@ -46,6 +46,7 @@ var Lenscheck = map[lenscheck.Rule]diag.Code{
 	lenscheck.RuleSourceAbsent:       diag.E0361,
 	lenscheck.RuleSourceUndeclared:   diag.E0362,
 	lenscheck.RuleTargetUndeclared:   diag.E0305, // one rule, two enforcement sites: the lens-result-fields seam
+	lenscheck.RuleSourceConstrained:  diag.E0303, // one rule, two enforcement sites: bind's subsumption check and the totality walk
 	lenscheck.RulePatternAbsent:      diag.E0364,
 	lenscheck.RuleNotAValue:          diag.E0365,
 	lenscheck.RuleLiteralNotInstance: diag.E0366,

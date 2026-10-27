@@ -5,8 +5,8 @@ n: int32
 import "math"
 m: int & math.MultipleOf(2)
 -- lens.cue --
-input: _
-result: {m: input.n * 2}
+v0_0: _
+v1_0: {m: v0_0.n * 2}
 -- out --
 unknown
-result.m is an integer computed by input.n * 2, and the target schema constrains it beyond bounds (int & math.MultipleOf(2)); express the constraint with >=, <= or a sized type such as int32 (rule unknown-target-constraint) @ lens.cue:2:13
+v1_0.m is an integer computed by v0_0.n * 2, and the target schema constrains it beyond bounds (int & math.MultipleOf(2)); express the constraint with >=, <= or a sized type such as int32 (rule unknown-target-constraint) @ lens.cue:2:11

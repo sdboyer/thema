@@ -5,8 +5,8 @@ c?: string
 -- target.cue --
 a: string
 -- lens.cue --
-input: _
-result: {a: input.c}
+v0_0: _
+v1_0: {a: v0_0.c}
 -- out --
 not total
-result.a copies input.c, which may be absent: input.c is optional in the source schema; write the field under if input.c != _|_ (rule source-absent) @ lens.cue:2:13
+v1_0.a copies v0_0.c, which may be absent: v0_0.c is optional in the source schema; write the field under if v0_0.c != _|_ (rule source-absent) @ lens.cue:2:11

@@ -1,0 +1,29 @@
+# the joinSchema is the lineage's latest schema, so it changes as the lineage
+# grows. The joinSchema follows the schema rules: a schema reached through the
+# lineage's schemas is another schema (rule ref-sibling-schema). Closes #55.
+#issue: 21
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "joinRefsSchema"
+	joinSchema: lin.schemas["0"]["\(len(lin.schemas["0"])-1)"].schema
+	schemas: {
+		"0": "0": {
+			schema: {a: int}
+		}
+		"0": "1": {
+			schema: {a: int, b?: int}
+		}
+	}
+	lenses: {
+		"0.1->0.0": {
+			v0_1: _
+			v0_0: {a: v0_1.a}
+		}
+	}
+}
+-- expect --
+bind fail ref-sibling-schema

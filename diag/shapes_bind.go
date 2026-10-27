@@ -18,7 +18,7 @@ const (
 	msgNotLacunaField  = "%v is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"
 	msgNotLineageField = "%v is not a field of a lineage; a lineage has only name, joinSchema, schemas and lenses"
 	msgNotSchemaField  = "%v is not a field of a schema; a schema entry has only schema and examples"
-	msgNotLensField    = "%v is not a field of a lens; a lens has only input, result and lacunas"
+	msgNotLensField    = "%v is not a field of a lens; the lens from %v.%v to %v.%v has only %v, %v and lacunas"
 	msgNotMinorVersion = "%v is not a minor version; schemas are keyed by major, then minor version, each a non-negative integer such as \"0\""
 	msgNotMajorVersion = "%v is not a major version; schemas are keyed by major, then minor version, each a non-negative integer such as \"0\""
 	msgNotLensEdge     = "%v is not a lens edge; lenses are keyed by \"<from>-><to>\" versions, such as \"1.0->0.1\""
@@ -29,7 +29,7 @@ func init() {
 		shape{name: "bind-lacuna-unknown-field", msg: msgNotLacunaField, kernel: true, ops: []Op{OpBind}, build: bindUnknownField(E0407, "a lacuna", []string{"condition", "sourceFields", "targetFields", "message", "type"})},
 		shape{name: "bind-lineage-unknown-field", msg: msgNotLineageField, kernel: true, ops: []Op{OpBind}, build: bindUnknownField(E0123, "a lineage", []string{"name", "joinSchema", "schemas", "lenses"})},
 		shape{name: "bind-schema-unknown-field", msg: msgNotSchemaField, kernel: true, ops: []Op{OpBind}, build: bindUnknownField(E0123, "a schema entry", []string{"schema", "examples"})},
-		shape{name: "bind-lens-unknown-field", msg: msgNotLensField, kernel: true, ops: []Op{OpBind}, build: bindUnknownField(E0123, "a lens", []string{"input", "result", "lacunas"})},
+		shape{name: "bind-lens-unknown-field", msg: msgNotLensField, kernel: true, ops: []Op{OpBind}, build: bindUnknownField(E0123, "a lens", nil)},
 		shape{name: "bind-not-minor-version", msg: msgNotMinorVersion, kernel: true, ops: []Op{OpBind}, build: bindBadKey(E0124, "a minor version")},
 		shape{name: "bind-not-major-version", msg: msgNotMajorVersion, kernel: true, ops: []Op{OpBind}, build: bindBadKey(E0124, "a major version")},
 		shape{name: "bind-not-lens-edge", msg: msgNotLensEdge, kernel: true, ops: []Op{OpBind}, build: bindBadKey(E0125, "a lens edge")},
@@ -45,8 +45,13 @@ func bindUnknownField(code Code, what string, known []string) func(e cerrors.Err
 	return func(e cerrors.Error, ctx Context) *B {
 		_, args := e.Msg()
 		name := ""
-		if len(args) == 1 {
+		if len(args) > 0 {
 			name = argText(args[0])
+		}
+		// A lens's fields are named after its versions, which the guard's
+		// message carries as its sixth and seventh arguments.
+		if known == nil && len(args) == 7 {
+			known = []string{argText(args[5]), argText(args[6]), "lacunas"}
 		}
 		path := ctx.path(e)
 		b := New(code).Headlinef("%s is not a field of %s", name, what)

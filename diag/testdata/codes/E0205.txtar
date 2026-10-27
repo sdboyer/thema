@@ -3,11 +3,11 @@ Versions are contiguous: each file is the next minor version of its
 predecessor, or the first version of the next major. A gap would be a version
 with no file.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	a: string
 }
 -- ship/0.2.thema --
-schema: {
+Schema: {
 	a:  string
 	b?: int
 }
@@ -39,7 +39,7 @@ schema: {
 error[E0205]: 0.2.thema skips a version: after 0.0 comes 0.1
  --> 0.2.thema:1:1
   |
-1 | schema: {
+1 | Schema: {
   | ^^^^^^
   |
   = help: rename the file 0.1.thema, or add the versions between

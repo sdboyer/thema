@@ -3,11 +3,11 @@ A minor version is backward compatible with its predecessor, so an instance of
 the predecessor is already an instance of it: translating forward is implicit,
 and a minor version's file has no ForwardLens.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	a: string
 }
 -- ship/0.1.thema --
-schema: {
+Schema: {
 	a:  string
 	b?: int
 }

@@ -23,14 +23,14 @@ schemas: {
 }
 lenses: {
 	"0.0->1.0": {
-		input: _
-		result: {
-			v: input.m[input.k]
+		v0_0: _
+		v1_0: {
+			v: v0_0.m[v0_0.k]
 		}
 	}
 	"1.0->0.0": {
-		input: _
-		result: {
+		v1_0: _
+		v0_0: {
 			k: ""
 			m: {}
 		}
@@ -46,7 +46,7 @@ lenses: {
       "path": [
         "lenses",
         "0.0->1.0",
-        "result",
+        "v1_0",
         "v"
       ],
       "address": {
@@ -67,12 +67,12 @@ lenses: {
         "file": "lineage.cue",
         "line": 23,
         "col": 7,
-        "offset": 210,
+        "offset": 207,
         "origin": "user"
       },
       "notes": [
         {
-          "label": "v in the result of lens 0.0->1.0 reads input.m[input.k], a selection into the input the checker cannot follow (a computed index or label); select fields by name"
+          "label": "v in the result of lens 0.0->1.0 reads v0_0.m[v0_0.k], a selection into the input the checker cannot follow (a computed index or label); select fields by name"
         },
         {
           "label": "a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule unknown-reference)"
@@ -93,9 +93,9 @@ lenses: {
 error[E0385]: v in the result of lens 0.0->1.0 is not total for some instance
   --> lineage.cue:23:7
    |
-23 |             v: input.m[input.k]
-   |                ^^^^^
+23 |             v: v0_0.m[v0_0.k]
+   |                ^^^^
    |
-   = note: v in the result of lens 0.0->1.0 reads input.m[input.k], a selection into the input the checker cannot follow (a computed index or label); select fields by name
+   = note: v in the result of lens 0.0->1.0 reads v0_0.m[v0_0.k], a selection into the input the checker cannot follow (a computed index or label); select fields by name
    = note: a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule unknown-reference)
    = help: write the mapping in a form the checker can follow, or add a lacuna where it cannot decide

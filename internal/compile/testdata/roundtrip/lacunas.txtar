@@ -1,12 +1,11 @@
 lacunas: several lacunas on one mapping, a lacuna with its own when, and a
 key nested like the mapping it describes. count's first lacuna applies when
 the orelse fallback does, its second under the author's condition; name's
-applies under a condition over a field 0.0 always has. The backward lens is
-wholly derived. The totality check accepts only guards as lacuna conditions,
-not name's len(...) > 64, so the lineage does not bind (#99); out/bind records
-the finding until it does.
+applies under a condition over a field 0.0 always has, a guard the totality
+proof accepts as a boolean it can evaluate. The backward lens is wholly
+derived.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	name: string
 	meta: {
 		owner: string
@@ -14,7 +13,7 @@ schema: {
 	count?: int
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	name: string
 	meta: {
 		owner: string
@@ -55,17 +54,9 @@ ForwardLens: {
 	}
 }
 -- out/bind --
-error[E0381]: condition of a lacuna of the ForwardLens in 1.0.thema is not total for some instance
-  --> 1.0.thema:20:10
-   |
-20 |         name: [{
-   |                ^
-   |
-   = note: condition of a lacuna of the ForwardLens in 1.0.thema is len(v0_0.name) > 64, which is not a pattern: a presence test (p != _|_), an equality (p == c) or a type test ((p & T) != _|_) on a field of v0_0, or a conjunction (&&) of these
-   = note: a lens must be total: every instance of the schema in history/0.0.thema must translate to an instance of the schema in 1.0.thema (totality rule unknown-pattern)
-   = help: write the mapping in a form the checker can follow, or add a lacuna where it cannot decide
+ok
 -- out/decompiled/1.0.thema --
-schema: {
+Schema: {
 	name: string
 	meta: {
 		owner: string
@@ -106,7 +97,7 @@ ForwardLens: {
 	}
 }
 -- out/decompiled/history/0.0.thema --
-schema: {
+Schema: {
 	name: string
 	meta: {
 		owner: string
@@ -142,30 +133,30 @@ schemas: {
 }
 lenses: {
 	"0.0->1.0": {
-		input: _
-		result: {
-			name: input.name
+		v0_0: _
+		v1_0: {
+			name: v0_0.name
 			meta: {
-				owner: input.meta.owner
+				owner: v0_0.meta.owner
 				team:  "unassigned"
 			}
-			if input.count != _|_ {
-				count: input.count
+			if v0_0.count != _|_ {
+				count: v0_0.count
 			}
-			if input.count == _|_ {
+			if v0_0.count == _|_ {
 				count: 0
 			}
 		}
 		lacunas: [
 			{
-				condition: len(input.name) > 64
+				condition: len(v0_0.name) > 64
 				sourceFields: [{
 					path:  "name"
-					value: input.name
+					value: v0_0.name
 				}]
 				targetFields: [{
 					path:  "name"
-					value: result.name
+					value: v1_0.name
 				}]
 				message: "names longer than 64 characters are truncated downstream"
 				type:    "LossyFieldMapping"
@@ -173,33 +164,33 @@ lenses: {
 			{
 				targetFields: [{
 					path:  "meta.team"
-					value: result.meta.team
+					value: v1_0.meta.team
 				}]
 				message: "0.0 has no team; \"unassigned\" is a placeholder"
 				type:    "Placeholder"
 			},
 			{
-				condition: input.count == _|_
-				sourceFields: [if input.count != _|_ {
+				condition: v0_0.count == _|_
+				sourceFields: [if v0_0.count != _|_ {
 					path:  "count"
-					value: input.count
+					value: v0_0.count
 				}]
 				targetFields: [{
 					path:  "count"
-					value: result.count
+					value: v1_0.count
 				}]
 				message: "count was absent; 0 is a placeholder"
 				type:    "Placeholder"
 			},
 			{
-				condition: input.name == "legacy"
-				sourceFields: [if input.count != _|_ {
+				condition: v0_0.name == "legacy"
+				sourceFields: [if v0_0.count != _|_ {
 					path:  "count"
-					value: input.count
+					value: v0_0.count
 				}]
 				targetFields: [{
 					path:  "count"
-					value: result.count
+					value: v1_0.count
 				}]
 				message: "legacy records never recorded a count, so 0 may be real"
 				type:    "AmbiguousMapping"
@@ -207,18 +198,18 @@ lenses: {
 		]
 	}
 	"1.0->0.0": {
-		input: _
-		result: {
-			name: input.name
+		v1_0: _
+		v0_0: {
+			name: v1_0.name
 			meta:
-				owner: input.meta.owner
-			count: input.count
+				owner: v1_0.meta.owner
+			count: v1_0.count
 		}
 		lacunas: [{
 			@thema(derived)
 			sourceFields: [{
 				path:  "meta.team"
-				value: input.meta.team
+				value: v1_0.meta.team
 			}]
 			message: "meta.team has no equivalent in 0.0 and was dropped"
 			type:    "DroppedField"

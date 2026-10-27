@@ -17,20 +17,20 @@ schemas: {
 			optValStruct?: [string]: foo: string
 			refValue: [string]: _aStruct
 			someField: _aMap
-	
+
 	        aComplexMap?: {
 	            foo:      string  // foo is a string
 	            [=~"^i"]: int     // all other fields starting with i are integers
 	            [=~"^b"]: bool    // all other fields starting with b are booleans
 	            [>"c"]:   string  // all other fields lexically after c are strings
 	        }
+
+			_aMap: [string]: bool
+			_aStruct: foo:   string
 		}
 	}
 }
 lenses: {}
-
-_aMap: [string]: bool
-_aStruct: foo:   string
 -- in/validate/TestValidate/missingFields.data.json --
 {
     "aComplexMap": {

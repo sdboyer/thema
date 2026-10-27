@@ -35,33 +35,53 @@ expand: {
 
 		lenses: {
 			"0.1->0.0": {
-				input: _
-				result: {
-					init: input.init
+				v0_1: _
+				v0_0: {
+					init: v0_1.init
 				}
 			}
 			"0.2->0.1": {
-				input: _
-				result: {
-					init: input.init
-					if input.optional != _|_ {
-						optional: input.optional
+				v0_2: _
+				v0_1: {
+					init: v0_2.init
+					if v0_2.optional != _|_ {
+						optional: v0_2.optional
 					}
 				}
 			}
 			"0.3->0.2": {
-				input: _
-				result: {
-					init: input.init
-					if input.optional != _|_ {
-						optional: input.optional
+				v0_3: _
+				v0_2: {
+					init: v0_3.init
+					if v0_3.optional != _|_ {
+						optional: v0_3.optional
 					}
-					if input.withDefault != _|_ {
-						// if the value is "baz" (not allowed by the to schema), then the to
-						// schema's default value "foo" will be selected by Thema's #Translate
-						withDefault: input.withDefault
+					if v0_3.withDefault != _|_ {
+						if v0_3.withDefault != "baz" {
+							withDefault: v0_3.withDefault
+						}
+						if v0_3.withDefault == "baz" {
+							// 0.2 has no "baz"; its default stands in for it, and the
+							// lacuna below says so.
+							withDefault: "foo"
+						}
 					}
 				}
+				lacunas: [
+					thema.Lacuna & {
+						condition: (v0_3.withDefault & "baz") != _|_
+						sourceFields: [{
+							path:  "withDefault"
+							value: v0_3.withDefault
+						}]
+						targetFields: [{
+							path:  "withDefault"
+							value: v0_2.withDefault
+						}]
+						message: "withDefault was \"baz\", which 0.2 does not have; \"foo\", its default, was substituted"
+						type:    thema.LacunaTypes.LossyFieldMapping
+					},
+				]
 			}
 		}
 	}

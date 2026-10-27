@@ -1,0 +1,17 @@
+# A lacuna message interpolating an optional source field its condition does not establish.
+-- source.cue --
+a!: int
+o?: int
+-- target.cue --
+b!: int
+-- lens.cue --
+v0_0: _
+v1_0: {b: v0_0.a}
+lacunas: [{
+	sourceFields: [{path: "a", value: v0_0.a}]
+	message: "o was \(v0_0.o)"
+	type:    "DroppedField"
+}]
+-- out --
+not total
+lacunas[0].message reads v0_0.o, which may be absent: v0_0.o is optional in the source schema; add v0_0.o != _|_ to the lacuna's condition, and read it only under that test: [if v0_0.o != _|_ {...}, false][0] (rule source-absent) @ lens.cue:5:11

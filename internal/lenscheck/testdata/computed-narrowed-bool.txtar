@@ -4,8 +4,8 @@ s: string
 -- target.cue --
 b: true
 -- lens.cue --
-input: _
-result: {b: input.s == "yes"}
+v0_0: _
+v1_0: {b: v0_0.s == "yes"}
 -- out --
 not total
-result.b is a bool (input.s == "yes") that may be false, which the target schema (true) does not accept (rule computed-narrowed) @ lens.cue:2:13
+v1_0.b is a bool (v0_0.s == "yes") that may be false, which the target schema (true) does not accept (rule computed-narrowed) @ lens.cue:2:11

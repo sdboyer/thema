@@ -22,18 +22,18 @@ rename: {
 
 		lenses: {
 			"1.0->0.0": {
-				input: _
-				result: {
-					before:    input.after
-					unchanged: input.unchanged
+				v1_0: _
+				v0_0: {
+					before:    v1_0.after
+					unchanged: v1_0.unchanged
 				}
 				lacunas: []
 			}
 			"0.0->1.0": {
-				input: _
-				result: {
-					after:     input.before
-					unchanged: input.unchanged
+				v0_0: _
+				v1_0: {
+					after:     v0_0.before
+					unchanged: v0_0.unchanged
 				}
 				lacunas: []
 			}

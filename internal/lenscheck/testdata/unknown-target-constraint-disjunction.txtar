@@ -4,9 +4,9 @@ a: string
 -- target.cue --
 rootfield: {branch: 1, one: string} | {branch: 2, two: string}
 -- lens.cue --
-input: _
-result: {rootfield: {branch: 1, one: input.a}}
+v0_0: _
+v1_0: {rootfield: {branch: 1, one: v0_0.a}}
 -- out --
 unknown
-result.rootfield.branch is written beneath result.rootfield, which is a disjunction in the target schema; the checker descends only into a single struct or list, so write result.rootfield as one value (rule unknown-target-constraint) @ lens.cue:2:22
-result.rootfield.one is written beneath result.rootfield, which is a disjunction in the target schema; the checker descends only into a single struct or list, so write result.rootfield as one value (rule unknown-target-constraint) @ lens.cue:2:38
+v1_0.rootfield.branch is written beneath v1_0.rootfield, which is a disjunction in the target schema; the checker descends only into a single struct or list, so write v1_0.rootfield as one value (rule unknown-target-constraint) @ lens.cue:2:20
+v1_0.rootfield.one is written beneath v1_0.rootfield, which is a disjunction in the target schema; the checker descends only into a single struct or list, so write v1_0.rootfield as one value (rule unknown-target-constraint) @ lens.cue:2:36

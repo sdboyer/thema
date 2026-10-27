@@ -16,6 +16,7 @@ import (
 
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/diag"
+	"github.com/sdboyer/thema/lacuna"
 	"github.com/sdboyer/thema/vmux"
 )
 
@@ -223,10 +224,10 @@ func (dc *dataCommand) runTranslate(cmd *cobra.Command, args []string) error {
 }
 
 type translationResult struct {
-	From    string                   `json:"from"`
-	To      string                   `json:"to,omitempty"`
-	Result  cue.Value                `json:"result"`
-	Lacunas thema.TranslationLacunas `json:"lacunas"`
+	From    string                    `json:"from"`
+	To      string                    `json:"to,omitempty"`
+	Result  cue.Value                 `json:"result"`
+	Lacunas lacuna.TranslationLacunas `json:"lacunas"`
 }
 
 var hydrateCmd = &cobra.Command{
@@ -339,13 +340,13 @@ func pathOrStdin(args []string) ([]byte, error) {
 
 		byt, err = io.ReadAll(os.Stdin)
 		if err != nil {
-			return nil, diag.New(diag.E0613).Headline("the data on stdin cannot be read").Detail(err.Error()).Err()
+			return nil, diag.New(diag.E0613).Headline("the data on stdin cannot be read").Detail(diag.OSReason(err)).Err()
 		}
 		return byt, nil
 	case 1:
 		fi, err := os.Stat(args[0])
 		if err != nil {
-			return nil, diag.New(diag.E0613).Headlinef("the data path %s cannot be read", args[0]).Detail(err.Error()).Err()
+			return nil, diag.New(diag.E0613).Headlinef("the data path %s cannot be read", args[0]).Detail(diag.OSReason(err)).Err()
 		}
 		if fi.IsDir() {
 			return nil, diag.New(diag.E0613).Headlinef("the data path %s is a directory", args[0]).
@@ -354,13 +355,13 @@ func pathOrStdin(args []string) ([]byte, error) {
 
 		f, err := os.Open(args[0])
 		if err != nil {
-			return nil, diag.New(diag.E0613).Headlinef("the data path %s cannot be opened", args[0]).Detail(err.Error()).Err()
+			return nil, diag.New(diag.E0613).Headlinef("the data path %s cannot be opened", args[0]).Detail(diag.OSReason(err)).Err()
 		}
 		defer f.Close() // nolint: errcheck
 
 		byt, err = io.ReadAll(f)
 		if err != nil {
-			return nil, diag.New(diag.E0613).Headlinef("the data path %s cannot be read", args[0]).Detail(err.Error()).Err()
+			return nil, diag.New(diag.E0613).Headlinef("the data path %s cannot be read", args[0]).Detail(diag.OSReason(err)).Err()
 		}
 
 	default:
@@ -454,7 +455,7 @@ func (dc *dataCommand) validateDataInput(cmd *cobra.Command, args []string) erro
 
 // Everything here should become unnecessary once Thema's key invariants are in
 // place
-func (dc *dataCommand) validateTranslationResult(tinst *thema.Instance, lac thema.TranslationLacunas) error {
+func (dc *dataCommand) validateTranslationResult(tinst *thema.Instance, _ lacuna.TranslationLacunas) error {
 	if tinst == nil {
 		panic("unreachable, thema.Translate() should never return a nil instance")
 	}

@@ -174,7 +174,9 @@ func startsWithIdentifier(s string) bool {
 		}
 	}
 	switch word {
-	case "CUE", "JSON", "YAML":
+	case "CUE", "JSON", "YAML",
+		// A version file's schema field.
+		"Schema":
 		return true
 	}
 	return false

@@ -2,7 +2,7 @@
 A lens maps between a version and its predecessor. The first version has no
 predecessor, so a lens in its file has nothing to map from.
 -- ship/0.0.thema --
-schema: {
+Schema: {
 	a: string
 }
 

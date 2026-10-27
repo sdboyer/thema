@@ -4,7 +4,7 @@ s: string
 -- target.cue --
 b: bool
 -- lens.cue --
-input: _
-result: {b: input.s == "yes"}
+v0_0: _
+v1_0: {b: v0_0.s == "yes"}
 -- out --
 total

@@ -21,15 +21,15 @@ schemas: {
 }
 lenses: {
 	"0.0->1.0": {
-		input: _
-		result: {
-			l: [input.a, 1]
+		v0_0: _
+		v1_0: {
+			l: [v0_0.a, 1]
 		}
 	}
 	"1.0->0.0": {
-		input: _
-		result: {
-			a: input.l[0]
+		v1_0: _
+		v0_0: {
+			a: v1_0.l[0]
 		}
 	}
 }
@@ -43,7 +43,7 @@ lenses: {
       "path": [
         "lenses",
         "0.0->1.0",
-        "result",
+        "v1_0",
         "l"
       ],
       "address": {
@@ -64,7 +64,7 @@ lenses: {
         "file": "lineage.cue",
         "line": 22,
         "col": 4,
-        "offset": 185,
+        "offset": 182,
         "origin": "user"
       },
       "notes": [
@@ -84,7 +84,7 @@ lenses: {
 error[E0366]: l in the result of lens 0.0->1.0 is a list of 2 elements, which the target schema does not accept: incompatible list lengths (1 and 2)
   --> lineage.cue:22:4
    |
-22 |             l: [input.a, 1]
+22 |             l: [v0_0.a, 1]
    |             ^
    |
    = note: a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule literal-not-instance)

@@ -61,6 +61,37 @@ func TestLenscheckCodes(t *testing.T) {
 	}
 }
 
+// TestRefCodes: every reference rule (references.go) has its own code.
+func TestRefCodes(t *testing.T) {
+	src, err := os.ReadFile("references.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rules := regexp.MustCompile(`(?m)^\s*ref[A-Za-z]+\s+refRule = "([a-z-]+)"`).FindAllStringSubmatch(string(src), -1)
+	if len(rules) == 0 {
+		t.Fatal("no refRule constants found in references.go")
+	}
+	seen := map[diag.Code]refRule{}
+	for _, m := range rules {
+		r := refRule(m[1])
+		code, ok := refCodes[r]
+		if !ok {
+			t.Errorf("reference rule %s has no code in refCodes", r)
+			continue
+		}
+		if _, ok := diag.Lookup(code); !ok {
+			t.Errorf("reference rule %s maps to %s, which diag.Codes does not declare", r, code)
+		}
+		if prev, dup := seen[code]; dup {
+			t.Errorf("reference rules %s and %s share code %s", prev, r, code)
+		}
+		seen[code] = r
+	}
+	if len(rules) != len(refCodes) {
+		t.Errorf("refCodes has %d entries for %d rules", len(refCodes), len(rules))
+	}
+}
+
 var ruleConst = regexp.MustCompile(`(?m)^\s*Rule[A-Za-z]+ Rule = "([a-z-]+)"`)
 
 // ruleConstants reads the string values of the Rule constants declared in a

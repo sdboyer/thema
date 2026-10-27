@@ -3,11 +3,11 @@ A constant written in a lens is an instance of the target field it fills. Here
 a string is written where the target declares an int; CUE's account of the
 conflict is in the detail.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	a: string
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	a: string
 	b: int
 }

@@ -1,19 +1,19 @@
 #op: compile
-A remap's `[_]` arm collapses every value no other arm maps into one, which
+A match's `[_]` arm collapses every value no other arm matches into one, which
 loses information. It must say so, with a lacuna keyed by the mapping.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	kind: string
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	kind: int
 }
 
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		kind: remap(v0_0.kind, {
+		kind: match(v0_0.kind, {
 			"a": 1
 			[_]: 0
 		})
@@ -25,7 +25,7 @@ ForwardLens: {
     {
       "code": "E0414",
       "severity": "error",
-      "headline": "the [_] arm collapses every unmapped value into one: declare what is lost in lacunas: {kind: [{type: Type, message: \"...\"}]}",
+      "headline": "the [_] arm collapses every unmatched value into one: declare what is lost in lacunas: {kind: [{type: Type, message: \"...\"}]}",
       "primary": {
         "file": "1.0.thema",
         "line": 10,
@@ -42,7 +42,7 @@ ForwardLens: {
   }
 }
 -- out/text --
-error[E0414]: the [_] arm collapses every unmapped value into one: declare what is lost in lacunas: {kind: [{type: Type, message: "..."}]}
+error[E0414]: the [_] arm collapses every unmatched value into one: declare what is lost in lacunas: {kind: [{type: Type, message: "..."}]}
   --> 1.0.thema:10:4
    |
 10 |             [_]: 0

@@ -3,11 +3,11 @@ The lacunas field is a struct keyed like the lens body: each key names a
 mapping, and holds a list of that mapping's lacunas, or a struct of keys
 beneath it. A value of any other shape is not a lacuna declaration.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	a: string
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	a: string
 	b: int
 }

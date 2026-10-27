@@ -23,15 +23,15 @@ schemas: {
 }
 lenses: {
 	"0.0->1.0": {
-		input: _
-		result: {
-			a: input.a
+		v0_0: _
+		v1_0: {
+			a: v0_0.a
 		}
 	}
 	"1.0->0.0": {
-		input: _
-		result: {
-			a: input.a
+		v1_0: _
+		v0_0: {
+			a: v1_0.a
 		}
 	}
 }
@@ -45,7 +45,7 @@ lenses: {
       "path": [
         "lenses",
         "0.0->1.0",
-        "result",
+        "v1_0",
         "a"
       ],
       "address": {
@@ -66,12 +66,12 @@ lenses: {
         "file": "lineage.cue",
         "line": 22,
         "col": 7,
-        "offset": 194,
+        "offset": 191,
         "origin": "user"
       },
       "notes": [
         {
-          "label": "a in the result of lens 0.0->1.0 copies input.a, which is now int & <10, which does not accept every value of the prior int (compat rule value-narrowed)"
+          "label": "a in the result of lens 0.0->1.0 copies v0_0.a, which is now int & <10, which does not accept every value of the prior int (compat rule value-narrowed)"
         },
         {
           "label": "a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule copy-narrowed)"
@@ -89,8 +89,8 @@ lenses: {
 error[E0360]: a in the result of lens 0.0->1.0 is not total for some instance
   --> lineage.cue:22:7
    |
-22 |             a: input.a
-   |                ^^^^^
+22 |             a: v0_0.a
+   |                ^^^^
    |
-   = note: a in the result of lens 0.0->1.0 copies input.a, which is now int & <10, which does not accept every value of the prior int (compat rule value-narrowed)
+   = note: a in the result of lens 0.0->1.0 copies v0_0.a, which is now int & <10, which does not accept every value of the prior int (compat rule value-narrowed)
    = note: a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule copy-narrowed)

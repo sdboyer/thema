@@ -2,13 +2,13 @@
 each takes two arguments: a reference to a list in the source instance, and a
 body of mappings over `item`, applied to each element.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	items: [...{
 		title: string
 	}]
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	items: [...{
 		name: string
 	}]

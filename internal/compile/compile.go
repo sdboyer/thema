@@ -2,6 +2,8 @@ package compile
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/ast"
@@ -40,7 +42,7 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 	vals := make([]cue.Value, len(vs))
 	var errs cerrors.Error
 	for i, v := range vs {
-		sv := ctx.BuildFile(&ast.File{Decls: []ast.Decl{v.schema}}).LookupPath(cue.MakePath(cue.Str("schema")))
+		sv := ctx.BuildFile(&ast.File{Decls: []ast.Decl{v.schemaField()}}).LookupPath(cue.MakePath(cue.Str(normalSchema)))
 		if err := sv.Err(); err != nil {
 			errs = cerrors.Append(errs, diag.Convert(err, diag.Context{Op: diag.OpCompile, Generic: diag.E0112}))
 			continue
@@ -53,6 +55,7 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 
 	tip := vs[len(vs)-1]
 	out := &Compiled{Name: name, paths: make(map[thema.SyntacticVersion]string, len(vs))}
+	imports := make(map[string]bool)
 	schemas := &ast.StructLit{}
 	lenses := &ast.StructLit{}
 	majors := make(map[uint]*ast.StructLit)
@@ -65,7 +68,7 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 			majors[v.v[0]] = m
 			schemas.Elts = append(schemas.Elts, at(v.header(), &ast.Field{Label: at(v.header(), ast.NewString(fmt.Sprint(v.v[0]))), Value: m}))
 		}
-		entry := at(v.header(), &ast.StructLit{Elts: []ast.Decl{v.schema}})
+		entry := at(v.header(), &ast.StructLit{Elts: []ast.Decl{v.schemaField()}})
 		m.Elts = append(m.Elts, at(v.header(), &ast.Field{Label: at(v.header(), ast.NewString(fmt.Sprint(v.v[1]))), Value: entry}))
 
 		if i == 0 {
@@ -106,7 +109,7 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 		}
 
 		// Forward: previous version to this one. Only a major version has one.
-		fe := &edge{ctx: ctx, S: vals[i-1], T: vals[i], sv: prev.v, tv: v.v, dir: forward, file: v.path, blockPos: v.header(), root: paramName(prev.v), emitRoot: rootInput, lacunas: &lacunaTable{}}
+		fe := &edge{ctx: ctx, S: vals[i-1], T: vals[i], sv: prev.v, tv: v.v, dir: forward, file: v.path, blockPos: v.header(), root: paramName(prev.v), lacunas: &lacunaTable{}, imports: imports}
 		fb := &body{}
 		if v.forward != nil {
 			fe.written, fe.blockPos = true, v.forward.Pos()
@@ -141,7 +144,7 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 
 		// Backward: this version to the previous one, derived from the forward
 		// lens and overridden by what the author wrote.
-		be := &edge{ctx: ctx, S: vals[i], T: vals[i-1], sv: v.v, tv: prev.v, dir: backward, file: v.path, blockPos: v.header(), root: paramName(v.v), emitRoot: rootInput, lacunas: &lacunaTable{}}
+		be := &edge{ctx: ctx, S: vals[i], T: vals[i-1], sv: v.v, tv: prev.v, dir: backward, file: v.path, blockPos: v.header(), root: paramName(v.v), lacunas: &lacunaTable{}, imports: imports}
 		ab := &body{}
 		if v.backward != nil {
 			be.written, be.blockPos = true, v.backward.Pos()
@@ -163,13 +166,26 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 		return nil, errs
 	}
 
-	out.File = &ast.File{Decls: []ast.Decl{
+	out.File = &ast.File{}
+	if len(imports) > 0 {
+		// The packages the lenses' expressions call into, in a fixed order.
+		var specs []*ast.ImportSpec
+		for _, pkg := range slices.Sorted(maps.Keys(imports)) {
+			specs = append(specs, ast.NewImport(nil, pkg))
+		}
+		out.File.Decls = append(out.File.Decls, &ast.ImportDecl{Specs: specs})
+	}
+	out.File.Decls = append(out.File.Decls,
 		at(tip.header(), &ast.Field{Label: at(tip.header(), ast.NewIdent("name")), Value: at(tip.header(), ast.NewString(name))}),
 		at(tip.header(), &ast.Field{Label: at(tip.header(), ast.NewIdent("schemas")), Value: schemas}),
 		at(tip.header(), &ast.Field{Label: at(tip.header(), ast.NewIdent("lenses")), Value: lenses}),
-	}}
+	)
 	return out, nil
 }
+
+// normalSchema is the normal form's name for a version's schema field; the
+// authoring form writes it as Schema.
+const normalSchema = "schema"
 
 // paramName is the identifier a lens binds an instance of version v to:
 // v0_0 for 0.0.
@@ -234,10 +250,10 @@ func lensBlock(f *ast.Field, from, to thema.SyntacticVersion) (body, lacunas *as
 // lensField builds the lenses entry for the edge from -> to.
 func lensField(p token.Pos, from, to thema.SyntacticVersion, l *compiledLens) *ast.Field {
 	elts := []ast.Decl{
-		at(p, &ast.Field{Label: at(p, ast.NewIdent("input")), Value: at(p, ast.NewIdent("_"))}),
+		at(p, &ast.Field{Label: at(p, ast.NewIdent(paramName(from))), Value: at(p, ast.NewIdent("_"))}),
 	}
 	elts = append(elts, l.lets...)
-	elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("result")), Value: at(p, l.result)}))
+	elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent(paramName(to))), Value: at(p, l.result)}))
 	if len(l.lacunas) > 0 {
 		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("lacunas")), Value: at(p, ast.NewList(l.lacunas...))}))
 	}

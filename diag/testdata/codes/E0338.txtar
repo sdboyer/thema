@@ -1,21 +1,21 @@
 #op: compile
-A remap table is a struct of `value: value` arms, each mapping one source
-constant to one target constant, with at most one `[_]` catch-all arm. An arm's
-value that is not a constant is not one.
+A match's arms are a struct of `value: value` entries, each matching one
+source constant to one target constant, with at most one `[_]` catch-all arm.
+An arm's value that is not a constant is not one.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	kind: "a" | "b"
 	x:    int
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	kind: int
 }
 
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		kind: remap(v0_0.kind, {
+		kind: match(v0_0.kind, {
 			"a": v0_0.x
 			"b": 2
 		})
@@ -27,7 +27,7 @@ ForwardLens: {
     {
       "code": "E0338",
       "severity": "error",
-      "headline": "a remap arm's value must be a constant",
+      "headline": "a match arm's value must be a constant",
       "primary": {
         "file": "1.0.thema",
         "line": 9,
@@ -56,7 +56,7 @@ ForwardLens: {
   }
 }
 -- out/text --
-error[E0338]: a remap arm's value must be a constant
+error[E0338]: a match arm's value must be a constant
  --> 1.0.thema:9:9
   |
 9 |             "a": v0_0.x

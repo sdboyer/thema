@@ -1,19 +1,19 @@
 #op: compile
-Each arm of a remap table maps one source value; two arms for the same value
+Each arm of a match matches one source value; two arms for the same value
 would have to agree. Write each value once.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	kind: "a" | "b"
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	kind: 1 | 2
 }
 
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		kind: remap(v0_0.kind, {
+		kind: match(v0_0.kind, {
 			"a": 1
 			"a": 2
 			"b": 2
@@ -26,7 +26,7 @@ ForwardLens: {
     {
       "code": "E0350",
       "severity": "error",
-      "headline": "remap maps \"a\" twice",
+      "headline": "match has two arms for \"a\"",
       "primary": {
         "file": "1.0.thema",
         "line": 10,
@@ -43,7 +43,7 @@ ForwardLens: {
   }
 }
 -- out/text --
-error[E0350]: remap maps "a" twice
+error[E0350]: match has two arms for "a"
   --> 1.0.thema:10:4
    |
 10 |             "a": 2

@@ -6,7 +6,7 @@ b: string
 has: bool
 -- lens.cue --
 import "strings"
-input: _
-result: {b: strings.ToUpper(input.a), has: strings.HasPrefix(input.a, "x")}
+v0_0: _
+v1_0: {b: strings.ToUpper(v0_0.a), has: strings.HasPrefix(v0_0.a, "x")}
 -- out --
 total

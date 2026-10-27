@@ -2,11 +2,11 @@
 A lacuna's `when` refers to the lens's source instance and to CUE's builtins,
 and to nothing else. A bare name that is neither is undefined.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	a: string
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	a: string
 	b: int
 }
@@ -30,7 +30,7 @@ ForwardLens: {
     {
       "code": "E0418",
       "severity": "error",
-      "headline": "threshold is not defined in a lens; a condition refers to v0_0 and to CUE's builtins",
+      "headline": "threshold is not defined in a lens; an expression refers to v0_0, to len, quo, rem, div, mod and to the strings functions",
       "primary": {
         "file": "1.0.thema",
         "line": 15,
@@ -47,7 +47,7 @@ ForwardLens: {
   }
 }
 -- out/text --
-error[E0418]: threshold is not defined in a lens; a condition refers to v0_0 and to CUE's builtins
+error[E0418]: threshold is not defined in a lens; an expression refers to v0_0, to len, quo, rem, div, mod and to the strings functions
   --> 1.0.thema:15:13
    |
 15 |             when:    threshold > 1

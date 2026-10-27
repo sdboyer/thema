@@ -2,11 +2,11 @@
 Nothing attaches to a mapping. A lacuna is declared in the lens's lacunas
 field, keyed by the mapping it describes, not as an attribute on the mapping.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	firstfield: string
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	firstfield:  string
 	secondfield: int
 }

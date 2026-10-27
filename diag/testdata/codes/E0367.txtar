@@ -22,15 +22,15 @@ schemas: {
 }
 lenses: {
 	"0.0->1.0": {
-		input: _
-		result: {
-			n: input.a - 1
+		v0_0: _
+		v1_0: {
+			n: v0_0.a - 1
 		}
 	}
 	"1.0->0.0": {
-		input: _
-		result: {
-			a: input.n
+		v1_0: _
+		v0_0: {
+			a: v1_0.n
 		}
 	}
 }
@@ -40,11 +40,11 @@ lenses: {
     {
       "code": "E0367",
       "severity": "error",
-      "headline": "n in the result of lens 0.0->1.0 is input.a - 1, which may be as low as -1, where the target schema requires >=0",
+      "headline": "n in the result of lens 0.0->1.0 is v0_0.a - 1, which may be as low as -1, where the target schema requires >=0",
       "path": [
         "lenses",
         "0.0->1.0",
-        "result",
+        "v1_0",
         "n"
       ],
       "address": {
@@ -65,7 +65,7 @@ lenses: {
         "file": "lineage.cue",
         "line": 22,
         "col": 7,
-        "offset": 198,
+        "offset": 195,
         "origin": "user"
       },
       "notes": [
@@ -82,10 +82,10 @@ lenses: {
   }
 }
 -- out/text --
-error[E0367]: n in the result of lens 0.0->1.0 is input.a - 1, which may be as low as -1, where the target schema requires >=0
+error[E0367]: n in the result of lens 0.0->1.0 is v0_0.a - 1, which may be as low as -1, where the target schema requires >=0
   --> lineage.cue:22:7
    |
-22 |             n: input.a - 1
-   |                ^^^^^
+22 |             n: v0_0.a - 1
+   |                ^^^^
    |
    = note: a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule computed-narrowed)

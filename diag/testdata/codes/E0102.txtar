@@ -2,7 +2,7 @@
 A version file is CUE syntax. CUE's parser found something it could not read;
 its account is in the detail, positioned where parsing failed.
 -- ship/0.0.thema --
-schema: {
+Schema: {
 	a: string
 -- out/json --
 {

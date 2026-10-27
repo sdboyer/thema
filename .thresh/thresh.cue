@@ -135,7 +135,7 @@ seams: "embedded-module-root": {
 // translation emits is decoded into it.
 seams: "lacuna-types": {
 	kind:  "shared-kernel"
-	paths: ["lacuna.go"]
+	paths: ["lacuna/lacuna.go"]
 	consult: [
 		"LacunaTypes in lacuna.cue (lockstep test TestLacunaTypesMatchCUE)",
 		"instance.go Translate, which decodes the lacunas of every step into these types",
@@ -168,18 +168,19 @@ seams: "cue-dependency": {
 }
 
 // Error positions are chosen by telling thema's own CUE apart from the author's
-// by path. thema's CUE reaches the evaluator at one path, embedreg.Root(): the
-// embedded module's root for lineages that import thema, and the Runtime's load
-// path for everything BindLineage unifies with thema.Lineage itself and for
-// every pseudofunction call such as Translate. Every diag.Pos carries an origin
-// decided by that path.
+// by path. thema's CUE reaches the evaluator at two paths: embedreg.Root(), the
+// embedded module's root, for lineages that import thema, and
+// embedreg.RuntimeRoot(), the Runtime's load path, for everything BindLineage
+// unifies with thema.Lineage itself and for every pseudofunction call such as
+// Translate. Every diag.Pos carries an origin decided by those paths, and
+// diagnostics show a file under either as thema/<file>.
 seams: "kernel-paths": {
 	kind:  "shared-kernel"
 	paths: ["runtime.go"]
 	consult: [
-		"diag/pos.go (origin of every position) and diag.AuthorPos, which recognize thema's CUE only at embedreg.Root(); bind.go userPos wraps AuthorPos",
+		"internal/embedreg IsKernel, IsKernelFile, KernelPath and AuthorPos, which recognize thema's CUE only at embedreg.Root() and embedreg.RuntimeRoot(); diag/pos.go, which classifies every position's origin through them, and diag.AuthorPos; every error position bind.go takes through them",
 		"internal/compile classify, and the kernel positions in its pipeline goldens",
-		"diag/render.go and cmd/thema readSource, which display and read thema's files by that root",
+		"diag/render.go and cmd/thema readSource, which display and read thema's files by those roots",
 	]
 }
 
@@ -270,6 +271,7 @@ seams: "go-residual-checks": {
 		checkUnknownFields:    "unknown lineage/schema/lens fields, and schemas/lenses keys that aren't versions/edges; CUE rejects them too, but positions the error at its guard in thema's CUE, while Go can point at the author's line. Known fields are read from thema's CUE, not duplicated"
 		checkLensTotality:     "every CUE lens must map every instance of its source schema to an instance of its target: a quantified claim over instances, which CUE can only evaluate one instance at a time. The walk (internal/lenscheck) reads each lens's syntax, judges copies with the compat checker and bounds through Expr(), and treats what it cannot decide as an error"
 		checkSchemaConstructs: "no comprehensions or reference cycles in a schema: CUE evaluates both happily, but no later check (compat, lens results, lacunas) can describe a schema whose fields depend on evaluation or whose paths are unbounded; refused before any of them runs, and reported at the construct"
+		checkReferences:       "a schema refers only to its own body and CUE's builtin packages, a lens only to the instance it takes, its own body and those packages: CUE resolves a reference to anything in lexical scope, so a sibling schema, the lineage's name, a helper beside the lineage or another package all evaluate without complaint, and each can change a published schema's meaning without its text changing. Read from each schema's and lens's syntax, because lets, pending comprehensions and index expressions hide references from the value API"
 	}
 }
 

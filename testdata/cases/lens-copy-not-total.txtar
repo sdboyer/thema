@@ -18,10 +18,10 @@ lin: thema.Lineage & {
 	}
 	lenses: {
 		"1.0->0.0": {
-			input: _, result: {a: input.a}
+			v1_0: _, v0_0: {a: v1_0.a}
 		}
 		"0.0->1.0": {
-			input: _, result: input
+			v0_0: _, v1_0: v0_0
 		}
 	}
 }

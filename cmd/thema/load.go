@@ -17,6 +17,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/authoring"
 	"github.com/sdboyer/thema/diag"
 	terrors "github.com/sdboyer/thema/errors"
 	"github.com/sdboyer/thema/internal/util"
@@ -100,7 +101,7 @@ func (lla *lineageLoadArgs) dynLoad() (*dynamicLoader, error) {
 	var err error
 	lla.absInput, err = filepath.Abs(lla.inputLinFilePath)
 	if err != nil {
-		return nil, diag.New(diag.E0601).Headlinef("%s cannot be resolved to a path", lla.inputLinFilePath).Detail(err.Error()).Err()
+		return nil, diag.New(diag.E0601).Headlinef("%s cannot be resolved to a path", lla.inputLinFilePath).Detail(diag.OSReason(err)).Err()
 	}
 
 	var binsts []*build.Instance
@@ -116,11 +117,25 @@ func (lla *lineageLoadArgs) dynLoad() (*dynamicLoader, error) {
 	if err != nil {
 		b := diag.New(diag.E0601).Headlinef("%s does not exist", lla.inputLinFilePath)
 		if !errors.Is(err, os.ErrNotExist) {
-			b.Headlinef("%s cannot be read", lla.inputLinFilePath).Detail(err.Error())
+			b.Headlinef("%s cannot be read", lla.inputLinFilePath).Detail(diag.OSReason(err))
 		}
 		return nil, b.Help("pass the path to a .cue file or a directory with -l").Err()
 	}
 	lla.pathIsDir = info.IsDir()
+
+	if lla.pathIsDir && isAuthoringDir(lla.absInput) {
+		// A lineage in the authoring form: compiled to the normal form and
+		// bound, with errors positioned in its files.
+		if lla.skipBindLineage {
+			return nil, diag.InternalErr(fmt.Errorf("%s is a lineage in the authoring form, which a command that skips binding does not take", lla.inputLinFilePath))
+		}
+		dl.lin, err = tload.AuthoringLineage(os.DirFS(filepath.Dir(lla.absInput)), filepath.Base(lla.absInput), rt)
+		if err != nil {
+			return nil, err
+		}
+		return lla.attachSchema(dl)
+	}
+
 	dl.cm, err = findCueMod(lla.absInput)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
@@ -188,8 +203,28 @@ func (lla *lineageLoadArgs) dynLoad() (*dynamicLoader, error) {
 		return nil, err
 	}
 
-	// Now attach the schema - other validators can decide if what we loaded here
-	// was OK (i.e. if command required explicit input)
+	return lla.attachSchema(dl)
+}
+
+// isAuthoringDir reports whether dir holds a lineage in the authoring form:
+// a version file at its top level.
+func isAuthoringDir(dir string) bool {
+	ents, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	for _, e := range ents {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), authoring.Ext) {
+			return true
+		}
+	}
+	return false
+}
+
+// attachSchema attaches the requested schema, or the latest, to the loaded
+// lineage. Other validators decide whether what was loaded is acceptable
+// (i.e. if the command required explicit input).
+func (lla *lineageLoadArgs) attachSchema(dl *dynamicLoader) (*dynamicLoader, error) {
 	if lla.verstr == "" {
 		dl.sch = dl.lin.Latest()
 	} else {
@@ -245,7 +280,7 @@ func (lla *lineageLoadArgs) validateVersionInputOptional(cmd *cobra.Command, arg
 func findCueMod(path string) (*parentCueMod, error) {
 	stat, err := os.Stat(path)
 	if err != nil {
-		return nil, diag.New(diag.E0601).Headlinef("%s cannot be read", path).Detail(err.Error()).Err()
+		return nil, diag.New(diag.E0601).Headlinef("%s cannot be read", path).Detail(diag.OSReason(err)).Err()
 	}
 	if !stat.IsDir() {
 		path = filepath.Dir(path)
@@ -269,7 +304,7 @@ func findCueMod(path string) (*parentCueMod, error) {
 			}, nil
 		}
 		if !errors.Is(err, os.ErrNotExist) {
-			return nil, diag.New(diag.E0606).Headlinef("%s cannot be read", displayPath(mpath)).Detail(err.Error()).Err()
+			return nil, diag.New(diag.E0606).Headlinef("%s cannot be read", displayPath(mpath)).Detail(diag.OSReason(err)).Err()
 		}
 	}
 	return nil, os.ErrNotExist

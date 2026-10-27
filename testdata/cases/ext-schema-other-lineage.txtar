@@ -1,0 +1,25 @@
+# a schema is borrowed from another lineage's latest schema: it is declared
+# outside the lineage (rule ref-outside-lineage), and changes whenever the
+# other lineage grows. Sharing a schema across lineages is future work; for
+# now each lineage declares its own.
+#issue: 21
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+other: thema.Lineage & {
+	name: "other"
+	schemas: {
+		"0": "0": {schema: {a: int}}
+	}
+}
+
+lin: thema.Lineage & {
+	name: "extSchemaOtherLineage"
+	schemas: {
+		"0": "0": {
+			schema: other.schemas["0"]["\(len(other.schemas["0"])-1)"].schema
+		}
+	}
+}
+-- expect --
+bind fail ref-outside-lineage

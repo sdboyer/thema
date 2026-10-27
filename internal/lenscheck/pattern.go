@@ -32,20 +32,30 @@ const (
 // classified so that the walk can refine the source beneath it and compare
 // patterns to one another.
 type pattern struct {
+	// root names the lens field the path is beneath, for messages.
+	root string
 	kind patternKind
 	path cue.Path // the input path tested
 	neg  bool
 	lit  string    // equality: the literal; typeTest: the type, as written
 	val  cue.Value // the literal or type
 	text string    // opaque: the condition as written
+	// safe is set for an equality written as a type test, (p & c) != _|_,
+	// which is false rather than an error where p is absent.
+	safe bool
 }
 
-// key identifies the condition, for comparing patterns.
+// key identifies the condition, for comparing patterns: the kind, path and
+// polarity, and the literal or type by its value, so that == 1 and != 0x1 are
+// a pattern and its negation.
 func (g pattern) key() string {
-	if g.kind == opaque {
+	switch g.kind {
+	case opaque:
 		return "opaque|" + g.text
+	case presence:
+		return fmt.Sprintf("%d|%s|%v", g.kind, g.path, g.neg)
 	}
-	return fmt.Sprintf("%d|%s|%v|%s", g.kind, g.path, g.neg, g.lit)
+	return fmt.Sprintf("%d|%s|%v|%s", g.kind, g.path, g.neg, fmtv(g.val))
 }
 
 func (g pattern) negated() pattern {
@@ -54,7 +64,7 @@ func (g pattern) negated() pattern {
 }
 
 func (g pattern) String() string {
-	p := inputRef(g.path)
+	p := rootRef(g.root, g.path)
 	switch g.kind {
 	case presence:
 		if g.neg {
@@ -62,6 +72,12 @@ func (g pattern) String() string {
 		}
 		return p + " != _|_"
 	case equality:
+		if g.safe {
+			if g.neg {
+				return "(" + p + " & " + g.lit + ") == _|_"
+			}
+			return "(" + p + " & " + g.lit + ") != _|_"
+		}
 		if g.neg {
 			return p + " != " + g.lit
 		}
@@ -109,9 +125,22 @@ func describePatternSets(sets [][]pattern) string {
 }
 
 // parsePattern classifies a condition: a presence test, an equality or a type
-// test on an input path, or a conjunction (&&) of these. Operands are matched
+// test on an input path, a bool input path (the equality with true), the
+// negation of one of these, or a conjunction (&&) of them. Operands are matched
 // in either order, since export may reorder them.
 func (w *walker) parsePattern(x ast.Expr) ([]pattern, bool) {
+	if p, ok := w.pathOf(x); ok {
+		src := w.lookupSource(p, nil)
+		if !src.declared || len(src.branches) == 0 {
+			return nil, false
+		}
+		for _, b := range src.branches {
+			if b.IncompleteKind() != cue.BoolKind {
+				return nil, false
+			}
+		}
+		return []pattern{{root: w.from, kind: equality, path: p, lit: trueName, val: w.ctx.CompileString(trueName)}}, true
+	}
 	switch e := x.(type) {
 	case *ast.ParenExpr:
 		return w.parsePattern(e.X)
@@ -132,7 +161,7 @@ func (w *walker) parsePattern(x ast.Expr) ([]pattern, bool) {
 			if other, ok := bottomSide(e); ok {
 				neg := e.Op == token.EQL
 				if p, ok := w.pathOf(other); ok {
-					return []pattern{{kind: presence, path: p, neg: neg}}, true
+					return []pattern{{root: w.from, kind: presence, path: p, neg: neg}}, true
 				}
 				if be, ok := stripParens(other).(*ast.BinaryExpr); ok && be.Op == token.AND {
 					for _, pair := range [][2]ast.Expr{{be.X, be.Y}, {be.Y, be.X}} {
@@ -143,10 +172,10 @@ func (w *walker) parsePattern(x ast.Expr) ([]pattern, bool) {
 						// (p & c) != _|_ for a literal c is p == c: input is data,
 						// so the unification succeeds exactly when p holds c.
 						if lv, ok := w.literalValue(pair[1]); ok {
-							return []pattern{{kind: equality, path: p, neg: neg, lit: text(pair[1]), val: lv}}, true
+							return []pattern{{root: w.from, kind: equality, path: p, neg: neg, lit: text(pair[1]), val: lv, safe: true}}, true
 						}
 						if tv, ok := w.constraintValue(pair[1]); ok {
-							return []pattern{{kind: typeTest, path: p, neg: neg, lit: text(pair[1]), val: tv}}, true
+							return []pattern{{root: w.from, kind: typeTest, path: p, neg: neg, lit: text(pair[1]), val: tv}}, true
 						}
 					}
 				}
@@ -158,7 +187,7 @@ func (w *walker) parsePattern(x ast.Expr) ([]pattern, bool) {
 					continue
 				}
 				if lv, ok := w.literalValue(pair[1]); ok {
-					return []pattern{{kind: equality, path: p, neg: e.Op == token.NEQ, lit: text(pair[1]), val: lv}}, true
+					return []pattern{{root: w.from, kind: equality, path: p, neg: e.Op == token.NEQ, lit: text(pair[1]), val: lv}}, true
 				}
 			}
 		}
@@ -237,8 +266,9 @@ func (w *walker) constraintValue(x ast.Expr) (cue.Value, bool) {
 }
 
 // checkPatterns checks the patterns gs, applied where outer already hold: an
-// equality tests a path that must be present (an absent operand is an error,
-// not false), and every tested path must be declared.
+// equality p == c tests a path that must be present (an absent operand is an
+// error, not false; the form (p & c) != _|_ is false there), and every tested
+// path must be declared.
 func (w *walker) checkPatterns(gs, outer []pattern, subj string, pos token.Pos) {
 	for _, g := range gs {
 		if g.kind == opaque {
@@ -247,21 +277,35 @@ func (w *walker) checkPatterns(gs, outer []pattern, subj string, pos token.Pos) 
 		src := w.lookupSource(g.path, outer)
 		if !src.declared {
 			w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleSourceUndeclared,
-				Detail: fmt.Sprintf("is under the pattern %s, but the source schema does not declare %s", g, inputRef(g.path)), Pos: pos})
+				Detail: fmt.Sprintf("is under the pattern %s, but the source schema does not declare %s", g, w.inputRef(g.path)), Pos: pos})
 			continue
 		}
-		if g.kind == equality && !src.present {
+		if g.kind != equality {
+			continue
+		}
+		if !src.present && !g.safe {
 			w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RulePatternAbsent,
-				Detail: fmt.Sprintf("is under the pattern %s, but %s may be absent (%s), and comparing an absent field is an error rather than false; test presence first: if %s != _|_", g, inputRef(g.path), src.why, inputRef(g.path)), Pos: pos})
+				Detail: fmt.Sprintf("is under the pattern %s, but %s may be absent (%s), and comparing an absent field is an error rather than false; test presence first: if %s != _|_", g, w.inputRef(g.path), src.why, w.inputRef(g.path)), Pos: pos})
+		}
+		for _, b := range src.branches {
+			if b.IncompleteKind()&cue.FloatKind != 0 {
+				// CUE compares numbers by value: 5.0 == 5. The equality holds
+				// for a float the path may hold, and says nothing about its kind.
+				w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownPattern,
+					Detail: fmt.Sprintf("is under the pattern %s, but %s may be a float, and CUE compares numbers by value (5.0 == 5), so the equality does not say what %s holds; test its type first: if (%s & int) != _|_", g, w.inputRef(g.path), w.inputRef(g.path), w.inputRef(g.path)), Pos: pos})
+				break
+			}
 		}
 	}
 }
 
 // establishes reports whether gs establish that input path p is present: a
-// presence or type test (not negated) on p or a path beneath it.
+// presence test, type test or equality (not negated) on p or a path beneath
+// it. An equality that holds compared a present value (an absent one is an
+// error, or false in the (p & c) != _|_ form).
 func establishes(gs []pattern, p cue.Path) bool {
 	for _, g := range gs {
-		if (g.kind == presence || g.kind == typeTest) && !g.neg && cuetil.PathHasPrefix(g.path, p) {
+		if g.kind != opaque && !g.neg && cuetil.PathHasPrefix(g.path, p) {
 			return true
 		}
 	}
@@ -269,10 +313,12 @@ func establishes(gs []pattern, p cue.Path) bool {
 }
 
 // refine narrows the alternatives of the source at p by the patterns on exactly
-// p: an equality fixes the value, a negated one removes a constant
+// p: an equality keeps each alternative unified with the literal (none, where
+// no alternative admits it: the arm is dead), a negated one removes a constant
 // alternative, a type test keeps what unifies with the type, a negated one
-// drops the alternatives the type subsumes. It reports whether any pattern
-// applied.
+// drops the alternatives the type subsumes. An alternative that may be a float
+// is not fixed by an equality (checkPatterns reports it). It reports whether
+// any pattern applied.
 func refine(branches []cue.Value, p cue.Path, gs []pattern) ([]cue.Value, bool) {
 	refined := false
 	for _, g := range gs {
@@ -283,7 +329,15 @@ func refine(branches []cue.Value, p cue.Path, gs []pattern) ([]cue.Value, bool) 
 		var out []cue.Value
 		switch {
 		case g.kind == equality && !g.neg:
-			out = []cue.Value{g.val}
+			for _, b := range branches {
+				if b.IncompleteKind()&cue.FloatKind != 0 {
+					out = append(out, b)
+					continue
+				}
+				if u := b.Unify(g.val); u.Validate(cue.Concrete(true)) == nil {
+					out = append(out, u)
+				}
+			}
 		case g.kind == equality && g.neg:
 			for _, b := range branches {
 				if compat.ConstantTarget(b) && cuetil.Equal(b, g.val) == nil {
@@ -324,10 +378,11 @@ func patternsHavePrefix(gs, prefix []pattern) bool {
 	return true
 }
 
-// patternsImplied reports whether every pattern in gs is among have.
+// patternsImplied reports whether every pattern in gs is among have, or is a
+// presence test that have establish.
 func patternsImplied(have, gs []pattern) bool {
 	for _, g := range gs {
-		found := false
+		found := g.kind == presence && !g.neg && establishes(have, g.path)
 		for _, h := range have {
 			if h.key() == g.key() && g.kind != opaque {
 				found = true
@@ -408,7 +463,8 @@ func (w *walker) covers(cands [][]pattern) bool {
 // coverSet reports whether the patterns, all on one input path, together hold for
 // every instance: a pattern and its negation; type tests one of which subsumes
 // each alternative of the path; or equalities with every alternative of the
-// path, each a constant. The latter two need the path present.
+// path, each a constant, or with both true and false for a bool alternative.
+// The latter two need the path present.
 func (w *walker) coverSet(firsts []pattern) bool {
 	for i, a := range firsts {
 		for _, b := range firsts[i+1:] {
@@ -430,7 +486,8 @@ func (w *walker) coverSet(firsts []pattern) bool {
 		return false
 	}
 	for _, b := range src.branches {
-		ok := false
+		ok := allEq && b.IncompleteKind() == cue.BoolKind && !compat.ConstantTarget(b) &&
+			w.hasEquality(firsts, trueName) && w.hasEquality(firsts, falseName)
 		for _, g := range firsts {
 			if allTypes && g.val.Subsume(b, cue.Raw()) == nil {
 				ok = true
@@ -446,4 +503,16 @@ func (w *walker) coverSet(firsts []pattern) bool {
 		}
 	}
 	return true
+}
+
+// hasEquality reports whether one of the patterns is an equality with the
+// literal lit.
+func (w *walker) hasEquality(gs []pattern, lit string) bool {
+	v := w.ctx.CompileString(lit)
+	for _, g := range gs {
+		if g.kind == equality && !g.neg && cuetil.Equal(g.val, v) == nil {
+			return true
+		}
+	}
+	return false
 }

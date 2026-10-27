@@ -3,13 +3,13 @@ A lacuna applies under the condition its mapping implies; an each implies
 none, since it maps every element. A lacuna on an each says when it applies
 with `when`.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	items: [...{
 		title: string
 	}]
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	items: [...{
 		name: string
 	}]

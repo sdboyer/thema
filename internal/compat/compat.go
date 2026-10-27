@@ -173,17 +173,20 @@ func (r Result) Compatible() bool {
 }
 
 // Instances keeps only the findings about clause 1 of compatibility: whether
-// every instance of the predecessor is an instance of the successor. Findings
-// about defaults alone (default-removed, default-changed) are dropped: they
-// concern what an absent field means, not which instances are accepted.
+// every instance of the predecessor is an instance of the successor. A
+// default-removed finding is dropped: it concerns what an absent field means,
+// not which instances are accepted. A default-changed finding is kept: an
+// instance that omits the field carries the predecessor's default as a
+// disjunction (*1 | int), which unified with the successor's (*2 | int) has
+// two defaults and no value.
 //
-// A lens copy is judged by this clause: the copied value is present data, so
-// what the target would fill in for an absent field does not apply to it.
+// A lens copy is judged by this clause. Translate fills the lens's input with
+// the instance unified with the source schema, so a copied field the instance
+// omitted arrives as that disjunction, not as the default itself.
 func (r Result) Instances() Result {
 	var out Result
 	for _, f := range r.Findings {
-		switch f.Rule {
-		case RuleDefaultRemoved, RuleDefaultChanged:
+		if f.Rule == RuleDefaultRemoved {
 			continue
 		}
 		out.Findings = append(out.Findings, f)
@@ -955,7 +958,7 @@ func packageMember(v cue.Value) (string, bool) {
 			bi = root.BuildInstance()
 		}
 	}
-	if bi == nil || !isBuiltinPackage(bi.ImportPath) {
+	if bi == nil || !IsBuiltinPackage(bi.ImportPath) {
 		return "", false
 	}
 	name, err := args[1].String()
@@ -965,9 +968,9 @@ func packageMember(v cue.Value) (string, bool) {
 	return bi.ImportPath + "." + name, true
 }
 
-// isBuiltinPackage reports whether an import path names one of CUE's builtin
+// IsBuiltinPackage reports whether an import path names one of CUE's builtin
 // packages: their first element has no dot, unlike a module path.
-func isBuiltinPackage(path string) bool {
+func IsBuiltinPackage(path string) bool {
 	first, _, _ := strings.Cut(path, "/")
 	return first != "" && !strings.Contains(first, ".")
 }

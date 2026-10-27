@@ -2,11 +2,11 @@
 A lens block is a struct: `{v<from>: _, v<to>: {...}}`, declaring the instance
 the lens takes and the body that produces the instance it returns.
 -- ship/0.0.thema --
-schema: {
+Schema: {
 	a: string
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	a: string
 	b: int
 }

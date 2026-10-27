@@ -45,7 +45,7 @@ error[E0243]: schema 0.0 differs from the published one
     |                   - here
     |
     = note: in thema's own CUE
-     --> thema/lineage.cue:170:11
+     --> thema/lineage.cue:177:11
     = detail: field dat not present in {run:string,tell:bytes,dat?:int32}
               field #Baz not present in {someField:string,#Baz:{run:string,tell:bytes,dat?:int32}}
               missing field "#Baz"

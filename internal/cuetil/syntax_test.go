@@ -75,7 +75,7 @@ func TestLensResultClassification(t *testing.T) {
 			if err := v.Err(); err != nil {
 				t.Fatal(err)
 			}
-			ls, err := ParseLens(v)
+			ls, err := ParseLens(v, "input", "result")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -129,7 +129,7 @@ func TestLensSyntaxConstructionIndependent(t *testing.T) {
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
-			ls, err := ParseLens(mk())
+			ls, err := ParseLens(mk(), "input", "result")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -153,7 +153,7 @@ func TestLacunasConditional(t *testing.T) {
 		"_l\n_l: [{message: \"m\"}, if true {{}}]": true,
 	} {
 		v := ctx.CompileString("lens: {input: _, result: _, lacunas: " + lacunas + "}").LookupPath(cue.ParsePath("lens"))
-		ls, err := ParseLens(v)
+		ls, err := ParseLens(v, "input", "result")
 		if err != nil {
 			t.Fatal(err)
 		}

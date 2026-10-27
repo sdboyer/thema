@@ -1,7 +1,9 @@
 package diag
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"strings"
 
 	cerrors "cuelang.org/go/cue/errors"
@@ -92,6 +94,17 @@ func AddHelp(err error, help string) {
 			de.d.Help = append(de.d.Help, help)
 		}
 	}
+}
+
+// OSReason is the reason an operating system call failed, without the path a
+// *fs.PathError repeats: the detail for a diagnostic whose headline already
+// names the file, in the author's terms rather than as an absolute path.
+func OSReason(err error) string {
+	var pe *fs.PathError
+	if errors.As(err, &pe) {
+		return pe.Err.Error()
+	}
+	return err.Error()
 }
 
 // Diagnostics returns the diagnostics carried by err: those of every [Error]

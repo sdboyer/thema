@@ -4,11 +4,11 @@ lens takes an instance of 0.0 and produces an instance of 1.0, with an optional
 `lacunas: {...}`. Here the instance it takes is given a type, where it must be
 `_`: the lens takes any instance of its source version.
 -- ship/0.0.thema --
-schema: {
+Schema: {
 	a: string
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	a: string
 	b: int
 }

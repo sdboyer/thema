@@ -42,7 +42,7 @@ var nameOpts = map[string][]thema.BindOption{
 	"disjunct":      {thema.SkipBuggyChecks()},
 	"narrowing":     {},
 	"rename":        {},
-	"expand":        {thema.SkipBuggyChecks()}, // #87: lens 0.3->0.2 drops "baz" (copy-narrowed)
+	"expand":        {},
 	"single":        {},
 }
 
@@ -145,7 +145,7 @@ func harnessForExemplar(name string, rt *thema.Runtime) cue.Value {
 // Build a Lineage representing a single exemplar.
 func lineageForExemplar(name string, rt *thema.Runtime, o ...thema.BindOption) (thema.Lineage, error) {
 	switch name {
-	case "defaultchange", "narrowing", "rename", "expand":
+	case "defaultchange", "narrowing", "rename":
 		o = append(o, thema.SkipBuggyChecks())
 	}
 	return thema.BindLineage(harnessForExemplar(name, rt), rt, o...)

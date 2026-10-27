@@ -4,11 +4,11 @@ k: string
 -- target.cue --
 a?: string
 -- lens.cue --
-input: _
-result: {if (input.k & "x") != _|_ {a: "1"}}
+v0_0: _
+v1_0: {if (v0_0.k & "x") != _|_ {a: "1"}}
 lacunas: [{
-	condition: input.k == "x"
-	targetFields: [{path: "a", value: result.a}]
+	condition: v0_0.k == "x"
+	targetFields: [{path: "a", value: v1_0.a}]
 	message: "set"
 	type: "Placeholder"
 }]

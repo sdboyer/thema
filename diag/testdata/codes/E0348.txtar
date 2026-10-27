@@ -2,11 +2,11 @@
 orelse supplies a fallback for a field that may be absent. Over a field the
 source always has, the fallback could never apply; write the reference alone.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	a: string
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	b: string
 }
 

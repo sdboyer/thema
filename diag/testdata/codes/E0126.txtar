@@ -36,10 +36,10 @@ schemas: {
       "notes": [
         {
           "pos": {
-            "file": "/github.com/sdboyer/thema@v0.1.0/lineage.cue",
-            "line": 26,
+            "file": "/github.com/sdboyer/thema/lineage.cue",
+            "line": 27,
             "col": 9,
-            "offset": 1039,
+            "offset": 1049,
             "origin": "thema"
           },
           "label": "in thema's own CUE"
@@ -62,5 +62,5 @@ error[E0126]: the lineage is not an instance of thema.Lineage
    |       ^
    |
    = note: in thema's own CUE
-    --> thema/lineage.cue:26:9
+    --> thema/lineage.cue:27:9
    = detail: name: conflicting values 5 and =~"^[A-Za-z][A-Za-z0-9]*$" (mismatched types int and string)

@@ -3,15 +3,14 @@ package thema
 import (
 	"fmt"
 	"reflect"
-	"sort"
 	"strings"
 	"testing"
 
-	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	cerrors "cuelang.org/go/cue/errors"
 
 	"github.com/sdboyer/thema/diag"
+	"github.com/sdboyer/thema/lacuna"
 )
 
 // renderedDiagnostics is everything err's diagnostics say, as text, for
@@ -39,29 +38,29 @@ const lacunaLineage = `lin: thema.Lineage & {
 	}
 	lenses: {
 		"0.1->0.0": {
-			input: _
-			result: a: input.a
+			v0_1: _
+			v0_0: a: v0_1.a
 			lacunas: [thema.Lacuna & {
-				condition: input.note != _|_
-				sourceFields: [{path: "note", value: input.note}]
+				condition: v0_1.note != _|_
+				sourceFields: [{path: "note", value: v0_1.note}]
 				message: "note dropped"
 				type: thema.LacunaTypes.DroppedField
 			}]
 		}
 		"1.0->0.1": {
-			input: _
-			result: a: input.a
+			v1_0: _
+			v0_1: a: v1_0.a
 			lacunas: [thema.Lacuna & {
-				sourceFields: [{path: "id", value: input.id}]
+				sourceFields: [{path: "id", value: v1_0.id}]
 				message: "id dropped"
 				type: thema.LacunaTypes.DroppedField
 			}]
 		}
 		"0.1->1.0": {
-			input: _
-			result: {a: input.a, id: -1}
+			v0_1: _
+			v1_0: {a: v0_1.a, id: -1}
 			lacunas: [thema.Lacuna & {
-				targetFields: [{path: "id", value: result.id}]
+				targetFields: [{path: "id", value: v1_0.id}]
 				message: "-1 is a placeholder"
 				type: thema.LacunaTypes.Placeholder
 			}]
@@ -78,12 +77,12 @@ func TestLacunaEmission(t *testing.T) {
 
 	type step struct {
 		from, to SyntacticVersion
-		types    []LacunaType
+		types    []lacuna.Type
 	}
-	steps := func(tl TranslationLacunas) []step {
+	steps := func(tl lacuna.TranslationLacunas) []step {
 		var out []step
 		for _, s := range tl {
-			st := step{from: s.From, to: s.To}
+			st := step{from: SyntacticVersion(s.From), to: SyntacticVersion(s.To)}
 			for _, l := range s.Lacunas {
 				st.types = append(st.types, l.Type)
 			}
@@ -99,13 +98,13 @@ func TestLacunaEmission(t *testing.T) {
 		want []step
 	}{
 		"condition false": {SV(0, 1), `{a: "x"}`, SV(0, 0), []step{{SV(0, 1), SV(0, 0), nil}}},
-		"condition true":  {SV(0, 1), `{a: "x", note: "n"}`, SV(0, 0), []step{{SV(0, 1), SV(0, 0), []LacunaType{LacunaDroppedField}}}},
+		"condition true":  {SV(0, 1), `{a: "x", note: "n"}`, SV(0, 0), []step{{SV(0, 1), SV(0, 0), []lacuna.Type{lacuna.DroppedField}}}},
 		"forward, multi-step": {SV(0, 0), `{a: "x"}`, SV(1, 0), []step{
 			{SV(0, 0), SV(0, 1), nil},
-			{SV(0, 1), SV(1, 0), []LacunaType{LacunaPlaceholder}},
+			{SV(0, 1), SV(1, 0), []lacuna.Type{lacuna.Placeholder}},
 		}},
 		"backward, multi-step": {SV(1, 0), `{a: "x", id: 3}`, SV(0, 0), []step{
-			{SV(1, 0), SV(0, 1), []LacunaType{LacunaDroppedField}},
+			{SV(1, 0), SV(0, 1), []lacuna.Type{lacuna.DroppedField}},
 			{SV(0, 1), SV(0, 0), nil},
 		}},
 		"identity": {SV(0, 0), `{a: "x"}`, SV(0, 0), nil},
@@ -152,8 +151,8 @@ func TestLacunaBindChecks(t *testing.T) {
 		"1": schema: {a: string, nested: {x: int}, b?: int}
 	}
 	lenses: "0.1->0.0": {
-		input: _
-		result: {a: input.a, nested: input.nested}
+		v0_1: _
+		v0_0: {a: v0_1.a, nested: v0_1.nested}
 		lacunas: ` + lacunas + `
 	}
 }`
@@ -163,10 +162,10 @@ func TestLacunaBindChecks(t *testing.T) {
 		lacunas string
 		errText string
 	}{
-		"well-formed":                    {`[thema.Lacuna & {condition: input.b != _|_, sourceFields: [{path: "b", value: input.b}], targetFields: [{path: "nested.x", value: result.nested.x}], message: "m", type: "DroppedField"}]`, ""},
-		"value may be absent":            {`[thema.Lacuna & {sourceFields: [{path: "b", value: input.b}], message: "m", type: "DroppedField"}]`, "source-absent"},
-		"conditional list":               {`[if input.b != _|_ {thema.Lacuna & {message: "m", type: "DroppedField"}}]`, "listed unconditionally"},
-		"conditional list via let":       {"L\n\t\tlet L = [if input.b != _|_ {thema.Lacuna & {message: \"m\", type: \"DroppedField\"}}]", "listed unconditionally"},
+		"well-formed":                    {`[thema.Lacuna & {condition: v0_1.b != _|_, sourceFields: [{path: "b", value: v0_1.b}], targetFields: [{path: "nested.x", value: v0_0.nested.x}], message: "m", type: "DroppedField"}]`, ""},
+		"value may be absent":            {`[thema.Lacuna & {sourceFields: [{path: "b", value: v0_1.b}], message: "m", type: "DroppedField"}]`, "source-absent"},
+		"conditional list":               {`[if v0_1.b != _|_ {thema.Lacuna & {message: "m", type: "DroppedField"}}]`, "listed unconditionally"},
+		"conditional list via let":       {"L\n\t\tlet L = [if v0_1.b != _|_ {thema.Lacuna & {message: \"m\", type: \"DroppedField\"}}]", "listed unconditionally"},
 		"source path not in from schema": {`[thema.Lacuna & {sourceFields: [{path: "nope", value: 1}], message: "m", type: "DroppedField"}]`, `names nope in sourceFields[0], which schema 0.1 does not declare`},
 		"target path not in to schema":   {`[thema.Lacuna & {targetFields: [{path: "b", value: 1}], message: "m", type: "DroppedField"}]`, `names b in targetFields[0], which schema 0.0 does not declare`},
 		"nested path not declared":       {`[thema.Lacuna & {targetFields: [{path: "nested.y", value: 1}], message: "m", type: "DroppedField"}]`, `names nested.y in targetFields[0]`},
@@ -186,31 +185,5 @@ func TestLacunaBindChecks(t *testing.T) {
 				t.Fatalf("error does not mention %q:\n%s", c.errText, renderedDiagnostics(err))
 			}
 		})
-	}
-}
-
-// The Go lacuna type constants must match the types defined in thema's CUE.
-func TestLacunaTypesMatchCUE(t *testing.T) {
-	rt := NewRuntime(cuecontext.New())
-	iter, err := rt.Underlying().LookupPath(cue.ParsePath("LacunaTypes")).Fields()
-	if err != nil {
-		t.Fatal(err)
-	}
-	var cueTypes []string
-	for iter.Next() {
-		s, err := iter.Value().String()
-		if err != nil || s != iter.Selector().String() {
-			t.Errorf("LacunaTypes.%s must be the string %q, got %v", iter.Selector(), iter.Selector(), iter.Value())
-		}
-		cueTypes = append(cueTypes, s)
-	}
-	var goTypes []string
-	for lt := range lacunaTypes {
-		goTypes = append(goTypes, string(lt))
-	}
-	sort.Strings(cueTypes)
-	sort.Strings(goTypes)
-	if !reflect.DeepEqual(cueTypes, goTypes) {
-		t.Errorf("CUE lacuna types %v differ from Go constants %v", cueTypes, goTypes)
 	}
 }

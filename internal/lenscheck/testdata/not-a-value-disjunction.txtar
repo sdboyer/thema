@@ -5,8 +5,8 @@ a: string
 b: string
 -- lens.cue --
 _h: *"default" | string
-input: _
-result: {b: _h}
+v0_0: _
+v1_0: {b: _h}
 -- out --
 not total
-result.b is *"default" | string, a disjunction rather than a value; a result field must have one concrete value (rule not-a-value) @ lens.cue:3:13
+v1_0.b is *"default" | string, a disjunction rather than a value; a result field must have one concrete value (rule not-a-value) @ lens.cue:3:11

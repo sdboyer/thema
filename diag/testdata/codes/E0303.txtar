@@ -1,7 +1,8 @@
 #op: bind
-A lens's input stands for any instance of its source schema, so the lens must
-accept every one of them. An input that constrains what it takes rejects some
-instances. Leave the input as `_`.
+A lens takes any instance of its source schema, in the field named after the
+source version (v0_1 for a lens from 0.1), so it must accept every one of
+them. A lens that constrains that field rejects some instances. Leave it as
+`_`.
 -- lineage.cue --
 name: "ship"
 schemas: {
@@ -21,11 +22,11 @@ schemas: {
 }
 lenses: {
 	"0.1->0.0": {
-		input: {
+		v0_1: {
 			a: string
 		}
-		result: {
-			a: input.a
+		v0_0: {
+			a: v0_1.a
 		}
 	}
 }
@@ -39,7 +40,7 @@ lenses: {
       "path": [
         "lenses",
         "0.1->0.0",
-        "input"
+        "v0_1"
       ],
       "address": {
         "from": [
@@ -62,17 +63,17 @@ lenses: {
       "notes": [
         {
           "pos": {
-            "file": "/github.com/sdboyer/thema@v0.1.0/lineage.cue",
-            "line": 170,
+            "file": "/github.com/sdboyer/thema/lineage.cue",
+            "line": 177,
             "col": 11,
-            "offset": 7336,
+            "offset": 7772,
             "origin": "thema"
           },
           "label": "in thema's own CUE"
         }
       ],
       "help": [
-        "a lens's input stands for any instance of its source schema; leave it as _"
+        "v0_1 stands for any instance of its source schema; leave it as _"
       ],
       "detail": "field a not present in {a:int,b?:int}\nmissing field \"a\""
     }
@@ -87,11 +88,11 @@ lenses: {
 error[E0303]: the input of lens 0.1->0.0 does not accept every instance of schema 0.1
    --> lineage.cue:19:3
     |
- 19 |         input: {
-    |         ^^^^^
+ 19 |         v0_1: {
+    |         ^^^^
     |
     = note: in thema's own CUE
-     --> thema/lineage.cue:170:11
+     --> thema/lineage.cue:177:11
     = detail: field a not present in {a:int,b?:int}
               missing field "a"
-    = help: a lens's input stands for any instance of its source schema; leave it as _
+    = help: v0_1 stands for any instance of its source schema; leave it as _
