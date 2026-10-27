@@ -1,0 +1,13 @@
+Versions must be contiguous: 0.2 cannot follow 0.0.
+-- ship/history/0.0.thema --
+schema: {
+	a: string
+}
+-- ship/0.2.thema --
+schema: {
+	a:  string
+	b?: int
+}
+-- out/error --
+0.2.thema: versions must be contiguous; after 0.0 comes 0.1:
+    0.2.thema:1:1

@@ -55,20 +55,6 @@ func (s *source) header() token.Pos {
 	return s.file.Pos(0, token.NoRelPos)
 }
 
-// at positions n at p, as the compiler would for a node it builds.
-//
-// A struct literal's position is its Lbrace, set directly: ast.SetPos on a
-// struct literal with no Lbrace and some elements positions its first element
-// instead (see TestSetPosOnStructLit).
-func at[T ast.Node](p token.Pos, n T) T {
-	if s, ok := any(n).(*ast.StructLit); ok {
-		s.Lbrace = p
-		return n
-	}
-	ast.SetPos(n, p)
-	return n
-}
-
 func field(label string, v ast.Expr) *ast.Field {
 	return &ast.Field{Label: ast.NewIdent(label), Value: v}
 }

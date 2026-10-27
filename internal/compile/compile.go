@@ -1,0 +1,158 @@
+package compile
+
+import (
+	"fmt"
+
+	"cuelang.org/go/cue"
+	"cuelang.org/go/cue/ast"
+	cerrors "cuelang.org/go/cue/errors"
+	"cuelang.org/go/cue/format"
+	"cuelang.org/go/cue/token"
+
+	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/internal/compat"
+)
+
+// Compiled is a lineage in normal form, built from authoring files.
+type Compiled struct {
+	Name string
+	// File is the normal form: name, schemas and lenses, every node positioned
+	// in the authoring file it came from. Build it with cue.Context.BuildFile
+	// and bind it with thema.BindLineage.
+	File *ast.File
+	// Versions are the lineage's versions in order.
+	Versions []thema.SyntacticVersion
+}
+
+// Compile compiles the authoring files of the lineage name to its normal form.
+// Errors are positioned in the authoring files.
+func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
+	vs, err := parseVersions(files)
+	if err != nil {
+		return nil, err
+	}
+
+	// Each schema evaluated alone, for the lens compiler's queries.
+	vals := make([]cue.Value, len(vs))
+	var errs cerrors.Error
+	for i, v := range vs {
+		sv := ctx.BuildFile(&ast.File{Decls: []ast.Decl{v.schema}}).LookupPath(cue.MakePath(cue.Str("schema")))
+		if err := sv.Err(); err != nil {
+			errs = cerrors.Append(errs, cerrors.Promote(err, v.path))
+			continue
+		}
+		vals[i] = sv
+	}
+	if errs != nil {
+		return nil, errs
+	}
+
+	tip := vs[len(vs)-1]
+	out := &Compiled{Name: name}
+	schemas := &ast.StructLit{}
+	lenses := &ast.StructLit{}
+	majors := make(map[uint]*ast.StructLit)
+	for i, v := range vs {
+		out.Versions = append(out.Versions, v.v)
+		m, ok := majors[v.v[0]]
+		if !ok {
+			m = at(v.header(), &ast.StructLit{})
+			majors[v.v[0]] = m
+			schemas.Elts = append(schemas.Elts, at(v.header(), &ast.Field{Label: at(v.header(), ast.NewString(fmt.Sprint(v.v[0]))), Value: m}))
+		}
+		entry := at(v.header(), &ast.StructLit{Elts: []ast.Decl{v.schema}})
+		m.Elts = append(m.Elts, at(v.header(), &ast.Field{Label: at(v.header(), ast.NewString(fmt.Sprint(v.v[1]))), Value: entry}))
+
+		if i == 0 {
+			if v.forward != nil || v.backward != nil {
+				errs = cerrors.Append(errs, cerrors.Newf(v.header(), "%s is the first version, and has no previous version to map from", v.path))
+			}
+			continue
+		}
+		prev := vs[i-1]
+		res := compat.Check(ctx, vals[i-1], vals[i])
+		minor := res.Compatible()
+		switch {
+		case minor && v.v[1] == 0:
+			errs = cerrors.Append(errs, cerrors.Newf(v.header(), "%s: this version is backward compatible with %s, so it is minor version %s: rename the file, or make the change breaking", v.path, prev.v, thema.SV(prev.v[0], prev.v[1]+1)))
+			continue
+		case !minor && v.v[1] != 0:
+			errs = cerrors.Append(errs, cerrors.Newf(v.header(), "%s: this version is not backward compatible with %s, so it is major version %s: rename the file, or make the change compatible:\n%s", v.path, prev.v, thema.SV(prev.v[0]+1, 0), cerrors.Details(res.Error(), nil)))
+			continue
+		}
+
+		// Forward: previous version to this one. Only a major version has one.
+		fe := &edge{ctx: ctx, from: prev, to: v, S: vals[i-1], T: vals[i], sv: prev.v, tv: v.v, dir: forward, file: v.path, blockPos: v.header()}
+		fb := &body{}
+		if v.forward != nil {
+			fe.written, fe.blockPos = true, v.forward.Pos()
+			if minor && len(v.block(v.forward).Elts) > 0 {
+				errs = cerrors.Append(errs, cerrors.Newf(v.forward.Pos(), "%s: this version is backward compatible with %s, so translating forward is implicit: remove the forward entries, or make the change breaking", v.path, prev.v))
+				continue
+			}
+			fe.parseBody(v.block(v.forward), cue.MakePath(), cue.MakePath(), fb)
+		}
+		fwd := fe.assemble(fb)
+		if fe.errs != nil {
+			// The backward lens is derived from the forward one; with the forward
+			// lens wrong, its errors would only repeat the forward lens's.
+			errs = cerrors.Append(errs, fe.errs)
+			continue
+		}
+		if !minor {
+			lenses.Elts = append(lenses.Elts, lensField(fe.blockPos, prev.v, v.v, fwd))
+		}
+
+		// Backward: this version to the previous one, derived from the forward
+		// lens and overridden by what the author wrote.
+		be := &edge{ctx: ctx, from: v, to: prev, S: vals[i], T: vals[i-1], sv: v.v, tv: prev.v, dir: backward, file: v.path, blockPos: v.header()}
+		ab := &body{}
+		if v.backward != nil {
+			be.written, be.blockPos = true, v.backward.Pos()
+			be.parseBody(v.block(v.backward), cue.MakePath(), cue.MakePath(), ab)
+		}
+		bwd := be.assemble(be.derive(fwd, ab))
+		errs = cerrors.Append(errs, be.errs)
+		lenses.Elts = append(lenses.Elts, lensField(be.blockPos, v.v, prev.v, bwd))
+	}
+	if errs != nil {
+		return nil, errs
+	}
+
+	out.File = &ast.File{Decls: []ast.Decl{
+		at(tip.header(), &ast.Field{Label: at(tip.header(), ast.NewIdent("name")), Value: at(tip.header(), ast.NewString(name))}),
+		at(tip.header(), &ast.Field{Label: at(tip.header(), ast.NewIdent("schemas")), Value: schemas}),
+		at(tip.header(), &ast.Field{Label: at(tip.header(), ast.NewIdent("lenses")), Value: lenses}),
+	}}
+	return out, nil
+}
+
+// lensField builds the lenses entry for the edge from -> to.
+func lensField(p token.Pos, from, to thema.SyntacticVersion, l *compiledLens) *ast.Field {
+	elts := []ast.Decl{
+		at(p, &ast.Field{Label: at(p, ast.NewIdent("input")), Value: at(p, ast.NewIdent("_"))}),
+		at(p, &ast.Field{Label: at(p, ast.NewIdent("result")), Value: at(p, l.result)}),
+	}
+	if len(l.lacunas) > 0 {
+		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("lacunas")), Value: at(p, ast.NewList(l.lacunas...))}))
+	}
+	return at(p, &ast.Field{Label: at(p, ast.NewString(fmt.Sprintf("%s->%s", from, to))), Value: at(p, &ast.StructLit{Elts: elts})})
+}
+
+// Text formats the normal form as CUE source.
+func (c *Compiled) Text() (string, error) {
+	b, err := format.Node(c.File)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+// exprText formats an expression for a message.
+func exprText(x ast.Expr) string {
+	b, err := format.Node(x)
+	if err != nil {
+		return fmt.Sprintf("%T", x)
+	}
+	return string(b)
+}
