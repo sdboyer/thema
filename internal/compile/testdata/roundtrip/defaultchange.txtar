@@ -1,0 +1,146 @@
+exemplars/defaultchange.cue in authoring form: the default of an enum field
+changes, so each direction remaps the old default to the new one, with a
+ChangedDefault lacuna when the arm applies. Neither direction derives from
+the other.
+-- ship/history/0.0.thema --
+schema: {
+	aunion: *"foo" | "bar" | "baz"
+}
+-- ship/1.0.thema --
+schema: {
+	aunion: "foo" | *"bar" | "baz"
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		aunion: remap(v0_0.aunion, {"foo": "bar"})
+	}
+	lacunas: {
+		aunion: [{
+			type:    ChangedDefault
+			message: "aunion was the source default, \"foo\", and was changed to the target default, \"bar\""
+			when:    v0_0.aunion == "foo"
+		}]
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		aunion: remap(v1_0.aunion, {"bar": "foo"})
+	}
+	lacunas: {
+		aunion: [{
+			type:    ChangedDefault
+			message: "aunion was the source default, \"bar\", and was changed to the target default, \"foo\""
+			when:    v1_0.aunion == "bar"
+		}]
+	}
+}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+schema: {
+	aunion: "foo" | *"bar" | "baz"
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		aunion: remap(v0_0.aunion, {"foo": "bar"})
+	}
+	lacunas: {
+		aunion: [{
+			type:    ChangedDefault
+			message: "aunion was the source default, \"foo\", and was changed to the target default, \"bar\""
+			when:    v0_0.aunion == "foo"
+		}]
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		aunion: remap(v1_0.aunion, {"bar": "foo"})
+	}
+	lacunas: {
+		aunion: [{
+			type:    ChangedDefault
+			message: "aunion was the source default, \"bar\", and was changed to the target default, \"foo\""
+			when:    v1_0.aunion == "bar"
+		}]
+	}
+}
+-- out/decompiled/history/0.0.thema --
+schema: {
+	aunion: *"foo" | "bar" | "baz"
+}
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				aunion: *"foo" | "bar" | "baz"
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				aunion: "foo" | *"bar" | "baz"
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		input: _
+		result: {
+			if (input.aunion & "foo") != _|_ {
+				aunion: "bar"
+			}
+			if (input.aunion & ("foo")) == _|_ && (input.aunion & ("foo" | *"bar" | "baz")) != _|_ {
+				aunion: input.aunion
+			}
+		}
+		lacunas: [{
+			condition: input.aunion == "foo"
+			sourceFields: [{
+				path:  "aunion"
+				value: input.aunion
+			}]
+			targetFields: [{
+				path:  "aunion"
+				value: result.aunion
+			}]
+			message: "aunion was the source default, \"foo\", and was changed to the target default, \"bar\""
+			type:    "ChangedDefault"
+		}]
+	}
+	"1.0->0.0": {
+		input: _
+		result: {
+			if (input.aunion & "bar") != _|_ {
+				aunion: "foo"
+			}
+			if (input.aunion & ("bar")) == _|_ && (input.aunion & (*"foo" | "bar" | "baz")) != _|_ {
+				aunion: input.aunion
+			}
+		}
+		lacunas: [{
+			condition: input.aunion == "bar"
+			sourceFields: [{
+				path:  "aunion"
+				value: input.aunion
+			}]
+			targetFields: [{
+				path:  "aunion"
+				value: result.aunion
+			}]
+			message: "aunion was the source default, \"bar\", and was changed to the target default, \"foo\""
+			type:    "ChangedDefault"
+		}]
+	}
+}

@@ -90,6 +90,21 @@ func Evaluated(v cue.Value) (ast.Node, error) {
 	return checked(v.Syntax())
 }
 
+// SelfContained is Evaluated with references into imported packages inlined:
+// v.Syntax(cue.InlineImports(true)). Evaluated leaves a reference such as
+// shared.#Thing as written, with an import of its package, so the referenced
+// content isn't in the result; here it is, bound in a generated let like any
+// other reference that leaves v (THING.#x, with let THING = {#x: ...} and the
+// doc comment "//cue:path: \"example.com/shared\".#Thing"). References to
+// builtin packages (strings.MinRunes) stay references. It has all of
+// Evaluated's other quirks.
+//
+// Use it where what v means must not depend on content outside it, such as
+// hashing v's content.
+func SelfContained(v cue.Value) (ast.Node, error) {
+	return checked(v.Syntax(cue.InlineImports(true)))
+}
+
 // Raw returns v without simplification and without making it self-contained:
 // v.Syntax(cue.Raw()). References are left dangling, as written (#D, h6.r, ext),
 // so the result means nothing outside the scope v came from.

@@ -49,6 +49,19 @@ seams: "lenscheck-verdicts": {
 	]
 }
 
+// The compiler and the decompiler are inverses on the canonical subset of the
+// normal form, and the round-trip fixtures prove it in both directions. A
+// change to what either emits or recognizes owes the other the same change.
+seams: "compile-roundtrip": {
+	kind:  "shared-kernel"
+	paths: ["internal/compile/compile.go", "internal/compile/lens.go", "internal/compile/decompile.go", "internal/compile/testdata/roundtrip/*.txtar"]
+	consult: [
+		"the other direction: what Compile emits, Decompile must recognize, and what Decompile omits, Compile must regenerate",
+		"the round-trip fixtures in internal/compile/testdata/roundtrip, which hold both directions' goldens",
+		"the lens language design (#62) and the authoring file format (#61), which the vocabulary and layout follow",
+	]
+}
+
 // --- shared-kernel: co-owners we can name ---------------------------------------
 
 // thema's own CUE definitions are the kernel both halves stand on: every lineage
@@ -118,6 +131,7 @@ seams: "cue-dependency": {
 		"Go code that works around evaluator behavior (assignable.go detaches values before Subsume)",
 		"golden error output in testdata, which records CUE's error wording and positions",
 		"internal/cueview goldens, which record how CUE presents values as syntax; every check built on a view (lens checks in internal/cuetil) depends on them",
+		"version IDs (internal/contenthash goldens): the canonical form is built on how CUE exports values, so an upgrade that changes the export changes stored IDs",
 		"internal/compile tests, which pin what the evaluator does with positions in AST built for authoring files: that a node's position carries its language version and experiments, and where errors' positions land in thema's pipeline",
 	]
 }
@@ -144,7 +158,7 @@ seams: "cueview-goldens": {
 	kind:  "shared-kernel"
 	paths: ["internal/cueview/testdata/*.txtar"]
 	consult: [
-		"every caller of the view whose output changed (internal/cuetil syntax.go reads Evaluated through cueview.Tree)",
+		"every caller of the view whose output changed (internal/cuetil syntax.go reads Evaluated through cueview.Tree; internal/contenthash builds its canonical form on SelfContained)",
 		"the view's doc comment in internal/cueview/view.go, which lists its quirks",
 	]
 }
@@ -162,6 +176,20 @@ seams: "lens-result-fields": {
 		"bind.go checkLensResults and checkLacunas, and instance.go checkLensResultFields: all must apply the same rule",
 		"AGENTS.md, Lens results",
 		"testdata/cases/lens-* and the construction-independence tests in internal/cuetil",
+	]
+}
+
+// A version's ID is two digests of canonical forms of its content. IDs are
+// stored (envelopes, a registry of record), so the canonical form is co-owned
+// with every ID ever computed: a change to it, or to where a version's schema and
+// lenses are found, changes IDs and orphans what was recorded against them.
+seams: "content-hash": {
+	kind:  "shared-kernel"
+	paths: ["internal/contenthash/*.go", "internal/contenthash/testdata/*.txtar"]
+	consult: [
+		"every stored version ID; a change to the golden digests in internal/contenthash/testdata is a change to them",
+		"internal/cueview SelfContained and its goldens, which the canonical form is built on",
+		"the tip and cut workflow (#65) and lens fixes (#67), which compare schema and lens digests",
 	]
 }
 
@@ -197,17 +225,18 @@ seams: "go-residual-checks": {
 	paths: ["bind.go"]
 	funcs: "check*"
 	declared: {
-		checkGoValidity:     "compat vs declared version delta: needs the compat checker, which closes both schemas and subsumes them in Go; also rejects a major version key with no minors, which struct.MinFields only reports under concrete validation, which abstract schemas never pass"
-		checkSchemaVersions: "versions must be contiguous from 0.0: in CUE a skipped version is a missing key, which is only an incomplete reference (unification could still supply it), so validation never reports it"
-		checkExists:         "presence of required lineage parts before deeper checks"
-		checkLineageShape:   "structural shape checks on the raw lineage value"
-		checkNativeValidity: "runs the CUE-native validity pass and surfaces its errors"
-		checkLensEdges:      "exactly the required lenses exist: needs the bound version list; a missing lens would otherwise surface only when a translation crosses its edge, and an extra one would be silently unused"
-		checkSchemaShapes:   "schemas and joinSchema must be structs, and examples valid instances: CUE can constrain kinds, but reports a schema like _ only once data arrives"
-		checkLensResults:    "static lens checks with input standing for any source instance: needs each lens paired with its source and target schemas, closedness applied at use, and the declared-fields walker"
-		checkLacunas:        "lacuna lists must be enumerable without input, and lacuna field paths declared by the lens's schemas: needs the lineage's schemas, and CUE would only report missing required lacuna fields once data arrives"
-		checkUnknownFields:  "unknown lineage/schema/lens fields, and schemas/lenses keys that aren't versions/edges; CUE rejects them too, but positions the error at its guard in thema's CUE, while Go can point at the author's line. Known fields are read from thema's CUE, not duplicated"
-		checkLensTotality:   "every CUE lens must map every instance of its source schema to an instance of its target: a quantified claim over instances, which CUE can only evaluate one instance at a time. The walk (internal/lenscheck) reads each lens's syntax, judges copies with the compat checker and bounds through Expr(), and treats what it cannot decide as an error"
+		checkGoValidity:       "compat vs declared version delta: needs the compat checker, which closes both schemas and subsumes them in Go; also rejects a major version key with no minors, which struct.MinFields only reports under concrete validation, which abstract schemas never pass"
+		checkSchemaVersions:   "versions must be contiguous from 0.0: in CUE a skipped version is a missing key, which is only an incomplete reference (unification could still supply it), so validation never reports it"
+		checkExists:           "presence of required lineage parts before deeper checks"
+		checkLineageShape:     "structural shape checks on the raw lineage value"
+		checkNativeValidity:   "runs the CUE-native validity pass and surfaces its errors"
+		checkLensEdges:        "exactly the required lenses exist: needs the bound version list; a missing lens would otherwise surface only when a translation crosses its edge, and an extra one would be silently unused"
+		checkSchemaShapes:     "schemas and joinSchema must be structs, and examples valid instances: CUE can constrain kinds, but reports a schema like _ only once data arrives"
+		checkLensResults:      "static lens checks with input standing for any source instance: needs each lens paired with its source and target schemas, closedness applied at use, and the declared-fields walker"
+		checkLacunas:          "lacuna lists must be enumerable without input, and lacuna field paths declared by the lens's schemas: needs the lineage's schemas, and CUE would only report missing required lacuna fields once data arrives"
+		checkUnknownFields:    "unknown lineage/schema/lens fields, and schemas/lenses keys that aren't versions/edges; CUE rejects them too, but positions the error at its guard in thema's CUE, while Go can point at the author's line. Known fields are read from thema's CUE, not duplicated"
+		checkLensTotality:     "every CUE lens must map every instance of its source schema to an instance of its target: a quantified claim over instances, which CUE can only evaluate one instance at a time. The walk (internal/lenscheck) reads each lens's syntax, judges copies with the compat checker and bounds through Expr(), and treats what it cannot decide as an error"
+		checkSchemaConstructs: "no comprehensions or reference cycles in a schema: CUE evaluates both happily, but no later check (compat, lens results, lacunas) can describe a schema whose fields depend on evaluation or whose paths are unbounded; refused before any of them runs, and reported at the construct"
 	}
 }
 
@@ -232,13 +261,14 @@ seams: "cue-views": {
 	paths: ["internal/cueview/view.go"]
 	funcs: "[A-Z]*"
 	declared: {
-		Written:    "the author's text with positions, per conjunct; for pointing errors at it, never for deciding anything"
-		Evaluated:  "the value as evaluated, not final; depends only on the value; the basis for structural checks"
-		Raw:        "the names the value's syntax refers to, left dangling"
-		Final:      "defaults taken, closed; what a user sees by default, without requiring concreteness"
-		Data:       "concrete data, failing on anything else, which Syntax alone would hide as _|_ comments"
-		Documented: "Evaluated with doc comments, for output people read"
-		Text:       "formats syntax from any view as CUE source"
+		Written:       "the author's text with positions, per conjunct; for pointing errors at it, never for deciding anything"
+		Evaluated:     "the value as evaluated, not final; depends only on the value; the basis for structural checks"
+		Raw:           "the names the value's syntax refers to, left dangling"
+		Final:         "defaults taken, closed; what a user sees by default, without requiring concreteness"
+		Data:          "concrete data, failing on anything else, which Syntax alone would hide as _|_ comments"
+		Documented:    "Evaluated with doc comments, for output people read"
+		Text:          "formats syntax from any view as CUE source"
+		SelfContained: "Evaluated with imported packages inlined, for questions about a value's content that must not stop at an import path, such as hashing it"
 	}
 }
 

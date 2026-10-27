@@ -1,0 +1,27 @@
+A drop of a field the target requires. The backward lens of a rename, with
+the derived entry overridden by a drop, leaves 0.0 without its field.
+-- ship/history/0.0.thema --
+schema: {
+	before: string
+}
+-- ship/1.0.thema --
+schema: {
+	after: string
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		after: v0_0.before
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		after: drop
+	}
+}
+-- out/error --
+BackwardLens produces nothing for before, which 0.0 requires: add before: <mapping> to v0_0:
+    1.0.thema:12:1

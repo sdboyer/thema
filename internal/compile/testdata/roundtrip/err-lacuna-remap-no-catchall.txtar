@@ -1,0 +1,41 @@
+A lacuna without a when on a remap that has no [_] arm: the condition a
+remap implies is its [_] arm's, so there is nothing for the lacuna to apply
+under.
+-- ship/history/0.0.thema --
+schema: {
+	aunion: *"foo" | "bar" | "baz"
+}
+-- ship/1.0.thema --
+schema: {
+	aunion: "foo" | *"bar" | "baz"
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		aunion: remap(v0_0.aunion, {"foo": "bar"})
+	}
+	lacunas: {
+		aunion: [{
+			type:    ChangedDefault
+			message: "the default changed"
+		}]
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		aunion: remap(v1_0.aunion, {"bar": "foo"})
+	}
+	lacunas: {
+		aunion: [{
+			type:    ChangedDefault
+			message: "the default changed"
+			when:    v1_0.aunion == "bar"
+		}]
+	}
+}
+-- out/error --
+lacunas.aunion: a lacuna on a remap applies when its [_] arm does, and this remap has none: say when it applies with when: <condition>:
+    1.0.thema:11:12
