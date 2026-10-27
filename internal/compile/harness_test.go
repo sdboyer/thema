@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"maps"
 	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -18,7 +17,6 @@ import (
 
 	"github.com/sdboyer/thema/internal/embedreg"
 	"github.com/sdboyer/thema/internal/envvars"
-	"github.com/sdboyer/thema/internal/util"
 )
 
 // source is an authoring file the tests stand in for the compiler's input. Its
@@ -100,10 +98,7 @@ func classify(p token.Pos) string {
 	switch name := p.Filename(); {
 	case strings.HasSuffix(name, ".thema"):
 		return whereAuthored
-	case strings.HasPrefix(name, embedreg.Root()+string(filepath.Separator)),
-		// The Runtime loads thema's CUE at a path without a version; see
-		// TestUnpositionedResultFallsToKernel.
-		strings.HasPrefix(name, filepath.Join(util.Prefix, "github.com", "sdboyer", "thema")+string(filepath.Separator)):
+	case embedreg.IsKernelFile(name):
 		return whereKernel
 	case strings.HasSuffix(name, ".json"):
 		return whereData

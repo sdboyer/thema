@@ -1,0 +1,70 @@
+#op: bind
+A schema's fields are known without evaluating any data. A comprehension makes
+them depend on evaluation, and then no check can describe the schema: not
+compatibility between versions, not whether a lens produces every field.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: int
+				if true {
+					b: int
+				}
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0132",
+      "severity": "error",
+      "headline": "schema 0.0 uses a comprehension",
+      "path": [
+        "schemas",
+        "0",
+        "0",
+        "schema"
+      ],
+      "address": {
+        "kind": "schema",
+        "version": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 7,
+        "col": 5,
+        "offset": 69,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "a schema's fields must be known without evaluating data: no check can describe a schema whose fields depend on evaluation"
+        }
+      ],
+      "help": [
+        "write the fields the comprehension would produce"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0132]: schema 0.0 uses a comprehension
+ --> lineage.cue:7:5
+  |
+7 |                 if true {
+  |                 ^^
+  |
+  = note: a schema's fields must be known without evaluating data: no check can describe a schema whose fields depend on evaluation
+  = help: write the fields the comprehension would produce

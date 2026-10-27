@@ -25,5 +25,10 @@ lin: thema.Lineage & {
 	}
 }
 -- out/bindfail --
-schema 0.0: reference cycle #Node -> #Node; schemas may not contain circular references:
-    ./in.cue:9:29
+error[E0133]: schema 0.0 has a reference cycle: #Node -> #Node
+ --> /in.cue:9:29
+  |
+9 |             schema: {#Node: {v: int, next?: #Node}, root: #Node}
+  |                                      ^^^^
+  |
+  = note: a schema's references may not form a cycle: no check can describe a schema whose paths are unbounded

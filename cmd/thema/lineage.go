@@ -6,6 +6,7 @@ import (
 	upcue "cuelang.org/go/cue"
 	"cuelang.org/go/cue/ast"
 	"cuelang.org/go/cue/ast/astutil"
+	"github.com/sdboyer/thema/diag"
 	tastutil "github.com/sdboyer/thema/internal/astutil"
 	"github.com/spf13/cobra"
 )
@@ -42,12 +43,12 @@ func toSubpath(subpath string, f *ast.File) (*ast.File, error) {
 
 	p := upcue.ParsePath(subpath)
 	if p.Err() != nil {
-		return nil, fmt.Errorf("invalid path provided for --cue-path: %w", p.Err())
+		return nil, diag.New(diag.E0620).Headlinef("--cue-path %q is not a CUE path", subpath).Detail(p.Err().Error()).Err()
 	}
 
 	err := astutil.Sanitize(f)
 	if err != nil {
-		return nil, fmt.Errorf("error while sanitizing generated file: %w", err)
+		return nil, diag.InternalErr(fmt.Errorf("sanitizing the generated file: %w", err))
 	}
 
 	// in := ctx.BuildFile(f)
@@ -57,7 +58,7 @@ func toSubpath(subpath string, f *ast.File) (*ast.File, error) {
 
 	out := empt().FillPath(p, empt())
 	if out.Err() != nil {
-		return nil, fmt.Errorf("error in lineage when placed at requested --cue-path: %w", out.Err())
+		return nil, diag.InternalErr(fmt.Errorf("placing the lineage at --cue-path %s: %w", subpath, out.Err()))
 	}
 
 	var nf *ast.File
@@ -67,7 +68,7 @@ func toSubpath(subpath string, f *ast.File) (*ast.File, error) {
 	case ast.Expr:
 		nf, err = astutil.ToFile(x)
 		if err != nil {
-			return nil, fmt.Errorf("error converting expr to file: %w", err)
+			return nil, diag.InternalErr(fmt.Errorf("converting the generated expression to a file: %w", err))
 		}
 	}
 

@@ -24,5 +24,11 @@ _EmbedRef: {
 	refField2: 42
 }
 -- out/bindfail --
-joinSchema refers to _EmbedRef, which is declared in the lineage outside the joinSchema; a joinSchema may refer only to its own body and CUE's builtin packages (rule ref-lineage-meta):
-    ./in.cue:5:1
+error[E0141]: joinSchema refers to _EmbedRef, which is declared in the lineage outside the joinSchema
+ --> /in.cue:5:1
+  |
+5 | joinSchema: {
+  | ^^^^^^^^^^
+  |
+  = note: reference rule ref-lineage-meta
+  = help: a joinSchema may refer only to its own body and CUE's builtin packages

@@ -1,0 +1,79 @@
+#op: bind
+A schema's examples are instances of it, checked when the lineage binds. This
+example lacks the field the schema requires; CUE's reasons are in the detail
+and its positions are the notes.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				count: int
+			}
+			examples: {
+				empty: {}
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0131",
+      "severity": "error",
+      "headline": "example empty of schema 0.0 is not an instance of it",
+      "path": [
+        "schemas",
+        "0",
+        "0",
+        "examples",
+        "empty"
+      ],
+      "address": {
+        "kind": "example",
+        "name": "empty",
+        "version": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 9,
+        "col": 5,
+        "offset": 93,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "pos": {
+            "file": "lineage.cue",
+            "line": 6,
+            "col": 12,
+            "offset": 65,
+            "origin": "user"
+          },
+          "label": "here"
+        }
+      ],
+      "detail": "count: incomplete value int"
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0131]: example empty of schema 0.0 is not an instance of it
+ --> lineage.cue:9:5
+  |
+6 |                 count: int
+  |                        --- here
+...
+9 |                 empty: {}
+  |                 ^^^^^
+  |
+  = detail: count: incomplete value int

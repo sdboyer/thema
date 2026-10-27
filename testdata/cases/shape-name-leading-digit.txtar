@@ -11,4 +11,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail out of bound
+bind fail is not an identifier

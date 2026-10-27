@@ -1,0 +1,84 @@
+#op: bind
+A new major version is a breaking change: some instance of the predecessor is
+not an instance of it. A schema declared as N.0 that is backward compatible
+with its predecessor belongs under the previous major version, as its next
+minor version.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				a: string
+				b?: int
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			a: v0_0.a
+		}
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			a: v1_0.a
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0208",
+      "severity": "error",
+      "headline": "schema 1.0 is backward compatible with 0.0, so it is not a major version",
+      "path": [
+        "schemas",
+        "1",
+        "0",
+        "schema"
+      ],
+      "address": {
+        "kind": "schema",
+        "version": [
+          1,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 12,
+        "col": 4,
+        "offset": 100,
+        "origin": "user"
+      },
+      "help": [
+        "declare it as version 0.1, or make a breaking change"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0208]: schema 1.0 is backward compatible with 0.0, so it is not a major version
+  --> lineage.cue:12:4
+   |
+12 |             schema: {
+   |             ^^^^^^
+   |
+   = help: declare it as version 0.1, or make a breaking change

@@ -40,5 +40,9 @@ BackwardLens: {
 	}
 }
 -- out/error --
-lacunas.items.name: a lacuna on a mapping inside each is not supported yet; a DroppedField lacuna on a drop refines the drop's:
-    1.0.thema:16:11
+error[E0413]: lacunas.items.name: a lacuna on a mapping inside each is not supported yet; a DroppedField lacuna on a drop refines the drop's
+  --> 1.0.thema:16:11
+   |
+16 |             name: [{
+   |                    ^
+   |

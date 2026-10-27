@@ -21,5 +21,11 @@ lenses: {}
     refField2: 42
 }
 -- out/bindfail --
-schema 0.0 refers to #EmbedRef, which is declared in the lineage outside the schema; a schema may refer only to its own body and CUE's builtin packages (rule ref-lineage-meta):
-    ./in.cue:7:3
+error[E0141]: schema 0.0 refers to #EmbedRef, which is declared in the lineage outside the schema
+ --> /in.cue:7:3
+  |
+7 |         schema: {
+  |         ^^^^^^
+  |
+  = note: reference rule ref-lineage-meta
+  = help: a schema may refer only to its own body and CUE's builtin packages

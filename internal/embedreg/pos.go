@@ -23,12 +23,7 @@ func RuntimeRoot() string {
 // IsKernel reports whether p is a position in thema's own CUE, at [Root] or at
 // [RuntimeRoot].
 func IsKernel(p token.Pos) bool {
-	if !p.IsValid() {
-		return false
-	}
-	sep := string(filepath.Separator)
-	f := p.Filename()
-	return strings.HasPrefix(f, Root()+sep) || strings.HasPrefix(f, RuntimeRoot()+sep)
+	return p.IsValid() && IsKernelFile(p.Filename())
 }
 
 // AuthorPos returns the position of the first conjunct of v that is not in

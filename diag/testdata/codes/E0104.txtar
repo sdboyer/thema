@@ -1,0 +1,41 @@
+#op: compile
+A version file imports nothing. A schema is written with CUE's builtins alone,
+so that every version of a lineage is self-contained.
+-- ship/0.0.thema --
+import "strings"
+
+Schema: {
+	a: strings.MinRunes(1)
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0104",
+      "severity": "error",
+      "headline": "0.0.thema imports a package",
+      "primary": {
+        "file": "0.0.thema",
+        "line": 1,
+        "col": 1,
+        "origin": "user"
+      },
+      "help": [
+        "a version file imports nothing; a schema uses only CUE's builtins"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0104]: 0.0.thema imports a package
+ --> 0.0.thema:1:1
+  |
+1 | import "strings"
+  | ^^^^^^
+  |
+  = help: a version file imports nothing; a schema uses only CUE's builtins

@@ -15,4 +15,4 @@ lin: thema.Lineage & {
 	lenses: {}
 }
 -- expect --
-bind fail the first schema must be version 0.0, not 1.0
+bind fail the first schema is version 1.0, not 0.0

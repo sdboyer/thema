@@ -1,0 +1,49 @@
+#op: compile
+orelse's fallback is what the lens uses when the field is absent, so the
+fallback itself must always exist: a constant, or a field the source always
+has. An optional field may be absent too.
+-- ship/history/0.0.thema --
+Schema: {
+	a?: string
+	b?: string
+}
+-- ship/1.0.thema --
+Schema: {
+	c: string
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		c: orelse(v0_0.a, v0_0.b)
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0349",
+      "severity": "error",
+      "headline": "b is optional in 0.0, so it cannot be orelse's fallback: the fallback must always exist",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 8,
+        "col": 21,
+        "offset": 77,
+        "origin": "user"
+      }
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0349]: b is optional in 0.0, so it cannot be orelse's fallback: the fallback must always exist
+ --> 1.0.thema:8:21
+  |
+8 |         c: orelse(v0_0.a, v0_0.b)
+  |                           ^^^^
+  |

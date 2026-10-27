@@ -1,0 +1,55 @@
+#op: bind
+Lenses are keyed by the edge they map across, `"<from>-><to>"`, such as
+`"1.0->0.1"`. A key of any other shape is not an edge.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+	}
+}
+lenses: {
+	"0.0=>1.0": {
+		input: _
+		result: {
+			a: input.a
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0125",
+      "severity": "error",
+      "headline": "\"0.0=>1.0\" is not a lens edge",
+      "primary": {
+        "file": "lineage.cue",
+        "line": 12,
+        "col": 2,
+        "offset": 93,
+        "origin": "user"
+      },
+      "help": [
+        "lenses are keyed by \"<from>-><to>\" versions, such as \"1.0->0.1\""
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0125]: "0.0=>1.0" is not a lens edge
+  --> lineage.cue:12:2
+   |
+12 |     "0.0=>1.0": {
+   |     ^^^^^^^^^^
+   |
+   = help: lenses are keyed by "<from>-><to>" versions, such as "1.0->0.1"

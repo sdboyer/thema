@@ -15,6 +15,7 @@ import (
 	"cuelang.org/go/encoding/jsonschema"
 	"cuelang.org/go/encoding/openapi"
 	"cuelang.org/go/encoding/yaml"
+	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/encoding/cue"
 	tastutil "github.com/sdboyer/thema/internal/astutil"
 	"github.com/spf13/cobra"
@@ -114,18 +115,17 @@ func (ic *initCommand) run(cmd *cobra.Command, args []string) {
 	}
 
 	if ic.err != nil {
-		fmt.Fprintf(cmd.ErrOrStderr(), "%s\n", ic.err)
-		os.Exit(1)
+		os.Exit(report(ic.err))
 	}
 }
 
 func (ic *initCommand) processPackageArgs(cmd *cobra.Command, args []string) error {
 	if ic.name == "" {
-		return fmt.Errorf("must provide a name for lineage via --name")
+		return diag.New(diag.E0620).Headline("no lineage name was given").Help("name the lineage with --name").Err()
 	}
 	if ic.nopkg {
 		if ic.pkgname != "" {
-			return fmt.Errorf("cannot pass both --no-package and --package-name")
+			return diag.New(diag.E0620).Headline("--no-package and --package-name were both given").Help("pass one: a package name, or no package").Err()
 		}
 	} else {
 		if ic.pkgname == "" {
@@ -133,7 +133,7 @@ func (ic *initCommand) processPackageArgs(cmd *cobra.Command, args []string) err
 		}
 
 		if !ast.IsValidIdent(ic.pkgname) {
-			return fmt.Errorf("%q is not a valid package name", ic.pkgname)
+			return diag.New(diag.E0620).Headlinef("%q is not a valid package name", ic.pkgname).Help("a CUE package name is an identifier").Err()
 		}
 	}
 	return nil
@@ -261,7 +261,7 @@ func inputToFile(input []byte, args []string) (*ast.File, error) {
 	binsts := load.Instances(args, cfg)
 	bf := binsts[0].OrphanedFiles[0]
 	if bf == nil {
-		return nil, fmt.Errorf("could not load input file")
+		return nil, diag.New(diag.E0613).Headline("the input file could not be loaded").Err()
 	}
 
 	var f *ast.File
@@ -277,7 +277,7 @@ func inputToFile(input []byte, args []string) (*ast.File, error) {
 			}
 		}
 	default:
-		err = fmt.Errorf("unsupported format: %s", bf.Encoding)
+		err = diag.New(diag.E0614).Headlinef("%s is not a format thema converts", bf.Encoding).Help("pass an OpenAPI or JSON Schema document as JSON or YAML").Err()
 	}
 
 	if err != nil {
@@ -327,14 +327,14 @@ func (ic *initCommand) runOpenAPI(cmd *cobra.Command, args []string) {
 	if ic.srcpath != "" {
 		p := upcue.ParsePath(ic.srcpath)
 		if p.Err() != nil {
-			ic.err = fmt.Errorf("value for --src-subpath is not a valid cue path expression: %w", p.Err())
+			ic.err = diag.New(diag.E0620).Headlinef("--src-subpath %q is not a CUE path", ic.srcpath).Detail(p.Err().Error()).Err()
 			return
 		}
 		// Eval will do dereferencing for us as needed, but may have other unintended
 		// side effects.
 		sch = sch.LookupPath(p).Eval()
 		if !sch.Exists() {
-			ic.err = fmt.Errorf("path %q does not exist in converted schema", p.String())
+			ic.err = diag.New(diag.E0620).Headlinef("there is no value at --src-subpath %s in the converted schema", p.String()).Err()
 			return
 		}
 	}

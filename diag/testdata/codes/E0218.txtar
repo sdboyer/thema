@@ -1,0 +1,78 @@
+#op: bind
+A validator such as strings.MinRunes rejects values that fail it. A minor
+version that adds one, or tightens one, rejects values the predecessor
+accepted.
+-- lineage.cue --
+import "strings"
+
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				s: string
+			}
+		}
+		"1": {
+			schema: {
+				s: strings.MinRunes(1)
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0218",
+      "severity": "error",
+      "headline": "s in schema 0.1 must now satisfy strings.MinRunes(1), which the prior schema did not require",
+      "path": [
+        "schemas",
+        "0",
+        "1",
+        "schema",
+        "s"
+      ],
+      "address": {
+        "field": [
+          "s"
+        ],
+        "kind": "schemaField",
+        "version": [
+          0,
+          1
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 13,
+        "col": 5,
+        "offset": 121,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule validator-added)"
+        }
+      ],
+      "help": [
+        "make the change compatible, or make this version 1.0"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0218]: s in schema 0.1 must now satisfy strings.MinRunes(1), which the prior schema did not require
+  --> lineage.cue:13:5
+   |
+13 |                 s: strings.MinRunes(1)
+   |                 ^
+   |
+   = note: schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule validator-added)
+   = help: make the change compatible, or make this version 1.0

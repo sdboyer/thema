@@ -57,8 +57,37 @@ seams: "compile-roundtrip": {
 	paths: ["internal/compile/compile.go", "internal/compile/lens.go", "internal/compile/decompile.go", "internal/compile/testdata/roundtrip/*.txtar"]
 	consult: [
 		"the other direction: what Compile emits, Decompile must recognize, and what Decompile omits, Compile must regenerate",
-		"the round-trip fixtures in internal/compile/testdata/roundtrip, which hold both directions' goldens",
+		"the round-trip fixtures in internal/compile/testdata/roundtrip, which hold both directions' goldens, and the compiler's diagnostics in the authoring vocabulary",
 		"the lens language design (#62) and the authoring file format (#61), which the vocabulary and layout follow",
+	]
+}
+
+// Diagnostic codes are the stable identity of thema's errors: tools, docs links
+// and users' scripts match on them, and the playground renders by them. A code's
+// meaning never changes; one that stops applying is retired, never reused. Each
+// code has a reproducer, whose rendered text is its documentation.
+seams: "diag-codes": {
+	kind:  "shared-kernel"
+	paths: ["diag/codes.go", "diag/testdata/codes/*.txtar", "docs/errors/*.md"]
+	consult: [
+		"every consumer that matches on a code: the CLI's --diag-format json readers, docs/errors links, the playground; retire and allocate rather than change a code's meaning",
+		"the lockstep tests in diag/codes_test.go: one reproducer per code, docs/errors generated from them (THEMA_UPDATE_GOLDEN=1 go test ./diag)",
+		"the authoring principles in AGENTS.md (Diagnostics), enforced by internal/diagtest.Lint over every corpus",
+		"internal/compile/vocab.go and diagnose.go, which render the same codes in the authoring and normal-form vocabularies",
+	]
+}
+
+// thema depends on the exact messages the CUE evaluator and loader produce:
+// diag/shapes.go recognizes them by format string, and the menagerie records
+// every shape with a digest that fails on change. A CUE upgrade that moves the
+// digest means re-checking every shape match and every reproducer's rendering.
+seams: "cue-error-shapes": {
+	kind:  "shared-kernel"
+	paths: ["diag/shapes.go", "diag/shapes_*.go", "diag/testdata/menagerie.txtar", "docs/cue-errors.md"]
+	consult: [
+		"menagerieDigest in diag/menagerie_test.go, updated by hand after reading the regenerated menagerie and docs/cue-errors.md",
+		"TestShapesCovered and the unmatchedYet backlog: every recorded format is matched by a shape or listed, so nothing is reported as E0902 unknowingly",
+		"the reproducers in diag/testdata/codes, whose details quote CUE's text",
 	]
 }
 
@@ -96,8 +125,9 @@ seams: "embedded-module-root": {
 	kind:  "shared-kernel"
 	paths: ["internal/embedreg/embedreg.go"]
 	consult: [
-		"users reading error positions (the path is user-facing)",
-		"golden error output in testdata",
+		"users reading error positions (the path is user-facing; diag renders a file under it as thema/<file>)",
+		"diag/pos.go, which classifies every position's origin by IsKernelFile, and the Positionless rule in diag: a kernel position is never a primary",
+		"golden error output in testdata, diag/testdata and docs/errors",
 	]
 }
 
@@ -127,9 +157,10 @@ seams: "cue-dependency": {
 	watch:   ["cuelang.org/go"]
 	consult: [
 		"every lineage's validity; the Go facade's cue.Value handling",
-		"Go code that parses CUE error shapes (validate.go mungeValidateErr matches on Msg() argument counts and types)",
+		"diag/shapes.go, which recognizes CUE's errors by the format string of Msg(); the menagerie (diag/testdata/menagerie.txtar, menagerieDigest in diag/menagerie_test.go) and docs/cue-errors.md record every shape thema depends on, and the digest fails on a change",
+		"cmd/thema load.go loadDiag, which recognizes two of the loader's failures by their text, since the loader formats them before thema sees them",
 		"Go code that works around evaluator behavior (assignable.go detaches values before Subsume)",
-		"golden error output in testdata, which records CUE's error wording and positions",
+		"golden error output in testdata, and the reproducers in diag/testdata/codes with the docs/errors pages generated from them, which record CUE's wording (as details) and positions",
 		"internal/cueview goldens, which record how CUE presents values as syntax; every check built on a view (lens checks in internal/cuetil) depends on them",
 		"version IDs (internal/contenthash goldens): the canonical form is built on how CUE exports values, so an upgrade that changes the export changes stored IDs",
 		"internal/compile tests, which pin what the evaluator does with positions in AST built for authoring files: that a node's position carries its language version and experiments, and where errors' positions land in thema's pipeline",
@@ -137,16 +168,19 @@ seams: "cue-dependency": {
 }
 
 // Error positions are chosen by telling thema's own CUE apart from the author's
-// by path (bind.go userPos and authorWrote). thema's CUE reaches the evaluator at
-// two paths: the embedded module's root, for lineages that import thema, and the
-// Runtime's load path, for everything BindLineage unifies with thema.Lineage
-// itself and for every pseudofunction call such as Translate.
+// by path. thema's CUE reaches the evaluator at two paths: embedreg.Root(), the
+// embedded module's root, for lineages that import thema, and
+// embedreg.RuntimeRoot(), the Runtime's load path, for everything BindLineage
+// unifies with thema.Lineage itself and for every pseudofunction call such as
+// Translate. Every diag.Pos carries an origin decided by those paths, and
+// diagnostics show a file under either as thema/<file>.
 seams: "kernel-paths": {
 	kind:  "shared-kernel"
 	paths: ["runtime.go"]
 	consult: [
-		"internal/embedreg IsKernel and AuthorPos, which recognize thema's CUE only at embedreg.Root() and embedreg.RuntimeRoot(), and every error position bind.go takes through them",
+		"internal/embedreg IsKernel, IsKernelFile, KernelPath and AuthorPos, which recognize thema's CUE only at embedreg.Root() and embedreg.RuntimeRoot(); diag/pos.go, which classifies every position's origin through them, and diag.AuthorPos; every error position bind.go takes through them",
 		"internal/compile classify, and the kernel positions in its pipeline goldens",
+		"diag/render.go and cmd/thema readSource, which display and read thema's files by those roots",
 	]
 }
 
@@ -173,7 +207,7 @@ seams: "lens-result-fields": {
 	kind:  "shared-kernel"
 	paths: ["internal/cuetil/declared.go", "internal/cuetil/syntax.go", "internal/cueview/tree.go"]
 	consult: [
-		"bind.go checkLensResults and checkLacunas, and instance.go checkLensResultFields: all must apply the same rule",
+		"bind.go checkLensResults and checkLacunas, and instance.go checkLensResultFields: all must apply the same rule, and report it as E0305",
 		"AGENTS.md, Lens results",
 		"testdata/cases/lens-* and the construction-independence tests in internal/cuetil",
 	]

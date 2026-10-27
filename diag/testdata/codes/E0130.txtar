@@ -1,0 +1,89 @@
+#op: bind
+A lineage's joinSchema is a struct every schema in the lineage is an instance
+of, or `_` to join nothing. Here it is a string, so the schema that must be an
+instance of it cannot be a struct either (E0129).
+-- lineage.cue --
+name: "ship"
+joinSchema: string
+schemas: {
+	"0": {
+		"0": {
+			schema: string
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0130",
+      "severity": "error",
+      "headline": "joinSchema is string, not a struct",
+      "path": [
+        "joinSchema"
+      ],
+      "address": {
+        "kind": "joinSchema"
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 2,
+        "col": 1,
+        "offset": 13,
+        "origin": "user"
+      },
+      "help": [
+        "a joinSchema is a struct every schema in the lineage is an instance of, or _ to join nothing"
+      ]
+    },
+    {
+      "code": "E0129",
+      "severity": "error",
+      "headline": "schema 0.0 is string, not a struct",
+      "path": [
+        "schemas",
+        "0",
+        "0",
+        "schema"
+      ],
+      "address": {
+        "kind": "schema",
+        "version": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 6,
+        "col": 4,
+        "offset": 63,
+        "origin": "user"
+      },
+      "help": [
+        "every schema is a struct"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 2,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0130]: joinSchema is string, not a struct
+ --> lineage.cue:2:1
+  |
+2 | joinSchema: string
+  | ^^^^^^^^^^
+  |
+  = help: a joinSchema is a struct every schema in the lineage is an instance of, or _ to join nothing
+
+error[E0129]: schema 0.0 is string, not a struct
+ --> lineage.cue:6:4
+  |
+6 |             schema: string
+  |             ^^^^^^
+  |
+  = help: every schema is a struct

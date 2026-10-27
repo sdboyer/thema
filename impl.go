@@ -1,25 +1,8 @@
 package thema
 
 import (
-	"fmt"
-
 	"cuelang.org/go/cue"
-	"cuelang.org/go/cue/errors"
 )
-
-type compatInvariantError struct {
-	rawlin    cue.Value
-	violation [2]SyntacticVersion
-	detail    error
-}
-
-func (e *compatInvariantError) Error() string {
-	if e.violation[0][0] == e.violation[1][0] {
-		// TODO better
-		return errors.Details(e.detail, nil)
-	}
-	return fmt.Sprintf("schema %s must be backwards incompatible with schema %s", e.violation[1], e.violation[0])
-}
 
 // Call with no args to get init v, {0, 0}
 // Call with one to get first version in a seq, {x, 0}

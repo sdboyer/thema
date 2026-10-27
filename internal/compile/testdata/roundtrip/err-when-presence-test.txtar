@@ -26,5 +26,11 @@ ForwardLens: {
 	}
 }
 -- out/error --
-a condition reading v0_0.count concerns only the instances that have it, so its presence need not be tested; to test presence alone, write when: v0_0.count:
-    1.0.thema:15:13
+error[E0423]: this condition tests the presence of v0_0.count, which it also reads
+  --> 1.0.thema:15:13
+   |
+15 |             when:    v0_0.count != _|_ && v0_0.count > 1000
+   |                      ^^^^
+   |
+   = note: a condition reading an optional field concerns only the instances that have it, so testing its presence says nothing more
+   = help: drop the presence test; to test presence alone, write when: v0_0.count

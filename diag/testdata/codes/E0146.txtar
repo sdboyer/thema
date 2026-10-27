@@ -1,0 +1,67 @@
+#op: bind
+#path: lin
+A schema selects a field of the lineage by a computed label. CUE evaluates
+it, but thema cannot tell from the schema's text what the reference denotes
+(reference rule ref-unresolved). Written with constant labels it would be a
+reference thema can judge; either way, the schema writes the literal it wants.
+-- lineage.cue --
+lin: {
+	name: "ship"
+	schemas: {
+		"0": "0": {
+			schema: {a: string, n: lin["na"+"me"]}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0146",
+      "severity": "error",
+      "headline": "n in schema 0.0 refers to lin[\"na\"+\"me\"], which thema cannot resolve statically",
+      "path": [
+        "schemas",
+        "0",
+        "0",
+        "schema"
+      ],
+      "address": {
+        "kind": "schema",
+        "version": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 5,
+        "col": 27,
+        "offset": 73,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "reference rule ref-unresolved"
+        }
+      ],
+      "help": [
+        "write the reference with constant labels, or declare what it needs inside the schema"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0146]: n in schema 0.0 refers to lin["na"+"me"], which thema cannot resolve statically
+ --> lineage.cue:5:27
+  |
+5 |             schema: {a: string, n: lin["na"+"me"]}
+  |                                    ^^^
+  |
+  = note: reference rule ref-unresolved
+  = help: write the reference with constant labels, or declare what it needs inside the schema

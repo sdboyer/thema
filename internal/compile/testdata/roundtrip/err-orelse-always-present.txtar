@@ -15,5 +15,9 @@ ForwardLens: {
 	}
 }
 -- out/error --
-0.0 always has a, so orelse's fallback could never apply: write b: v0_0.a:
-    1.0.thema:8:6
+error[E0348]: 0.0 always has a, so orelse's fallback could never apply: write b: v0_0.a
+ --> 1.0.thema:8:6
+  |
+8 |         b: orelse(v0_0.a, "x")
+  |            ^^^^^^
+  |

@@ -1,7 +1,6 @@
 package thema
 
 import (
-	"bytes"
 	"cmp"
 	"fmt"
 	"slices"
@@ -13,13 +12,11 @@ import (
 	"cuelang.org/go/cue/ast"
 	cerrors "cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/token"
-	"github.com/cockroachdb/errors"
 
-	terrors "github.com/sdboyer/thema/errors"
+	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/internal/compat"
 	"github.com/sdboyer/thema/internal/cuetil"
 	"github.com/sdboyer/thema/internal/cueview"
-	"github.com/sdboyer/thema/internal/embedreg"
 	"github.com/sdboyer/thema/internal/lenscheck"
 )
 
@@ -130,7 +127,10 @@ func (ml *maybeLineage) checkGoValidity(cfg *bindConfig) error {
 			schlist = append(schlist, &schemaDef{ref: miniter.Value(), v: synv(maj, minor)})
 		}
 		if len(schlist) == n {
-			return errors.Mark(cerrors.Newf(embedreg.AuthorPos(majiter.Value()), "major version %d declares no schemas: its first schema must be version %s", maj, synv(maj, 0)), terrors.ErrNonContiguousVersions)
+			return ml.at(diag.E0203, majiter.Value()).
+				Headlinef("major version %d declares no schemas", maj).
+				Helpf("declare its first schema as version %s", synv(maj, 0)).
+				Err()
 		}
 	}
 	slices.SortFunc(schlist, func(a, b *schemaDef) int {
@@ -139,7 +139,7 @@ func (ml *maybeLineage) checkGoValidity(cfg *bindConfig) error {
 
 	// thema's default joinSchema is _, which joins nothing.
 	if join := ml.uni.LookupPath(cue.MakePath(cue.Str("joinSchema"))); join.IncompleteKind() != cue.TopKind {
-		if err := ml.checkSchemaConstructs(join, "joinSchema"); err != nil {
+		if err := ml.checkSchemaConstructs(join, diag.Address{Kind: diag.AddrJoinSchema}); err != nil {
 			return err
 		}
 	}
@@ -151,24 +151,29 @@ func (ml *maybeLineage) checkGoValidity(cfg *bindConfig) error {
 		}
 
 		sch.def = sch.ref.LookupPath(pathSchDef)
-		if err := ml.checkSchemaConstructs(sch.ref.LookupPath(pathSch), fmt.Sprintf("schema %s", sch.v)); err != nil {
+		if err := ml.checkSchemaConstructs(sch.ref.LookupPath(pathSch), schemaAddr(sch.v)); err != nil {
 			return err
 		}
 		if previous != nil && !cfg.skipbuggychecks {
 			res := compat.Check(ml.rt.Context(), previous.def, sch.def)
 			if sch.v[1] == 0 && res.Compatible() {
 				// Major version change, should be backwards incompatible
-				return errors.Mark(mkerror(sch.ref.LookupPath(pathSch), "schema %s must be backwards incompatible with schema %s: introduce a breaking change, or redeclare as version %s", sch.v, previous.v, synv(previous.v[0], previous.v[1]+1)), terrors.ErrInvalidLineage)
+				return ml.at(diag.E0208, sch.ref.LookupPath(pathSch)).
+					Headlinef("%s is backward compatible with %s, so it is not a major version", ml.term(schemaAddr(sch.v)), previous.v).
+					Helpf("declare it as version %s, or make a breaking change", synv(previous.v[0], previous.v[1]+1)).
+					Err()
 			}
 			if sch.v[1] != 0 && !res.Compatible() {
 				// Minor version change, should be backwards compatible. An Unknown
 				// verdict counts as incompatible: the author must change the
 				// schema so that the checker can decide, or bump the major version.
-				what := "is not"
-				if res.Verdict() == compat.Unknown {
-					what = "cannot be shown to be"
+				var errs []error
+				for _, f := range res.Findings {
+					if f.Verdict != compat.Compatible {
+						errs = append(errs, ml.compatDiag(f, previous, sch))
+					}
 				}
-				return errors.Mark(mkerror(sch.ref.LookupPath(pathSch), "schema %s %s backwards compatible with schema %s:\n%s", sch.v, what, previous.v, cerrors.Details(res.Error(), nil)), terrors.ErrInvalidLineage)
+				return diag.Join(errs...)
 			}
 		}
 
@@ -188,29 +193,38 @@ func (ml *maybeLineage) checkGoValidity(cfg *bindConfig) error {
 func (ml *maybeLineage) checkSchemaVersions(prev, curr *schemaDef) error {
 	if prev == nil {
 		if curr.v != synv(0, 0) {
-			return errors.Mark(cerrors.Newf(embedreg.AuthorPos(curr.ref), "the first schema must be version 0.0, not %s", curr.v), terrors.ErrNonContiguousVersions)
+			return ml.at(diag.E0201, curr.ref).
+				Headlinef("the first schema is version %s, not 0.0", curr.v).
+				Help("every lineage starts at version 0.0").
+				Err()
 		}
 		return nil
 	}
 
 	nextMinor, nextMajor := synv(prev.v[0], prev.v[1]+1), synv(prev.v[0]+1, 0)
 	if curr.v != nextMinor && curr.v != nextMajor {
-		return errors.Mark(cerrors.Newf(embedreg.AuthorPos(curr.ref), "schema version %s does not follow %s: the next schema must be version %s or %s", curr.v, prev.v, nextMinor, nextMajor), terrors.ErrNonContiguousVersions)
+		return ml.at(diag.E0202, curr.ref).
+			Headlinef("schema version %s does not follow %s", curr.v, prev.v).
+			Helpf("the next schema after %s is version %s or %s", prev.v, nextMinor, nextMajor).
+			Err()
 	}
 
 	return nil
 }
 
 func (ml *maybeLineage) checkExists(cfg *bindConfig) error {
-	p := ml.raw.Path().String()
 	// The candidate lineage must exist.
-	// TODO can we do any better with contextualizing these errors?
 	if !ml.raw.Exists() {
-		if p != "" {
-			return errors.Mark(errors.Newf("not a lineage: no cue value at path %q", p), terrors.ErrValueNotExist)
+		b := ml.diag(diag.E0128)
+		if p := ml.raw.Path().String(); p != "" {
+			b.Headlinef("there is no value at %s to bind as a lineage", p)
+		} else {
+			b.Headlinef("there is no value to bind as a lineage")
 		}
-
-		return errors.WithStack(terrors.ErrValueNotExist)
+		if err := ml.raw.Err(); err != nil {
+			b.Detail(err.Error())
+		}
+		return b.Err()
 	}
 	return nil
 }
@@ -224,7 +238,7 @@ func (ml *maybeLineage) checkExists(cfg *bindConfig) error {
 //
 // The set of known fields is read from thema's CUE, so it cannot drift from it.
 func (ml *maybeLineage) checkUnknownFields() error {
-	var errs cerrors.Error
+	var errs []error
 	check := func(v cue.Value, def cue.Value, what string, extra ...string) {
 		known := make(map[string]bool)
 		var names []string
@@ -251,12 +265,19 @@ func (ml *maybeLineage) checkUnknownFields() error {
 			if !sel.IsString() || known[sel.Unquoted()] {
 				continue
 			}
-			errs = cerrors.Append(errs, cerrors.Newf(embedreg.AuthorPos(iter.Value()), "%s is not a field of %s; valid fields are %s", sel.Unquoted(), what, strings.Join(names, ", ")))
+			b := ml.at(diag.E0123, iter.Value()).
+				Headlinef("%s is not a field of %s", sel.Unquoted(), what)
+			if want, ok := diag.Suggest(sel.Unquoted(), names); ok {
+				b.Helpf("did you mean %s?", want)
+			} else {
+				b.Helpf("%s has only %s", what, strings.Join(names, ", "))
+			}
+			errs = append(errs, b.Err())
 		}
 	}
 	// each calls fn with each regular field of v whose key is valid, and reports
 	// those whose key isn't.
-	each := func(v cue.Value, valid func(string) bool, badkey string, fn func(string, cue.Value)) {
+	each := func(v cue.Value, valid func(string) bool, code diag.Code, badkey, help string, fn func(string, cue.Value)) {
 		iter, err := v.Fields(cue.Optional(true))
 		if err != nil {
 			return
@@ -266,7 +287,10 @@ func (ml *maybeLineage) checkUnknownFields() error {
 				continue
 			}
 			if key := iter.Selector().Unquoted(); !valid(key) {
-				errs = cerrors.Append(errs, cerrors.Newf(embedreg.AuthorPos(iter.Value()), "%q is not %s", key, badkey))
+				errs = append(errs, ml.diag(code).AtValue(iter.Value()).
+					Headlinef("%q is not %s", key, badkey).
+					Help(help).
+					Err())
 				continue
 			}
 			fn(iter.Selector().Unquoted(), iter.Value())
@@ -281,16 +305,17 @@ func (ml *maybeLineage) checkUnknownFields() error {
 		return ok
 	}
 	const versionKeys = `schemas are keyed by major, then minor version, each a non-negative integer such as "0"`
+	const edgeKeys = `lenses are keyed by "<from>-><to>" versions, such as "1.0->0.1"`
 
 	rtv := ml.rt.Underlying()
 	schdef, lensdef := rtv.LookupPath(cue.MakePath(cue.Str("SchemaDef"))), rtv.LookupPath(cue.MakePath(cue.Str("Lens")))
 	check(ml.raw, ml.rt.linDef(), "a lineage")
-	each(ml.raw.LookupPath(cue.MakePath(cue.Str("schemas"))), isVersion, "a major version; "+versionKeys, func(_ string, major cue.Value) {
-		each(major, isVersion, "a minor version; "+versionKeys, func(_ string, sch cue.Value) {
+	each(ml.raw.LookupPath(cue.MakePath(cue.Str("schemas"))), isVersion, diag.E0124, "a major version", versionKeys, func(_ string, major cue.Value) {
+		each(major, isVersion, diag.E0124, "a minor version", versionKeys, func(_ string, sch cue.Value) {
 			check(sch, schdef, "a schema entry")
 		})
 	})
-	each(ml.raw.LookupPath(cue.MakePath(cue.Str("lenses"))), isEdge, `a lens edge; lenses are keyed by "<from>-><to>" versions, such as "1.0->0.1"`, func(key string, lens cue.Value) {
+	each(ml.raw.LookupPath(cue.MakePath(cue.Str("lenses"))), isEdge, diag.E0125, "a lens edge", edgeKeys, func(key string, lens cue.Value) {
 		// A lens's fields are named after the versions its edge names: thema's
 		// Lens is a pseudofunction of them, and names the two in takes and
 		// returns, since out constrains them by pattern rather than declaring
@@ -302,10 +327,7 @@ func (ml *maybeLineage) checkUnknownFields() error {
 		check(lens, def.LookupPath(cue.MakePath(cue.Str("out"))), "a lens", takes, returns)
 	})
 
-	if errs != nil {
-		return errors.Mark(errs, terrors.ErrInvalidLineage)
-	}
-	return nil
+	return diag.Join(errs...)
 }
 
 func (ml *maybeLineage) checkLineageShape(cfg *bindConfig) error {
@@ -314,15 +336,23 @@ func (ml *maybeLineage) checkLineageShape(cfg *bindConfig) error {
 	for _, path := range []string{"name", "schemas"} {
 		val := ml.raw.LookupPath(cue.MakePath(cue.Str(path)))
 		if !val.Exists() {
-			return errors.Mark(mkerror(ml.raw, "not a lineage, missing Lineage.%s", path), terrors.ErrValueNotALineage)
+			return ml.at(diag.E0120, ml.raw).
+				Headlinef("the lineage does not declare %s", path).
+				Helpf("every lineage declares name and schemas").
+				Err()
 		}
 		if path == "schemas" {
 			if iter, err := val.Fields(); err == nil && !iter.Next() {
-				return errors.Mark(cerrors.Newf(embedreg.AuthorPos(val), "invalid lineage, Lineage.schemas must declare at least one schema"), terrors.ErrInvalidLineage)
+				return ml.at(diag.E0122, val).
+					Headline("the lineage declares no schemas").
+					Help("declare at least version 0.0 under schemas").
+					Err()
 			}
 		}
 		if !val.IsConcrete() {
-			return errors.Mark(mkerror(val, "invalid lineage, Lineage.%s must be concrete", path), terrors.ErrInvalidLineage)
+			return ml.at(diag.E0121, val).
+				Headlinef("%s is not concrete", path).
+				Err()
 		}
 	}
 
@@ -342,7 +372,7 @@ func (ml *maybeLineage) checkLineageShape(cfg *bindConfig) error {
 	// (!) fields are legitimately absent until data is supplied. Final validation
 	// reports each one as missing.
 	if err := ml.uni.Validate(); err != nil {
-		return errors.Mark(cerrors.Promote(err, "not an instance of thema.Lineage"), terrors.ErrInvalidLineage)
+		return ml.convert(err, diag.E0126)
 	}
 
 	return nil
@@ -353,10 +383,10 @@ func (ml *maybeLineage) checkNativeValidity(cfg *bindConfig) error {
 	// The candidate lineage must be error-free.
 	// TODO replace this with Err, this check isn't actually what we want up here. Only schemas themselves must be cycle-free
 	if err := ml.raw.Validate(cue.Concrete(false)); err != nil {
-		return errors.Mark(cerrors.Promote(err, "lineage is invalid"), terrors.ErrInvalidLineage)
+		return ml.convert(err, diag.E0126)
 	}
 	if err := ml.uni.Validate(cue.Concrete(false)); err != nil {
-		return errors.Mark(cerrors.Promote(err, "lineage is invalid"), terrors.ErrInvalidLineage)
+		return ml.convert(err, diag.E0126)
 	}
 
 	return nil
@@ -368,16 +398,22 @@ func (ml *maybeLineage) checkNativeValidity(cfg *bindConfig) error {
 // not report a schema like _ as an error until data arrives.
 func (ml *maybeLineage) checkSchemaShapes() error {
 	ctx := ml.rt.Context()
-	var errs cerrors.Error
+	var errs []error
 
 	// thema's default joinSchema is _, which joins nothing.
 	if join := ml.uni.LookupPath(cue.MakePath(cue.Str("joinSchema"))); join.IncompleteKind() != cue.StructKind && join.IncompleteKind() != cue.TopKind {
-		errs = cerrors.Append(errs, cerrors.Newf(embedreg.AuthorPos(join), "joinSchema must be a struct, not %s", join.IncompleteKind()))
+		errs = append(errs, ml.at(diag.E0130, join).
+			Headlinef("joinSchema is %s, not a struct", join.IncompleteKind()).
+			Help("a joinSchema is a struct every schema in the lineage is an instance of, or _ to join nothing").
+			Err())
 	}
 
 	for _, sch := range ml.schlist {
 		if k := sch.def.IncompleteKind(); k != cue.StructKind {
-			errs = cerrors.Append(errs, cerrors.Newf(embedreg.AuthorPos(sch.ref.LookupPath(pathSch)), "schema %s must be a struct, not %s", sch.v, k))
+			errs = append(errs, ml.at(diag.E0129, sch.ref.LookupPath(pathSch)).
+				Headlinef("%s is %s, not a struct", ml.term(schemaAddr(sch.v)), k).
+				Help("every schema is a struct").
+				Err())
 			continue
 		}
 		iter, err := sch.ref.LookupPath(cue.MakePath(cue.Str("examples"))).Fields()
@@ -387,15 +423,16 @@ func (ml *maybeLineage) checkSchemaShapes() error {
 		closed := cuetil.CloseRecursive(ctx, sch.def)
 		for iter.Next() {
 			if err := closed.Unify(iter.Value()).Validate(cue.Concrete(true)); err != nil {
-				errs = cerrors.Append(errs, cerrors.Newf(embedreg.AuthorPos(iter.Value()), "schema %s example %s is not a valid instance of the schema: %s", sch.v, iter.Selector(), cerrors.Details(err, nil)))
+				ex := diag.Address{Kind: diag.AddrExample, Version: diag.Version(sch.v), Name: iter.Selector().Unquoted()}
+				errs = append(errs, ml.diag(diag.E0131).AtValue(iter.Value()).Addr(ex).
+					Headlinef("%s is not an instance of it", ml.term(ex)).
+					Cause(err).
+					Err())
 			}
 		}
 	}
 
-	if errs != nil {
-		return errors.Mark(errs, terrors.ErrInvalidLineage)
-	}
-	return nil
+	return diag.Join(errs...)
 }
 
 // checkSchemaConstructs rejects, in one schema (or the joinSchema), the
@@ -404,29 +441,32 @@ func (ml *maybeLineage) checkSchemaShapes() error {
 // its paths unbounded; no later check (compatibility, lens results, lacunas)
 // can describe either, so they are refused before any of them reads the
 // schema. Admitting either later refuses nothing that binds today.
-func (ml *maybeLineage) checkSchemaConstructs(v cue.Value, name string) error {
-	var errs cerrors.Error
+func (ml *maybeLineage) checkSchemaConstructs(v cue.Value, addr diag.Address) error {
+	var errs []error
+	name := ml.term(addr)
 	t, err := cueview.NewTree(v)
 	if err != nil {
-		return errors.Mark(cerrors.Newf(embedreg.AuthorPos(v), "%s: %s", name, err), terrors.ErrInvalidLineage)
+		// Every value that reaches here is one thema exported itself.
+		return diag.InternalErr(err)
 	}
 	ast.Walk(t.File, func(n ast.Node) bool {
 		c, ok := n.(*ast.Comprehension)
 		if !ok {
 			return true
 		}
-		errs = cerrors.Append(errs, cerrors.Newf(c.Pos(), "%s: comprehensions are not allowed in schemas", name))
+		errs = append(errs, ml.diag(diag.E0132).At(c.Pos()).Addr(addr).
+			Headlinef("%s uses a comprehension", name).
+			Note(token.NoPos, "a schema's fields must be known without evaluating data: no check can describe a schema whose fields depend on evaluation").
+			Help("write the fields the comprehension would produce").
+			Err())
 		return false
 	}, nil)
 
-	w := &cycleWalker{name: name, root: v, reported: make(map[string]bool)}
+	w := &cycleWalker{ml: ml, addr: addr, root: v, reported: make(map[string]bool)}
 	w.walk(v)
-	errs = cerrors.Append(errs, w.errs)
+	errs = append(errs, w.errs...)
 
-	if errs != nil {
-		return errors.Mark(errs, terrors.ErrInvalidLineage)
-	}
-	return nil
+	return diag.Join(errs...)
 }
 
 // maxReferenceDepth bounds the chain of references cycleWalker follows. A
@@ -439,11 +479,12 @@ const maxReferenceDepth = 64
 // already on the stack closes a cycle, reported at that reference, as does one
 // to a value outside the schema that contains it.
 type cycleWalker struct {
-	name     string
+	ml       *maybeLineage
+	addr     diag.Address
 	root     cue.Value
 	stack    []cue.Path
 	reported map[string]bool
-	errs     cerrors.Error
+	errs     []error
 }
 
 func (w *cycleWalker) walk(v cue.Value) {
@@ -453,7 +494,10 @@ func (w *cycleWalker) walk(v cue.Value) {
 			// outside (thema's own definitions, imports) is not the author's. One
 			// to a value that contains the schema still closes a cycle.
 			if cuetil.PathHasPrefix(w.root.Path(), p) {
-				w.errs = cerrors.Append(w.errs, cerrors.Newf(v.Pos(), "%s: reference to %s, which contains the schema; schemas may not contain circular references", w.name, p))
+				w.errs = append(w.errs, w.ml.diag(diag.E0134).At(v.Pos()).Addr(w.addr).
+					Headlinef("%s refers to %s, which contains it", w.ml.term(w.addr), w.ml.relPath(p)).
+					Note(token.NoPos, "a schema's references may not form a cycle: no check can describe a schema whose paths are unbounded").
+					Err())
 			}
 			return
 		}
@@ -462,13 +506,18 @@ func (w *cycleWalker) walk(v cue.Value) {
 			if s.String() == key {
 				if !w.reported[key] {
 					w.reported[key] = true
-					w.errs = cerrors.Append(w.errs, cerrors.Newf(v.Pos(), "%s: reference cycle %s; schemas may not contain circular references", w.name, w.chain(i)))
+					w.errs = append(w.errs, w.ml.diag(diag.E0133).At(v.Pos()).Addr(w.addr).
+						Headlinef("%s has a reference cycle: %s", w.ml.term(w.addr), w.chain(i)).
+						Note(token.NoPos, "a schema's references may not form a cycle: no check can describe a schema whose paths are unbounded").
+						Err())
 				}
 				return
 			}
 		}
 		if len(w.stack) >= maxReferenceDepth {
-			w.errs = cerrors.Append(w.errs, cerrors.Newf(v.Pos(), "%s: chain of references deeper than %d at %s", w.name, maxReferenceDepth, w.rel(p)))
+			w.errs = append(w.errs, w.ml.diag(diag.E0135).At(v.Pos()).Addr(w.addr).
+				Headlinef("%s has a chain of references deeper than %d at %s", w.ml.term(w.addr), maxReferenceDepth, w.rel(p)).
+				Err())
 			return
 		}
 		w.stack = append(w.stack, p)
@@ -538,41 +587,60 @@ func (ml *maybeLineage) checkLensResults() error {
 	for _, sch := range ml.schlist {
 		byVersion[sch.v] = sch
 	}
-	var errs cerrors.Error
+	var errs []error
 	for _, cl := range ml.cueLenses() {
 		lens, from, to := cl.v, cl.id.From, cl.id.To
 		fsch, tsch := byVersion[from], byVersion[to]
 		if fsch == nil || tsch == nil {
 			continue
 		}
+		lensA := lensAddr(from, to)
+		inputA, resultA := lensA, lensA
+		inputA.Kind, resultA.Kind = diag.AddrLensInput, diag.AddrLensResult
 		inputPath, resultPath := cue.MakePath(cue.Str(lensParam(from))), cue.MakePath(cue.Str(lensParam(to)))
-		fail := func(v cue.Value, format string, args ...any) {
-			errs = cerrors.Append(errs, cerrors.Newf(embedreg.AuthorPos(v), "lens %s->%s: %s", from, to, fmt.Sprintf(format, args...)))
-		}
 
 		source := cuetil.CloseRecursive(ctx, fsch.def)
 		input := lens.LookupPath(inputPath)
 		if !input.Exists() {
-			fail(lens, "the lens does not declare %s, the instance of %s it takes: write %s: _", lensParam(from), from, lensParam(from))
+			errs = append(errs, ml.diag(diag.E0310).AtValue(lens).Addr(lensA).
+				Headlinef("%s does not declare %s, the instance of %s it takes", ml.term(lensA), lensParam(from), from).
+				Helpf("write %s: _", lensParam(from)).
+				Err())
 			continue
 		}
 		if !lens.LookupPath(resultPath).Exists() {
-			fail(lens, "the lens does not declare %s, the instance of %s it returns", lensParam(to), to)
+			errs = append(errs, ml.diag(diag.E0311).AtValue(lens).Addr(lensA).
+				Headlinef("%s does not declare %s, the instance of %s it returns", ml.term(lensA), lensParam(to), to).
+				Helpf("write %s: {...}, mapping each field of %s", lensParam(to), to).
+				Err())
 			continue
 		}
 		if err := input.Subsume(source); err != nil {
-			fail(input, "%s must accept every instance of schema %s, but is narrower: %s", lensParam(from), from, cerrors.Details(err, nil))
+			errs = append(errs, ml.diag(diag.E0303).AtValue(input).Addr(inputA).
+				Headlinef("%s does not accept every instance of %s", ml.term(inputA), ml.term(schemaAddr(from))).
+				Cause(err).
+				Helpf("%s stands for any instance of its source schema; leave it as _", lensParam(from)).
+				Err())
 			continue
 		}
 
 		result := lens.FillPath(inputPath, source).LookupPath(resultPath)
 		if err := result.Unify(cuetil.CloseRecursive(ctx, tsch.def)).Validate(); err != nil {
-			fail(lens.LookupPath(resultPath), "%s is not an instance of schema %s:\n%s", lensParam(to), to, cerrors.Details(err, nil))
+			// The totality checker usually knows the rule behind the conflict,
+			// and names the mapping; prefer its account when it has one.
+			if findings := ml.totalityFindings(lens, fsch, tsch); len(findings) > 0 {
+				errs = append(errs, findings...)
+				continue
+			}
+			errs = append(errs, ml.diag(diag.E0304).AtValue(lens.LookupPath(resultPath)).Addr(resultA).
+				Headlinef("%s is not an instance of %s", ml.term(resultA), ml.term(schemaAddr(to))).
+				Cause(err).
+				Err())
 			continue
 		}
 		syn, err := cuetil.ParseLens(lens, lensParam(from), lensParam(to))
 		if err != nil {
-			fail(lens, "%v", err)
+			errs = append(errs, diag.InternalErr(err))
 			continue
 		}
 		fields := syn.Result()
@@ -584,14 +652,14 @@ func (ml *maybeLineage) checkLensResults() error {
 			}
 		}
 		if len(paths) > 0 {
-			fail(lens.LookupPath(resultPath), "%s", tsch.undeclaredErr(paths))
+			b := ml.diag(diag.E0305).AtValue(lens.LookupPath(resultPath)).Addr(resultA).
+				Headlinef("%s writes %s, which %s does not declare", ml.term(resultA), strings.Join(paths, ", "), ml.term(schemaAddr(to))).
+				Help("a lens writes only fields its target schema declares, however open the schema is written")
+			errs = append(errs, b.Err())
 		}
 	}
 
-	if errs != nil {
-		return errors.Mark(errs, terrors.ErrInvalidLens)
-	}
-	return nil
+	return diag.Join(errs...)
 }
 
 // checkLacunas checks the lacunas each CUE lens can emit: they must be listed
@@ -606,13 +674,14 @@ func (ml *maybeLineage) checkLacunas() error {
 		byVersion[sch.v] = sch
 	}
 
-	var errs cerrors.Error
+	var errs []error
 	for _, cl := range ml.cueLenses() {
 		lens, from, to := cl.v, cl.id.From, cl.id.To
 		fsch, tsch := byVersion[from], byVersion[to]
 		if fsch == nil || tsch == nil {
 			continue
 		}
+		lensA := lensAddr(from, to)
 
 		// A lens that declares no lacunas has thema's open default, [...Lacuna], which
 		// resolves to []. A list built conditionally has no concrete length at all.
@@ -620,12 +689,16 @@ func (ml *maybeLineage) checkLacunas() error {
 		lacunas, _ := raw.Default()
 		syn, err := cuetil.ParseLens(lens, lensParam(from), lensParam(to))
 		if err != nil {
-			errs = cerrors.Append(errs, cerrors.Newf(embedreg.AuthorPos(lens), "lens %s->%s: %v", from, to, err))
+			errs = append(errs, diag.InternalErr(err))
 			continue
 		}
 		if _, err := lacunas.Len().Int64(); err != nil || syn.LacunasConditional() {
-			errs = cerrors.Append(errs, cerrors.Newf(embedreg.AuthorPos(lacunas),
-				"lens %s->%s: lacunas must be listed unconditionally, with each lacuna's condition field deciding whether it applies", from, to))
+			lacA := lensA
+			lacA.Kind = diag.AddrLacuna
+			errs = append(errs, ml.diag(diag.E0401).AtValue(lacunas).Addr(lacA).
+				Headlinef("the lacunas of %s are not listed unconditionally", ml.term(lensA)).
+				Help("list every lacuna the lens can emit; each lacuna's condition field decides whether it applies").
+				Err())
 			continue
 		}
 		for i := 0; ; i++ {
@@ -633,14 +706,18 @@ func (ml *maybeLineage) checkLacunas() error {
 			if !lac.Exists() {
 				break
 			}
-			fail := func(format string, args ...any) {
-				errs = cerrors.Append(errs, cerrors.Newf(embedreg.AuthorPos(lac), "lens %s->%s, lacuna %d: %s", from, to, i, fmt.Sprintf(format, args...)))
+			lacA := lensA
+			lacA.Kind, lacA.Index = diag.AddrLacuna, i
+			fail := func(code diag.Code, v cue.Value, format string, args ...any) {
+				errs = append(errs, ml.diag(code).AtValue(v).Addr(lacA).
+					Headlinef("%s %s", ml.term(lacA), fmt.Sprintf(format, args...)).
+					Err())
 			}
 			if !lac.LookupPath(cue.MakePath(cue.Str("message"))).Exists() {
-				fail("message is required")
+				fail(diag.E0402, lac, "has no message")
 			}
 			if !lac.LookupPath(cue.MakePath(cue.Str("type"))).Exists() {
-				fail("type is required")
+				fail(diag.E0403, lac, "has no type")
 			}
 			for _, side := range []struct {
 				field string
@@ -652,65 +729,65 @@ func (ml *maybeLineage) checkLacunas() error {
 					if !ref.Exists() {
 						break
 					}
-					path, err := ref.LookupPath(cue.MakePath(cue.Str("path"))).String()
+					pathv := ref.LookupPath(cue.MakePath(cue.Str("path")))
+					path, err := pathv.String()
 					if err != nil {
-						fail("%s[%d].path must be a concrete string", side.field, j)
+						fail(diag.E0405, ref, "names a field with %s[%d].path, which is not a concrete string", side.field, j)
+						continue
+					}
+					if p := cue.ParsePath(path); p.Err() != nil {
+						fail(diag.E0405, pathv, "names a field with %s[%d].path, but %q is not a path", side.field, j, path)
 						continue
 					}
 					if err := checkFieldRefPath(ml.rt.Context(), path, side.sch); err != nil {
-						fail("%s[%d]: %v", side.field, j, err)
+						fail(diag.E0404, pathv, "names %s in %s[%d], which %s does not declare", path, side.field, j, ml.term(schemaAddr(side.sch.v)))
 					}
 				}
 			}
 		}
 	}
 
-	if errs != nil {
-		return errors.Mark(errs, terrors.ErrInvalidLens)
-	}
-	return nil
+	return diag.Join(errs...)
 }
 
 // checkReferences checks what each schema, the joinSchema and each CUE lens
 // refer to: a schema only its own body and CUE's builtin packages, a lens only
 // the instance it takes, its own body and the builtin packages
-// (docs/invariants.md, References). CUE resolves any reference in lexical scope, so a schema that
-// reads a sibling schema, the lineage's name or a file-level helper evaluates
-// without complaint; the rule is thema's. References are read from each
-// value's syntax (the Raw view), the only place every one is visible as
-// written: the evaluator resolves lets and index expressions and leaves the
-// bodies of pending comprehensions unevaluated (references.go says more).
-// Schemas are checked first, and a lineage whose schemas fail is reported
-// without its lenses: a lens is judged against schemas that mean what they say.
+// (docs/invariants.md, References). CUE resolves any reference in lexical
+// scope, so a schema that reads a sibling schema, the lineage's name or a
+// file-level helper evaluates without complaint; the rule is thema's.
+// References are read from each value's syntax (the Raw view), the only place
+// every one is visible as written: the evaluator resolves lets and index
+// expressions and leaves the bodies of pending comprehensions unevaluated
+// (references.go says more). Schemas are checked first, and a lineage whose
+// schemas fail is reported without its lenses: a lens is judged against
+// schemas that mean what they say.
 func (ml *maybeLineage) checkReferences() error {
 	rc := newRefChecker(ml.rt.Context(), ml.raw)
-	var errs cerrors.Error
+	var errs []error
 	check := func(o refOwner) {
 		for _, f := range rc.check(o) {
-			errs = cerrors.Append(errs, cerrors.Newf(refPos(o, f.field), "%s", f.String(o)))
+			errs = append(errs, ml.refDiag(o, f))
 		}
 	}
 
 	for _, sch := range ml.schlist {
 		rel := cue.MakePath(cue.Str(labelSchemas), cue.Str(strconv.Itoa(int(sch.v[0]))), cue.Str(strconv.Itoa(int(sch.v[1]))), cue.Str("schema"))
-		check(refOwner{name: fmt.Sprintf("schema %s", sch.v), v: ml.raw.LookupPath(rel), rel: rel})
+		check(refOwner{name: fmt.Sprintf("schema %s", sch.v), addr: schemaAddr(sch.v), v: ml.raw.LookupPath(rel), rel: rel})
 	}
 	// thema's default joinSchema is _, which joins nothing and is not the author's.
 	if rel := cue.MakePath(cue.Str(labelJoinSchema)); ml.raw.LookupPath(rel).IncompleteKind() != cue.TopKind {
-		check(refOwner{name: labelJoinSchema, v: ml.raw.LookupPath(rel), rel: rel})
+		check(refOwner{name: labelJoinSchema, addr: diag.Address{Kind: diag.AddrJoinSchema}, v: ml.raw.LookupPath(rel), rel: rel})
 	}
-	if errs != nil {
-		return errors.Mark(errs, terrors.ErrInvalidLineage)
+	if len(errs) > 0 {
+		return diag.Join(errs...)
 	}
 
 	for _, cl := range ml.cueLenses() {
 		rel := cue.MakePath(cue.Str(labelLenses), cue.Str(cl.id.String()))
-		check(refOwner{name: fmt.Sprintf("lens %s", cl.id), v: ml.raw.LookupPath(rel), rel: rel, lens: true, takes: lensParam(cl.id.From)})
+		check(refOwner{name: fmt.Sprintf("lens %s", cl.id), addr: lensAddr(cl.id.From, cl.id.To), v: ml.raw.LookupPath(rel), rel: rel, lens: true, takes: lensParam(cl.id.From)})
 	}
-	if errs != nil {
-		return errors.Mark(errs, terrors.ErrInvalidLens)
-	}
-	return nil
+	return diag.Join(errs...)
 }
 
 // checkLensTotality proves each CUE lens total: for every instance of its source
@@ -723,43 +800,45 @@ func (ml *maybeLineage) checkReferences() error {
 // evaluates a lens only against data, so without this a lens that drops a field
 // or overflows a bound surfaces at translate, for the instance that hits it.
 //
-// SkipBuggyChecks skips it: the corpus has a lens the check correctly refuses
-// (exemplars/disjunct, 0.1->0.0, writes nothing), which #87 migrates.
+// SkipBuggyChecks skips it: the corpus has lenses the check correctly refuses
+// (exemplars/expand, 0.3->0.2, drops "baz"), which #87 migrates.
 func (ml *maybeLineage) checkLensTotality(cfg *bindConfig) error {
 	if cfg.skipbuggychecks {
 		return nil
 	}
-	ctx := ml.rt.Context()
 	byVersion := make(map[SyntacticVersion]*schemaDef, len(ml.schlist))
 	for _, sch := range ml.schlist {
 		byVersion[sch.v] = sch
 	}
 
-	var errs cerrors.Error
+	var errs []error
 	for _, cl := range ml.cueLenses() {
 		lens, from, to := cl.v, cl.id.From, cl.id.To
 		fsch, tsch := byVersion[from], byVersion[to]
 		if fsch == nil || tsch == nil {
 			continue
 		}
-		res := lenscheck.Check(ctx, lens, fsch.def, tsch.def, lensParam(from), lensParam(to))
-		if res.Total() {
-			continue
-		}
-		verb := "is not total over"
-		if res.Verdict() == lenscheck.Unknown {
-			verb = "cannot be shown total over"
-		}
-		errs = cerrors.Append(errs, cerrors.Newf(embedreg.AuthorPos(lens), "lens %s->%s %s schema %s", from, to, verb, from))
-		for _, f := range res.Findings {
-			errs = cerrors.Append(errs, cerrors.Newf(f.Pos, "lens %s->%s: %s", from, to, f))
-		}
+		errs = append(errs, ml.totalityFindings(lens, fsch, tsch)...)
 	}
 
-	if errs != nil {
-		return errors.Mark(errs, terrors.ErrInvalidLens)
+	return diag.Join(errs...)
+}
+
+// totalityFindings runs the totality checker over one lens and returns a
+// diagnostic per finding that is not Total. Under SkipBuggyChecks there are
+// none.
+func (ml *maybeLineage) totalityFindings(lens cue.Value, fsch, tsch *schemaDef) []error {
+	if ml.cfg.skipbuggychecks {
+		return nil
 	}
-	return nil
+	var errs []error
+	res := lenscheck.Check(ml.rt.Context(), lens, fsch.def, tsch.def, lensParam(fsch.v), lensParam(tsch.v))
+	for _, f := range res.Findings {
+		if f.Verdict != lenscheck.Total {
+			errs = append(errs, ml.totalityDiag(f, fsch.v, tsch.v))
+		}
+	}
+	return errs
 }
 
 // checkLensEdges checks that a lineage has exactly the lenses its schema
@@ -803,33 +882,59 @@ func (ml *maybeLineage) checkLensEdges() error {
 		prior = v
 	}
 
-	// TODO is it worth making each sub-item into its own error type?
+	var errs []error
 	if len(missing) > 0 {
-		b := new(bytes.Buffer)
-
-		b.WriteString("lenses not provided for the following version pairs:\n")
-		for _, mlid := range missing {
-			fmt.Fprint(b, "\t", mlid, "\n")
+		// Point at the lenses field when the author wrote one, else the lineage.
+		at := ml.raw.LookupPath(cue.MakePath(cue.Str("lenses")))
+		if !at.Exists() {
+			at = ml.raw
 		}
-		return errors.Mark(errors.New(b.String()), terrors.ErrMissingLenses)
+		for _, mlid := range missing {
+			a := lensAddr(mlid.From, mlid.To)
+			b := ml.diag(diag.E0301).AtValue(at).Addr(a).
+				Headlinef("the lineage has no %s", ml.term(a))
+			if mlid.To.Less(mlid.From) {
+				b.Notef(token.NoPos, "every schema needs a lens back to its predecessor, so that instances of %s can be translated to %s", mlid.From, mlid.To)
+			} else {
+				b.Notef(token.NoPos, "every major version needs a lens forward from its predecessor, so that instances of %s can be translated to %s", mlid.From, mlid.To)
+			}
+			errs = append(errs, b.Err())
+		}
+		return diag.Join(errs...)
 	}
 
 	if len(all) > 0 {
-		b := new(bytes.Buffer)
-
-		b.WriteString("lenses erroneously provided for the following version pairs:\n")
+		byID := make(map[lensID]cue.Value, len(lenses))
+		for _, cl := range lenses {
+			byID[cl.id] = cl.v
+		}
 		// walk the slice so output is reliably ordered
 		for _, elid := range ids {
 			// if it's not in the list it's because it was expected & already processed
 			if _, has := all[elid]; !has {
 				continue
 			}
-			fmt.Fprintf(b, "\t%s (%s)\n", elid, ml.erroneousLensReason(elid))
+			a := lensAddr(elid.From, elid.To)
+			errs = append(errs, ml.diag(diag.E0302).AtValue(byID[elid]).Addr(a).
+				Headlinef("the lineage's versions do not call for %s", ml.term(a)).
+				Note(token.NoPos, ml.erroneousLensReason(elid)).
+				Help("a lineage declares a lens from each schema back to its predecessor, and one forward across each major version").
+				Err())
 		}
-		return errors.Mark(errors.New(b.String()), terrors.ErrErroneousLenses)
+		return diag.Join(errs...)
 	}
 
 	return nil
+}
+
+// schemaAddr is the Address of the schema at version v.
+func schemaAddr(v SyntacticVersion) diag.Address {
+	return diag.Address{Kind: diag.AddrSchema, Version: diag.Version(v)}
+}
+
+// lensAddr is the Address of the lens from -> to.
+func lensAddr(from, to SyntacticVersion) diag.Address {
+	return diag.Address{Kind: diag.AddrLens, From: diag.Version(from), To: diag.Version(to)}
 }
 
 // cueLens is a lens declared in a lineage's CUE, and the edge it is declared at.
@@ -857,18 +962,18 @@ func (ml *maybeLineage) cueLenses() []cueLens {
 func (ml *maybeLineage) erroneousLensReason(elid lensID) string {
 	switch {
 	case !synvExists(ml.allv, elid.To):
-		return fmt.Sprintf("schema version %s does not exist", elid.To)
+		return fmt.Sprintf("there is no schema %s", elid.To)
 	case !synvExists(ml.allv, elid.From):
-		return fmt.Sprintf("schema version %s does not exist", elid.From)
+		return fmt.Sprintf("there is no schema %s", elid.From)
 	case elid.To == elid.From:
-		return "lenses from a version to itself are not allowed"
+		return "a lens maps between two versions, never from a version to itself"
 	case elid.To.Less(elid.From):
 		// reverse lenses
 		// only possibility is non-sequential versions connected
 		return fmt.Sprintf("%s is the predecessor of %s, not %s", ml.allv[searchSynv(ml.allv, elid.From)-1], elid.From, elid.To)
 	case elid.To[0] == elid.From[0]:
 		// forward lens within a major version
-		return "minor version upgrades are handled automatically"
+		return fmt.Sprintf("%s is backward compatible with %s, so translating forward is implicit", elid.To, elid.From)
 	default:
 		// forward lens across major versions, between non-adjacent versions
 		return fmt.Sprintf("%s is the successor of %s, not %s", ml.allv[searchSynv(ml.allv, elid.From)+1], elid.From, elid.To)

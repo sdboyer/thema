@@ -17,5 +17,9 @@ ForwardLens: {
 	}
 }
 -- out/error --
-0.0 always has every field v0_0.count * 2 reads, so orelse's fallback could never apply: write total: v0_0.count * 2:
-    1.0.thema:8:17
+error[E0348]: 0.0 always has every field v0_0.count * 2 reads, so orelse's fallback could never apply: write total: v0_0.count * 2
+ --> 1.0.thema:8:17
+  |
+8 |         total: orelse(v0_0.count * 2, 0)
+  |                       ^^^^
+  |

@@ -1,0 +1,71 @@
+#op: compile
+A match's arms are a struct of `value: value` entries, each matching one
+source constant to one target constant, with at most one `[_]` catch-all arm.
+An arm's value that is not a constant is not one.
+-- ship/history/0.0.thema --
+Schema: {
+	kind: "a" | "b"
+	x:    int
+}
+-- ship/1.0.thema --
+Schema: {
+	kind: int
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		kind: match(v0_0.kind, {
+			"a": v0_0.x
+			"b": 2
+		})
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0338",
+      "severity": "error",
+      "headline": "a match arm's value must be a constant",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 9,
+        "col": 9,
+        "offset": 92,
+        "origin": "user"
+      }
+    },
+    {
+      "code": "E0347",
+      "severity": "error",
+      "headline": "0.0 declares x and 1.0 does not, and nothing maps it: write <field>: v0_0.x to move it, or x: drop",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 5,
+        "col": 1,
+        "offset": 24,
+        "origin": "user"
+      }
+    }
+  ],
+  "summary": {
+    "errors": 2,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0338]: a match arm's value must be a constant
+ --> 1.0.thema:9:9
+  |
+9 |             "a": v0_0.x
+  |                  ^^^^
+  |
+
+error[E0347]: 0.0 declares x and 1.0 does not, and nothing maps it: write <field>: v0_0.x to move it, or x: drop
+ --> 1.0.thema:5:1
+  |
+5 | ForwardLens: {
+  | ^^^^^^^^^^^
+  |

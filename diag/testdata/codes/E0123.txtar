@@ -1,0 +1,62 @@
+#op: bind
+A lineage, a schema entry and a lens each have a fixed set of fields; a field
+outside that set is usually a typo, and the help names the field that is
+closest. Hidden fields and definitions are not checked: they are the author's
+own helpers.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			shcema: {
+				a: string
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0123",
+      "severity": "error",
+      "headline": "shcema is not a field of a schema entry",
+      "path": [
+        "schemas",
+        "0",
+        "0",
+        "schema"
+      ],
+      "address": {
+        "kind": "schema",
+        "version": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 5,
+        "col": 4,
+        "offset": 44,
+        "origin": "user"
+      },
+      "help": [
+        "did you mean schema?"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0123]: shcema is not a field of a schema entry
+ --> lineage.cue:5:4
+  |
+5 |             shcema: {
+  |             ^^^^^^
+  |
+  = help: did you mean schema?

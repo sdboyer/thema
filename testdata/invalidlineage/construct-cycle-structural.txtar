@@ -13,7 +13,18 @@ thema.Lineage & {
 	}
 }
 -- out/bindfail --
-schema 0.0: reference cycle b -> a -> b; schemas may not contain circular references:
-    ./in.cue:7:4
-schema 0.0: reference cycle a -> b -> a; schemas may not contain circular references:
-    ./in.cue:8:4
+error[E0133]: schema 0.0 has a reference cycle: b -> a -> b
+ --> /in.cue:7:4
+  |
+7 |             a: b
+  |             ^
+  |
+  = note: a schema's references may not form a cycle: no check can describe a schema whose paths are unbounded
+
+error[E0133]: schema 0.0 has a reference cycle: a -> b -> a
+ --> /in.cue:8:4
+  |
+8 |             b: a
+  |             ^
+  |
+  = note: a schema's references may not form a cycle: no check can describe a schema whose paths are unbounded

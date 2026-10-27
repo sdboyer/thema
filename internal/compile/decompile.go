@@ -13,6 +13,7 @@ import (
 	"cuelang.org/go/cue/token"
 
 	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/internal/cueview"
 	"github.com/sdboyer/thema/internal/lenscheck"
 )
@@ -26,6 +27,18 @@ import (
 //
 // lin is the lineage value, as compiled or as loaded; it need not be bound.
 func Decompile(lin cue.Value) (name string, files []File, err error) {
+	name, files, err = decompile(lin)
+	if err != nil {
+		// Every reason is a sentence in the normal form's terms about what
+		// the authoring form cannot express; the lineage is the position.
+		return "", nil, diag.New(diag.E0356).AtValue(lin).Headline(err.Error()).
+			Help("the authoring form expresses the lenses Compile produces: mappings that copy, compute, drop, orelse, match and each").
+			Err()
+	}
+	return name, files, nil
+}
+
+func decompile(lin cue.Value) (name string, files []File, err error) {
 	name, err = lin.LookupPath(cue.MakePath(cue.Str("name"))).String()
 	if err != nil {
 		return "", nil, fmt.Errorf("name: %w", err)

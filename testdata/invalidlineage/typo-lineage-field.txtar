@@ -12,5 +12,10 @@ schemas: {
 }
 lense: []
 -- out/bindfail --
-lense is not a field of a lineage; valid fields are joinSchema, lenses, name, schemas:
-    ./in.cue:12:1
+error[E0123]: lense is not a field of a lineage
+  --> /in.cue:12:1
+   |
+12 | lense: []
+   | ^^^^^
+   |
+   = help: did you mean lenses?

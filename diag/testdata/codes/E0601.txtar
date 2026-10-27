@@ -1,0 +1,28 @@
+#op: cli
+#args: data validate -l missing.cue data.json
+The path given with -l does not exist. The lineage is a .cue file or a
+directory of .cue files.
+-- data.json --
+{"a": "Argo"}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0601",
+      "severity": "error",
+      "headline": "missing.cue does not exist",
+      "help": [
+        "pass the path to a .cue file or a directory with -l"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0601]: missing.cue does not exist
+  |
+  = help: pass the path to a .cue file or a directory with -l

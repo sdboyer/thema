@@ -127,6 +127,12 @@ type Finding struct {
 	// Pos is the author's position for the finding: the field in new, or in old
 	// for a field new lacks.
 	Pos token.Pos
+	// ViaResidual: the prior schema accepts the field at Path only through its
+	// ... or a pattern constraint, not by name. The new schema claims the name,
+	// and whatever it declares narrows what the prior schema already admitted
+	// there. It explains to an author why adding a typed optional field under
+	// ... is breaking.
+	ViaResidual bool
 }
 
 func (f Finding) String() string {
@@ -636,7 +642,11 @@ func (w *walker) structs(p cue.Path, pred, succ cue.Value) {
 			continue
 		}
 		if allowed {
+			n := len(w.findings)
 			w.value(fp, ov, nf.value)
+			for i := n; i < len(w.findings); i++ {
+				w.findings[i].ViaResidual = true
+			}
 		}
 	}
 

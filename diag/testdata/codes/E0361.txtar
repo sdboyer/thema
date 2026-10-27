@@ -1,0 +1,96 @@
+#op: bind
+A lens reads a field that may be absent from the input: an optional field, with
+no test that it is present. For the instances that lack it, the lens produces
+nothing there. Write the field under a presence test, or give it a fallback.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				b:  string
+				c?: string
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			a: v0_0.c
+		}
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			b: v1_0.a
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0361",
+      "severity": "error",
+      "headline": "a in the result of lens 0.0->1.0 is not total for some instance",
+      "path": [
+        "lenses",
+        "0.0->1.0",
+        "v1_0",
+        "a"
+      ],
+      "address": {
+        "field": [
+          "a"
+        ],
+        "from": [
+          0,
+          0
+        ],
+        "kind": "lensResultField",
+        "to": [
+          1,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 23,
+        "col": 7,
+        "offset": 205,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "a in the result of lens 0.0->1.0 copies v0_0.c, which may be absent: v0_0.c is optional in the source schema; write the field under if v0_0.c != _|_"
+        },
+        {
+          "label": "a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule source-absent)"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0361]: a in the result of lens 0.0->1.0 is not total for some instance
+  --> lineage.cue:23:7
+   |
+23 |             a: v0_0.c
+   |                ^^^^
+   |
+   = note: a in the result of lens 0.0->1.0 copies v0_0.c, which may be absent: v0_0.c is optional in the source schema; write the field under if v0_0.c != _|_
+   = note: a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule source-absent)

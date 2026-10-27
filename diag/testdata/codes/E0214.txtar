@@ -1,0 +1,76 @@
+#op: bind
+A defaulted field fills with its default when absent. A minor version that
+changes the default makes the same absent field mean a different value, which
+is a breaking change for every instance that relied on the old one.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				u: *"foo" | "bar" | "baz"
+			}
+		}
+		"1": {
+			schema: {
+				u: "foo" | "bar" | *"baz"
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0214",
+      "severity": "error",
+      "headline": "u in schema 0.1 fills with \"baz\" when absent, where the prior schema filled it with \"foo\"",
+      "path": [
+        "schemas",
+        "0",
+        "1",
+        "schema",
+        "u"
+      ],
+      "address": {
+        "field": [
+          "u"
+        ],
+        "kind": "schemaField",
+        "version": [
+          0,
+          1
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 11,
+        "col": 5,
+        "offset": 119,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule default-changed)"
+        }
+      ],
+      "help": [
+        "make the change compatible, or make this version 1.0"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0214]: u in schema 0.1 fills with "baz" when absent, where the prior schema filled it with "foo"
+  --> lineage.cue:11:5
+   |
+11 |                 u: "foo" | "bar" | *"baz"
+   |                 ^
+   |
+   = note: schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule default-changed)
+   = help: make the change compatible, or make this version 1.0

@@ -1,0 +1,42 @@
+#op: compile
+A version file is not a CUE package: it is one version of one lineage, and the
+compiler assembles the lineage from the files. A package clause does not belong
+in it.
+-- ship/0.0.thema --
+package ship
+
+Schema: {
+	a: string
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0103",
+      "severity": "error",
+      "headline": "0.0.thema has a package clause",
+      "primary": {
+        "file": "0.0.thema",
+        "line": 1,
+        "col": 1,
+        "origin": "user"
+      },
+      "help": [
+        "a version file is not a CUE package; remove the clause"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0103]: 0.0.thema has a package clause
+ --> 0.0.thema:1:1
+  |
+1 | package ship
+  | ^^^^^^^
+  |
+  = help: a version file is not a CUE package; remove the clause

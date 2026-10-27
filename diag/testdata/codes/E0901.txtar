@@ -1,0 +1,33 @@
+#op: panic
+thema panicked while doing its work, and the operation's boundary recovered the
+panic rather than crash the program. This is a bug in thema, not in the lineage
+or data. The detail holds the panic's value and the goroutine stack; please
+report both.
+-- panic.txt --
+runtime error: index out of range [3] with length 3
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0901",
+      "severity": "error",
+      "headline": "thema failed internally",
+      "help": [
+        "this is a bug in thema; please report it with the detail above"
+      ],
+      "detail": "runtime error: index out of range [3] with length 3\n\n<the goroutine stack>"
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0901]: thema failed internally
+  |
+  = detail: runtime error: index out of range [3] with length 3
+
+            <the goroutine stack>
+  = help: this is a bug in thema; please report it with the detail above

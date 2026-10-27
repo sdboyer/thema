@@ -17,5 +17,10 @@ ForwardLens: {
 	}
 }
 -- out/error --
-strings.Title is not a function a lens may call; the strings functions are strings.Contains, strings.HasPrefix, strings.HasSuffix, strings.Replace, strings.ToLower, strings.ToUpper, strings.Trim, strings.TrimLeft, strings.TrimPrefix, strings.TrimRight, strings.TrimSpace, strings.TrimSuffix:
-    1.0.thema:9:10
+error[E0357]: strings.Title is not a function a lens may call
+ --> 1.0.thema:9:10
+  |
+9 |         label: strings.Title(v0_0.name)
+  |                ^^^^^^^
+  |
+  = help: the strings functions a lens may call are strings.Contains, strings.HasPrefix, strings.HasSuffix, strings.Replace, strings.ToLower, strings.ToUpper, strings.Trim, strings.TrimLeft, strings.TrimPrefix, strings.TrimRight, strings.TrimSpace, strings.TrimSuffix

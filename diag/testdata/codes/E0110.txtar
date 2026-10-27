@@ -1,0 +1,26 @@
+#op: compile
+#name: ship
+The lineage's directory holds no version files at all. A lineage is a
+directory of `<major>.<minor>.thema` files, starting at 0.0.thema.
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0110",
+      "severity": "error",
+      "headline": "the lineage has no version files",
+      "help": [
+        "a lineage is a directory of version files, <major>.<minor>.thema, starting at 0.0.thema"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0110]: the lineage has no version files
+  |
+  = help: a lineage is a directory of version files, <major>.<minor>.thema, starting at 0.0.thema

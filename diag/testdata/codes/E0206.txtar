@@ -1,0 +1,45 @@
+#op: compile
+Whether a version is major or minor is derived from the compatibility check,
+and the file's name must agree. This file is named as a major version, but its
+schema is backward compatible with its predecessor's, so it is a minor version.
+-- ship/history/0.0.thema --
+Schema: {
+	a: string
+}
+-- ship/1.0.thema --
+Schema: {
+	a:  string
+	b?: int
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0206",
+      "severity": "error",
+      "headline": "1.0.thema is backward compatible with 0.0, so it is minor version 0.1, not a major version",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 1,
+        "col": 1,
+        "origin": "user"
+      },
+      "help": [
+        "rename the file 0.1.thema, or make a breaking change"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0206]: 1.0.thema is backward compatible with 0.0, so it is minor version 0.1, not a major version
+ --> 1.0.thema:1:1
+  |
+1 | Schema: {
+  | ^^^^^^
+  |
+  = help: rename the file 0.1.thema, or make a breaking change

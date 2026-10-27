@@ -1,0 +1,80 @@
+#op: compile
+A mapping calls a function the lens language does not have. A computed
+mapping may use CUE's arithmetic, comparisons and the strings functions the
+help lists; anything else would make a lens whose totality thema cannot
+check.
+-- ship/history/0.0.thema --
+Schema: {
+	name: string
+	count?: int
+}
+-- ship/1.0.thema --
+Schema: {
+	name: string
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		name: strings.Reverse(v0_0.name)
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		name: v1_0.name
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0357",
+      "severity": "error",
+      "headline": "strings.Reverse is not a function a lens may call",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 8,
+        "col": 9,
+        "offset": 68,
+        "origin": "user"
+      },
+      "help": [
+        "the strings functions a lens may call are strings.Contains, strings.HasPrefix, strings.HasSuffix, strings.Replace, strings.ToLower, strings.ToUpper, strings.Trim, strings.TrimLeft, strings.TrimPrefix, strings.TrimRight, strings.TrimSpace, strings.TrimSuffix"
+      ]
+    },
+    {
+      "code": "E0347",
+      "severity": "error",
+      "headline": "0.0 declares count and 1.0 does not, and nothing maps it: write <field>: v0_0.count to move it, or count: drop",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 5,
+        "col": 1,
+        "offset": 27,
+        "origin": "user"
+      }
+    }
+  ],
+  "summary": {
+    "errors": 2,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0357]: strings.Reverse is not a function a lens may call
+ --> 1.0.thema:8:9
+  |
+8 |         name: strings.Reverse(v0_0.name)
+  |               ^^^^^^^
+  |
+  = help: the strings functions a lens may call are strings.Contains, strings.HasPrefix, strings.HasSuffix, strings.Replace, strings.ToLower, strings.ToUpper, strings.Trim, strings.TrimLeft, strings.TrimPrefix, strings.TrimRight, strings.TrimSpace, strings.TrimSuffix
+
+error[E0347]: 0.0 declares count and 1.0 does not, and nothing maps it: write <field>: v0_0.count to move it, or count: drop
+ --> 1.0.thema:5:1
+  |
+5 | ForwardLens: {
+  | ^^^^^^^^^^^
+  |

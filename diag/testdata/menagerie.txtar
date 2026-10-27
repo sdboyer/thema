@@ -1,0 +1,527 @@
+The CUE error shapes thema depends on; see menagerie_test.go.
+-- out/bound --
+error: x: invalid value 7 (out of bound <5)
+type: *cue.valueError
+entries: 1
+- [0] x: invalid value 7 (out of bound <5)
+  msg: "invalid value %v (out of bound %s)"
+  args: [adt.Formatter, adt.Formatter]
+  path: x
+  position: user schema.cue:1:10
+  input: user data.json:1:7
+  input: user schema.cue:1:10
+details:
+    x: invalid value 7 (out of bound <5):
+        schema.cue:1:10
+        data.json:1:7
+-- out/bound-two-sided --
+error: x: invalid value 11 (out of bound <=10)
+type: *cue.valueError
+entries: 1
+- [0] x: invalid value 11 (out of bound <=10)
+  msg: "invalid value %v (out of bound %s)"
+  args: [adt.Formatter, adt.Formatter]
+  path: x
+  position: user schema.cue:1:10
+  input: user data.json:1:7
+  input: user schema.cue:1:10
+details:
+    x: invalid value 11 (out of bound <=10):
+        schema.cue:1:10
+        data.json:1:7
+-- out/call-argument-kind --
+error: x: cannot use 1 (type int) as string in argument 1 to strings.ToUpper
+type: *cue.valueError
+entries: 1
+- [0] x: cannot use 1 (type int) as string in argument 1 to strings.ToUpper
+  msg: "cannot use %s (type %s) as %s in argument %d to %v"
+  args: [adt.Formatter, adt.Kind, adt.Kind, int, adt.Formatter]
+  path: x
+  position: user a.cue:2:20
+  input: user a.cue:2:20
+details:
+    x: cannot use 1 (type int) as string in argument 1 to strings.ToUpper:
+        a.cue:2:20
+-- out/call-list-drop --
+error: x: cannot use 1 (type int) as list in argument 1 to list.Drop
+type: *cue.valueError
+entries: 1
+- [0] x: cannot use 1 (type int) as list in argument 1 to list.Drop
+  msg: "cannot use %s (type %s) as %s in argument %d to %v"
+  args: [adt.Formatter, adt.Kind, adt.Kind, int, adt.Formatter]
+  path: x
+  position: user a.cue:2:14
+  input: user a.cue:2:14
+details:
+    x: cannot use 1 (type int) as list in argument 1 to list.Drop:
+        a.cue:2:14
+-- out/closed-field-not-allowed --
+error: d.b: field not allowed
+type: *cue.valueError
+entries: 1
+- [0] d.b: field not allowed
+  msg: "field not allowed"
+  args: []
+  path: d.b
+  position: none
+  input: user data.cue:1:11
+details:
+    d.b: field not allowed:
+        data.cue:1:11
+-- out/closed-two-unknown-fields --
+error: d.b: field not allowed (and 1 more errors)
+type: errors.list
+entries: 2
+- [0] d.b: field not allowed
+  msg: "field not allowed"
+  args: []
+  path: d.b
+  position: none
+  input: user data.cue:1:11
+- [1] d.c: field not allowed
+  msg: "field not allowed"
+  args: []
+  path: d.c
+  position: none
+  input: user data.cue:1:17
+details:
+    d.b: field not allowed:
+        data.cue:1:11
+    d.c: field not allowed:
+        data.cue:1:17
+-- out/conflict-in-one-file --
+error: x: conflicting values 2 and 1
+type: *cue.valueError
+entries: 1
+- [0] x: conflicting values 2 and 1
+  msg: "conflicting values %s and %s"
+  args: [adt.Formatter, adt.Formatter]
+  path: x
+  position: none
+  input: user a.cue:2:4
+  input: user a.cue:1:4
+details:
+    x: conflicting values 2 and 1:
+        a.cue:1:4
+        a.cue:2:4
+-- out/conflict-list-element --
+error: x.1: conflicting values 3 and 2
+type: *cue.valueError
+entries: 1
+- [0] x.1: conflicting values 3 and 2
+  msg: "conflicting values %s and %s"
+  args: [adt.Formatter, adt.Formatter]
+  path: x.1
+  position: none
+  input: user b.cue:1:8
+  input: user a.cue:1:8
+details:
+    x.1: conflicting values 3 and 2:
+        a.cue:1:8
+        b.cue:1:8
+-- out/conflict-string-int --
+error: x: conflicting values "hello" and 42 (mismatched types string and int)
+type: *cue.valueError
+entries: 1
+- [0] x: conflicting values "hello" and 42 (mismatched types string and int)
+  msg: "conflicting values %s and %s (mismatched types %s and %s)"
+  args: [adt.Formatter, adt.Formatter, adt.Kind, adt.Kind]
+  path: x
+  position: none
+  input: user a.cue:1:4
+  input: user b.cue:1:4
+details:
+    x: conflicting values "hello" and 42 (mismatched types string and int):
+        a.cue:1:4
+        b.cue:1:4
+-- out/conflict-string-string --
+error: x: conflicting values "world" and "hello"
+type: *cue.valueError
+entries: 1
+- [0] x: conflicting values "world" and "hello"
+  msg: "conflicting values %s and %s"
+  args: [adt.Formatter, adt.Formatter]
+  path: x
+  position: none
+  input: user b.cue:1:4
+  input: user a.cue:1:4
+details:
+    x: conflicting values "world" and "hello":
+        a.cue:1:4
+        b.cue:1:4
+-- out/conflict-struct-scalar --
+error: x: conflicting values {a:1} and "s" (mismatched types struct and string)
+type: *cue.valueError
+entries: 1
+- [0] x: conflicting values {a:1} and "s" (mismatched types struct and string)
+  msg: "conflicting values %s and %s (mismatched types %s and %s)"
+  args: [adt.Formatter, adt.Formatter, adt.Kind, adt.Kind]
+  path: x
+  position: none
+  input: user a.cue:1:4
+  input: user b.cue:1:4
+details:
+    x: conflicting values {a:1} and "s" (mismatched types struct and string):
+        a.cue:1:4
+        b.cue:1:4
+-- out/conflict-two-fields --
+error: x: conflicting values 2 and 1
+type: *cue.valueError
+entries: 1
+- [0] x: conflicting values 2 and 1
+  msg: "conflicting values %s and %s"
+  args: [adt.Formatter, adt.Formatter]
+  path: x
+  position: none
+  input: user b.cue:1:4
+  input: user a.cue:1:4
+details:
+    x: conflicting values 2 and 1:
+        a.cue:1:4
+        b.cue:1:4
+-- out/disjunction-incomplete --
+error: x: incomplete value int | string
+type: *cue.valueError
+entries: 1
+- [0] x: incomplete value int | string
+  msg: "incomplete value %v"
+  args: [adt.Formatter]
+  path: x
+  position: none
+  input: user schema.cue:1:4
+details:
+    x: incomplete value int | string:
+        schema.cue:1:4
+-- out/disjunction-no-arm --
+error: x: 2 errors in empty disjunction: (and 2 more errors)
+type: errors.list
+entries: 3
+- [0] x: 2 errors in empty disjunction:
+  msg: "%d errors in empty disjunction:"
+  args: [int]
+  path: x
+  position: none
+- [1] x: conflicting values true and int (mismatched types bool and int)
+  msg: "conflicting values %s and %s (mismatched types %s and %s)"
+  args: [adt.Formatter, adt.Formatter, adt.Kind, adt.Kind]
+  path: x
+  position: none
+  input: user data.json:1:7
+  input: user schema.cue:1:4
+- [2] x: conflicting values true and string (mismatched types bool and string)
+  msg: "conflicting values %s and %s (mismatched types %s and %s)"
+  args: [adt.Formatter, adt.Formatter, adt.Kind, adt.Kind]
+  path: x
+  position: none
+  input: user data.json:1:7
+  input: user schema.cue:1:10
+details:
+    x: 2 errors in empty disjunction:
+    x: conflicting values true and int (mismatched types bool and int):
+        data.json:1:7
+        schema.cue:1:4
+    x: conflicting values true and string (mismatched types bool and string):
+        data.json:1:7
+        schema.cue:1:10
+-- out/disjunction-struct-arms --
+error: x: incomplete value {c:1,a:int} | {c:1,b:string}
+type: *cue.valueError
+entries: 1
+- [0] x: incomplete value {c:1,a:int} | {c:1,b:string}
+  msg: "incomplete value %v"
+  args: [adt.Formatter]
+  path: x
+  position: none
+  input: user schema.cue:1:4
+  input: user data.json:1:7
+details:
+    x: incomplete value {c:1,a:int} | {c:1,b:string}:
+        data.json:1:7
+        schema.cue:1:4
+-- out/error-builtin --
+error: x: the author's message
+type: *cue.valueError
+entries: 1
+- [0] x: the author's message
+  msg: "%s"
+  args: [string]
+  path: x
+  position: user a.cue:1:4
+details:
+    x: the author's message:
+        a.cue:1:4
+-- out/incomplete-value --
+error: x: incomplete value int
+type: *cue.valueError
+entries: 1
+- [0] x: incomplete value int
+  msg: "incomplete value %v"
+  args: [adt.Formatter]
+  path: x
+  position: none
+  input: user schema.cue:1:4
+details:
+    x: incomplete value int:
+        schema.cue:1:4
+-- out/kind-data-schema --
+error: x: conflicting values "seven" and int (mismatched types string and int)
+type: *cue.valueError
+entries: 1
+- [0] x: conflicting values "seven" and int (mismatched types string and int)
+  msg: "conflicting values %s and %s (mismatched types %s and %s)"
+  args: [adt.Formatter, adt.Formatter, adt.Kind, adt.Kind]
+  path: x
+  position: none
+  input: user data.json:1:7
+  input: user schema.cue:1:4
+details:
+    x: conflicting values "seven" and int (mismatched types string and int):
+        data.json:1:7
+        schema.cue:1:4
+-- out/kind-schema-data --
+error: x: conflicting values int and "seven" (mismatched types int and string)
+type: *cue.valueError
+entries: 1
+- [0] x: conflicting values int and "seven" (mismatched types int and string)
+  msg: "conflicting values %s and %s (mismatched types %s and %s)"
+  args: [adt.Formatter, adt.Formatter, adt.Kind, adt.Kind]
+  path: x
+  position: none
+  input: user schema.cue:1:4
+  input: user data.json:1:7
+details:
+    x: conflicting values int and "seven" (mismatched types int and string):
+        data.json:1:7
+        schema.cue:1:4
+-- out/load-multiple-packages --
+error: found packages "a" (a.cue) and "b" (b.cue) in "."
+type: *load.MultiplePackageError
+entries: 1
+- [0] found packages "a" (a.cue) and "b" (b.cue) in "."
+  msg: "found packages %q (%s) and %q (%s) in %q"
+  args: [string, string, string, string, token.Position]
+  path: 
+  position: none
+details:
+    found packages "a" (a.cue) and "b" (b.cue) in "."
+-- out/load-no-files --
+error: cannot find package "./nothing"
+type: *load.PackageError
+entries: 1
+- [0] cannot find package "./nothing"
+  msg: "cannot find package %q"
+  args: [string]
+  path: 
+  position: none
+details:
+    cannot find package "./nothing"
+-- out/load-syntax-error --
+error: expected '}', found 'EOF'
+type: *errors.posError
+entries: 1
+- [0] expected '}', found 'EOF'
+  msg: "expected %s, found '%s'"
+  args: [string, token.Token]
+  path: 
+  position: user /virtual/bad/a.cue:2:6
+details:
+    expected '}', found 'EOF':
+        ./bad/a.cue:2:6
+-- out/lookup-missing-field --
+error: field not found: missing
+type: *cue.valueError
+entries: 1
+- [0] field not found: missing
+  msg: "field not found: %v%s"
+  args: [cue.stringSelector, string]
+  path: 
+  position: none
+details:
+    field not found: missing
+-- out/pattern-error-guard --
+error: s.b: b is not a field of s
+type: *cue.valueError
+entries: 1
+- [0] s.b: b is not a field of s
+  msg: "%v is not a field of s"
+  args: [string]
+  path: s.b
+  position: user schema.cue:3:21
+details:
+    s.b: b is not a field of s:
+        schema.cue:3:21
+-- out/reference-cycle --
+error: b: cycle with field: a (and 3 more errors)
+type: errors.list
+entries: 4
+- [0] b: cycle with field: a
+  msg: "cycle with field: %v"
+  args: [adt.Formatter]
+  path: b
+  position: user a.cue:2:4
+  input: user a.cue:2:4
+- [1] a: cycle with field: b
+  msg: "cycle with field: %v"
+  args: [adt.Formatter]
+  path: a
+  position: user a.cue:1:4
+  input: user a.cue:1:4
+- [2] b: cycle with field: a
+  msg: "cycle with field: %v"
+  args: [adt.Formatter]
+  path: b
+  position: user a.cue:2:4
+  input: user a.cue:2:4
+- [3] a: cycle with field: b
+  msg: "cycle with field: %v"
+  args: [adt.Formatter]
+  path: a
+  position: user a.cue:1:4
+  input: user a.cue:1:4
+details:
+    a: cycle with field: b:
+        a.cue:1:4
+    b: cycle with field: a:
+        a.cue:2:4
+-- out/reference-not-found --
+error: b: reference "a" not found
+type: *cue.valueError
+entries: 1
+- [0] b: reference "a" not found
+  msg: "reference %q not found"
+  args: [string]
+  path: b
+  position: user a.cue:1:4
+details:
+    b: reference "a" not found:
+        a.cue:1:4
+-- out/reference-optional --
+error: b: cannot reference optional field: a
+type: *cue.valueError
+entries: 1
+- [0] b: cannot reference optional field: a
+  msg: "cannot reference optional field: %s"
+  args: [string]
+  path: b
+  position: user a.cue:2:4
+details:
+    b: cannot reference optional field: a:
+        a.cue:2:4
+-- out/regex --
+error: x: invalid value "b" (out of bound =~"^a")
+type: *cue.valueError
+entries: 1
+- [0] x: invalid value "b" (out of bound =~"^a")
+  msg: "invalid value %v (out of bound %s)"
+  args: [adt.Formatter, adt.Formatter]
+  path: x
+  position: user schema.cue:1:4
+  input: user data.json:1:7
+  input: user schema.cue:1:4
+  input: user data.json:1:7
+  input: user schema.cue:1:4
+details:
+    x: invalid value "b" (out of bound =~"^a"):
+        schema.cue:1:4
+        data.json:1:7
+-- out/required-field-absent --
+error: x: field is required but not present
+type: *cue.valueError
+entries: 1
+- [0] x: field is required but not present
+  msg: "field is required but not present"
+  args: []
+  path: x
+  position: none
+  input: user data.cue:1:1
+  input: user schema.cue:1:1
+details:
+    x: field is required but not present:
+        data.cue:1:1
+        schema.cue:1:1
+-- out/subsume-missing-field --
+error: regular field is constraint in subsumed value: b (and 2 more errors)
+type: errors.list
+entries: 3
+- [0] regular field is constraint in subsumed value: b
+  msg: "regular field is constraint in subsumed value: %v"
+  args: [string]
+  path: 
+  position: none
+- [1] field x not present in {x:{a:int}}
+  msg: "field %v not present in %v"
+  args: [string, adt.Formatter]
+  path: 
+  position: none
+  input: user b.cue:1:1
+- [2] missing field "x"
+  msg: "missing field %q"
+  args: [string]
+  path: 
+  position: none
+details:
+    field x not present in {x:{a:int}}:
+        b.cue:1:1
+    missing field "x"
+    regular field is constraint in subsumed value: b
+-- out/subsume-narrower --
+error: field x not present in {x:string} (and 1 more errors)
+type: errors.list
+entries: 2
+- [0] field x not present in {x:string}
+  msg: "field %v not present in %v"
+  args: [string, adt.Formatter]
+  path: 
+  position: none
+  input: user b.cue:1:1
+- [1] missing field "x"
+  msg: "missing field %q"
+  args: [string]
+  path: 
+  position: none
+details:
+    field x not present in {x:string}:
+        b.cue:1:1
+    missing field "x"
+-- out/syntax-shorthand-ok-but-bad-token --
+error: missing ',' in struct literal
+type: *cue.valueError
+entries: 1
+- [0] missing ',' in struct literal
+  msg: "missing ',' in %s"
+  args: [string]
+  path: 
+  position: user a.cue:1:6
+details:
+    missing ',' in struct literal:
+        a.cue:1:6
+-- out/syntax-unclosed --
+error: expected '}', found 'EOF'
+type: *cue.valueError
+entries: 1
+- [0] expected '}', found 'EOF'
+  msg: "expected %s, found '%s'"
+  args: [string, token.Token]
+  path: 
+  position: user a.cue:1:5
+details:
+    expected '}', found 'EOF':
+        a.cue:1:5
+-- out/validator-builtin --
+error: x: invalid value "ab" (does not satisfy strings.MinRunes(3))
+type: *cue.valueError
+entries: 1
+- [0] x: invalid value "ab" (does not satisfy strings.MinRunes(3))
+  msg: "invalid value %s (does not satisfy %s)"
+  args: [adt.Formatter, string]
+  path: x
+  position: user schema.cue:2:4
+  input: user data.json:1:7
+  input: user schema.cue:2:4
+  input: user data.json:1:7
+  input: user schema.cue:2:21
+details:
+    x: invalid value "ab" (does not satisfy strings.MinRunes(3)):
+        schema.cue:2:4
+        data.json:1:7
+        schema.cue:2:21

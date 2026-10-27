@@ -1,0 +1,43 @@
+#op: cli
+#args: data validate -l mod/lineage.cue data.json
+A cue.mod/module.cue was found above the lineage path, but it does not
+declare module, so the module's name is unknown.
+-- mod/cue.mod/module.cue --
+modul: "example.com/typo"
+-- mod/lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+	}
+}
+-- data.json --
+{"a": "Argo"}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0606",
+      "severity": "error",
+      "headline": "mod/cue.mod/module.cue does not declare module",
+      "help": [
+        "a module file declares module: \"<path>\" and language: version: \"<version>\""
+      ],
+      "detail": "field not found: module"
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0606]: mod/cue.mod/module.cue does not declare module
+  |
+  = detail: field not found: module
+  = help: a module file declares module: "<path>" and language: version: "<version>"

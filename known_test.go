@@ -14,6 +14,7 @@ import (
 	"cuelang.org/go/cue/load"
 	"golang.org/x/tools/txtar"
 
+	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/internal/embedreg"
 	"github.com/sdboyer/thema/internal/util"
 )
@@ -162,6 +163,13 @@ func checkExpectations(t *testing.T, src, expect string, extra map[string]string
 			return fmt.Sprintf("panic (%v)", p.v)
 		}
 		if err != nil {
+			// An expectation's text is matched against everything the
+			// diagnostics say: headlines, notes, help and detail.
+			if ds := diag.Diagnostics(err); len(ds) > 0 {
+				var b strings.Builder
+				diag.Render(&b, ds, diag.RenderOptions{})
+				return "fail (" + strings.Join(strings.Fields(b.String()), " ") + ")"
+			}
 			return "fail (" + strings.ReplaceAll(cerrors.Details(err, nil), "\n", " ") + ")"
 		}
 		return "ok"

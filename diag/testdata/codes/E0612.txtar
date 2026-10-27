@@ -1,0 +1,33 @@
+#op: cli
+#args: data validate -l lineage.cue -e yaml data.json
+The format named with -e disagrees with the data file's extension.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+	}
+}
+-- data.json --
+{"a": "Argo"}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0612",
+      "severity": "error",
+      "headline": "-e yaml was given, but data.json has a json extension"
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0612]: -e yaml was given, but data.json has a json extension

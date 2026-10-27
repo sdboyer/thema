@@ -35,8 +35,18 @@ lin2: schemas: {
 	}
 }
 -- out/isappendonly-fail --
-field #Baz not present in {someField:string,#Baz:{run:string,tell:bytes,dat?:int32}}:
-    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:177:11
-field dat not present in {run:string,tell:bytes,dat?:int32}:
-    ./in.cue:26:10
-missing field "#Baz"
+error[E0243]: schema 0.0 differs from the published one
+   --> /in.cue:23:6
+    |
+ 23 |         schema: {
+    |         ^^^^^^
+...
+ 26 |             #Baz: {
+    |                   - here
+    |
+    = note: in thema's own CUE
+     --> thema/lineage.cue:177:11
+    = detail: field dat not present in {run:string,tell:bytes,dat?:int32}
+              field #Baz not present in {someField:string,#Baz:{run:string,tell:bytes,dat?:int32}}
+              missing field "#Baz"
+    = help: a published schema is never changed; add a new version instead

@@ -1,0 +1,36 @@
+#op: cli
+#args: data validate -l lineage.cue
+No data was given: no path argument, and nothing on stdin.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0613",
+      "severity": "error",
+      "headline": "no data was given",
+      "help": [
+        "pass the path to a JSON or YAML file, or pipe the data on stdin"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0613]: no data was given
+  |
+  = help: pass the path to a JSON or YAML file, or pipe the data on stdin

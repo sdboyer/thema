@@ -1,0 +1,74 @@
+#op: bind
+#path: lin
+A lens returns the instance it builds in a field named after the version it
+maps to: v0_0 for a lens to 0.0. This lens does not declare it, so it returns
+nothing.
+-- lineage.cue --
+lin: {
+	name: "ship"
+	schemas: {
+		"0": "0": {
+			schema: {a: string}
+		}
+		"1": "0": {
+			schema: {b: string}
+		}
+	}
+	lenses: {
+		"1.0->0.0": {
+			v1_0: _
+		}
+		"0.0->1.0": {
+			v0_0: _
+			v1_0: {b: v0_0.a}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0311",
+      "severity": "error",
+      "headline": "lens 1.0->0.0 does not declare v0_0, the instance of 0.0 it returns",
+      "path": [
+        "lenses",
+        "1.0->0.0"
+      ],
+      "address": {
+        "from": [
+          1,
+          0
+        ],
+        "kind": "lens",
+        "to": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 12,
+        "col": 3,
+        "offset": 131,
+        "origin": "user"
+      },
+      "help": [
+        "write v0_0: {...}, mapping each field of 0.0"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0311]: lens 1.0->0.0 does not declare v0_0, the instance of 0.0 it returns
+  --> lineage.cue:12:3
+   |
+12 |         "1.0->0.0": {
+   |         ^^^^^^^^^^
+   |
+   = help: write v0_0: {...}, mapping each field of 0.0

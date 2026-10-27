@@ -32,22 +32,39 @@ lenses: {
     "firstfield": 42
 }
 -- out/validate/TestValidate/firstfieldAsInt32 --
-<trivialTwo@v0.1>.firstfield: validation failed, data is not an instance:
-	schema expected `string`
-		/in.cue:14:25
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:177:19
-	but data contained `42`
-		test:2:19
+error[E0503]: firstfield in the data is int, but schema 0.1 declares it as string
+  --> in/validate/TestValidate/firstfieldAsInt32.data.json:2:19
+   |
+ 2 |     "firstfield": 42
+   |                   ^^
+   |
+  ::: /in.cue:14:13
+   |
+14 |             firstfield: string
+   |             ---------- declared here
+   |
+   = detail: firstfield: conflicting values 42 and string (mismatched types int and string)
 -- out/validate/TestValidate/secondfieldAsString --
-<trivialTwo@v0.1>.secondfield: validation failed, data is not an instance:
-	schema expected `int32`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:177:19
-	but data contained `"foo"`
-		test:2:20
-<trivialTwo@v0.1>.firstfield: validation failed, data is not an instance:
-	schema specifies that field exists with type `string`
-		/in.cue:14:25
-	but field was absent from data
+error[E0503]: secondfield in the data is string, but schema 0.1 declares it as int32
+ --> in/validate/TestValidate/secondfieldAsString.data.json:2:20
+  |
+2 |     "secondfield": "foo"
+  |                    ^^^^^
+  |
+  = detail: secondfield: conflicting values "foo" and int32 (mismatched types string and int)
+
+error[E0501]: the data lacks firstfield, which schema 0.1 declares as string
+  --> in/validate/TestValidate/secondfieldAsString.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:14:13
+   |
+14 |             firstfield: string
+   |             ---------- declared here
+   |
+   = detail: firstfield: incomplete value string
 -- in/validate/TestValidate/secondfieldAsString.data.json --
 {
     "secondfield": "foo"

@@ -27,5 +27,11 @@ _External: {
     extfield: string
 }
 -- out/bindfail --
-schema 0.0: #Foo refers to _External, which is declared in the lineage outside the schema; a schema may refer only to its own body and CUE's builtin packages (rule ref-lineage-meta):
-    ./in.cue:10:13
+error[E0141]: #Foo in schema 0.0 refers to _External, which is declared in the lineage outside the schema
+  --> /in.cue:10:13
+   |
+10 |             #Foo: _External & {
+   |                   ^^^^^^^^^
+   |
+   = note: reference rule ref-lineage-meta
+   = help: a schema may refer only to its own body and CUE's builtin packages

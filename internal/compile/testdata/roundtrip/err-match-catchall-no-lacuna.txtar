@@ -19,5 +19,9 @@ ForwardLens: {
 	}
 }
 -- out/error --
-the [_] arm collapses every unmatched value into one: declare what is lost in lacunas: {kind: [{type: Type, message: "..."}]}:
-    1.0.thema:10:4
+error[E0414]: the [_] arm collapses every unmatched value into one: declare what is lost in lacunas: {kind: [{type: Type, message: "..."}]}
+  --> 1.0.thema:10:4
+   |
+10 |             [_]: 0
+   |             ^
+   |

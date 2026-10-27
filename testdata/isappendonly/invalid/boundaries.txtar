@@ -23,6 +23,14 @@ lin2: schemas: {
 	}
 }
 -- out/isappendonly-fail --
-field anInt not present in {anInt:*12 | >0 & <=24 & int}:
-    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:177:11
-missing field "anInt"
+error[E0243]: schema 0.0 differs from the published one
+   --> /in.cue:17:3
+    |
+ 17 |         schema: {
+    |         ^^^^^^
+    |
+    = note: in thema's own CUE
+     --> thema/lineage.cue:177:11
+    = detail: field anInt not present in {anInt:*12 | >0 & <=24 & int}
+              missing field "anInt"
+    = help: a published schema is never changed; add a new version instead

@@ -35,10 +35,21 @@ lin2: schemas: {
 	}
 }
 -- out/isappendonly-fail --
-field aString not present in {aString:strings.MinRunes(2),anObject:{aField:int}}:
-    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:177:11
-missing field "aString"
-invalid value strings.MinRunes(2) (does not satisfy strings.MinRunes(1)): non-concrete value string:
-    ./in.cue:12:22
-    ./in.cue:12:39
-    ./in.cue:26:22
+error[E0243]: schema 0.0 differs from the published one
+   --> /in.cue:25:3
+    |
+ 12 |             aString: string & strings.MinRunes(1)
+    |                               ------- here
+    |                                                - also here
+...
+ 25 |         schema: {
+    |         ^^^^^^
+ 26 |             aString: string & strings.MinRunes(2)
+    |                               ------- also here
+    |
+    = note: in thema's own CUE
+     --> thema/lineage.cue:177:11
+    = detail: invalid value strings.MinRunes(2) (does not satisfy strings.MinRunes(1)): non-concrete value string
+              field aString not present in {aString:strings.MinRunes(2),anObject:{aField:int}}
+              missing field "aString"
+    = help: a published schema is never changed; add a new version instead

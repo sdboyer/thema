@@ -1,0 +1,39 @@
+#op: cli
+#args: data validate -l lineage.cue bad.json
+The data document parses as neither JSON nor YAML, and no format was named
+with -e. Naming the format shows what its parser reports.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+	}
+}
+-- bad.json --
+{"a": "Argo"
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0611",
+      "severity": "error",
+      "headline": "bad.json is neither JSON nor YAML",
+      "help": [
+        "name the format with -e json or -e yaml to see what its parser reports"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0611]: bad.json is neither JSON nor YAML
+  |
+  = help: name the format with -e json or -e yaml to see what its parser reports

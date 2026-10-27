@@ -1,0 +1,38 @@
+#op: bind
+#path: lineages.ship
+The caller named a path for the lineage, and there is no value there. The CLI's
+`-p` flag and the Go API's cue.Value both lead here; check the path against the
+file.
+-- lineage.cue --
+lineage: {
+	name: "ship"
+	schemas: {
+		"0": {
+			"0": {
+				schema: {
+					a: string
+				}
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0128",
+      "severity": "error",
+      "headline": "there is no value to bind as a lineage",
+      "detail": "field not found: lineages"
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0128]: there is no value to bind as a lineage
+  |
+  = detail: field not found: lineages

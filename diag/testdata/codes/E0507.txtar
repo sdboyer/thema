@@ -1,0 +1,48 @@
+#op: cli
+#args: data validate -l lineage.cue -e json bad.json
+The data document does not parse as the format it was given or detected as.
+The position is where the parser stopped; the detail is what it reported.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+	}
+}
+-- bad.json --
+{"a": "Argo"
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0507",
+      "severity": "error",
+      "headline": "bad.json is not valid JSON",
+      "primary": {
+        "file": "bad.json",
+        "line": 1,
+        "col": 13,
+        "offset": 12,
+        "origin": "user"
+      },
+      "detail": "invalid JSON: unexpected end of JSON input"
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0507]: bad.json is not valid JSON
+ --> bad.json:1:13
+  |
+1 | {"a": "Argo"
+  |             ^
+  |
+  = detail: invalid JSON: unexpected end of JSON input
