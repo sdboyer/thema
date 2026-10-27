@@ -27,7 +27,7 @@ validation, translation and code generation, running thema compiled to
 WebAssembly in the browser. Nothing is sent to the server but requests for the
 playground's own files.
 
-The playground served is the one this thema was built with, so its behaviour
+The playground served is the one this thema was built with, so its behavior
 matches this CLI's.
 `,
 	Args: cobra.NoArgs,
@@ -63,7 +63,7 @@ func (sc *serveCommand) run(cmd *cobra.Command, _ []string) error {
 		return diag.InternalErr(err)
 	}
 	url := fmt.Sprintf("http://%s/", ln.Addr())
-	fmt.Fprintf(cmd.OutOrStdout(), "thema playground at %s\n", url)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "thema playground at %s\n", url)
 	if sc.open {
 		openBrowser(url)
 	}
@@ -73,14 +73,12 @@ func (sc *serveCommand) run(cmd *cobra.Command, _ []string) error {
 // openBrowser opens url in the user's browser, if the platform says how.
 // Failing to is not an error: the URL is printed.
 func openBrowser(url string) {
-	var cmd *exec.Cmd
+	name, args := "xdg-open", []string{url}
 	switch runtime.GOOS {
 	case "darwin":
-		cmd = exec.Command("open", url)
+		name = "open"
 	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
-	default:
-		cmd = exec.Command("xdg-open", url)
+		name, args = "rundll32", []string{"url.dll,FileProtocolHandler", url}
 	}
-	_ = cmd.Start()
+	_ = exec.Command(name, args...).Start() //nolint:gosec // the URL is this process's own listen address
 }

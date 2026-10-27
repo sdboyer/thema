@@ -79,7 +79,7 @@ func (s *Session) bindAuthoring(name string, files []File) cached {
 	}
 	vocab := authoring.Vocabulary(c)
 	v := ctx.BuildFile(c.File)
-	if err := v.Err(); err != nil {
+	if err = v.Err(); err != nil {
 		return cached{normal: normal, err: diag.Convert(err, diag.Context{Op: diag.OpCompile, Vocabulary: vocab, Generic: diag.E0112})}
 	}
 	lin, err := thema.BindLineage(v, s.rt, thema.WithVocabulary(vocab))
@@ -122,20 +122,13 @@ func (s *Session) bindNormal(f File, path string) cached {
 		}
 	}
 	var v cue.Value
-	if !importsThema {
-		v = s.rt.Context().CompileString(f.Text, cue.Filename(f.Path))
-	} else {
-		// A file without a package clause is CUE's anonymous package.
-		pkg := af.PackageName()
-		if pkg == "" {
-			pkg = "_"
-		}
-		fsys := fstest.MapFS{f.Path: &fstest.MapFile{Data: []byte(f.Text)}}
-		binst, err := tload.InstanceWithThema(tload.AsModFS(fsys, playgroundModule), ".", tload.Package(pkg))
+	if importsThema {
+		v, err = s.loadWithThema(f, af.PackageName())
 		if err != nil {
-			return cached{err: diag.Convert(err, diag.Context{Op: diag.OpLoad, Generic: diag.E0609})}
+			return cached{err: err}
 		}
-		v = s.rt.Context().BuildInstance(binst)
+	} else {
+		v = s.rt.Context().CompileString(f.Text, cue.Filename(f.Path))
 	}
 	if path != "" {
 		p := cue.ParsePath(path)
@@ -151,6 +144,21 @@ func (s *Session) bindNormal(f File, path string) cached {
 	}
 	lin, err := thema.BindLineage(v, s.rt)
 	return cached{lin: lin, raw: v, normal: f.Text, err: err}
+}
+
+// loadWithThema loads f, which imports thema, as the package pkg of a module
+// that depends on thema's embedded module.
+func (s *Session) loadWithThema(f File, pkg string) (cue.Value, error) {
+	// A file without a package clause is CUE's anonymous package.
+	if pkg == "" {
+		pkg = "_"
+	}
+	fsys := fstest.MapFS{f.Path: &fstest.MapFile{Data: []byte(f.Text)}}
+	binst, err := tload.InstanceWithThema(tload.AsModFS(fsys, playgroundModule), ".", tload.Package(pkg))
+	if err != nil {
+		return cue.Value{}, diag.Convert(err, diag.Context{Op: diag.OpLoad, Generic: diag.E0609})
+	}
+	return s.rt.Context().BuildInstance(binst), nil
 }
 
 func formatNode(n ast.Node) (string, error) {

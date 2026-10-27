@@ -15,6 +15,7 @@ import (
 	"io/fs"
 	"path"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -51,12 +52,15 @@ type File struct {
 	Text string
 }
 
-// Categories, in the order the playground lists them.
+// Categories.
 const (
 	CategoryExemplar  = "Exemplars"
 	CategoryAuthoring = "Authoring form"
 	CategoryErrors    = "Errors"
 )
+
+// categories lists the categories in the order the playground lists them.
+var categories = []string{CategoryExemplar, CategoryAuthoring, CategoryErrors}
 
 // The exemplars that bind only with thema.SkipBuggyChecks: the lens totality
 // check correctly refuses one of their lenses (#87). The playground binds
@@ -79,10 +83,10 @@ func All() []Example {
 	all = append(all, ship())
 	all = append(all, roundtripExamples()...)
 	all = append(all, invalidExamples()...)
-	order := map[string]int{CategoryExemplar: 0, CategoryAuthoring: 1, CategoryErrors: 2}
 	sort.SliceStable(all, func(i, j int) bool {
-		if order[all[i].Category] != order[all[j].Category] {
-			return order[all[i].Category] < order[all[j].Category]
+		ci, cj := slices.Index(categories, all[i].Category), slices.Index(categories, all[j].Category)
+		if ci != cj {
+			return ci < cj
 		}
 		return all[i].ID < all[j].ID
 	})

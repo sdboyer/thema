@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -28,9 +27,10 @@ func TestWasmSmoke(t *testing.T) {
 		t.Skip("node is not installed")
 	}
 	wasm := filepath.Join(t.TempDir(), "thema.wasm")
-	build := exec.Command("go", "build", "-trimpath", "-ldflags=-s -w", "-o", wasm, ".")
+	build := exec.Command("go", "build", "-trimpath", "-ldflags=-s -w", "-o", wasm, ".") //nolint:gosec // builds this package into the test's temporary directory
 	build.Env = append(os.Environ(), "GOOS=js", "GOARCH=wasm")
-	if out, err := build.CombinedOutput(); err != nil {
+	out, err := build.CombinedOutput()
+	if err != nil {
 		t.Fatalf("building thema.wasm: %v\n%s", err, out)
 	}
 	info, err := os.Stat(wasm)
@@ -42,12 +42,16 @@ func TestWasmSmoke(t *testing.T) {
 	}
 	t.Logf("thema.wasm is %d bytes", info.Size())
 
-	wasmExec := filepath.Join(runtime.GOROOT(), "lib", "wasm", "wasm_exec.js")
+	goroot, err := exec.Command("go", "env", "GOROOT").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	wasmExec := filepath.Join(strings.TrimSpace(string(goroot)), "lib", "wasm", "wasm_exec.js")
 	themaFS, err := filepath.Abs("thema-fs.js")
 	if err != nil {
 		t.Fatal(err)
 	}
-	out, err := exec.Command(node, filepath.Join("testdata", "smoke.mjs"), themaFS, wasmExec, wasm).CombinedOutput() //nolint:gosec // the test's own script
+	out, err = exec.Command(node, filepath.Join("testdata", "smoke.mjs"), themaFS, wasmExec, wasm).CombinedOutput() //nolint:gosec // the test's own script
 	if err != nil {
 		t.Fatalf("smoke test failed: %v\n%s", err, out)
 	}

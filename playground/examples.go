@@ -49,7 +49,7 @@ func (s *Session) GetExample(req GetExampleRequest) GetExampleResponse {
 			resp.Data = append(resp.Data, DataInput{
 				Filename: sch.Version().String() + "-" + name + ".json",
 				Text:     string(out) + "\n",
-				Format:   "json",
+				Format:   formatJSON,
 			})
 		}
 	}

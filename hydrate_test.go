@@ -23,6 +23,10 @@ schemas: {
 }
 `
 
+// noDefaults is an instance that takes none of its schema's defaults:
+// hydrating and dehydrating it both leave it as it is.
+const noDefaults = `{"title": "Argo", "crew": 3, "hull": {"material": "oak"}}`
+
 // Hydrate fills an instance with its schema's defaults, and Dehydrate
 // removes the values its defaults imply; each walks the schema itself, not
 // the schema's entry in the lineage.
@@ -44,9 +48,9 @@ func TestHydrateDehydrate(t *testing.T) {
 			want: `{"title": "Argo", "crew": 1, "hull": {"material": "steel"}}`,
 		},
 		"hydrate keeps given values": {
-			in:   `{"title": "Argo", "crew": 3, "hull": {"material": "oak"}}`,
+			in:   noDefaults,
 			f:    (*Instance).Hydrate,
-			want: `{"title": "Argo", "crew": 3, "hull": {"material": "oak"}}`,
+			want: noDefaults,
 		},
 		"dehydrate removes defaulted values": {
 			in:   `{"title": "Argo", "crew": 1, "hull": {"material": "steel"}}`,
@@ -54,9 +58,9 @@ func TestHydrateDehydrate(t *testing.T) {
 			want: `{"title": "Argo", "hull": {}}`,
 		},
 		"dehydrate keeps other values": {
-			in:   `{"title": "Argo", "crew": 3, "hull": {"material": "oak"}}`,
+			in:   noDefaults,
 			f:    (*Instance).Dehydrate,
-			want: `{"title": "Argo", "crew": 3, "hull": {"material": "oak"}}`,
+			want: noDefaults,
 		},
 	}
 	for name, tt := range tests {

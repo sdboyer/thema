@@ -25,7 +25,7 @@ func TestCopiesMatchOriginals(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		want, err := os.ReadFile(orig)
+		want, err := os.ReadFile(orig) //nolint:gosec // a fixture of this repository
 		if err != nil {
 			t.Fatalf("%s copies %s, which cannot be read: %v", cp, orig, err)
 		}

@@ -190,6 +190,13 @@ func (s *Session) linData(in LineageInput, d DataInput) (thema.Lineage, cue.Valu
 	return e.lin, data, nil
 }
 
+// The formats of a data document, and of the documents the generators
+// write.
+const (
+	formatJSON = "json"
+	formatYAML = "yaml"
+)
+
 // decode parses a data document as JSON or YAML, positioned under its
 // filename.
 func (s *Session) decode(d DataInput) (cue.Value, error) {
@@ -204,7 +211,7 @@ func (s *Session) decode(d DataInput) (cue.Value, error) {
 	ctx := s.rt.Context()
 	parse := func(format string) (cue.Value, error) {
 		var codec vmux.Codec
-		if format == "yaml" {
+		if format == formatYAML {
 			codec = vmux.NewYAMLCodec(name)
 		} else {
 			codec = vmux.NewJSONCodec(name)
@@ -221,13 +228,13 @@ func (s *Session) decode(d DataInput) (cue.Value, error) {
 		return v, nil
 	}
 	switch d.Format {
-	case "json", "yaml":
+	case formatJSON, formatYAML:
 		return parse(d.Format)
 	case "":
-		if v, err := parse("json"); err == nil {
+		if v, err := parse(formatJSON); err == nil {
 			return v, nil
 		}
-		if v, err := parse("yaml"); err == nil {
+		if v, err := parse(formatYAML); err == nil {
 			return v, nil
 		}
 		return cue.Value{}, diag.New(diag.E0611).Headlinef("%s is neither JSON nor YAML", name).
