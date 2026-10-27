@@ -153,7 +153,7 @@ func TestLacunaBindChecks(t *testing.T) {
 		lacunas string
 		errText string
 	}{
-		"valid":                          {`[thema.Lacuna & {condition: input.b != _|_, sourceFields: [{path: "b", value: input.b}], targetFields: [{path: "nested.x", value: result.nested.x}], message: "m", type: "DroppedField"}]`, ""},
+		"well-formed":                    {`[thema.Lacuna & {condition: input.b != _|_, sourceFields: [{path: "b", value: input.b}], targetFields: [{path: "nested.x", value: result.nested.x}], message: "m", type: "DroppedField"}]`, ""},
 		"value may be absent":            {`[thema.Lacuna & {sourceFields: [{path: "b", value: input.b}], message: "m", type: "DroppedField"}]`, "source-absent"},
 		"conditional list":               {`[if input.b != _|_ {thema.Lacuna & {message: "m", type: "DroppedField"}}]`, "listed unconditionally"},
 		"conditional list via let":       {"L\n\t\tlet L = [if input.b != _|_ {thema.Lacuna & {message: \"m\", type: \"DroppedField\"}}]", "listed unconditionally"},

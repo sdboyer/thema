@@ -34,6 +34,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"cuelang.org/go/cue"
@@ -400,14 +401,13 @@ func (w *walker) conjunct(c cueview.Conjunct, q cue.Path, gs []guard, pos token.
 		w.computed(e, q, gs, pos)
 	case *ast.Ident:
 		if w.predeclared(e) {
-			switch e.Name {
-			case "true", "false", "null":
+			if isBoolName(e.Name) || e.Name == "null" {
 				w.literal(e, q, gs, pos)
-			default:
-				w.record(&write{q: q, guards: gs, kind: literalW, text: e.Name, pos: pos})
-				w.add(Finding{Path: subject(q), Verdict: NotTotal, Rule: RuleNotAValue,
-					Detail: fmt.Sprintf("is %s, a constraint rather than a value; a result field must have a concrete value", e.Name), Pos: pos})
+				return
 			}
+			w.record(&write{q: q, guards: gs, kind: literalW, text: e.Name, pos: pos})
+			w.add(Finding{Path: subject(q), Verdict: NotTotal, Rule: RuleNotAValue,
+				Detail: fmt.Sprintf("is %s, a constraint rather than a value; a result field must have a concrete value", e.Name), Pos: pos})
 			return
 		}
 		w.add(Finding{Path: subject(q), Verdict: Unknown, Rule: RuleUnknownReference,
@@ -521,8 +521,8 @@ func (w *walker) chainPath(x ast.Expr) (cue.Path, bool) {
 		}
 		switch lit.Kind {
 		case token.INT:
-			var i int
-			if _, err := fmt.Sscan(lit.Value, &i); err != nil {
+			i, err := strconv.Atoi(lit.Value)
+			if err != nil {
 				return cue.Path{}, false
 			}
 			return appendPath(base, cue.Index(i)), true
@@ -580,6 +580,11 @@ func (w *walker) fieldPath(f *ast.Field) (cue.Path, bool) {
 // len, quo, ...): one that resolves to nothing in the tree.
 func (w *walker) predeclared(id *ast.Ident) bool {
 	return id.Node == nil || w.tree.Parent(id.Node) == nil
+}
+
+// isBoolName reports whether name is one of the predeclared bool values.
+func isBoolName(name string) bool {
+	return name == "true" || name == "false"
 }
 
 // copy proves the copy of input p into result q under guards gs.
@@ -643,15 +648,15 @@ func (w *walker) checkCopies() {
 					verdict, rule = Unknown, RuleUnknownCopy
 				}
 				w.add(Finding{Path: subj, Verdict: verdict, Rule: rule,
-					Detail: fmt.Sprintf("copies %s, %s", inputRef(c.p), compatDetail(f, c.p)), Pos: c.pos})
+					Detail: fmt.Sprintf("copies %s, %s", inputRef(c.p), compatDetail(f)), Pos: c.pos})
 			}
 		}
 	}
 }
 
-// compatDetail renders a compat finding about the copy of source path p as a
-// clause about the copied value.
-func compatDetail(f compat.Finding, p cue.Path) string {
+// compatDetail renders a compat finding about a copied value as a clause about
+// it.
+func compatDetail(f compat.Finding) string {
 	detail := strings.NewReplacer("the prior schema", "the source schema", "the new schema", "the target schema").Replace(f.Detail)
 	if len(f.Path.Selectors()) == 0 {
 		return fmt.Sprintf("which %s (compat rule %s)", detail, f.Rule)
@@ -698,11 +703,7 @@ func (w *walker) list(e *ast.ListLit, q cue.Path, gs []guard, pos token.Pos) {
 			return
 		}
 	}
-	for i, elt := range e.Elts {
-		x, ok := elt.(ast.Expr)
-		if !ok {
-			continue
-		}
+	for i, x := range e.Elts {
 		eq := appendPath(q, cue.Index(i))
 		for _, c := range w.tree.Conjuncts(x) {
 			w.conjunct(c, eq, gs, pos)
@@ -923,7 +924,7 @@ func (w *walker) lookupSource(p cue.Path, gs []guard) sourceLookup {
 	for _, v := range cur {
 		leaves = append(leaves, compat.Branches(v)...)
 	}
-	branches, refined := refine(w.ctx, leaves, p, gs)
+	branches, refined := refine(leaves, p, gs)
 	return sourceLookup{branches: branches, whole: cur, refined: refined, declared: true, present: present, why: why}
 }
 
@@ -932,9 +933,7 @@ func (w *walker) lookupSource(p cue.Path, gs []guard) sourceLookup {
 func presentIn(parent cue.Value, sel, csel cue.Selector) (string, bool) {
 	if sel.Type().LabelType() == cue.IndexLabel {
 		iv, _, ok := intervalOf(parent.Len())
-		var i int
-		fmt.Sscan(sel.String(), &i)
-		if ok && iv.lo != nil && iv.lo.Int64() > int64(i) {
+		if ok && iv.lo != nil && iv.lo.Int64() > int64(sel.Index()) {
 			return "", true
 		}
 		return fmt.Sprintf("is an element the list need not have (its length is %s)", fmtv(parent.Len())), false
@@ -1003,9 +1002,9 @@ func (w *walker) checkCoverage() {
 				// compat judged the copy, including this field.
 				continue
 			}
-			cands, any := w.candidates(p.guards, cq)
+			cands, written := w.candidates(p.guards, cq)
 			switch {
-			case !any:
+			case !written:
 				w.add(Finding{Path: subject(cq), Verdict: NotTotal, Rule: RuleRequiredNotWritten,
 					Detail: "is required by the target schema and never written" + underGuards(p.guards), Pos: p.pos})
 			case w.covers(cands):
@@ -1027,8 +1026,8 @@ func underGuards(gs []guard) string {
 // candidates returns, for each write that gives result path cq a value where
 // the enclosing write's guards gs hold, the guards it still needs beyond gs.
 // A copy at an ancestor of cq whose source declares the rest of the path gives
-// cq a value too. any reports whether cq is written at all.
-func (w *walker) candidates(gs []guard, cq cue.Path) (cands [][]guard, any bool) {
+// cq a value too. written reports whether cq is written at all.
+func (w *walker) candidates(gs []guard, cq cue.Path) (cands [][]guard, written bool) {
 	for _, wr := range w.writes {
 		var covers bool
 		switch {
@@ -1041,7 +1040,7 @@ func (w *walker) candidates(gs []guard, cq cue.Path) (cands [][]guard, any bool)
 		if !covers {
 			continue
 		}
-		any = true
+		written = true
 		switch {
 		case guardsHavePrefix(wr.guards, gs):
 			cands = append(cands, wr.guards[len(gs):])
@@ -1049,7 +1048,7 @@ func (w *walker) candidates(gs []guard, cq cue.Path) (cands [][]guard, any bool)
 			cands = append(cands, nil)
 		}
 	}
-	return cands, any
+	return cands, written
 }
 
 // checkConflicts reports a path written twice with values that may disagree,
@@ -1215,9 +1214,9 @@ func (w *walker) lacunaRefs(lp cue.Path, name string, x ast.Expr, gs []guard) {
 // result field it refers to is written under the condition.
 func (w *walker) lacunaValue(subj string, x ast.Expr, gs []guard, pos token.Pos) {
 	if r, ok := w.resultRef(x); ok {
-		cands, any := w.candidates(gs, r)
+		cands, written := w.candidates(gs, r)
 		switch {
-		case !any:
+		case !written:
 			w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleSourceAbsent,
 				Detail: fmt.Sprintf("refers to %s, which the lens never writes", subject(r)), Pos: pos})
 		case w.covers(cands):
@@ -1277,8 +1276,10 @@ func (w *walker) resultRef(x ast.Expr) (cue.Path, bool) {
 			if !ok || lit.Kind != token.INT {
 				return cue.Path{}, false
 			}
-			var i int
-			fmt.Sscan(lit.Value, &i)
+			i, err := strconv.Atoi(lit.Value)
+			if err != nil {
+				return cue.Path{}, false
+			}
 			sels = append([]cue.Selector{cue.Index(i)}, sels...)
 			x = e.X
 		default:

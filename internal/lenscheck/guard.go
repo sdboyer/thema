@@ -194,7 +194,7 @@ func (w *walker) literalValue(x ast.Expr) (cue.Value, bool) {
 			return cue.Value{}, false
 		}
 	case *ast.Ident:
-		if !w.predeclared(e) || (e.Name != "true" && e.Name != "false" && e.Name != "null") {
+		if !w.predeclared(e) || (!isBoolName(e.Name) && e.Name != "null") {
 			return cue.Value{}, false
 		}
 	default:
@@ -268,7 +268,7 @@ func establishes(gs []guard, p cue.Path) bool {
 // alternative, a type test keeps what unifies with the type, a negated one
 // drops the alternatives the type subsumes. It reports whether any guard
 // applied.
-func refine(ctx *cue.Context, branches []cue.Value, p cue.Path, gs []guard) ([]cue.Value, bool) {
+func refine(branches []cue.Value, p cue.Path, gs []guard) ([]cue.Value, bool) {
 	refined := false
 	for _, g := range gs {
 		if g.kind == opaque || g.kind == presence || g.path.String() != p.String() {

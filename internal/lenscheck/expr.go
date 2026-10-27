@@ -158,8 +158,12 @@ func intervalOf(v cue.Value) (iv interval, exact bool, ok bool) {
 	return intervalOfDepth(v, 0)
 }
 
+// maxExprDepth bounds how far intervalOf follows an expression's structure,
+// against a value whose Expr() refers back to itself.
+const maxExprDepth = 32
+
 func intervalOfDepth(v cue.Value, depth int) (interval, bool, bool) {
-	if depth > 32 {
+	if depth > maxExprDepth {
 		return interval{}, false, true
 	}
 	if _, rp := v.ReferencePath(); len(rp.Selectors()) > 0 {
@@ -358,8 +362,7 @@ func (w *walker) shape(x ast.Expr, c *exprCtx) (shape, bool) {
 		}
 	case *ast.Ident:
 		if w.predeclared(e) {
-			switch e.Name {
-			case "true", "false":
+			if isBoolName(e.Name) {
 				return shape{kind: cue.BoolKind}, true
 			}
 			w.fail(c, NotTotal, RuleNotAValue, fmt.Sprintf("uses %s, a constraint rather than a value, in a computation", e.Name))
@@ -530,16 +533,15 @@ func (w *walker) operand(x ast.Expr, c *exprCtx) (shape, bool) {
 				return shape{}, false
 			}
 		} else {
-			switch cj.Expr.(type) {
+			switch ex := cj.Expr.(type) {
 			case *ast.BasicLit, *ast.UnaryExpr, *ast.Interpolation, *ast.BinaryExpr, *ast.CallExpr, *ast.ParenExpr:
 				var ok bool
-				s, ok = w.shape(cj.Expr, c)
+				s, ok = w.shape(ex, c)
 				if !ok {
 					return shape{}, false
 				}
 			case *ast.Ident:
-				id := cj.Expr.(*ast.Ident)
-				if w.predeclared(id) && (id.Name == "true" || id.Name == "false") {
+				if w.predeclared(ex) && isBoolName(ex.Name) {
 					s = shape{kind: cue.BoolKind}
 					break
 				}
@@ -620,7 +622,7 @@ func (w *walker) call(e *ast.CallExpr, c *exprCtx) (shape, bool) {
 			}
 			return w.length(e.Args[0], c)
 		case "quo", "rem", "div", "mod":
-			if len(e.Args) != 2 {
+			if len(e.Args) != divisionArity {
 				break
 			}
 			return w.division(fun.Name, e, c)
@@ -886,13 +888,20 @@ type head struct {
 	cond, then, els ast.Expr
 }
 
+// divisionArity is the number of arguments of quo, rem, div and mod.
+const divisionArity = 2
+
+// headWithFallback is the length of a head's list when it has a fallback
+// element: [if c {x}, y].
+const headWithFallback = 2
+
 // asHead recognizes the head idiom.
 func asHead(x ast.Expr) (head, bool) {
 	ix, ok := x.(*ast.IndexExpr)
 	if !ok {
 		return head{}, false
 	}
-	if lit, ok := ix.Index.(*ast.BasicLit); !ok || lit.Kind != token.INT || lit.Value != "0" {
+	if lit, isLit := ix.Index.(*ast.BasicLit); !isLit || lit.Kind != token.INT || lit.Value != "0" {
 		return head{}, false
 	}
 	l, ok := ix.X.(*ast.ListLit)
@@ -916,11 +925,8 @@ func asHead(x ast.Expr) (head, bool) {
 		return head{}, false
 	}
 	h := head{cond: ifc.Condition, then: emb.Expr}
-	if len(l.Elts) == 2 {
-		h.els, ok = l.Elts[1].(ast.Expr)
-		if !ok {
-			return head{}, false
-		}
+	if len(l.Elts) == headWithFallback {
+		h.els = l.Elts[1]
 	}
 	return h, true
 }
@@ -942,7 +948,7 @@ func (w *walker) head(h head, q cue.Path, gs []guard, pos token.Pos) {
 		g = []guard{{kind: opaque, text: text(h.cond)}}
 	}
 	w.checkGuards(g, gs, subj, pos)
-	neg := g
+	var neg []guard
 	if len(g) == 1 && g[0].kind != opaque {
 		neg = []guard{g[0].negated()}
 	} else {
@@ -981,7 +987,7 @@ func (w *walker) asTable(x ast.Expr) (table, bool) {
 	if !ok {
 		return table{}, false
 	}
-	if _, ok := ix.Index.(*ast.BasicLit); ok {
+	if _, isLit := ix.Index.(*ast.BasicLit); isLit {
 		return table{}, false
 	}
 	conjs := w.tree.Conjuncts(ix.X)
