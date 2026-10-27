@@ -1,0 +1,83 @@
+A lineage whose schemas and lenses refer to another package of its module.
+The referenced content is hashed, not the import path: a definition through a
+let CUE generates for it, a regular field inlined. A change in the package
+changes the IDs of the versions that use it.
+-- shared/shared.cue --
+package shared
+
+#Thing: {p: int, q?: string}
+Reg: {r: int}
+Fallback: {r: 0}
+-- in.cue --
+package p
+
+import "example.com/p/shared"
+
+lin: {
+	name: "imports"
+	schemas: [{
+		version: [0, 0]
+		schema: {a: shared.#Thing, b: shared.Reg}
+	}, {
+		version: [1, 0]
+		schema: {a: shared.#Thing}
+	}]
+	lenses: [{
+		from: [0, 0]
+		to: [1, 0]
+		input: _
+		result: a: input.a
+	}, {
+		from: [1, 0]
+		to: [0, 0]
+		input: _
+		result: {a: input.a, b: shared.Fallback}
+	}]
+}
+-- out/0.0 --
+# id
+03534dcd7d91c792a91f06bd535cb5d8dd2b2008ecac2f82981681448d17f085:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
+# schema
+{
+	a: __L1_4cfadd7d02080b59.#x
+	b: r: int
+	let __L1_4cfadd7d02080b59 = {
+		#x: {
+			p:  int
+			q?: string
+		}
+	}
+}
+# lenses
+{}
+-- out/1.0 --
+# id
+4874f1c044231cf5be370974d27538eaa7514baead96fbcc0e7ddd9edf64db8b:24df2bcfa8a63e0586bb4fd20a1f910d525e56e4b86c3e18241282815ec233ac
+# schema
+{
+	a: __L1_4cfadd7d02080b59.#x
+	let __L1_4cfadd7d02080b59 = {
+		#x: {
+			p:  int
+			q?: string
+		}
+	}
+}
+# lenses
+{
+	backward: {
+		input: _
+		result: {
+			a: __L3_d2e2adf7177b7a8a.a
+			b: r: 0
+			let __L3_d2e2adf7177b7a8a = _
+		}
+	}
+	forward: {
+		input: _
+		result: {
+			a: __L3_d2e2adf7177b7a8a.a
+			let __L3_d2e2adf7177b7a8a = _
+		}
+	}
+}

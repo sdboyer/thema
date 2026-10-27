@@ -383,3 +383,87 @@ error: cases.hiddenDefinition.a: incomplete value int
 	_#def
 	_#def: a: int
 }
+-- out/selfcontained --
+## definition
+{
+	_#def
+	_#def: {
+		a:  int
+		n?: #A
+	}
+}
+## unified
+{
+	_#def
+	_#def: {
+		b: string
+		c: d: int
+	} & {b: "s"}
+}
+## nestedRef
+{
+	k: B.#x
+
+	//cue:path: #B
+	let B = {
+		#x: {
+			b: string
+			c: d: int
+		}
+	}
+}
+## embeddedRef
+{
+	k: R.#x
+
+	//cue:path: #R
+	let R = {
+		#x: {
+			a: int
+			if INPUT.x != _|_ // explicit error (_|_ literal) in source
+			{
+				extra: 1
+			}
+		}
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## selectedFrom
+{
+	_#def
+	_#def: d: int
+}
+## withComprehension
+{
+	_#def
+	_#def: {
+		a: int
+		if INPUT.x != _|_ // explicit error (_|_ literal) in source
+		{
+			extra: 1
+		}
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## authorDefLabel
+{
+	_#def
+	_#def: {
+		_#def: int
+		a:     int
+	}
+}
+## plainDefLabel
+{
+	_#def: 1
+	a:     2
+}
+## hiddenDefinition
+{
+	_#def
+	_#def: a: int
+}

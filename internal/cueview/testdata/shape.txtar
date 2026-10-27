@@ -261,3 +261,44 @@ close({r: int})
 {
 	a: _|_ // conflicting values 2 and 1
 }
+-- out/selfcontained --
+## imports
+import "strings"
+
+u: strings.ToUpper(INPUT.s)
+
+//cue:path: input
+let INPUT = _
+## interpolation
+{r: "v\(5)"}
+## defaults
+{
+	r: *"a" | "b"
+	s: int | *1
+}
+## markers
+{
+	r!: int
+	o?: string
+}
+## closed
+close({r: int})
+## open
+{
+	r: int
+	...
+}
+## patterns
+{
+	[=~"^x"]: int
+	xa:       1
+}
+## concrete
+{
+	a: 1
+	b: [1, "x"]
+}
+## conflict
+{
+	a: _|_ // conflicting values 2 and 1
+}
