@@ -32,6 +32,23 @@ seams: "compat-verdicts": {
 	]
 }
 
+// Every lens-totality verdict is part of what binding guarantees: a lens that
+// binds is total, so a verdict that moves can make a published lens fail to
+// bind, or let through one that fails at translate (#57 rests on this). The
+// corpus records one verdict per rule; a diff there is a contract change, even
+// when it fixes a bug. Declared as a kernel to fire on touch, as compat-verdicts
+// is (sdboyer/thresh#6).
+seams: "lenscheck-verdicts": {
+	kind:  "shared-kernel"
+	paths: ["internal/lenscheck/testdata/*.txtar"]
+	consult: [
+		"every lineage already bound: a verdict that moves can make a published lens fail to bind, or admit one that fails at translate",
+		"the rule tables in docs/invariants.md (Lens totality), which must describe the recorded verdicts",
+		"the stability policy in docs/invariants.md: after v1 a recorded verdict may not change",
+		"internal/compat, whose verdicts the copy rule reuses: a compat verdict that moves moves copies with it",
+	]
+}
+
 // --- shared-kernel: co-owners we can name ---------------------------------------
 
 // thema's own CUE definitions are the kernel both halves stand on: every lineage
@@ -190,6 +207,7 @@ seams: "go-residual-checks": {
 		checkLensResults:    "static lens checks with input standing for any source instance: needs each lens paired with its source and target schemas, closedness applied at use, and the declared-fields walker"
 		checkLacunas:        "lacuna lists must be enumerable without input, and lacuna field paths declared by the lens's schemas: needs the lineage's schemas, and CUE would only report missing required lacuna fields once data arrives"
 		checkUnknownFields:  "unknown lineage/schema/lens fields, and schemas/lenses keys that aren't versions/edges; CUE rejects them too, but positions the error at its guard in thema's CUE, while Go can point at the author's line. Known fields are read from thema's CUE, not duplicated"
+		checkLensTotality:   "every CUE lens must map every instance of its source schema to an instance of its target: a quantified claim over instances, which CUE can only evaluate one instance at a time. The walk (internal/lenscheck) reads each lens's syntax, judges copies with the compat checker and bounds through Expr(), and treats what it cannot decide as an error"
 	}
 }
 
