@@ -1,0 +1,17 @@
+# a schema reads the lineage's name: it is declared in the lineage outside the
+# schema (rule ref-lineage-meta), as are #LatestVersion, the joinSchema and
+# the lenses. The schema writes the literal it wants.
+#issue: 21
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "refLineageMeta"
+	schemas: {
+		"0": "0": {
+			schema: {a: string, n: lin.name}
+		}
+	}
+}
+-- expect --
+bind fail ref-lineage-meta

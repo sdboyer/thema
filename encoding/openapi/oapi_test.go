@@ -21,7 +21,6 @@ func TestGenerate(t *testing.T) {
 		ToDo: map[string]string{
 			"lineage/defaultchange": "default backcompat invariants not working properly yet",
 			"lineage/optional":      "Optional fields do not satisfy struct.MinFields(), causing Lineage constraints to fail",
-			"lineage/expand":        "#87: lens 0.3->0.2 copies withDefault into a schema without \"baz\" (lens totality rule copy-narrowed)",
 		},
 	}
 	ctx := cuecontext.New()

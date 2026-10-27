@@ -1,0 +1,16 @@
+# A lacuna message copying an integer: the message must be a string.
+-- source.cue --
+a!: int
+-- target.cue --
+b!: int
+-- lens.cue --
+v0_0: _
+v1_0: {b: v0_0.a}
+lacunas: [{
+	sourceFields: [{path: "a", value: v0_0.a}]
+	message: v0_0.a
+	type:    "DroppedField"
+}]
+-- out --
+not total
+lacunas[0].message copies v0_0.a, which was int and is now string (compat rule value-narrowed) (rule copy-narrowed) @ lens.cue:5:11

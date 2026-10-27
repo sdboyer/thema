@@ -22,7 +22,6 @@ func TestBindLineage(t *testing.T) {
 		ToDo: map[string]string{
 			"lineage/defaultchange": "Thema compat analyzer fails to classify changes to default values as breaking",
 			"lineage/optional":      "Optional fields do not satisfy struct.MinFields(), causing Lineage constraints to fail",
-			"lineage/expand":        "#87: lens 0.3->0.2 copies withDefault into a schema without \"baz\" (lens totality rule copy-narrowed)",
 		},
 	}
 

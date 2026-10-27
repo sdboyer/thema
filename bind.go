@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"cmp"
 	"fmt"
-	"path/filepath"
 	"slices"
 	"sort"
 	"strconv"
@@ -131,7 +130,7 @@ func (ml *maybeLineage) checkGoValidity(cfg *bindConfig) error {
 			schlist = append(schlist, &schemaDef{ref: miniter.Value(), v: synv(maj, minor)})
 		}
 		if len(schlist) == n {
-			return errors.Mark(cerrors.Newf(userPos(majiter.Value()), "major version %d declares no schemas: its first schema must be version %s", maj, synv(maj, 0)), terrors.ErrNonContiguousVersions)
+			return errors.Mark(cerrors.Newf(embedreg.AuthorPos(majiter.Value()), "major version %d declares no schemas: its first schema must be version %s", maj, synv(maj, 0)), terrors.ErrNonContiguousVersions)
 		}
 	}
 	slices.SortFunc(schlist, func(a, b *schemaDef) int {
@@ -189,14 +188,14 @@ func (ml *maybeLineage) checkGoValidity(cfg *bindConfig) error {
 func (ml *maybeLineage) checkSchemaVersions(prev, curr *schemaDef) error {
 	if prev == nil {
 		if curr.v != synv(0, 0) {
-			return errors.Mark(cerrors.Newf(userPos(curr.ref), "the first schema must be version 0.0, not %s", curr.v), terrors.ErrNonContiguousVersions)
+			return errors.Mark(cerrors.Newf(embedreg.AuthorPos(curr.ref), "the first schema must be version 0.0, not %s", curr.v), terrors.ErrNonContiguousVersions)
 		}
 		return nil
 	}
 
 	nextMinor, nextMajor := synv(prev.v[0], prev.v[1]+1), synv(prev.v[0]+1, 0)
 	if curr.v != nextMinor && curr.v != nextMajor {
-		return errors.Mark(cerrors.Newf(userPos(curr.ref), "schema version %s does not follow %s: the next schema must be version %s or %s", curr.v, prev.v, nextMinor, nextMajor), terrors.ErrNonContiguousVersions)
+		return errors.Mark(cerrors.Newf(embedreg.AuthorPos(curr.ref), "schema version %s does not follow %s: the next schema must be version %s or %s", curr.v, prev.v, nextMinor, nextMajor), terrors.ErrNonContiguousVersions)
 	}
 
 	return nil
@@ -252,7 +251,7 @@ func (ml *maybeLineage) checkUnknownFields() error {
 			if !sel.IsString() || known[sel.Unquoted()] {
 				continue
 			}
-			errs = cerrors.Append(errs, cerrors.Newf(userPos(iter.Value()), "%s is not a field of %s; valid fields are %s", sel.Unquoted(), what, strings.Join(names, ", ")))
+			errs = cerrors.Append(errs, cerrors.Newf(embedreg.AuthorPos(iter.Value()), "%s is not a field of %s; valid fields are %s", sel.Unquoted(), what, strings.Join(names, ", ")))
 		}
 	}
 	// each calls fn with each regular field of v whose key is valid, and reports
@@ -267,7 +266,7 @@ func (ml *maybeLineage) checkUnknownFields() error {
 				continue
 			}
 			if key := iter.Selector().Unquoted(); !valid(key) {
-				errs = cerrors.Append(errs, cerrors.Newf(userPos(iter.Value()), "%q is not %s", key, badkey))
+				errs = cerrors.Append(errs, cerrors.Newf(embedreg.AuthorPos(iter.Value()), "%q is not %s", key, badkey))
 				continue
 			}
 			fn(iter.Selector().Unquoted(), iter.Value())
@@ -309,18 +308,6 @@ func (ml *maybeLineage) checkUnknownFields() error {
 	return nil
 }
 
-// userPos returns the position of the first conjunct of v that is not in thema's
-// own CUE, or v's position if there is none.
-func userPos(v cue.Value) token.Pos {
-	_, args := v.Expr()
-	for _, a := range args {
-		if p := a.Pos(); p.IsValid() && !strings.HasPrefix(p.Filename(), embedreg.Root()+string(filepath.Separator)) {
-			return p
-		}
-	}
-	return v.Pos()
-}
-
 func (ml *maybeLineage) checkLineageShape(cfg *bindConfig) error {
 	// Check certain paths specifically, because these are common getting started errors of just arranging
 	// CUE statements in the right way that deserve more targeted guidance
@@ -331,7 +318,7 @@ func (ml *maybeLineage) checkLineageShape(cfg *bindConfig) error {
 		}
 		if path == "schemas" {
 			if iter, err := val.Fields(); err == nil && !iter.Next() {
-				return errors.Mark(cerrors.Newf(userPos(val), "invalid lineage, Lineage.schemas must declare at least one schema"), terrors.ErrInvalidLineage)
+				return errors.Mark(cerrors.Newf(embedreg.AuthorPos(val), "invalid lineage, Lineage.schemas must declare at least one schema"), terrors.ErrInvalidLineage)
 			}
 		}
 		if !val.IsConcrete() {
@@ -385,12 +372,12 @@ func (ml *maybeLineage) checkSchemaShapes() error {
 
 	// thema's default joinSchema is _, which joins nothing.
 	if join := ml.uni.LookupPath(cue.MakePath(cue.Str("joinSchema"))); join.IncompleteKind() != cue.StructKind && join.IncompleteKind() != cue.TopKind {
-		errs = cerrors.Append(errs, cerrors.Newf(userPos(join), "joinSchema must be a struct, not %s", join.IncompleteKind()))
+		errs = cerrors.Append(errs, cerrors.Newf(embedreg.AuthorPos(join), "joinSchema must be a struct, not %s", join.IncompleteKind()))
 	}
 
 	for _, sch := range ml.schlist {
 		if k := sch.def.IncompleteKind(); k != cue.StructKind {
-			errs = cerrors.Append(errs, cerrors.Newf(userPos(sch.ref.LookupPath(pathSch)), "schema %s must be a struct, not %s", sch.v, k))
+			errs = cerrors.Append(errs, cerrors.Newf(embedreg.AuthorPos(sch.ref.LookupPath(pathSch)), "schema %s must be a struct, not %s", sch.v, k))
 			continue
 		}
 		iter, err := sch.ref.LookupPath(cue.MakePath(cue.Str("examples"))).Fields()
@@ -400,7 +387,7 @@ func (ml *maybeLineage) checkSchemaShapes() error {
 		closed := cuetil.CloseRecursive(ctx, sch.def)
 		for iter.Next() {
 			if err := closed.Unify(iter.Value()).Validate(cue.Concrete(true)); err != nil {
-				errs = cerrors.Append(errs, cerrors.Newf(userPos(iter.Value()), "schema %s example %s is not a valid instance of the schema: %s", sch.v, iter.Selector(), cerrors.Details(err, nil)))
+				errs = cerrors.Append(errs, cerrors.Newf(embedreg.AuthorPos(iter.Value()), "schema %s example %s is not a valid instance of the schema: %s", sch.v, iter.Selector(), cerrors.Details(err, nil)))
 			}
 		}
 	}
@@ -421,7 +408,7 @@ func (ml *maybeLineage) checkSchemaConstructs(v cue.Value, name string) error {
 	var errs cerrors.Error
 	t, err := cueview.NewTree(v)
 	if err != nil {
-		return errors.Mark(cerrors.Newf(userPos(v), "%s: %s", name, err), terrors.ErrInvalidLineage)
+		return errors.Mark(cerrors.Newf(embedreg.AuthorPos(v), "%s: %s", name, err), terrors.ErrInvalidLineage)
 	}
 	ast.Walk(t.File, func(n ast.Node) bool {
 		c, ok := n.(*ast.Comprehension)
@@ -560,7 +547,7 @@ func (ml *maybeLineage) checkLensResults() error {
 		}
 		inputPath, resultPath := cue.MakePath(cue.Str(lensParam(from))), cue.MakePath(cue.Str(lensParam(to)))
 		fail := func(v cue.Value, format string, args ...any) {
-			errs = cerrors.Append(errs, cerrors.Newf(userPos(v), "lens %s->%s: %s", from, to, fmt.Sprintf(format, args...)))
+			errs = cerrors.Append(errs, cerrors.Newf(embedreg.AuthorPos(v), "lens %s->%s: %s", from, to, fmt.Sprintf(format, args...)))
 		}
 
 		source := cuetil.CloseRecursive(ctx, fsch.def)
@@ -633,11 +620,11 @@ func (ml *maybeLineage) checkLacunas() error {
 		lacunas, _ := raw.Default()
 		syn, err := cuetil.ParseLens(lens, lensParam(from), lensParam(to))
 		if err != nil {
-			errs = cerrors.Append(errs, cerrors.Newf(userPos(lens), "lens %s->%s: %v", from, to, err))
+			errs = cerrors.Append(errs, cerrors.Newf(embedreg.AuthorPos(lens), "lens %s->%s: %v", from, to, err))
 			continue
 		}
 		if _, err := lacunas.Len().Int64(); err != nil || syn.LacunasConditional() {
-			errs = cerrors.Append(errs, cerrors.Newf(userPos(lacunas),
+			errs = cerrors.Append(errs, cerrors.Newf(embedreg.AuthorPos(lacunas),
 				"lens %s->%s: lacunas must be listed unconditionally, with each lacuna's condition field deciding whether it applies", from, to))
 			continue
 		}
@@ -647,7 +634,7 @@ func (ml *maybeLineage) checkLacunas() error {
 				break
 			}
 			fail := func(format string, args ...any) {
-				errs = cerrors.Append(errs, cerrors.Newf(userPos(lac), "lens %s->%s, lacuna %d: %s", from, to, i, fmt.Sprintf(format, args...)))
+				errs = cerrors.Append(errs, cerrors.Newf(embedreg.AuthorPos(lac), "lens %s->%s, lacuna %d: %s", from, to, i, fmt.Sprintf(format, args...)))
 			}
 			if !lac.LookupPath(cue.MakePath(cue.Str("message"))).Exists() {
 				fail("message is required")
@@ -684,6 +671,48 @@ func (ml *maybeLineage) checkLacunas() error {
 	return nil
 }
 
+// checkReferences checks what each schema, the joinSchema and each CUE lens
+// refer to: a schema only its own body and CUE's builtin packages, a lens only
+// the instance it takes, its own body and the builtin packages
+// (docs/invariants.md, References). CUE resolves any reference in lexical scope, so a schema that
+// reads a sibling schema, the lineage's name or a file-level helper evaluates
+// without complaint; the rule is thema's. References are read from each
+// value's syntax (the Raw view), the only place every one is visible as
+// written: the evaluator resolves lets and index expressions and leaves the
+// bodies of pending comprehensions unevaluated (references.go says more).
+// Schemas are checked first, and a lineage whose schemas fail is reported
+// without its lenses: a lens is judged against schemas that mean what they say.
+func (ml *maybeLineage) checkReferences() error {
+	rc := newRefChecker(ml.rt.Context(), ml.raw)
+	var errs cerrors.Error
+	check := func(o refOwner) {
+		for _, f := range rc.check(o) {
+			errs = cerrors.Append(errs, cerrors.Newf(refPos(o, f.field), "%s", f.String(o)))
+		}
+	}
+
+	for _, sch := range ml.schlist {
+		rel := cue.MakePath(cue.Str(labelSchemas), cue.Str(strconv.Itoa(int(sch.v[0]))), cue.Str(strconv.Itoa(int(sch.v[1]))), cue.Str("schema"))
+		check(refOwner{name: fmt.Sprintf("schema %s", sch.v), v: ml.raw.LookupPath(rel), rel: rel})
+	}
+	// thema's default joinSchema is _, which joins nothing and is not the author's.
+	if rel := cue.MakePath(cue.Str(labelJoinSchema)); ml.raw.LookupPath(rel).IncompleteKind() != cue.TopKind {
+		check(refOwner{name: labelJoinSchema, v: ml.raw.LookupPath(rel), rel: rel})
+	}
+	if errs != nil {
+		return errors.Mark(errs, terrors.ErrInvalidLineage)
+	}
+
+	for _, cl := range ml.cueLenses() {
+		rel := cue.MakePath(cue.Str(labelLenses), cue.Str(cl.id.String()))
+		check(refOwner{name: fmt.Sprintf("lens %s", cl.id), v: ml.raw.LookupPath(rel), rel: rel, lens: true, takes: lensParam(cl.id.From)})
+	}
+	if errs != nil {
+		return errors.Mark(errs, terrors.ErrInvalidLens)
+	}
+	return nil
+}
+
 // checkLensTotality proves each CUE lens total: for every instance of its source
 // schema, the result is an instance of its target schema, with every required
 // field, and nothing in the lens fails to evaluate on the way. The walk
@@ -694,8 +723,8 @@ func (ml *maybeLineage) checkLacunas() error {
 // evaluates a lens only against data, so without this a lens that drops a field
 // or overflows a bound surfaces at translate, for the instance that hits it.
 //
-// SkipBuggyChecks skips it: the corpus has lenses the check correctly refuses
-// (exemplars/expand, 0.3->0.2, drops "baz"), which #87 migrates.
+// SkipBuggyChecks skips it: the corpus has a lens the check correctly refuses
+// (exemplars/disjunct, 0.1->0.0, writes nothing), which #87 migrates.
 func (ml *maybeLineage) checkLensTotality(cfg *bindConfig) error {
 	if cfg.skipbuggychecks {
 		return nil
@@ -721,7 +750,7 @@ func (ml *maybeLineage) checkLensTotality(cfg *bindConfig) error {
 		if res.Verdict() == lenscheck.Unknown {
 			verb = "cannot be shown total over"
 		}
-		errs = cerrors.Append(errs, cerrors.Newf(userPos(lens), "lens %s->%s %s schema %s", from, to, verb, from))
+		errs = cerrors.Append(errs, cerrors.Newf(embedreg.AuthorPos(lens), "lens %s->%s %s schema %s", from, to, verb, from))
 		for _, f := range res.Findings {
 			errs = cerrors.Append(errs, cerrors.Newf(f.Pos, "lens %s->%s: %s", from, to, f))
 		}

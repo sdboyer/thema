@@ -1,0 +1,31 @@
+# a definition inside the schema unifies a value declared outside it, at the top of the file: the file is the lineage, so what it declares beside the
+# schemas is declared in the lineage outside the schema (rule ref-lineage-meta).
+# Was testdata/lineage: schema contains an optional field with a ref to a type that references one type and extends another
+#issue: 21
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+thema.Lineage
+name: "unifyref"
+schemas: {
+	"0": "0": {
+		schema: {
+		    afoo: #Foo
+	
+		    #Foo: _External & {
+		        optf?: #Bar
+		    }
+		    #Bar: {
+		        another: string
+		    }
+		}
+	}
+}
+lenses: {}
+
+_External: {
+    extfield: string
+}
+-- out/bindfail --
+schema 0.0: #Foo refers to _External, which is declared in the lineage outside the schema; a schema may refer only to its own body and CUE's builtin packages (rule ref-lineage-meta):
+    ./in.cue:10:13

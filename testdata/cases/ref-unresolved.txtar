@@ -1,0 +1,19 @@
+# a schema selects a field of the lineage by a computed label: CUE evaluates
+# it, but thema cannot tell from the schema's text what the reference denotes
+# (rule ref-unresolved). Written with a constant label (lin.name) it is a
+# reference to the lineage (ref-lineage-meta); either way the schema writes the
+# literal it wants.
+#issue: 21
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "refUnresolved"
+	schemas: {
+		"0": "0": {
+			schema: {a: string, n: lin["na"+"me"]}
+		}
+	}
+}
+-- expect --
+bind fail ref-unresolved

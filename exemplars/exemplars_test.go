@@ -82,6 +82,9 @@ func TestExemplarLacunas(t *testing.T) {
 		"defaultchange, forward":  {DefaultChangeLineage, thema.SV(0, 0), thema.SV(1, 0), `{aunion: "foo"}`, []lacuna.Type{lacuna.ChangedDefault}},
 		"defaultchange, backward": {DefaultChangeLineage, thema.SV(1, 0), thema.SV(0, 0), `{aunion: "bar"}`, []lacuna.Type{lacuna.ChangedDefault}},
 		"defaultchange, other":    {DefaultChangeLineage, thema.SV(0, 0), thema.SV(1, 0), `{aunion: "baz"}`, nil},
+		"expand, baz":             {ExpandLineage, thema.SV(0, 3), thema.SV(0, 2), `{init: "x", withDefault: "baz"}`, []lacuna.Type{lacuna.LossyFieldMapping}},
+		"expand, kept":            {ExpandLineage, thema.SV(0, 3), thema.SV(0, 2), `{init: "x", withDefault: "bar"}`, nil},
+		"expand, absent":          {ExpandLineage, thema.SV(0, 3), thema.SV(0, 2), `{init: "x"}`, nil},
 	} {
 		t.Run(name, func(t *testing.T) {
 			lin, err := c.lin(allrt)

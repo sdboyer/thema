@@ -14,8 +14,8 @@ lin1: schemas: {
 			optValPrimitive?: [string]: bool
 			optValList?: [string]: [...string]
 			optValStruct?: [string]: foo: string
-			refValue: [string]: aStruct
-			someField: aMap
+			refValue: [string]: foo: string
+			someField: [string]: bool
 		}
 	}
 }
@@ -31,11 +31,8 @@ lin2: schemas: {
 			optValPrimitive?: [string]: bool
 			optValList?: [string]: [...string]
 			optValStruct?: [string]: foo: string
-			refValue: [string]: aStruct
-			someField: aMap
+			refValue: [string]: foo: string
+			someField: [string]: bool
 		}
 	}
 }
-
-aMap: [string]: bool
-aStruct: foo:   string
