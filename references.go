@@ -2,17 +2,15 @@ package thema
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"cuelang.org/go/cue"
-	"cuelang.org/go/cue/ast"
-	"cuelang.org/go/cue/ast/astutil"
-	"cuelang.org/go/cue/literal"
 	"cuelang.org/go/cue/token"
 
 	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/internal/compat"
-	"github.com/sdboyer/thema/internal/cueview"
+	"github.com/sdboyer/thema/internal/cuetil"
 	"github.com/sdboyer/thema/internal/embedreg"
 	"github.com/sdboyer/thema/internal/util"
 )
@@ -23,20 +21,34 @@ import (
 // A schema may refer only to its own body (anything declared inside it, at any
 // depth) and to CUE's builtin packages. A lens may refer only to the instance
 // it takes (the field named after its from version, v1_0 for a lens from 1.0),
-// its own body and the builtin packages. thema's own package is part of the substrate
-// (thema.Lacuna, thema.LacunaTypes), not something an author can edit, so it
-// is allowed too.
+// its own body and the builtin packages. thema's own package is part of the
+// substrate (thema.Lacuna, thema.LacunaTypes), not something an author can
+// edit, so it is allowed too.
 //
-// References are read from the owner's syntax, the Raw view, which is the only
-// view that keeps every reference as the author wrote it. The evaluator does
-// not: it resolves a let to its value, an index expression to the element it
-// selects, and leaves the body of a pending comprehension unevaluated, so what
-// a value refers to is not recoverable from the value alone. Identifiers in the
-// syntax are resolved within it (astutil.Resolve); one that resolves to a
-// declaration inside the owner is the owner's own, one that resolves to an
-// import names a package, and one that resolves to nothing is a reference that
-// leaves the owner, classified by where CUE's lexical scoping finds it: in the
-// lineage, or outside it.
+// References are found in the value: each field of the owner is split into its
+// expression tree with Expr(), and every node that is a reference reports,
+// through ReferencePath(), the root it resolves in and its absolute path there.
+// The pair classifies it: a root that is a builtin or thema's package is
+// allowed, another package is ref-import, and in the author's own instance the
+// path is compared with the lineage's and the owner's: within the owner is its
+// own body, under schemas or lenses names another schema or lens, elsewhere in
+// the lineage is lineage meta, and outside the lineage is outside. The
+// evaluator has already resolved aliases, selector chains and constant index
+// expressions, so each arrives as a plain path; an index that depends on the
+// instance stays an IndexOp, whose base is classified with the selection
+// unknown.
+//
+// A let is substituted where it is used, so a field using one shows a plain
+// value with no ReferencePath; cue.Dereference reaches the let's value, which
+// carries the let's expression (its own Expr and ReferencePath) and is walked
+// in the using field's place. What a let is bound to is classified, not where
+// the let is declared: a let outside the owner bound to a literal is not seen
+// (testdata/known/ref-lineage-let-literal).
+//
+// One construct leaves no trace in the value and is read from the owner's
+// syntax instead (references_syntax.go): whatever a comprehension declares or
+// tests while the comprehension is pending, which is not part of the value at
+// all.
 
 // Labels of the lineage fields the reference rules tell apart.
 const (
@@ -57,6 +69,17 @@ const (
 	refLensToLens     refRule = "ref-lens-to-lens"
 	refUnresolved     refRule = "ref-unresolved"
 )
+
+// maxRefDepth bounds the descent into one field's value: its expression tree
+// and the fields and elements of the structs and lists in it. References are
+// classified where they are found and never followed, so the descent is over
+// what the author wrote at that field; a value this deep is reported rather
+// than descended further.
+const maxRefDepth = 64
+
+// selectionOperands is how many operands a selection (SelectorOp) or an index
+// expression (IndexOp) has: the value selected from and the label or index.
+const selectionOperands = 2
 
 // refOwner is a value whose references are checked: one schema, the
 // joinSchema, or one lens.
@@ -84,12 +107,16 @@ type refFinding struct {
 	rule refRule
 	// field is the path of labels, within the owner, of the field whose value
 	// holds the reference, as far as it can be located: labels built by
-	// comprehensions or interpolation, and let bodies, have no field.
+	// comprehensions or interpolation have no field. A reference reached
+	// through a let is located at the field using the let.
 	field []string
-	// expr is the reference as written.
+	// expr is the reference: the path it resolves to, or the text it was
+	// written as where only the syntax shows it.
 	expr string
 	// pkg is the import path of the package referred to (ref-import).
 	pkg string
+	// pos is where the reference is, if the value knows.
+	pos token.Pos
 }
 
 // String renders the finding in the house format:
@@ -158,103 +185,423 @@ func (o refOwner) may() string {
 type refChecker struct {
 	ctx *cue.Context
 	// lin is the lineage as bound: the author's value, with thema.Lineage
-	// unified in where the author did so. Scopes are looked up in it.
+	// unified in where the author did so.
 	lin cue.Value
-	// authored holds the author's own conjuncts of lin: what they wrote,
-	// without thema.Lineage. An owner is read from these, so that its syntax
-	// holds only the author's references (see check).
-	authored []cue.Value
+	// files are the files the author declared the lineage in: the filenames
+	// of the positions of its conjuncts and of its top-level fields, outside
+	// thema's own CUE.
+	files map[string]bool
 	// predeclared caches which unresolved identifiers CUE predeclares (int,
-	// string, len, self, ...), asked of the evaluator.
+	// string, len, self, ...), asked of the evaluator; see references_syntax.go.
 	predeclared map[string]bool
 }
 
 func newRefChecker(ctx *cue.Context, lin cue.Value) *refChecker {
-	return &refChecker{ctx: ctx, lin: lin, authored: authorConjuncts(lin), predeclared: make(map[string]bool)}
+	rc := &refChecker{ctx: ctx, lin: lin, files: make(map[string]bool), predeclared: make(map[string]bool)}
+	for _, f := range declaringFiles(lin) {
+		rc.files[f] = true
+	}
+	return rc
 }
 
-// check returns the references in o that break a rule, in syntax order. An
-// owner whose syntax cannot be read is a single unresolved finding.
-//
-// The owner is read from each of the author's conjuncts of the lineage that
-// declares it, not from the lineage as bound: there, thema's own CUE unifies a
-// lens with Lens and a schema with _, and exporting the bound value shows
-// thema's conjunct as a dangling reference beside the author's. Each author's
-// conjunct is one declaration, so what it declares at the owner's path is a
-// lexical unit, exported whole: an embedded definition stays in scope of its
-// declaration. (Splitting the owner itself into conjuncts would not do: CUE
-// reports an embedding as a conjunct of its own, apart from the struct that
-// declares what it embeds.)
-func (rc *refChecker) check(o refOwner) []refFinding {
-	w := &refWalker{rc: rc, owner: o}
-	for _, c := range rc.authored {
-		v := c.LookupPath(o.rel)
-		if !v.Exists() {
-			continue
-		}
-		n, err := cueview.Raw(v)
-		if err != nil {
-			return []refFinding{{rule: refUnresolved, expr: "its syntax, which could not be read: " + err.Error()}}
-		}
-		f := asFile(n)
-		astutil.Resolve(f, func(token.Pos, string, ...any) {})
-		w.parents = make(map[ast.Node]ast.Node)
-		var stack []ast.Node
-		ast.Walk(f, func(node ast.Node) bool {
-			if len(stack) > 0 {
-				w.parents[node] = stack[len(stack)-1]
+// declaringFiles returns the files a value is declared in: the filenames of
+// the positions of its conjuncts and of its top-level fields' conjuncts,
+// outside thema's own CUE. A value thema unified in Go has no position of its
+// own, but its conjuncts and fields keep theirs.
+func declaringFiles(v cue.Value) []string {
+	var files []string
+	note := func(v cue.Value) {
+		for _, c := range cuetil.AppendSplit(v, cue.AndOp, nil) {
+			if pos := c.Pos(); pos.IsValid() && !embedreg.IsKernel(pos) {
+				files = append(files, pos.Filename())
 			}
-			stack = append(stack, node)
-			return true
-		}, func(ast.Node) { stack = stack[:len(stack)-1] })
-		w.visit(f)
+		}
 	}
+	note(v)
+	if iter, err := v.Fields(); err == nil {
+		for iter.Next() {
+			note(iter.Value())
+		}
+	}
+	return files
+}
+
+// check returns the references in o that break a rule: those the value shows,
+// in field order, then those only the syntax shows (pending comprehensions).
+func (rc *refChecker) check(o refOwner) []refFinding {
+	w := &refWalker{rc: rc, owner: o, seen: make(map[string]bool)}
+	w.walkValue(o.v, 0)
+	w.walkSyntax()
 	return w.findings
 }
 
-// authorConjuncts returns the conjuncts of a lineage value that are not
-// references into thema's package, the author's own declarations: for
-// lin: thema.Lineage & {...}, the struct; for a lineage declared in several
-// fields, each of them.
-func authorConjuncts(v cue.Value) []cue.Value {
-	op, args := v.Expr()
-	if op != cue.AndOp {
-		args = []cue.Value{v}
+// isAuthorRoot reports whether root, the value a reference resolves in, is the
+// author's own instance: the one that holds the lineage at its path, declared
+// in the lineage's files. Each package is a root of its own, declared in its
+// own files, so a reference into another package resolves in a root whose
+// value at the lineage's path, if any, is declared elsewhere. The lineage
+// value itself cannot be compared with root: it may be a value thema unified
+// in Go from several declarations, and a value's position tells where its
+// first conjunct is, not what it is. The files are matched two ways, as a root
+// knows them differently by how it was built: an instance loaded from files
+// lists them (BuildInstance), and one built from syntax (BuildFile) has only
+// the positions its nodes carry.
+func (rc *refChecker) isAuthorRoot(root cue.Value) bool {
+	at := root.LookupPath(rc.lin.Path())
+	if !at.Exists() {
+		return false
 	}
-	var out []cue.Value
-	for _, a := range args {
-		if root, p := a.ReferencePath(); len(p.Selectors()) > 0 {
-			if bi := root.BuildInstance(); bi != nil && isThemaPackage(bi.ImportPath) {
-				continue
+	if len(rc.files) == 0 {
+		// A lineage with no positions: nothing more to compare.
+		return true
+	}
+	if bi := root.BuildInstance(); bi != nil {
+		for _, f := range bi.Files {
+			if rc.files[f.Filename] {
+				return true
 			}
 		}
-		out = append(out, a)
 	}
-	return out
+	for _, f := range declaringFiles(at) {
+		if rc.files[f] {
+			return true
+		}
+	}
+	return false
 }
 
-// asFile wraps an exported node as a file, as cueview.Tree does.
-func asFile(n ast.Node) *ast.File {
-	switch x := n.(type) {
-	case *ast.File:
-		return x
-	case *ast.StructLit:
-		return &ast.File{Decls: x.Elts}
-	case ast.Expr:
-		return &ast.File{Decls: []ast.Decl{&ast.EmbedDecl{Expr: x}}}
-	}
-	panic(fmt.Sprintf("unreachable - Raw exports a file or an expression, not %T", n))
+// relToLineage returns p, an absolute path in the author's instance under the
+// lineage, relative to the lineage.
+func (rc *refChecker) relToLineage(p cue.Path) cue.Path {
+	return cue.MakePath(p.Selectors()[len(rc.lin.Path().Selectors()):]...)
 }
 
-// isPredeclared reports whether CUE predeclares name, by asking the evaluator:
-// an identifier it accepts on its own, with nothing in scope, is predeclared.
-func (rc *refChecker) isPredeclared(name string) bool {
-	ok, seen := rc.predeclared[name]
-	if !seen {
-		ok = rc.ctx.CompileString(name).Err() == nil
-		rc.predeclared[name] = ok
+// refWalker walks one owner's fields, classifying each reference.
+type refWalker struct {
+	rc    *refChecker
+	owner refOwner
+	// field is the path of labels of the field being visited.
+	field    []string
+	findings []refFinding
+	// seen dedupes findings: the same reference can be reached from the value
+	// and from the syntax.
+	seen map[string]bool
+	// usePos, when valid, positions findings at the field using a let, while
+	// the let's value is walked.
+	usePos token.Pos
+}
+
+func (w *refWalker) add(rule refRule, expr, pkg string, field []string, pos token.Pos) {
+	if !pos.IsValid() || embedreg.IsKernel(pos) {
+		pos = refPos(w.owner, field)
 	}
-	return ok
+	key := string(rule) + "\x00" + expr + "\x00" + pos.String()
+	if w.seen[key] {
+		return
+	}
+	w.seen[key] = true
+	w.findings = append(w.findings, refFinding{
+		rule:  rule,
+		field: append([]string(nil), field...),
+		expr:  expr,
+		pkg:   pkg,
+		pos:   pos,
+	})
+}
+
+// walkValue classifies the references in v, a value within the owner, and
+// descends into its expression and contents.
+func (w *refWalker) walkValue(v cue.Value, depth int) {
+	if depth > maxRefDepth {
+		w.add(refUnresolved, fmt.Sprintf("a value nested more than %d deep", maxRefDepth), "", w.field, v.Pos())
+		return
+	}
+	if r, ok := w.resolve(v); ok {
+		w.reference(v, r, false)
+		return
+	}
+	if d, ok := letValue(v); ok {
+		// v uses a let (n: L, or a selection into one, n: L.x): the let's
+		// value stands for v, positioned at v.
+		saved := w.usePos
+		if !saved.IsValid() {
+			w.usePos = v.Pos()
+		}
+		w.walkValue(d, depth+1)
+		w.usePos = saved
+		return
+	}
+	op, args := v.Expr()
+	switch op {
+	case cue.NoOp:
+		if len(args) == 1 && args[0] != v {
+			w.walkValue(args[0], depth+1)
+			return
+		}
+		if kernelPos(v) {
+			// thema's own conjunct: the default of a lens's lacunas, say.
+			return
+		}
+		w.walkContents(v, depth)
+	case cue.AndOp:
+		// Each conjunct on its own: a reference is classified, a literal
+		// descended. thema's own conjuncts (schema & _, a lens & Lens) are
+		// skipped; the merged value would mix them with the author's.
+		for _, a := range args {
+			if kernelPos(a) {
+				continue
+			}
+			w.walkValue(a, depth+1)
+		}
+	case cue.IndexOp:
+		if len(args) != selectionOperands {
+			break
+		}
+		// A selection the evaluator could not resolve: the index depends on
+		// the instance (lin[a], _table[v0_0.kind]). The base is classified
+		// with the label unknown; the index is an expression of its own.
+		w.walkValue(args[1], depth+1)
+		if r, ok := w.resolve(args[0]); ok {
+			w.reference(args[0], r, !args[1].IsConcrete())
+			return
+		}
+		w.walkValue(args[0], depth+1)
+		return
+	}
+	if op != cue.NoOp && op != cue.AndOp {
+		for _, a := range args {
+			w.walkValue(a, depth+1)
+		}
+	}
+}
+
+// walkContents descends into the fields of a struct and the elements of a list.
+func (w *refWalker) walkContents(v cue.Value, depth int) {
+	if iter, err := v.Fields(cue.Optional(true), cue.Hidden(true), cue.Definitions(true), cue.Patterns(true)); err == nil {
+		for iter.Next() {
+			w.field = append(w.field, selName(iter.Selector()))
+			w.walkValue(iter.Value(), depth+1)
+			w.field = w.field[:len(w.field)-1]
+		}
+	}
+	if v.IncompleteKind() != cue.ListKind {
+		return
+	}
+	if iter, err := v.List(); err == nil {
+		for i := 0; iter.Next(); i++ {
+			w.field = append(w.field, strconv.Itoa(i))
+			w.walkValue(iter.Value(), depth+1)
+			w.field = w.field[:len(w.field)-1]
+		}
+	}
+	if elem := v.LookupPath(cue.MakePath(cue.AnyIndex)); elem.Exists() {
+		w.field = append(w.field, "[...]")
+		w.walkValue(elem, depth+1)
+		w.field = w.field[:len(w.field)-1]
+	}
+}
+
+// resolved is what a reference denotes: a path in a root. The root is the
+// author's instance, a package, or unknown: a value reached by dereferencing
+// a struct the evaluator holds (the base of an embedded reference), which is
+// the author's, since a package would have a build instance of its own.
+type resolved struct {
+	root cue.Value
+	// pkg is the import path of the package root is, if it is one.
+	pkg string
+	// author says root is the author's instance.
+	author bool
+	path   cue.Path
+}
+
+// resolve returns what v denotes, if v is a reference. ReferencePath answers
+// for most: a field, an alias, a chain of selections and constant indexes,
+// resolved by the evaluator to one absolute path. It is empty for a reference
+// embedded in a struct (schema: {#Ref}), which Expr shows as a selection
+// whose base is the enclosing struct; the chain is then walked, as the base is
+// a reference itself or a value Dereference reaches.
+func (w *refWalker) resolve(v cue.Value) (resolved, bool) {
+	if root, p := v.ReferencePath(); isRefPath(p) {
+		return w.rooted(root, p), true
+	}
+	op, args := v.Expr()
+	switch op {
+	case cue.SelectorOp:
+		if len(args) != selectionOperands {
+			return resolved{}, false
+		}
+		label, err := args[1].String()
+		if err != nil {
+			return resolved{}, false
+		}
+		base, ok := w.resolve(args[0])
+		if !ok {
+			return resolved{}, false
+		}
+		base.path = appendLabel(base.path, label)
+		return base, true
+	case cue.NoOp:
+		if bi := v.BuildInstance(); bi != nil {
+			// A package, the base of a selection of one of its members.
+			return resolved{root: v, pkg: bi.ImportPath}, true
+		}
+		d := cue.Dereference(v)
+		if d == v || d.Err() != nil || !d.Exists() || d.Path().Err() != nil {
+			return resolved{}, false
+		}
+		if len(d.Path().Selectors()) == 0 {
+			return w.rooted(d, cue.Path{}), true
+		}
+		return resolved{author: true, path: d.Path()}, true
+	}
+	return resolved{}, false
+}
+
+// rooted classifies root, the value a reference resolves in.
+func (w *refWalker) rooted(root cue.Value, p cue.Path) resolved {
+	r := resolved{root: root, path: p}
+	if bi := root.BuildInstance(); bi != nil {
+		r.pkg = bi.ImportPath
+	}
+	r.author = w.rc.isAuthorRoot(root)
+	return r
+}
+
+// pathText renders a path as an author writes it: a label that is not an
+// identifier is indexed (schemas["1"]["0"]), where cue.Path writes it as a
+// quoted selector (schemas."1"."0").
+func pathText(p cue.Path) string {
+	var b strings.Builder
+	for i, sel := range p.Selectors() {
+		s := sel.String()
+		switch {
+		case sel.Type() == cue.IndexLabel || strings.HasPrefix(s, `"`):
+			b.WriteString("[" + s + "]")
+		case sel.Type()&cue.PatternConstraint != 0 || i == 0:
+			b.WriteString(s)
+		default:
+			b.WriteString("." + s)
+		}
+	}
+	return b.String()
+}
+
+// appendLabel extends p by the label a selection names, as the author would
+// write it: a definition, a hidden field or a regular one.
+func appendLabel(p cue.Path, label string) cue.Path {
+	var sel cue.Selector
+	switch {
+	case strings.HasPrefix(label, "#"):
+		sel = cue.Def(label)
+	case strings.HasPrefix(label, "_"):
+		sel = cue.Hid(label, "_")
+	default:
+		sel = cue.Str(label)
+	}
+	return cue.MakePath(append(p.Selectors(), sel)...)
+}
+
+// letValue returns the value of the let that v uses, if it uses one. The
+// evaluator substitutes a let where it is used, so v's Expr is the let's value
+// and its ReferencePath is empty, but Dereference still reaches the let's
+// value: one that has no path of its own (Path() is in error: a let binding is
+// not addressable) and that carries the let's expression. For a selection into
+// a let (L.x), it is the field selected.
+func letValue(v cue.Value) (cue.Value, bool) {
+	d := cue.Dereference(v)
+	if d == v || !d.Exists() || d.Path().Err() == nil {
+		return cue.Value{}, false
+	}
+	return d, true
+}
+
+// reference classifies a reference. dynamic says the reference selects
+// something further from what it resolves to by a label only an instance
+// decides.
+func (w *refWalker) reference(v cue.Value, r resolved, dynamic bool) {
+	p := r.path
+	expr := pathText(p)
+	if dynamic {
+		expr += "[...]"
+	}
+	pos := v.Pos()
+	if w.usePos.IsValid() {
+		pos = w.usePos
+	}
+	if r.pkg != "" && (compat.IsBuiltinPackage(r.pkg) || isThemaPackage(r.pkg)) {
+		return
+	}
+	if !r.author {
+		if r.pkg != "" {
+			w.add(refImport, expr, r.pkg, w.field, pos)
+			return
+		}
+		w.add(refOutsideLineage, expr, "", w.field, pos)
+		return
+	}
+	if !cuetil.PathHasPrefix(p, w.rc.lin.Path()) {
+		w.add(refOutsideLineage, expr, "", w.field, pos)
+		return
+	}
+	rel := w.rc.relToLineage(p)
+	if dynamic && cuetil.PathHasPrefix(w.owner.rel, rel) {
+		// Selecting by an unknown label from the lineage, or from a struct
+		// between it and the owner: the owner itself or a sibling, no telling.
+		w.add(refUnresolved, expr, "", w.field, pos)
+		return
+	}
+	if cuetil.PathHasPrefix(rel, w.owner.rel) {
+		return
+	}
+	w.inLineage(rel.Selectors(), dynamic, expr, w.field, pos)
+}
+
+// inLineage classifies a reference into the lineage, outside the owner, by the
+// labels it selects from the lineage. dynamic adds one label an instance
+// decides.
+func (w *refWalker) inLineage(sels []cue.Selector, dynamic bool, expr string, field []string, pos token.Pos) {
+	n := len(sels)
+	if dynamic {
+		n++
+	}
+	head := ""
+	if len(sels) > 0 {
+		head = selName(sels[0])
+	}
+	switch head {
+	case labelSchemas:
+		// A bare lin.schemas is the lineage's collection of schemas
+		// (len(lin.schemas)); anything selected from it is a schema.
+		switch {
+		case n == 1:
+			w.add(refLineageMeta, expr, "", field, pos)
+		case w.owner.lens:
+			w.add(refLensToSchema, expr, "", field, pos)
+		default:
+			w.add(refSiblingSchema, expr, "", field, pos)
+		}
+	case labelLenses:
+		if n > 1 && w.owner.lens {
+			w.add(refLensToLens, expr, "", field, pos)
+		} else {
+			w.add(refLineageMeta, expr, "", field, pos)
+		}
+	default:
+		w.add(refLineageMeta, expr, "", field, pos)
+	}
+}
+
+// isRefPath reports whether p, from ReferencePath, names a value: a reference
+// the evaluator could not resolve (an index that depends on the instance)
+// reports a path in error.
+func isRefPath(p cue.Path) bool {
+	return len(p.Selectors()) > 0 && p.Err() == nil
+}
+
+// kernelPos reports whether v is positioned in thema's own CUE.
+func kernelPos(v cue.Value) bool {
+	pos := v.Pos()
+	return pos.IsValid() && embedreg.IsKernel(pos)
 }
 
 // isThemaPackage reports whether an import path names thema's own CUE package,
@@ -263,316 +610,6 @@ func isThemaPackage(path string) bool {
 	mod, _, _ := strings.Cut(util.ThemaModulePath, "@")
 	path, _, _ = strings.Cut(path, "@")
 	return path == mod
-}
-
-// refWalker visits the expressions of an owner's syntax, classifying each
-// identifier that refers to something.
-type refWalker struct {
-	rc      *refChecker
-	owner   refOwner
-	parents map[ast.Node]ast.Node
-	// field is the path of labels of the field being visited, for locating a
-	// finding; unlocated is the depth below which labels are not constant (a
-	// computed label, a let body), where field stops growing.
-	field     []string
-	unlocated int
-	findings  []refFinding
-}
-
-func (w *refWalker) visit(n ast.Node) {
-	switch x := n.(type) {
-	case nil:
-	case *ast.File:
-		for _, d := range x.Decls {
-			w.visit(d)
-		}
-	case *ast.Package, *ast.ImportDecl, *ast.Attribute, *ast.CommentGroup, *ast.BasicLit, *ast.BottomLit:
-	case *ast.EmbedDecl:
-		w.visit(x.Expr)
-	case *ast.Field:
-		label, ok := constLabel(x.Label)
-		if !ok {
-			// A computed label is an expression; the field it builds cannot be
-			// located by name.
-			w.visitLabel(x.Label)
-			w.unlocated++
-			w.visit(x.Value)
-			w.unlocated--
-			return
-		}
-		if w.unlocated == 0 {
-			w.field = append(w.field, label)
-		}
-		w.visit(x.Value)
-		if w.unlocated == 0 {
-			w.field = w.field[:len(w.field)-1]
-		}
-	case *ast.LetClause:
-		// A let's body is held by no field.
-		w.unlocated++
-		w.visit(x.Expr)
-		w.unlocated--
-	case *ast.Alias:
-		w.visit(x.Expr)
-	case *ast.Comprehension:
-		for _, c := range x.Clauses {
-			w.visit(c)
-		}
-		w.visit(x.Value)
-	case *ast.ForClause:
-		w.visit(x.Source)
-	case *ast.IfClause:
-		w.visit(x.Condition)
-	case *ast.Ellipsis:
-		w.visit(x.Type)
-	case *ast.StructLit:
-		for _, e := range x.Elts {
-			w.visit(e)
-		}
-	case *ast.ListLit:
-		for _, e := range x.Elts {
-			w.visit(e)
-		}
-	case *ast.ParenExpr:
-		w.visit(x.X)
-	case *ast.Interpolation:
-		for _, e := range x.Elts {
-			w.visit(e)
-		}
-	case *ast.SelectorExpr:
-		// Only the head of a selection is a reference; Sel is a label.
-		w.visit(x.X)
-	case *ast.IndexExpr:
-		w.visit(x.X)
-		w.visit(x.Index)
-	case *ast.SliceExpr:
-		w.visit(x.X)
-		w.visit(x.Low)
-		w.visit(x.High)
-	case *ast.CallExpr:
-		w.visit(x.Fun)
-		for _, a := range x.Args {
-			w.visit(a)
-		}
-	case *ast.UnaryExpr:
-		w.visit(x.X)
-	case *ast.BinaryExpr:
-		w.visit(x.X)
-		w.visit(x.Y)
-	case *ast.PostfixExpr:
-		w.visit(x.X)
-	case *ast.Ident:
-		w.ident(x)
-	default:
-		// Syntax this walk does not know (a function, a try clause, bad
-		// syntax) may refer to anything.
-		w.add(refUnresolved, fmt.Sprintf("%T syntax", n), "")
-	}
-}
-
-// visitLabel visits the expressions in a computed label: an interpolation, a
-// parenthesized expression, or a pattern constraint's expression.
-func (w *refWalker) visitLabel(l ast.Label) {
-	switch l.(type) {
-	case *ast.Ident, *ast.BasicLit:
-		// A constant label holds no expression.
-	default:
-		w.visit(l)
-	}
-}
-
-// constLabel returns the name of a label an author can look up by name.
-func constLabel(l ast.Label) (string, bool) {
-	switch x := l.(type) {
-	case *ast.Ident:
-		return x.Name, true
-	case *ast.BasicLit:
-		if x.Kind == token.STRING {
-			if s, err := literal.Unquote(x.Value); err == nil {
-				return s, true
-			}
-		}
-	}
-	return "", false
-}
-
-// ident classifies one identifier in expression position.
-func (w *refWalker) ident(id *ast.Ident) {
-	switch node := id.Node.(type) {
-	case nil:
-		if w.rc.isPredeclared(id.Name) {
-			return
-		}
-		w.dangling(id)
-	case *ast.ImportSpec:
-		path, err := literal.Unquote(node.Path.Value)
-		if err != nil {
-			w.add(refUnresolved, w.chainText(id), "")
-			return
-		}
-		// An import path may carry a package qualifier, "path:name".
-		path, _, _ = strings.Cut(path, ":")
-		if compat.IsBuiltinPackage(path) || isThemaPackage(path) {
-			return
-		}
-		w.add(refImport, w.chainText(id), path)
-	default:
-		// Declared within the owner: a field, let, alias or clause of its own.
-	}
-}
-
-// refLabel is one step of a selection chain after its head: a constant name,
-// or a computed one.
-type refLabel struct {
-	name    string
-	dynamic bool
-}
-
-// chain returns the outermost selection built on id (id itself if none) and
-// the labels selected after id.
-func (w *refWalker) chain(id *ast.Ident) (ast.Expr, []refLabel) {
-	var cur ast.Expr = id
-	var labels []refLabel
-	for {
-		switch p := w.parents[cur].(type) {
-		case *ast.SelectorExpr:
-			if p.X != cur {
-				return cur, labels
-			}
-			switch sel := p.Sel.(type) {
-			case *ast.Ident:
-				labels = append(labels, refLabel{name: sel.Name})
-			case *ast.BasicLit:
-				if s, err := literal.Unquote(sel.Value); err == nil {
-					labels = append(labels, refLabel{name: s})
-				} else {
-					labels = append(labels, refLabel{dynamic: true})
-				}
-			default:
-				labels = append(labels, refLabel{dynamic: true})
-			}
-			cur = p
-		case *ast.IndexExpr:
-			if p.X != cur {
-				return cur, labels
-			}
-			if lit, ok := p.Index.(*ast.BasicLit); ok && lit.Kind == token.STRING {
-				if s, err := literal.Unquote(lit.Value); err == nil {
-					labels = append(labels, refLabel{name: s})
-					cur = p
-					continue
-				}
-			}
-			labels = append(labels, refLabel{dynamic: true})
-			cur = p
-		default:
-			return cur, labels
-		}
-	}
-}
-
-func (w *refWalker) chainText(id *ast.Ident) string {
-	x, _ := w.chain(id)
-	s, err := cueview.Text(x)
-	if err != nil {
-		return id.Name
-	}
-	return s
-}
-
-// dangling classifies an identifier that resolves to nothing in the owner's
-// syntax. CUE resolves it lexically, innermost scope first: the structs between
-// the owner and the lineage, the lineage's own fields, the lineage's own label
-// among its siblings, then whatever encloses the lineage.
-func (w *refWalker) dangling(id *ast.Ident) {
-	x, labels := w.chain(id)
-	text, err := cueview.Text(x)
-	if err != nil {
-		text = id.Name
-	}
-	head := id.Name
-
-	// The structs between the owner and the lineage: a schema entry (schema,
-	// examples, an author's hidden helpers), the schemas and lenses maps (keyed
-	// by versions and edges, never by identifiers), then the lineage itself.
-	sels := w.owner.rel.Selectors()
-	for i := len(sels) - 1; i >= 0; i-- {
-		anc := w.rc.lin.LookupPath(cue.MakePath(sels[:i]...))
-		if !fieldByName(anc, head).Exists() {
-			continue
-		}
-		if i == 0 {
-			w.inLineage(text, append([]refLabel{{name: head}}, labels...))
-		} else {
-			w.add(refLineageMeta, text, "")
-		}
-		return
-	}
-
-	// The lineage's own label, as a field of the struct that holds it, or its
-	// path from the root of the file.
-	lsels := w.rc.lin.Path().Selectors()
-	if n := len(lsels); n > 0 {
-		if selName(lsels[n-1]) == head {
-			w.inLineage(text, labels)
-			return
-		}
-		if n > 1 && selName(lsels[0]) == head && len(labels) >= n-1 {
-			full := true
-			for i := 1; i < n && full; i++ {
-				full = !labels[i-1].dynamic && labels[i-1].name == selName(lsels[i])
-			}
-			if full {
-				w.inLineage(text, labels[n-1:])
-				return
-			}
-		}
-	}
-
-	w.add(refOutsideLineage, text, "")
-}
-
-// inLineage classifies a reference into the lineage by the labels it selects
-// from the lineage.
-func (w *refWalker) inLineage(text string, labels []refLabel) {
-	if len(labels) == 0 {
-		w.add(refLineageMeta, text, "")
-		return
-	}
-	if labels[0].dynamic {
-		w.add(refUnresolved, text, "")
-		return
-	}
-	switch labels[0].name {
-	case labelSchemas:
-		// A bare lin.schemas is the lineage's collection of schemas (len(lin.schemas));
-		// anything selected from it is a schema.
-		switch {
-		case len(labels) == 1:
-			w.add(refLineageMeta, text, "")
-		case w.owner.lens:
-			w.add(refLensToSchema, text, "")
-		default:
-			w.add(refSiblingSchema, text, "")
-		}
-	case labelLenses:
-		if len(labels) > 1 && w.owner.lens {
-			w.add(refLensToLens, text, "")
-		} else {
-			w.add(refLineageMeta, text, "")
-		}
-	default:
-		w.add(refLineageMeta, text, "")
-	}
-}
-
-func (w *refWalker) add(rule refRule, expr, pkg string) {
-	w.findings = append(w.findings, refFinding{
-		rule:  rule,
-		field: append([]string(nil), w.field...),
-		expr:  expr,
-		pkg:   pkg,
-	})
 }
 
 // selName is the name an identifier would have to carry to select sel.

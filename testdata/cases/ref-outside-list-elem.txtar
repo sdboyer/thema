@@ -1,0 +1,19 @@
+# a schema's list takes its element type from a definition outside the lineage
+# (rule ref-outside-lineage): the reference is in the list's element
+# constraint, not in any element
+#issue: 119
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+#Color: "red" | "blue"
+
+lin: thema.Lineage & {
+	name: "refOutsideListElem"
+	schemas: {
+		"0": "0": {
+			schema: {colors: [...#Color]}
+		}
+	}
+}
+-- expect --
+bind fail ref-outside-lineage

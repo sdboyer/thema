@@ -1,0 +1,32 @@
+# a lens reaches another lens through a let declared inside it: the field
+# using the let shows a plain value, and the let's value, reached by
+# Dereference, is a reference to the other lens (rule ref-lens-to-lens)
+#issue: 119
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "refLensLetOther"
+	schemas: {
+		"0": "0": {
+			schema: {a: string}
+		}
+		"1": "0": {
+			schema: {b: string}
+		}
+	}
+	lenses: {
+		"1.0->0.0": {
+			v1_0: _
+			_fallback: "x"
+			v0_0: {a: v1_0.b}
+		}
+		"0.0->1.0": {
+			v0_0: _
+			let Other = lin.lenses["1.0->0.0"]._fallback
+			v1_0: {b: Other}
+		}
+	}
+}
+-- expect --
+bind fail ref-lens-to-lens
