@@ -38,6 +38,9 @@
 //     inside text (positions are structured); versions as 0.1, never [0 1].
 //  7. One code, one reproducer (lockstep test). No [Code] exists without a
 //     txtar case under diag/testdata/codes that renders the full diagnostic,
-//     and docs/errors/<code>.md is generated from it.
+//     and docs/errors/<code>.md is generated from it. The exception is a code
+//     declared Internal: no lineage can show it when the checker is sound, so
+//     it has no reproducer, and its page, generated from the declaration,
+//     says to report it.
 //  8. Compatibility findings are mapped from their rule, never re-derived.
 package diag
