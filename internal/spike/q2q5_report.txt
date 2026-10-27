@@ -1,0 +1,66 @@
+== Q2: layouts from capnp compile -o- ==
+  Old id=0xf6208d6d357158ff dataWords=1 ptrs=1 disc(count=0, off16=0)
+    a: int32 @off 0
+    t: text @off 0
+  AppendOptional id=0xc4ff9653ad3ff4eb dataWords=2 ptrs=1 disc(count=0, off16=0)
+    a: int32 @off 0
+    t: text @off 0
+    opt: group 0xbb79a13b7f791c7f
+  opt id=0xbb79a13b7f791c7f dataWords=2 ptrs=1 disc(count=2, off16=2)
+    unset: void @off 0 disc=0
+    value: int64 @off 1 disc=1
+  AppendDefaulted id=0xc13e8eb269b46ceb dataWords=2 ptrs=2 disc(count=0, off16=0)
+    a: int32 @off 0
+    t: text @off 0
+    d: int64 @off 1 default=7
+    s: text @off 1 default="foo"
+  RequiredToOptional id=0xbdac3be2b94a5f66 dataWords=1 ptrs=1 disc(count=0, off16=0)
+    a: group 0xfe33f14419879beb
+    t: text @off 0
+  a id=0xfe33f14419879beb dataWords=1 ptrs=1 disc(count=2, off16=2)
+    value: int32 @off 0 disc=0
+    unset: void @off 0 disc=1
+  RequiredToOptionalUnsetFirst id=0xec2c30661ac728bd dataWords=1 ptrs=1 disc(count=0, off16=0)
+    a: group 0xda007a4db7dbb8e2
+    t: text @off 0
+  a id=0xda007a4db7dbb8e2 dataWords=1 ptrs=1 disc(count=2, off16=2)
+    value: int32 @off 0 disc=0
+    unset: void @off 0 disc=1
+  RequiredToDefaultedData id=0xd56f3913dad2dd8f dataWords=1 ptrs=1 disc(count=0, off16=0)
+    a: int32 @off 0 default=7
+    t: text @off 0
+  RequiredToDefaultedPtr id=0xc27e8b4a78173c83 dataWords=1 ptrs=1 disc(count=0, off16=0)
+    a: int32 @off 0
+    t: text @off 0 default="foo"
+  Widened id=0xceb1a0d0d92f004d dataWords=1 ptrs=1 disc(count=0, off16=0)
+    a: int64 @off 0
+    t: text @off 0
+  Outer0 id=0xfa346cdf61c9a21a dataWords=0 ptrs=1 disc(count=0, off16=0)
+    inner: structType @off 0
+  Outer1 id=0xa0fea97daabffa4b dataWords=0 ptrs=1 disc(count=0, off16=0)
+    inner: structType @off 0
+
+== Q5: old-minor bytes read through the newer struct (CUE expectation in brackets) ==
+Old{a: 3, t: "x"} is 40 bytes; struct size seen on the wire: {datasz=8 ptrs=1}
+  (a) AppendOptional:   a=3 t=x opt.which=unset   [CUE: opt absent]
+  (b)(c) AppendDefaulted: a=3 t=x d=7 s=foo (default)   [CUE: d=7, s="foo"]
+  (d) RequiredToOptional (value first): a.which=value a.value=3 t=x   [CUE: a=3 present]
+  (d') RequiredToOptionalUnsetFirst: a.which=value   [CUE: a=3 present]  <- #82's unset-first shape misreads old data
+  (e) RequiredToDefaultedData: a=4   [CUE: a=3]  <- XOR default corrupts existing data
+  (f) RequiredToDefaultedPtr: t=x   [CUE: t="x"]
+  (g) Widened int32->int64: a=3   [CUE: a=3]
+Old{a: -1, t: "x"} is 40 bytes; struct size seen on the wire: {datasz=8 ptrs=1}
+  (a) AppendOptional:   a=-1 t=x opt.which=unset   [CUE: opt absent]
+  (b)(c) AppendDefaulted: a=-1 t=x d=7 s=foo (default)   [CUE: d=7, s="foo"]
+  (d) RequiredToOptional (value first): a.which=value a.value=-1 t=x   [CUE: a=-1 present]
+  (d') RequiredToOptionalUnsetFirst: a.which=value   [CUE: a=-1 present]  <- #82's unset-first shape misreads old data
+  (e) RequiredToDefaultedData: a=-8   [CUE: a=-1]  <- XOR default corrupts existing data
+  (f) RequiredToDefaultedPtr: t=x   [CUE: t="x"]
+  (g) Widened int32->int64: a=4294967295   [CUE: a=-1]
+  fresh AppendDefaulted, nothing set: d=7 s=foo (default); after writeInt(d, 0): d=0 (raw word=0x7)
+
+== Q2: deep copy between layouts ==
+  CopyFrom same layout: err=<nil> a=3 t=x
+  CopyFrom Old -> AppendDefaulted (bigger): err=<nil> size={datasz=16 ptrs=2} a=3 t=x d=7 s=foo (default)
+  CopyFrom AppendDefaulted -> Old (smaller): err=<nil> size={datasz=8 ptrs=1} bytes=40 a=3 t=x (extra fields truncated? raw d word=0x0)
+  SetPtr(Old struct) into Outer1.inner: err=<nil> inner.size={datasz=8 ptrs=1} d=7 s=foo (default) (reader applies defaults; a 'copy' is a pointer copy, layout travels with the data)

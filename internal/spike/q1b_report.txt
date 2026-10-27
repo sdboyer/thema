@@ -1,0 +1,142 @@
+
+==== lens 0.0->1.0: result after filling input with closed source
+result.Validate(): <nil>
+-- n2 (exists=true, err=lin.lenses."0.0->1.0".result.n2: non-concrete value >=0 & <=10 & int in operand to -)
+  - kind=_|_
+    . kind=int ref=lin.lenses."0.0->1.0".input.n
+      & kind=int
+        & kind=int
+          NoOp kind=int
+          >= kind=number
+            NoOp kind=int = 0
+        <= kind=number
+          NoOp kind=int = 10
+    NoOp kind=int = 1
+-- s2 (exists=true, err=lin.lenses."0.0->1.0".result.s2: invalid interpolation: non-concrete value string (type string))
+  \() kind=_|_
+    NoOp kind=string = "\(
+    . kind=string ref=lin.lenses."0.0->1.0".input.s
+      NoOp kind=string
+    NoOp kind=string = )-\(
+    . kind=int ref=lin.lenses."0.0->1.0".input.n
+      & kind=int
+        & kind=int
+          NoOp kind=int
+          >= kind=number
+            NoOp kind=int = 0
+        <= kind=number
+          NoOp kind=int = 10
+    NoOp kind=string = )"
+-- up (exists=true, err=lin.lenses."0.0->1.0".result.up: error in call to strings.ToUpper: non-concrete value string)
+  () kind=_|_
+    . kind=func ref=ToUpper = strings.ToUpper
+      NoOp kind=func = strings.ToUpper
+    . kind=string ref=lin.lenses."0.0->1.0".input.s
+      NoOp kind=string
+-- tt (exists=true, err=lin.lenses."0.0->1.0".result.tt: unresolved disjunction "a" | "b" (type string))
+  [] kind=_|_ ref=_|_
+    . kind=struct ref=_table
+      NoOp kind=struct
+    . kind=string ref=lin.lenses."0.0->1.0".input.t
+      | kind=string
+        NoOp kind=string = "a"
+        NoOp kind=string = "b"
+-- slen (exists=true, err=lin.lenses."0.0->1.0".result.slen: error in call to len: incomplete argument string (type string))
+  () kind=_|_
+    NoOp kind=func = len
+    . kind=string ref=lin.lenses."0.0->1.0".input.s
+      NoOp kind=string
+-- list (exists=true, err=<nil>)
+  . kind=list ref=lin.lenses."0.0->1.0".input.list
+    NoOp kind=list
+-- m (exists=true, err=<nil>)
+  . kind=struct ref=lin.lenses."0.0->1.0".input.m
+    NoOp kind=struct
+-- bounded (exists=true, err=<nil>)
+  . kind=int ref=lin.lenses."0.0->1.0".input.bounded
+    & kind=int
+      NoOp kind=int
+      >= kind=number
+        NoOp kind=int = -2147483648
+      <= kind=number
+        NoOp kind=int = 2147483647
+-- tern (exists=true, err=lin.lenses."0.0->1.0".result.tern: non-concrete value >=0 & <=10 & int in operand to >)
+  [] kind=_|_
+    NoOp kind=_|_
+    NoOp kind=int = 0
+-- lookup first: exists=false err=lin.lenses."0.0->1.0".result: field not found: first
+-- lookup opt: exists=false err=lin.lenses."0.0->1.0".result: field not found: opt
+-- lookup t: exists=false err=lin.lenses."0.0->1.0".result: field not found: t
+-- lookup tern: exists=true err=lin.lenses."0.0->1.0".result.tern: non-concrete value >=0 & <=10 & int in operand to >
+-- UNFILLED n2:
+  - kind=_|_
+    . kind=_|_ ref=lin.lenses."0.0->1.0".input.n
+      NoOp kind=_|_
+    NoOp kind=int = 1
+-- UNFILLED s2:
+  \() kind=_|_
+    NoOp kind=string = "\(
+    . kind=_|_ ref=lin.lenses."0.0->1.0".input.s
+      NoOp kind=_|_
+    NoOp kind=string = )-\(
+    . kind=_|_ ref=lin.lenses."0.0->1.0".input.n
+      NoOp kind=_|_
+    NoOp kind=string = )"
+-- UNFILLED up:
+  () kind=_|_
+    . kind=func ref=ToUpper = strings.ToUpper
+      NoOp kind=func = strings.ToUpper
+    . kind=_|_ ref=lin.lenses."0.0->1.0".input.s
+      NoOp kind=_|_
+-- UNFILLED tt:
+  [] kind=_|_ ref=_|_
+    . kind=struct ref=_table
+      NoOp kind=struct
+    . kind=_|_ ref=lin.lenses."0.0->1.0".input.t
+      NoOp kind=_|_
+-- UNFILLED slen:
+  () kind=_|_
+    NoOp kind=func = len
+    . kind=_|_ ref=lin.lenses."0.0->1.0".input.s
+      NoOp kind=_|_
+
+==== lens 1.0->0.0: result after filling input with closed source
+result.Validate(): <nil>
+-- n (exists=true, err=lin.lenses."1.0->0.0".result.n: non-concrete value >=-1 & <=9 & int in operand to +)
+  + kind=_|_
+    . kind=int ref=lin.lenses."1.0->0.0".input.n2
+      & kind=int
+        & kind=int
+          NoOp kind=int
+          >= kind=number
+            - kind=int
+              NoOp kind=int = 1
+        <= kind=number
+          NoOp kind=int = 9
+    NoOp kind=int = 1
+-- s (exists=true, err=<nil>)
+  . kind=string ref=lin.lenses."1.0->0.0".input.s2
+    NoOp kind=string
+-- list (exists=true, err=<nil>)
+  . kind=list ref=lin.lenses."1.0->0.0".input.list
+    NoOp kind=list
+-- m (exists=true, err=<nil>)
+  . kind=struct ref=lin.lenses."1.0->0.0".input.m
+    NoOp kind=struct
+-- bounded (exists=true, err=<nil>)
+  . kind=int ref=lin.lenses."1.0->0.0".input.bounded
+    & kind=int
+      NoOp kind=int
+      >= kind=number
+        NoOp kind=int = -2147483648
+      <= kind=number
+        NoOp kind=int = 2147483647
+-- lookup first: exists=false err=lin.lenses."1.0->0.0".result: field not found: first
+-- lookup opt: exists=false err=lin.lenses."1.0->0.0".result: field not found: opt
+-- lookup t: exists=false err=lin.lenses."1.0->0.0".result: field not found: t
+-- lookup tern: exists=false err=lin.lenses."1.0->0.0".result: field not found: tern
+-- UNFILLED n:
+  + kind=_|_
+    . kind=_|_ ref=lin.lenses."1.0->0.0".input.n2
+      NoOp kind=_|_
+    NoOp kind=int = 1

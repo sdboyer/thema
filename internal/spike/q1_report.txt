@@ -1,0 +1,476 @@
+
+==== cases/lens-conditional-undeclared-let.txtar
+  BIND FAIL: lens 0.1->0.0: fields not declared by schema 0.0: extra
+
+==== cases/lens-conditional-undeclared.txtar
+  BIND FAIL: lens 0.1->0.0: fields not declared by schema 0.0: extra
+
+==== cases/lens-direct-copy.txtar
+-- lens 0.1->0.0
+  ParseLens origins: computed
+  STRUCT 
+    COPY a <- input.a
+    COPY n <- input.n
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = ...{ condition: bool | *true sourceFields: [...LACUNAFIELDREF] targetFields: [...LACUNAFIELDREF] message!: string type!: or([for _, t in LACUNATYPES { t }]) [!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error( "\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type", ) }  ops=[op:| unop:* lit:true call:or COMPREHENSION unop:!~ lit:"^(condition|sourceFields|targetFields|message|type)$" call:error interp lit:"\( lit:) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"]
+
+==== cases/lens-duplicate.txtar
+-- lens 0.1->0.0
+  ParseLens origins: computed
+  STRUCT 
+    COPY a <- input.a
+    CONST a = 1000
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = ...{ condition: bool | *true sourceFields: [...LACUNAFIELDREF] targetFields: [...LACUNAFIELDREF] message!: string type!: or([for _, t in LACUNATYPES { t }]) [!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error( "\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type", ) }  ops=[op:| unop:* lit:true call:or COMPREHENSION unop:!~ lit:"^(condition|sourceFields|targetFields|message|type)$" call:error interp lit:"\( lit:) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"]
+
+==== cases/lens-explicit-forward-minor.txtar
+  BIND FAIL: lenses erroneously provided for the following version pairs:
+
+==== cases/lens-from-to-authored.txtar
+  BIND FAIL: from is not a field of a lens; valid fields are input, lacunas, result (and 1 more errors)
+
+==== cases/lens-hidden-declared-conditional.txtar
+  BIND FAIL: lens 0.1->0.0: fields not declared by schema 0.0: _h.extra
+
+==== cases/lens-hidden-declared-extra.txtar
+  BIND FAIL: lens 0.1->0.0: result is not an instance of schema 0.0:
+
+==== cases/lens-hidden-declared-optional-conditional.txtar
+  BIND FAIL: lens 0.1->0.0: fields not declared by schema 0.0: _h.extra
+
+==== cases/lens-hidden-embedded-conditional.txtar
+  BIND FAIL: lens 0.1->0.0: fields not declared by schema 0.0: extra
+
+==== cases/lens-hidden-referenced.txtar
+  BIND FAIL: lens 0.1->0.0: fields not declared by schema 0.0: x.extra
+
+==== cases/lens-hidden-undeclared-conditional.txtar
+-- lens 0.1->0.0
+  ParseLens origins: computed
+  STRUCT 
+    COPY a <- input.a
+    STRUCT _h
+      STRUCT _h under eq(a, "boom")
+        CONST _h.extra = 2 under eq(a, "boom")
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = ...{ condition: bool | *true sourceFields: [...LACUNAFIELDREF] targetFields: [...LACUNAFIELDREF] message!: string type!: or([for _, t in LACUNATYPES { t }]) [!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error( "\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type", ) }  ops=[op:| unop:* lit:true call:or COMPREHENSION unop:!~ lit:"^(condition|sourceFields|targetFields|message|type)$" call:error interp lit:"\( lit:) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"]
+
+==== cases/lens-hidden-undeclared.txtar
+-- lens 0.1->0.0
+  ParseLens origins: computed
+  STRUCT 
+    COPY a <- input.a
+    STRUCT _h
+      CONST _h.extra = 2
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = ...{ condition: bool | *true sourceFields: [...LACUNAFIELDREF] targetFields: [...LACUNAFIELDREF] message!: string type!: or([for _, t in LACUNATYPES { t }]) [!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error( "\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type", ) }  ops=[op:| unop:* lit:true call:or COMPREHENSION unop:!~ lit:"^(condition|sourceFields|targetFields|message|type)$" call:error interp lit:"\( lit:) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"]
+
+==== cases/lens-input-narrowed.txtar
+  BIND FAIL: lens 0.1->0.0: input must accept every instance of schema 0.1, but is narrower: field a not present in {a:string,b?:int}:
+
+==== cases/lens-key-not-edge.txtar
+  BIND FAIL: "0.1 to 0.0" is not a lens edge; lenses are keyed by "<from>-><to>" versions, such as "1.0->0.1"
+
+==== cases/lens-let-copy.txtar
+-- lens 0.1->0.0
+  ParseLens origins: computed
+  STRUCT 
+    COPY a <- input.a
+    COPY n <- input.n
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = ...{ condition: bool | *true sourceFields: [...LACUNAFIELDREF] targetFields: [...LACUNAFIELDREF] message!: string type!: or([for _, t in LACUNATYPES { t }]) [!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error( "\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type", ) }  ops=[op:| unop:* lit:true call:or COMPREHENSION unop:!~ lit:"^(condition|sourceFields|targetFields|message|type)$" call:error interp lit:"\( lit:) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"]
+
+==== cases/lens-missing-backward.txtar
+  BIND FAIL: lenses not provided for the following version pairs:
+
+==== cases/lens-missing-forward-major.txtar
+  BIND FAIL: lenses not provided for the following version pairs:
+
+==== cases/lens-nonexistent-versions.txtar
+  BIND FAIL: lenses erroneously provided for the following version pairs:
+
+==== cases/lens-result-input-nonexistent-field.txtar
+  BIND FAIL: lens 0.1->0.0: result is not an instance of schema 0.0:
+
+==== cases/lens-result-undeclared-constant.txtar
+  BIND FAIL: lens 0.1->0.0: result is not an instance of schema 0.0:
+
+==== cases/lens-result-wrong-type.txtar
+  BIND FAIL: lens 0.1->0.0: result is not an instance of schema 0.0:
+
+==== cases/lens-self.txtar
+  BIND FAIL: lenses erroneously provided for the following version pairs:
+
+==== cases/lens-skip-step.txtar
+  BIND FAIL: lenses not provided for the following version pairs:
+
+==== exemplars/defaultchange
+-- lens 1.0->0.0
+  ParseLens origins: computed
+  STRUCT 
+    STRUCT  under eq(aunion, "bar")
+      CONST aunion = "foo" under eq(aunion, "bar")
+    STRUCT  under eq(aunion, "bar") NEGATED
+      COPY aunion <- input.aunion under eq(aunion, "bar") NEGATED
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = thema.Lacuna  ops=[]
+      STRUCT lacunas[0]
+        COMPUTED lacunas[0].condition = input.aunion == "bar"  ops=[op:== in:aunion lit:"bar"]
+        LIST lacunas[0].sourceFields (1 elts)
+          STRUCT lacunas[0].sourceFields[0]
+            CONST lacunas[0].sourceFields[0].path = "aunion"
+            COPY lacunas[0].sourceFields[0].value <- input.aunion
+        LIST lacunas[0].targetFields (1 elts)
+          STRUCT lacunas[0].targetFields[0]
+            CONST lacunas[0].targetFields[0].path = "aunion"
+            CONST lacunas[0].targetFields[0].value = "foo"
+            COPY lacunas[0].targetFields[0].value <- input.aunion
+        CONST lacunas[0].message = "aunion was the source default, \"bar\", and was changed to the target default, \"foo\""
+        COMPUTED lacunas[0].type = thema.LacunaTypes.ChangedDefault  ops=[ref:LacunaTypes.ChangedDefault]
+-- lens 0.0->1.0
+  ParseLens origins: computed
+  STRUCT 
+    STRUCT  under eq(aunion, "foo")
+      CONST aunion = "bar" under eq(aunion, "foo")
+    STRUCT  under eq(aunion, "foo") NEGATED
+      COPY aunion <- input.aunion under eq(aunion, "foo") NEGATED
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = thema.Lacuna  ops=[]
+      STRUCT lacunas[0]
+        COMPUTED lacunas[0].condition = input.aunion == "foo"  ops=[op:== in:aunion lit:"foo"]
+        LIST lacunas[0].sourceFields (1 elts)
+          STRUCT lacunas[0].sourceFields[0]
+            CONST lacunas[0].sourceFields[0].path = "aunion"
+            COPY lacunas[0].sourceFields[0].value <- input.aunion
+        LIST lacunas[0].targetFields (1 elts)
+          STRUCT lacunas[0].targetFields[0]
+            CONST lacunas[0].targetFields[0].path = "aunion"
+            CONST lacunas[0].targetFields[0].value = "bar"
+            COPY lacunas[0].targetFields[0].value <- input.aunion
+        CONST lacunas[0].message = "aunion was the source default, \"foo\", and was changed to the target default, \"bar\""
+        COMPUTED lacunas[0].type = thema.LacunaTypes.ChangedDefault  ops=[ref:LacunaTypes.ChangedDefault]
+
+==== exemplars/disjunct
+-- lens 0.1->0.0
+  ParseLens origins: computed
+  STRUCT 
+  lacunas:
+    LIST lacunas (0 elts)
+
+==== exemplars/expand
+-- lens 0.1->0.0
+  ParseLens origins: computed
+  STRUCT 
+    COPY init <- input.init
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = ...{ condition: bool | *true sourceFields: [...LACUNAFIELDREF] targetFields: [...LACUNAFIELDREF] message!: string type!: or([for _, t in LACUNATYPES { t }]) [!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error( "\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type", ) }  ops=[op:| unop:* lit:true call:or COMPREHENSION unop:!~ lit:"^(condition|sourceFields|targetFields|message|type)$" call:error interp lit:"\( lit:) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"]
+-- lens 0.2->0.1
+  ParseLens origins: computed
+  STRUCT 
+    COPY init <- input.init
+    STRUCT  under present(optional)
+      COPY optional <- input.optional under present(optional)
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = ...{ condition: bool | *true sourceFields: [...LACUNAFIELDREF] targetFields: [...LACUNAFIELDREF] message!: string type!: or([for _, t in LACUNATYPES { t }]) [!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error( "\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type", ) }  ops=[op:| unop:* lit:true call:or COMPREHENSION unop:!~ lit:"^(condition|sourceFields|targetFields|message|type)$" call:error interp lit:"\( lit:) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"]
+-- lens 0.3->0.2
+  ParseLens origins: computed
+  STRUCT 
+    COPY init <- input.init
+    STRUCT  under present(optional)
+      COPY optional <- input.optional under present(optional)
+    STRUCT  under present(withDefault)
+      COPY withDefault <- input.withDefault under present(withDefault)
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = ...{ condition: bool | *true sourceFields: [...LACUNAFIELDREF] targetFields: [...LACUNAFIELDREF] message!: string type!: or([for _, t in LACUNATYPES { t }]) [!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error( "\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type", ) }  ops=[op:| unop:* lit:true call:or COMPREHENSION unop:!~ lit:"^(condition|sourceFields|targetFields|message|type)$" call:error interp lit:"\( lit:) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"]
+
+==== exemplars/narrowing
+-- lens 1.0->0.0
+  ParseLens origins: computed
+  STRUCT 
+    COPY boolish <- input.properbool
+  lacunas:
+    LIST lacunas (0 elts)
+-- lens 0.0->1.0
+  ParseLens origins: computed
+  STRUCT 
+    STRUCT  under typetest( is input.boolish)
+      COMPUTED properbool = input.boolish == "true"  ops=[op:== in:boolish lit:"true"] under typetest( is input.boolish)
+    STRUCT  under typetest( is input.boolish)
+      COPY properbool <- input.boolish under typetest( is input.boolish)
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = thema.Lacuna  ops=[]
+      STRUCT lacunas[0]
+        COMPUTED lacunas[0].condition = (string & input.boolish) != _|_ && // explicit error (_|_ literal) in source (input.boolish & ("true" | "false")) == _|_ // explicit error (_|_ literal) in source  ops=[op:&& op:!= op:& in:boolish op:== op:& in:boolish op:| lit:"true" lit:"false"]
+        LIST lacunas[0].sourceFields (1 elts)
+          STRUCT lacunas[0].sourceFields[0]
+            CONST lacunas[0].sourceFields[0].path = "boolish"
+            COPY lacunas[0].sourceFields[0].value <- input.boolish
+        LIST lacunas[0].targetFields (1 elts)
+          STRUCT lacunas[0].targetFields[0]
+            CONST lacunas[0].targetFields[0].path = "properbool"
+            COMPUTED lacunas[0].targetFields[0].value = input.boolish == "true"  ops=[op:== in:boolish lit:"true"]
+            COPY lacunas[0].targetFields[0].value <- input.boolish
+        CONST lacunas[0].message = "boolish was a string but neither \"true\" nor \"false\"; fallback to treating as false"
+        COMPUTED lacunas[0].type = thema.LacunaTypes.LossyFieldMapping  ops=[ref:LacunaTypes.LossyFieldMapping]
+
+==== exemplars/rename
+-- lens 1.0->0.0
+  ParseLens origins: computed
+  STRUCT 
+    COPY before <- input.after
+    COPY unchanged <- input.unchanged
+  lacunas:
+    LIST lacunas (0 elts)
+-- lens 0.0->1.0
+  ParseLens origins: computed
+  STRUCT 
+    COPY after <- input.before
+    COPY unchanged <- input.unchanged
+  lacunas:
+    LIST lacunas (0 elts)
+
+==== exemplars/single
+
+==== known/ext-lens-table.txtar
+-- lens 1.0->0.0
+  ParseLens origins: computed
+  STRUCT 
+    COMPUTED a = TABLE[input.b]  ops=[ref:[input.b]]
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = ...{ condition: bool | *true sourceFields: [...LACUNAFIELDREF] targetFields: [...LACUNAFIELDREF] message!: string type!: or([for _, t in LACUNATYPES { t }]) [!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error( "\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type", ) }  ops=[op:| unop:* lit:true call:or COMPREHENSION unop:!~ lit:"^(condition|sourceFields|targetFields|message|type)$" call:error interp lit:"\( lit:) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"]
+-- lens 0.0->1.0
+  ParseLens origins: computed
+  STRUCT 
+    CONST b = "from-outside"
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = ...{ condition: bool | *true sourceFields: [...LACUNAFIELDREF] targetFields: [...LACUNAFIELDREF] message!: string type!: or([for _, t in LACUNATYPES { t }]) [!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error( "\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type", ) }  ops=[op:| unop:* lit:true call:or COMPREHENSION unop:!~ lit:"^(condition|sourceFields|targetFields|message|type)$" call:error interp lit:"\( lit:) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"]
+
+==== known/ext-lens-uses-name.txtar
+-- lens 0.1->0.0
+  ParseLens origins: computed
+  STRUCT 
+    CONST a = "extLensUsesName"
+    COPY v <- input.v
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = ...{ condition: bool | *true sourceFields: [...LACUNAFIELDREF] targetFields: [...LACUNAFIELDREF] message!: string type!: or([for _, t in LACUNATYPES { t }]) [!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error( "\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type", ) }  ops=[op:| unop:* lit:true call:or COMPREHENSION unop:!~ lit:"^(condition|sourceFields|targetFields|message|type)$" call:error interp lit:"\( lit:) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"]
+
+==== known/lens-copy-not-total.txtar
+-- lens 1.0->0.0
+  ParseLens origins: computed
+  STRUCT 
+    COPY a <- input.a
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = ...{ condition: bool | *true sourceFields: [...LACUNAFIELDREF] targetFields: [...LACUNAFIELDREF] message!: string type!: or([for _, t in LACUNATYPES { t }]) [!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error( "\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type", ) }  ops=[op:| unop:* lit:true call:or COMPREHENSION unop:!~ lit:"^(condition|sourceFields|targetFields|message|type)$" call:error interp lit:"\( lit:) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"]
+-- lens 0.0->1.0
+  ParseLens origins: computed
+  COPY  <- input.
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = ...{ condition: bool | *true sourceFields: [...LACUNAFIELDREF] targetFields: [...LACUNAFIELDREF] message!: string type!: or([for _, t in LACUNATYPES { t }]) [!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error( "\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type", ) }  ops=[op:| unop:* lit:true call:or COMPREHENSION unop:!~ lit:"^(condition|sourceFields|targetFields|message|type)$" call:error interp lit:"\( lit:) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"]
+
+==== known/lens-optional-source-field.txtar
+-- lens 1.0->0.0
+  ParseLens origins: computed
+  STRUCT 
+    COPY a <- input.c
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = ...{ condition: bool | *true sourceFields: [...LACUNAFIELDREF] targetFields: [...LACUNAFIELDREF] message!: string type!: or([for _, t in LACUNATYPES { t }]) [!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error( "\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type", ) }  ops=[op:| unop:* lit:true call:or COMPREHENSION unop:!~ lit:"^(condition|sourceFields|targetFields|message|type)$" call:error interp lit:"\( lit:) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"]
+-- lens 0.0->1.0
+  ParseLens origins: computed
+  STRUCT 
+    COPY b <- input.a
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = ...{ condition: bool | *true sourceFields: [...LACUNAFIELDREF] targetFields: [...LACUNAFIELDREF] message!: string type!: or([for _, t in LACUNATYPES { t }]) [!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error( "\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type", ) }  ops=[op:| unop:* lit:true call:or COMPREHENSION unop:!~ lit:"^(condition|sourceFields|targetFields|message|type)$" call:error interp lit:"\( lit:) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"]
+
+==== known/lens-result-depends-on-other-lens.txtar
+-- lens 1.0->0.0
+  ParseLens origins: computed
+  STRUCT 
+    COPY a <- input.??"default-from-lens-input"
+    COPY a <- input.
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = ...{ condition: bool | *true sourceFields: [...LACUNAFIELDREF] targetFields: [...LACUNAFIELDREF] message!: string type!: or([for _, t in LACUNATYPES { t }]) [!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error( "\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type", ) }  ops=[op:| unop:* lit:true call:or COMPREHENSION unop:!~ lit:"^(condition|sourceFields|targetFields|message|type)$" call:error interp lit:"\( lit:) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"]
+-- lens 0.0->1.0
+  ParseLens origins: computed
+  STRUCT 
+    CONST b = "default-from-lens-input"
+    REF? b = string (*ast.predeclaredNode)
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = ...{ condition: bool | *true sourceFields: [...LACUNAFIELDREF] targetFields: [...LACUNAFIELDREF] message!: string type!: or([for _, t in LACUNATYPES { t }]) [!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error( "\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type", ) }  ops=[op:| unop:* lit:true call:or COMPREHENSION unop:!~ lit:"^(condition|sourceFields|targetFields|message|type)$" call:error interp lit:"\( lit:) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"]
+
+==== lineage/basic-multiversion.txtar
+-- lens 0.1->0.0
+  ParseLens origins: computed
+  STRUCT 
+    COPY init <- input.init
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = ...{ condition: bool | *true sourceFields: [...LACUNAFIELDREF] targetFields: [...LACUNAFIELDREF] message!: string type!: or([for _, t in LACUNATYPES { t }]) [!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error( "\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type", ) }  ops=[op:| unop:* lit:true call:or COMPREHENSION unop:!~ lit:"^(condition|sourceFields|targetFields|message|type)$" call:error interp lit:"\( lit:) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"]
+-- lens 0.2->0.1
+  ParseLens origins: computed
+  STRUCT 
+    COPY init <- input.init
+    STRUCT  under present(optional)
+      COPY optional <- input.optional under present(optional)
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = ...{ condition: bool | *true sourceFields: [...LACUNAFIELDREF] targetFields: [...LACUNAFIELDREF] message!: string type!: or([for _, t in LACUNATYPES { t }]) [!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error( "\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type", ) }  ops=[op:| unop:* lit:true call:or COMPREHENSION unop:!~ lit:"^(condition|sourceFields|targetFields|message|type)$" call:error interp lit:"\( lit:) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"]
+-- lens 0.3->0.2
+  ParseLens origins: computed
+  STRUCT 
+    COPY init <- input.init
+    STRUCT  under present(optional)
+      COPY optional <- input.optional under present(optional)
+    CONST withDefault = "foo"
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = ...{ condition: bool | *true sourceFields: [...LACUNAFIELDREF] targetFields: [...LACUNAFIELDREF] message!: string type!: or([for _, t in LACUNATYPES { t }]) [!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error( "\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type", ) }  ops=[op:| unop:* lit:true call:or COMPREHENSION unop:!~ lit:"^(condition|sourceFields|targetFields|message|type)$" call:error interp lit:"\( lit:) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"]
+-- lens 1.0->0.3
+  ParseLens origins: computed
+  STRUCT 
+    COPY init <- input.renamed
+    STRUCT  under present(optional)
+      COPY optional <- input.optional under present(optional)
+    COPY withDefault <- input.withDefault
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = ...{ condition: bool | *true sourceFields: [...LACUNAFIELDREF] targetFields: [...LACUNAFIELDREF] message!: string type!: or([for _, t in LACUNATYPES { t }]) [!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error( "\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type", ) }  ops=[op:| unop:* lit:true call:or COMPREHENSION unop:!~ lit:"^(condition|sourceFields|targetFields|message|type)$" call:error interp lit:"\( lit:) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"]
+-- lens 0.3->1.0
+  ParseLens origins: computed
+  STRUCT 
+    COPY renamed <- input.init
+    STRUCT  under present(optional)
+      COPY optional <- input.optional under present(optional)
+    CONST withDefault = "foo"
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = ...{ condition: bool | *true sourceFields: [...LACUNAFIELDREF] targetFields: [...LACUNAFIELDREF] message!: string type!: or([for _, t in LACUNATYPES { t }]) [!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error( "\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type", ) }  ops=[op:| unop:* lit:true call:or COMPREHENSION unop:!~ lit:"^(condition|sourceFields|targetFields|message|type)$" call:error interp lit:"\( lit:) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"]
+-- lens 1.1->1.0
+  ParseLens origins: computed
+  STRUCT 
+    COPY renamed <- input.renamed
+    STRUCT  under present(optional)
+      COPY optional <- input.optional under present(optional)
+    CONST withDefault = "foo"
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = ...{ condition: bool | *true sourceFields: [...LACUNAFIELDREF] targetFields: [...LACUNAFIELDREF] message!: string type!: or([for _, t in LACUNATYPES { t }]) [!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error( "\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type", ) }  ops=[op:| unop:* lit:true call:or COMPREHENSION unop:!~ lit:"^(condition|sourceFields|targetFields|message|type)$" call:error interp lit:"\( lit:) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"]
+-- lens 2.0->1.1
+  ParseLens origins: computed
+  STRUCT 
+    COPY renamed <- input.toObj.init
+    STRUCT  under present(optional)
+      COPY optional <- input.optional under present(optional)
+    CONST withDefault = "foo"
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = ...{ condition: bool | *true sourceFields: [...LACUNAFIELDREF] targetFields: [...LACUNAFIELDREF] message!: string type!: or([for _, t in LACUNATYPES { t }]) [!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error( "\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type", ) }  ops=[op:| unop:* lit:true call:or COMPREHENSION unop:!~ lit:"^(condition|sourceFields|targetFields|message|type)$" call:error interp lit:"\( lit:) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"]
+-- lens 1.1->2.0
+  ParseLens origins: computed
+  STRUCT 
+    STRUCT toObj
+      COPY toObj.init <- input.renamed
+    STRUCT  under present(optional)
+      COPY optional <- input.optional under present(optional)
+    CONST withDefault = "foo"
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = ...{ condition: bool | *true sourceFields: [...LACUNAFIELDREF] targetFields: [...LACUNAFIELDREF] message!: string type!: or([for _, t in LACUNATYPES { t }]) [!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error( "\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type", ) }  ops=[op:| unop:* lit:true call:or COMPREHENSION unop:!~ lit:"^(condition|sourceFields|targetFields|message|type)$" call:error interp lit:"\( lit:) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"]
+
+==== lineage/embedexref.txtar
+
+==== lineage/embedref.txtar
+
+==== lineage/expand.txtar
+-- lens 0.1->0.0
+  ParseLens origins: computed
+  STRUCT 
+    COPY init <- input.init
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = ...{ condition: bool | *true sourceFields: [...LACUNAFIELDREF] targetFields: [...LACUNAFIELDREF] message!: string type!: or([for _, t in LACUNATYPES { t }]) [!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error( "\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type", ) }  ops=[op:| unop:* lit:true call:or COMPREHENSION unop:!~ lit:"^(condition|sourceFields|targetFields|message|type)$" call:error interp lit:"\( lit:) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"]
+-- lens 0.2->0.1
+  ParseLens origins: computed
+  STRUCT 
+    COPY init <- input.init
+    STRUCT  under present(optional)
+      COPY optional <- input.optional under present(optional)
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = ...{ condition: bool | *true sourceFields: [...LACUNAFIELDREF] targetFields: [...LACUNAFIELDREF] message!: string type!: or([for _, t in LACUNATYPES { t }]) [!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error( "\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type", ) }  ops=[op:| unop:* lit:true call:or COMPREHENSION unop:!~ lit:"^(condition|sourceFields|targetFields|message|type)$" call:error interp lit:"\( lit:) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"]
+-- lens 0.3->0.2
+  ParseLens origins: computed
+  STRUCT 
+    COPY init <- input.init
+    STRUCT  under present(optional)
+      COPY optional <- input.optional under present(optional)
+    STRUCT  under present(withDefault)
+      COPY withDefault <- input.withDefault under present(withDefault)
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = ...{ condition: bool | *true sourceFields: [...LACUNAFIELDREF] targetFields: [...LACUNAFIELDREF] message!: string type!: or([for _, t in LACUNATYPES { t }]) [!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error( "\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type", ) }  ops=[op:| unop:* lit:true call:or COMPREHENSION unop:!~ lit:"^(condition|sourceFields|targetFields|message|type)$" call:error interp lit:"\( lit:) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"]
+
+==== lineage/go-any.txtar
+
+==== lineage/maps.txtar
+
+==== lineage/nearoptional.txtar
+
+==== lineage/noref.txtar
+
+==== lineage/optional.txtar
+
+==== lineage/refexscalar.txtar
+
+==== lineage/refexstruct.txtar
+
+==== lineage/refscalar.txtar
+
+==== lineage/refstruct.txtar
+
+==== lineage/scalars.txtar
+
+==== lineage/trivial-two-comments.txtar
+-- lens 0.1->0.0
+  ParseLens origins: computed
+  STRUCT 
+    COPY firstfield <- input.firstfield
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = ...{ condition: bool | *true sourceFields: [...LACUNAFIELDREF] targetFields: [...LACUNAFIELDREF] message!: string type!: or([for _, t in LACUNATYPES { t }]) [!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error( "\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type", ) }  ops=[op:| unop:* lit:true call:or COMPREHENSION unop:!~ lit:"^(condition|sourceFields|targetFields|message|type)$" call:error interp lit:"\( lit:) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"]
+
+==== lineage/trivial-two.txtar
+-- lens 0.1->0.0
+  ParseLens origins: computed
+  STRUCT 
+    COPY firstfield <- input.firstfield
+  lacunas:
+    LIST lacunas (1 elts)
+      COMPUTED lacunas[0] = ...{ condition: bool | *true sourceFields: [...LACUNAFIELDREF] targetFields: [...LACUNAFIELDREF] message!: string type!: or([for _, t in LACUNATYPES { t }]) [!~"^(condition|sourceFields|targetFields|message|type)$"]~(K,_): error( "\(K) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type", ) }  ops=[op:| unop:* lit:true call:or COMPREHENSION unop:!~ lit:"^(condition|sourceFields|targetFields|message|type)$" call:error interp lit:"\( lit:) is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"]
+
+==== lineage/unifyref.txtar
+
+==== lineage/union-null.txtar
+
+==== lineage/union.txtar
+
+==== TOTALS copies=58 consts=24 computed=42 (unknown 30) guards=20 (unknown 0)

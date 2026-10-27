@@ -1,0 +1,61 @@
+cel-go module: cel.dev/cel-go v0.33.0 (github.com/google/cel-go is the pre-rename path; v0.32+ declares cel.dev/cel-go)
+
+== Q4: divergence table ==
+int division, positive             | CUE 7 / 2                        = 3.5                    | CEL 7 / 2                          = 3                      | DIFFERENT
+int division, CUE quo              | CUE quo(7, 2)                    = 3                      | CEL 7 / 2                          = 3                      | same
+int division, CUE div              | CUE div(7, 2)                    = 3                      | CEL 7 / 2                          = 3                      | same
+int division, negative             | CUE -7 / 2                       = -3.5                   | CEL -7 / 2                         = -3                     | DIFFERENT
+int division, negative quo         | CUE quo(-7, 2)                   = -3                     | CEL -7 / 2                         = -3                     | same
+int division, negative div         | CUE div(-7, 2)                   = -4                     | CEL -7 / 2                         = -3                     | DIFFERENT
+remainder negative rem             | CUE rem(-7, 2)                   = -1                     | CEL -7 % 2                         = -1                     | same
+remainder negative mod             | CUE mod(-7, 2)                   = 1                      | CEL -7 % 2                         = -1                     | DIFFERENT
+division by zero                   | CUE div(7, 0)                    = ERR: x: error in call to div: division by zero | CEL 7 / 0                          = ERR: division by zero  | DIFFERENT
+string len, ASCII                  | CUE len("hello")                 = 5                      | CEL size("hello")                  = 5                      | same
+string len, multibyte              | CUE len("héllo")                 = 6                      | CEL size("héllo")                  = 5                      | DIFFERENT
+strings.Runes len                  | CUE import "strings"; len(strings.Runes("héllo")) = 5                      | CEL size("héllo")                  = 5                      | same
+string len, emoji (4 bytes)        | CUE len("a😀")                    = 5                      | CEL size("a😀")                     = 2                      | DIFFERENT
+int -> string, interpolation       | CUE "\(42)"                      = "42"                   | CEL string(42)                     = "42"                   | same
+neg int -> string                  | CUE "\(-42)"                     = "-42"                  | CEL string(-42)                    = "-42"                  | same
+bool -> string                     | CUE "\(true)"                    = "true"                 | CEL string(true)                   = "true"                 | same
+concat                             | CUE "a" + "b"                    = "ab"                   | CEL "a" + "b"                      = "ab"                   | same
+interp with str+int                | CUE "x-\("s")-\(3)"              = "x-s-3"                | CEL "x-" + "s" + "-" + string(3)   = "x-s-3"                | same
+ToUpper non-ASCII                  | CUE import "strings"; strings.ToUpper("héllo") = "HÉLLO"                | CEL "héllo".upperAscii()           = "HéLLO"                | DIFFERENT
+int64 max + 1                      | CUE 9223372036854775807 + 1      = 9223372036854775808    | CEL 9223372036854775807 + 1        = ERR: integer overflow  | DIFFERENT
+int64 min - 1                      | CUE -9223372036854775808 - 1     = -9223372036854775809   | CEL -9223372036854775808 - 1       = ERR: integer overflow  | DIFFERENT
+int64 mul overflow                 | CUE 4611686018427387904 * 2      = 9223372036854775808    | CEL 4611686018427387904 * 2        = ERR: integer overflow  | DIFFERENT
+big literal                        | CUE 18446744073709551616         = 18446744073709551616   | CEL 18446744073709551616           = ERR: compile: ERROR: <input>:1:1: invalid int literal | DIFFERENT
+string compare                     | CUE "a" < "b"                    = true                   | CEL "a" < "b"                      = true                   | same
+eq int                             | CUE 3 == 3                       = true                   | CEL 3 == 3                         = true                   | same
+ternary                            | CUE [if 3 > 2 {"big"}, "small"][0] = "big"                  | CEL 3 > 2 ? "big" : "small"        = "big"                  | same
+float interp (excluded by #82)     | CUE "\(1.5)"                     = "1.5"                  | CEL string(1.5)                    = "1.5"                  | same
+float interp 1.0                   | CUE "\(1.0)"                     = "1.0"                  | CEL string(1.0)                    = "1"                    | DIFFERENT
+strings.Contains                   | CUE import "strings"; strings.Contains("abc","b") = true                   | CEL "abc".contains("b")            = true                   | same
+strings.HasPrefix                  | CUE import "strings"; strings.HasPrefix("abc","a") = true                   | CEL "abc".startsWith("a")          = true                   | same
+strings.Replace                    | CUE import "strings"; strings.Replace("aXbX","X","-",-1) = "a-b-"                 | CEL "aXbX".replace("X","-")        = "a-b-"                 | same
+strings.TrimSpace                  | CUE import "strings"; strings.TrimSpace(" a ") = "a"                    | CEL " a ".trim()                   = "a"                    | same
+strings.Join                       | CUE import "strings"; strings.Join(["a","b"],",") = "a,b"                  | CEL ["a","b"].join(",")            = "a,b"                  | same
+strings.Split                      | CUE import "strings"; strings.Split("a,b",",") = ["a", "b"]             | CEL "a,b".split(",")               = [a b]                  | DIFFERENT
+strings.Index (bytes vs cp)        | CUE import "strings"; strings.Index("héllo","l") = 3                      | CEL "héllo".indexOf("l")           = 2                      | DIFFERENT
+substring (bytes vs cp)            | CUE import "strings"; strings.SliceRunes("héllo",1,3) = "él"                   | CEL "héllo".substring(1,3)         = "él"                   | same
+strconv.Atoi                       | CUE import "strconv"; strconv.Atoi("42") = 42                     | CEL int("42")                      = 42                     | same
+strconv.Atoi bad                   | CUE import "strconv"; strconv.Atoi("4x") = ERR: x: error in call to strconv.Atoi: strconv.Atoi: parsing "4x": invalid syntax | CEL int("4x")                      = ERR: type conversion error from 'string' to 'int' | DIFFERENT
+var arithmetic                     | CUE 10 - 1                       = 9                      | CEL input_n - 1                    = 9                      | same
+var interpolation                  | CUE "\("s")-\(10)"               = "s-10"                 | CEL input_s + "-" + string(input_n) = "s-10"                 | same
+table index                        | CUE {a: 1, b: 2}["a"]            = 1                      | CEL {"a": 1, "b": 2}[input_t]      = 1                      | same
+table index missing key            | CUE {a: 1, b: 2}["z"]            = ERR: x: undefined field: z | CEL {"a": 1, "b": 2}["z"]          = ERR: no such key: z    | DIFFERENT
+
+== Q3: overflow with variables ==
+input_n=9223372036854775807: input_n + 1 -> out=integer overflow err=integer overflow
+input_n=9223372036854775807: input_n - 1 -> out=9223372036854775806 err=<nil>
+input_n=-9223372036854775808: input_n + 1 -> out=-9223372036854775807 err=<nil>
+input_n=-9223372036854775808: input_n - 1 -> out=integer overflow err=integer overflow
+negate min: out=integer overflow err=integer overflow
+
+== Q3: cost ==
+compile+program: 29.169µs each; eval: 140ns each (ratio 208x)
+eval with prebuilt Activation: 134ns each
+
+static output type of "input_s + \"-\" + string(input_n - 1)": string
+type error caught at compile: true (ast nil=true)
+ext.Strings needed for upperAscii: compiles=true
+without ext.Strings, upperAscii compiles=false (ERROR: <input>:1:19: undeclared reference to 'upperAscii')

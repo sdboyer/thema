@@ -1,0 +1,51 @@
+cases/lens-direct-copy.txtar                  name=lensDirectCopy   module=<nil>                                    id=<nil>                                         pkg=       dir= pos=/m/in.cue path=lin
+                                                (lin.Underlying().BuildInstance() == nil)
+cases/lens-duplicate.txtar                    name=lensDuplicate    module=<nil>                                    id=<nil>                                         pkg=       dir= pos=/m/in.cue path=lin
+                                                (lin.Underlying().BuildInstance() == nil)
+cases/lens-hidden-undeclared-conditional.txtar name=lensHiddenUndeclaredConditional module=<nil>                                    id=<nil>                                         pkg=       dir= pos=/m/in.cue path=lin
+                                                (lin.Underlying().BuildInstance() == nil)
+cases/lens-hidden-undeclared.txtar            name=lensHiddenUndeclared module=<nil>                                    id=<nil>                                         pkg=       dir= pos=/m/in.cue path=lin
+                                                (lin.Underlying().BuildInstance() == nil)
+cases/lens-let-copy.txtar                     name=lensLetCopy      module=<nil>                                    id=<nil>                                         pkg=       dir= pos=/m/in.cue path=lin
+                                                (lin.Underlying().BuildInstance() == nil)
+exemplars/defaultchange                       name=defaultchange    module=<nil>                                    id=<nil>                                         pkg=       dir= pos= path=Lineage
+                                                (lin.Underlying().BuildInstance() == nil)
+exemplars/disjunct                            name=disjunct         module=<nil>                                    id=<nil>                                         pkg=       dir= pos=/github.com/sdboyer/thema/exemplars/constraint.cue path=disjunct.l
+                                                (lin.Underlying().BuildInstance() == nil)
+exemplars/expand                              name=expand           module=<nil>                                    id=<nil>                                         pkg=       dir= pos= path=Lineage
+                                                (lin.Underlying().BuildInstance() == nil)
+exemplars/narrowing                           name=narrowing        module=<nil>                                    id=<nil>                                         pkg=       dir= pos= path=Lineage
+                                                (lin.Underlying().BuildInstance() == nil)
+exemplars/rename                              name=rename           module=<nil>                                    id=<nil>                                         pkg=       dir= pos= path=Lineage
+                                                (lin.Underlying().BuildInstance() == nil)
+exemplars/single                              name=single           module=<nil>                                    id=<nil>                                         pkg=       dir= pos= path=Lineage
+                                                (lin.Underlying().BuildInstance() == nil)
+known/ext-lens-table.txtar                    name=extLensTable     module=<nil>                                    id=<nil>                                         pkg=       dir= pos=/m/in.cue path=lin
+                                                (lin.Underlying().BuildInstance() == nil)
+known/ext-lens-uses-name.txtar                name=extLensUsesName  module=<nil>                                    id=<nil>                                         pkg=       dir= pos=/m/in.cue path=lin
+                                                (lin.Underlying().BuildInstance() == nil)
+known/lens-copy-not-total.txtar               name=lensCopyNotTotal module=<nil>                                    id=<nil>                                         pkg=       dir= pos=/m/in.cue path=lin
+                                                (lin.Underlying().BuildInstance() == nil)
+known/lens-optional-source-field.txtar        name=lensOptionalSourceField module=<nil>                                    id=<nil>                                         pkg=       dir= pos=/m/in.cue path=lin
+                                                (lin.Underlying().BuildInstance() == nil)
+known/lens-result-depends-on-other-lens.txtar name=lensResultDependsOnOtherLens module=<nil>                                    id=<nil>                                         pkg=       dir= pos=/m/in.cue path=lin
+                                                (lin.Underlying().BuildInstance() == nil)
+lineage/basic-multiversion.txtar              name=basicMultiversion module=example.com/m@v0                         id=example.com/m@v0                              pkg=m      dir=/m pos=/m/in.cue path=
+lineage/embedexref.txtar                      name=embedexref       module=example.com/m@v0                         id=example.com/m@v0                              pkg=m      dir=/m pos=/m/in.cue path=
+lineage/embedref.txtar                        name=embedref         module=example.com/m@v0                         id=example.com/m@v0                              pkg=m      dir=/m pos=/m/in.cue path=
+lineage/expand.txtar                          name=expand           module=example.com/m@v0                         id=example.com/m@v0                              pkg=m      dir=/m pos=/m/in.cue path=
+lineage/go-any.txtar                          name=goAny            module=example.com/m@v0                         id=example.com/m@v0                              pkg=m      dir=/m pos=/m/in.cue path=
+lineage/maps.txtar                            name=maps             module=example.com/m@v0                         id=example.com/m@v0                              pkg=m      dir=/m pos=/m/in.cue path=
+lineage/nearoptional.txtar                    name=nearoptional     module=example.com/m@v0                         id=example.com/m@v0                              pkg=m      dir=/m pos=/m/in.cue path=
+lineage/noref.txtar                           name=noref            module=example.com/m@v0                         id=example.com/m@v0                              pkg=m      dir=/m pos=/m/in.cue path=
+lineage/optional.txtar                        name=optional         module=example.com/m@v0                         id=example.com/m@v0                              pkg=m      dir=/m pos=/m/in.cue path=
+lineage/refexscalar.txtar                     name=refscalar        module=example.com/m@v0                         id=example.com/m@v0                              pkg=m      dir=/m pos=/m/in.cue path=
+lineage/refexstruct.txtar                     name=refexstruct      module=example.com/m@v0                         id=example.com/m@v0                              pkg=m      dir=/m pos=/m/in.cue path=
+lineage/refscalar.txtar                       name=refscalar        module=example.com/m@v0                         id=example.com/m@v0                              pkg=m      dir=/m pos=/m/in.cue path=
+lineage/refstruct.txtar                       name=refstruct        module=example.com/m@v0                         id=example.com/m@v0                              pkg=m      dir=/m pos=/m/in.cue path=
+lineage/scalars.txtar                         name=scalarFields     module=example.com/m@v0                         id=example.com/m@v0                              pkg=m      dir=/m pos=/m/in.cue path=
+lineage/trivial-two-comments.txtar            name=trivialTwoComments module=example.com/m@v0                         id=example.com/m@v0                              pkg=m      dir=/m pos=/m/in.cue path=
+lineage/trivial-two.txtar                     name=trivialTwo       module=example.com/m@v0                         id=example.com/m@v0                              pkg=m      dir=/m pos=/m/in.cue path=
+lineage/unifyref.txtar                        name=unifyref         module=example.com/m@v0                         id=example.com/m@v0                              pkg=m      dir=/m pos=/m/in.cue path=
+lineage/union-null.txtar                      name=unionNull        module=example.com/m@v0                         id=example.com/m@v0                              pkg=m      dir=/m pos=/m/in.cue path=
+lineage/union.txtar                           name=union            module=example.com/m@v0                         id=example.com/m@v0                              pkg=m      dir=/m pos=/m/in.cue path=
