@@ -110,14 +110,12 @@ var (
 	// was also provided as a Go function to BindLineage.
 	ErrDuplicateLenses = errors.New("lens is declared in both CUE and Go")
 
-	// ErrMissingLenses indicates that the lenses provided to BindLineage in either
-	// CUE or Go were missing at least one of the expected lenses determined by the
-	// set of schemas in the lineage.
+	// ErrMissingLenses indicates that a lineage lacks at least one of the lenses
+	// its set of schemas requires.
 	ErrMissingLenses = errors.New("not all expected lenses were provided")
 
-	// ErrErroneousLenses indicates that a lens was provided to BindLineage in either
-	// CUE or Go that was not one of the expected lenses determined by the set of
-	// schemas in the lineage.
+	// ErrErroneousLenses indicates that a lineage declares a lens that is not one
+	// of those its set of schemas requires.
 	ErrErroneousLenses = errors.New("unexpected lenses were erroneously provided")
 
 	// ErrVersionNotExist indicates that no schema exists in a lineage with a

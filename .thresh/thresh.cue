@@ -71,14 +71,14 @@ seams: "embedded-module-root": {
 	]
 }
 
-// Go's set of lacuna types mirrors LacunaTypes in thema's CUE; Go lenses' lacunas
-// are checked against it.
+// Go's set of lacuna types mirrors LacunaTypes in thema's CUE; every lacuna a
+// translation emits is decoded into it.
 seams: "lacuna-types": {
 	kind:  "shared-kernel"
 	paths: ["lacuna.go"]
 	consult: [
 		"LacunaTypes in lacuna.cue (lockstep test TestLacunaTypesMatchCUE)",
-		"Go lenses, whose lacunas are validated against these types at translation",
+		"instance.go Translate, which decodes the lacunas of every step into these types",
 	]
 }
 
@@ -135,15 +135,15 @@ seams: "cueview-goldens": {
 
 // The lens result-field rule: a lens may write (constant or computed) only fields
 // its target declares, while data it copies from its input is not checked. One
-// rule, enforced at bind (CUE lenses, from syntax) and at translate (CUE and Go
-// lenses), from shared helpers. The enforcement sites must agree; when they
+// rule, enforced at bind (from the lens's syntax) and at translate, from shared
+// helpers. The enforcement sites must agree; when they
 // didn't, hidden fields were rejected at bind that translate accepted. Field
 // origins (copied/constant/computed) will also decide what lenses can compile to.
 seams: "lens-result-fields": {
 	kind:  "shared-kernel"
 	paths: ["internal/cuetil/declared.go", "internal/cuetil/syntax.go", "internal/cueview/tree.go"]
 	consult: [
-		"bind.go checkGoLensCompleteness and checkLacunas, and instance.go Translate (Go lenses) and checkLensResultFields (CUE lenses): all must apply the same rule",
+		"bind.go checkLensResults and checkLacunas, and instance.go checkLensResultFields: all must apply the same rule",
 		"AGENTS.md, Lens results",
 		"testdata/cases/lens-* and the construction-independence tests in internal/cuetil",
 	]
@@ -195,18 +195,17 @@ seams: "go-residual-checks": {
 	paths: ["bind.go"]
 	funcs: "check*"
 	declared: {
-		checkGoValidity:         "compat vs declared version delta: needs the compat checker, which closes both schemas and subsumes them in Go; also rejects a major version key with no minors, which struct.MinFields only reports under concrete validation, which abstract schemas never pass"
-		checkSchemaVersions:     "versions must be contiguous from 0.0: in CUE a skipped version is a missing key, which is only an incomplete reference (unification could still supply it), so validation never reports it"
-		checkExists:             "presence of required lineage parts before deeper checks"
-		checkLineageShape:       "structural shape checks on the raw lineage value"
-		checkNativeValidity:     "runs the CUE-native validity pass and surfaces its errors"
-		checkLensEdges:          "the edges with lenses, Go or CUE, are exactly those the versions require; Go lenses have no CUE edge keys to check"
-		checkLensCompleteness:   "exactly the required lenses exist (Go or CUE): needs the bound version list; a missing CUE lens would otherwise surface only when a translation crosses its edge, and an extra one would be silently unused"
-		checkSchemaShapes:       "schemas and joinSchema must be structs, and examples valid instances: CUE can constrain kinds, but reports a schema like _ only once data arrives"
-		checkLensResults:        "static lens checks with input standing for any source instance: needs each lens paired with its source and target schemas, closedness applied at use, and the declared-fields walker"
-		checkLacunas:            "lacuna lists must be enumerable without input, and lacuna field paths declared by the lens's schemas: needs the lineage's schemas, and CUE would only report missing required lacuna fields once data arrives"
-		checkUnknownFields:      "unknown lineage/schema/lens fields, and schemas/lenses keys that aren't versions/edges; CUE rejects them too, but positions the error at its guard in thema's CUE, while Go can point at the author's line. Known fields are read from thema's CUE, not duplicated"
-		checkSchemaConstructs:   "no comprehensions or reference cycles in a schema: CUE evaluates both happily, but no later check (compat, lens results, lacunas) can describe a schema whose fields depend on evaluation or whose paths are unbounded; refused before any of them runs, and reported at the construct"
+		checkGoValidity:       "compat vs declared version delta: needs the compat checker, which closes both schemas and subsumes them in Go; also rejects a major version key with no minors, which struct.MinFields only reports under concrete validation, which abstract schemas never pass"
+		checkSchemaVersions:   "versions must be contiguous from 0.0: in CUE a skipped version is a missing key, which is only an incomplete reference (unification could still supply it), so validation never reports it"
+		checkExists:           "presence of required lineage parts before deeper checks"
+		checkLineageShape:     "structural shape checks on the raw lineage value"
+		checkNativeValidity:   "runs the CUE-native validity pass and surfaces its errors"
+		checkLensEdges:        "exactly the required lenses exist: needs the bound version list; a missing lens would otherwise surface only when a translation crosses its edge, and an extra one would be silently unused"
+		checkSchemaShapes:     "schemas and joinSchema must be structs, and examples valid instances: CUE can constrain kinds, but reports a schema like _ only once data arrives"
+		checkLensResults:      "static lens checks with input standing for any source instance: needs each lens paired with its source and target schemas, closedness applied at use, and the declared-fields walker"
+		checkLacunas:          "lacuna lists must be enumerable without input, and lacuna field paths declared by the lens's schemas: needs the lineage's schemas, and CUE would only report missing required lacuna fields once data arrives"
+		checkUnknownFields:    "unknown lineage/schema/lens fields, and schemas/lenses keys that aren't versions/edges; CUE rejects them too, but positions the error at its guard in thema's CUE, while Go can point at the author's line. Known fields are read from thema's CUE, not duplicated"
+		checkSchemaConstructs: "no comprehensions or reference cycles in a schema: CUE evaluates both happily, but no later check (compat, lens results, lacunas) can describe a schema whose fields depend on evaluation or whose paths are unbounded; refused before any of them runs, and reported at the construct"
 	}
 }
 

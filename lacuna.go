@@ -91,29 +91,6 @@ type FieldRef struct {
 	Value interface{} `json:"value"`
 }
 
-// checkLacuna checks that l, emitted by a lens from sch to tsch, has a known type
-// and a message, and that its field references are declared by the schemas they
-// refer to: source fields by sch, target fields by tsch.
-func checkLacuna(ctx *cue.Context, l Lacuna, sch, tsch *schemaDef) error {
-	if !lacunaTypes[l.Type] {
-		return fmt.Errorf("lacuna has unknown type %q", l.Type)
-	}
-	if l.Message == "" {
-		return fmt.Errorf("%s lacuna has no message", l.Type)
-	}
-	for _, fr := range l.SourceFields {
-		if err := checkFieldRefPath(ctx, fr.Path, sch); err != nil {
-			return fmt.Errorf("%s lacuna source field: %w", l.Type, err)
-		}
-	}
-	for _, fr := range l.TargetFields {
-		if err := checkFieldRefPath(ctx, fr.Path, tsch); err != nil {
-			return fmt.Errorf("%s lacuna target field: %w", l.Type, err)
-		}
-	}
-	return nil
-}
-
 // checkFieldRefPath checks that path is a valid CUE path to a field sch declares.
 func checkFieldRefPath(ctx *cue.Context, path string, sch *schemaDef) error {
 	p := cue.ParsePath(path)
