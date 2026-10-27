@@ -367,12 +367,27 @@ func (w *walker) refPair(pred, succ cue.Value) (string, bool) {
 // "a" and "b". Defaults are compared separately, by the field that holds them.
 // A reference is split as the value it refers to, since Expr would report
 // only the reference; a builtin validator value (time.Time) is kept as is, so
-// that it is still read as a validator.
+// that it is still read as a validator. A conjunction with a disjunctive
+// operand, (A | B) & C, is the alternatives of that operand each unified with
+// the rest, A & C and B & C: Expr reports the conjunction, not the
+// disjunction inside it. The closing wrapper (cuetil.CloseRecursive) is such a
+// conjunction, _ & v, so a schema that is a disjunction at its top is split
+// here like one beneath a field; _ says nothing and is not unified in.
 func Branches(v cue.Value) []cue.Value {
 	return branches(v)
 }
 
+// maxBranchesDepth bounds how far branches follows an expression's structure.
+const maxBranchesDepth = 16
+
 func branches(v cue.Value) []cue.Value {
+	return branchesDepth(v, 0)
+}
+
+func branchesDepth(v cue.Value, depth int) []cue.Value {
+	if depth > maxBranchesDepth {
+		return []cue.Value{v}
+	}
 	if _, rp := v.ReferencePath(); len(rp.Selectors()) > 0 {
 		if _, builtin := packageMember(v); !builtin {
 			v = cue.Dereference(v)
@@ -383,9 +398,35 @@ func branches(v cue.Value) []cue.Value {
 	case cue.OrOp:
 		var out []cue.Value
 		for _, a := range args {
-			out = append(out, branches(a)...)
+			out = append(out, branchesDepth(a, depth+1)...)
 		}
 		return out
+	case cue.AndOp:
+		for i, a := range args {
+			alts := branchesDepth(a, depth+1)
+			if len(alts) <= 1 {
+				continue
+			}
+			var rest cue.Value
+			for j, b := range args {
+				if j == i || b.IncompleteKind() == cue.TopKind {
+					continue
+				}
+				if !rest.Exists() {
+					rest = b
+				} else {
+					rest = rest.Unify(b)
+				}
+			}
+			if !rest.Exists() {
+				return alts
+			}
+			out := make([]cue.Value, len(alts))
+			for k, alt := range alts {
+				out[k] = alt.Unify(rest)
+			}
+			return out
+		}
 	case cue.NoOp:
 		if len(args) == 1 {
 			return []cue.Value{args[0]}

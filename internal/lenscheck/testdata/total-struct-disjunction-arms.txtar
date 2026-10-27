@@ -1,0 +1,34 @@
+# A struct literal at a disjunctive target made only of arms: each arm's struct
+# is proven against its own alternative, and the arms' equalities cover the
+# tested field.
+-- source.cue --
+k: "a" | "b"
+-- target.cue --
+o: {branch: 1, one: string} | {branch: 2, two: string}
+-- lens.cue --
+v0_0: _
+v1_0: {
+	o: {
+		if v0_0.k == "a" {branch: 1, one: "x"}
+		if v0_0.k == "b" {branch: 2, two: "y"}
+	}
+}
+-- out --
+total
+-- ir --
+out: {
+  out.o: {
+    if in.k == "a" {
+      out.o: alt 0 {
+        out.o.branch = 1
+        out.o.one = "x"
+      }
+    }
+    if in.k == "b" {
+      out.o: alt 1 {
+        out.o.branch = 2
+        out.o.two = "y"
+      }
+    }
+  }
+}

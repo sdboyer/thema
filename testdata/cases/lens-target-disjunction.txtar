@@ -4,17 +4,12 @@
 # correspondence for, to branch 1 with a filler value, declaring the loss.
 #
 # The lens is total: every 0.1 instance has exactly one branch, each arm writes
-# rootfield once, and each result is an instance of 0.0 (checked by evaluating
-# the lens against an instance of each alternative). thema cannot show it: the
-# checker descends into the target only through a single struct or list, so the
-# branch-3 fallback, a struct literal written beneath a disjunction in the target
-# schema, is unknown-target-constraint, and a copy of the whole of rootfield is
-# judged against the target disjunction alternative by alternative without the
-# arm's equality on rootfield.branch narrowing the parent, so the branch-3
-# alternative is still among what is copied (copy-narrowed). The lineage lived
-# in exemplars until the totality check was enforced there (#87); #121 is the
-# checker work (descent beneath a disjunctive target, child-path refinement)
-# after which it binds and returns to exemplars.
+# rootfield once, and each result is an instance of 0.0. thema shows it: the
+# equality on rootfield.branch in each arm refines the alternatives of the
+# copied rootfield to the one whose branch it names, which the matching 0.0
+# alternative accepts; the branch-3 arm's struct literal is proven against the
+# 0.0 alternative its constant branch selects; and the three equalities cover
+# the source's constant branches (#121).
 #issue: 121
 -- in.cue --
 import "github.com/sdboyer/thema"
@@ -92,4 +87,10 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail unknown-target-constraint
+bind ok
+translate 0.1 0.0 ok {rootfield: {branch: 1, branchone: "a"}}
+translate 0.1 0.0 ok {rootfield: {branch: 2, branchtwo: "b"}}
+translate 0.1 0.0 ok {rootfield: {branch: 3, branchthree: {branchthreeinner: 5}}}
+translate 0.1 0.0 ok {rootfield: {branch: 3, branchthree: {branchthreeinner: "s"}}}
+translate 0.0 0.1 ok {rootfield: {branch: 1, branchone: "a"}}
+translate 0.0 0.1 ok {rootfield: {branch: 2, branchtwo: "b"}}

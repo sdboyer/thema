@@ -1,11 +1,9 @@
 # a lens copying a disjunction of structs whole into an identical disjunction:
-# total, since every instance of the source is an instance of the target, yet
-# refused. The checker judges a copy alternative by alternative, and the
-# compatibility rules, given one struct alternative and the target disjunction
-# as bare values, report every field of the alternative removed (compat rule
-# field-removed), where the same pair beneath a field is compatible
-# (internal/compat/testdata/struct-disjunction-widened). Recorded as a checker
-# gap, #120; when it closes, the expectation becomes bind ok.
+# total, since every instance of the source is an instance of the target. The
+# checker judges a copy alternative by alternative, and the compatibility
+# rules, given one struct alternative and the target disjunction as bare
+# values, match it to the target alternative that accepts it, at the top of a
+# value as beneath a field (#120).
 #issue: 120
 -- in.cue --
 import "github.com/sdboyer/thema"
@@ -53,4 +51,8 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail copy-narrowed
+bind ok
+translate 0.0 1.0 ok {rootfield: {branch: 1, branchone: "a"}}
+translate 0.0 1.0 ok {rootfield: {branch: 2, branchtwo: "b"}}
+translate 1.0 0.0 ok {renamed: {branch: 1, branchone: "a"}}
+translate 1.0 0.0 ok {renamed: {branch: 2, branchtwo: "b"}}

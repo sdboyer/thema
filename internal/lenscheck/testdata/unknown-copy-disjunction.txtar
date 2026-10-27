@@ -1,0 +1,14 @@
+# A disjunction of structs copied whole into one lacking an alternative, with
+# no pattern refining the copy: the compatibility rules match each source
+# alternative to a single target alternative, and the third has none
+# (compat rule unknown-disjunction).
+-- source.cue --
+rootfield: {branch: 1, one: string} | {branch: 2, two: string} | {branch: 3, three: string}
+-- target.cue --
+rootfield: {branch: 1, one: string} | {branch: 2, two: string}
+-- lens.cue --
+v0_0: _
+v1_0: {rootfield: v0_0.rootfield}
+-- out --
+unknown
+v1_0.rootfield copies v0_0.rootfield, which is now { branch: 1 one: string } | { branch: 2 two: string }, no single alternative of which covers the prior alternative { branch: 3 three: string }; the checker does not combine alternatives (compat rule unknown-disjunction) (rule unknown-copy) @ lens.cue:2:19
