@@ -3,8 +3,10 @@ version: 2
 before:
   hooks:
     - go mod tidy
-    # The playground bundle: the frontend pinned in cmd/thema/playground/VERSION,
-    # and this release's thema.wasm, embedded by the playgroundui tag below.
+    # The playground bundle: the frontend in playground/ui and this release's
+    # thema.wasm, embedded by the playgroundui tag below.
+    - cmd: npm ci
+      dir: playground/ui
     - go generate ./cmd/thema/playground
 builds:
   - env:
@@ -25,8 +27,8 @@ archives:
       formats: [zip]
 checksum:
   name_template: 'checksums.txt'
-# The wasm build and what loads it, for the playground's static site, which
-# fetches them by release tag and never bundles its own.
+# The wasm build and what loads it, so that a statically hosted playground
+# can run a released thema, fetched by tag, rather than bundle its own.
 release:
   extra_files:
     - glob: ./cmd/thema/playground/dist/thema.wasm
