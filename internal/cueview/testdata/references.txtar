@@ -487,3 +487,97 @@ error: cases.outsideIncomplete.r: input.y undefined as input is incomplete (type
 	//cue:path: input
 	let INPUT = _
 }
+-- out/selfcontained --
+## literal
+{
+	a: INPUT.a
+	if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## viaReference
+{
+	a: INPUT.a
+	if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## viaEmbed
+{
+	a: INPUT.a
+	if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## viaUnify
+{
+	a: INPUT.a
+	if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## splitConjuncts
+{
+	a: INPUT.a
+	b: 1
+
+	//cue:path: input
+	let INPUT = _
+}
+## sibling
+{
+	_h: INPUT.a
+	x:  _h
+
+	//cue:path: input
+	let INPUT = _
+}
+## innerLet
+{
+	let L = INPUT.a
+	r: L
+
+	//cue:path: input
+	let INPUT = _
+}
+## outsideLet
+{
+	r: {if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}}
+
+	//cue:path: input
+	let INPUT = _
+}
+## self
+{
+	let S = self
+	p: 1
+	q: S.p
+}
+## outsideConcrete
+{r: 5}
+## outsideIncomplete
+{
+	r: INPUT.y
+
+	//cue:path: input
+	let INPUT = _
+}

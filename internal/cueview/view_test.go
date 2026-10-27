@@ -11,6 +11,7 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/ast"
 	"cuelang.org/go/cue/cuecontext"
+	"cuelang.org/go/cue/load"
 	"github.com/google/go-cmp/cmp"
 	"golang.org/x/tools/txtar"
 
@@ -26,6 +27,7 @@ var views = []struct {
 	{"final", Final},
 	{"data", Data},
 	{"documented", Documented},
+	{"selfcontained", SelfContained},
 }
 
 // TestViewGoldens records what every view produces for each case in
@@ -77,7 +79,7 @@ func compareGoldens(t *testing.T, file string, ar *txtar.Archive, got map[string
 			}
 		}
 		ar.Files = kept
-		for _, name := range []string{"out/written", "out/evaluated", "out/raw", "out/final", "out/data", "out/documented"} {
+		for _, name := range []string{"out/written", "out/evaluated", "out/raw", "out/final", "out/data", "out/documented", "out/selfcontained"} {
 			ar.Files = append(ar.Files, txtar.File{Name: name, Data: got[name]})
 		}
 		if err := os.WriteFile(file, txtar.Format(ar), 0o600); err != nil {
@@ -146,4 +148,67 @@ func mustText(t *testing.T, n ast.Node) string {
 		t.Fatal(err)
 	}
 	return s
+}
+
+// SelfContained differs from Evaluated only in references into imported
+// packages, which the goldens can't show: they compile a single file. Evaluated
+// leaves shared.#Thing and shared.Reg as references, so their content isn't in
+// its result. SelfContained binds a definition in a generated let and inlines a
+// regular field. A builtin package stays a reference in both.
+func TestSelfContainedInlinesImports(t *testing.T) {
+	dir := t.TempDir()
+	for name, data := range map[string]string{
+		"cue.mod/module.cue": "module: \"example.com/m\"\nlanguage: version: \"v0.18.0\"\n",
+		"shared/shared.cue":  "package shared\n#Thing: {p: int}\nReg: {r: int}\n",
+		"m.cue": `package m
+import (
+	"example.com/m/shared"
+	"strings"
+)
+v: {a: shared.#Thing, b: shared.Reg, c: strings.MinRunes(1)}
+`,
+	} {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(dir, name)), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(data), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	insts := load.Instances([]string{"."}, &load.Config{Dir: dir})
+	v := cuecontext.New().BuildInstance(insts[0]).LookupPath(cue.ParsePath("v"))
+	if err := v.Err(); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		fn   func(cue.Value) (ast.Node, error)
+		want string
+	}{
+		{Evaluated, `import (
+	"example.com/m/shared"
+	"strings"
+)
+
+a: shared.#Thing
+b: shared.Reg
+c: strings.MinRunes(1)
+`},
+		{SelfContained, `import "strings"
+
+a: THING.#x
+b: r: int
+c: strings.MinRunes(1)
+
+//cue:path: "example.com/m/shared".#Thing
+let THING = {#x: p: int}
+`},
+	} {
+		n, err := c.fn(v)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if diff := cmp.Diff(c.want, mustText(t, n)); diff != "" {
+			t.Errorf("(-want +got):\n%s", diff)
+		}
+	}
 }

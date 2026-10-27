@@ -1,0 +1,223 @@
+A lineage using most of what schemas and lenses are written with: defaults,
+optional and required fields, disjunctions, bounds, attributes, a builtin
+package, patterns, lists, hidden fields, definitions inside a schema, a
+joinSchema, a schema built on its predecessor, examples, conditional lens
+results, and lacunas built from thema.Lacuna, which is hashed by name
+(__ref("github.com/sdboyer/thema", "Lacuna")), not content.
+-- in.cue --
+package p
+
+import (
+	"strings"
+
+	"github.com/sdboyer/thema"
+)
+
+lin: {
+	name: "kitchen"
+	joinSchema: {kind: string}
+	schemas: [{
+		version: [0, 0]
+		schema: {
+			kind:  "kitchen"
+			title: string & strings.MinRunes(1)
+			// how many
+			count?: int & >=0 @cuetsy(kind="type")
+			mode:   *"auto" | "manual"
+			tags: [...string]
+			[=~"^x-"]: string
+		}
+		examples: basic: {kind: "kitchen", title: "t", tags: []}
+	}, {
+		version: [0, 1]
+		schema: schemas[0].schema & {
+			owner?: #Person
+			#Person: {name!: string, email?: string}
+			_scratch: int | *0
+		}
+	}, {
+		version: [1, 0]
+		schema: {
+			kind:   "kitchen"
+			title:  string & strings.MinRunes(1)
+			count:  int & >=0 | *0
+			mode:   "auto" | "manual" | *"auto"
+			labels: [string]: string
+			owner?: {name!: string, email?: string}
+		}
+	}]
+	lenses: [{
+		from: [0, 1]
+		to: [0, 0]
+		input: _
+		result: {
+			kind:  input.kind
+			title: input.title
+			if input.count != _|_ {count: input.count}
+			mode: input.mode
+			tags: input.tags
+		}
+		lacunas: [if input.owner != _|_ {
+			thema.Lacuna & {
+				sourceFields: [{path: "owner", value: input.owner}]
+				message: "owner is dropped"
+				type:    thema.LacunaTypes.DroppedField
+			}
+		}]
+	}, {
+		from: [0, 1]
+		to: [1, 0]
+		input: _
+		result: {
+			kind:  input.kind
+			title: input.title
+			count: *input.count | 0
+			mode:  input.mode
+			labels: {for t in input.tags {(t): t}}
+			if input.owner != _|_ {owner: input.owner}
+		}
+		lacunas: []
+	}, {
+		from: [1, 0]
+		to: [0, 1]
+		input: _
+		result: {
+			kind:  input.kind
+			title: input.title
+			count: input.count
+			mode:  input.mode
+			tags: [for k, _ in input.labels {k}]
+			if input.owner != _|_ {owner: input.owner}
+		}
+		lacunas: [thema.Lacuna & {
+			sourceFields: [{path: "labels", value: input.labels}]
+			message: "label values are dropped"
+			type:    thema.LacunaTypes.LossyFieldMapping
+		}]
+	}]
+}
+-- out/0.0 --
+# id
+18467c3277c426c4bdfe9254c35d0fea7791820946a576d3d773dd795f7ee7b5:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
+# schema
+{
+	[=~"^x-"]: string
+	count?:    >=0 & int @cuetsy(kind="type")
+	kind:      "kitchen" & string
+	mode:      "manual" | *"auto"
+	tags:      [...string]
+	title:     __import("strings").MinRunes(1) & string
+}
+# lenses
+{}
+-- out/0.1 --
+# id
+0c9ada93158827d8a4bfe557fe81eb1137ccd42cb346dd448f3357336e685e03:392c00e3de54ce34a72e91173a3651e90cea28e856c54efc7299fd6aad3b49a0
+# schema
+{
+	#Person: {
+		email?: string
+		name!:  string
+	}
+	[=~"^x-"]: string
+	_scratch:  *0 | int
+	count?:    >=0 & int @cuetsy(kind="type")
+	kind:      "kitchen" & string
+	mode:      "manual" | *"auto"
+	owner?:    #Person
+	tags:      [...string]
+	title:     __import("strings").MinRunes(1) & string
+}
+# lenses
+{
+	backward: {
+		input: _
+		lacunas: {
+			[if __L3_d2e2adf7177b7a8a.owner != _|_ {
+				__L3_ae51671473fde27d & {
+					message: "owner is dropped"
+					sourceFields: [{
+						path:  "owner"
+						value: __L3_d2e2adf7177b7a8a.owner
+					}]
+					type: "DroppedField"
+				}
+			}]
+			let __L3_ae51671473fde27d = __ref("github.com/sdboyer/thema", "Lacuna")
+			let __L3_d2e2adf7177b7a8a = _
+		}
+		result: {
+			if __L3_d2e2adf7177b7a8a.count != _|_ {
+				count: __L3_d2e2adf7177b7a8a.count
+			}
+			kind: __L3_d2e2adf7177b7a8a.kind
+			let __L3_d2e2adf7177b7a8a = _
+			mode:  __L3_d2e2adf7177b7a8a.mode
+			tags:  __L3_d2e2adf7177b7a8a.tags
+			title: __L3_d2e2adf7177b7a8a.title
+		}
+	}
+}
+-- out/1.0 --
+# id
+e502270c583211c51f3e6c98916ec9a8b96ad611623b518916a81696cf7a2ab1:4797d9faad83f5728a374fa9bfaa7338c624097d440545fc961d13339c9c3db3
+# schema
+{
+	count: (>=0 & int) | *0
+	kind:  "kitchen"
+	labels: [string]: string
+	mode: "auto" | "manual" | *"auto"
+	owner?: {
+		email?: string
+		name!:  string
+	}
+	title: __import("strings").MinRunes(1) & string
+}
+# lenses
+{
+	backward: {
+		input: _
+		lacunas: {
+			[__L3_ae51671473fde27d & {
+				message: "label values are dropped"
+				sourceFields: [{
+					path:  "labels"
+					value: __L3_d2e2adf7177b7a8a.labels
+				}]
+				type: "LossyFieldMapping"
+			}]
+			let __L3_ae51671473fde27d = __ref("github.com/sdboyer/thema", "Lacuna")
+			let __L3_d2e2adf7177b7a8a = _
+		}
+		result: {
+			count: __L3_d2e2adf7177b7a8a.count
+			if __L3_d2e2adf7177b7a8a.owner != _|_ {
+				owner: __L3_d2e2adf7177b7a8a.owner
+			}
+			kind: __L3_d2e2adf7177b7a8a.kind
+			let __L3_d2e2adf7177b7a8a = _
+			mode: __L3_d2e2adf7177b7a8a.mode
+			tags: [for k, _ in __L3_d2e2adf7177b7a8a.labels {
+				k
+			}]
+			title: __L3_d2e2adf7177b7a8a.title
+		}
+	}
+	forward: {
+		input:   _
+		lacunas: []
+		result: {
+			count: *__L3_d2e2adf7177b7a8a.count | 0
+			if __L3_d2e2adf7177b7a8a.owner != _|_ {
+				owner: __L3_d2e2adf7177b7a8a.owner
+			}
+			kind: __L3_d2e2adf7177b7a8a.kind
+			labels: {for t in __L3_d2e2adf7177b7a8a.tags {
+				(t): t
+			}}
+			let __L3_d2e2adf7177b7a8a = _
+			mode:  __L3_d2e2adf7177b7a8a.mode
+			title: __L3_d2e2adf7177b7a8a.title
+		}
+	}
+}
