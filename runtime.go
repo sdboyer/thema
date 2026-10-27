@@ -2,7 +2,6 @@ package thema
 
 import (
 	"fmt"
-	"path/filepath"
 	"sync"
 
 	"cuelang.org/go/cue"
@@ -10,6 +9,7 @@ import (
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/load"
+	"github.com/sdboyer/thema/internal/embedreg"
 	"github.com/sdboyer/thema/internal/util"
 )
 
@@ -18,7 +18,7 @@ var themaBI *build.Instance
 
 func loadRuntime() *build.Instance {
 	rtOnce.Do(func() {
-		path := filepath.Join(util.Prefix, "github.com", "sdboyer", "thema")
+		path := embedreg.RuntimeRoot()
 
 		overlay := make(map[string]load.Source)
 		if err := util.ToOverlay(path, CueJointFS, overlay); err != nil {

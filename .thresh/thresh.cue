@@ -145,7 +145,7 @@ seams: "kernel-paths": {
 	kind:  "shared-kernel"
 	paths: ["runtime.go"]
 	consult: [
-		"bind.go userPos and authorWrote, which recognize thema's CUE only at embedreg.Root()",
+		"internal/embedreg IsKernel and AuthorPos, which recognize thema's CUE only at embedreg.Root() and embedreg.RuntimeRoot(), and every error position bind.go takes through them",
 		"internal/compile classify, and the kernel positions in its pipeline goldens",
 	]
 }
