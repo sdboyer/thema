@@ -11,9 +11,11 @@ import (
 	"path/filepath"
 
 	"cuelang.org/go/cue"
+	cerrors "cuelang.org/go/cue/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/vmux"
 )
 
@@ -110,9 +112,19 @@ func (dc *dataCommand) runValidate(cmd *cobra.Command, args []string) error {
 
 	_, err := dc.lla.dl.sch.Validate(dc.datval)
 	if err != nil {
+		if dc.quiet {
+			return silent{}
+		}
 		return err
 	}
 	return nil
+}
+
+// noSchemaAccepts is the failure of validating data against every schema in
+// the lineage.
+func noSchemaAccepts() error {
+	return diag.New(diag.E0508).Headline("the data is an instance of no schema in the lineage").
+		Help("validate it against one version with -v to see what that schema rejects").Err()
 }
 
 var validateAnyCmd = &cobra.Command{
@@ -149,11 +161,13 @@ func (dc *dataCommand) runValidateAny(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	if dc.quiet {
+		return silent{}
+	}
 	if reterr != nil {
 		return reterr
 	}
-	// Empty error should cause exit 1, but no output (or maybe just newline)
-	return errors.New("")
+	return noSchemaAccepts()
 }
 
 var translateCmd = &cobra.Command{
@@ -178,7 +192,7 @@ func (dc *dataCommand) runTranslate(cmd *cobra.Command, args []string) error {
 
 	inst := dc.lla.dl.lin.ValidateAny(dc.datval)
 	if inst == nil {
-		return errors.New("input data is not valid for any schema in lineage")
+		return noSchemaAccepts()
 	}
 
 	// Prior validations checked that the schema version exists in the lineage
@@ -200,7 +214,7 @@ func (dc *dataCommand) runTranslate(cmd *cobra.Command, args []string) error {
 
 	byt, err := json.MarshalIndent(r, "", "  ")
 	if err != nil {
-		return fmt.Errorf("error marshaling translation result to JSON: %w", err)
+		return diag.InternalErr(err)
 	}
 	buf := bytes.NewBuffer(byt)
 	_, err = io.Copy(cmd.OutOrStdout(), buf)
@@ -245,14 +259,14 @@ func (dc *dataCommand) runHydrate(cmd *cobra.Command, args []string) error {
 	} else {
 		inst = dc.lla.dl.lin.ValidateAny(dc.datval)
 		if inst == nil {
-			return errors.New("input data is not valid for any schema in lineage")
+			return noSchemaAccepts()
 		}
 	}
 
 	// TODO support non-JSON output
 	byt, err := json.MarshalIndent(inst.Hydrate().Underlying(), "", "  ")
 	if err != nil {
-		return fmt.Errorf("error marshaling hydrated object to JSON: %w", err)
+		return diag.InternalErr(err)
 	}
 	_, err = io.Copy(cmd.OutOrStdout(), bytes.NewBuffer(byt))
 
@@ -289,14 +303,14 @@ func (dc *dataCommand) runDehydrate(cmd *cobra.Command, args []string) error {
 	} else {
 		inst = dc.lla.dl.lin.ValidateAny(dc.datval)
 		if inst == nil {
-			return errors.New("input data is not valid for any schema in lineage")
+			return noSchemaAccepts()
 		}
 	}
 
 	// TODO support non-JSON output
 	byt, err := json.MarshalIndent(inst.Dehydrate().Underlying(), "", "  ")
 	if err != nil {
-		return fmt.Errorf("error marshaling hydrated object to JSON: %w", err)
+		return diag.InternalErr(err)
 	}
 	_, err = io.Copy(cmd.OutOrStdout(), bytes.NewBuffer(byt))
 
@@ -319,36 +333,39 @@ func pathOrStdin(args []string) ([]byte, error) {
 			panic(err)
 		}
 		if !stdinHasInput(fi.Mode()) {
-			return nil, errors.New("no path provided and nothing on stdin")
+			return nil, diag.New(diag.E0613).Headline("no data was given").
+				Help("pass the path to a JSON or YAML file, or pipe the data on stdin").Err()
 		}
 
 		byt, err = io.ReadAll(os.Stdin)
 		if err != nil {
-			return nil, fmt.Errorf("error reading from stdin: %w", err)
+			return nil, diag.New(diag.E0613).Headline("the data on stdin cannot be read").Detail(err.Error()).Err()
 		}
 		return byt, nil
 	case 1:
 		fi, err := os.Stat(args[0])
 		if err != nil {
-			return nil, fmt.Errorf("failed to stat path %q: %w", args[0], err)
+			return nil, diag.New(diag.E0613).Headlinef("the data path %s cannot be read", args[0]).Detail(err.Error()).Err()
 		}
 		if fi.IsDir() {
-			return nil, fmt.Errorf("%s is a directory", args[0])
+			return nil, diag.New(diag.E0613).Headlinef("the data path %s is a directory", args[0]).
+				Help("pass the path to one JSON or YAML file").Err()
 		}
 
 		f, err := os.Open(args[0])
 		if err != nil {
-			return nil, fmt.Errorf("could not open provided path: %w", err)
+			return nil, diag.New(diag.E0613).Headlinef("the data path %s cannot be opened", args[0]).Detail(err.Error()).Err()
 		}
 		defer f.Close() // nolint: errcheck
 
 		byt, err = io.ReadAll(f)
 		if err != nil {
-			return nil, fmt.Errorf("error reading from input file %q: %w", args[0], err)
+			return nil, diag.New(diag.E0613).Headlinef("the data path %s cannot be read", args[0]).Detail(err.Error()).Err()
 		}
 
 	default:
-		return nil, errors.New("too many args: either provide path to input or pass input on stdin")
+		return nil, diag.New(diag.E0620).Headlinef("%d arguments were given, where the data is one path", len(args)).
+			Help("pass the path to one JSON or YAML file, or pipe the data on stdin").Err()
 	}
 
 	return byt, nil
@@ -374,8 +391,22 @@ func (dc *dataCommand) validateDataInput(cmd *cobra.Command, args []string) erro
 		}
 	}
 
-	jd := vmux.NewJSONCodec("stdin")
-	yd := vmux.NewYAMLCodec("stdin")
+	// The data's positions name its file, so that diagnostics point into it.
+	name := "stdin"
+	if len(args) == 1 {
+		name = args[0]
+	}
+	inlineSources[name] = dc.inbytes
+	jd := vmux.NewJSONCodec(name)
+	yd := vmux.NewYAMLCodec(name)
+	parseFailed := func(err error, format string) error {
+		b := diag.New(diag.E0507).Headlinef("%s is not valid %s", name, format)
+		var ce cerrors.Error
+		if errors.As(err, &ce) {
+			b.At(ce.Position())
+		}
+		return b.Detail(err.Error()).Err()
+	}
 
 	switch dc.format {
 	case "":
@@ -392,28 +423,30 @@ func (dc *dataCommand) validateDataInput(cmd *cobra.Command, args []string) erro
 			break
 		}
 		// Double nope
-		return errors.New("unrecognized format of input data")
+		return diag.New(diag.E0611).Headlinef("%s is neither JSON nor YAML", name).
+			Help("name the format with -e json or -e yaml to see what its parser reports").Err()
 
 	case "json":
-		if ext != "json" {
-			return fmt.Errorf("JSON input format specified, but file extension is %s", ext)
+		if ext != "" && ext != "json" {
+			return diag.New(diag.E0612).Headlinef("-e json was given, but %s has a %s extension", name, ext).Err()
 		}
 
 		dc.datval, err = jd.Decode(rt.Underlying().Context(), dc.inbytes)
 		if err != nil {
-			return err
+			return parseFailed(err, "JSON")
 		}
 	case "yaml":
-		if ext != "yaml" {
-			return fmt.Errorf("YAML input format specified, but file extension is %s", ext)
+		if ext != "" && ext != "yaml" {
+			return diag.New(diag.E0612).Headlinef("-e yaml was given, but %s has a %s extension", name, ext).Err()
 		}
 
 		dc.datval, err = yd.Decode(rt.Underlying().Context(), dc.inbytes)
 		if err != nil {
-			return err
+			return parseFailed(err, "YAML")
 		}
 	default:
-		return fmt.Errorf("unknown input format %q requested", dc.format)
+		return diag.New(diag.E0614).Headlinef("-e %s names a format thema does not read", dc.format).
+			Help("-e takes json or yaml").Err()
 	}
 
 	return nil
@@ -428,15 +461,15 @@ func (dc *dataCommand) validateTranslationResult(tinst *thema.Instance, lac them
 
 	raw := tinst.Underlying()
 	if !raw.Exists() {
-		return errors.New("should be unreachable - result should at least always exist")
+		return diag.InternalErr(errors.New("a translated instance has no value"))
 	}
 
 	if raw.Err() != nil {
-		return fmt.Errorf("translated value has errors, should be unreachable: %w", raw.Err())
+		return diag.InternalErr(fmt.Errorf("a translated instance has an error: %w", raw.Err()))
 	}
 
 	if !raw.IsConcrete() {
-		return fmt.Errorf("translated value is not concrete (TODO print non-concrete fields)")
+		return diag.InternalErr(errors.New("a translated instance is not concrete"))
 	}
 
 	return nil

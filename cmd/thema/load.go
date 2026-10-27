@@ -5,18 +5,22 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/build"
 	"cuelang.org/go/cue/cuecontext"
+	cerrors "cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/load"
+	"github.com/spf13/cobra"
+
 	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/diag"
 	terrors "github.com/sdboyer/thema/errors"
 	"github.com/sdboyer/thema/internal/util"
 	tload "github.com/sdboyer/thema/load"
-	"github.com/spf13/cobra"
 )
 
 // TODO OMG WOULD BE SO AMAZING TO MAKE THIS ALL JUST USE github.com/sdboyer/thema/load
@@ -81,7 +85,7 @@ type parentCueMod struct {
 
 func (lla *lineageLoadArgs) dynLoad() (*dynamicLoader, error) {
 	if lla.inputLinFilePath == "" {
-		return nil, errors.New("must provide a lineage file argument via -l")
+		return nil, diag.New(diag.E0620).Headline("no lineage path was given").Help("pass the path to a .cue file or a directory with -l").Err()
 	}
 
 	dl := &dynamicLoader{}
@@ -96,7 +100,7 @@ func (lla *lineageLoadArgs) dynLoad() (*dynamicLoader, error) {
 	var err error
 	lla.absInput, err = filepath.Abs(lla.inputLinFilePath)
 	if err != nil {
-		return nil, fmt.Errorf("error getting absolute filepath for %s: %w", lla.inputLinFilePath, err)
+		return nil, diag.New(diag.E0601).Headlinef("%s cannot be resolved to a path", lla.inputLinFilePath).Detail(err.Error()).Err()
 	}
 
 	var binsts []*build.Instance
@@ -110,13 +114,17 @@ func (lla *lineageLoadArgs) dynLoad() (*dynamicLoader, error) {
 	var info os.FileInfo
 	info, err = os.Stat(lla.absInput)
 	if err != nil {
-		return nil, fmt.Errorf("error statting path %q: %w", lla.absInput, err)
+		b := diag.New(diag.E0601).Headlinef("%s does not exist", lla.inputLinFilePath)
+		if !errors.Is(err, os.ErrNotExist) {
+			b.Headlinef("%s cannot be read", lla.inputLinFilePath).Detail(err.Error())
+		}
+		return nil, b.Help("pass the path to a .cue file or a directory with -l").Err()
 	}
 	lla.pathIsDir = info.IsDir()
 	dl.cm, err = findCueMod(lla.absInput)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("error while searching for cue.mod at or above %s: %w", lla.inputLinFilePath, err)
+			return nil, err
 		}
 
 		dyndir := lla.absInput
@@ -143,7 +151,7 @@ func (lla *lineageLoadArgs) dynLoad() (*dynamicLoader, error) {
 	} else {
 		dl.relToLinDir, err = filepath.Rel(dl.cm.cuemodparentdir, lla.absInput)
 		if err != nil {
-			return nil, fmt.Errorf("should be unreachable - cue.mod 'parent' path of %s is not rel to lin filepath of %s", dl.cm.cuemodparentdir, lla.inputLinFilePath)
+			return nil, diag.InternalErr(fmt.Errorf("cue.mod parent %s is not relative to the lineage path %s", dl.cm.cuemodparentdir, lla.inputLinFilePath))
 		}
 		var args []string
 		if !lla.pathIsDir {
@@ -187,11 +195,11 @@ func (lla *lineageLoadArgs) dynLoad() (*dynamicLoader, error) {
 	} else {
 		synv, err := thema.ParseSyntacticVersion(lla.verstr)
 		if err != nil {
-			return nil, err
+			return nil, diag.New(diag.E0620).Headlinef("%q is not a version", lla.verstr).Help("a version is <major>.<minor>, such as 1.0").Err()
 		}
 		dl.sch, err = dl.lin.Schema(synv)
 		if err != nil {
-			return nil, fmt.Errorf("schema version %v does not exist in lineage", synv)
+			return nil, err
 		}
 	}
 
@@ -207,8 +215,10 @@ func (lla *lineageLoadArgs) dynLoadOnce() error {
 
 func (lla *lineageLoadArgs) validateLineageInput(cmd *cobra.Command, args []string) error {
 	if err := lla.dynLoadOnce(); err != nil {
-		if errors.Is(err, terrors.ErrValueNotALineage) && strings.Contains(err.Error(), "instance root") {
-			return fmt.Errorf("%w\nDid you forget to pass a CUE path with -p?", err)
+		// The package root is not a lineage, and no path into it was given:
+		// the lineage is probably a field of the package.
+		if lla.lincuepath == "" && errors.Is(err, terrors.ErrValueNotALineage) {
+			diag.AddHelp(err, "if the lineage is a field of the package, name it with -p")
 		}
 		return err
 	}
@@ -220,7 +230,7 @@ func (lla *lineageLoadArgs) validateVersionInput(cmd *cobra.Command, args []stri
 		return err
 	}
 	if lla.verstr == "" {
-		return fmt.Errorf("must specify an explicit schema version")
+		return diag.New(diag.E0620).Headline("no schema version was given").Help("name the version with -v, as <major>.<minor>").Err()
 	}
 	return nil
 }
@@ -235,7 +245,7 @@ func (lla *lineageLoadArgs) validateVersionInputOptional(cmd *cobra.Command, arg
 func findCueMod(path string) (*parentCueMod, error) {
 	stat, err := os.Stat(path)
 	if err != nil {
-		return nil, fmt.Errorf("could not stat path: %w", err)
+		return nil, diag.New(diag.E0601).Headlinef("%s cannot be read", path).Detail(err.Error()).Err()
 	}
 	if !stat.IsDir() {
 		path = filepath.Dir(path)
@@ -246,9 +256,12 @@ func findCueMod(path string) (*parentCueMod, error) {
 		mpath := filepath.Join(p, "cue.mod", "module.cue")
 		byt, err := os.ReadFile(mpath)
 		if err == nil {
-			modname, err := cuecontext.New().CompileBytes(byt).LookupPath(cue.MakePath(cue.Str("module"))).String()
+			modname, err := cuecontext.New().CompileBytes(byt, cue.Filename(mpath)).LookupPath(cue.MakePath(cue.Str("module"))).String()
 			if err != nil {
-				return nil, fmt.Errorf("contents of %s invalid: %w", mpath, err)
+				return nil, diag.New(diag.E0606).Headlinef("%s does not declare module", displayPath(mpath)).
+					Cause(err).
+					Help(`a module file declares module: "<path>" and language: version: "<version>"`).
+					Err()
 			}
 			return &parentCueMod{
 				cuemodparentdir: p,
@@ -256,11 +269,53 @@ func findCueMod(path string) (*parentCueMod, error) {
 			}, nil
 		}
 		if !errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("error reading path %s: %w", mpath, err)
+			return nil, diag.New(diag.E0606).Headlinef("%s cannot be read", displayPath(mpath)).Detail(err.Error()).Err()
 		}
 	}
 	return nil, os.ErrNotExist
 }
+
+// loadDiag describes a failure of CUE's loader. Three are recognized by the
+// message the loader gives them: a path with no CUE package, an import of a
+// package that cannot be found, and, inside that, a cue.mod requiring another
+// version of thema's CUE than the one this program embeds. The rest are
+// reported as the loader states them.
+func loadDiag(err error) error {
+	for _, e := range cerrors.Errors(err) {
+		format, _ := e.Msg()
+		if format == `cue: %q matched no packages` {
+			return diag.New(diag.E0602).Headline("there is no CUE package at the lineage path").
+				Help("a lineage is a .cue file, or a directory of .cue files in one package").Err()
+		}
+		// The loader wraps its package errors ("import failed: ...") and
+		// formats their text before it reaches here, so the registry's
+		// *embedreg.VersionSkewError survives only as its message.
+		var pe *load.PackageError
+		if !errors.As(e, &pe) {
+			continue
+		}
+		format, args := pe.Msg()
+		text := fmt.Sprintf(format, args...)
+		if m := skewText.FindStringSubmatch(text); m != nil {
+			return diag.New(diag.E0607).At(pe.Pos).
+				Headlinef("the CUE module requires thema %s, but this program embeds %s", m[1], m[2]).
+				Helpf("set deps[%q].v to %q in cue.mod/module.cue", util.ThemaModulePath, m[2]).
+				Err()
+		}
+		if rest, ok := strings.CutPrefix(text, `cannot find package "`); ok {
+			pkg, _, _ := strings.Cut(rest, `"`)
+			return diag.New(diag.E0608).At(pe.Pos).
+				Headlinef("the lineage imports %s, which is not available here", pkg).
+				Help("only github.com/sdboyer/thema is built in; another module must be declared in the deps of a cue.mod/module.cue above the lineage").
+				Err()
+		}
+	}
+	return diag.Convert(err, diag.Context{Op: diag.OpLoad, Generic: diag.E0609})
+}
+
+// skewText recognizes the text of an *embedreg.VersionSkewError inside the
+// loader's message, and captures the required and embedded versions.
+var skewText = regexp.MustCompile(regexp.QuoteMeta(util.ThemaModulePath) + ` version (\S+), but this program embeds version (\S+);`)
 
 type ppathf func(*build.Instance) string
 
@@ -277,8 +332,8 @@ func buildInsts(rt *thema.Runtime, binsts []*build.Instance, ppath ppathf, cuepa
 
 	switch len(binsts) {
 	case 0:
-		// TODO better error - ugh i wish CUE's docs made the failure modes here clearer
-		return nil, nil, fmt.Errorf("no loadable CUE data found")
+		return nil, nil, diag.New(diag.E0602).Headline("no CUE package was found at the lineage path").
+			Help("a lineage is a .cue file, or a directory of .cue files in one package").Err()
 	case 1:
 		return rets[0].lin, rets[0].binst, rets[0].err
 	default:
@@ -288,7 +343,10 @@ func buildInsts(rt *thema.Runtime, binsts []*build.Instance, ppath ppathf, cuepa
 		for _, ret := range rets {
 			if ret.lin != nil {
 				if lin != nil {
-					return nil, nil, fmt.Errorf("valid lineages found in multiple CUE packages")
+					return nil, nil, diag.New(diag.E0603).
+						Headlinef("packages %s and %s at the lineage path both hold a lineage", binst.PkgName, ret.binst.PkgName).
+						Help("name one package's file with -l, or move the lineages apart").
+						Err()
 				}
 				lin, binst = ret.lin, ret.binst
 			}
@@ -304,22 +362,28 @@ func buildInsts(rt *thema.Runtime, binsts []*build.Instance, ppath ppathf, cuepa
 
 func loadone(rt *thema.Runtime, binst *build.Instance, pkgpath, cuepath string) (thema.Lineage, error) {
 	if binst.Err != nil {
-		return nil, binst.Err
+		return nil, loadDiag(binst.Err)
+	}
+
+	if len(binst.Files) == 0 {
+		// A directory with no .cue files loads as an empty package, which
+		// would otherwise be reported as a lineage with no name.
+		return nil, diag.New(diag.E0602).Headlinef("there is no CUE package at %s", displayPath(binst.Dir)).
+			Help("a lineage is a .cue file, or a directory of .cue files in one package").Err()
 	}
 
 	v := rt.Underlying().Context().BuildInstance(binst)
-	if !v.Exists() {
-		return nil, fmt.Errorf("empty instance at %s", pkgpath)
-	}
 
 	if cuepath != "" {
 		p := cue.ParsePath(cuepath)
 		if p.Err() != nil {
-			return nil, fmt.Errorf("%q is not a valid CUE path expression: %s", cuepath, p.Err())
+			return nil, diag.New(diag.E0604).Headlinef("%q is not a CUE path", cuepath).Detail(p.Err().Error()).
+				Help("-p takes a path into the package, such as lin or lineages.ship").Err()
 		}
 		v = v.LookupPath(p)
 		if !v.Exists() {
-			return nil, fmt.Errorf("no value at path %q in instance %q", cuepath, pkgpath)
+			return nil, diag.New(diag.E0605).Headlinef("there is no value at %s in %s", cuepath, pkgpath).
+				Help("-p names a field of the package that holds the lineage").Err()
 		}
 	}
 

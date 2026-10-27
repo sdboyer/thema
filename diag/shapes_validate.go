@@ -7,7 +7,7 @@ import (
 	cerrors "cuelang.org/go/cue/errors"
 )
 
-func splitDisjuncts(s string) []string     { return strings.Split(s, " | ") }
+func splitDisjuncts(s string) []string    { return strings.Split(s, " | ") }
 func joinDisjuncts(parts []string) string { return strings.Join(parts, " | ") }
 
 // The shapes of validating data against a schema. In every headline, the

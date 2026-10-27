@@ -168,6 +168,22 @@ var Codes = []CodeInfo{
 	{Code: E0504, Severity: SeverityError, Title: "a value in the data is outside what the schema allows", Sentinels: []error{terrors.ErrInvalidData, terrors.ErrInvalidOutOfBounds}},
 	{Code: E0505, Severity: SeverityError, Title: "a value in the data matches none of the alternatives the schema allows", Sentinels: []error{terrors.ErrInvalidData, terrors.ErrInvalidOutOfBounds}},
 	{Code: E0506, Severity: SeverityError, Title: "the data is not concrete", Sentinels: []error{terrors.ErrInvalidData}, Positionless: true},
+	{Code: E0507, Severity: SeverityError, Title: "the data does not parse", Sentinels: []error{terrors.ErrInvalidData}, Positionless: true},
+	{Code: E0508, Severity: SeverityError, Title: "the data is an instance of no schema in the lineage", Sentinels: []error{terrors.ErrInvalidData}, Positionless: true},
+	{Code: E0601, Severity: SeverityError, Title: "the lineage path does not exist or cannot be read", Positionless: true},
+	{Code: E0602, Severity: SeverityError, Title: "no CUE package was found at the lineage path", Positionless: true},
+	{Code: E0603, Severity: SeverityError, Title: "the lineage path holds lineages in several CUE packages", Positionless: true},
+	{Code: E0604, Severity: SeverityError, Title: "the CUE path given for the lineage is not a path", Positionless: true},
+	{Code: E0605, Severity: SeverityError, Title: "there is no value at the CUE path given for the lineage", Positionless: true},
+	{Code: E0606, Severity: SeverityError, Title: "a cue.mod/module.cue above the lineage is not valid", Positionless: true},
+	{Code: E0607, Severity: SeverityError, Title: "the CUE module requires a version of thema's CUE other than the one this program embeds", Positionless: true},
+	{Code: E0608, Severity: SeverityError, Title: "the lineage imports a package that is not available here", Positionless: true},
+	{Code: E0609, Severity: SeverityError, Title: "loading the lineage's CUE failed", Positionless: true},
+	{Code: E0611, Severity: SeverityError, Title: "the data's format could not be recognized", Positionless: true},
+	{Code: E0612, Severity: SeverityError, Title: "the data's format flag disagrees with its file extension", Positionless: true},
+	{Code: E0613, Severity: SeverityError, Title: "no data was given, or the data path cannot be read", Positionless: true},
+	{Code: E0614, Severity: SeverityError, Title: "the data format flag names a format thema does not read", Positionless: true},
+	{Code: E0620, Severity: SeverityError, Title: "a flag or argument is not valid", Positionless: true},
 	{Code: E0901, Severity: SeverityError, Title: "thema failed internally", Positionless: true},
 	{Code: E0902, Severity: SeverityError, Title: "CUE reported an error thema does not recognize", Positionless: true},
 	{Code: E0903, Severity: SeverityError, Title: "thema reported an error that has no code", Positionless: true},
@@ -333,6 +349,26 @@ const (
 	E0505 Code = "E0505"
 	// E0506: validating data, the data itself is not concrete.
 	E0506 Code = "E0506"
+	// E0507: the data document is not valid JSON or YAML.
+	E0507 Code = "E0507"
+	// E0508: no schema in the lineage accepts the data (validate-any).
+	E0508 Code = "E0508"
+	// E06xx: loading, modules and the CLI's inputs.
+	E0601 Code = "E0601" // lineage path missing or unreadable
+	E0602 Code = "E0602" // no CUE package at the path
+	E0603 Code = "E0603" // lineages in several packages
+	E0604 Code = "E0604" // -p is not a CUE path
+	E0605 Code = "E0605" // nothing at -p
+	E0606 Code = "E0606" // cue.mod/module.cue invalid
+	E0607 Code = "E0607" // thema module version skew
+	E0608 Code = "E0608" // import of a package not available (the playground)
+	E0609 Code = "E0609" // CUE's loader failed
+	E0611 Code = "E0611" // data format unrecognized
+	E0612 Code = "E0612" // data format flag vs extension
+	E0613 Code = "E0613" // no data on stdin or path
+	E0614 Code = "E0614" // unknown format flag
+	E0620 Code = "E0620" // a CLI flag or argument that is not valid
+
 	// E0901: a panic inside thema, recovered at an operation boundary. The
 	// detail holds the panic value and stack.
 	E0901 Code = "E0901"

@@ -147,6 +147,22 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0504](E0504.md) | error | a value in the data is outside what the schema allows |
 | [E0505](E0505.md) | error | a value in the data matches none of the alternatives the schema allows |
 | [E0506](E0506.md) | error | the data is not concrete |
+| [E0507](E0507.md) | error | the data does not parse |
+| [E0508](E0508.md) | error | the data is an instance of no schema in the lineage |
+| [E0601](E0601.md) | error | the lineage path does not exist or cannot be read |
+| [E0602](E0602.md) | error | no CUE package was found at the lineage path |
+| [E0603](E0603.md) | error | the lineage path holds lineages in several CUE packages |
+| [E0604](E0604.md) | error | the CUE path given for the lineage is not a path |
+| [E0605](E0605.md) | error | there is no value at the CUE path given for the lineage |
+| [E0606](E0606.md) | error | a cue.mod/module.cue above the lineage is not valid |
+| [E0607](E0607.md) | error | the CUE module requires a version of thema's CUE other than the one this program embeds |
+| [E0608](E0608.md) | error | the lineage imports a package that is not available here |
+| [E0609](E0609.md) | error | loading the lineage's CUE failed |
+| [E0611](E0611.md) | error | the data's format could not be recognized |
+| [E0612](E0612.md) | error | the data's format flag disagrees with its file extension |
+| [E0613](E0613.md) | error | no data was given, or the data path cannot be read |
+| [E0614](E0614.md) | error | the data format flag names a format thema does not read |
+| [E0620](E0620.md) | error | a flag or argument is not valid |
 | [E0901](E0901.md) | error | thema failed internally |
 | [E0902](E0902.md) | error | CUE reported an error thema does not recognize |
 | [E0903](E0903.md) | error | thema reported an error that has no code |

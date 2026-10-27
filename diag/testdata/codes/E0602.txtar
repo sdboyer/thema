@@ -1,0 +1,30 @@
+#op: cli
+#args: data validate -l docs data.json
+The path given with -l exists, but CUE's loader found no package there: no
+.cue files, or none for the package asked for.
+-- docs/README.md --
+Not a lineage.
+-- data.json --
+{"a": "Argo"}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0602",
+      "severity": "error",
+      "headline": "there is no CUE package at docs",
+      "help": [
+        "a lineage is a .cue file, or a directory of .cue files in one package"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0602]: there is no CUE package at docs
+  |
+  = help: a lineage is a .cue file, or a directory of .cue files in one package

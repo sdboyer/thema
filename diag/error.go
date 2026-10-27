@@ -83,6 +83,17 @@ func Join(errs ...error) error {
 	return out
 }
 
+// AddHelp appends a help line to every [Error] in err, for a caller that knows
+// something about the situation the site that reported it did not: the CLI,
+// for one, knows which flag was not passed.
+func AddHelp(err error, help string) {
+	for _, e := range cerrors.Errors(err) {
+		if de, ok := e.(*Error); ok {
+			de.d.Help = append(de.d.Help, help)
+		}
+	}
+}
+
 // Diagnostics returns the diagnostics carried by err: those of every [Error]
 // in it, in order. Errors that are not an [Error] are not converted; use
 // [From] for that.

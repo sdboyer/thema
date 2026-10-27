@@ -2,12 +2,16 @@ package diag_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"cuelang.org/go/cue"
@@ -375,6 +379,54 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 		}
 		return diag.Diagnostics(err)
 	},
+	// cli: run the thema command with the arguments of #args, from a directory
+	// holding the archive's files, and read its JSON diagnostics. Nothing is
+	// on stdin. Positions beneath that directory are made relative to it.
+	"cli": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {
+		dirs, _ := a.Directives()
+		args, ok := dirs["args"]
+		if !ok {
+			t.Fatal("cli needs #args")
+		}
+		dir := t.TempDir()
+		for _, f := range a.Inputs() {
+			p := filepath.Join(dir, f.Name)
+			if err := os.MkdirAll(filepath.Dir(p), 0o750); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(p, f.Data, 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		cmd := exec.Command(themaBinary(t), append(strings.Fields(args), "--diag-format", "json")...) //nolint:gosec // the arguments are the test's
+		cmd.Dir = dir
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout, cmd.Stderr = &stdout, &stderr
+		err := cmd.Run()
+		if err == nil {
+			t.Fatalf("thema %s succeeded:\n%s", args, stdout.String())
+		}
+		var out struct {
+			Diagnostics []diag.Diagnostic `json:"diagnostics"`
+		}
+		if jerr := json.Unmarshal(stdout.Bytes(), &out); jerr != nil {
+			t.Fatalf("thema %s: %v\nstdout:\n%s\nstderr:\n%s", args, err, stdout.String(), stderr.String())
+		}
+		// The loader's positions are absolute; the archive's files are not.
+		rel := func(p *diag.Pos) {
+			if p != nil {
+				p.File = strings.TrimPrefix(p.File, dir+string(filepath.Separator))
+			}
+		}
+		for i := range out.Diagnostics {
+			d := &out.Diagnostics[i]
+			rel(d.Primary)
+			for j := range d.Notes {
+				rel(d.Notes[j].Pos)
+			}
+		}
+		return out.Diagnostics
+	},
 	// go-error: a plain Go error with the text of error.txt.
 	"go-error": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {
 		text, ok := a.File("error.txt")
@@ -406,6 +458,46 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 		}
 		return ds
 	},
+}
+
+var (
+	themaOnce sync.Once
+	themaBin  string
+	themaErr  error
+)
+
+// themaBinary builds cmd/thema once per test run and returns its path.
+func themaBinary(t *testing.T) string {
+	t.Helper()
+	themaOnce.Do(func() {
+		dir, err := os.MkdirTemp("", "thema-cli")
+		if err != nil {
+			themaErr = err
+			return
+		}
+		themaBin = filepath.Join(dir, "thema")
+		// go test caches by the files a test reads; reading the command's
+		// sources here makes a change to them rerun these tests.
+		entries, err := os.ReadDir("../cmd/thema")
+		if err != nil {
+			themaErr = err
+			return
+		}
+		for _, e := range entries {
+			if _, err := os.Stat(filepath.Join("../cmd/thema", e.Name())); err != nil {
+				themaErr = err
+				return
+			}
+		}
+		cmd := exec.Command("go", "build", "-o", themaBin, "../cmd/thema")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			themaErr = fmt.Errorf("building cmd/thema: %v\n%s", err, out)
+		}
+	})
+	if themaErr != nil {
+		t.Fatal(themaErr)
+	}
+	return themaBin
 }
 
 func formOf(a *diagtest.Archive) diagtest.Form {

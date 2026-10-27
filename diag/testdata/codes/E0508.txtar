@@ -1,0 +1,40 @@
+#op: cli
+#args: data translate -l lineage.cue --to 0.0 data.json
+An operation that searches the lineage for the data's schema (translate,
+hydrate, dehydrate without -v) found none that accepts it. Validating against
+one version with -v names what that schema rejects.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+	}
+}
+-- data.json --
+{"a": 1}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0508",
+      "severity": "error",
+      "headline": "the data is an instance of no schema in the lineage",
+      "help": [
+        "validate it against one version with -v to see what that schema rejects"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0508]: the data is an instance of no schema in the lineage
+  |
+  = help: validate it against one version with -v to see what that schema rejects
