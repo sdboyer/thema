@@ -1,0 +1,16 @@
+# A guard over an optional field, in the form a when over optional fields compiles to: the condition under the field's presence test, false otherwise.
+-- source.cue --
+n?: int32
+-- target.cue --
+n?: int32
+-- lens.cue --
+v0_0: _
+v1_0: {if v0_0.n != _|_ {n: v0_0.n}}
+lacunas: [{
+	condition: [if v0_0.n != _|_ {v0_0.n > 5}, false][0]
+	sourceFields: [if v0_0.n != _|_ {path: "n", value: v0_0.n}]
+	message: "big"
+	type: "PrecisionLoss"
+}]
+-- out --
+total

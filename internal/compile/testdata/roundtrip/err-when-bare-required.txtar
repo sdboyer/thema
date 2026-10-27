@@ -1,0 +1,29 @@
+A required field that is not a bool, named bare as a when. A bare reference
+is a presence test for an optional field and a value for a required bool;
+anything else is not a condition.
+-- ship/history/0.0.thema --
+Schema: {
+	name: string
+}
+-- ship/1.0.thema --
+Schema: {
+	name:  string
+	count: int
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		count: 0
+	}
+	lacunas: {
+		count: [{
+			type:    Placeholder
+			message: "0 is a placeholder"
+			when:    v0_0.name
+		}]
+	}
+}
+-- out/error --
+v0_0.name is string, not a condition: compare it; an optional field named bare tests its presence:
+    1.0.thema:15:13
