@@ -4,8 +4,8 @@
 # the literal it is bound to, which refers to nothing, and nothing records
 # where the let was declared. The syntax views inline a let declared outside
 # the exported value. Only the source as written tells, which thema never
-# decides from.
-#issue: 119
+# decides from. Tracked as #130.
+#issue: 130
 -- in.cue --
 import "github.com/sdboyer/thema"
 

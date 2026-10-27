@@ -424,8 +424,8 @@ func (w *refWalker) resolve(v cue.Value) (resolved, bool) {
 			// A package, the base of a selection of one of its members.
 			return resolved{root: v, pkg: bi.ImportPath}, true
 		}
-		d, ok := deref(v)
-		if !ok || d == v || d.Err() != nil || !d.Exists() || d.Path().Err() != nil {
+		d := cue.Dereference(v)
+		if d == v || d.Err() != nil || !d.Exists() || d.Path().Err() != nil {
 			return resolved{}, false
 		}
 		if len(d.Path().Selectors()) == 0 {
@@ -480,17 +480,6 @@ func appendLabel(p cue.Path, label string) cue.Path {
 	return cue.MakePath(append(p.Selectors(), sel)...)
 }
 
-// deref is cue.Dereference, guarded: thema's own values can make it panic,
-// and the walk has no use for a value it cannot be asked about.
-func deref(v cue.Value) (d cue.Value, ok bool) {
-	defer func() {
-		if recover() != nil {
-			ok = false
-		}
-	}()
-	return cue.Dereference(v), true
-}
-
 // letValue returns the value of the let that v uses, if it uses one. The
 // evaluator substitutes a let where it is used, so v's Expr is the let's value
 // and its ReferencePath is empty, but Dereference still reaches the let's
@@ -498,8 +487,8 @@ func deref(v cue.Value) (d cue.Value, ok bool) {
 // not addressable) and that carries the let's expression. For a selection into
 // a let (L.x), it is the field selected.
 func letValue(v cue.Value) (cue.Value, bool) {
-	d, ok := deref(v)
-	if !ok || d == v || !d.Exists() || d.Path().Err() == nil {
+	d := cue.Dereference(v)
+	if d == v || !d.Exists() || d.Path().Err() == nil {
 		return cue.Value{}, false
 	}
 	return d, true
