@@ -156,7 +156,7 @@ for example
 
 | Rule | Unknown when | What to do |
 |---|---|---|
-| `ref-unresolved` | a reference selects into the lineage, or beyond it, by a computed label (`lin["na"+"me"]`), or through a construct thema does not read | write the reference with constant labels, or declare what it needs inside the schema or lens |
+| `ref-unresolved` | a reference selects into the lineage, or beyond it, by a label only an instance decides (`lin[a]`, with `a` a field of the schema; a label the evaluator can fold, such as `lin["na"+"me"]`, resolves), or through a construct thema does not read | write the reference with constant labels, or declare what it needs inside the schema or lens |
 
 Every rule has a recorded case in the repository's case corpus
 (`testdata/cases/ref-*`), alongside a case for each allowed form.

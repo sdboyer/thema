@@ -1,0 +1,25 @@
+# a schema refers into another package of the author's module at the same
+# path the lineage has in its own: the reference resolves in that package's
+# root, not the author's, so it is an import (rule ref-import), not a
+# reference to the lineage's name
+#issue: 119
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+	"example.com/m/common"
+)
+
+lin: thema.Lineage & {
+	name: "refImportSamePath"
+	schemas: {
+		"0": "0": {
+			schema: {a: string, n: common.lin.name}
+		}
+	}
+}
+-- common/common.cue --
+package common
+
+lin: {name: "other"}
+-- expect --
+bind fail ref-import

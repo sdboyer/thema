@@ -1,0 +1,18 @@
+# a schema selects from the lineage by a label the evaluator can fold: the
+# value has already resolved lin["na"+"me"] to lin.name, a reference to the
+# lineage outside the schema (rule ref-lineage-meta), reported as such rather
+# than as unresolved
+#issue: 119
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "refFoldedLabel"
+	schemas: {
+		"0": "0": {
+			schema: {a: string, n: lin["na"+"me"]}
+		}
+	}
+}
+-- expect --
+bind fail ref-lineage-meta

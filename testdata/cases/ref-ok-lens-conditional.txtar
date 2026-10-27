@@ -1,0 +1,37 @@
+# a lens writes a field under a condition on the instance it takes, reading
+# only that instance: the comprehension is pending while the instance is
+# unknown, and what it tests and declares is the lens's own body
+#issue: 119
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "refOkLensConditional"
+	schemas: {
+		"0": "0": {
+			schema: {a: string, k?: string}
+		}
+		"1": "0": {
+			schema: {b: string, c?: string}
+		}
+	}
+	lenses: {
+		"1.0->0.0": {
+			v1_0: _
+			v0_0: {a: v1_0.b}
+		}
+		"0.0->1.0": {
+			v0_0: _
+			v1_0: {
+				b: v0_0.a
+				if v0_0.k != _|_ {
+					c: v0_0.k
+				}
+			}
+		}
+	}
+}
+-- expect --
+bind ok
+translate 0.0 1.0 ok {a: "x"}
+translate 0.0 1.0 ok {a: "x", k: "y"}

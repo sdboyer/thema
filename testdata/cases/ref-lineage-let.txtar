@@ -1,0 +1,20 @@
+# a schema uses a let declared in the lineage, whose expression refers to the
+# lineage's name. The evaluator substitutes the let, so the field shows a plain
+# value, but Dereference reaches the let's value, whose expression refers to
+# lin.name: declared in the lineage outside the schema (rule ref-lineage-meta),
+# reported at the field using the let.
+#issue: 119
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "refLineageLet"
+	let Shared = lin.name
+	schemas: {
+		"0": "0": {
+			schema: {a: string, n: Shared}
+		}
+	}
+}
+-- expect --
+bind fail ref-lineage-meta
