@@ -124,6 +124,9 @@ struct CollectionsV0 @0x8897a4e818553256 {
     }
   }
 }
+-- out/capnp/artifact --
+sha256 e11d2301c923e13a8f3ad73b2307d5fb3637070b156f4c17958931152379d54d
+8856 bytes
 -- out/capnp/layout --
 struct CollectionsV0 @0x8897a4e818553256: data=0 ptrs=22
   extras @0: data off=0

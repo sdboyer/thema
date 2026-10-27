@@ -193,6 +193,85 @@ struct StabilityV2 @0xb3f296cf9a28b9fc {
   count @1 :Int64;
   label @2 :Text;
 }
+-- out/capnp/programs --
+edge 0.0 -> 0.1 (synthesized)
+  out <- in
+edge 0.1 -> 0.0
+  out: {
+    if (in.n & int32) != _|_ {
+      out.n <- in.n
+    }
+    if (in.n & int32) == _|_ {
+      out.n = 0
+    }
+    if in.color != "green" {
+      out.color <- in.color
+    }
+    if in.color == "green" {
+      out.color = "red"
+    }
+    out.inner: {
+      out.inner.a <- in.inner.a
+    }
+    if in.opt != _|_ {
+      out.opt <- in.opt
+    }
+  }
+edge 0.1 -> 1.0
+  out: {
+    out.count <- in.n
+    out.color <- in.color
+    out.kind = null
+    out.inner <- in.inner
+  }
+edge 1.0 -> 0.1
+  out: {
+    out.n <- in.count
+    out.color <- in.color
+    out.inner <- in.inner
+  }
+edge 1.1 -> 1.0
+  out: {
+    out.count <- in.count
+    if in.color != "black" {
+      out.color <- in.color
+    }
+    if in.color == "black" {
+      out.color = "red"
+    }
+    out.kind = null
+    out.inner: {
+      out.inner.a <- in.inner.a
+      if in.inner.b != _|_ {
+        out.inner.b <- in.inner.b
+      }
+    }
+  }
+edge 1.1 -> 2.0
+  out: {
+    out.count <- in.count
+    out.label <- in.inner.a
+  }
+edge 2.0 -> 1.1
+  out: {
+    out.count <- in.count
+    out.color = "red"
+    out.kind = null
+    out.inner: {
+      out.inner.a <- in.label
+    }
+  }
+checks
+  0.1 StabilityV0M1.Inner.b: ((type(x) == int) && (x >= -128) && (x <= 127))
+  0.1 StabilityV0M1.added: (type(x) == string)
+  1.0 StabilityV1.count: (type(x) == int)
+  1.0 StabilityV1.kind: ((type(x) == string) || ((type(x) == int) && (x >= -2147483648) && (x <= 2147483647)) || (x == null))
+  1.1 StabilityV1.Inner.c: (type(x) == string)
+  1.1 StabilityV1.later: ((type(x) == int) && (x >= -32768) && (x <= 32767))
+  2.0 StabilityV2.label: (type(x) == string)
+-- out/capnp/artifact --
+sha256 ca76e28649282f5422c15a5511ee59394a9d746cb73d8fecdc9fe655a0e3dcca
+13560 bytes
 -- out/capnp/layout --
 struct StabilityV0 @0xb7bdbd0fbc7dbac3: data=2 ptrs=2
   extras @0: data off=0

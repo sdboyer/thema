@@ -18,6 +18,8 @@ import (
 
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/diag"
+	"github.com/sdboyer/thema/encoding/capnp"
+	"github.com/sdboyer/thema/encoding/capnp/compiled"
 	"github.com/sdboyer/thema/encoding/gocode"
 	"github.com/sdboyer/thema/encoding/jsonschema"
 	"github.com/sdboyer/thema/encoding/openapi"
@@ -50,6 +52,10 @@ type genCommand struct {
 	pkgname string
 	// path for embedding
 	epath string
+
+	// capnp: the hash namespace for type IDs, and whether to skip the tool
+	namespace string
+	nolayout  bool
 
 	lla *lineageLoadArgs
 }
@@ -86,6 +92,13 @@ func (gc *genCommand) setup(cmd *cobra.Command) {
 	ggb.Flags().BoolVarP(&gc.quiet, "quiet", "q", false, "Do not print generated filename")
 	ggb.Run = gc.run
 
+	gcp := genCapnpLineageCmd
+	genLineageCmd.AddCommand(gcp)
+	gcp.Flags().StringVarP(&gc.format, "format", "f", "schema", "output format. \"schema\" for the .capnp text, \"artifact\" for the compiled artifact message.")
+	gcp.Flags().StringVar(&gc.namespace, "namespace", "", "hash namespace for type IDs, such as the CUE module path. Defaults to the lineage's name")
+	gcp.Flags().BoolVar(&gc.nolayout, "no-layout", false, "do not run the capnp tool; the artifact carries no layout")
+	gcp.Run = gc.run
+
 	// TODO
 	// genLineageCmd.AddCommand(genTSTypesLineageCmd)
 	// genTSTypesLineageCmd.Flags().StringVarP((*string)(&verstr), "version", "v", "", "schema syntactic version to generate. Defaults to latest")
@@ -115,6 +128,8 @@ func (gc *genCommand) run(cmd *cobra.Command, args []string) {
 		err = gc.runOpenAPI(cmd, args)
 	case "gobindings":
 		err = gc.runGoBindings(cmd, args)
+	case "capnp":
+		err = gc.runCapnp(cmd, args)
 	case "tstypes":
 		err = gc.runTSTypes(cmd, args)
 	default:
@@ -216,6 +231,55 @@ func (gc *genCommand) runJSONSchema(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	fmt.Fprint(cmd.OutOrStdout(), str)
+	return nil
+}
+
+var genCapnpLineageCmd = &cobra.Command{
+	Use:   "capnp",
+	Short: "Compile a lineage to Cap'n Proto",
+	Long: `Compile a lineage to Cap'n Proto.
+
+Compile every version of a lineage to a Cap'n Proto schema (one struct per
+major version, split where a minor version is not append-compatible), with
+each lens's program and the CEL rendering of its expressions, and print the
+result to stdout: the .capnp schema text with --format schema (the default),
+or the compiled artifact message (encoding/capnp/compiled) with
+--format artifact.
+
+Not every lineage compiles; a lineage with a construct Cap'n Proto cannot
+carry is rejected, with one finding per construct naming the rule it fails
+(see docs/capnp.md).
+
+The layout of every struct is computed by the capnp tool, which must be on
+PATH unless --no-layout is given.
+`,
+}
+
+func (gc *genCommand) runCapnp(cmd *cobra.Command, args []string) error {
+	var opts []capnp.Option
+	if gc.namespace != "" {
+		opts = append(opts, capnp.Namespace(gc.namespace))
+	}
+	if gc.nolayout {
+		opts = append(opts, capnp.WithoutLayout())
+	}
+	c, err := capnp.Compile(gc.lin, opts...)
+	if err != nil {
+		return err
+	}
+	switch gc.format {
+	case "schema":
+		fmt.Fprint(cmd.OutOrStdout(), c.Schema)
+	case "artifact":
+		b, err := compiled.Encode(c)
+		if err != nil {
+			return err
+		}
+		_, err = cmd.OutOrStdout().Write(b)
+		return err
+	default:
+		return fmt.Errorf(`unrecognized output format %q - must choose "schema" or "artifact"`, gc.format)
+	}
 	return nil
 }
 

@@ -81,6 +81,9 @@ struct ScalarsV0 @0xe08eb1e049c9456a {
     c @2;
   }
 }
+-- out/capnp/artifact --
+sha256 525c0d7bed76b896115b065f792256af8e396c2905ab66cfc892a0566938f5df
+4880 bytes
 -- out/capnp/layout --
 struct ScalarsV0 @0xe08eb1e049c9456a: data=8 ptrs=5
   extras @0: data off=0

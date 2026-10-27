@@ -73,6 +73,9 @@ struct FormsV0 @0xfc2db4c40e2a9973 {
     a @1 :Text;
   }
 }
+-- out/capnp/artifact --
+sha256 f826c773fd5411265ae45424c407786f2e7bd6898505fd2e5860ea7076acb850
+4240 bytes
 -- out/capnp/layout --
 struct FormsV0 @0xfc2db4c40e2a9973: data=2 ptrs=11
   extras @0: data off=0

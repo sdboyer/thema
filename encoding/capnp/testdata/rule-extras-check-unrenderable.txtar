@@ -1,0 +1,28 @@
+# rule extras-check-unrenderable: a label a version newly declares needs an
+# acceptance check for extras carried under it by earlier data (#48); a
+# validator call on the field has no CEL rendering, so the check cannot be
+# written and the lineage is rejected.
+-- in.cue --
+import (
+	"strings"
+	"github.com/sdboyer/thema"
+)
+
+thema.Lineage
+name: "uncheckable"
+schemas: {
+	"0": "0": schema: {
+		a: string
+	}
+	"0": "1": schema: {
+		a:     string
+		code?: string & strings.MinRunes(1)
+	}
+}
+lenses: "0.1->0.0": {
+	v0_1: _
+	v0_0: a: v0_1.a
+}
+-- out/capnp --
+rejected
+schema 0.1: code is newly declared, and its acceptance check cannot express strings.MinRunes(1) (rule extras-check-unrenderable) @ /in.cue:14:3

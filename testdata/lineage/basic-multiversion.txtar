@@ -1508,3 +1508,122 @@ struct BasicMultiversionV2 @0x964837d78f54886f {
     bing @3;
   }
 }
+-- out/encoding/capnp/programs --
+edge 0.1 -> 0.0
+  out: {
+    out.init <- in.init
+  }
+edge 0.2 -> 0.1
+  out: {
+    out.init <- in.init
+    if in.optional != _|_ {
+      out.optional <- in.optional
+    }
+  }
+edge 0.3 -> 0.2
+  out: {
+    out.init <- in.init
+    if in.optional != _|_ {
+      out.optional <- in.optional
+    }
+    if in.withDefault != _|_ {
+      if in.withDefault != "baz" {
+        out.withDefault <- in.withDefault
+      }
+      if in.withDefault == "baz" {
+        out.withDefault = "foo"
+      }
+    }
+  }
+  lacuna LossyFieldMapping {
+    when (in.withDefault & "baz") != _|_
+    source withDefault = in.withDefault
+    target withDefault = out.withDefault
+    message "withDefault was \"baz\", which 0.2 does not have; \"foo\", its default, was substituted"
+  }
+  cel lacuna when 0: (in_withDefault_present && (in_withDefault == "baz"))
+    in_withDefault = value withDefault :string
+    in_withDefault_present = present withDefault :bool
+  cel lacuna message 0: "withDefault was \"baz\", which 0.2 does not have; \"foo\", its default, was substituted"
+  cel lacuna source field 0.0: in_withDefault
+    in_withDefault = value withDefault :string
+  cel lacuna target field 0.0: out_withDefault
+    out_withDefault = result withDefault :string
+edge 0.3 -> 1.0
+  out: {
+    out.renamed <- in.init
+    if in.optional != _|_ {
+      out.optional <- in.optional
+    }
+    if in.withDefault != _|_ {
+      out.withDefault <- in.withDefault
+    }
+    if in.withDefault == _|_ {
+      out.withDefault = "foo"
+    }
+  }
+edge 1.0 -> 0.3
+  out: {
+    out.init <- in.renamed
+    if in.optional != _|_ {
+      out.optional <- in.optional
+    }
+    if in.withDefault != "bar" {
+      out.withDefault <- in.withDefault
+    }
+    if in.withDefault == "bar" {
+      out.withDefault = "bar"
+    }
+  }
+edge 1.1 -> 1.0
+  out: {
+    out.renamed <- in.renamed
+    if in.optional != _|_ {
+      out.optional <- in.optional
+    }
+    if in.withDefault != "bing" {
+      out.withDefault <- in.withDefault
+    }
+    if in.withDefault == "bing" {
+      out.withDefault = "bar"
+    }
+  }
+  lacuna LossyFieldMapping {
+    when in.withDefault == "bing"
+    source withDefault = in.withDefault
+    target withDefault = out.withDefault
+    message "withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"
+  }
+  cel lacuna when 0: (in_withDefault == "bing")
+    in_withDefault = value withDefault :string
+  cel lacuna message 0: "withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"
+  cel lacuna source field 0.0: in_withDefault
+    in_withDefault = value withDefault :string
+  cel lacuna target field 0.0: out_withDefault
+    out_withDefault = result withDefault :string
+edge 1.1 -> 2.0
+  out: {
+    out.toObj: {
+      out.toObj.init <- in.renamed
+    }
+    if in.optional != _|_ {
+      out.optional <- in.optional
+    }
+    out.withDefault <- in.withDefault
+  }
+edge 2.0 -> 1.1
+  out: {
+    out.renamed <- in.toObj.init
+    if in.optional != _|_ {
+      out.optional <- in.optional
+    }
+    out.withDefault <- in.withDefault
+  }
+checks
+  0.1 BasicMultiversionV0.optional: ((type(x) == int) && (x >= -2147483648) && (x <= 2147483647))
+  0.2 BasicMultiversionV0.withDefault: ((x == "foo") || (x == "bar"))
+  1.0 BasicMultiversionV1.renamed: (type(x) == string)
+  2.0 BasicMultiversionV2.toObj: ((type(x) == map) && (("init" in x) && (type(x["init"]) == string)) && (x.all(k1, k1 in ["init"])))
+-- out/encoding/capnp/artifact --
+sha256 a5e3298554bfe93842cee5c1c5608f05fa58247f97fb6ad5ac484ff0689ad6c2
+15080 bytes

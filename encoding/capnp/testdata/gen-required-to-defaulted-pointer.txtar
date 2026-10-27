@@ -41,6 +41,16 @@ struct RequiredToDefaultedPointerV0 @0xd8c40829f7e1304b {
     a @1 :Text;
   }
 }
+-- out/capnp/programs --
+edge 0.1 -> 0.0
+  out: {
+    out.s <- in.s
+    out.b <- in.b
+    out.t <- in.t
+  }
+-- out/capnp/artifact --
+sha256 c73cabc26c2fcdf858aa92fba31e40f09c68517c76e8f9fa9259fd52bab47b3f
+2160 bytes
 -- out/capnp/layout --
 struct RequiredToDefaultedPointerV0 @0xd8c40829f7e1304b: data=0 ptrs=4
   extras @0: data off=0

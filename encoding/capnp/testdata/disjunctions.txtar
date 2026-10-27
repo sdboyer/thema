@@ -210,6 +210,9 @@ struct DisjunctionsV0 @0xd96f94153a884245 {
     }
   }
 }
+-- out/capnp/artifact --
+sha256 675c939790023075df2d2a7f3166b147dfd3b607950f3148f34988c2c3df5e80
+16648 bytes
 -- out/capnp/layout --
 struct DisjunctionsV0 @0xd96f94153a884245: data=5 ptrs=17
   extras @0: data off=0

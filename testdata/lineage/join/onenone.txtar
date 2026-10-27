@@ -100,3 +100,6 @@ struct OnenoneV0 @0xa5ccc0fdf0da6463 {
   extras @0 :Data;
   foo @1 :Text;
 }
+-- out/encoding/capnp/artifact --
+sha256 bce23b1556828161efec2764bb70b3444b7012937cdb81f7d105617b5c0b1860
+736 bytes

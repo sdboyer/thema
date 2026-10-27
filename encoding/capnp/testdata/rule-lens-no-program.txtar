@@ -1,0 +1,33 @@
+# rule lens-no-program: a lens the IR does not carry (here a list literal
+# inside a computed expression) binds, but has no program, so the lineage
+# has nothing to run across the edge and is rejected.
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+thema.Lineage
+name: "noProgram"
+schemas: {
+	"0": "0": schema: {
+		a: string
+	}
+	"1": "0": schema: {
+		a: string
+		n: int8
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			a: v0_0.a
+			n: len([v0_0.a])
+		}
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: a: v1_0.a
+	}
+}
+-- out/capnp --
+rejected
+lineage: the lineage has no lens programs to compile: lens 0.0->1.0 has no program: [v0_0.a] is not an expression the IR carries (rule lens-no-program) @ /in.cue:14:1

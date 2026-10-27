@@ -167,3 +167,6 @@ struct NorefV0 @0xae2ed32808df5fa1 {
   extras @0 :Data;
   someField @1 :Text;
 }
+-- out/encoding/capnp/artifact --
+sha256 0572236beabe537bf61d0905c2debf2ca83cd69d91ed74f6799846a4a043a1f1
+744 bytes

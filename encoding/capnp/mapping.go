@@ -164,7 +164,7 @@ func (w *walker) isMap(v cue.Value) (cue.Value, bool) {
 			continue
 		}
 		n++
-		if sel.Pattern().Subsume(w.ctx.CompileString("string"), cue.Raw()) != nil {
+		if sel.Pattern().Subsume(w.ctx.CompileString(kindString), cue.Raw()) != nil {
 			return cue.Value{}, false
 		}
 		pat = it.Value()
@@ -341,8 +341,8 @@ func (w *walker) mapOf(val cue.Value, p cue.Path) *vtype {
 
 // kindNames name the alternative of each kind in a union.
 var kindNames = map[cue.Kind]string{
-	cue.NullKind: "null", cue.BoolKind: "bool", cue.IntKind: "int", cue.StringKind: "string",
-	cue.BytesKind: "bytes", cue.StructKind: "struct", cue.ListKind: "list",
+	cue.NullKind: kindNull, cue.BoolKind: "bool", cue.IntKind: "int", cue.StringKind: kindString,
+	cue.BytesKind: kindBytes, cue.StructKind: "struct", cue.ListKind: kindList,
 }
 
 // disjunction maps a value with several alternatives. Alternatives of one
@@ -546,7 +546,7 @@ func literalOf(v cue.Value) (lensir.Literal, bool) {
 func litText(l lensir.Literal) string {
 	switch l.Kind {
 	case lensir.Null:
-		return "null"
+		return kindNull
 	case lensir.Bool:
 		return fmt.Sprint(l.Bool)
 	case lensir.Int:
@@ -621,4 +621,19 @@ func fmtv(v cue.Value) string {
 
 func appendPath(p cue.Path, sel cue.Selector) cue.Path {
 	return cue.MakePath(append(append([]cue.Selector(nil), p.Selectors()...), sel)...)
+}
+
+// lookup finds the value at p beneath v, whether each field on the way is
+// regular or optional: a plain string selector does not find an optional
+// field, and the lineage's paths do not say which form a field has.
+func lookup(v cue.Value, p cue.Path) cue.Value {
+	sels := p.Selectors()
+	conv := make([]cue.Selector, len(sels))
+	for i, sel := range sels {
+		if sel.Type() == cue.StringLabel {
+			sel = sel.Optional()
+		}
+		conv[i] = sel
+	}
+	return v.LookupPath(cue.MakePath(conv...))
 }

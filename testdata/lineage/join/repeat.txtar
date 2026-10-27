@@ -101,3 +101,6 @@ struct RepeatV0 @0xaa21245aebea9e72 {
   extras @0 :Data;
   foo @1 :Text;
 }
+-- out/encoding/capnp/artifact --
+sha256 7c95abd717789d62cea89737f4af024e2f94a44e3dab231551bfd19ed7cde318
+736 bytes

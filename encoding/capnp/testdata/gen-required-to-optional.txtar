@@ -45,6 +45,26 @@ struct RequiredToOptionalV0 @0x9d12cedba10738d9 {
     unset @5 :Void;
   }
 }
+-- out/capnp/programs --
+edge 0.1 -> 0.0
+  out: {
+    if in.a != _|_ {
+      out.a <- in.a
+    }
+    if in.a == _|_ {
+      out.a = ""
+    }
+    out.b <- in.b
+    if in.c != _|_ {
+      out.c <- in.c
+    }
+    if in.c == _|_ {
+      out.c = ""
+    }
+  }
+-- out/capnp/artifact --
+sha256 95fa1755cb39f6124e34890cc63e89638b3e989ea490ff2fe7686e273a2627ad
+2672 bytes
 -- out/capnp/layout --
 struct RequiredToOptionalV0 @0x9d12cedba10738d9: data=1 ptrs=3
   extras @0: data off=0

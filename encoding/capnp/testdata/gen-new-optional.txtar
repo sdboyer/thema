@@ -65,6 +65,26 @@ struct NewOptionalV0 @0xa5761326eef81e9a {
     x @1 :Text;
   }
 }
+-- out/capnp/programs --
+edge 0.1 -> 0.0
+  out: {
+    out.a <- in.a
+    if in.color != "green" {
+      out.color <- in.color
+    }
+    if in.color == "green" {
+      out.color = "red"
+    }
+    out.kind = ""
+  }
+checks
+  0.1 NewOptionalV0.b: ((type(x) == int) && (x >= -128) && (x <= 127))
+  0.1 NewOptionalV0.c: (type(x) == string)
+  0.1 NewOptionalV0.d: ((type(x) == int) && (x >= 0) && (x <= 255))
+  0.1 NewOptionalV0.e: ((type(x) == map) && (("x" in x) && (type(x["x"]) == string)) && (x.all(k1, k1 in ["x"])))
+-- out/capnp/artifact --
+sha256 708bf345f9ba0604343ac8337bef20df747d947d954131be014caec63befda50
+4272 bytes
 -- out/capnp/layout --
 struct NewOptionalV0 @0xa5761326eef81e9a: data=2 ptrs=5
   extras @0: data off=0

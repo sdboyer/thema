@@ -61,6 +61,34 @@ struct IntWideningV0M2 @0xb69b8554abba6497 {
   m @2 :UInt8;
   s @3 :Text;
 }
+-- out/capnp/programs --
+edge 0.1 -> 0.0
+  out: {
+    out.n <- in.n
+    if (in.m & <=10) != _|_ {
+      out.m <- in.m
+    }
+    if (in.m & <=10) == _|_ {
+      out.m = 10
+    }
+    out.s <- in.s
+  }
+edge 0.1 -> 0.2 (synthesized)
+  out <- in
+edge 0.2 -> 0.1
+  out: {
+    if (in.n & int8) != _|_ {
+      out.n <- in.n
+    }
+    if (in.n & int8) == _|_ {
+      out.n = 0
+    }
+    out.m <- in.m
+    out.s <- in.s
+  }
+-- out/capnp/artifact --
+sha256 8ce1e6feace7bffadd3e9494cefedfa710cf50ef4d0ef0de1c123ce490fef7bb
+3720 bytes
 -- out/capnp/layout --
 struct IntWideningV0 @0x9b4c01baf7cab4fe: data=1 ptrs=2
   extras @0: data off=0

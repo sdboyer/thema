@@ -105,3 +105,6 @@ struct RefscalarV0 @0xf3f9ab121666190e {
   extras @0 :Data;
   aBaz @1 :Text;
 }
+-- out/encoding/capnp/artifact --
+sha256 d38f74e56aaf4ba994c985a0b9efa515c185d3d4104ff9361b5263f50aa45990
+760 bytes

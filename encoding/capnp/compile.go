@@ -2,12 +2,14 @@
 // one struct per major version, split into a new struct wherever a minor
 // version is not capnp-append-compatible with the one before it, with
 // ordinals and type IDs derived from the lineage's history so that appending
-// a version never moves one.
+// a version never moves one; and, for each lens, its program (the lens IR)
+// with every expression rendered to CEL and type-checked.
 //
 // The compiler consumes the normal form only: each version's schema, queried
 // through the cue API ([cue.Value.Fields] with constraint types,
-// [compat.FormOf], [compat.Branches], integer bounds through Expr). It never
-// reads a lens's CUE and never decides anything from Source().
+// [compat.FormOf], [compat.Branches], integer bounds through Expr), and the
+// lens programs binding built (thema.LensPrograms). It never reads a lens's
+// CUE and never decides anything from Source().
 //
 // Not every valid lineage compiles. The compiler is its own checker, in the
 // house style of internal/compat: a structural walk, findings with stable
@@ -29,6 +31,8 @@ import (
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/encoding/capnp/compiled"
 	"github.com/sdboyer/thema/internal/cuetil"
+	"github.com/sdboyer/thema/internal/embedreg"
+	"github.com/sdboyer/thema/internal/lensir"
 	"github.com/sdboyer/thema/internal/util"
 )
 
@@ -107,6 +111,17 @@ const (
 	// neither of pairwise distinct kinds nor structs sharing a tag label with
 	// distinct constants, so no discriminant can be derived from the value.
 	RuleDisjunctionUndiscriminated Rule = "disjunction-undiscriminated"
+	// RuleLensNoProgram: the lineage has no lens programs, because it was
+	// bound with SkipBuggyChecks or a lens uses a construct the IR does not
+	// carry. Without them the artifact has no way across its edges.
+	RuleLensNoProgram Rule = "lens-no-program"
+	// RuleCELUnrenderable: an expression of a lens program has no faithful
+	// CEL rendering (a divergence between CUE and CEL, see docs/capnp.md), or
+	// its rendering does not type-check.
+	RuleCELUnrenderable Rule = "cel-unrenderable"
+	// RuleExtrasCheckUnrenderable: a label a version newly declares has a
+	// constraint the extras acceptance check cannot express in CEL.
+	RuleExtrasCheckUnrenderable Rule = "extras-check-unrenderable"
 )
 
 // Rules that leave the verdict Unknown: forms this compiler does not carry.
@@ -119,27 +134,43 @@ const (
 	RuleUnknownListHeterogeneous Rule = "unknown-list-heterogeneous"
 )
 
-// Finding is one verdict at one path of one schema version. Compilable paths
-// produce no finding.
+// Finding is one verdict at one path of one schema version, or of one lens,
+// or of the lineage as a whole. Compilable paths produce no finding.
 //
 // Its text reads as a sentence about the value at Path in the version:
-// "schema <version>: <path> <detail> (rule <rule>)".
+// "schema <version>: <path> <detail> (rule <rule>)"; for a lens, about the
+// result path: "lens <edge>: <path> <detail> (rule <rule>)"; and for the
+// lineage: "lineage: the lineage <detail> (rule <rule>)".
 type Finding struct {
+	// Version is the schema version the finding is about; the first version
+	// for a finding about the lineage as a whole.
 	Version thema.SyntacticVersion
+	// Lens is the edge of the lens the finding is about, as "from->to"; ""
+	// for a finding about a schema or the lineage.
+	Lens    string
 	Path    cue.Path
 	Verdict Verdict
 	Rule    Rule
 	Detail  string
-	// Pos is the author's position for the finding: the value at Path.
+	// Pos is the author's position for the finding: the value at Path, the
+	// lens, or the lineage's lenses.
 	Pos token.Pos
 }
 
+// Lineage reports whether the finding is about the lineage as a whole rather
+// than a path of a version or a lens.
+func (f Finding) Lineage() bool {
+	return f.Lens == "" && len(f.Path.Selectors()) == 0
+}
+
 func (f Finding) String() string {
-	subject := "the schema"
-	if len(f.Path.Selectors()) > 0 {
-		subject = f.Path.String()
+	switch {
+	case f.Lineage():
+		return fmt.Sprintf("lineage: the lineage %s (rule %s)", f.Detail, f.Rule)
+	case f.Lens != "":
+		return fmt.Sprintf("lens %s: %s %s (rule %s)", f.Lens, f.Path, f.Detail, f.Rule)
 	}
-	return fmt.Sprintf("schema %s: %s %s (rule %s)", f.Version, subject, f.Detail, f.Rule)
+	return fmt.Sprintf("schema %s: %s %s (rule %s)", f.Version, f.Path, f.Detail, f.Rule)
 }
 
 // Result is the outcome of the checker: the findings at every path that is
@@ -177,6 +208,34 @@ func (r Result) Error() string {
 	return b.String()
 }
 
+// compiler is one compilation's state.
+type compiler struct {
+	cfg      *config
+	ctx      *cue.Context
+	lin      thema.Lineage
+	findings []Finding
+	// trees and schemas are each version's type tree and closed schema
+	// value, which the lens and check renderers read paths against.
+	trees   map[thema.SyntacticVersion]*vstruct
+	schemas map[thema.SyntacticVersion]cue.Value
+	gens    *generations
+	c       *compiled.Compiled
+}
+
+func (cp *compiler) add(v thema.SyntacticVersion, p cue.Path, verdict Verdict, rule Rule, detail string, pos token.Pos) {
+	cp.findings = append(cp.findings, Finding{Version: v, Path: p, Verdict: verdict, Rule: rule, Detail: detail, Pos: pos})
+}
+
+// addLens records a finding about a lens: at its target version, with the
+// result path the finding is about, positioned at the lens.
+func (cp *compiler) addLens(edge lensir.Edge, to lensir.Path, rule Rule, detail string) {
+	pos := authorPos(cp.lin.Underlying().LookupPath(cue.MakePath(cue.Str("lenses"), cue.Str(edge.String()))))
+	cp.findings = append(cp.findings, Finding{
+		Version: thema.SyntacticVersion(edge.To), Lens: edge.String(), Path: cuePathOf(to),
+		Verdict: Rejected, Rule: rule, Detail: detail, Pos: pos,
+	})
+}
+
 // Compile compiles lin. Where the lineage has a construct capnp cannot carry,
 // the error is a [Result] listing every finding.
 func Compile(lin thema.Lineage, opts ...Option) (*Compiled, error) {
@@ -184,49 +243,72 @@ func Compile(lin thema.Lineage, opts ...Option) (*Compiled, error) {
 	for _, opt := range opts {
 		opt(cfg)
 	}
-	ctx := lin.Runtime().Context()
+	cp := &compiler{
+		cfg:     cfg,
+		ctx:     lin.Runtime().Context(),
+		lin:     lin,
+		trees:   map[thema.SyntacticVersion]*vstruct{},
+		schemas: map[thema.SyntacticVersion]cue.Value{},
+		gens:    newGenerations(cfg.namespace, lin.Name()),
+	}
 
-	var res Result
-	gens := newGenerations(cfg.namespace, lin.Name())
 	for _, sch := range lin.All() {
-		w := &walker{ctx: ctx, version: sch.Version()}
-		tree := w.schema(cuetil.CloseRecursive(ctx, schemaValue(sch)))
-		res.Findings = append(res.Findings, w.findings...)
+		w := &walker{ctx: cp.ctx, version: sch.Version()}
+		sv := cuetil.CloseRecursive(cp.ctx, schemaValue(sch))
+		tree := w.schema(sv)
+		cp.findings = append(cp.findings, w.findings...)
 		if len(w.findings) > 0 {
 			continue
 		}
-		gens.add(sch.Version(), tree)
+		cp.trees[sch.Version()] = tree
+		cp.schemas[sch.Version()] = sv
+		cp.gens.add(sch.Version(), tree)
 	}
-	if len(res.Findings) > 0 {
-		sort.SliceStable(res.Findings, func(i, j int) bool {
-			a, b := res.Findings[i], res.Findings[j]
-			if a.Version != b.Version {
-				return a.Version.Less(b.Version)
-			}
-			return pathString(a.Path) < pathString(b.Path)
-		})
-		return nil, res
+	if len(cp.findings) > 0 {
+		return nil, cp.result()
 	}
 
-	c := &Compiled{Namespace: cfg.namespace, Lineage: lin.Name()}
+	cp.c = &Compiled{Namespace: cfg.namespace, Lineage: lin.Name()}
 	for _, sch := range lin.All() {
 		id, err := thema.VersionID(lin, sch.Version())
 		if err != nil {
 			return nil, err
 		}
 		v := sch.Version()
-		c.Versions = append(c.Versions, compiled.Version{Major: v[0], Minor: v[1], ID: id, Root: gens.rootOf(v)})
+		cp.c.Versions = append(cp.c.Versions, compiled.Version{Major: v[0], Minor: v[1], ID: id, Root: cp.gens.rootOf(v)})
 	}
-	c.Nodes = gens.nodes()
-	c.Schema = emit(c, gens)
+	cp.c.Nodes = cp.gens.nodes()
+	cp.c.Edges = cp.edges()
+	cp.c.Checks = cp.checks()
+	if len(cp.findings) > 0 {
+		return nil, cp.result()
+	}
+	cp.c.Schema = emit(cp.c, cp.gens)
 	if !cfg.noLayout {
-		b, err := layout(cfg.tool, c.Lineage, c.Schema)
+		b, err := layout(cfg.tool, cp.c.Lineage, cp.c.Schema)
 		if err != nil {
 			return nil, err
 		}
-		c.Layout = b
+		cp.c.Layout = b
 	}
-	return c, nil
+	return cp.c, nil
+}
+
+// result sorts the findings, by version, then lens, then path, and returns
+// them as the error.
+func (cp *compiler) result() Result {
+	res := Result{Findings: cp.findings}
+	sort.SliceStable(res.Findings, func(i, j int) bool {
+		a, b := res.Findings[i], res.Findings[j]
+		if a.Version != b.Version {
+			return a.Version.Less(b.Version)
+		}
+		if a.Lens != b.Lens {
+			return a.Lens < b.Lens
+		}
+		return pathString(a.Path) < pathString(b.Path)
+	})
+	return res
 }
 
 // HaveTool reports whether the capnp tool is available at path (or on PATH,
@@ -251,4 +333,19 @@ func pathString(p cue.Path) string {
 		return ""
 	}
 	return p.String()
+}
+
+// authorPos is the author's position of a value thema's CUE also writes, such
+// as a lens or the lenses field: the position of the conjunct that does not
+// come from thema's embedded module. A value's own position is that of
+// whichever conjunct the evaluator put first, which for these is thema's.
+func authorPos(v cue.Value) token.Pos {
+	if op, args := v.Expr(); op == cue.AndOp {
+		for _, a := range args {
+			if p := a.Pos(); p.IsValid() && !strings.HasPrefix(p.Filename(), embedreg.Root()) {
+				return p
+			}
+		}
+	}
+	return v.Pos()
 }

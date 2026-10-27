@@ -166,3 +166,6 @@ struct EmbedrefV0 @0xfc4161b52e616c4e {
   refField1 @1 :Text;
   refField2 @2 :UInt8 = 42;
 }
+-- out/encoding/capnp/artifact --
+sha256 ea2c693f34f5401d2d106a565a8c871ebca4c576265c916c626239e67d3e787d
+968 bytes
