@@ -1,0 +1,26 @@
+# a schema refers to a definition in another package of the author's module:
+# only CUE's builtin packages may be referred to (rule ref-import). The other
+# package can be edited without the lineage file changing, so a published
+# version's meaning would not be fixed by the lineage. Admitting imports with
+# discipline is future work; for now the schema declares the definition.
+#issue: 21
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+	"example.com/m/common"
+)
+
+lin: thema.Lineage & {
+	name: "refImport"
+	schemas: {
+		"0": "0": {
+			schema: {c: common.#Color}
+		}
+	}
+}
+-- common/common.cue --
+package common
+
+#Color: "red" | "blue"
+-- expect --
+bind fail ref-import

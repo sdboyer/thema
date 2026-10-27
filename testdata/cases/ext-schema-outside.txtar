@@ -1,0 +1,19 @@
+# the schema's body is a value declared outside the lineage, at the top of the
+# file (rule ref-outside-lineage): a published version whose meaning can be
+# edited without touching the lineage. The schema declares its own body.
+#issue: 21
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+_ext: {a: int}
+
+lin: thema.Lineage & {
+	name: "extSchemaOutside"
+	schemas: {
+		"0": "0": {
+			schema: _ext
+		}
+	}
+}
+-- expect --
+bind fail ref-outside-lineage

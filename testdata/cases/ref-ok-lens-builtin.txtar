@@ -1,0 +1,33 @@
+# a lens may call into CUE's builtin packages
+#issue: 21
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+	"strings"
+)
+
+lin: thema.Lineage & {
+	name: "refOkLensBuiltin"
+	schemas: {
+		"0": "0": {
+			schema: {a: string}
+		}
+		"1": "0": {
+			schema: {b: string}
+		}
+	}
+	lenses: {
+		"1.0->0.0": {
+			input: _
+			result: {a: strings.ToUpper(input.b)}
+		}
+		"0.0->1.0": {
+			input: _
+			result: {b: strings.ToLower(input.a)}
+		}
+	}
+}
+-- expect --
+bind ok
+translate 1.0 0.0 ok {b: "abc"}
+translate 0.0 1.0 ok {a: "ABC"}

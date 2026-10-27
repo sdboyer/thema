@@ -1,0 +1,28 @@
+# the joinSchema embeds a hidden field declared outside it, at the top of the file: the file is the lineage, so what it declares beside the
+# schemas is declared in the lineage outside the schema (rule ref-lineage-meta).
+# Was testdata/lineage: joinSchema is a reference to an embedded struct
+#issue: 21
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+thema.Lineage
+name: "embedref"
+joinSchema: {
+    _EmbedRef
+}
+schemas: {
+    "0": "0": {
+    	schema: {
+    		foo: string
+    	}
+    }
+}
+lenses: {}
+
+_EmbedRef: {
+	refField1: string
+	refField2: 42
+}
+-- out/bindfail --
+joinSchema refers to _EmbedRef, which is declared in the lineage outside the joinSchema; a joinSchema may refer only to its own body and CUE's builtin packages (rule ref-lineage-meta):
+    ./in.cue:5:1

@@ -1,0 +1,34 @@
+# the joinSchema refers to a hidden field and a definition declared outside it, at the top of the file: the file is the lineage, so what it declares beside the
+# schemas is declared in the lineage outside the schema (rule ref-lineage-meta).
+# Was testdata/lineage: joinSchema contains references to external definitions
+#issue: 21
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+thema.Lineage
+name: "exref"
+joinSchema: {
+    ref: _ExRef
+    refdef: #ExRefDef
+}
+schemas: {
+    "0": "0": {
+    	schema: {
+    		foo: string
+    	}
+    }
+}
+lenses: {}
+
+_ExRef: {
+	normalField: string
+}
+
+#ExRefDef: {
+	defField: string
+}
+-- out/bindfail --
+joinSchema: ref refers to _ExRef, which is declared in the lineage outside the joinSchema; a joinSchema may refer only to its own body and CUE's builtin packages (rule ref-lineage-meta):
+    ./in.cue:6:10
+joinSchema: refdef refers to #ExRefDef, which is declared in the lineage outside the joinSchema; a joinSchema may refer only to its own body and CUE's builtin packages (rule ref-lineage-meta):
+    ./in.cue:7:13

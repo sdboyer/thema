@@ -1,0 +1,28 @@
+# a schema's own body is anything declared inside it, at any depth: a
+# definition, a let, a hidden field and a field alias are all fine to refer to
+#issue: 21
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "refOkSchemaLocal"
+	schemas: {
+		"0": "0": {
+			schema: {
+				#Color: "red" | "blue"
+				let Max = 10
+				_limits: {lo: 0, hi: Max}
+
+				color: #Color
+				n:     int & >=_limits.lo & <=_limits.hi
+				inner~(X): {v: int}
+				w: X.v
+			}
+		}
+	}
+}
+-- expect --
+bind ok
+validate 0.0 ok {color: "red", n: 5, inner: {v: 1}, w: 1}
+validate 0.0 fail {color: "green", n: 5, inner: {v: 1}, w: 1}
+validate 0.0 fail {color: "red", n: 11, inner: {v: 1}, w: 1}

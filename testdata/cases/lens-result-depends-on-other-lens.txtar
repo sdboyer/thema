@@ -1,6 +1,7 @@
 # lens result is read from another lens (via the lineage path) rather than from
-# its own input: what it reads is that lens's input default, a disjunction, not
-# a value
+# its own input: a lens may refer only to input, its own body and CUE's builtin
+# packages (rule ref-lens-to-lens). What it reads is that lens's input default,
+# a disjunction, not a value; the reference rule reports the cause.
 #issue: 20
 -- in.cue --
 import (
@@ -29,4 +30,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail not-a-value
+bind fail ref-lens-to-lens

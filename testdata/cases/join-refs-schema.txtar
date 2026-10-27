@@ -1,4 +1,6 @@
-# joinSchema references the lineage's latest schema, so it changes as the lineage grows
+# the joinSchema is the lineage's latest schema, so it changes as the lineage
+# grows. The joinSchema follows the schema rules: a schema reached through the
+# lineage's schemas is another schema (rule ref-sibling-schema). Closes #55.
 #issue: 21
 -- in.cue --
 import (
@@ -24,4 +26,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail
+bind fail ref-sibling-schema
