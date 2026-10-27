@@ -56,7 +56,7 @@ export const steps: Step[] = [
       "thema keeps every version of a schema in one lineage, with lenses that carry data between versions, and checks that they all fit together. This tour takes one small lineage, ship, through all of it.",
     todo: ["From Example, under Authoring form, choose `ship`."],
     see: "Two version files, `1.0.thema` and `history/0.0.thema`, and `binds: 0.0, 1.0` above them. 1.0 adds a required field, `secondfield`, so it is a new major version, and its file carries a lens each way between 1.0 and 0.0.",
-    doc: "forms",
+    doc: "lineage",
   },
   {
     id: "validate",
@@ -68,6 +68,7 @@ export const steps: Step[] = [
       { label: "not one", text: data.v0 },
     ],
     see: "The first is an instance of schema 1.0. The second fails with `E0501`, naming the missing field; the code links to its explanation.",
+    doc: "validate",
   },
   {
     id: "validate-any",
@@ -115,7 +116,7 @@ export const steps: Step[] = [
     todo: ["Click + beside the file tabs, which adds `1.1.thema`, and replace its text with this."],
     snippets: [{ label: "1.1.thema", text: minorFile }],
     see: "`binds: 0.0, 1.0, 1.1`.",
-    doc: "bind",
+    doc: "versions",
   },
   {
     id: "compat-check",
@@ -123,7 +124,7 @@ export const steps: Step[] = [
     about: "Without its default, `size` would be a new required field, which 1.0 data lacks. That is a breaking change, not a minor one.",
     todo: [`In \`1.1.thema\`, delete \`${minorDefault.trim()}\` from the \`size\` line.`, "Then undo."],
     see: "`E0210`: `size` is required in the new schema but not declared in the prior one. After the undo it binds again.",
-    doc: "bind",
+    doc: "versions",
   },
   {
     id: "hydrate",
@@ -181,6 +182,7 @@ export const defaultShip: Partial<Ship> = {
     about: "thema's diagnostics say what is wrong, where, and usually what to write instead. The Errors examples each show one.",
     todo: ["From Example, under Errors, choose `optional-to-required`."],
     see: "`E0343`: a field optional in 0.0 is required in 1.0, and the message says what to write in the lens.",
+    doc: "diagnostics",
   },
   {
     id: "share",

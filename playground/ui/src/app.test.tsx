@@ -94,15 +94,21 @@ describe("App", () => {
     render(null, root);
   });
 
-  it("links the less obvious operations to their docs, and not validate", async () => {
+  it("links every operation to its reference entry", async () => {
     const root = await mount();
     const link = (op: string) => opButton(root, op).parentElement!.querySelector<HTMLAnchorElement>("a.doc-link");
-    expect(link("validate")).toBeNull();
-    expect(link("translate")!.href).toBe(`${docsBase}go-usage.md#translate`);
-    expect(link("translate")!.target).toBe("_blank");
-    for (const op of ["validate-any", "hydrate", "dehydrate", "openapi", "jsonschema", "typescript"]) {
-      expect(link(op), op).not.toBeNull();
+    for (const op of ["validate", "validate-any", "translate", "hydrate", "dehydrate"]) {
+      expect(link(op)!.href, op).toBe(`${docsBase}reference/operations.md#${op}`);
     }
+    expect(link("jsonschema")!.href).toBe(`${docsBase}reference/codegen.md#json-schema`);
+    expect(link("translate")!.target).toBe("_blank");
+    render(null, root);
+  });
+
+  it("links the normal form tab, and no other output tab", async () => {
+    const root = await mount();
+    const tabs = [...root.querySelectorAll('[aria-label="output"] .tab')];
+    expect(tabs.map((t) => t.querySelector("a.doc-link")?.getAttribute("href") ?? null)).toEqual([null, null, `${docsBase}reference/lineage.md#forms`]);
     render(null, root);
   });
 

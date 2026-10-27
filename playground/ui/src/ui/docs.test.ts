@@ -5,9 +5,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { docs, docsBase } from "./docs";
+import { docs, docsBase, lacunaTypeDoc } from "./docs";
 
-const docsDir = resolve(__dirname, "../../../../docs");
+const root = resolve(__dirname, "../../../..");
+const docsDir = resolve(root, "docs");
 
 // anchor is GitHub's id for a Markdown heading.
 function anchor(heading: string): string {
@@ -35,6 +36,18 @@ describe("docs", () => {
         const ids = [...readFileSync(path, "utf8").matchAll(/^#+ (.*)$/gm)].map((m) => anchor(m[1]!));
         expect(ids, topic).toContain(hash);
       }
+    }
+  });
+
+  it("have an entry for every lacuna type thema declares", () => {
+    const cue = readFileSync(resolve(root, "lacuna.cue"), "utf8");
+    const block = cue.slice(cue.indexOf("LacunaTypes: {"));
+    const types = [...block.slice(0, block.indexOf("\n}")).matchAll(/^\t(\w+):\s*"\1"/gm)].map((m) => m[1]!);
+    expect(types).toContain("Placeholder");
+    const page = readFileSync(resolve(docsDir, "reference/lacunas.md"), "utf8");
+    const ids = [...page.matchAll(/^#+ (.*)$/gm)].map((m) => anchor(m[1]!));
+    for (const t of types) {
+      expect(ids, t).toContain(lacunaTypeDoc(t).href.split("#")[1]);
     }
   });
 });
