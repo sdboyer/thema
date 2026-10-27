@@ -7,6 +7,7 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/lacuna"
 )
 
 var allctx = cuecontext.New()
@@ -74,14 +75,14 @@ func TestExemplarLacunas(t *testing.T) {
 		lin      func(*thema.Runtime, ...thema.BindOption) (thema.Lineage, error)
 		from, to thema.SyntacticVersion
 		data     string
-		want     []thema.LacunaType
+		want     []lacuna.Type
 	}{
-		"narrowing, lossy":        {NarrowingLineage, thema.SV(0, 0), thema.SV(1, 0), `{boolish: "maybe"}`, []thema.LacunaType{thema.LacunaLossyFieldMapping}},
+		"narrowing, lossy":        {NarrowingLineage, thema.SV(0, 0), thema.SV(1, 0), `{boolish: "maybe"}`, []lacuna.Type{lacuna.LossyFieldMapping}},
 		"narrowing, clean":        {NarrowingLineage, thema.SV(0, 0), thema.SV(1, 0), `{boolish: "true"}`, nil},
-		"defaultchange, forward":  {DefaultChangeLineage, thema.SV(0, 0), thema.SV(1, 0), `{aunion: "foo"}`, []thema.LacunaType{thema.LacunaChangedDefault}},
-		"defaultchange, backward": {DefaultChangeLineage, thema.SV(1, 0), thema.SV(0, 0), `{aunion: "bar"}`, []thema.LacunaType{thema.LacunaChangedDefault}},
+		"defaultchange, forward":  {DefaultChangeLineage, thema.SV(0, 0), thema.SV(1, 0), `{aunion: "foo"}`, []lacuna.Type{lacuna.ChangedDefault}},
+		"defaultchange, backward": {DefaultChangeLineage, thema.SV(1, 0), thema.SV(0, 0), `{aunion: "bar"}`, []lacuna.Type{lacuna.ChangedDefault}},
 		"defaultchange, other":    {DefaultChangeLineage, thema.SV(0, 0), thema.SV(1, 0), `{aunion: "baz"}`, nil},
-		"expand, baz":             {ExpandLineage, thema.SV(0, 3), thema.SV(0, 2), `{init: "x", withDefault: "baz"}`, []thema.LacunaType{thema.LacunaLossyFieldMapping}},
+		"expand, baz":             {ExpandLineage, thema.SV(0, 3), thema.SV(0, 2), `{init: "x", withDefault: "baz"}`, []lacuna.Type{lacuna.LossyFieldMapping}},
 		"expand, kept":            {ExpandLineage, thema.SV(0, 3), thema.SV(0, 2), `{init: "x", withDefault: "bar"}`, nil},
 		"expand, absent":          {ExpandLineage, thema.SV(0, 3), thema.SV(0, 2), `{init: "x"}`, nil},
 	} {
@@ -98,7 +99,7 @@ func TestExemplarLacunas(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			var got []thema.LacunaType
+			var got []lacuna.Type
 			for _, l := range lac.AsList() {
 				got = append(got, l.Type)
 			}

@@ -105,7 +105,7 @@ seams: "embedded-module-root": {
 // translation emits is decoded into it.
 seams: "lacuna-types": {
 	kind:  "shared-kernel"
-	paths: ["lacuna.go"]
+	paths: ["lacuna/lacuna.go"]
 	consult: [
 		"LacunaTypes in lacuna.cue (lockstep test TestLacunaTypesMatchCUE)",
 		"instance.go Translate, which decodes the lacunas of every step into these types",

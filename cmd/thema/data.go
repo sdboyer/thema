@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/lacuna"
 	"github.com/sdboyer/thema/vmux"
 )
 
@@ -209,10 +210,10 @@ func (dc *dataCommand) runTranslate(cmd *cobra.Command, args []string) error {
 }
 
 type translationResult struct {
-	From    string                   `json:"from"`
-	To      string                   `json:"to,omitempty"`
-	Result  cue.Value                `json:"result"`
-	Lacunas thema.TranslationLacunas `json:"lacunas"`
+	From    string                    `json:"from"`
+	To      string                    `json:"to,omitempty"`
+	Result  cue.Value                 `json:"result"`
+	Lacunas lacuna.TranslationLacunas `json:"lacunas"`
 }
 
 var hydrateCmd = &cobra.Command{
@@ -421,7 +422,7 @@ func (dc *dataCommand) validateDataInput(cmd *cobra.Command, args []string) erro
 
 // Everything here should become unnecessary once Thema's key invariants are in
 // place
-func (dc *dataCommand) validateTranslationResult(tinst *thema.Instance, lac thema.TranslationLacunas) error {
+func (dc *dataCommand) validateTranslationResult(tinst *thema.Instance, _ lacuna.TranslationLacunas) error {
 	if tinst == nil {
 		panic("unreachable, thema.Translate() should never return a nil instance")
 	}

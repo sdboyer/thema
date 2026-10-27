@@ -1,5 +1,5 @@
 exemplars/narrowing.cue in authoring form: a string-or-bool field narrows to a
-bool. The remap keys the two strings, lets a bool pass through, and sends any
+bool. The match keys the two strings, lets a bool pass through, and sends any
 other string to the [_] arm, which must have a lacuna: the one declared on
 properbool without a when. Backward is a move, since 0.0's boolish accepts a
 bool.
@@ -15,7 +15,7 @@ schema: {
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		properbool: remap(v0_0.boolish, {
+		properbool: match(v0_0.boolish, {
 			"true":  true
 			"false": false
 			[_]:     false
@@ -50,7 +50,7 @@ schema: {
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		properbool: remap(v0_0.boolish, {
+		properbool: match(v0_0.boolish, {
 			"true":  true
 			"false": false
 			[_]:     false

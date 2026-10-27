@@ -3,13 +3,13 @@ package thema
 import (
 	"fmt"
 	"reflect"
-	"sort"
 	"strings"
 	"testing"
 
-	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	cerrors "cuelang.org/go/cue/errors"
+
+	"github.com/sdboyer/thema/lacuna"
 )
 
 // A lineage whose lenses emit lacunas: 1.0 adds a required field that the
@@ -68,12 +68,12 @@ func TestLacunaEmission(t *testing.T) {
 
 	type step struct {
 		from, to SyntacticVersion
-		types    []LacunaType
+		types    []lacuna.Type
 	}
-	steps := func(tl TranslationLacunas) []step {
+	steps := func(tl lacuna.TranslationLacunas) []step {
 		var out []step
 		for _, s := range tl {
-			st := step{from: s.From, to: s.To}
+			st := step{from: SyntacticVersion(s.From), to: SyntacticVersion(s.To)}
 			for _, l := range s.Lacunas {
 				st.types = append(st.types, l.Type)
 			}
@@ -89,13 +89,13 @@ func TestLacunaEmission(t *testing.T) {
 		want []step
 	}{
 		"condition false": {SV(0, 1), `{a: "x"}`, SV(0, 0), []step{{SV(0, 1), SV(0, 0), nil}}},
-		"condition true":  {SV(0, 1), `{a: "x", note: "n"}`, SV(0, 0), []step{{SV(0, 1), SV(0, 0), []LacunaType{LacunaDroppedField}}}},
+		"condition true":  {SV(0, 1), `{a: "x", note: "n"}`, SV(0, 0), []step{{SV(0, 1), SV(0, 0), []lacuna.Type{lacuna.DroppedField}}}},
 		"forward, multi-step": {SV(0, 0), `{a: "x"}`, SV(1, 0), []step{
 			{SV(0, 0), SV(0, 1), nil},
-			{SV(0, 1), SV(1, 0), []LacunaType{LacunaPlaceholder}},
+			{SV(0, 1), SV(1, 0), []lacuna.Type{lacuna.Placeholder}},
 		}},
 		"backward, multi-step": {SV(1, 0), `{a: "x", id: 3}`, SV(0, 0), []step{
-			{SV(1, 0), SV(0, 1), []LacunaType{LacunaDroppedField}},
+			{SV(1, 0), SV(0, 1), []lacuna.Type{lacuna.DroppedField}},
 			{SV(0, 1), SV(0, 0), nil},
 		}},
 		"identity": {SV(0, 0), `{a: "x"}`, SV(0, 0), nil},
@@ -176,31 +176,5 @@ func TestLacunaBindChecks(t *testing.T) {
 				t.Fatalf("error does not mention %q: %v", c.errText, cerrors.Details(err, nil))
 			}
 		})
-	}
-}
-
-// The Go lacuna type constants must match the types defined in thema's CUE.
-func TestLacunaTypesMatchCUE(t *testing.T) {
-	rt := NewRuntime(cuecontext.New())
-	iter, err := rt.Underlying().LookupPath(cue.ParsePath("LacunaTypes")).Fields()
-	if err != nil {
-		t.Fatal(err)
-	}
-	var cueTypes []string
-	for iter.Next() {
-		s, err := iter.Value().String()
-		if err != nil || s != iter.Selector().String() {
-			t.Errorf("LacunaTypes.%s must be the string %q, got %v", iter.Selector(), iter.Selector(), iter.Value())
-		}
-		cueTypes = append(cueTypes, s)
-	}
-	var goTypes []string
-	for lt := range lacunaTypes {
-		goTypes = append(goTypes, string(lt))
-	}
-	sort.Strings(cueTypes)
-	sort.Strings(goTypes)
-	if !reflect.DeepEqual(cueTypes, goTypes) {
-		t.Errorf("CUE lacuna types %v differ from Go constants %v", cueTypes, goTypes)
 	}
 }
