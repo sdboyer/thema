@@ -1,7 +1,7 @@
 # the whole input is embedded beside comprehensions, which the exporter writes as
 # a bare expression declaration rather than an embedding: it is a copy all the
 # same, and the target narrows a field it carries
-# #issue: 107
+#issue: 107
 -- in.cue --
 import "github.com/sdboyer/thema"
 
@@ -13,16 +13,16 @@ lin: thema.Lineage & {
 	}
 	lenses: {
 		"0.0->1.0": {
-			input: _
-			result: {
-				input
-				if input.o != _|_ {x: 1}
-				if input.o == _|_ {x: 0}
+			v0_0: _
+			v1_0: {
+				v0_0
+				if v0_0.o != _|_ {x: 1}
+				if v0_0.o == _|_ {x: 0}
 			}
 		}
 		"1.0->0.0": {
-			input: _
-			result: {a: 0}
+			v1_0: _
+			v0_0: {a: 0}
 		}
 	}
 }

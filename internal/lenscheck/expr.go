@@ -340,7 +340,7 @@ func (w *walker) computed(x ast.Expr, q cue.Path, gs []pattern, pos token.Pos) {
 		return
 	}
 	w.record(&write{q: q, patterns: gs, kind: computedW, text: text(x), pos: pos})
-	c := &exprCtx{q: q, subj: subject(q), gs: gs, pos: pos, paths: map[string]int{}, hidden: w.hidden > 0}
+	c := &exprCtx{q: q, subj: w.subject(q), gs: gs, pos: pos, paths: map[string]int{}, hidden: w.hidden > 0}
 	sh, ok := w.shape(x, c)
 	if !ok || sh.dead || c.hidden {
 		return
@@ -540,11 +540,11 @@ func (w *walker) operand(x ast.Expr, c *exprCtx) (shape, bool) {
 			c.paths[p.String()]++
 			src := w.lookupSource(p, c.gs)
 			if !src.declared {
-				w.fail(c, NotTotal, RuleSourceUndeclared, fmt.Sprintf("reads %s, which the source schema does not declare", inputRef(p)))
+				w.fail(c, NotTotal, RuleSourceUndeclared, fmt.Sprintf("reads %s, which the source schema does not declare", w.inputRef(p)))
 				return shape{}, false
 			}
 			if !src.present && !c.hidden {
-				w.fail(c, NotTotal, RuleSourceAbsent, fmt.Sprintf("reads %s, which may be absent: %s; %s", inputRef(p), src.why, w.absent(p)))
+				w.fail(c, NotTotal, RuleSourceAbsent, fmt.Sprintf("reads %s, which may be absent: %s; %s", w.inputRef(p), src.why, w.absent(p)))
 				return shape{}, false
 			}
 			s, ok = w.shapeOf(src.branches, p, c)
@@ -606,11 +606,11 @@ func (w *walker) shapeOf(branches []cue.Value, p cue.Path, c *exprCtx) (shape, b
 		switch k {
 		case cue.IntKind, cue.StringKind, cue.BoolKind:
 		default:
-			w.fail(c, Unknown, RuleUnknownOp, fmt.Sprintf("reads %s, which may be %s; computations are over integers, strings and bools (floats and numbers are excluded): write it under a type test, or change the source field", inputRef(p), k))
+			w.fail(c, Unknown, RuleUnknownOp, fmt.Sprintf("reads %s, which may be %s; computations are over integers, strings and bools (floats and numbers are excluded): write it under a type test, or change the source field", w.inputRef(p), k))
 			return shape{}, false
 		}
 		if i > 0 && out.kind != k {
-			w.fail(c, Unknown, RuleUnknownOp, fmt.Sprintf("reads %s, which may be %s or %s; the checker needs operands of one kind: write it under a type test", inputRef(p), out.kind, k))
+			w.fail(c, Unknown, RuleUnknownOp, fmt.Sprintf("reads %s, which may be %s or %s; the checker needs operands of one kind: write it under a type test", w.inputRef(p), out.kind, k))
 			return shape{}, false
 		}
 		out.kind = k
@@ -745,10 +745,10 @@ func (w *walker) length(x ast.Expr, c *exprCtx) (shape, bool) {
 		c.paths[p.String()]++
 		switch {
 		case !src.declared:
-			w.fail(c, NotTotal, RuleSourceUndeclared, fmt.Sprintf("reads %s, which the source schema does not declare", inputRef(p)))
+			w.fail(c, NotTotal, RuleSourceUndeclared, fmt.Sprintf("reads %s, which the source schema does not declare", w.inputRef(p)))
 			return shape{}, false
 		case !src.present && !c.hidden:
-			w.fail(c, NotTotal, RuleSourceAbsent, fmt.Sprintf("reads %s, which may be absent: %s; %s", inputRef(p), src.why, w.absent(p)))
+			w.fail(c, NotTotal, RuleSourceAbsent, fmt.Sprintf("reads %s, which may be absent: %s; %s", w.inputRef(p), src.why, w.absent(p)))
 			return shape{}, false
 		}
 		var out *interval
@@ -761,7 +761,7 @@ func (w *walker) length(x ast.Expr, c *exprCtx) (shape, bool) {
 			case cue.StringKind, cue.BytesKind:
 				iv = lengthRange
 			default:
-				w.fail(c, Unknown, RuleUnknownOp, fmt.Sprintf("takes the length of %s, which may be %s; len is provable over strings and lists", inputRef(p), b.IncompleteKind()))
+				w.fail(c, Unknown, RuleUnknownOp, fmt.Sprintf("takes the length of %s, which may be %s; len is provable over strings and lists", w.inputRef(p), b.IncompleteKind()))
 				return shape{}, false
 			}
 			if out == nil {
@@ -974,7 +974,7 @@ func asHead(x ast.Expr) (head, bool) {
 
 // head proves a head: each arm under its pattern, and the whole as one write.
 func (w *walker) head(h head, q cue.Path, gs []pattern, pos token.Pos) {
-	subj := subject(q)
+	subj := w.subject(q)
 	full := "[if " + text(h.cond) + " {...}, ...][0]"
 	w.record(&write{q: q, patterns: gs, kind: computedW, text: full, pos: pos})
 	if h.els == nil {
@@ -990,14 +990,14 @@ func (w *walker) head(h head, q cue.Path, gs []pattern, pos token.Pos) {
 	if !ok {
 		w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownPattern,
 			Detail: fmt.Sprintf("chooses by %s, which is not a pattern: a presence test (p != _|_), an equality (p == c) or a type test ((p & T) != _|_) on an input field, or a conjunction (&&) of these", text(h.cond)), Pos: pos})
-		g = []pattern{{kind: opaque, text: text(h.cond)}}
+		g = []pattern{{root: w.from, kind: opaque, text: text(h.cond)}}
 	}
 	w.checkPatterns(g, gs, subj, pos)
 	var neg []pattern
 	if len(g) == 1 && g[0].kind != opaque {
 		neg = []pattern{g[0].negated()}
 	} else {
-		neg = []pattern{{kind: opaque, text: "!(" + text(h.cond) + ")"}}
+		neg = []pattern{{root: w.from, kind: opaque, text: "!(" + text(h.cond) + ")"}}
 	}
 	w.quiet++
 	defer func() { w.quiet-- }()
@@ -1050,7 +1050,7 @@ func (w *walker) asTable(x ast.Expr) (table, bool) {
 // are string constants, each a key of the table, and each entry taken is
 // proven as the field's value under the equality that selects it.
 func (w *walker) table(t table, q cue.Path, gs []pattern, pos token.Pos) {
-	subj := subject(q)
+	subj := w.subject(q)
 	w.record(&write{q: q, patterns: gs, kind: computedW, text: "{...}[" + text(t.index) + "]", pos: pos})
 	p, ok := w.pathOf(t.index)
 	if !ok {
@@ -1062,11 +1062,11 @@ func (w *walker) table(t table, q cue.Path, gs []pattern, pos token.Pos) {
 	switch {
 	case !src.declared:
 		w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleSourceUndeclared,
-			Detail: fmt.Sprintf("indexes a table by %s, which the source schema does not declare", inputRef(p)), Pos: pos})
+			Detail: fmt.Sprintf("indexes a table by %s, which the source schema does not declare", w.inputRef(p)), Pos: pos})
 		return
 	case !src.present:
 		w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleSourceAbsent,
-			Detail: fmt.Sprintf("indexes a table by %s, which may be absent: %s; %s", inputRef(p), src.why, w.absent(p)), Pos: pos})
+			Detail: fmt.Sprintf("indexes a table by %s, which may be absent: %s; %s", w.inputRef(p), src.why, w.absent(p)), Pos: pos})
 		return
 	}
 	// An entry is a regular field: an optional or required one ({x?: 1}["x"])
@@ -1084,13 +1084,13 @@ func (w *walker) table(t table, q cue.Path, gs []pattern, pos token.Pos) {
 	for _, b := range src.branches {
 		if !compat.ConstantTarget(b) || b.Kind() != cue.StringKind {
 			w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownTableKey,
-				Detail: fmt.Sprintf("indexes a table by %s, which may be %s rather than one of a finite set of string constants; the checker needs every possible key", inputRef(p), fmtv(b)), Pos: pos})
+				Detail: fmt.Sprintf("indexes a table by %s, which may be %s rather than one of a finite set of string constants; the checker needs every possible key", w.inputRef(p), fmtv(b)), Pos: pos})
 			return
 		}
 		k, _ := b.String()
 		if _, ok := entries[k]; !ok {
 			w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleTableKeyMissing,
-				Detail: fmt.Sprintf("indexes a table by %s, which may be %q, for which the table has no entry", inputRef(p), k), Pos: pos})
+				Detail: fmt.Sprintf("indexes a table by %s, which may be %q, for which the table has no entry", w.inputRef(p), k), Pos: pos})
 			return
 		}
 		keys = append(keys, k)
@@ -1098,7 +1098,7 @@ func (w *walker) table(t table, q cue.Path, gs []pattern, pos token.Pos) {
 	w.quiet++
 	defer func() { w.quiet-- }()
 	for _, k := range keys {
-		g := pattern{kind: equality, path: p, lit: fmt.Sprintf("%q", k), val: w.ctx.CompileString(fmt.Sprintf("%q", k))}
+		g := pattern{root: w.from, kind: equality, path: p, lit: fmt.Sprintf("%q", k), val: w.ctx.CompileString(fmt.Sprintf("%q", k))}
 		for _, c := range w.tree.Conjuncts(entries[k].Value) {
 			w.conjunct(c, q, append(append([]pattern(nil), gs...), g), pos)
 		}

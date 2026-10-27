@@ -6,8 +6,8 @@ a!: int
 -- lens.cue --
 import "struct"
 
-input: _
-result: {a: input.a} & struct.MinFields(1)
+v0_0: _
+v1_0: {a: v0_0.a} & struct.MinFields(1)
 -- out --
 unknown
-result is constrained by struct.MinFields(1), a call the checker does not prove; write result as a struct (rule unknown-op) @ lens.cue:4:9
+v1_0 is constrained by struct.MinFields(1), a call the checker does not prove; write v1_0 as a struct (rule unknown-op) @ lens.cue:4:7

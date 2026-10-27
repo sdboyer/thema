@@ -6,7 +6,7 @@ o?: int
 a: string
 o?: int
 -- lens.cue --
-input: _
-result: {a: input.a, if input.o != _|_ {o: input.o}}
+v0_0: _
+v1_0: {a: v0_0.a, if v0_0.o != _|_ {o: v0_0.o}}
 -- out --
 total

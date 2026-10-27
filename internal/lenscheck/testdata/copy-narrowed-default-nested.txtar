@@ -4,8 +4,8 @@ s!: {a: *1 | int}
 -- target.cue --
 s!: {a: *2 | int}
 -- lens.cue --
-input: _
-result: {s: input.s}
+v0_0: _
+v1_0: {s: v0_0.s}
 -- out --
 not total
-result.s copies input.s, whose a fills with 2 when absent, where the source schema filled it with 1; an instance omitting the field copies the source's default beside the target's, and the two give it no single value (compat rule default-changed) (rule copy-narrowed) @ lens.cue:2:13
+v1_0.s copies v0_0.s, whose a fills with 2 when absent, where the source schema filled it with 1; an instance omitting the field copies the source's default beside the target's, and the two give it no single value (compat rule default-changed) (rule copy-narrowed) @ lens.cue:2:11

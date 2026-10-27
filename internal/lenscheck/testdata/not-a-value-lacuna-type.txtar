@@ -5,13 +5,13 @@ t!: string
 -- target.cue --
 b!: int
 -- lens.cue --
-input: _
-result: {b: input.a}
+v0_0: _
+v1_0: {b: v0_0.a}
 lacunas: [{
-	sourceFields: [{path: "a", value: input.a}]
+	sourceFields: [{path: "a", value: v0_0.a}]
 	message: "m"
-	type:    input.t
+	type:    v0_0.t
 }]
 -- out --
 not total
-lacunas[0].type is input.t, which is not a literal; write a lacuna's type as one of thema's lacuna types, as a string or as thema.LacunaTypes.<name> (rule not-a-value) @ lens.cue:6:11
+lacunas[0].type is v0_0.t, which is not a literal; write a lacuna's type as one of thema's lacuna types, as a string or as thema.LacunaTypes.<name> (rule not-a-value) @ lens.cue:6:11

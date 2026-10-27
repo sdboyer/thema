@@ -1,6 +1,7 @@
 package cuetil
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -21,9 +22,17 @@ type LensSyntax struct {
 	lacunas      []cueview.Conjunct
 }
 
-// ParseLens reads the syntax of lens, a value with input, result and lacunas
-// fields.
-func ParseLens(lens cue.Value) (*LensSyntax, error) {
+// LensParam is the name of the field a lens binds an instance of version
+// major.minor to: v0_0 for 0.0. A lens's source field and its result field
+// are both named this way, after the versions its edge names.
+func LensParam(major, minor uint) string {
+	return fmt.Sprintf("v%d_%d", major, minor)
+}
+
+// ParseLens reads the syntax of lens, a value whose source field is named
+// from, whose result field is named to (both as [LensParam] names them), and
+// whose lacunas field is lacunas.
+func ParseLens(lens cue.Value, from, to string) (*LensSyntax, error) {
 	t, err := cueview.NewTree(lens)
 	if err != nil {
 		return nil, err
@@ -50,9 +59,9 @@ func ParseLens(lens cue.Value) (*LensSyntax, error) {
 				continue
 			}
 			switch name {
-			case "input":
+			case from:
 				ls.inputs = append(ls.inputs, f)
-			case "result":
+			case to:
 				ls.resultFields = append(ls.resultFields, f)
 				ls.result = append(ls.result, t.Conjuncts(f.Value)...)
 			case "lacunas":

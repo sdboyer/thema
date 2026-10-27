@@ -5,8 +5,8 @@ t: "a" | "b" | "c"
 u: 1 | 2
 -- lens.cue --
 _T: {a: 1, b: 2}
-input: _
-result: {u: _T[input.t]}
+v0_0: _
+v1_0: {u: _T[v0_0.t]}
 -- out --
 not total
-result.u indexes a table by input.t, which may be "c", for which the table has no entry (rule table-key-missing) @ lens.cue:3:13
+v1_0.u indexes a table by v0_0.t, which may be "c", for which the table has no entry (rule table-key-missing) @ lens.cue:3:11

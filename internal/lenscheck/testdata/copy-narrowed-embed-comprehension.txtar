@@ -6,12 +6,12 @@ o?: int
 a!: int
 x!: int
 -- lens.cue --
-input: _
-result: {
-	input
-	if input.o != _|_ {x: 1}
-	if input.o == _|_ {x: 0}
+v0_0: _
+v1_0: {
+	v0_0
+	if v0_0.o != _|_ {x: 1}
+	if v0_0.o == _|_ {x: 0}
 }
 -- out --
 not total
-result copies input, whose o is declared in the source schema and not accepted by the new one (compat rule field-removed) (rule copy-narrowed) @ lens.cue:3:2
+v1_0 copies v0_0, whose o is declared in the source schema and not accepted by the new one (compat rule field-removed) (rule copy-narrowed) @ lens.cue:3:2

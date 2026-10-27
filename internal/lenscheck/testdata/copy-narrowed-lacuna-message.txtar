@@ -4,13 +4,13 @@ a!: int
 -- target.cue --
 b!: int
 -- lens.cue --
-input: _
-result: {b: input.a}
+v0_0: _
+v1_0: {b: v0_0.a}
 lacunas: [{
-	sourceFields: [{path: "a", value: input.a}]
-	message: input.a
+	sourceFields: [{path: "a", value: v0_0.a}]
+	message: v0_0.a
 	type:    "DroppedField"
 }]
 -- out --
 not total
-lacunas[0].message copies input.a, which was int and is now string (compat rule value-narrowed) (rule copy-narrowed) @ lens.cue:5:11
+lacunas[0].message copies v0_0.a, which was int and is now string (compat rule value-narrowed) (rule copy-narrowed) @ lens.cue:5:11

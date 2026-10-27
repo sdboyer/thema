@@ -4,8 +4,8 @@ d: int & !=0 & >=-5 & <=5
 -- target.cue --
 q: int
 -- lens.cue --
-input: _
-result: {q: quo(10, input.d)}
+v0_0: _
+v1_0: {q: quo(10, v0_0.d)}
 -- out --
 unknown
-result.q divides by input.d, whose range [-5, 5] includes 0, though 0 may not be an instance; bound the divisor away from 0 (>0 or <0) (rule unknown-divisor) @ lens.cue:2:17
+v1_0.q divides by v0_0.d, whose range [-5, 5] includes 0, though 0 may not be an instance; bound the divisor away from 0 (>0 or <0) (rule unknown-divisor) @ lens.cue:2:15

@@ -4,10 +4,10 @@ a!: int
 -- target.cue --
 b!: int
 -- lens.cue --
-input: _
-result: {b: input.a}
+v0_0: _
+v1_0: {b: v0_0.a}
 lacunas: [{
-	sourceFields: [{path: "a", value: input.a + "x"}]
+	sourceFields: [{path: "a", value: v0_0.a + "x"}]
 	message: "m"
 	type:    "DroppedField"
 }]

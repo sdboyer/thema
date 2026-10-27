@@ -15,24 +15,20 @@ import "example.com/p/shared"
 
 lin: {
 	name: "imports"
-	schemas: [{
-		version: [0, 0]
-		schema: {a: shared.#Thing, b: shared.Reg}
-	}, {
-		version: [1, 0]
-		schema: {a: shared.#Thing}
-	}]
-	lenses: [{
-		from: [0, 0]
-		to: [1, 0]
-		input: _
-		result: a: input.a
-	}, {
-		from: [1, 0]
-		to: [0, 0]
-		input: _
-		result: {a: input.a, b: shared.Fallback}
-	}]
+	schemas: {
+		"0": {"0": {schema: {a: shared.#Thing, b: shared.Reg}}}
+		"1": {"0": {schema: {a: shared.#Thing}}}
+	}
+	lenses: {
+		"0.0->1.0": {
+			v0_0: _
+			v1_0: a: v0_0.a
+		}
+		"1.0->0.0": {
+			v1_0: _
+			v0_0: {a: v1_0.a, b: shared.Fallback}
+		}
+	}
 }
 -- out/0.0 --
 # id
@@ -52,7 +48,7 @@ lin: {
 {}
 -- out/1.0 --
 # id
-4874f1c044231cf5be370974d27538eaa7514baead96fbcc0e7ddd9edf64db8b:24df2bcfa8a63e0586bb4fd20a1f910d525e56e4b86c3e18241282815ec233ac
+4874f1c044231cf5be370974d27538eaa7514baead96fbcc0e7ddd9edf64db8b:8c404ef597ccad9e0f10382a81bb97ace25fcf44269bf9932e438c19a24d1145
 # schema
 {
 	a: __L1_4cfadd7d02080b59.#x
@@ -66,18 +62,18 @@ lin: {
 # lenses
 {
 	backward: {
-		input: _
-		result: {
+		returns: {
 			a: __L3_d2e2adf7177b7a8a.a
 			b: r: 0
 			let __L3_d2e2adf7177b7a8a = _
 		}
+		takes: _
 	}
 	forward: {
-		input: _
-		result: {
+		returns: {
 			a: __L3_d2e2adf7177b7a8a.a
 			let __L3_d2e2adf7177b7a8a = _
 		}
+		takes: _
 	}
 }

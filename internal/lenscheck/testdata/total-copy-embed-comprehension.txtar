@@ -6,10 +6,10 @@ x?: int
 a!: int
 x!: int
 -- lens.cue --
-input: _
-result: {
-	input
-	if input.x == _|_ {x: 0}
+v0_0: _
+v1_0: {
+	v0_0
+	if v0_0.x == _|_ {x: 0}
 }
 -- out --
 total

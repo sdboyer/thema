@@ -29,29 +29,29 @@ const lacunaLineage = `lin: thema.Lineage & {
 	}
 	lenses: {
 		"0.1->0.0": {
-			input: _
-			result: a: input.a
+			v0_1: _
+			v0_0: a: v0_1.a
 			lacunas: [thema.Lacuna & {
-				condition: input.note != _|_
-				sourceFields: [{path: "note", value: input.note}]
+				condition: v0_1.note != _|_
+				sourceFields: [{path: "note", value: v0_1.note}]
 				message: "note dropped"
 				type: thema.LacunaTypes.DroppedField
 			}]
 		}
 		"1.0->0.1": {
-			input: _
-			result: a: input.a
+			v1_0: _
+			v0_1: a: v1_0.a
 			lacunas: [thema.Lacuna & {
-				sourceFields: [{path: "id", value: input.id}]
+				sourceFields: [{path: "id", value: v1_0.id}]
 				message: "id dropped"
 				type: thema.LacunaTypes.DroppedField
 			}]
 		}
 		"0.1->1.0": {
-			input: _
-			result: {a: input.a, id: -1}
+			v0_1: _
+			v1_0: {a: v0_1.a, id: -1}
 			lacunas: [thema.Lacuna & {
-				targetFields: [{path: "id", value: result.id}]
+				targetFields: [{path: "id", value: v1_0.id}]
 				message: "-1 is a placeholder"
 				type: thema.LacunaTypes.Placeholder
 			}]
@@ -142,8 +142,8 @@ func TestLacunaBindChecks(t *testing.T) {
 		"1": schema: {a: string, nested: {x: int}, b?: int}
 	}
 	lenses: "0.1->0.0": {
-		input: _
-		result: {a: input.a, nested: input.nested}
+		v0_1: _
+		v0_0: {a: v0_1.a, nested: v0_1.nested}
 		lacunas: ` + lacunas + `
 	}
 }`
@@ -153,10 +153,10 @@ func TestLacunaBindChecks(t *testing.T) {
 		lacunas string
 		errText string
 	}{
-		"well-formed":                    {`[thema.Lacuna & {condition: input.b != _|_, sourceFields: [{path: "b", value: input.b}], targetFields: [{path: "nested.x", value: result.nested.x}], message: "m", type: "DroppedField"}]`, ""},
-		"value may be absent":            {`[thema.Lacuna & {sourceFields: [{path: "b", value: input.b}], message: "m", type: "DroppedField"}]`, "source-absent"},
-		"conditional list":               {`[if input.b != _|_ {thema.Lacuna & {message: "m", type: "DroppedField"}}]`, "listed unconditionally"},
-		"conditional list via let":       {"L\n\t\tlet L = [if input.b != _|_ {thema.Lacuna & {message: \"m\", type: \"DroppedField\"}}]", "listed unconditionally"},
+		"well-formed":                    {`[thema.Lacuna & {condition: v0_1.b != _|_, sourceFields: [{path: "b", value: v0_1.b}], targetFields: [{path: "nested.x", value: v0_0.nested.x}], message: "m", type: "DroppedField"}]`, ""},
+		"value may be absent":            {`[thema.Lacuna & {sourceFields: [{path: "b", value: v0_1.b}], message: "m", type: "DroppedField"}]`, "source-absent"},
+		"conditional list":               {`[if v0_1.b != _|_ {thema.Lacuna & {message: "m", type: "DroppedField"}}]`, "listed unconditionally"},
+		"conditional list via let":       {"L\n\t\tlet L = [if v0_1.b != _|_ {thema.Lacuna & {message: \"m\", type: \"DroppedField\"}}]", "listed unconditionally"},
 		"source path not in from schema": {`[thema.Lacuna & {sourceFields: [{path: "nope", value: 1}], message: "m", type: "DroppedField"}]`, `"nope" is not declared by schema 0.1`},
 		"target path not in to schema":   {`[thema.Lacuna & {targetFields: [{path: "b", value: 1}], message: "m", type: "DroppedField"}]`, `"b" is not declared by schema 0.0`},
 		"nested path not declared":       {`[thema.Lacuna & {targetFields: [{path: "nested.y", value: 1}], message: "m", type: "DroppedField"}]`, `"nested.y" is not declared`},

@@ -134,32 +134,32 @@ schemas: {
 
 lenses: {
     "0.1->0.0": {
-        input: _
-        result: {
-            init: input.init
+        v0_1: _
+        v0_0: {
+            init: v0_1.init
         }
     }
     "0.2->0.1": {
-        input: _
-        result: {
-            init: input.init
-            if (input.optional != _|_) {
-                optional: input.optional
+        v0_2: _
+        v0_1: {
+            init: v0_2.init
+            if (v0_2.optional != _|_) {
+                optional: v0_2.optional
             }
         }
     }
     "0.3->0.2": {
-        input: _
-        result: {
-            init: input.init
-            if (input.optional != _|_) {
-                optional: input.optional
+        v0_3: _
+        v0_2: {
+            init: v0_3.init
+            if (v0_3.optional != _|_) {
+                optional: v0_3.optional
             }
-            if input.withDefault != _|_ {
-                if input.withDefault != "baz" {
-                    withDefault: input.withDefault
+            if v0_3.withDefault != _|_ {
+                if v0_3.withDefault != "baz" {
+                    withDefault: v0_3.withDefault
                 }
-                if input.withDefault == "baz" {
+                if v0_3.withDefault == "baz" {
                     // 0.2 has no "baz"; its default stands in for it.
                     withDefault: "foo"
                 }
@@ -167,92 +167,92 @@ lenses: {
         }
         lacunas: [
             thema.Lacuna & {
-                condition: (input.withDefault & "baz") != _|_
-                sourceFields: [{path: "withDefault", value: input.withDefault}]
-                targetFields: [{path: "withDefault", value: result.withDefault}]
+                condition: (v0_3.withDefault & "baz") != _|_
+                sourceFields: [{path: "withDefault", value: v0_3.withDefault}]
+                targetFields: [{path: "withDefault", value: v0_2.withDefault}]
                 message: "withDefault was \"baz\", which 0.2 does not have; \"foo\", its default, was substituted"
                 type:    thema.LacunaTypes.LossyFieldMapping
             },
         ]
     }
     "1.0->0.3": {
-        input: _
-        result: {
-            init: input.renamed
-            if (input.optional != _|_) {
-                optional: input.optional
+        v1_0: _
+        v0_3: {
+            init: v1_0.renamed
+            if (v1_0.optional != _|_) {
+                optional: v1_0.optional
             }
             // 1.0 defaults withDefault to "bar" and 0.3 to "foo": an instance
             // omitting it means "bar", which 0.3 must say outright.
-            if input.withDefault != "bar" {
-                withDefault: input.withDefault
+            if v1_0.withDefault != "bar" {
+                withDefault: v1_0.withDefault
             }
-            if input.withDefault == "bar" {
+            if v1_0.withDefault == "bar" {
                 withDefault: "bar"
             }
         }
     }
     "0.3->1.0": {
-        input: _
-        result: {
-            renamed: input.init
-            if (input.optional != _|_) {
-                optional: input.optional
+        v0_3: _
+        v1_0: {
+            renamed: v0_3.init
+            if (v0_3.optional != _|_) {
+                optional: v0_3.optional
             }
-            if input.withDefault != _|_ {
-                withDefault: input.withDefault
+            if v0_3.withDefault != _|_ {
+                withDefault: v0_3.withDefault
             }
-            if input.withDefault == _|_ {
+            if v0_3.withDefault == _|_ {
                 // absent in 0.3 means its default, "foo"; 1.0 defaults to "bar".
                 withDefault: "foo"
             }
         }
     }
     "1.1->1.0": {
-        input: _
-        result: {
-            renamed: input.renamed
-            if (input.optional != _|_) {
-                optional: input.optional
+        v1_1: _
+        v1_0: {
+            renamed: v1_1.renamed
+            if (v1_1.optional != _|_) {
+                optional: v1_1.optional
             }
-            if input.withDefault != "bing" {
-                withDefault: input.withDefault
+            if v1_1.withDefault != "bing" {
+                withDefault: v1_1.withDefault
             }
-            if input.withDefault == "bing" {
+            if v1_1.withDefault == "bing" {
                 // 1.0 has no "bing"; its default stands in for it.
                 withDefault: "bar"
             }
         }
         lacunas: [
             thema.Lacuna & {
-                condition: input.withDefault == "bing"
-                sourceFields: [{path: "withDefault", value: input.withDefault}]
-                targetFields: [{path: "withDefault", value: result.withDefault}]
+                condition: v1_1.withDefault == "bing"
+                sourceFields: [{path: "withDefault", value: v1_1.withDefault}]
+                targetFields: [{path: "withDefault", value: v1_0.withDefault}]
                 message: "withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"
                 type:    thema.LacunaTypes.LossyFieldMapping
             },
         ]
     }
     "2.0->1.1": {
-        input: _
-        result: {
-            renamed: input.toObj.init
-            if (input.optional != _|_) {
-                optional: input.optional
+        v2_0: _
+        v1_1: {
+            renamed: v2_0.toObj.init
+            if (v2_0.optional != _|_) {
+                optional: v2_0.optional
             }
-            withDefault: input.withDefault
+            withDefault: v2_0.withDefault
         }
     }
     "1.1->2.0": {
-        input: _
-        result: {
+        v1_1: _
+        v2_0: {
             toObj: {
-                init: input.renamed
+                init: v1_1.renamed
             }
-            if (input.optional != _|_) {
-                optional: input.optional
+            if (v1_1.optional != _|_) {
+                optional: v1_1.optional
             }
-            withDefault: input.withDefault
+            withDefault: v1_1.withDefault
         }
     }
 }

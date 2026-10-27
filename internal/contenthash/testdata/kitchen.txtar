@@ -16,8 +16,8 @@ import (
 lin: {
 	name: "kitchen"
 	joinSchema: {kind: string}
-	schemas: [{
-		version: [0, 0]
+	schemas: {
+		"0": {"0": {
 		schema: {
 			kind:  "kitchen"
 			title: string & strings.MinRunes(1)
@@ -28,15 +28,15 @@ lin: {
 			[=~"^x-"]: string
 		}
 		examples: basic: {kind: "kitchen", title: "t", tags: []}
-	}, {
-		version: [0, 1]
-		schema: schemas[0].schema & {
+		}
+		"1": {
+		schema: schemas["0"]["0"].schema & {
 			owner?: #Person
 			#Person: {name!: string, email?: string}
 			_scratch: int | *0
 		}
-	}, {
-		version: [1, 0]
+		}}
+		"1": {"0": {
 		schema: {
 			kind:   "kitchen"
 			title:  string & strings.MinRunes(1)
@@ -45,56 +45,55 @@ lin: {
 			labels: [string]: string
 			owner?: {name!: string, email?: string}
 		}
-	}]
-	lenses: [{
-		from: [0, 1]
-		to: [0, 0]
-		input: _
-		result: {
-			kind:  input.kind
-			title: input.title
-			if input.count != _|_ {count: input.count}
-			mode: input.mode
-			tags: input.tags
+		}}
+	}
+	lenses: {
+		"0.1->0.0": {
+		v0_1: _
+		v0_0: {
+			kind:  v0_1.kind
+			title: v0_1.title
+			if v0_1.count != _|_ {count: v0_1.count}
+			mode: v0_1.mode
+			tags: v0_1.tags
 		}
-		lacunas: [if input.owner != _|_ {
+		lacunas: [if v0_1.owner != _|_ {
 			thema.Lacuna & {
-				sourceFields: [{path: "owner", value: input.owner}]
+				sourceFields: [{path: "owner", value: v0_1.owner}]
 				message: "owner is dropped"
 				type:    thema.LacunaTypes.DroppedField
 			}
 		}]
-	}, {
-		from: [0, 1]
-		to: [1, 0]
-		input: _
-		result: {
-			kind:  input.kind
-			title: input.title
-			count: *input.count | 0
-			mode:  input.mode
-			labels: {for t in input.tags {(t): t}}
-			if input.owner != _|_ {owner: input.owner}
+		}
+		"0.1->1.0": {
+		v0_1: _
+		v1_0: {
+			kind:  v0_1.kind
+			title: v0_1.title
+			count: *v0_1.count | 0
+			mode:  v0_1.mode
+			labels: {for t in v0_1.tags {(t): t}}
+			if v0_1.owner != _|_ {owner: v0_1.owner}
 		}
 		lacunas: []
-	}, {
-		from: [1, 0]
-		to: [0, 1]
-		input: _
-		result: {
-			kind:  input.kind
-			title: input.title
-			count: input.count
-			mode:  input.mode
-			tags: [for k, _ in input.labels {k}]
-			if input.owner != _|_ {owner: input.owner}
+		}
+		"1.0->0.1": {
+		v1_0: _
+		v0_1: {
+			kind:  v1_0.kind
+			title: v1_0.title
+			count: v1_0.count
+			mode:  v1_0.mode
+			tags: [for k, _ in v1_0.labels {k}]
+			if v1_0.owner != _|_ {owner: v1_0.owner}
 		}
 		lacunas: [thema.Lacuna & {
-			sourceFields: [{path: "labels", value: input.labels}]
+			sourceFields: [{path: "labels", value: v1_0.labels}]
 			message: "label values are dropped"
 			type:    thema.LacunaTypes.LossyFieldMapping
 		}]
-	}]
+		}
+	}
 }
 -- out/0.0 --
 # id
@@ -112,7 +111,7 @@ lin: {
 {}
 -- out/0.1 --
 # id
-0c9ada93158827d8a4bfe557fe81eb1137ccd42cb346dd448f3357336e685e03:392c00e3de54ce34a72e91173a3651e90cea28e856c54efc7299fd6aad3b49a0
+0c9ada93158827d8a4bfe557fe81eb1137ccd42cb346dd448f3357336e685e03:265ec2cd1e73d982ab0128146f7ec1c413f79f6ea2b85e73ee1ac4812427d5f3
 # schema
 {
 	#Person: {
@@ -131,7 +130,6 @@ lin: {
 # lenses
 {
 	backward: {
-		input: _
 		lacunas: {
 			[if __L3_d2e2adf7177b7a8a.owner != _|_ {
 				__L3_ae51671473fde27d & {
@@ -146,7 +144,7 @@ lin: {
 			let __L3_ae51671473fde27d = __ref("github.com/sdboyer/thema", "Lacuna")
 			let __L3_d2e2adf7177b7a8a = _
 		}
-		result: {
+		returns: {
 			if __L3_d2e2adf7177b7a8a.count != _|_ {
 				count: __L3_d2e2adf7177b7a8a.count
 			}
@@ -156,11 +154,12 @@ lin: {
 			tags:  __L3_d2e2adf7177b7a8a.tags
 			title: __L3_d2e2adf7177b7a8a.title
 		}
+		takes: _
 	}
 }
 -- out/1.0 --
 # id
-e502270c583211c51f3e6c98916ec9a8b96ad611623b518916a81696cf7a2ab1:4797d9faad83f5728a374fa9bfaa7338c624097d440545fc961d13339c9c3db3
+e502270c583211c51f3e6c98916ec9a8b96ad611623b518916a81696cf7a2ab1:4f5595f12a4e7b2838964965543be56225674f38959f6e817f510484a099c276
 # schema
 {
 	count: (>=0 & int) | *0
@@ -176,7 +175,6 @@ e502270c583211c51f3e6c98916ec9a8b96ad611623b518916a81696cf7a2ab1:4797d9faad83f57
 # lenses
 {
 	backward: {
-		input: _
 		lacunas: {
 			[__L3_ae51671473fde27d & {
 				message: "label values are dropped"
@@ -189,7 +187,7 @@ e502270c583211c51f3e6c98916ec9a8b96ad611623b518916a81696cf7a2ab1:4797d9faad83f57
 			let __L3_ae51671473fde27d = __ref("github.com/sdboyer/thema", "Lacuna")
 			let __L3_d2e2adf7177b7a8a = _
 		}
-		result: {
+		returns: {
 			count: __L3_d2e2adf7177b7a8a.count
 			if __L3_d2e2adf7177b7a8a.owner != _|_ {
 				owner: __L3_d2e2adf7177b7a8a.owner
@@ -202,11 +200,11 @@ e502270c583211c51f3e6c98916ec9a8b96ad611623b518916a81696cf7a2ab1:4797d9faad83f57
 			}]
 			title: __L3_d2e2adf7177b7a8a.title
 		}
+		takes: _
 	}
 	forward: {
-		input:   _
 		lacunas: []
-		result: {
+		returns: {
 			count: *__L3_d2e2adf7177b7a8a.count | 0
 			if __L3_d2e2adf7177b7a8a.owner != _|_ {
 				owner: __L3_d2e2adf7177b7a8a.owner
@@ -219,5 +217,6 @@ e502270c583211c51f3e6c98916ec9a8b96ad611623b518916a81696cf7a2ab1:4797d9faad83f57
 			mode:  __L3_d2e2adf7177b7a8a.mode
 			title: __L3_d2e2adf7177b7a8a.title
 		}
+		takes: _
 	}
 }

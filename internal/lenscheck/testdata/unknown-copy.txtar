@@ -5,8 +5,8 @@ b: <a
 -- target.cue --
 b: int
 -- lens.cue --
-input: _
-result: {b: input.b}
+v0_0: _
+v1_0: {b: v0_0.b}
 -- out --
 unknown
-result.b copies input.b, which is constrained by a in the source schema and not in the new one; the checker cannot compare constraints between fields (compat rule unknown-crossfield) (rule unknown-copy) @ lens.cue:2:13
+v1_0.b copies v0_0.b, which is constrained by a in the source schema and not in the new one; the checker cannot compare constraints between fields (compat rule unknown-crossfield) (rule unknown-copy) @ lens.cue:2:11

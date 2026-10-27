@@ -4,13 +4,13 @@ k: "x" | "y"
 -- target.cue --
 a?: string
 -- lens.cue --
-input: _
-result: {if input.k == "x" {a: "1"}}
+v0_0: _
+v1_0: {if v0_0.k == "x" {a: "1"}}
 lacunas: [{
-	targetFields: [{path: "a", value: result.a}]
+	targetFields: [{path: "a", value: v1_0.a}]
 	message: "set"
 	type: "Placeholder"
 }]
 -- out --
 unknown
-lacunas[0].targetFields[0].value refers to result.a, which is written only under input.k == "x": neither covering every instance nor implied by the lacuna's condition (rule unknown-exhaustive) @ lens.cue:4:36
+lacunas[0].targetFields[0].value refers to v1_0.a, which is written only under v0_0.k == "x": neither covering every instance nor implied by the lacuna's condition (rule unknown-exhaustive) @ lens.cue:4:36

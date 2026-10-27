@@ -4,8 +4,8 @@ a: string
 -- target.cue --
 a: int
 -- lens.cue --
-input: _
-result: {a: {b: 1}}
+v0_0: _
+v1_0: {a: {b: 1}}
 -- out --
 not total
-result.a is a struct, where the target schema wants int (rule literal-not-instance) @ lens.cue:2:10
+v1_0.a is a struct, where the target schema wants int (rule literal-not-instance) @ lens.cue:2:8

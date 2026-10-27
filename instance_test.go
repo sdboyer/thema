@@ -111,8 +111,8 @@ schemas: {
 }
 lenses: {
 	"0.1->0.0": {
-		input: _
-		result: title: input.title
+		v0_1: _
+		v0_0: title: v0_1.title
 	}
 }`
 	linval := rt.Context().CompileString(linstr)

@@ -6,8 +6,8 @@ s!: string & strings.MaxRunes(5)
 -- target.cue --
 n!: int & >=0 & <=20
 -- lens.cue --
-input: _
-result: {n: len(input.s)}
+v0_0: _
+v1_0: {n: len(v0_0.s)}
 -- out --
 unknown
-result.n is an integer computed by len(input.s), in [0, 9223372036854775807], which the checker cannot show within int64 and the target's uint & <=20 (the bounds contain every value the expression takes, but it need not take them, so they do not refute either); bound the fields it reads (int32, >=0 & <=100) (rule unknown-bounds) @ lens.cue:2:17
+v1_0.n is an integer computed by len(v0_0.s), in [0, 9223372036854775807], which the checker cannot show within int64 and the target's uint & <=20 (the bounds contain every value the expression takes, but it need not take them, so they do not refute either); bound the fields it reads (int32, >=0 & <=100) (rule unknown-bounds) @ lens.cue:2:15

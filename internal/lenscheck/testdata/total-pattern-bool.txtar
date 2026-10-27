@@ -4,10 +4,10 @@ f!: bool
 -- target.cue --
 n!: int
 -- lens.cue --
-input: _
-result: {
-	if input.f {n: 1}
-	if !input.f {n: 0}
+v0_0: _
+v1_0: {
+	if v0_0.f {n: 1}
+	if !v0_0.f {n: 0}
 }
 -- out --
 total

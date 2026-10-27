@@ -133,9 +133,9 @@ lin: thema.Lineage & {
 	}
 	lenses: {
 		"0.1->0.0": {
-			input: _
-			result: {
-				firstfield: input.firstfield
+			v0_1: _
+			v0_0: {
+				firstfield: v0_1.firstfield
 			}
 		}
 	}
@@ -234,17 +234,17 @@ lin: thema.Lineage & {
 	}
 	lenses: {
 		"1.0->0.0": {
-			input: _
-			result: {
+			v1_0: _
+			v0_0: {
 				// Map the first field back
-				firstfield: input.firstfield
+				firstfield: v1_0.firstfield
 			}
 		}
 		"0.0->1.0": {
-			input: _
-			result: {
+			v0_0: _
+			v1_0: {
 				// Direct mapping of the first field
-				firstfield: input.firstfield
+				firstfield: v0_0.firstfield
 				// Just some placeholder int, so we have a valid instance of schema 1.0
 				secondfield: -1
 			}
@@ -310,29 +310,29 @@ lin: thema.Lineage & {
 	}
 	lenses: {
 		"1.0->0.0": {
-			input: _
-			result: {
-				firstfield: input.firstfield
+			v1_0: _
+			v0_0: {
+				firstfield: v1_0.firstfield
 			}
 			lacunas: [thema.Lacuna & {
 				sourceFields: [{
 					path:  "secondfield"
-					value: input.secondfield
+					value: v1_0.secondfield
 				}]
 				message: "secondfield has no equivalent in 0.0 and was dropped"
 				type:    thema.LacunaTypes.DroppedField
 			}]
 		}
 		"0.0->1.0": {
-			input: _
-			result: {
-				firstfield:  input.firstfield
+			v0_0: _
+			v1_0: {
+				firstfield:  v0_0.firstfield
 				secondfield: -1
 			}
 			lacunas: [thema.Lacuna & {
 				targetFields: [{
 					path:  "secondfield"
-					value: result.secondfield
+					value: v1_0.secondfield
 				}]
 				message: "-1 used as a placeholder value - replace with a real value before persisting!"
 				type:    thema.LacunaTypes.Placeholder

@@ -5,13 +5,13 @@ o?: int
 -- target.cue --
 b!: int
 -- lens.cue --
-input: _
-result: {b: input.a}
+v0_0: _
+v1_0: {b: v0_0.a}
 lacunas: [{
-	sourceFields: [{path: "a", value: input.a}]
-	message: "o was \(input.o)"
+	sourceFields: [{path: "a", value: v0_0.a}]
+	message: "o was \(v0_0.o)"
 	type:    "DroppedField"
 }]
 -- out --
 not total
-lacunas[0].message reads input.o, which may be absent: input.o is optional in the source schema; add input.o != _|_ to the lacuna's condition (rule source-absent) @ lens.cue:5:11
+lacunas[0].message reads v0_0.o, which may be absent: v0_0.o is optional in the source schema; add v0_0.o != _|_ to the lacuna's condition (rule source-absent) @ lens.cue:5:11

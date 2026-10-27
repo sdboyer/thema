@@ -4,7 +4,7 @@
 -- target.cue --
 b!: int
 -- lens.cue --
-input: _
-result: {b: input["my-field"]}
+v0_0: _
+v1_0: {b: v0_0["my-field"]}
 -- out --
 total

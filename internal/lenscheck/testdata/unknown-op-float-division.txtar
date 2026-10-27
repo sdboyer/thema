@@ -4,8 +4,8 @@ n: int32
 -- target.cue --
 h: int
 -- lens.cue --
-input: _
-result: {h: input.n / 2}
+v0_0: _
+v1_0: {h: v0_0.n / 2}
 -- out --
 unknown
-result.h divides with /, which yields a float in CUE; use quo or div for integer division (rule unknown-op) @ lens.cue:2:13
+v1_0.h divides with /, which yields a float in CUE; use quo or div for integer division (rule unknown-op) @ lens.cue:2:11

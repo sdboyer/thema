@@ -4,10 +4,10 @@ a!: "x" | "y"
 -- target.cue --
 b!: "x" | "y"
 -- lens.cue --
-input: _
-result: {
-	if input.a == "z" {b: input.a}
-	if input.a != "z" {b: input.a}
+v0_0: _
+v1_0: {
+	if v0_0.a == "z" {b: v0_0.a}
+	if v0_0.a != "z" {b: v0_0.a}
 }
 -- out --
 total

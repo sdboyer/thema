@@ -41,13 +41,14 @@ func loadLineageValue(t *testing.T, ctx *cue.Context, src string) cue.Value {
 }
 
 func TestLensResultsMayNotInventFields(t *testing.T) {
+	const valid = "valid"
 	ctx := cuecontext.New()
 	rt := NewRuntime(ctx)
 
 	for name, result := range map[string]string{
-		"valid":  `{b: input.a, n: {x: 1}}`,
-		"top":    `{b: input.a, n: {x: 1}, invented: 1}`,
-		"nested": `{b: input.a, n: {x: 1, invented: 1}}`,
+		valid:    `{b: v0_0.a, n: {x: 1}}`,
+		"top":    `{b: v0_0.a, n: {x: 1}, invented: 1}`,
+		"nested": `{b: v0_0.a, n: {x: 1, invented: 1}}`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			lin, err := bindString(t, rt, `lin: thema.Lineage & {
@@ -59,16 +60,16 @@ func TestLensResultsMayNotInventFields(t *testing.T) {
 	}
 	lenses: {
 		"1.0->0.0": {
-			input: _
-			result: a: input.b
+			v1_0: _
+			v0_0: a: v1_0.b
 		}
 		"0.0->1.0": {
-			input: _
-			result: `+result+`
+			v0_0: _
+			v1_0: `+result+`
 		}
 	}
 }`)
-			if name != "valid" {
+			if name != valid {
 				// Invented fields are visible in the lens without any data, so they're
 				// rejected when the lineage is bound.
 				if err == nil || !strings.Contains(err.Error(), "lens 0.0->1.0") {
@@ -87,7 +88,7 @@ func TestLensResultsMayNotInventFields(t *testing.T) {
 			if name == "valid" && err != nil {
 				t.Fatalf("valid lens result rejected: %v", err)
 			}
-			if name != "valid" && err == nil {
+			if name != valid && err == nil {
 				t.Fatal("lens result with an invented field was accepted")
 			}
 		})

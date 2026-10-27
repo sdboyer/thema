@@ -5,10 +5,10 @@ o?: int
 -- target.cue --
 b!: int
 -- lens.cue --
-input: _
-result: {
-	b:  input.a
-	_h: input.o
+v0_0: _
+v1_0: {
+	b:  v0_0.a
+	_h: v0_0.o
 }
 -- out --
 total

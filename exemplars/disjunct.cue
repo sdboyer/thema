@@ -37,8 +37,8 @@ disjunct: {
 
 		lenses: {
 			"0.1->0.0": {
-				input: _
-				result: {
+				v0_1: _
+				v0_0: {
 					// FIXME this extra conditional is needed b/c otherwise lienage validation complains 'branch' field doesn't exist
 					//				if input.rootfield.branch != _|_ {
 					//					if input.rootfield.branch == 1 || input.rootfield.branch == 2 {

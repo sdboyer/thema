@@ -14,8 +14,8 @@ lin: thema.Lineage & {
 	}
 	lenses: {
 		"7.3->5.0": {
-			input: _
-			result: {zzz: input.q}
+			v7_3: _
+			v5_0: {zzz: v7_3.q}
 		}
 	}
 }

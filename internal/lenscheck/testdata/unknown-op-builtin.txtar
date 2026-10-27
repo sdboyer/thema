@@ -5,8 +5,8 @@ s: string
 n: int
 -- lens.cue --
 import "strconv"
-input: _
-result: {n: strconv.Atoi(input.s)}
+v0_0: _
+v1_0: {n: strconv.Atoi(v0_0.s)}
 -- out --
 unknown
-result.n calls strconv.Atoi, which is outside the provable set (len; quo, rem, div, mod; strings.Contains, strings.HasPrefix, strings.HasSuffix, strings.Replace, strings.ToLower, strings.ToUpper, strings.Trim, strings.TrimLeft, strings.TrimPrefix, strings.TrimRight, strings.TrimSpace, strings.TrimSuffix) (rule unknown-op) @ lens.cue:3:13
+v1_0.n calls strconv.Atoi, which is outside the provable set (len; quo, rem, div, mod; strings.Contains, strings.HasPrefix, strings.HasSuffix, strings.Replace, strings.ToLower, strings.ToUpper, strings.Trim, strings.TrimLeft, strings.TrimPrefix, strings.TrimRight, strings.TrimSpace, strings.TrimSuffix) (rule unknown-op) @ lens.cue:3:11

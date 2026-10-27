@@ -57,68 +57,68 @@ basic: #Lineage & {
 
 	lenses: {
 		"1.0->0.3": {
-			input: _
-			result: {
-				init: input.renamed
-				all:  input.all
-				if (input.optional != _|_) {
-					optional: input.optional
+			v1_0: _
+			v0_3: {
+				init: v1_0.renamed
+				all:  v1_0.all
+				if (v1_0.optional != _|_) {
+					optional: v1_0.optional
 				}
 
-				withDefault: input.withDefault
+				withDefault: v1_0.withDefault
 			}
 		}
 		"0.2->0.1": {
-			input: _
-			result: {
-				init: input.init
-				all:  input.all
-				if (input.optional != _|_) {
-					optional: input.optional
+			v0_2: _
+			v0_1: {
+				init: v0_2.init
+				all:  v0_2.all
+				if (v0_2.optional != _|_) {
+					optional: v0_2.optional
 				}
 			}
 		}
 		"0.3->0.2": {
-			input: _
-			result: {
-				init: input.init
-				all:  input.all
-				if (input.optional != _|_) {
-					optional: input.optional
+			v0_3: _
+			v0_2: {
+				init: v0_3.init
+				all:  v0_3.all
+				if (v0_3.optional != _|_) {
+					optional: v0_3.optional
 				}
 
-				withDefault: input.withDefault // TODO does this actually work
+				withDefault: v0_3.withDefault // TODO does this actually work
 			}
 		}
 		"0.3->1.0": {
-			input: _
-			result: {
-				renamed: input.init
-				all:     input.all
-				if (input.optional != _|_) {
-					optional: input.optional
+			v0_3: _
+			v1_0: {
+				renamed: v0_3.init
+				all:     v0_3.all
+				if (v0_3.optional != _|_) {
+					optional: v0_3.optional
 				}
 
-				withDefault: input.withDefault
+				withDefault: v0_3.withDefault
 			}
 		}
 		"1.1->1.0": {
-			input: _
-			result: {
-				renamed: input.renamed
-				all:     input.all
-				if (input.optional != _|_) {
-					optional: input.optional
+			v1_1: _
+			v1_0: {
+				renamed: v1_1.renamed
+				all:     v1_1.all
+				if (v1_1.optional != _|_) {
+					optional: v1_1.optional
 				}
 
-				withDefault: input.withDefault
+				withDefault: v1_1.withDefault
 			}
 		}
 		"0.1->0.0": {
-			input: _
-			result: {
-				init: input.init
-				all:  input.all
+			v0_1: _
+			v0_0: {
+				init: v0_1.init
+				all:  v0_1.all
 			}
 		}
 	}

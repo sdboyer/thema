@@ -5,10 +5,10 @@ o?: "a" | "b"
 n!: int
 v?: "a" | "b"
 -- lens.cue --
-input: _
-result: {
-	if (input.o & "a") != _|_ {n: 1, v: input.o}
-	if (input.o & "a") == _|_ {n: 0}
+v0_0: _
+v1_0: {
+	if (v0_0.o & "a") != _|_ {n: 1, v: v0_0.o}
+	if (v0_0.o & "a") == _|_ {n: 0}
 }
 -- out --
 total

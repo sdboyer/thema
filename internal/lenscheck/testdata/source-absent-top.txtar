@@ -4,9 +4,9 @@ x: _
 -- target.cue --
 y: int
 -- lens.cue --
-input: _
-result: {y: input.x.y}
+v0_0: _
+v1_0: {y: v0_0.x.y}
 -- out --
 not total
-result.y copies input.x.y, which may be absent: input.x is _ in the source schema, which need not hold y; write the field under if input.x.y != _|_ (rule source-absent) @ lens.cue:2:13
-result.y copies input.x.y, which is now int, which does not accept every value of the prior _ (compat rule value-narrowed) (rule copy-narrowed) @ lens.cue:2:13
+v1_0.y copies v0_0.x.y, which may be absent: v0_0.x is _ in the source schema, which need not hold y; write the field under if v0_0.x.y != _|_ (rule source-absent) @ lens.cue:2:11
+v1_0.y copies v0_0.x.y, which is now int, which does not accept every value of the prior _ (compat rule value-narrowed) (rule copy-narrowed) @ lens.cue:2:11

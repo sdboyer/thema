@@ -4,9 +4,9 @@ a?: *1 | int
 -- target.cue --
 a?: *2 | int
 -- lens.cue --
-input: _
-result: {
-	if input.a != _|_ {a: input.a}
+v0_0: _
+v1_0: {
+	if v0_0.a != _|_ {a: v0_0.a}
 }
 -- out --
 total

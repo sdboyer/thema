@@ -2,6 +2,7 @@ package thema
 
 import (
 	"list"
+	"regexp"
 	"strconv"
 	"struct"
 )
@@ -96,7 +97,13 @@ Lineage: {
 	// set of schema versions. It is not permitted to explicitly define a lens across
 	// non-breaking changes.
 	lenses: {
-		[=~edgeKey]: Lens
+		// The lens's field names come from its edge, so the edge is parsed
+		// here, outside the lens: a field of the lens that the lens's own
+		// field names depended on would be a cycle.
+		[=~edgeKey]~(E,_): (Lens & {
+			from: [strconv.Atoi(regexp.FindSubmatch(edgeKey, E)[1]), strconv.Atoi(regexp.FindSubmatch(edgeKey, E)[2])]
+			to:   [strconv.Atoi(regexp.FindSubmatch(edgeKey, E)[3]), strconv.Atoi(regexp.FindSubmatch(edgeKey, E)[4])]
+		}).out
 
 		[!~edgeKey]~(K,_): error("\(K) is not a lens edge; lenses are keyed by \"<from>-><to>\" versions, such as \"1.0->0.1\"")
 	}
@@ -176,39 +183,56 @@ SchemaDef: {
 	[!~"^(schema|examples)$"]~(K,_): error("\(K) is not a field of a schema; a schema entry has only schema and examples")
 }
 
-// Lens defines a transformation that maps the fields of one schema in a lineage to the
-// fields of another schema, as well as the lacunas that may exist for specific objects
-// when translating instances between these schemas.
+// Lens is the shape of the lens at an edge of a lineage's lenses, as a
+// pseudofunction of the edge's versions: (Lens & {from: [0, 0], to: [1, 0]}).out.
+// A lens maps instances of the from version to instances of the to version,
+// and the lacunas that may exist for specific objects when translating between
+// them. The versions are the edge the lens is declared at, e.g. "1.0->0.1"; the
+// lens does not declare them itself.
 //
-// The schema versions a lens maps from and to are the edge it is declared at in a
-// lineage's lenses, e.g. "1.0->0.1"; it does not declare them itself.
+// A lens binds the instance it takes to a field named after its version,
+// v<major>_<minor>, and builds the instance it returns in a field named the
+// same way after the target version. For the edge "0.0->1.0" with schemas
+//
+//   0.0: {a: string}
+//   1.0: {b: string}
+//
+// a lens that moves a to b is written
+//
+//   "0.0->1.0": {
+//       v0_0: _
+//       v1_0: {b: v0_0.a}
+//   }
+//
+// The value built must be an instance of the to schema, constructed through
+// references to the from instance. It may not contain any field the to schema
+// does not define, whatever the openness of that schema.
 Lens: {
-	// input is filled with an object instance of the 'from' schema in order to use the
-	// lens to translate between schema versions.
-	input: _
+	from: SyntacticVersion
+	to:   SyntacticVersion
 
-	// The relation between the schemas identified by the lens's 'from' and 'to'
-	// versions, expressed as a mapping from 'input' to this field.
-	//
-	// The value must be an instance of the 'to' schema, constructed through
-	// references to the 'from' schema. It may not contain any field the 'to'
-	// schema does not define, whatever the openness of that schema.
-	//
-	// For example, if the schemas corresponding to the 'from' and 'to' versions are:
-	//
-	//   from: { a: string }
-	//   to:   { b: string }
-	//
-	// and the goal is to remap the field 'a' to be called 'b', result should be written as:
-	//
-	//   result: { b: L.input.a }
-	result: struct.MinFields(0)
+	// takes and returns are the names of the lens's fields for the instance it
+	// takes and the instance it returns.
+	takes:   "v\(from[0])_\(from[1])"
+	returns: "v\(to[0])_\(to[1])"
 
-	// lacunas describe semantic gaps in the transform's mapping. See lacuna docs
-	// for more information (TODO).
-	lacunas: [...Lacuna]
+	// out constrains the two fields by pattern rather than declaring them:
+	// a field declared here under a computed label is one CUE's exporter
+	// cannot name from a reference, and lenses are read back as syntax.
+	// That the author declares both is checked at bind.
+	out: {
+		// The instance of the from version the lens takes.
+		[=~"^\(takes)$"]: _
 
-	[!~"^(input|result|lacunas)$"]~(K,_): error("\(K) is not a field of a lens; a lens has only input, result and lacunas")
+		// The instance of the to version the lens returns.
+		[=~"^\(returns)$"]: struct.MinFields(0)
+
+		// lacunas describe semantic gaps in the transform's mapping. See lacuna docs
+		// for more information (TODO).
+		lacunas: [...Lacuna]
+
+		[!~"^(\(takes)|\(returns)|lacunas)$"]~(K,_): error("\(K) is not a field of a lens; the lens from \(from[0]).\(from[1]) to \(to[0]).\(to[1]) has only \(takes), \(returns) and lacunas")
+	}
 }
 
 // SyntacticVersion is an ordered pair of non-negative integers. It represents

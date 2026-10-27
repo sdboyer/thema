@@ -1,5 +1,5 @@
 # a lacuna message copies an integer where thema requires a string
-# #issue: 107
+#issue: 107
 -- in.cue --
 import "github.com/sdboyer/thema"
 
@@ -11,17 +11,17 @@ lin: thema.Lineage & {
 	}
 	lenses: {
 		"0.0->1.0": {
-			input: _
-			result: {b: input.a}
+			v0_0: _
+			v1_0: {b: v0_0.a}
 			lacunas: [{
-				sourceFields: [{path: "a", value: input.a}]
-				message: input.a
+				sourceFields: [{path: "a", value: v0_0.a}]
+				message: v0_0.a
 				type:    "DroppedField"
 			}]
 		}
 		"1.0->0.0": {
-			input: _
-			result: {a: input.b}
+			v1_0: _
+			v0_0: {a: v1_0.b}
 		}
 	}
 }

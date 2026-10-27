@@ -1,5 +1,5 @@
 # a hidden result field fails to evaluate: not data, but evaluated at translate
-# #issue: 107
+#issue: 107
 -- in.cue --
 import "github.com/sdboyer/thema"
 
@@ -11,15 +11,15 @@ lin: thema.Lineage & {
 	}
 	lenses: {
 		"0.0->1.0": {
-			input: _
-			result: {
-				b:  input.a
-				_h: input.a + "x"
+			v0_0: _
+			v1_0: {
+				b:  v0_0.a
+				_h: v0_0.a + "x"
 			}
 		}
 		"1.0->0.0": {
-			input: _
-			result: {a: input.b}
+			v1_0: _
+			v0_0: {a: v1_0.b}
 		}
 	}
 }

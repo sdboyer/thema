@@ -118,10 +118,10 @@ const (
 	RuleDivisionByZero Rule = "division-by-zero"
 	// RuleTableKeyMissing: a table is indexed by a value with no entry.
 	RuleTableKeyMissing Rule = "table-key-missing"
-	// RuleInputConstrained: the lens constrains its own input (input: {a: int &
-	// <10}, input: {a: *"x" | string}), so what it receives is no longer what the
-	// source schema says an instance is.
-	RuleInputConstrained Rule = "input-constrained"
+	// RuleSourceConstrained: the lens constrains the field it takes (v0_0: {a:
+	// int & <10}, v0_0: {a: *"x" | string}), so what it receives is no longer
+	// what the source schema says an instance is.
+	RuleSourceConstrained Rule = "source-constrained"
 )
 
 // Rules that leave the verdict Unknown.
@@ -223,20 +223,22 @@ func (r Result) Error() error {
 // Check decides whether lens, which maps instances of source to instances of
 // target, is total. Both schemas are closed recursively first (an author's ...
 // survives closing), as Translate closes a lens's result against its target.
-func Check(ctx *cue.Context, lens, source, target cue.Value) Result {
+func Check(ctx *cue.Context, lens, source, target cue.Value, from, to string) Result {
 	w := &walker{
 		ctx:     ctx,
 		lens:    lens,
+		from:    from,
+		to:      to,
 		source:  cuetil.CloseRecursive(ctx, source),
 		target:  cuetil.CloseRecursive(ctx, target),
 		seen:    map[string]bool{},
 		targets: map[string]targetLookup{},
 		pinned:  map[string]cue.Value{},
 	}
-	syn, err := cuetil.ParseLens(lens)
+	syn, err := cuetil.ParseLens(lens, from, to)
 	if err != nil {
-		w.add(Finding{Path: "result", Verdict: Unknown, Rule: RuleUnknownReference,
-			Detail: fmt.Sprintf("could not be read as syntax: %v", err), Pos: w.lensPos(resultPath)})
+		w.add(Finding{Path: to, Verdict: Unknown, Rule: RuleUnknownReference,
+			Detail: fmt.Sprintf("could not be read as syntax: %v", err), Pos: w.lensPos(w.toPath())})
 		return w.result()
 	}
 	w.syn, w.tree = syn, syn.Tree()
@@ -249,15 +251,13 @@ func Check(ctx *cue.Context, lens, source, target cue.Value) Result {
 	return w.result()
 }
 
-var (
-	inputPath   = cue.MakePath(cue.Str("input"))
-	resultPath  = cue.MakePath(cue.Str("result"))
-	lacunasPath = cue.MakePath(cue.Str("lacunas"))
-)
+var lacunasPath = cue.MakePath(cue.Str("lacunas"))
 
 type walker struct {
-	ctx            *cue.Context
-	lens           cue.Value
+	ctx  *cue.Context
+	lens cue.Value
+	// from and to name the lens's source and result fields (cuetil.LensParam).
+	from, to       string
 	source, target cue.Value
 	syn            *cuetil.LensSyntax
 	tree           *cueview.Tree
@@ -286,21 +286,25 @@ type walker struct {
 	absentAdvice func(p cue.Path) string
 }
 
-// checkInput refuses a lens that constrains its own input. Translate fills the
-// input with the instance unified with the source schema, and anything the lens
-// adds there (a bound, a default) changes what the lens sees, so that the source
-// schema no longer says what its instances are. thema's own declaration of the
-// field (input: _) is known by its position in thema's CUE.
+// checkInput refuses a lens that constrains the field it takes. Translate fills
+// the field with the instance unified with the source schema, and anything the
+// lens adds there (a bound, a default) changes what the lens sees, so that the
+// source schema no longer says what its instances are. thema's own constraint
+// on the field is known by its position in thema's CUE.
 func (w *walker) checkInput() {
-	_, args := w.lens.LookupPath(inputPath).Expr()
+	_, args := w.lens.LookupPath(w.fromPath()).Expr()
 	for _, a := range args {
 		if embedreg.IsKernel(a.Pos()) || isTop(a) {
 			continue
 		}
-		w.add(Finding{Path: "input", Verdict: NotTotal, Rule: RuleInputConstrained,
-			Detail: fmt.Sprintf("is %s, a constraint on what the lens receives; a lens's input must be _, so that the source schema alone says what its instances are", fmtv(a)), Pos: a.Pos()})
+		w.add(Finding{Path: w.from, Verdict: NotTotal, Rule: RuleSourceConstrained,
+			Detail: fmt.Sprintf("is %s, a constraint on what the lens receives; %s must be _, so that the source schema alone says what the lens takes", fmtv(a), w.from), Pos: a.Pos()})
 	}
 }
+
+// fromPath and toPath are the lens's source and result fields.
+func (w *walker) fromPath() cue.Path { return cue.MakePath(cue.Str(w.from)) }
+func (w *walker) toPath() cue.Path   { return cue.MakePath(cue.Str(w.to)) }
 
 // isTop reports whether v is _, and nothing more: no default, no constraint.
 func isTop(v cue.Value) bool {
@@ -356,15 +360,11 @@ func (w *walker) record(wr *write) {
 
 // subject names the lens path q in findings: a path within the result, or a
 // lacuna field's path from lacunas.
-func subject(q cue.Path) string {
-	sels := q.Selectors()
-	if len(sels) == 0 {
-		return "result"
-	}
+func (w *walker) subject(q cue.Path) string {
 	if cuetil.PathHasPrefix(q, lacunasPath) {
 		return q.String()
 	}
-	return "result." + q.String()
+	return rootRef(w.to, q)
 }
 
 // absent says what to do about input path p, which may be absent where it is
@@ -373,15 +373,20 @@ func (w *walker) absent(p cue.Path) string {
 	if w.absentAdvice != nil {
 		return w.absentAdvice(p)
 	}
-	return fmt.Sprintf("write the field under if %s != _|_", inputRef(p))
+	return fmt.Sprintf("write the field under if %s != _|_", w.inputRef(p))
 }
 
 // inputRef names the source path p in findings.
-func inputRef(p cue.Path) string {
+func (w *walker) inputRef(p cue.Path) string {
+	return rootRef(w.from, p)
+}
+
+// rootRef names the path p beneath the lens field root.
+func rootRef(root string, p cue.Path) string {
 	if len(p.Selectors()) == 0 {
-		return "input"
+		return root
 	}
-	return "input." + p.String()
+	return root + "." + p.String()
 }
 
 // lensPos is the author's position for the lens field at p.
@@ -392,7 +397,7 @@ func (w *walker) lensPos(p cue.Path) token.Pos {
 // resultPos is the author's position for the result field q, or fallback where
 // the field is not in the lens's value (declared inside a comprehension).
 func (w *walker) resultPos(q cue.Path, fallback token.Pos) token.Pos {
-	sels := append([]cue.Selector{cue.Str("result")}, q.Selectors()...)
+	sels := append([]cue.Selector{cue.Str(w.to)}, q.Selectors()...)
 	if p := embedreg.AuthorPos(w.lens.LookupPath(cue.MakePath(sels...))); p.IsValid() {
 		return p
 	}
@@ -415,7 +420,7 @@ func (w *walker) walkResult() {
 		if !embedreg.IsKernel(a.Pos()) {
 			continue
 		}
-		if op, _ := a.LookupPath(resultPath).Expr(); op == cue.CallOp {
+		if op, _ := a.LookupPath(w.toPath()).Expr(); op == cue.CallOp {
 			kernel++
 		}
 	}
@@ -429,8 +434,8 @@ func (w *walker) walkResult() {
 	}
 	if len(calls) > kernel {
 		for _, c := range calls {
-			w.add(Finding{Path: subject(root), Verdict: Unknown, Rule: RuleUnknownOp,
-				Detail: fmt.Sprintf("is constrained by %s, a call the checker does not prove; write result as a struct", text(c.Expr)), Pos: pos})
+			w.add(Finding{Path: w.subject(root), Verdict: Unknown, Rule: RuleUnknownOp,
+				Detail: fmt.Sprintf("is constrained by %s, a call the checker does not prove; write %s as a struct", text(c.Expr), w.to), Pos: pos})
 		}
 	}
 	for _, c := range rest {
@@ -448,14 +453,14 @@ func (w *walker) conjunct(c cueview.Conjunct, q cue.Path, gs []pattern, pos toke
 		// Every disjunct is a conjunct of the field; the disjunction is one
 		// write, and one finding.
 		w.record(&write{q: q, patterns: gs, kind: literalW, text: text(c.Disjunction), pos: pos})
-		w.add(Finding{Path: subject(q), Verdict: NotTotal, Rule: RuleNotAValue,
+		w.add(Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleNotAValue,
 			Detail: fmt.Sprintf("is %s, a disjunction rather than a value; a result field must have one concrete value", text(c.Disjunction)), Pos: pos})
 		return
 	}
 	if w.syn.FromInput(c) {
 		p, ok := w.sourcePath(c)
 		if !ok {
-			w.add(Finding{Path: subject(q), Verdict: Unknown, Rule: RuleUnknownReference,
+			w.add(Finding{Path: w.subject(q), Verdict: Unknown, Rule: RuleUnknownReference,
 				Detail: fmt.Sprintf("copies %s, a selection into the input the checker cannot follow; select fields by name", text(c.Expr)), Pos: pos})
 			return
 		}
@@ -482,15 +487,15 @@ func (w *walker) conjunct(c cueview.Conjunct, q cue.Path, gs []pattern, pos toke
 				return
 			}
 			w.record(&write{q: q, patterns: gs, kind: literalW, text: e.Name, pos: pos})
-			w.add(Finding{Path: subject(q), Verdict: NotTotal, Rule: RuleNotAValue,
+			w.add(Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleNotAValue,
 				Detail: fmt.Sprintf("is %s, a constraint rather than a value; a result field must have a concrete value", e.Name), Pos: pos})
 			return
 		}
-		w.add(Finding{Path: subject(q), Verdict: Unknown, Rule: RuleUnknownReference,
+		w.add(Finding{Path: w.subject(q), Verdict: Unknown, Rule: RuleUnknownReference,
 			Detail: fmt.Sprintf("is %s, a reference the checker cannot follow to the input or to a constant", e.Name), Pos: pos})
 	case *ast.BottomLit:
 		w.record(&write{q: q, patterns: gs, kind: literalW, text: "_|_", pos: pos})
-		w.add(Finding{Path: subject(q), Verdict: NotTotal, Rule: RuleNotAValue,
+		w.add(Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleNotAValue,
 			Detail: "is _|_, an error, rather than a value", Pos: pos})
 	default:
 		w.computed(c.Expr, q, gs, pos)
@@ -503,8 +508,8 @@ func (w *walker) conjunct(c cueview.Conjunct, q cue.Path, gs []pattern, pos toke
 func (w *walker) hiddenConjunct(c cueview.Conjunct, q cue.Path, gs []pattern, pos token.Pos) {
 	if w.syn.FromInput(c) {
 		if p, ok := w.sourcePath(c); ok && !w.lookupSource(p, gs).declared {
-			w.add(Finding{Path: subject(q), Verdict: NotTotal, Rule: RuleSourceUndeclared,
-				Detail: fmt.Sprintf("copies %s, which the source schema does not declare", inputRef(p)), Pos: pos})
+			w.add(Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleSourceUndeclared,
+				Detail: fmt.Sprintf("copies %s, which the source schema does not declare", w.inputRef(p)), Pos: pos})
 		}
 		return
 	}
@@ -523,7 +528,7 @@ func (w *walker) hiddenConjunct(c cueview.Conjunct, q cue.Path, gs []pattern, po
 		}
 	case *ast.BasicLit, *ast.Ident:
 	case *ast.BottomLit:
-		w.add(Finding{Path: subject(q), Verdict: NotTotal, Rule: RuleNotAValue,
+		w.add(Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleNotAValue,
 			Detail: "is _|_, an error", Pos: pos})
 	default:
 		if c.Disjunction == nil {
@@ -706,17 +711,17 @@ func isBoolName(name string) bool {
 
 // copy proves the copy of input p into result q under patterns gs.
 func (w *walker) copy(q, p cue.Path, gs []pattern, pos token.Pos) {
-	w.record(&write{q: q, patterns: gs, kind: copyW, src: p, text: inputRef(p), pos: pos})
+	w.record(&write{q: q, patterns: gs, kind: copyW, src: p, text: w.inputRef(p), pos: pos})
 	src := w.lookupSource(p, gs)
-	subj := subject(q)
+	subj := w.subject(q)
 	if !src.declared {
 		w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleSourceUndeclared,
-			Detail: fmt.Sprintf("copies %s, which the source schema does not declare", inputRef(p)), Pos: pos})
+			Detail: fmt.Sprintf("copies %s, which the source schema does not declare", w.inputRef(p)), Pos: pos})
 		return
 	}
 	if !src.present {
 		w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleSourceAbsent,
-			Detail: fmt.Sprintf("copies %s, which may be absent: %s; %s", inputRef(p), src.why, w.absent(p)), Pos: pos})
+			Detail: fmt.Sprintf("copies %s, which may be absent: %s; %s", w.inputRef(p), src.why, w.absent(p)), Pos: pos})
 	}
 	tgt, ok := w.targetAt(q, pos)
 	if !ok {
@@ -741,7 +746,7 @@ func (w *walker) copy(q, p cue.Path, gs []pattern, pos token.Pos) {
 			}
 			if e, ok := tgt.Default(); ok && cuetil.Equal(d, e) != nil {
 				w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleCopyNarrowed,
-					Detail: fmt.Sprintf("copies %s, which an instance may omit; it then fills with %s in the source schema and with %s in the target schema, and the copy has no single value", inputRef(p), fmtv(d), fmtv(e)), Pos: pos})
+					Detail: fmt.Sprintf("copies %s, which an instance may omit; it then fills with %s in the source schema and with %s in the target schema, and the copy has no single value", w.inputRef(p), fmtv(d), fmtv(e)), Pos: pos})
 			}
 		}
 	}
@@ -765,12 +770,12 @@ type pendingCopy struct {
 // as one.
 func (w *walker) checkCopies() {
 	for _, c := range w.copies {
-		subj := subject(c.q)
+		subj := w.subject(c.q)
 		for _, b := range c.branches {
 			if compat.ConstantTarget(b) {
 				if err := c.tgt.Unify(b).Validate(cue.Concrete(true)); err != nil {
 					w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleCopyNarrowed,
-						Detail: fmt.Sprintf("copies %s, which may be %s, which the target schema does not accept: %s", inputRef(c.p), fmtv(b), errMsg(err)), Pos: c.pos})
+						Detail: fmt.Sprintf("copies %s, which may be %s, which the target schema does not accept: %s", w.inputRef(c.p), fmtv(b), errMsg(err)), Pos: c.pos})
 				}
 				continue
 			}
@@ -785,7 +790,7 @@ func (w *walker) checkCopies() {
 					verdict, rule = Unknown, RuleUnknownCopy
 				}
 				w.add(Finding{Path: subj, Verdict: verdict, Rule: rule,
-					Detail: fmt.Sprintf("copies %s, %s", inputRef(c.p), compatDetail(f)), Pos: c.pos})
+					Detail: fmt.Sprintf("copies %s, %s", w.inputRef(c.p), compatDetail(f)), Pos: c.pos})
 			}
 		}
 	}
@@ -808,7 +813,7 @@ func compatDetail(f compat.Finding) string {
 func (w *walker) composite(e *ast.StructLit, q cue.Path, gs []pattern, pos token.Pos) {
 	w.record(&write{q: q, patterns: gs, kind: compositeW, text: "{...}", pos: pos})
 	if tgt, ok := w.targetAt(q, pos); ok && tgt.IncompleteKind()&cue.StructKind == 0 {
-		w.add(Finding{Path: subject(q), Verdict: NotTotal, Rule: RuleLiteralNotInstance,
+		w.add(Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleLiteralNotInstance,
 			Detail: fmt.Sprintf("is a struct, where the target schema wants %s", tgt.IncompleteKind()), Pos: pos})
 		return
 	}
@@ -821,24 +826,24 @@ func (w *walker) list(e *ast.ListLit, q cue.Path, gs []pattern, pos token.Pos) {
 	for _, elt := range e.Elts {
 		switch elt.(type) {
 		case *ast.Comprehension:
-			w.add(Finding{Path: subject(q), Verdict: Unknown, Rule: RuleUnknownDynamic,
+			w.add(Finding{Path: w.subject(q), Verdict: Unknown, Rule: RuleUnknownDynamic,
 				Detail: "builds list elements with a comprehension, so how many there are and what they hold depends on the instance; write each element", Pos: pos})
 			return
 		case *ast.Ellipsis:
-			w.add(Finding{Path: subject(q), Verdict: NotTotal, Rule: RuleNotAValue,
+			w.add(Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleNotAValue,
 				Detail: "is an open list ([...]), a constraint rather than a value", Pos: pos})
 			return
 		}
 	}
 	if tgt, ok := w.targetAt(q, pos); ok && tgt.IncompleteKind() != cue.TopKind {
 		if tgt.IncompleteKind()&cue.ListKind == 0 {
-			w.add(Finding{Path: subject(q), Verdict: NotTotal, Rule: RuleLiteralNotInstance,
+			w.add(Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleLiteralNotInstance,
 				Detail: fmt.Sprintf("is a list, where the target schema wants %s", tgt.IncompleteKind()), Pos: pos})
 			return
 		}
 		shape := w.ctx.CompileString("[" + strings.Repeat("_,", len(e.Elts)) + "]")
 		if err := tgt.Unify(shape).Validate(); err != nil {
-			w.add(Finding{Path: subject(q), Verdict: NotTotal, Rule: RuleLiteralNotInstance,
+			w.add(Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleLiteralNotInstance,
 				Detail: fmt.Sprintf("is a list of %d elements, which the target schema does not accept: %s", len(e.Elts), errMsg(err)), Pos: pos})
 			return
 		}
@@ -860,7 +865,7 @@ func (w *walker) literal(x ast.Expr, q cue.Path, gs []pattern, pos token.Pos) {
 	}
 	v := w.ctx.BuildExpr(x)
 	if err := tgt.Unify(v).Validate(cue.Concrete(true)); err != nil {
-		w.add(Finding{Path: subject(q), Verdict: NotTotal, Rule: RuleLiteralNotInstance,
+		w.add(Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleLiteralNotInstance,
 			Detail: fmt.Sprintf("is the constant %s, which the target schema does not accept: %s", text(x), errMsg(err)), Pos: pos})
 	}
 }
@@ -872,7 +877,7 @@ func (w *walker) decls(decls []ast.Decl, q cue.Path, gs []pattern, pos token.Pos
 		case *ast.Field:
 			name, isIdent, err := ast.LabelName(x.Label)
 			if err != nil || (!isIdent && name == "") {
-				w.add(Finding{Path: subject(q), Verdict: Unknown, Rule: RuleUnknownDynamic,
+				w.add(Finding{Path: w.subject(q), Verdict: Unknown, Rule: RuleUnknownDynamic,
 					Detail: fmt.Sprintf("has a field whose label %s is computed, so which field it is depends on the instance; write the label", text(x.Label)), Pos: pos})
 				continue
 			}
@@ -912,14 +917,14 @@ func (w *walker) decls(decls []ast.Decl, q cue.Path, gs []pattern, pos token.Pos
 				case *ast.IfClause:
 					g, ok := w.parsePattern(c.Condition)
 					if !ok {
-						w.add(Finding{Path: subject(q), Verdict: Unknown, Rule: RuleUnknownPattern,
+						w.add(Finding{Path: w.subject(q), Verdict: Unknown, Rule: RuleUnknownPattern,
 							Detail: fmt.Sprintf("has fields under %s, which is not a pattern: a presence test (p != _|_), an equality (p == c) or a type test ((p & T) != _|_) on an input field, or a conjunction (&&) of these", text(c.Condition)), Pos: cpos})
-						g = []pattern{{kind: opaque, text: text(c.Condition)}}
+						g = []pattern{{root: w.from, kind: opaque, text: text(c.Condition)}}
 					}
-					w.checkPatterns(g, ngs, subject(q), cpos)
+					w.checkPatterns(g, ngs, w.subject(q), cpos)
 					ngs = append(ngs, g...)
 				case *ast.ForClause:
-					w.add(Finding{Path: subject(q), Verdict: Unknown, Rule: RuleUnknownDynamic,
+					w.add(Finding{Path: w.subject(q), Verdict: Unknown, Rule: RuleUnknownDynamic,
 						Detail: fmt.Sprintf("has fields produced by a for clause over %s, so which fields exist depends on the instance; write each field", text(c.Source)), Pos: cpos})
 					walkable = false
 				}
@@ -996,14 +1001,14 @@ func (w *walker) lookupTarget(q cue.Path) targetLookup {
 		}
 		if alts := compat.Branches(cur); len(alts) > 1 {
 			prefix := cue.MakePath(sels[:i]...)
-			l := targetLookup{finding: &Finding{Path: subject(q), Verdict: Unknown, Rule: RuleUnknownTargetConstraint,
-				Detail: fmt.Sprintf("is written beneath %s, which is a disjunction in the target schema; the checker descends only into a single struct or list, so write %s as one value", subject(prefix), subject(prefix))}}
+			l := targetLookup{finding: &Finding{Path: w.subject(q), Verdict: Unknown, Rule: RuleUnknownTargetConstraint,
+				Detail: fmt.Sprintf("is written beneath %s, which is a disjunction in the target schema; the checker descends only into a single struct or list, so write %s as one value", w.subject(prefix), w.subject(prefix))}}
 			w.targets[key] = l
 			return l
 		}
 		next, _, ok := cuetil.DeclaredChild(w.ctx, cur, sel)
 		if !ok {
-			l := targetLookup{finding: &Finding{Path: subject(q), Verdict: NotTotal, Rule: RuleTargetUndeclared,
+			l := targetLookup{finding: &Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleTargetUndeclared,
 				Detail: "is not declared by the target schema"}}
 			w.targets[key] = l
 			return l
@@ -1056,7 +1061,7 @@ func (w *walker) lookupSource(p cue.Path, gs []pattern) sourceLookup {
 					next = append(next, alt)
 					declaredIn++
 					optional = true
-					reason = fmt.Sprintf("%s is _ in the source schema, which need not hold %s", inputRef(cue.MakePath(sels[:i]...)), sel)
+					reason = fmt.Sprintf("%s is _ in the source schema, which need not hold %s", w.inputRef(cue.MakePath(sels[:i]...)), sel)
 					continue
 				}
 				child, csel, ok := cuetil.DeclaredChild(w.ctx, alt, sel)
@@ -1067,7 +1072,7 @@ func (w *walker) lookupSource(p cue.Path, gs []pattern) sourceLookup {
 				next = append(next, child)
 				if r, ok := presentIn(alt, sel, csel); !ok {
 					optional = true
-					reason = fmt.Sprintf("%s %s", inputRef(prefix), r)
+					reason = fmt.Sprintf("%s %s", w.inputRef(prefix), r)
 				}
 			}
 		}
@@ -1076,7 +1081,7 @@ func (w *walker) lookupSource(p cue.Path, gs []pattern) sourceLookup {
 		}
 		if declaredIn < alts {
 			optional = true
-			reason = fmt.Sprintf("%s is declared by only some alternatives of %s", inputRef(prefix), inputRef(cue.MakePath(sels[:i]...)))
+			reason = fmt.Sprintf("%s is declared by only some alternatives of %s", w.inputRef(prefix), w.inputRef(cue.MakePath(sels[:i]...)))
 		}
 		if optional && !establishes(gs, prefix) && present {
 			present, why = false, reason
@@ -1169,11 +1174,11 @@ func (w *walker) checkExhaustive() {
 			cands, written := w.candidates(p.patterns, cq)
 			switch {
 			case !written:
-				w.add(Finding{Path: subject(cq), Verdict: NotTotal, Rule: RuleRequiredNotWritten,
+				w.add(Finding{Path: w.subject(cq), Verdict: NotTotal, Rule: RuleRequiredNotWritten,
 					Detail: "is required by the target schema and never written" + underPatterns(p.patterns), Pos: p.pos})
 			case w.covers(cands):
 			default:
-				w.add(Finding{Path: subject(cq), Verdict: Unknown, Rule: RuleUnknownExhaustive,
+				w.add(Finding{Path: w.subject(cq), Verdict: Unknown, Rule: RuleUnknownExhaustive,
 					Detail: fmt.Sprintf("is required by the target schema, and is written only under %s, which the checker cannot show cover every instance%s; write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field", describePatternSets(cands), underPatterns(p.patterns)), Pos: p.pos})
 			}
 		}
@@ -1227,7 +1232,7 @@ func (w *walker) copyChildPatterns(cw *write, rel cue.Path) ([]pattern, bool) {
 	}
 	patterns := cw.patterns
 	if !src.present {
-		patterns = append(append([]pattern(nil), patterns...), pattern{kind: presence, path: appendPaths(cw.src, rel)})
+		patterns = append(append([]pattern(nil), patterns...), pattern{root: w.from, kind: presence, path: appendPaths(cw.src, rel)})
 	}
 	return patterns, true
 }
@@ -1254,7 +1259,7 @@ func (w *walker) checkConflicts() {
 			if !ok {
 				continue
 			}
-			all = append(all, &write{q: ew.q, patterns: patterns, kind: copyW, src: src, text: inputRef(src) + " (through " + inputRef(cw.src) + ")", pos: cw.pos})
+			all = append(all, &write{q: ew.q, patterns: patterns, kind: copyW, src: src, text: w.inputRef(src) + " (through " + w.inputRef(cw.src) + ")", pos: cw.pos})
 		}
 	}
 	byPath := map[string][]*write{}
@@ -1283,7 +1288,7 @@ func (w *walker) checkConflicts() {
 				case patternsDisjoint(a.patterns, b.patterns):
 					continue
 				}
-				w.add(Finding{Path: subject(a.q), Verdict: NotTotal, Rule: RuleWriteConflict,
+				w.add(Finding{Path: w.subject(a.q), Verdict: NotTotal, Rule: RuleWriteConflict,
 					Detail: fmt.Sprintf("is written as %s and as %s, and the two unify, so one may reject the other's value; write the field once", a.text, b.text), Pos: b.pos})
 			}
 		}
@@ -1298,7 +1303,7 @@ func (w *walker) walkLacunas() {
 	w.quiet++
 	defer func() { w.quiet-- }()
 	w.absentAdvice = func(p cue.Path) string {
-		return fmt.Sprintf("add %s != _|_ to the lacuna's condition", inputRef(p))
+		return fmt.Sprintf("add %s != _|_ to the lacuna's condition", w.inputRef(p))
 	}
 	defer func() { w.absentAdvice = nil }()
 	for _, c := range w.syn.LacunaConjuncts() {
@@ -1392,7 +1397,7 @@ func (w *walker) lacunaCondition(lp cue.Path, x ast.Expr) []pattern {
 		if !ok {
 			w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownPattern,
 				Detail: fmt.Sprintf("is %s, which is not a pattern: a presence test (p != _|_), an equality (p == c) or a type test ((p & T) != _|_) on an input field, or a conjunction (&&) of these", text(c.Expr)), Pos: pos})
-			g = []pattern{{kind: opaque, text: text(c.Expr)}}
+			g = []pattern{{root: w.from, kind: opaque, text: text(c.Expr)}}
 		}
 		w.checkPatterns(g, nil, subj, pos)
 		gs = append(gs, g...)
@@ -1438,11 +1443,11 @@ func (w *walker) lacunaValue(subj string, x ast.Expr, gs []pattern, pos token.Po
 		switch {
 		case !written:
 			w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleSourceAbsent,
-				Detail: fmt.Sprintf("refers to %s, which the lens never writes", subject(r)), Pos: pos})
+				Detail: fmt.Sprintf("refers to %s, which the lens never writes", w.subject(r)), Pos: pos})
 		case w.covers(all), w.covers(under):
 		default:
 			w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownExhaustive,
-				Detail: fmt.Sprintf("refers to %s, which is written only under %s: neither covering every instance nor implied by the lacuna's condition%s", subject(r), describePatternSets(all), underPatterns(gs)), Pos: pos})
+				Detail: fmt.Sprintf("refers to %s, which is written only under %s: neither covering every instance nor implied by the lacuna's condition%s", w.subject(r), describePatternSets(all), underPatterns(gs)), Pos: pos})
 		}
 		return
 	}
@@ -1461,10 +1466,10 @@ func (w *walker) lacunaValue(subj string, x ast.Expr, gs []pattern, pos token.Po
 		switch {
 		case !src.declared:
 			w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleSourceUndeclared,
-				Detail: fmt.Sprintf("reads %s, which the source schema does not declare", inputRef(p)), Pos: pos})
+				Detail: fmt.Sprintf("reads %s, which the source schema does not declare", w.inputRef(p)), Pos: pos})
 		case !src.present:
 			w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleSourceAbsent,
-				Detail: fmt.Sprintf("reads %s, which may be absent when the lacuna applies: %s; %s", inputRef(p), src.why, w.absent(p)), Pos: pos})
+				Detail: fmt.Sprintf("reads %s, which may be absent when the lacuna applies: %s; %s", w.inputRef(p), src.why, w.absent(p)), Pos: pos})
 		}
 	}
 }
