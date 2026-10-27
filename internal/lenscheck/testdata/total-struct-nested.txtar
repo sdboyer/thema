@@ -1,0 +1,10 @@
+# A struct literal whose required field is written.
+-- source.cue --
+a: string
+-- target.cue --
+o: {init: string}
+-- lens.cue --
+input: _
+result: {o: {init: input.a}}
+-- out --
+total

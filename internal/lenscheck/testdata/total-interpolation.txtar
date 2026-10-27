@@ -1,0 +1,11 @@
+# Interpolation of strings and integers into a target that accepts any string.
+-- source.cue --
+a: string
+n: int
+-- target.cue --
+id: string
+-- lens.cue --
+input: _
+result: {id: "x-\(input.a)-\(input.n)"}
+-- out --
+total

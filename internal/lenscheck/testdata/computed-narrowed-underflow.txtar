@@ -1,0 +1,11 @@
+# Arithmetic that can leave the target bounds: {a: 0} gives -1 (#20).
+-- source.cue --
+a!: uint
+-- target.cue --
+n!: uint
+-- lens.cue --
+input: _
+result: {n: input.a - 1}
+-- out --
+not total
+result.n is input.a - 1, which may be as low as -1, where the target schema requires >=0 (rule computed-narrowed) @ lens.cue:2:13

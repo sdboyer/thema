@@ -1,0 +1,12 @@
+# A field that refers to a hidden helper holds what the helper holds.
+-- source.cue --
+a: string
+-- target.cue --
+a: string
+b: int
+-- lens.cue --
+input: _
+result: {a: input.a, b: _h}
+_h: 2
+-- out --
+total

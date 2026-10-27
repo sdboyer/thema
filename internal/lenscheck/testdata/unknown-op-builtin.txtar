@@ -1,0 +1,12 @@
+# A builtin outside the provable set.
+-- source.cue --
+s: string
+-- target.cue --
+n: int
+-- lens.cue --
+import "strconv"
+input: _
+result: {n: strconv.Atoi(input.s)}
+-- out --
+unknown
+result.n calls strconv.Atoi, which is outside the provable set (len; quo, rem, div, mod; strings.Contains, strings.HasPrefix, strings.HasSuffix, strings.Replace, strings.ToLower, strings.ToUpper, strings.Trim, strings.TrimLeft, strings.TrimPrefix, strings.TrimRight, strings.TrimSpace, strings.TrimSuffix) (rule unknown-op) @ lens.cue:3:13

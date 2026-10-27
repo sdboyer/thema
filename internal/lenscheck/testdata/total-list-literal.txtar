@@ -1,0 +1,10 @@
+# A list literal whose elements are proven at their indices.
+-- source.cue --
+a: int
+-- target.cue --
+l: [...int]
+-- lens.cue --
+input: _
+result: {l: [input.a, 1]}
+-- out --
+total

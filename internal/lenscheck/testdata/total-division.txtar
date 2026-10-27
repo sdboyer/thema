@@ -1,0 +1,12 @@
+# Integer division by a divisor whose bounds exclude zero.
+-- source.cue --
+n: int32
+d: int & >=1 & <=10
+-- target.cue --
+q: int
+r: int
+-- lens.cue --
+input: _
+result: {q: quo(input.n, input.d), r: rem(input.n, 7)}
+-- out --
+total

@@ -1,0 +1,13 @@
+# An operand refined by an equality guard: the result is a point.
+-- source.cue --
+n: int32
+-- target.cue --
+m: 0 | 1
+-- lens.cue --
+input: _
+result: {
+	if input.n == 0 {m: input.n + 1}
+	if input.n != 0 {m: 0}
+}
+-- out --
+total

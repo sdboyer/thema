@@ -1,0 +1,12 @@
+# A required target field the lens never writes.
+-- source.cue --
+a: string
+-- target.cue --
+a: string
+b: int
+-- lens.cue --
+input: _
+result: {a: input.a}
+-- out --
+not total
+result.b is required by the target schema and never written (rule required-not-written) @ lens.cue:2:1

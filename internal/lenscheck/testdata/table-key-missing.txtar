@@ -1,0 +1,12 @@
+# A table indexed by a field with an alternative the table has no entry for.
+-- source.cue --
+t: "a" | "b" | "c"
+-- target.cue --
+u: 1 | 2
+-- lens.cue --
+_T: {a: 1, b: 2}
+input: _
+result: {u: _T[input.t]}
+-- out --
+not total
+result.u indexes a table by input.t, which may be "c", for which the table has no entry (rule table-key-missing) @ lens.cue:3:13

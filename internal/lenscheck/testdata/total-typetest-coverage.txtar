@@ -1,0 +1,20 @@
+# Type tests whose types together subsume every alternative of the tested field, each arm proven under its refinement (exemplars/narrowing).
+-- source.cue --
+boolish: "true" | "false" | bool | string
+-- target.cue --
+properbool: bool
+-- lens.cue --
+input: _
+result: {
+	if (input.boolish & string) != _|_ {properbool: input.boolish == "true"}
+	if (input.boolish & bool) != _|_ {properbool: input.boolish}
+}
+lacunas: [{
+	condition: ((input.boolish & string) != _|_) && ((input.boolish & ("true" | "false")) == _|_)
+	sourceFields: [{path: "boolish", value: input.boolish}]
+	targetFields: [{path: "properbool", value: result.properbool}]
+	message: "lossy"
+	type: "LossyFieldMapping"
+}]
+-- out --
+total

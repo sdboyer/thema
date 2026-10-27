@@ -1,0 +1,10 @@
+# A head with a fallback: [if c {x}, y][0].
+-- source.cue --
+n: "a" | "b"
+-- target.cue --
+s: string
+-- lens.cue --
+input: _
+result: {s: [if input.n == "a" {"x"}, "y"][0]}
+-- out --
+total

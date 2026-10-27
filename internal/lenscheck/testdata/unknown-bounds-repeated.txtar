@@ -1,0 +1,11 @@
+# An operand that occurs twice: the checker treats each occurrence independently, so its interval cannot refute.
+-- source.cue --
+n: int32
+-- target.cue --
+z: 0
+-- lens.cue --
+input: _
+result: {z: input.n - input.n}
+-- out --
+unknown
+result.z is an integer computed by input.n - input.n, in [-4294967295, 4294967295], which the checker cannot show within int64 and the target's 0 (an operand occurs more than once, and the checker treats each occurrence independently); bound the fields it reads (int32, >=0 & <=100) (rule unknown-bounds) @ lens.cue:2:13

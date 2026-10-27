@@ -1,0 +1,11 @@
+# A bound narrowed between source and target: {a: 50} is a valid source instance the target rejects (#20).
+-- source.cue --
+a!: int
+-- target.cue --
+a!: int & <10
+-- lens.cue --
+input: _
+result: {a: input.a}
+-- out --
+not total
+result.a copies input.a, which is now int & <10, which does not accept every value of the prior int (compat rule value-narrowed) (rule copy-narrowed) @ lens.cue:2:13

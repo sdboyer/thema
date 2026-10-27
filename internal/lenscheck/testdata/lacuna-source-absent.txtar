@@ -1,0 +1,17 @@
+# A lacuna reporting an optional source field its condition does not establish.
+-- source.cue --
+a: string
+o?: int
+-- target.cue --
+a: string
+-- lens.cue --
+input: _
+result: {a: input.a}
+lacunas: [{
+	sourceFields: [{path: "o", value: input.o}]
+	message: "dropped"
+	type: "DroppedField"
+}]
+-- out --
+not total
+lacunas[0].sourceFields[0].value reads input.o, which may be absent when the lacuna applies: input.o is optional in the source schema; add input.o != _|_ to the condition (rule source-absent) @ lens.cue:4:36

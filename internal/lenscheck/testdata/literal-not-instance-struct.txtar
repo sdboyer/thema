@@ -1,0 +1,11 @@
+# A struct literal where the target wants a scalar.
+-- source.cue --
+a: string
+-- target.cue --
+a: int
+-- lens.cue --
+input: _
+result: {a: {b: 1}}
+-- out --
+not total
+result.a is a struct, where the target schema wants int (rule literal-not-instance) @ lens.cue:2:10

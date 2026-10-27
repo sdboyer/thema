@@ -1,0 +1,10 @@
+# Integer arithmetic whose interval, from the operand bounds read via Expr(), lies within the target bounds.
+-- source.cue --
+n: int32
+-- target.cue --
+m: int & >=-2147483649 & <=2147483648
+-- lens.cue --
+input: _
+result: {m: input.n + 1}
+-- out --
+total

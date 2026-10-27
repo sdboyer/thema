@@ -1,0 +1,11 @@
+# A guard that is not a presence test, an equality or a type test.
+-- source.cue --
+n: int32
+-- target.cue --
+big?: bool
+-- lens.cue --
+input: _
+result: {if input.n > 5 {big: true}}
+-- out --
+unknown
+result has fields guarded by input.n > 5, which is not a presence test (p != _|_), an equality (p == c) or a type test ((p & T) != _|_) on an input field, or a conjunction (&&) of these (rule unknown-guard) @ lens.cue:2:10

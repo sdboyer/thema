@@ -1,0 +1,20 @@
+# A required field written under an equality and under its negation (exemplars/defaultchange).
+-- source.cue --
+aunion: "foo" | *"bar" | "baz"
+-- target.cue --
+aunion: *"foo" | "bar" | "baz"
+-- lens.cue --
+input: _
+result: {
+	if input.aunion == "bar" {aunion: "foo"}
+	if input.aunion != "bar" {aunion: input.aunion}
+}
+lacunas: [{
+	condition: input.aunion == "bar"
+	sourceFields: [{path: "aunion", value: input.aunion}]
+	targetFields: [{path: "aunion", value: result.aunion}]
+	message: "changed"
+	type: "ChangedDefault"
+}]
+-- out --
+total

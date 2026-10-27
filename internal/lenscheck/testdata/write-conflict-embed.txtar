@@ -1,0 +1,11 @@
+# The input embedded and one of its fields overwritten with a constant.
+-- source.cue --
+a: int
+-- target.cue --
+a: int
+-- lens.cue --
+input: _
+result: {input, a: 5}
+-- out --
+not total
+result.a is written as 5 and as input.a (through input), and the two unify, so one may reject the other's value; write the field once (rule write-conflict) @ lens.cue:2:10

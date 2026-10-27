@@ -1,0 +1,12 @@
+# A table indexed by a field that is not a finite set of string constants.
+-- source.cue --
+t: string
+-- target.cue --
+u: 1 | 2
+-- lens.cue --
+_T: {a: 1, b: 2}
+input: _
+result: {u: _T[input.t]}
+-- out --
+unknown
+result.u indexes a table by input.t, which may be string rather than one of a finite set of string constants; the checker needs every possible key (rule unknown-table-key) @ lens.cue:3:13
