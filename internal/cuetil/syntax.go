@@ -14,10 +14,11 @@ import (
 // cueview.Tree), for the checks of where a lens's result comes from. Its answers depend only on
 // what the lens is, not on how its value was constructed.
 type LensSyntax struct {
-	t       *cueview.Tree
-	inputs  []*ast.Field
-	result  []cueview.Conjunct
-	lacunas []cueview.Conjunct
+	t            *cueview.Tree
+	inputs       []*ast.Field
+	resultFields []*ast.Field
+	result       []cueview.Conjunct
+	lacunas      []cueview.Conjunct
 }
 
 // ParseLens reads the syntax of lens, a value with input, result and lacunas
@@ -52,6 +53,7 @@ func ParseLens(lens cue.Value) (*LensSyntax, error) {
 			case "input":
 				ls.inputs = append(ls.inputs, f)
 			case "result":
+				ls.resultFields = append(ls.resultFields, f)
 				ls.result = append(ls.result, t.Conjuncts(f.Value)...)
 			case "lacunas":
 				ls.lacunas = append(ls.lacunas, t.Conjuncts(f.Value)...)
@@ -79,6 +81,50 @@ func (ls *LensSyntax) LacunasConditional() bool {
 // Result returns where the lens's result, and each of its fields, comes from.
 func (ls *LensSyntax) Result() *LensField {
 	return ls.classify(ls.result, false)
+}
+
+// Tree returns the syntax tree the lens was read from, for walks that need more
+// of a lens than [LensField] records: the conjuncts of each field, the
+// comprehensions they are declared in, and the expressions computed fields
+// are built from.
+func (ls *LensSyntax) Tree() *cueview.Tree {
+	return ls.t
+}
+
+// ResultConjuncts returns the conjuncts of the lens's result field. Besides
+// what the author wrote, they include thema's own constraint on a result
+// (struct.MinFields(0)), which a walk recognizes as a builtin call at the
+// root.
+func (ls *LensSyntax) ResultConjuncts() []cueview.Conjunct {
+	return ls.result
+}
+
+// LacunaConjuncts returns the conjuncts of the lens's lacunas field: the
+// author's list, and thema's [...Lacuna], a list literal with only an ellipsis.
+func (ls *LensSyntax) LacunaConjuncts() []cueview.Conjunct {
+	return ls.lacunas
+}
+
+// FromInput reports whether the conjunct c is part of the lens's input: data
+// the lens copies, however indirectly it reached the conjunct (lets, aliases,
+// self, other fields). This is the one definition of "copied" (see [Origin]);
+// every check of a lens shares it.
+func (ls *LensSyntax) FromInput(c cueview.Conjunct) bool {
+	return ls.fromInput(c)
+}
+
+// InputFields returns the declarations of the lens's input field, thema's and
+// the author's, so that a walk can tell a reference into one of them from any
+// other.
+func (ls *LensSyntax) InputFields() []*ast.Field {
+	return ls.inputs
+}
+
+// ResultFields returns the declarations of the lens's result field, thema's
+// and the author's, so that a walk can recognize a reference to the result
+// (as a lacuna's targetFields value makes) for what it is.
+func (ls *LensSyntax) ResultFields() []*ast.Field {
+	return ls.resultFields
 }
 
 // Origin is where the value of a field of a lens result comes from.
@@ -344,7 +390,7 @@ func UndeclaredConditionalFields(ctx *cue.Context, f *LensField, sch cue.Value) 
 					if hidden {
 						v, ok = declaredHidden(alt, name)
 					} else {
-						v, ok = declaredChild(ctx, alt, cue.Str(name))
+						v, _, ok = DeclaredChild(ctx, alt, cue.Str(name))
 					}
 					if ok {
 						next = append(next, v)

@@ -246,36 +246,46 @@ func DeclaresPath(ctx *cue.Context, sch cue.Value, p cue.Path) bool {
 		return true
 	}
 	for _, alt := range alternatives(sch, 0) {
-		if next, ok := declaredChild(ctx, alt, sels[0]); ok && DeclaresPath(ctx, next, cue.MakePath(sels[1:]...)) {
+		if next, _, ok := DeclaredChild(ctx, alt, sels[0]); ok && DeclaresPath(ctx, next, cue.MakePath(sels[1:]...)) {
 			return true
 		}
 	}
 	return false
 }
 
-// declaredChild returns the schema sch declares for the child sel, if any.
-func declaredChild(ctx *cue.Context, sch cue.Value, sel cue.Selector) (cue.Value, bool) {
+// DeclaredChild returns the schema sch declares for the child sel, if any, by
+// the rules of [DeclaresPath]: a field of that name (regular, optional or
+// required), or a pattern constraint matching it. The selector returned is the
+// one sch declares it with, so that its constraint type tells a required or
+// defaulted field from an optional one, and a named field from a label a
+// pattern merely accepts (a pattern constraint). For an index into a list, the
+// element at that index, or the list's open element type (cue.AnyIndex).
+//
+// Where sch is a disjunction, the caller chooses the alternative: see
+// cuetil.alternatives and compat.Branches.
+func DeclaredChild(ctx *cue.Context, sch cue.Value, sel cue.Selector) (cue.Value, cue.Selector, bool) {
 	switch {
 	case sel.Type().LabelType() == cue.IndexLabel:
 		if v := sch.LookupPath(cue.MakePath(sel)); v.Exists() {
-			return v, true
+			return v, sel, true
 		}
 		if v := sch.LookupPath(cue.MakePath(cue.AnyIndex)); v.Exists() {
-			return v, true
+			return v, cue.AnyIndex, true
 		}
-		return cue.Value{}, false
+		return cue.Value{}, cue.Selector{}, false
 	case sel.IsString():
 		iter, err := sch.Fields(cue.Optional(true), cue.Patterns(true))
 		if err != nil {
-			return cue.Value{}, false
+			return cue.Value{}, cue.Selector{}, false
 		}
 		name := sel.Unquoted()
 		var pattern cue.Value
+		var patsel cue.Selector
 		for iter.Next() {
 			s := iter.Selector()
 			if s.ConstraintType() == cue.PatternConstraint {
 				if !pattern.Exists() && s.Pattern().Unify(ctx.Encode(name)).Err() == nil {
-					pattern = iter.Value()
+					pattern, patsel = iter.Value(), s
 				}
 				continue
 			}
@@ -286,10 +296,10 @@ func declaredChild(ctx *cue.Context, sch cue.Value, sel cue.Selector) (cue.Value
 						v = d
 					}
 				}
-				return v, true
+				return v, s, true
 			}
 		}
-		return pattern, pattern.Exists()
+		return pattern, patsel, pattern.Exists()
 	}
-	return cue.Value{}, false
+	return cue.Value{}, cue.Selector{}, false
 }
