@@ -13,6 +13,7 @@ import (
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/load"
 	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/authoring"
 	terrors "github.com/sdboyer/thema/errors"
 	"github.com/sdboyer/thema/internal/util"
 	tload "github.com/sdboyer/thema/load"
@@ -113,6 +114,20 @@ func (lla *lineageLoadArgs) dynLoad() (*dynamicLoader, error) {
 		return nil, fmt.Errorf("error statting path %q: %w", lla.absInput, err)
 	}
 	lla.pathIsDir = info.IsDir()
+
+	if lla.pathIsDir && isAuthoringDir(lla.absInput) {
+		// A lineage in the authoring form: compiled to the normal form and
+		// bound, with errors positioned in its files.
+		if lla.skipBindLineage {
+			return nil, fmt.Errorf("%s is a lineage in the authoring form, which this command does not operate on", lla.inputLinFilePath)
+		}
+		dl.lin, err = tload.AuthoringLineage(os.DirFS(filepath.Dir(lla.absInput)), filepath.Base(lla.absInput), rt)
+		if err != nil {
+			return nil, err
+		}
+		return lla.attachSchema(dl)
+	}
+
 	dl.cm, err = findCueMod(lla.absInput)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
@@ -180,8 +195,28 @@ func (lla *lineageLoadArgs) dynLoad() (*dynamicLoader, error) {
 		return nil, err
 	}
 
-	// Now attach the schema - other validators can decide if what we loaded here
-	// was OK (i.e. if command required explicit input)
+	return lla.attachSchema(dl)
+}
+
+// isAuthoringDir reports whether dir holds a lineage in the authoring form:
+// a version file at its top level.
+func isAuthoringDir(dir string) bool {
+	ents, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	for _, e := range ents {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), authoring.Ext) {
+			return true
+		}
+	}
+	return false
+}
+
+// attachSchema attaches the requested schema, or the latest, to the loaded
+// lineage. Other validators decide whether what was loaded is acceptable
+// (i.e. if the command required explicit input).
+func (lla *lineageLoadArgs) attachSchema(dl *dynamicLoader) (*dynamicLoader, error) {
 	if lla.verstr == "" {
 		dl.sch = dl.lin.Latest()
 	} else {

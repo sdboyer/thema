@@ -49,6 +49,7 @@ var allCmds = []*cobra.Command{
 	initLineageOpenAPICmd,
 	initLineageJSONSchemaCmd,
 	lineageBumpCmd,
+	fmtLineageCmd,
 	genLineageCmd,
 	genTSTypesLineageCmd,
 	genGoBindingsLineageCmd,
