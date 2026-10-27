@@ -1,0 +1,11 @@
+# A list comprehension that filters its elements: how many there are depends on the instance.
+-- source.cue --
+items: [...{title: string, keep: bool}]
+-- target.cue --
+items: [...{name: string}]
+-- lens.cue --
+v0_0: _
+v1_0: {items: [for item in v0_0.items if item.keep {name: item.title}]}
+-- out --
+unknown
+v1_0.items filters list elements with if item.keep, so how many there are depends on the instance; map every element (rule unknown-dynamic) @ lens.cue:2:8

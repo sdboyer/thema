@@ -1,9 +1,7 @@
 each: a list of structs mapped element by element, with a rename and a drop
 inside the body. The drop's derived lacuna aggregates over the elements, and
 its message is refined by a DroppedField lacuna keyed through the list. each
-has no derived inverse, so the backward lens is authored. The totality check
-does not prove a list comprehension yet, so the lineage does not bind (#98);
-out/bind records the findings until it does.
+has no derived inverse, so the backward lens is authored.
 -- ship/history/0.0.thema --
 schema: {
 	items: [...{
@@ -45,16 +43,7 @@ BackwardLens: {
 	}
 }
 -- out/bind --
-lens 0.0->1.0 cannot be shown total over schema 0.0:
-    1.0.thema:7:1
-lens 0.0->1.0: v1_0.items builds list elements with a comprehension, so how many there are and what they hold depends on the instance; write each element (rule unknown-dynamic):
-    1.0.thema:10:3
-lens 0.0->1.0: lacunas[0].condition reads _d_0, which resolves to [for i, item in v0_0.items if item.legacy != _|_ { path: "items[\(i)].legacy" value: item.legacy }] rather than to the input or a scalar constant (rule unknown-reference):
-    1.0.thema:12:4
-lens 1.0->0.0 cannot be shown total over schema 1.0:
-    1.0.thema:25:1
-lens 1.0->0.0: v0_0.items builds list elements with a comprehension, so how many there are and what they hold depends on the instance; write each element (rule unknown-dynamic):
-    1.0.thema:28:3
+ok
 -- out/decompiled/1.0.thema --
 schema: {
 	items: [...{name: string}]
