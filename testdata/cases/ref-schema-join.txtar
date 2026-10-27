@@ -1,0 +1,18 @@
+# a schema reads the lineage's joinSchema: thema unifies the joinSchema into
+# every schema itself, and a schema does not refer to it (rule
+# ref-lineage-meta).
+#issue: 21
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "refSchemaJoin"
+	joinSchema: {kind: string}
+	schemas: {
+		"0": "0": {
+			schema: {a: int, j: lin.joinSchema}
+		}
+	}
+}
+-- expect --
+bind fail ref-lineage-meta

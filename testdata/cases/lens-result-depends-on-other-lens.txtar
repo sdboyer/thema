@@ -1,6 +1,11 @@
-# lens result is read from another lens (via the lineage path) rather than from
-# its own input: that lens constrains the field it takes with a default, which is refused
-# on its own; what the reading lens would see is that disjunction, not a value
+# a lens builds the field it returns from another lens, read through the
+# lineage, rather than from the instance it takes: a lens may refer only to the
+# instance it takes, its own body and CUE's builtin packages (rule
+# ref-lens-to-lens), and the reference check runs before the totality check,
+# so that is what is reported. Were the reference allowed, the lens would fail
+# totality too: the lens it reads constrains the field it takes with a default
+# (rule source-constrained), and what the reading lens would see is that
+# disjunction, not a value.
 #issue: 20
 -- in.cue --
 import (
@@ -29,4 +34,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail source-constrained
+bind fail ref-lens-to-lens

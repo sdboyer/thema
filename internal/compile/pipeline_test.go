@@ -191,6 +191,26 @@ var pipelineCases = map[string]pipelineCase{
 		},
 		is: terrors.ErrInvalidLens,
 	},
+	"lens-ref-schema": {
+		build: func(t *testing.T, a *archive) *ast.File {
+			s := shipFrom(t, a)
+			// schemas["1"]["0"].schema.count: the forward lens reads the target
+			// schema's count instead of input's.
+			p := s.v1.at("to.schema.count")
+			s.fwdCount = at(p, &ast.SelectorExpr{
+				X: at(p, &ast.SelectorExpr{
+					X: at(p, &ast.IndexExpr{
+						X:     at(p, &ast.IndexExpr{X: at(p, ident("schemas")), Index: at(p, ast.NewString("1"))}),
+						Index: at(p, ast.NewString("0")),
+					}),
+					Sel: at(p, ident("schema")),
+				}),
+				Sel: at(p, ident("count")),
+			})
+			return s.lineage()
+		},
+		is: terrors.ErrInvalidLens,
+	},
 	"lacuna-undeclared-path": {
 		build: func(t *testing.T, a *archive) *ast.File {
 			s := shipFrom(t, a)

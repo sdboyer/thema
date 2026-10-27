@@ -1,14 +1,12 @@
-# lens results are looked up in a table outside the lineage. The key is a
-# finite set of constants, each an entry, so the lens is total; what is wrong is
-# where the table lives.
+# a value table a lens looks a field up in lives inside the lens, as a hidden
+# field: the lens's own body (compare ext-lens-table, where the same table
+# outside the lineage is refused)
 #issue: 21
 -- in.cue --
 import "github.com/sdboyer/thema"
 
-_table: {x: "from-outside", y: "also-outside"}
-
 lin: thema.Lineage & {
-	name: "extLensTable"
+	name: "refOkLensTable"
 	schemas: {
 		"0": "0": {
 			schema: {a: string}
@@ -20,6 +18,7 @@ lin: thema.Lineage & {
 	lenses: {
 		"1.0->0.0": {
 			v1_0: _
+			_table: {x: "ex", y: "why"}
 			v0_0: {a: _table[v1_0.b]}
 		}
 		"0.0->1.0": {
@@ -29,4 +28,6 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail
+bind ok
+translate 1.0 0.0 ok {b: "y"}
+translate 0.0 1.0 ok {a: "anything"}

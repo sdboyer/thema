@@ -1,4 +1,7 @@
-# schema is borrowed from another lineage's latest schema
+# a schema is borrowed from another lineage's latest schema: it is declared
+# outside the lineage (rule ref-outside-lineage), and changes whenever the
+# other lineage grows. Sharing a schema across lineages is future work; for
+# now each lineage declares its own.
 #issue: 21
 -- in.cue --
 import "github.com/sdboyer/thema"
@@ -19,4 +22,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail
+bind fail ref-outside-lineage
