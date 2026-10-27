@@ -1,0 +1,32 @@
+A lacuna's target path ("cuont", line 10 of 1.0) isn't declared by schema 1.0.
+checkLacunas finds it in Go and positions the error at the authored lacuna
+(line 8), not at the path.
+-- ship/history/0.0.thema --
+schema: {
+	title: string
+	count?: int
+}
+-- ship/1.0.thema --
+schema: {
+	title: string
+	count: int & <10
+}
+
+forward: {
+	count: from.count
+	lacuna: {
+		kind: "Placeholder"
+		target: "cuont"
+		message: "count is a placeholder"
+	}
+}
+
+backward: {
+	count: to.count
+}
+-- out/error --
+lens 0.0->1.0, lacuna 0: targetFields[0]: path "cuont" is not declared by schema 1.0:
+    ship/1.0.thema:8:2
+-- out/positions --
+lens 0.0->1.0, lacuna 0: targetFields[0]: path "cuont" is not declared by schema 1.0
+	authored ship/1.0.thema:8:2
