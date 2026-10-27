@@ -1,0 +1,22 @@
+A match over an enum where one value is neither keyed nor accepted by the
+target.
+-- ship/history/0.0.thema --
+schema: {
+	kind: "a" | "b" | "c"
+}
+-- ship/1.0.thema --
+schema: {
+	kind: "a" | "b"
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		kind: match(v0_0.kind, {
+			"a": "b"
+		})
+	}
+}
+-- out/error --
+match on kind is not exhaustive: 0.0's kind may be "c", which no arm matches and 1.0's kind does not accept; add an arm for it, or a [_] arm:
+    1.0.thema:8:9

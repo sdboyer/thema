@@ -1,6 +1,6 @@
 A when that reads an optional source field. Nothing proves the condition
 evaluates when the field is absent, so it is refused; a condition may test
-the field's presence. Reading it under a guard is for the slice that proves
+the field's presence. Reading it under a presence test is for the slice that proves
 computed expressions.
 -- ship/history/0.0.thema --
 schema: {

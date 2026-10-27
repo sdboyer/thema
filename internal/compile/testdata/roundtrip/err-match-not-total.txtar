@@ -1,0 +1,22 @@
+A match over a string field with no [_] arm: a value no arm maps would reach
+a target that does not accept it.
+-- ship/history/0.0.thema --
+schema: {
+	kind: string
+}
+-- ship/1.0.thema --
+schema: {
+	kind: int
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		kind: match(v0_0.kind, {
+			"a": 1
+		})
+	}
+}
+-- out/error --
+match on kind is not exhaustive: 0.0's kind may hold values no arm matches and 1.0's kind does not accept; add a [_] arm:
+    1.0.thema:8:9
