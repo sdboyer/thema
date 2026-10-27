@@ -30,10 +30,6 @@ var (
 	pathSchema     = cue.MakePath(cue.Str("schema"))
 )
 
-// lensFields are the fields of a lens that are its content. The edge it is
-// declared at is its position, which, like a schema's version, is not hashed.
-var lensFields = []string{"input", "result", "lacunas"}
-
 // edgeKey is the key of a lens in a lineage's lenses: "<from>-><to>", as
 // lineage.cue's edgeKey.
 var edgeKey = regexp.MustCompile(`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)->(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$`)

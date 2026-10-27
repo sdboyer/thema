@@ -145,14 +145,14 @@ type dentry struct {
 }
 
 // A dbody is a lens body read back from the normal form, in result order
-// with drops last. root is the normal form's root for references (input or
-// item); name is the authoring form's (v0_0 or item). lacunas are the lens's
+// with drops last. root is the field references start from, the same in the
+// normal and the authoring form (v0_0, or item). lacunas are the lens's
 // declared lacunas in list order, keyed by full path; only the lens's body
 // holds them, not an each body's.
 type dbody struct {
-	root, name string
-	entries    []dentry
-	lacunas    []dlacuna
+	root    string
+	entries []dentry
+	lacunas []dlacuna
 }
 
 // A dlacuna is a declared lacuna read back from the normal form.
@@ -192,7 +192,7 @@ func decompileLens(l cue.Value, key string, sv, tv thema.SyntacticVersion) (*dbo
 		case *ast.Field:
 			name, _, _ := ast.LabelName(d.Label)
 			switch name {
-			case "result":
+			case paramName(tv):
 				result, _ = d.Value.(*ast.StructLit)
 			case "lacunas":
 				lacunas, _ = d.Value.(*ast.ListLit)
@@ -202,7 +202,7 @@ func decompileLens(l cue.Value, key string, sv, tv thema.SyntacticVersion) (*dbo
 	if result == nil {
 		return nil, fmt.Errorf("lens %s is outside the authoring form: its result is not a struct literal", key)
 	}
-	b := &dbody{root: rootInput, name: paramName(sv)}
+	b := &dbody{root: paramName(sv)}
 	if werr := b.walk(result.Elts, cue.MakePath(), key); werr != nil {
 		return nil, werr
 	}
@@ -294,7 +294,7 @@ func (b *dbody) eachOf(x ast.Expr, key string) (eachSyntax, bool) {
 	if !ok {
 		return eachSyntax{}, false
 	}
-	body := &dbody{root: rootItem, name: rootItem}
+	body := &dbody{root: rootItem}
 	err := body.walk(s.Elts, cue.MakePath(), key)
 	return eachSyntax{source: p, body: body, err: err}, true
 }
@@ -591,8 +591,7 @@ func (b *dbody) find(p cue.Path, drop bool) *dentry {
 // when turns a lacuna's condition into the authored when: nil, and
 // structural, if the condition is the one en implies (none for a move or a
 // constant; the fallback for an orelse; the [_] arm for a remap; presence
-// for a drop), else the condition with references renamed to the authoring
-// form's root.
+// for a drop), else the condition as written.
 func (b *dbody) when(en *dentry, cond ast.Expr) (when ast.Expr, structural bool) {
 	if cond == nil {
 		return nil, en.kind != kindEach
@@ -615,30 +614,7 @@ func (b *dbody) when(en *dentry, cond ast.Expr) (when ast.Expr, structural bool)
 			}
 		}
 	}
-	renameRoot(cond, b.root, b.name)
 	return cond, false
-}
-
-// renameRoot renames the references from <from> in x to start from <to>.
-func renameRoot(x ast.Expr, from, to string) {
-	labels := make(map[*ast.Ident]bool)
-	ast.Walk(x, func(n ast.Node) bool {
-		switch n := n.(type) {
-		case *ast.SelectorExpr:
-			if id, ok := n.Sel.(*ast.Ident); ok {
-				labels[id] = true
-			}
-		case *ast.Field:
-			if id, ok := n.Label.(*ast.Ident); ok {
-				labels[id] = true
-			}
-		case *ast.Ident:
-			if !labels[n] && n.Name == from {
-				n.Name = to
-			}
-		}
-		return true
-	}, nil)
 }
 
 func joinPath(p, q cue.Path) cue.Path {
@@ -871,7 +847,7 @@ func (b *dbody) syntax() *ast.StructLit {
 		var val ast.Expr
 		switch en.kind {
 		case kindMove:
-			val = ref(b.name, en.source)
+			val = ref(b.root, en.source)
 		case kindConst:
 			val = en.expr
 		case kindDrop:
@@ -879,9 +855,9 @@ func (b *dbody) syntax() *ast.StructLit {
 		case kindOrElse:
 			fallback := en.fallback
 			if root, p, ok := refPathAny(fallback); ok && root == b.root {
-				fallback = ref(b.name, p)
+				fallback = ref(b.root, p)
 			}
-			val = &ast.CallExpr{Fun: ast.NewIdent(opOrElse), Args: []ast.Expr{ref(b.name, en.source), fallback}}
+			val = &ast.CallExpr{Fun: ast.NewIdent(opOrElse), Args: []ast.Expr{ref(b.root, en.source), fallback}}
 		case kindRemap:
 			table := &ast.StructLit{}
 			for _, a := range en.arms {
@@ -890,9 +866,9 @@ func (b *dbody) syntax() *ast.StructLit {
 			if en.catchAll != nil {
 				table.Elts = append(table.Elts, &ast.Field{Label: &ast.ListLit{Elts: []ast.Expr{ast.NewIdent("_")}}, Value: en.catchAll.value})
 			}
-			val = &ast.CallExpr{Fun: ast.NewIdent(opRemap), Args: []ast.Expr{ref(b.name, en.source), table}}
+			val = &ast.CallExpr{Fun: ast.NewIdent(opRemap), Args: []ast.Expr{ref(b.root, en.source), table}}
 		case kindEach:
-			val = &ast.CallExpr{Fun: ast.NewIdent(opEach), Args: []ast.Expr{ref(b.name, en.source), en.body.syntax()}}
+			val = &ast.CallExpr{Fun: ast.NewIdent(opEach), Args: []ast.Expr{ref(b.root, en.source), en.body.syntax()}}
 		}
 		f := n.add(en.target, val)
 		for _, cg := range en.comments {

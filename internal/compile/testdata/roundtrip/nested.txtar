@@ -98,22 +98,22 @@ schemas: {
 }
 lenses: {
 	"0.0->1.0": {
-		input: _
-		result: {
+		v0_0: _
+		v1_0: {
 			meta: {
-				created: input.meta.created
-				owner:   input.ownerName
+				created: v0_0.meta.created
+				owner:   v0_0.ownerName
 			}
-			dims: input.dims
+			dims: v0_0.dims
 		}
 	}
 	"1.0->0.0": {
-		input: _
-		result: {
-			ownerName: input.meta.owner
+		v1_0: _
+		v0_0: {
+			ownerName: v1_0.meta.owner
 			meta:
-				created: input.meta.created
-			dims: input.dims
+				created: v1_0.meta.created
+			dims: v1_0.dims
 		}
 	}
 }

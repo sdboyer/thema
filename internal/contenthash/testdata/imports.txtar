@@ -21,12 +21,12 @@ lin: {
 	}
 	lenses: {
 		"0.0->1.0": {
-			input: _
-			result: a: input.a
+			v0_0: _
+			v1_0: a: v0_0.a
 		}
 		"1.0->0.0": {
-			input: _
-			result: {a: input.a, b: shared.Fallback}
+			v1_0: _
+			v0_0: {a: v1_0.a, b: shared.Fallback}
 		}
 	}
 }
@@ -48,7 +48,7 @@ lin: {
 {}
 -- out/1.0 --
 # id
-4874f1c044231cf5be370974d27538eaa7514baead96fbcc0e7ddd9edf64db8b:24df2bcfa8a63e0586bb4fd20a1f910d525e56e4b86c3e18241282815ec233ac
+4874f1c044231cf5be370974d27538eaa7514baead96fbcc0e7ddd9edf64db8b:8c404ef597ccad9e0f10382a81bb97ace25fcf44269bf9932e438c19a24d1145
 # schema
 {
 	a: __L1_4cfadd7d02080b59.#x
@@ -62,18 +62,18 @@ lin: {
 # lenses
 {
 	backward: {
-		input: _
-		result: {
+		returns: {
 			a: __L3_d2e2adf7177b7a8a.a
 			b: r: 0
 			let __L3_d2e2adf7177b7a8a = _
 		}
+		takes: _
 	}
 	forward: {
-		input: _
-		result: {
+		returns: {
 			a: __L3_d2e2adf7177b7a8a.a
 			let __L3_d2e2adf7177b7a8a = _
 		}
+		takes: _
 	}
 }

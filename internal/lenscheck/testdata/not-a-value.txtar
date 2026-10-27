@@ -5,8 +5,8 @@ a: string
 a: string
 n: int
 -- lens.cue --
-input: _
-result: {a: input.a, n: int}
+v0_0: _
+v1_0: {a: v0_0.a, n: int}
 -- out --
 not total
-result.n is int, a constraint rather than a value; a result field must have a concrete value (rule not-a-value) @ lens.cue:2:22
+v1_0.n is int, a constraint rather than a value; a result field must have a concrete value (rule not-a-value) @ lens.cue:2:19

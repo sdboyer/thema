@@ -19,12 +19,12 @@ lin: thema.Lineage & {
 	}
 	lenses: {
 		"1.0->0.0": {
-			input: {b: *"default-from-lens-input" | string}
-			result: {a: input.b}
+			v1_0: {b: *"default-from-lens-input" | string}
+			v0_0: {a: v1_0.b}
 		}
 		"0.0->1.0": {
-			input: _
-			result: {b: lin.lenses["1.0->0.0"].result.a}
+			v0_0: _
+			v1_0: {b: lin.lenses["1.0->0.0"].v0_0.a}
 		}
 	}
 }

@@ -4,7 +4,7 @@ a: string
 -- target.cue --
 o: {init: string}
 -- lens.cue --
-input: _
-result: {o: {init: input.a}}
+v0_0: _
+v1_0: {o: {init: v0_0.a}}
 -- out --
 total

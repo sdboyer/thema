@@ -4,8 +4,8 @@ c?: string
 -- target.cue --
 q?: int
 -- lens.cue --
-input: _
-result: {if input.c == "x" {q: 1}}
+v0_0: _
+v1_0: {if v0_0.c == "x" {q: 1}}
 -- out --
 not total
-result is under the pattern input.c == "x", but input.c may be absent (input.c is optional in the source schema), and comparing an absent field is an error rather than false; test presence first: if input.c != _|_ (rule pattern-absent) @ lens.cue:2:10
+v1_0 is under the pattern v0_0.c == "x", but v0_0.c may be absent (v0_0.c is optional in the source schema), and comparing an absent field is an error rather than false; test presence first: if v0_0.c != _|_ (rule pattern-absent) @ lens.cue:2:8

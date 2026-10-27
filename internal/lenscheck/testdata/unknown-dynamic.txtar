@@ -4,8 +4,8 @@ m: [string]: int
 -- target.cue --
 m: [string]: int
 -- lens.cue --
-input: _
-result: {for k, v in input.m {"\(k)": v}}
+v0_0: _
+v1_0: {for k, v in v0_0.m {"\(k)": v}}
 -- out --
 unknown
-result has fields produced by a for clause over input.m, so which fields exist depends on the instance; write each field (rule unknown-dynamic) @ lens.cue:2:10
+v1_0 has fields produced by a for clause over v0_0.m, so which fields exist depends on the instance; write each field (rule unknown-dynamic) @ lens.cue:2:8

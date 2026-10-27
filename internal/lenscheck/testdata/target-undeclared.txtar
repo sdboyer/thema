@@ -4,8 +4,8 @@ a: string
 -- target.cue --
 a: string
 -- lens.cue --
-input: _
-result: {a: input.a, bogus: 1}
+v0_0: _
+v1_0: {a: v0_0.a, bogus: 1}
 -- out --
 not total
-result.bogus is not declared by the target schema (rule target-undeclared) @ lens.cue:2:22
+v1_0.bogus is not declared by the target schema (rule target-undeclared) @ lens.cue:2:19

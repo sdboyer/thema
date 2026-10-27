@@ -5,8 +5,8 @@ m: [string]: int
 -- target.cue --
 v: int
 -- lens.cue --
-input: _
-result: {v: input.m[input.k]}
+v0_0: _
+v1_0: {v: v0_0.m[v0_0.k]}
 -- out --
 unknown
-result.v reads input.m[input.k], a selection into the input the checker cannot follow (a computed index or label); select fields by name (rule unknown-reference) @ lens.cue:2:13
+v1_0.v reads v0_0.m[v0_0.k], a selection into the input the checker cannot follow (a computed index or label); select fields by name (rule unknown-reference) @ lens.cue:2:11

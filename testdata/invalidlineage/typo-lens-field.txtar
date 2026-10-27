@@ -17,18 +17,18 @@ schemas: {
 }
 lenses: {
 	"1.0->0.0": {
-		input: _
+		v1_0: _
 		reslt: {
-			foo: input.bar
+			foo: v1_0.bar
 		}
 	}
 	"0.0->1.0": {
-		input: _
-		result: {
-			bar: input.foo
+		v0_0: _
+		v1_0: {
+			bar: v0_0.foo
 		}
 	}
 }
 -- out/bindfail --
-reslt is not a field of a lens; valid fields are input, lacunas, result:
+reslt is not a field of a lens; valid fields are lacunas, v0_0, v1_0:
     ./in.cue:20:3

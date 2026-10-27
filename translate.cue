@@ -79,15 +79,19 @@ Translate: {
 					let schdef = L.schemas["\(V[0])"]["\(V[1])"]
 
 					// TODO does having this field in the result, even hidden, cause a problem? does using an alias cause the computation to run more than once?
+					// The lens binds the instance it takes, and the one it returns, to
+					// fields named after their versions.
+					let FN = "v\(prior.to[0])_\(prior.to[1])"
+					let TN = "v\(V[0])_\(V[1])"
 					_lens: L.lenses["\(prior.to[0]).\(prior.to[1])->\(V[0]).\(V[1])"] & {
-						// pass the prior result along as the input to this lens
-						input: prior.result
+						// pass the prior result along as the instance this lens takes
+						(FN): prior.result
 					}
 
 					from: prior.to
 					to:   V
 					// TODO initial input isn't necessarily unified with schema - does that make translated output meaningfully different?
-					result:  _lens.result & ({#closed: schdef._schema}).#closed
+					result:  _lens[TN] & ({#closed: schdef._schema}).#closed
 					lacunas: [for lac in _lens.lacunas if lac.condition {lac}]
 				}]
 
@@ -119,14 +123,16 @@ Translate: {
 						// Crossing a major version. The forward lens explicitly defined in the schema
 						// provides the mapping algorithm.
 						// TODO does having this field in the result, even hidden, cause a problem? does using an alias cause the computation to run more than once?
+						let FN = "v\(prior.to[0])_\(prior.to[1])"
+						let TN = "v\(V[0])_\(V[1])"
 						_lens: L.lenses["\(prior.to[0]).\(prior.to[1])->\(V[0]).\(V[1])"] & {
-							// pass the prior result along as the input to this next lens
-							input: prior.result
+							// pass the prior result along as the instance this next lens takes
+							(FN): prior.result
 						}
 
 						from:    prior.to
 						to:      V
-						result:  _lens.result & ({#closed: schdef._schema}).#closed
+						result:  _lens[TN] & ({#closed: schdef._schema}).#closed
 						lacunas: [for lac in _lens.lacunas if lac.condition {lac}]
 					}
 				}]

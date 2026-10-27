@@ -432,14 +432,14 @@ func TestViewsOfAuthoredValues(t *testing.T) {
 	src := parseSource(t, "ship/1.0.thema", "forward: {\n\tcount: from.count\n}\n")
 	ctx := cuecontext.New()
 	built := ctx.BuildFile(fileOf(field("lens", at(src.at("forward: {"), strct(
-		field("input", at(src.at("forward: {"), ident("_"))),
-		field("result", at(src.at("forward: {"), strct(field("count", sel(src.at("from.count"), "input", "count"))))),
+		field("v0_0", at(src.at("forward: {"), ident("_"))),
+		field("v1_0", at(src.at("forward: {"), strct(field("count", sel(src.at("from.count"), "v0_0", "count"))))),
 	)))))
-	parsed := ctx.CompileString("lens: {\n\tinput: _\n\tresult: count: input.count\n}\n", cue.Filename("lens.cue"))
+	parsed := ctx.CompileString("lens: {\n\tv0_0: _\n\tv1_0: count: v0_0.count\n}\n", cue.Filename("lens.cue"))
 
 	lens := built.LookupPath(cue.ParsePath("lens"))
 	var written []string
-	for _, n := range cueview.Written(lens.LookupPath(cue.ParsePath("result.count"))) {
+	for _, n := range cueview.Written(lens.LookupPath(cue.ParsePath("v1_0.count"))) {
 		if n != nil {
 			written = append(written, n.Pos().String())
 		}

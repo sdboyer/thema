@@ -4,15 +4,15 @@ aunion: "foo" | *"bar" | "baz"
 -- target.cue --
 aunion: *"foo" | "bar" | "baz"
 -- lens.cue --
-input: _
-result: {
-	if input.aunion == "bar" {aunion: "foo"}
-	if input.aunion != "bar" {aunion: input.aunion}
+v0_0: _
+v1_0: {
+	if v0_0.aunion == "bar" {aunion: "foo"}
+	if v0_0.aunion != "bar" {aunion: v0_0.aunion}
 }
 lacunas: [{
-	condition: input.aunion == "bar"
-	sourceFields: [{path: "aunion", value: input.aunion}]
-	targetFields: [{path: "aunion", value: result.aunion}]
+	condition: v0_0.aunion == "bar"
+	sourceFields: [{path: "aunion", value: v0_0.aunion}]
+	targetFields: [{path: "aunion", value: v1_0.aunion}]
 	message: "changed"
 	type: "ChangedDefault"
 }]

@@ -32,6 +32,8 @@ const (
 // classified so that the walk can refine the source beneath it and compare
 // patterns to one another.
 type pattern struct {
+	// root names the lens field the path is beneath, for messages.
+	root string
 	kind patternKind
 	path cue.Path // the input path tested
 	neg  bool
@@ -54,7 +56,7 @@ func (g pattern) negated() pattern {
 }
 
 func (g pattern) String() string {
-	p := inputRef(g.path)
+	p := rootRef(g.root, g.path)
 	switch g.kind {
 	case presence:
 		if g.neg {
@@ -132,7 +134,7 @@ func (w *walker) parsePattern(x ast.Expr) ([]pattern, bool) {
 			if other, ok := bottomSide(e); ok {
 				neg := e.Op == token.EQL
 				if p, ok := w.pathOf(other); ok {
-					return []pattern{{kind: presence, path: p, neg: neg}}, true
+					return []pattern{{root: w.from, kind: presence, path: p, neg: neg}}, true
 				}
 				if be, ok := stripParens(other).(*ast.BinaryExpr); ok && be.Op == token.AND {
 					for _, pair := range [][2]ast.Expr{{be.X, be.Y}, {be.Y, be.X}} {
@@ -143,10 +145,10 @@ func (w *walker) parsePattern(x ast.Expr) ([]pattern, bool) {
 						// (p & c) != _|_ for a literal c is p == c: input is data,
 						// so the unification succeeds exactly when p holds c.
 						if lv, ok := w.literalValue(pair[1]); ok {
-							return []pattern{{kind: equality, path: p, neg: neg, lit: text(pair[1]), val: lv}}, true
+							return []pattern{{root: w.from, kind: equality, path: p, neg: neg, lit: text(pair[1]), val: lv}}, true
 						}
 						if tv, ok := w.constraintValue(pair[1]); ok {
-							return []pattern{{kind: typeTest, path: p, neg: neg, lit: text(pair[1]), val: tv}}, true
+							return []pattern{{root: w.from, kind: typeTest, path: p, neg: neg, lit: text(pair[1]), val: tv}}, true
 						}
 					}
 				}
@@ -158,7 +160,7 @@ func (w *walker) parsePattern(x ast.Expr) ([]pattern, bool) {
 					continue
 				}
 				if lv, ok := w.literalValue(pair[1]); ok {
-					return []pattern{{kind: equality, path: p, neg: e.Op == token.NEQ, lit: text(pair[1]), val: lv}}, true
+					return []pattern{{root: w.from, kind: equality, path: p, neg: e.Op == token.NEQ, lit: text(pair[1]), val: lv}}, true
 				}
 			}
 		}
@@ -247,12 +249,12 @@ func (w *walker) checkPatterns(gs, outer []pattern, subj string, pos token.Pos) 
 		src := w.lookupSource(g.path, outer)
 		if !src.declared {
 			w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleSourceUndeclared,
-				Detail: fmt.Sprintf("is under the pattern %s, but the source schema does not declare %s", g, inputRef(g.path)), Pos: pos})
+				Detail: fmt.Sprintf("is under the pattern %s, but the source schema does not declare %s", g, w.inputRef(g.path)), Pos: pos})
 			continue
 		}
 		if g.kind == equality && !src.present {
 			w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RulePatternAbsent,
-				Detail: fmt.Sprintf("is under the pattern %s, but %s may be absent (%s), and comparing an absent field is an error rather than false; test presence first: if %s != _|_", g, inputRef(g.path), src.why, inputRef(g.path)), Pos: pos})
+				Detail: fmt.Sprintf("is under the pattern %s, but %s may be absent (%s), and comparing an absent field is an error rather than false; test presence first: if %s != _|_", g, w.inputRef(g.path), src.why, w.inputRef(g.path)), Pos: pos})
 		}
 	}
 }

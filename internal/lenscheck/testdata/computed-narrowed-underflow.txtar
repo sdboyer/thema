@@ -4,8 +4,8 @@ a!: uint
 -- target.cue --
 n!: uint
 -- lens.cue --
-input: _
-result: {n: input.a - 1}
+v0_0: _
+v1_0: {n: v0_0.a - 1}
 -- out --
 not total
-result.n is input.a - 1, which may be as low as -1, where the target schema requires >=0 (rule computed-narrowed) @ lens.cue:2:13
+v1_0.n is v0_0.a - 1, which may be as low as -1, where the target schema requires >=0 (rule computed-narrowed) @ lens.cue:2:11

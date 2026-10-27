@@ -4,7 +4,7 @@ n: int32
 -- target.cue --
 m: int & >=-2147483649 & <=2147483648
 -- lens.cue --
-input: _
-result: {m: input.n + 1}
+v0_0: _
+v1_0: {m: v0_0.n + 1}
 -- out --
 total
