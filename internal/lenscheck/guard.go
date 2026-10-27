@@ -140,6 +140,11 @@ func (w *walker) parseGuard(x ast.Expr) ([]guard, bool) {
 						if !ok {
 							continue
 						}
+						// (p & c) != _|_ for a literal c is p == c: input is data,
+						// so the unification succeeds exactly when p holds c.
+						if lv, ok := w.literalValue(pair[1]); ok {
+							return []guard{{kind: equality, path: p, neg: neg, lit: text(pair[1]), val: lv}}, true
+						}
 						if tv, ok := w.constraintValue(pair[1]); ok {
 							return []guard{{kind: typeTest, path: p, neg: neg, lit: text(pair[1]), val: tv}}, true
 						}

@@ -1,0 +1,22 @@
+# A lacuna whose condition tests a field unrelated to the guards its target field is written under. The field is written on every instance (present and absent branches), so it is present whenever the lacuna applies.
+-- source.cue --
+name: string
+count?: int
+-- target.cue --
+name: string
+count: int
+-- lens.cue --
+input: _
+result: {
+	name: input.name
+	if input.count != _|_ {count: input.count}
+	if input.count == _|_ {count: 0}
+}
+lacunas: [{
+	condition: input.name == "legacy"
+	targetFields: [{path: "count", value: result.count}]
+	message: "legacy records never recorded a count, so 0 may be real"
+	type: "AmbiguousMapping"
+}]
+-- out --
+total

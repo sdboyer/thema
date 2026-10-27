@@ -1212,15 +1212,18 @@ func (w *walker) lacunaRefs(lp cue.Path, name string, x ast.Expr, gs []guard) {
 // result field it refers to is written under the condition.
 func (w *walker) lacunaValue(subj string, x ast.Expr, gs []guard, pos token.Pos) {
 	if r, ok := w.resultRef(x); ok {
-		cands, written := w.candidates(gs, r)
+		// The field is present when the lacuna applies if its writes cover
+		// every instance, whatever the condition, or cover the condition.
+		all, written := w.candidates(nil, r)
+		under, _ := w.candidates(gs, r)
 		switch {
 		case !written:
 			w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleSourceAbsent,
 				Detail: fmt.Sprintf("refers to %s, which the lens never writes", subject(r)), Pos: pos})
-		case w.covers(cands):
+		case w.covers(all), w.covers(under):
 		default:
 			w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownCoverage,
-				Detail: fmt.Sprintf("refers to %s, which is written only under %s, not implied by the lacuna's condition%s", subject(r), describeGuardSets(cands), underGuards(gs)), Pos: pos})
+				Detail: fmt.Sprintf("refers to %s, which is written only under %s: neither covering every instance nor implied by the lacuna's condition%s", subject(r), describeGuardSets(all), underGuards(gs)), Pos: pos})
 		}
 		return
 	}

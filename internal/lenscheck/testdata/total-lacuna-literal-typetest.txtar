@@ -1,0 +1,16 @@
+# A lacuna condition p == c on a field written under (p & c) != _|_. On data the two tests are the same, so the write is implied by the condition.
+-- source.cue --
+k: string
+-- target.cue --
+a?: string
+-- lens.cue --
+input: _
+result: {if (input.k & "x") != _|_ {a: "1"}}
+lacunas: [{
+	condition: input.k == "x"
+	targetFields: [{path: "a", value: result.a}]
+	message: "set"
+	type: "Placeholder"
+}]
+-- out --
+total

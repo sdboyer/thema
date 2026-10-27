@@ -287,7 +287,7 @@ the field is built from.
 | a **literal** | the literal is an instance of *T* at the field |
 | a **struct** or **list** literal | its kind matches *T* at the field; each child is proven in turn, at its path |
 | a **computed** expression | it is built from the provable operations below, and its result, as the checker bounds it, fits *T* at the field |
-| **guarded** by a comprehension | the guard is a presence test (`p != _\|_`), an equality (`p == c`) or a type test (`(p & T) != _\|_`) on an input path, or a conjunction (`&&`) of these, possibly negated; each arm is proven under the guard, with the source refined by it |
+| **guarded** by a comprehension | the guard is a presence test (`p != _\|_`), an equality (`p == c`) or a type test (`(p & T) != _\|_`) on an input path, or a conjunction (`&&`) of these, possibly negated; each arm is proven under the guard, with the source refined by it. A type test against a literal, `(p & c) != _\|_`, is the equality `p == c`: input is data, so the unification succeeds exactly when `p` holds `c` |
 
 Across the result, every field *T* requires must be written on every path
 through the lens: unconditionally, or under guards that together cover every
@@ -299,7 +299,7 @@ writes unify, so one may reject the other's value.
 Lacunas follow the same rules: a `condition` is a guard; a `sourceFields` or
 `targetFields` value that reads the input must read a path present when the
 condition holds, and one that refers to the result must refer to a field
-written under guards the condition implies.
+written on every instance, or under guards the condition implies.
 
 The computed operations the checker proves, over integers, strings and bools:
 
