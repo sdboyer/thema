@@ -321,3 +321,58 @@ export interface GoAny {
 }
 -- out/lensir --
 no lenses
+-- out/encoding/jsonschema/TestGenerate --
+== 0.0.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "emptyMap": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "optional": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "boolean"
+        }
+      ]
+    },
+    "structVal": {
+      "type": "object",
+      "properties": {
+        "inner": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "innerOptional": true
+      },
+      "required": [
+        "inner"
+      ]
+    },
+    "value": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "boolean"
+        }
+      ]
+    }
+  },
+  "required": [
+    "structVal",
+    "value"
+  ]
+}

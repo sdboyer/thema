@@ -205,3 +205,50 @@ export const defaultNearoptional: Partial<Nearoptional> = {
 };
 -- out/lensir --
 no lenses
+-- out/encoding/jsonschema/TestGenerate --
+== 0.0.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "abool": {
+      "type": "boolean"
+    },
+    "abytes": {
+      "type": "string",
+      "contentEncoding": "base64"
+    },
+    "alist": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "anint": {
+      "type": "integer"
+    },
+    "astring": {
+      "type": "string"
+    },
+    "astruct": {
+      "type": "object",
+      "properties": {
+        "nested": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "nested"
+      ]
+    },
+    "notoptional": {
+      "type": "integer",
+      "maximum": 2147483647,
+      "minimum": -2147483648
+    }
+  },
+  "required": [
+    "notoptional"
+  ]
+}

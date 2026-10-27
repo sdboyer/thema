@@ -1448,3 +1448,168 @@ lens 2.0->1.1
     }
     out.withDefault <- in.withDefault
   }
+-- out/encoding/jsonschema/TestGenerate --
+== 0.0.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "init": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "init"
+  ]
+}== 0.1.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "init": {
+      "type": "string"
+    },
+    "optional": {
+      "type": "integer",
+      "maximum": 2147483647,
+      "minimum": -2147483648
+    }
+  },
+  "required": [
+    "init"
+  ]
+}== 0.2.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "init": {
+      "type": "string"
+    },
+    "optional": {
+      "type": "integer",
+      "maximum": 2147483647,
+      "minimum": -2147483648
+    },
+    "withDefault": {
+      "enum": [
+        "foo",
+        "bar"
+      ],
+      "default": "foo"
+    }
+  },
+  "required": [
+    "init"
+  ]
+}== 0.3.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "init": {
+      "type": "string"
+    },
+    "optional": {
+      "type": "integer",
+      "maximum": 2147483647,
+      "minimum": -2147483648
+    },
+    "withDefault": {
+      "enum": [
+        "foo",
+        "bar",
+        "baz"
+      ],
+      "default": "foo"
+    }
+  },
+  "required": [
+    "init"
+  ]
+}== 1.0.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "optional": {
+      "type": "integer",
+      "maximum": 2147483647,
+      "minimum": -2147483648
+    },
+    "renamed": {
+      "type": "string"
+    },
+    "withDefault": {
+      "enum": [
+        "foo",
+        "bar",
+        "baz"
+      ],
+      "default": "bar"
+    }
+  },
+  "required": [
+    "renamed"
+  ]
+}== 1.1.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "optional": {
+      "type": "integer",
+      "maximum": 2147483647,
+      "minimum": -2147483648
+    },
+    "renamed": {
+      "type": "string"
+    },
+    "withDefault": {
+      "enum": [
+        "foo",
+        "bar",
+        "baz",
+        "bing"
+      ],
+      "default": "bar"
+    }
+  },
+  "required": [
+    "renamed"
+  ]
+}== 2.0.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "optional": {
+      "type": "integer",
+      "maximum": 2147483647,
+      "minimum": -2147483648
+    },
+    "toObj": {
+      "type": "object",
+      "properties": {
+        "init": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "init"
+      ]
+    },
+    "withDefault": {
+      "enum": [
+        "foo",
+        "bar",
+        "baz",
+        "bing"
+      ],
+      "default": "bar"
+    }
+  },
+  "required": [
+    "toObj"
+  ]
+}

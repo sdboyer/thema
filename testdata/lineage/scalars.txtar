@@ -2028,3 +2028,106 @@ export const defaultScalarFields: Partial<ScalarFields> = {
 };
 -- out/lensir --
 no lenses
+-- out/encoding/jsonschema/TestGenerate --
+== 0.0.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "intWithBounds": {
+      "type": "integer",
+      "exclusiveMaximum": 10,
+      "minimum": 0
+    },
+    "nullableIntWithDefault": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": 10
+    },
+    "nullableIntWithNoDefault": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "someFloat32": {
+      "type": "number",
+      "maximum": 340282346638528859811704183484516925440,
+      "minimum": -340282346638528859811704183484516925440
+    },
+    "someFloat64": {
+      "type": "number",
+      "maximum": 1.797693134862315708145274237317043567981E+308,
+      "minimum": -1.797693134862315708145274237317043567981E+308
+    },
+    "someInt16": {
+      "type": "integer",
+      "maximum": 32767,
+      "minimum": -32768
+    },
+    "someInt32": {
+      "type": "integer",
+      "maximum": 2147483647,
+      "minimum": -2147483648
+    },
+    "someInt64": {
+      "type": "integer",
+      "maximum": 9223372036854775807,
+      "minimum": -9223372036854775808
+    },
+    "someInt8": {
+      "type": "integer",
+      "maximum": 127,
+      "minimum": -128
+    },
+    "someUInt16": {
+      "type": "integer",
+      "maximum": 65535,
+      "minimum": 0
+    },
+    "someUInt32": {
+      "type": "integer",
+      "maximum": 4294967295,
+      "minimum": 0
+    },
+    "someUInt64": {
+      "type": "integer",
+      "maximum": 18446744073709551615,
+      "minimum": 0
+    },
+    "someUInt8": {
+      "type": "integer",
+      "maximum": 255,
+      "minimum": 0
+    },
+    "stringWithLength": {
+      "type": "string",
+      "minLength": 10
+    }
+  },
+  "required": [
+    "intWithBounds",
+    "nullableIntWithNoDefault",
+    "someFloat32",
+    "someFloat64",
+    "someInt16",
+    "someInt32",
+    "someInt64",
+    "someInt8",
+    "someUInt16",
+    "someUInt32",
+    "someUInt64",
+    "someUInt8",
+    "stringWithLength"
+  ]
+}

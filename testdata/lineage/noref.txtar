@@ -158,3 +158,17 @@ export interface Noref {
 }
 -- out/lensir --
 no lenses
+-- out/encoding/jsonschema/TestGenerate --
+== 0.0.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "someField": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "someField"
+  ]
+}

@@ -226,3 +226,34 @@ lens 0.1->0.0
   out: {
     out.firstfield <- in.firstfield
   }
+-- out/encoding/jsonschema/TestGenerate --
+== 0.0.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "firstfield": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "firstfield"
+  ]
+}== 0.1.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "firstfield": {
+      "type": "string"
+    },
+    "secondfield": {
+      "type": "integer",
+      "maximum": 2147483647,
+      "minimum": -2147483648
+    }
+  },
+  "required": [
+    "firstfield"
+  ]
+}

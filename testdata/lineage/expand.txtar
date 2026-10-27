@@ -489,3 +489,77 @@ lens 0.3->0.2
     target withDefault = out.withDefault
     message "withDefault was \"baz\", which 0.2 does not have; \"foo\", its default, was substituted"
   }
+-- out/encoding/jsonschema/TestGenerate --
+== 0.0.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "init": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "init"
+  ]
+}== 0.1.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "init": {
+      "type": "string"
+    },
+    "optional": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "init"
+  ]
+}== 0.2.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "init": {
+      "type": "string"
+    },
+    "optional": {
+      "type": "integer"
+    },
+    "withDefault": {
+      "enum": [
+        "foo",
+        "bar"
+      ],
+      "default": "foo"
+    }
+  },
+  "required": [
+    "init"
+  ]
+}== 0.3.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "init": {
+      "type": "string"
+    },
+    "optional": {
+      "type": "integer"
+    },
+    "withDefault": {
+      "enum": [
+        "foo",
+        "bar",
+        "baz"
+      ],
+      "default": "foo"
+    }
+  },
+  "required": [
+    "init"
+  ]
+}
