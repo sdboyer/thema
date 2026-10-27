@@ -17,5 +17,5 @@ backward: {
 	after: drop
 }
 -- out/error --
-0.0 requires before, and nothing produces it: map it in backward:
-    history/0.0.thema:2:2
+backward produces nothing for before, which 0.0 requires: add before: <mapping>:
+    1.0.thema:9:1

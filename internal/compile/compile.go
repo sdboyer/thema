@@ -82,10 +82,10 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 		}
 
 		// Forward: previous version to this one. Only a major version has one.
-		fe := &edge{ctx: ctx, from: prev, to: v, S: vals[i-1], T: vals[i], sv: prev.v, tv: v.v, dir: forward, blockPos: v.header()}
+		fe := &edge{ctx: ctx, from: prev, to: v, S: vals[i-1], T: vals[i], sv: prev.v, tv: v.v, dir: forward, file: v.path, blockPos: v.header()}
 		fb := &body{}
 		if v.forward != nil {
-			fe.blockPos = v.forward.Pos()
+			fe.written, fe.blockPos = true, v.forward.Pos()
 			if minor && len(v.block(v.forward).Elts) > 0 {
 				errs = cerrors.Append(errs, cerrors.Newf(v.forward.Pos(), "%s: this version is backward compatible with %s, so translating forward is implicit: remove the forward entries, or make the change breaking", v.path, prev.v))
 				continue
@@ -105,10 +105,10 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 
 		// Backward: this version to the previous one, derived from the forward
 		// lens and overridden by what the author wrote.
-		be := &edge{ctx: ctx, from: v, to: prev, S: vals[i], T: vals[i-1], sv: v.v, tv: prev.v, dir: backward, blockPos: v.header()}
+		be := &edge{ctx: ctx, from: v, to: prev, S: vals[i], T: vals[i-1], sv: v.v, tv: prev.v, dir: backward, file: v.path, blockPos: v.header()}
 		ab := &body{}
 		if v.backward != nil {
-			be.blockPos = v.backward.Pos()
+			be.written, be.blockPos = true, v.backward.Pos()
 			be.parseBody(v.block(v.backward), cue.MakePath(), cue.MakePath(), ab)
 		}
 		bwd := be.assemble(be.derive(fwd, ab))

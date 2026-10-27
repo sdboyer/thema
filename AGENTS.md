@@ -64,9 +64,7 @@ semantics apply them where they are used:
   they also matter for compiling lenses to targets without an expression
   language, which can only copy. Hidden fields follow closedness: one the target
   doesn't declare is the lens's scratch space and isn't checked; beneath one it
-  declares, the lens may write only what it declares. For Go lenses, whose
-  results are opaque, fields unchanged from the input at the same path count as
-  copied.
+  declares, the lens may write only what it declares.
 
 Typos at thema-owned levels are caught twice:
 
