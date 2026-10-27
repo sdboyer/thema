@@ -10,6 +10,7 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/load"
 	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/internal/embedreg"
 	"github.com/sdboyer/thema/internal/util"
 	tload "github.com/sdboyer/thema/load"
 )
@@ -161,7 +162,7 @@ func buildExemplarsPackage(rt *thema.Runtime) cue.Value {
 	cfg := &load.Config{
 		Overlay: overlay,
 		Module:  util.ThemaModulePath,
-		Dir:     filepath.Join(util.Prefix, "exemplars"),
+		Dir:     filepath.Join(embedreg.Root(), "exemplars"),
 	}
 
 	return ctx.BuildInstance(load.Instances(nil, cfg)[0])
@@ -170,11 +171,14 @@ func buildExemplarsPackage(rt *thema.Runtime) cue.Value {
 func exemplarOverlay() (map[string]load.Source, error) {
 	overlay := make(map[string]load.Source)
 
-	if err := util.ToOverlay(util.Prefix, thema.CueJointFS, overlay); err != nil {
+	// The exemplars are a package of thema's own module, loaded from the same
+	// virtual root the embedded registry serves it from, so that positions in
+	// thema's CUE have one shape everywhere.
+	if err := util.ToOverlay(embedreg.Root(), thema.CueJointFS, overlay); err != nil {
 		return nil, err
 	}
 
-	if err := util.ToOverlay(filepath.Join(util.Prefix, "exemplars"), cueFS, overlay); err != nil {
+	if err := util.ToOverlay(filepath.Join(embedreg.Root(), "exemplars"), cueFS, overlay); err != nil {
 		return nil, err
 	}
 

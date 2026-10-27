@@ -110,15 +110,16 @@ func IsKernelFile(filename string) bool {
 
 // KernelPath returns filename relative to the root of thema's CUE module, if
 // filename is a file of that module: lineage.cue for /github.com/sdboyer/thema@v0.1.0/lineage.cue.
+//
+// [Root] is the only path thema's CUE reaches the evaluator at: the embedded
+// registry serves it there for lineages that import thema, and the Runtime and
+// the exemplars load it there too.
 func KernelPath(filename string) (string, bool) {
-	// The Runtime loads thema's CUE at a path without a version.
-	base, _, _ := strings.Cut(util.ThemaModulePath, "@")
-	for _, root := range []string{Root(), filepath.Join(util.Prefix, filepath.FromSlash(base))} {
-		if rel, ok := strings.CutPrefix(filename, root+string(filepath.Separator)); ok {
-			return filepath.ToSlash(rel), true
-		}
+	rel, ok := strings.CutPrefix(filename, Root()+string(filepath.Separator))
+	if !ok {
+		return "", false
 	}
-	return "", false
+	return filepath.ToSlash(rel), true
 }
 
 // rootFS reports [Root] as its OS root, which is where the CUE loader then

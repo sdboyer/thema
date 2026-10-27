@@ -2,7 +2,6 @@ package thema
 
 import (
 	"fmt"
-	"path/filepath"
 	"sync"
 
 	"cuelang.org/go/cue"
@@ -10,6 +9,7 @@ import (
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/load"
+	"github.com/sdboyer/thema/internal/embedreg"
 	"github.com/sdboyer/thema/internal/util"
 )
 
@@ -18,7 +18,10 @@ var themaBI *build.Instance
 
 func loadRuntime() *build.Instance {
 	rtOnce.Do(func() {
-		path := filepath.Join(util.Prefix, "github.com", "sdboyer", "thema")
+		// The same virtual root the embedded registry serves thema's CUE from, so
+		// that every position in thema's own CUE has one shape, whether the
+		// lineage imported thema or was unified with thema.Lineage here.
+		path := embedreg.Root()
 
 		overlay := make(map[string]load.Source)
 		if err := util.ToOverlay(path, CueJointFS, overlay); err != nil {

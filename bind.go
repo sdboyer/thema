@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"cmp"
 	"fmt"
-	"path/filepath"
 	"slices"
 	"sort"
 	"strconv"
@@ -16,11 +15,11 @@ import (
 	"cuelang.org/go/cue/token"
 	"github.com/cockroachdb/errors"
 
+	"github.com/sdboyer/thema/diag"
 	terrors "github.com/sdboyer/thema/errors"
 	"github.com/sdboyer/thema/internal/compat"
 	"github.com/sdboyer/thema/internal/cuetil"
 	"github.com/sdboyer/thema/internal/cueview"
-	"github.com/sdboyer/thema/internal/embedreg"
 	"github.com/sdboyer/thema/internal/lenscheck"
 )
 
@@ -295,13 +294,8 @@ func (ml *maybeLineage) checkUnknownFields() error {
 // userPos returns the position of the first conjunct of v that is not in thema's
 // own CUE, or v's position if there is none.
 func userPos(v cue.Value) token.Pos {
-	_, args := v.Expr()
-	for _, a := range args {
-		if p := a.Pos(); p.IsValid() && !strings.HasPrefix(p.Filename(), embedreg.Root()+string(filepath.Separator)) {
-			return p
-		}
-	}
-	return v.Pos()
+	p, _ := diag.AuthorPos(v)
+	return p
 }
 
 func (ml *maybeLineage) checkLineageShape(cfg *bindConfig) error {

@@ -27,7 +27,7 @@ backward: {
 -- out/error --
 lens 0.0->1.0: result is not an instance of schema 1.0:
 Lineage.lenses."0.0->1.0".result.count: conflicting values "many" and int (mismatched types string and int):
-    /github.com/sdboyer/thema/lineage.cue:170:19
+    /github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
     ship/1.0.thema:3:9
     ship/1.0.thema:7:9
 :

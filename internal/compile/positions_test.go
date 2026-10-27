@@ -249,12 +249,10 @@ func posStrings(err error) []string {
 // TestUnpositionedResultFallsToKernel shows what BindLineage reports when a
 // lens result has no position. thema's Go checks position their errors at the
 // first conjunct of a value not in thema's own CUE (bind.go userPos), and
-// recognize thema's CUE by the embedded module's root, embedreg.Root(). But
-// when BindLineage unifies the lineage with thema.Lineage itself, as it does
-// for a normal form the compiler builds without importing thema, thema's CUE
-// comes from the Runtime, loaded at a path without the module version. So with
-// no authored position to find, the error points into thema's lineage.cue,
-// at Lens's result field, as if the author had written it.
+// recognize thema's CUE by the embedded module's root, embedreg.Root(), which
+// is also where the Runtime loads it. With no authored position to find, the
+// error falls back to the value's own position, which is in thema's
+// lineage.cue, at Lens's result field, as if the author had written it.
 //
 // The lens-conflict-bind pipeline case is the same lineage with the result
 // positioned at the lens.
