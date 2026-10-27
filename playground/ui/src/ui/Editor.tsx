@@ -2,7 +2,7 @@
 // reports edits and shows markers.
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { json } from "@codemirror/lang-json";
-import { bracketMatching, defaultHighlightStyle, indentOnInput, indentUnit, syntaxHighlighting } from "@codemirror/language";
+import { bracketMatching, indentOnInput, indentUnit, syntaxHighlighting } from "@codemirror/language";
 import { lintGutter, setDiagnostics } from "@codemirror/lint";
 import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
 import { Compartment, EditorState } from "@codemirror/state";
@@ -10,6 +10,7 @@ import { EditorView, drawSelection, highlightActiveLine, keymap, lineNumbers } f
 import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { cue } from "./cue-lang";
 import type { Marker } from "./markers";
+import { darkScheme, darkTheme, highlight, lightTheme } from "./theme";
 
 export type Language = "cue" | "json" | "yaml" | "text";
 
@@ -30,14 +31,6 @@ const languages = {
   text: () => [],
 };
 
-const theme = EditorView.theme({
-  "&": { height: "100%", fontSize: "13px" },
-  ".cm-scroller": { fontFamily: "var(--mono)", lineHeight: "1.5" },
-  ".cm-gutters": { background: "var(--panel)", color: "var(--muted)", border: "none" },
-  ".cm-activeLine": { background: "var(--active-line)" },
-  "&.cm-focused": { outline: "none" },
-});
-
 export function Editor({ text, language, onChange, markers, readOnly, label }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
@@ -45,6 +38,7 @@ export function Editor({ text, language, onChange, markers, readOnly, label }: P
   onChangeRef.current = onChange;
   const lang = useRef(new Compartment());
   const ro = useRef(new Compartment());
+  const scheme = useRef(new Compartment());
 
   useEffect(() => {
     const v = new EditorView({
@@ -59,13 +53,13 @@ export function Editor({ text, language, onChange, markers, readOnly, label }: P
           bracketMatching(),
           highlightActiveLine(),
           highlightSelectionMatches(),
-          syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+          syntaxHighlighting(highlight),
           lintGutter(),
           keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
           lang.current.of(languages[language]()),
           ro.current.of(EditorState.readOnly.of(!!readOnly)),
           EditorView.contentAttributes.of({ "aria-label": label }),
-          theme,
+          scheme.current.of(darkScheme()?.matches ? darkTheme : lightTheme),
           EditorView.updateListener.of((u) => {
             if (u.docChanged) onChangeRef.current?.(u.state.doc.toString());
           }),
@@ -73,7 +67,14 @@ export function Editor({ text, language, onChange, markers, readOnly, label }: P
       }),
     });
     view.current = v;
-    return () => v.destroy();
+    // Follow the system when it switches between light and dark.
+    const mq = darkScheme();
+    const follow = (e: MediaQueryListEvent) => v.dispatch({ effects: scheme.current.reconfigure(e.matches ? darkTheme : lightTheme) });
+    mq?.addEventListener("change", follow);
+    return () => {
+      mq?.removeEventListener("change", follow);
+      v.destroy();
+    };
   }, []);
 
   // A new text from outside (another file opened, an example loaded)

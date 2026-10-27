@@ -2,7 +2,7 @@ import { EditorView } from "@codemirror/view";
 import { render } from "preact";
 import { useState } from "preact/hooks";
 import { act } from "preact/test-utils";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Editor } from "./Editor";
 
 // Typing faster than effects run after paint: each keystroke re-renders the
@@ -69,5 +69,54 @@ describe("Editor", () => {
     await act(async () => set("two"));
     expect(view.state.doc.toString()).toBe("two");
     render(null, root);
+  });
+
+  describe("color scheme", () => {
+    // A stand-in for the system's preference that tests can flip.
+    function fakeScheme(dark: boolean) {
+      const listeners = new Set<(e: MediaQueryListEvent) => void>();
+      const mq = {
+        matches: dark,
+        addEventListener: (_: string, f: (e: MediaQueryListEvent) => void) => listeners.add(f),
+        removeEventListener: (_: string, f: (e: MediaQueryListEvent) => void) => listeners.delete(f),
+      };
+      vi.stubGlobal("matchMedia", () => mq);
+      return {
+        flip(to: boolean) {
+          mq.matches = to;
+          for (const f of listeners) f({ matches: to } as MediaQueryListEvent);
+        },
+        listeners,
+      };
+    }
+    afterEach(() => vi.unstubAllGlobals());
+
+    async function mount() {
+      const root = document.createElement("div");
+      document.body.append(root);
+      await act(async () => {
+        render(<Editor text="a: 1" language="cue" label="test" />, root);
+      });
+      const view = EditorView.findFromDOM(root.querySelector<HTMLElement>(".cm-editor")!)!;
+      return { root, view };
+    }
+
+    it("starts in the system's scheme and follows it when it changes", async () => {
+      const sys = fakeScheme(true);
+      const { root, view } = await mount();
+      expect(view.state.facet(EditorView.darkTheme)).toBe(true);
+      sys.flip(false);
+      expect(view.state.facet(EditorView.darkTheme)).toBe(false);
+      sys.flip(true);
+      expect(view.state.facet(EditorView.darkTheme)).toBe(true);
+      render(null, root);
+      expect(sys.listeners.size).toBe(0);
+    });
+
+    it("is light where the scheme cannot be asked", async () => {
+      const { root, view } = await mount();
+      expect(view.state.facet(EditorView.darkTheme)).toBe(false);
+      render(null, root);
+    });
   });
 });

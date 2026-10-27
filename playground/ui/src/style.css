@@ -10,6 +10,17 @@
   --warning: #b26a00;
   --ok: #2e7d32;
   --active-line: #00000008;
+  --selection: #cfe0ff;
+  /* Syntax colors for the editors; see src/ui/theme.ts. */
+  --syn-keyword: #8a3ab9;
+  --syn-string: #2b7a3d;
+  --syn-literal: #b0530a;
+  --syn-type: #0e7490;
+  --syn-definition: #9a6700;
+  --syn-property: #1f4fb3;
+  --syn-comment: #6b7280;
+  --syn-meta: #9a3b6e;
+  --syn-punctuation: #57606a;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
   font-size: 14px;
@@ -27,6 +38,16 @@
     --warning: #f2b14c;
     --ok: #6cc070;
     --active-line: #ffffff08;
+    --selection: #2f4a73;
+    --syn-keyword: #c792ea;
+    --syn-string: #98c379;
+    --syn-literal: #e5a663;
+    --syn-type: #56b6c2;
+    --syn-definition: #e5c07b;
+    --syn-property: #82aaff;
+    --syn-comment: #8b929c;
+    --syn-meta: #e88fbf;
+    --syn-punctuation: #a0a7b2;
   }
 }
 
