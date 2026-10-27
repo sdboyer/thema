@@ -382,12 +382,13 @@ func (w *walker) inputRef(p cue.Path) string {
 	return rootRef(w.from, p)
 }
 
-// rootRef names the path p beneath the lens field root.
+// rootRef names the path p beneath the lens field root. The open element of
+// a list is written items[_], as a lens reads it.
 func rootRef(root string, p cue.Path) string {
 	if len(p.Selectors()) == 0 {
 		return root
 	}
-	return root + "." + p.String()
+	return strings.ReplaceAll(root+"."+p.String(), ".[_]", "[_]")
 }
 
 // lensPos is the author's position for the lens field at p.
@@ -657,12 +658,30 @@ func (w *walker) chainPath(x ast.Expr) (cue.Path, bool) {
 			return w.chainPath(n.Expr)
 		case *ast.Alias:
 			return w.chainPath(n.Expr)
+		case ast.Expr:
+			if fc, ok := w.tree.Parent(n).(*ast.ForClause); ok {
+				// A comprehension's value variable is an element of what the
+				// clause iterates: the list's open element. A key is a label.
+				if fc.Value != n {
+					return cue.Path{}, false
+				}
+				base, ok := w.chainPath(fc.Source)
+				if !ok {
+					return cue.Path{}, false
+				}
+				return appendPath(base, cue.AnyIndex), true
+			}
 		}
 		if f := w.refField(e); f != nil {
 			return w.fieldPath(f)
 		}
 	}
 	return cue.Path{}, false
+}
+
+// isAnyIndex reports whether sel is cue.AnyIndex, the open element of a list.
+func isAnyIndex(sel cue.Selector) bool {
+	return sel.Type().LabelType() == cue.IndexLabel && sel.ConstraintType() == cue.PatternConstraint
 }
 
 // refField returns the field the identifier id refers to, if it refers to a
@@ -824,11 +843,17 @@ func (w *walker) composite(e *ast.StructLit, q cue.Path, gs []pattern, pos token
 // list walks a list literal written at q: each element is written at its index.
 func (w *walker) list(e *ast.ListLit, q cue.Path, gs []pattern, pos token.Pos) {
 	w.record(&write{q: q, patterns: gs, kind: compositeW, text: "[...]", pos: pos})
+	if len(e.Elts) == 1 {
+		if comp, ok := e.Elts[0].(*ast.Comprehension); ok {
+			w.each(comp, q, gs, pos)
+			return
+		}
+	}
 	for _, elt := range e.Elts {
 		switch elt.(type) {
 		case *ast.Comprehension:
 			w.add(Finding{Path: w.subject(q), Verdict: Unknown, Rule: RuleUnknownDynamic,
-				Detail: "builds list elements with a comprehension, so how many there are and what they hold depends on the instance; write each element", Pos: pos})
+				Detail: "builds list elements with a comprehension beside other elements, so how many there are and what they hold depends on the instance; write each element, or one comprehension alone", Pos: pos})
 			return
 		case *ast.Ellipsis:
 			w.add(Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleNotAValue,
@@ -854,6 +879,96 @@ func (w *walker) list(e *ast.ListLit, q cue.Path, gs []pattern, pos token.Pos) {
 		for _, c := range w.tree.Conjuncts(x) {
 			w.conjunct(c, eq, gs, pos)
 		}
+	}
+}
+
+// each proves a list written as one comprehension, [for item in <list> {body}]:
+// an element of the target list for each element of a source list. The body
+// is proven as a lens from the source's element to the target's, with item
+// resolving to the source list's open element, and the list has as many
+// elements as the source list, so the target's length bounds must accept the
+// source's. A filter (if) or a second clause changes the count, and is not
+// proven.
+func (w *walker) each(comp *ast.Comprehension, q cue.Path, gs []pattern, pos token.Pos) {
+	subj := w.subject(q)
+	var fc *ast.ForClause
+	for _, cl := range comp.Clauses {
+		switch c := cl.(type) {
+		case *ast.ForClause:
+			if fc != nil {
+				w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownDynamic,
+					Detail: "builds list elements with nested for clauses, so how many there are depends on the instance; write one for clause over one list", Pos: pos})
+				return
+			}
+			fc = c
+		case *ast.IfClause:
+			w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownDynamic,
+				Detail: fmt.Sprintf("filters list elements with if %s, so how many there are depends on the instance; map every element", text(c.Condition)), Pos: pos})
+			return
+		default:
+			w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownDynamic,
+				Detail: "builds list elements with a clause the checker does not follow", Pos: pos})
+			return
+		}
+	}
+	if fc == nil {
+		w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownDynamic,
+			Detail: "builds list elements with a comprehension that has no for clause", Pos: pos})
+		return
+	}
+	p, ok := w.pathOf(fc.Source)
+	if !ok {
+		w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownReference,
+			Detail: fmt.Sprintf("maps the elements of %s, which the checker cannot follow to a list in the input; iterate a list by name", text(fc.Source)), Pos: pos})
+		return
+	}
+	src := w.lookupSource(p, gs)
+	switch {
+	case !src.declared:
+		w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleSourceUndeclared,
+			Detail: fmt.Sprintf("maps the elements of %s, which the source schema does not declare", w.inputRef(p)), Pos: pos})
+		return
+	case !src.present:
+		w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleSourceAbsent,
+			Detail: fmt.Sprintf("maps the elements of %s, which may be absent: %s; write the field under if %s != _|_", w.inputRef(p), src.why, w.inputRef(p)), Pos: pos})
+		return
+	}
+	for _, b := range src.branches {
+		if b.IncompleteKind() != cue.ListKind {
+			w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownDynamic,
+				Detail: fmt.Sprintf("maps the elements of %s, which may be %s rather than a list", w.inputRef(p), b.IncompleteKind()), Pos: pos})
+			return
+		}
+	}
+	tgt, ok := w.targetAt(q, pos)
+	if !ok {
+		return
+	}
+	if tgt.IncompleteKind() != cue.TopKind {
+		if tgt.IncompleteKind()&cue.ListKind == 0 {
+			w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleLiteralNotInstance,
+				Detail: fmt.Sprintf("is a list, where the target schema wants %s", tgt.IncompleteKind()), Pos: pos})
+			return
+		}
+		// As many elements as the source list has.
+		if want, _, ok := intervalOf(tgt.Len()); ok {
+			for _, b := range src.branches {
+				if have, _, ok := intervalOf(b.Len()); ok && !have.within(want) {
+					w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleCopyNarrowed,
+						Detail: fmt.Sprintf("has one element per element of %s, whose length may be %s, where the target list's length must be %s", w.inputRef(p), have, want), Pos: pos})
+					return
+				}
+			}
+		}
+	}
+	eq := appendPath(q, cue.AnyIndex)
+	w.record(&write{q: eq, patterns: gs, kind: compositeW, text: text(comp), pos: pos})
+	if s, ok := comp.Value.(*ast.StructLit); ok {
+		w.decls(s.Elts, eq, gs, pos)
+		return
+	}
+	for _, c := range w.tree.Conjuncts(comp.Value) {
+		w.conjunct(c, eq, gs, pos)
 	}
 }
 
@@ -1101,6 +1216,11 @@ func (w *walker) lookupSource(p cue.Path, gs []pattern) sourceLookup {
 // presentIn reports whether the child sel, declared by parent with selector
 // csel, is present in every instance of parent, and why not if not.
 func presentIn(parent cue.Value, sel, csel cue.Selector) (string, bool) {
+	if isAnyIndex(sel) {
+		// The open element, read by a comprehension over the list: present for
+		// every element there is.
+		return "", true
+	}
 	if sel.Type().LabelType() == cue.IndexLabel {
 		iv, _, ok := intervalOf(parent.Len())
 		if ok && iv.lo != nil && iv.lo.Int64() > int64(sel.Index()) {
@@ -1430,6 +1550,35 @@ func (w *walker) lacunaRefs(lp cue.Path, name string, x ast.Expr, gs []pattern) 
 		}
 		for j, ex := range l.Elts {
 			rp := appendPath(appendPath(lp, cue.Str(name)), cue.Index(j))
+			if comp, ok := ex.(*ast.Comprehension); ok {
+				// One entry per element of a source list, under the
+				// comprehension's own patterns, as a drop inside each reports.
+				ngs := append([]pattern(nil), gs...)
+				for _, cl := range comp.Clauses {
+					switch c := cl.(type) {
+					case *ast.ForClause:
+						if _, ok := w.pathOf(c.Source); !ok {
+							w.add(Finding{Path: rp.String(), Verdict: Unknown, Rule: RuleUnknownReference,
+								Detail: fmt.Sprintf("reports the elements of %s, which the checker cannot follow to a list in the input", text(c.Source)), Pos: w.lensPos(lp)})
+						}
+					case *ast.IfClause:
+						g, ok := w.parsePattern(c.Condition)
+						if !ok {
+							g = []pattern{{root: w.from, kind: opaque, text: text(c.Condition)}}
+						}
+						w.checkPatterns(g, ngs, rp.String(), w.lensPos(lp))
+						ngs = append(ngs, g...)
+					}
+				}
+				if s, ok := comp.Value.(*ast.StructLit); ok {
+					for _, fd := range cueview.FieldDecls(s.Elts, w.embedded) {
+						if fname, _, err := ast.LabelName(fd.Field.Label); err == nil && fname == "value" {
+							w.lacunaValue(appendPath(rp, cue.Str("value")).String(), fd.Field.Value, ngs, w.lensPos(lp))
+						}
+					}
+				}
+				continue
+			}
 			for _, rc := range w.tree.Conjuncts(ex) {
 				s, ok := rc.Expr.(*ast.StructLit)
 				if !ok {

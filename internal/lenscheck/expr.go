@@ -776,6 +776,11 @@ func (w *walker) length(x ast.Expr, c *exprCtx) (shape, bool) {
 		}
 		return shape{kind: cue.IntKind, iv: *out}, true
 	}
+	for _, cj := range w.tree.Conjuncts(x) {
+		if l, ok := cj.Expr.(*ast.ListLit); ok {
+			return w.listLength(l, c)
+		}
+	}
 	s, ok := w.shape(x, c)
 	if !ok || s.dead {
 		return s, ok
@@ -785,6 +790,79 @@ func (w *walker) length(x ast.Expr, c *exprCtx) (shape, bool) {
 		return shape{}, false
 	}
 	return shape{kind: cue.IntKind, iv: lengthRange}, true
+}
+
+// listLength bounds the length of a list literal the lens builds (reached by
+// name, through a let): one per written element, and for a comprehension
+// over a source list, up to that list's length, or exactly it when nothing
+// filters.
+func (w *walker) listLength(l *ast.ListLit, c *exprCtx) (shape, bool) {
+	total := point(big.NewInt(0))
+	for _, elt := range l.Elts {
+		switch e := elt.(type) {
+		case *ast.Ellipsis:
+			w.fail(c, Unknown, RuleUnknownOp, "takes the length of an open list ([...]), which is a constraint rather than a value")
+			return shape{}, false
+		case *ast.Comprehension:
+			var fc *ast.ForClause
+			filtered := false
+			for _, cl := range e.Clauses {
+				switch cc := cl.(type) {
+				case *ast.ForClause:
+					if fc != nil {
+						w.fail(c, Unknown, RuleUnknownOp, "takes the length of a list built by nested for clauses")
+						return shape{}, false
+					}
+					fc = cc
+				case *ast.IfClause:
+					filtered = true
+				}
+			}
+			if fc == nil {
+				w.fail(c, Unknown, RuleUnknownOp, "takes the length of a list built by a comprehension with no for clause")
+				return shape{}, false
+			}
+			p, ok := w.pathOf(fc.Source)
+			if !ok {
+				w.fail(c, Unknown, RuleUnknownReference, fmt.Sprintf("takes the length of a list built over %s, which the checker cannot follow to a list in the input", text(fc.Source)))
+				return shape{}, false
+			}
+			c.paths[p.String()]++
+			src := w.lookupSource(p, c.gs)
+			switch {
+			case !src.declared:
+				w.fail(c, NotTotal, RuleSourceUndeclared, fmt.Sprintf("takes the length of a list built over %s, which the source schema does not declare", w.inputRef(p)))
+				return shape{}, false
+			case !src.present:
+				w.fail(c, NotTotal, RuleSourceAbsent, fmt.Sprintf("takes the length of a list built over %s, which may be absent: %s", w.inputRef(p), src.why))
+				return shape{}, false
+			}
+			var n *interval
+			for _, b := range src.branches {
+				if b.IncompleteKind() != cue.ListKind {
+					w.fail(c, Unknown, RuleUnknownOp, fmt.Sprintf("takes the length of a list built over %s, which may be %s rather than a list", w.inputRef(p), b.IncompleteKind()))
+					return shape{}, false
+				}
+				iv, _, _ := intervalOf(b.Len())
+				iv = iv.meet(lengthRange)
+				if filtered {
+					iv.lo = big.NewInt(0)
+				}
+				if n == nil {
+					n = &iv
+				} else {
+					h := n.hull(iv)
+					n = &h
+				}
+			}
+			if n != nil {
+				total = total.add(*n)
+			}
+		default:
+			total = total.add(point(big.NewInt(1)))
+		}
+	}
+	return shape{kind: cue.IntKind, iv: total.meet(lengthRange)}, true
 }
 
 // lengthRange is the range of a length: a Go int, so within int64.
