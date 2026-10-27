@@ -1,0 +1,26 @@
+A computed mapping calling a function outside the set the totality proof
+proves.
+-- ship/history/0.0.thema --
+Schema: {
+	name: string
+}
+-- ship/1.0.thema --
+Schema: {
+	name:  string
+	label: string
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		label: strings.Title(v0_0.name)
+	}
+}
+-- out/error --
+error[E0357]: strings.Title is not a function a lens may call
+ --> 1.0.thema:9:10
+  |
+9 |         label: strings.Title(v0_0.name)
+  |                ^^^^^^^
+  |
+  = help: the strings functions a lens may call are strings.Contains, strings.HasPrefix, strings.HasSuffix, strings.Replace, strings.ToLower, strings.ToUpper, strings.Trim, strings.TrimLeft, strings.TrimPrefix, strings.TrimRight, strings.TrimSpace, strings.TrimSuffix

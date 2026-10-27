@@ -1,0 +1,81 @@
+#op: bind
+#path: lin
+A lens reads a hidden field of another lens through the lineage (reference
+rule ref-lens-to-lens). Each lens declares what it needs.
+-- lineage.cue --
+lin: {
+	name: "ship"
+	schemas: {
+		"0": "0": {
+			schema: {a: string}
+		}
+		"1": "0": {
+			schema: {b: string}
+		}
+	}
+	lenses: {
+		"1.0->0.0": {
+			v1_0: _
+			_fallback: "x"
+			v0_0: {a: v1_0.b}
+		}
+		"0.0->1.0": {
+			v0_0: _
+			v1_0: {b: lin.lenses["1.0->0.0"]._fallback}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0145",
+      "severity": "error",
+      "headline": "v1_0.b in lens 0.0->1.0 refers to lin.lenses[\"1.0->0.0\"]._fallback, another lens",
+      "path": [
+        "lenses",
+        "0.0->1.0"
+      ],
+      "address": {
+        "from": [
+          0,
+          0
+        ],
+        "kind": "lens",
+        "to": [
+          1,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 19,
+        "col": 14,
+        "offset": 239,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "reference rule ref-lens-to-lens"
+        }
+      ],
+      "help": [
+        "a lens may refer only to v0_0, the instance it takes, its own body and CUE's builtin packages"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0145]: v1_0.b in lens 0.0->1.0 refers to lin.lenses["1.0->0.0"]._fallback, another lens
+  --> lineage.cue:19:14
+   |
+19 |             v1_0: {b: lin.lenses["1.0->0.0"]._fallback}
+   |                       ^^^
+   |
+   = note: reference rule ref-lens-to-lens
+   = help: a lens may refer only to v0_0, the instance it takes, its own body and CUE's builtin packages

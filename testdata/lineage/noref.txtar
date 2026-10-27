@@ -156,3 +156,5 @@ Lenses count: 0
 export interface Noref {
   someField: string;
 }
+-- out/lensir --
+no lenses

@@ -13,7 +13,7 @@ Schema: {
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		aunion: match(v0_0.aunion, {"foo": "bar"})
+		aunion: _match(v0_0.aunion, {"foo": "bar"})
 	}
 	lacunas: {
 		aunion: [{
@@ -26,7 +26,7 @@ ForwardLens: {
 BackwardLens: {
 	v1_0: _
 	v0_0: {
-		aunion: match(v1_0.aunion, {"bar": "foo"})
+		aunion: _match(v1_0.aunion, {"bar": "foo"})
 	}
 	lacunas: {
 		aunion: [{
@@ -37,5 +37,9 @@ BackwardLens: {
 	}
 }
 -- out/error --
-lacunas.aunion: a lacuna on a match applies when its [_] arm does, and this match has none: say when it applies with when: <condition>:
-    1.0.thema:11:12
+error[E0420]: lacunas.aunion: a lacuna on a _match applies when its [_] arm does, and this _match has none: say when it applies with when: <condition>
+  --> 1.0.thema:11:12
+   |
+11 |         aunion: [{
+   |                  ^
+   |

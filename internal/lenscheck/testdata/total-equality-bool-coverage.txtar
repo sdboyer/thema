@@ -11,3 +11,12 @@ v1_0: {
 }
 -- out --
 total
+-- ir --
+out: {
+  if in.f == true {
+    out.n = 1
+  }
+  if in.f == false {
+    out.n = 0
+  }
+}

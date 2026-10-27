@@ -122,7 +122,7 @@ func TestDataCharDeviceStdin(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected validate-any to fail with a character device on stdin, got output:\n%s", out)
 	}
-	if !strings.Contains(out, "no path provided and nothing on stdin") {
+	if !strings.Contains(out, "error[E0613]: no data was given") {
 		t.Fatalf("unexpected error output:\n%s", out)
 	}
 }

@@ -28,7 +28,20 @@ _ExRef: {
 	defField: string
 }
 -- out/bindfail --
-joinSchema: ref refers to _ExRef, which is declared in the lineage outside the joinSchema; a joinSchema may refer only to its own body and CUE's builtin packages (rule ref-lineage-meta):
-    ./in.cue:6:10
-joinSchema: refdef refers to #ExRefDef, which is declared in the lineage outside the joinSchema; a joinSchema may refer only to its own body and CUE's builtin packages (rule ref-lineage-meta):
-    ./in.cue:7:13
+error[E0141]: ref in joinSchema refers to _ExRef, which is declared in the lineage outside the joinSchema
+ --> /in.cue:6:10
+  |
+6 |     ref: _ExRef
+  |          ^^^^^^
+  |
+  = note: reference rule ref-lineage-meta
+  = help: a joinSchema may refer only to its own body and CUE's builtin packages
+
+error[E0141]: refdef in joinSchema refers to #ExRefDef, which is declared in the lineage outside the joinSchema
+ --> /in.cue:7:13
+  |
+7 |     refdef: #ExRefDef
+  |             ^^^^^^^^^
+  |
+  = note: reference rule ref-lineage-meta
+  = help: a joinSchema may refer only to its own body and CUE's builtin packages

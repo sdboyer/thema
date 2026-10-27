@@ -2,13 +2,12 @@ package thema
 
 import (
 	"fmt"
+	"strings"
 
 	"cuelang.org/go/cue"
-	cerrors "cuelang.org/go/cue/errors"
 	"cuelang.org/go/pkg/encoding/json"
-	"github.com/cockroachdb/errors"
 
-	terrors "github.com/sdboyer/thema/errors"
+	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/internal/cuetil"
 	"github.com/sdboyer/thema/internal/util"
 	"github.com/sdboyer/thema/lacuna"
@@ -62,8 +61,7 @@ func (i *Instance) check() {
 func (i *Instance) Hydrate() *Instance {
 	i.check()
 
-	i.sch.Lineage().Runtime()
-	ni, err := doHydrate(i.sch.Underlying(), i.raw)
+	ni, err := doHydrate(i.sch.(*schemaDef).def, i.raw)
 	// FIXME For now, just no-op it if we error
 	if err != nil {
 		return i
@@ -85,7 +83,7 @@ func (i *Instance) Hydrate() *Instance {
 func (i *Instance) Dehydrate() *Instance {
 	i.check()
 
-	ni, _, err := doDehydrate(i.sch.Underlying(), i.raw)
+	ni, _, err := doDehydrate(i.sch.(*schemaDef).def, i.raw)
 	// FIXME For now, just no-op it if we error
 	if err != nil {
 		return i
@@ -111,7 +109,9 @@ func (i *Instance) AsSuccessor() (*Instance, lacuna.TranslationLacunas, error) {
 	if nsch.Version()[0] == i.Schema().Version()[0] {
 		ni, err := nsch.Validate(i.raw)
 		if err != nil {
-			return nil, nil, errors.Mark(fmt.Errorf("instance of %s is not an instance of its successor %s: %w", i.Schema().Version(), nsch.Version(), err), terrors.ErrInvalidData)
+			// The diagnostics say what the successor rejects; they are the
+			// whole story, since no lens was involved.
+			return nil, nil, err
 		}
 		return ni, lacuna.TranslationLacunas{{From: lacuna.SyntacticVersion(i.Schema().Version()), To: lacuna.SyntacticVersion(nsch.Version()), Lacunas: []lacuna.Lacuna{}}}, nil
 	}
@@ -230,8 +230,9 @@ func (i *Instance) Translate(to SyntacticVersion) (*Instance, lacuna.Translation
 		panic(err)
 	}
 
+	lin := i.Schema().Lineage().(*baseLineage)
 	if out.Err() != nil {
-		return nil, nil, errors.Mark(out.Err(), terrors.ErrInvalidLens)
+		return nil, nil, diag.Convert(out.Err(), lin.translateContext(out))
 	}
 
 	// Attempt to evaluate Translate result to remove intermediate structures created by Translate.
@@ -239,24 +240,27 @@ func (i *Instance) Translate(to SyntacticVersion) (*Instance, lacuna.Translation
 	raw, _ := out.LookupPath(cue.MakePath(cue.Str("result"), cue.Str("result"))).Default()
 
 	// Check that the result is concrete by trying to marshal/export it as JSON
-	_, err = json.Marshal(raw)
-	if err != nil {
-		return nil, nil, errors.Mark(fmt.Errorf("lens produced a non-concrete result: %s", cerrors.Details(err, nil)), terrors.ErrLensIncomplete)
+	if _, err = json.Marshal(raw); err != nil {
+		ctx := lin.translateContext(out)
+		ctx.Generic = diag.E0307
+		return nil, nil, diag.Convert(err, ctx)
 	}
 
 	if err = i.checkLensResultFields(out); err != nil {
-		return nil, nil, errors.Mark(err, terrors.ErrLensResultIsInvalidData)
+		return nil, nil, err
 	}
 
-	// Ensure the result is a valid instance of the target schema
+	// Ensure the result is a valid instance of the target schema. The kernel
+	// closes each step's result against its target, so this holds whenever
+	// the steps evaluated; the diagnostics are about the result as data.
 	inst, err := newsch.Validate(raw)
 	if err != nil {
-		return nil, nil, errors.Mark(err, terrors.ErrLensResultIsInvalidData)
+		return nil, nil, err
 	}
 
 	var lac lacuna.TranslationLacunas
 	if err := out.LookupPath(cue.MakePath(cue.Str("steps"))).Decode(&lac); err != nil {
-		return nil, nil, errors.Mark(fmt.Errorf("lens produced invalid lacunas: %s", cerrors.Details(err, nil)), terrors.ErrInvalidLens)
+		return nil, nil, diag.Convert(err, lin.translateContext(out))
 	}
 	return inst, lac, nil
 }
@@ -279,10 +283,10 @@ func (i *Instance) checkLensResultFields(out cue.Value) error {
 		}
 		var from, to SyntacticVersion
 		if err := steps.Value().LookupPath(cue.MakePath(cue.Str("from"))).Decode(&from); err != nil {
-			return err
+			return diag.InternalErr(err)
 		}
 		if err := steps.Value().LookupPath(cue.MakePath(cue.Str("to"))).Decode(&to); err != nil {
-			return err
+			return diag.InternalErr(err)
 		}
 		result := lens.LookupPath(cue.MakePath(cue.Str(lensParam(to))))
 		sch, err := i.Schema().Lineage().Schema(to)
@@ -297,10 +301,16 @@ func (i *Instance) checkLensResultFields(out cue.Value) error {
 		declared := i.Schema().Lineage().Underlying().LookupPath(cue.MakePath(cue.Str("lenses"), cue.Str(lensID{From: from, To: to}.String())))
 		syn, err := cuetil.ParseLens(declared, lensParam(from), lensParam(to))
 		if err != nil {
-			return fmt.Errorf("lens to %s: %w", to, err)
+			return diag.InternalErr(err)
 		}
-		if err := def.undeclaredErr(pathStrings(cuetil.UndeclaredLensFields(i.rt().Context(), result, def.def, syn.Result()))); err != nil {
-			return fmt.Errorf("lens to %s: %w", to, err)
+		if paths := pathStrings(cuetil.UndeclaredLensFields(i.rt().Context(), result, def.def, syn.Result())); len(paths) > 0 {
+			lin := i.Schema().Lineage().(*baseLineage)
+			resultA := diag.Address{Kind: diag.AddrLensResult, From: diag.Version(from), To: diag.Version(to)}
+			own := lin.uni.LookupPath(cue.MakePath(cue.Str("lenses"), cue.Str(lid(from, to).String()), cue.Str(lensParam(to))))
+			return diag.New(diag.E0305).AtValue(own).Addr(resultA).
+				Headlinef("%s writes %s for this instance, which %s does not declare", lin.vocab.Term(resultA), strings.Join(paths, ", "), lin.vocab.Term(schemaAddr(to))).
+				Help("a lens writes only fields its target schema declares, however open the schema is written").
+				Err()
 		}
 	}
 	return nil

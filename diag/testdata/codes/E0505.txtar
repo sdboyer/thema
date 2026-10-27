@@ -1,0 +1,102 @@
+#op: validate
+A value in the data matches none of the alternatives of a disjunction in the
+schema. CUE reports one reason per alternative; each is a note, so the author
+sees why every alternative was rejected.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				size: int | "large"
+			}
+		}
+	}
+}
+-- data.json --
+{
+	"size": true
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0505",
+      "severity": "error",
+      "headline": "size in the data matches none of the alternatives schema 0.0 allows",
+      "path": [
+        "size"
+      ],
+      "address": {
+        "field": [
+          "size"
+        ],
+        "kind": "data",
+        "version": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "data.json",
+        "line": 2,
+        "col": 10,
+        "offset": 11,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "pos": {
+            "file": "lineage.cue",
+            "line": 6,
+            "col": 11,
+            "offset": 64,
+            "origin": "user"
+          },
+          "label": "the alternatives are declared here"
+        },
+        {
+          "pos": {
+            "file": "data.json",
+            "line": 2,
+            "col": 10,
+            "offset": 11,
+            "origin": "user"
+          },
+          "label": "size: conflicting values true and \"large\" (mismatched types bool and string)"
+        },
+        {
+          "pos": {
+            "file": "data.json",
+            "line": 2,
+            "col": 10,
+            "offset": 11,
+            "origin": "user"
+          },
+          "label": "size: conflicting values true and int (mismatched types bool and int)"
+        }
+      ],
+      "detail": "size: 2 errors in empty disjunction:"
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0505]: size in the data matches none of the alternatives schema 0.0 allows
+ --> data.json:2:10
+  |
+2 |     "size": true
+  |             ^^^^
+  |             ---- size: conflicting values true and "large" (mismatched types bool and string)
+  |             ---- size: conflicting values true and int (mismatched types bool and int)
+  |
+ ::: lineage.cue:6:11
+  |
+6 |                 size: int | "large"
+  |                       --- the alternatives are declared here
+  |
+  = detail: size: 2 errors in empty disjunction:

@@ -1,0 +1,80 @@
+#op: bind
+The compatibility checker compares each field's constraint between the two
+schemas. A field constrained by another field's value has no constraint of its
+own to compare, so the checker cannot decide, and a minor version it cannot
+decide about does not bind: change the schema so the checker can decide, or
+make it a major version.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: int
+				b?: a
+			}
+		}
+		"1": {
+			schema: {
+				a: int
+				b?: >a
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0230",
+      "severity": "error",
+      "headline": "b in schema 0.1 is constrained by a in both schemas, differently; the checker cannot compare constraints between fields",
+      "path": [
+        "schemas",
+        "0",
+        "1",
+        "schema",
+        "b"
+      ],
+      "address": {
+        "field": [
+          "b"
+        ],
+        "kind": "schemaField",
+        "version": [
+          0,
+          1
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 13,
+        "col": 5,
+        "offset": 121,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule unknown-crossfield)"
+        }
+      ],
+      "help": [
+        "change the schema so the checker can decide, or make this version 1.0"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0230]: b in schema 0.1 is constrained by a in both schemas, differently; the checker cannot compare constraints between fields
+  --> lineage.cue:13:5
+   |
+13 |                 b?: >a
+   |                 ^
+   |
+   = note: schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule unknown-crossfield)
+   = help: change the schema so the checker can decide, or make this version 1.0

@@ -1,0 +1,52 @@
+#op: bind
+A major version is a group of minor versions, keyed by minor version; its first
+schema is version N.0. A major version key with nothing under it declares no
+schema at all.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+	}
+	"1": {}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0203",
+      "severity": "error",
+      "headline": "major version 1 declares no schemas",
+      "address": {
+        "kind": "lineage"
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 10,
+        "col": 2,
+        "offset": 81,
+        "origin": "user"
+      },
+      "help": [
+        "declare its first schema as version 1.0"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0203]: major version 1 declares no schemas
+  --> lineage.cue:10:2
+   |
+10 |     "1": {}
+   |     ^^^
+   |
+   = help: declare its first schema as version 1.0

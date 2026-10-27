@@ -1,0 +1,75 @@
+#op: bind
+A field the predecessor left optional may be absent from its instances; a minor
+version that requires it rejects those instances.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a?: int
+			}
+		}
+		"1": {
+			schema: {
+				a!: int
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0212",
+      "severity": "error",
+      "headline": "a in schema 0.1 was optional and is now required",
+      "path": [
+        "schemas",
+        "0",
+        "1",
+        "schema",
+        "a"
+      ],
+      "address": {
+        "field": [
+          "a"
+        ],
+        "kind": "schemaField",
+        "version": [
+          0,
+          1
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 11,
+        "col": 5,
+        "offset": 101,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule field-now-required)"
+        }
+      ],
+      "help": [
+        "make the change compatible, or make this version 1.0"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0212]: a in schema 0.1 was optional and is now required
+  --> lineage.cue:11:5
+   |
+11 |                 a!: int
+   |                 ^
+   |
+   = note: schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule field-now-required)
+   = help: make the change compatible, or make this version 1.0

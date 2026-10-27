@@ -32,6 +32,45 @@ jobs:
       - name: Test
         run: go test ./...
 
+  # The playground compiled to WebAssembly: its tests under Go's js/wasm
+  # runner (node), and the CLI built with the bundle embedded. The test job's
+  # TestWasmSmoke runs the JS bridge the way a browser loads it.
+  wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: playground/ui/.nvmrc
+          cache: npm
+          cache-dependency-path: playground/ui/package-lock.json
+
+      - name: Install the frontend's dependencies
+        run: npm ci
+        working-directory: playground/ui
+
+      - name: Test the playground under wasm
+        run: PATH="$PATH:$(go env GOROOT)/lib/wasm" GOOS=js GOARCH=wasm go test ./playground/...
+
+      # The bundle: this thema's wasm, and the frontend built against it.
+      - name: Build the playground bundle
+        run: go generate ./cmd/thema/playground
+
+      # go generate leaves this tree's thema.wasm beside the frontend, so its
+      # tests run against the thema they ship with.
+      - name: Test the frontend against this thema
+        run: npm test
+        working-directory: playground/ui
+
+      - name: Build the CLI with the playground
+        run: go build -tags playgroundui -o /dev/null ./cmd/thema
+
   lint:
     runs-on: ubuntu-latest
     permissions:

@@ -1,0 +1,21 @@
+# a schema selects a field from a let struct declared in the lineage; the field
+# refers outside the lineage. The selection's value is reached by Dereference:
+# the let struct's field, a reference to the helper (rule
+# ref-outside-lineage)
+#issue: 119
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+_defaults: {z: "z"}
+
+lin: thema.Lineage & {
+	name: "refLineageLetSelect"
+	let Shared = {x: _defaults.z, y: 1}
+	schemas: {
+		"0": "0": {
+			schema: {a: string, n: Shared.x}
+		}
+	}
+}
+-- expect --
+bind fail ref-outside-lineage

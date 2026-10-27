@@ -1,0 +1,64 @@
+#op: compile
+A value no arm of a match matches passes through where the target accepts it.
+To decide that, the compiler tests the source's values against the target
+field's type, which must be self-contained: a type that refers to other fields
+cannot be tested on its own. Match every value with an arm, or add a `[_]`
+arm.
+-- ship/history/0.0.thema --
+Schema: {
+	kind: "a" | "b" | "c"
+}
+-- ship/1.0.thema --
+Schema: {
+	allowed: [...string]
+	kind:    or(allowed)
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		allowed: ["a", "b"]
+		kind: _match(v0_0.kind, {
+			"c": "a"
+		})
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0352",
+      "severity": "error",
+      "headline": "_match on kind: 1.0's kind is not a self-contained type",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 10,
+        "col": 9,
+        "offset": 120,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "a value no arm matches passes through where the target accepts it, which cannot be tested against a type that refers to other fields"
+        }
+      ],
+      "help": [
+        "match every value with an arm, or add a [_] arm"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0352]: _match on kind: 1.0's kind is not a self-contained type
+  --> 1.0.thema:10:9
+   |
+10 |         kind: _match(v0_0.kind, {
+   |               ^^^^^^
+   |
+   = note: a value no arm matches passes through where the target accepts it, which cannot be tested against a type that refers to other fields
+   = help: match every value with an arm, or add a [_] arm

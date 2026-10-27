@@ -10,3 +10,9 @@ v1_0: {
 }
 -- out --
 total
+-- ir --
+out: {
+  if in.a != _|_ {
+    out.a <- in.a
+  }
+}

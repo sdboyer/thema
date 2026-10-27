@@ -18,5 +18,9 @@ ForwardLens: {
 	}
 }
 -- out/error --
-0.0 declares before and 1.0 does not, and nothing maps it: write <field>: v0_0.before to move it, or before: drop:
-    1.0.thema:6:1
+error[E0347]: 0.0 declares before and 1.0 does not, and nothing maps it: write <field>: v0_0.before to move it, or before: _drop
+ --> 1.0.thema:6:1
+  |
+6 | ForwardLens: {
+  | ^^^^^^^^^^^
+  |

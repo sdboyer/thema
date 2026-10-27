@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"sort"
+	"strings"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/ast"
@@ -12,6 +14,7 @@ import (
 
 	"github.com/sdboyer/thema/internal/compat"
 	"github.com/sdboyer/thema/internal/cueview"
+	"github.com/sdboyer/thema/internal/lensir"
 )
 
 // interval is a range of integers; a nil bound is unbounded on that side.
@@ -308,7 +311,7 @@ func (s shape) String() string {
 }
 
 // exprCtx carries what a computed expression's analysis needs from the write
-// it belongs to.
+// it belongs to, and records what the analysis resolved, for the program.
 type exprCtx struct {
 	q      cue.Path
 	subj   string
@@ -320,6 +323,14 @@ type exprCtx struct {
 	// operand leaves it incomplete, which is not an error, and nothing requires
 	// its value.
 	hidden bool
+	// resolved is what each operand was resolved to, and matches the patterns
+	// each comparison was classified as; the program reads both.
+	resolved map[ast.Expr]operandRes
+	matches  map[*ast.BinaryExpr][]pattern
+}
+
+func newExprCtx(subj string, gs []pattern, pos token.Pos) *exprCtx {
+	return &exprCtx{subj: subj, gs: gs, pos: pos, paths: map[string]int{}, resolved: map[ast.Expr]operandRes{}, matches: map[*ast.BinaryExpr][]pattern{}}
 }
 
 func (w *walker) fail(c *exprCtx, verdict Verdict, rule Rule, detail string) {
@@ -340,9 +351,14 @@ func (w *walker) computed(x ast.Expr, q cue.Path, gs []pattern, pos token.Pos) {
 		return
 	}
 	w.record(&write{q: q, patterns: gs, kind: computedW, text: text(x), pos: pos})
-	c := &exprCtx{q: q, subj: w.subject(q), gs: gs, pos: pos, paths: map[string]int{}, hidden: w.hidden > 0}
+	c := newExprCtx(w.subject(q), gs, pos)
+	c.q, c.hidden = q, w.hidden > 0
 	sh, ok := w.shape(x, c)
-	if !ok || sh.dead || c.hidden {
+	if !ok || sh.dead {
+		return
+	}
+	w.ir.emit(&lensir.Computed{To: w.ir.path(q), Expr: w.ir.expr(x, c)})
+	if c.hidden {
 		return
 	}
 	repeated := false
@@ -368,6 +384,8 @@ func (w *walker) shape(x ast.Expr, c *exprCtx) (shape, bool) {
 			return shape{kind: cue.IntKind, iv: point(n), exact: true}, true
 		case token.STRING:
 			return shape{kind: cue.StringKind}, true
+		case token.TRUE, token.FALSE:
+			return shape{kind: cue.BoolKind}, true
 		case token.FLOAT:
 			w.fail(c, Unknown, RuleUnknownOp, fmt.Sprintf("uses the float literal %s; floats are outside the provable set, which has integers, strings and bools", e.Value))
 			return shape{}, false
@@ -440,6 +458,7 @@ func (w *walker) binary(e *ast.BinaryExpr, c *exprCtx) (shape, bool) {
 	switch e.Op {
 	case token.EQL, token.NEQ:
 		if gs, ok := w.parsePattern(e); ok {
+			c.matches[e] = gs
 			if !c.hidden {
 				w.checkPatterns(gs, c.gs, c.subj, c.pos)
 			}
@@ -529,6 +548,12 @@ func (w *walker) operand(x ast.Expr, c *exprCtx) (shape, bool) {
 		return shape{}, false
 	}
 	var out *shape
+	var res operandRes
+	if r, ok := w.resultRef(x); ok {
+		// The proof follows the reference to what the result holds there; the
+		// program reads the field, as CUE does.
+		res.result = &r
+	}
 	for _, cj := range conjs {
 		var s shape
 		if w.syn.FromInput(cj) {
@@ -537,6 +562,7 @@ func (w *walker) operand(x ast.Expr, c *exprCtx) (shape, bool) {
 				w.fail(c, Unknown, RuleUnknownReference, fmt.Sprintf("reads %s, a selection into the input the checker cannot follow; select fields by name", text(cj.Expr)))
 				return shape{}, false
 			}
+			res.alts = append(res.alts, operandAlt{input: &p})
 			c.paths[p.String()]++
 			src := w.lookupSource(p, c.gs)
 			if !src.declared {
@@ -552,6 +578,7 @@ func (w *walker) operand(x ast.Expr, c *exprCtx) (shape, bool) {
 				return shape{}, false
 			}
 		} else {
+			res.alts = append(res.alts, operandAlt{expr: cj.Expr})
 			switch ex := cj.Expr.(type) {
 			case *ast.BasicLit, *ast.UnaryExpr, *ast.Interpolation, *ast.BinaryExpr, *ast.CallExpr, *ast.ParenExpr:
 				var ok bool
@@ -588,6 +615,7 @@ func (w *walker) operand(x ast.Expr, c *exprCtx) (shape, bool) {
 		}
 		out.iv, out.exact = out.iv.hull(s.iv), out.exact && s.exact
 	}
+	c.resolved[x] = res
 	if out == nil {
 		return shape{dead: true}, true
 	}
@@ -671,6 +699,17 @@ func (w *walker) call(e *ast.CallExpr, c *exprCtx) (shape, bool) {
 	return shape{}, false
 }
 
+// Builtins are the predeclared functions the computed rules prove, besides
+// the strings functions: what a lens may call by name.
+var Builtins = []string{"len", "quo", "rem", "div", "mod"}
+
+// StringFunc reports whether strings.<name> is a function the computed rules
+// prove.
+func StringFunc(name string) bool {
+	_, ok := stringFuncs[name]
+	return ok
+}
+
 // stringSig is the signature of a total string function: its argument kinds
 // and result kind.
 type stringSig struct {
@@ -694,23 +733,18 @@ var stringFuncs = map[string]stringSig{
 }
 
 func stringFuncNames() string {
+	return strings.Join(StringFuncs(), ", ")
+}
+
+// StringFuncs lists the strings functions the computed rules prove, as
+// strings.<name>, sorted.
+func StringFuncs() []string {
 	names := make([]string, 0, len(stringFuncs))
 	for n := range stringFuncs {
 		names = append(names, "strings."+n)
 	}
-	for i := 1; i < len(names); i++ {
-		for j := i; j > 0 && names[j] < names[j-1]; j-- {
-			names[j], names[j-1] = names[j-1], names[j]
-		}
-	}
-	s := ""
-	for i, n := range names {
-		if i > 0 {
-			s += ", "
-		}
-		s += n
-	}
-	return s
+	sort.Strings(names)
+	return names
 }
 
 func (w *walker) stringCall(e *ast.CallExpr, sig stringSig, c *exprCtx) (shape, bool) {
@@ -743,6 +777,7 @@ func (w *walker) length(x ast.Expr, c *exprCtx) (shape, bool) {
 	if p, ok := w.pathOf(x); ok {
 		src := w.lookupSource(p, c.gs)
 		c.paths[p.String()]++
+		c.resolved[x] = operandRes{alts: []operandAlt{{input: &p}}}
 		switch {
 		case !src.declared:
 			w.fail(c, NotTotal, RuleSourceUndeclared, fmt.Sprintf("reads %s, which the source schema does not declare", w.inputRef(p)))
@@ -776,6 +811,11 @@ func (w *walker) length(x ast.Expr, c *exprCtx) (shape, bool) {
 		}
 		return shape{kind: cue.IntKind, iv: *out}, true
 	}
+	for _, cj := range w.tree.Conjuncts(x) {
+		if l, ok := cj.Expr.(*ast.ListLit); ok {
+			return w.listLength(l, c)
+		}
+	}
 	s, ok := w.shape(x, c)
 	if !ok || s.dead {
 		return s, ok
@@ -785,6 +825,79 @@ func (w *walker) length(x ast.Expr, c *exprCtx) (shape, bool) {
 		return shape{}, false
 	}
 	return shape{kind: cue.IntKind, iv: lengthRange}, true
+}
+
+// listLength bounds the length of a list literal the lens builds (reached by
+// name, through a let): one per written element, and for a comprehension
+// over a source list, up to that list's length, or exactly it when nothing
+// filters.
+func (w *walker) listLength(l *ast.ListLit, c *exprCtx) (shape, bool) {
+	total := point(big.NewInt(0))
+	for _, elt := range l.Elts {
+		switch e := elt.(type) {
+		case *ast.Ellipsis:
+			w.fail(c, Unknown, RuleUnknownOp, "takes the length of an open list ([...]), which is a constraint rather than a value")
+			return shape{}, false
+		case *ast.Comprehension:
+			var fc *ast.ForClause
+			filtered := false
+			for _, cl := range e.Clauses {
+				switch cc := cl.(type) {
+				case *ast.ForClause:
+					if fc != nil {
+						w.fail(c, Unknown, RuleUnknownOp, "takes the length of a list built by nested for clauses")
+						return shape{}, false
+					}
+					fc = cc
+				case *ast.IfClause:
+					filtered = true
+				}
+			}
+			if fc == nil {
+				w.fail(c, Unknown, RuleUnknownOp, "takes the length of a list built by a comprehension with no for clause")
+				return shape{}, false
+			}
+			p, ok := w.pathOf(fc.Source)
+			if !ok {
+				w.fail(c, Unknown, RuleUnknownReference, fmt.Sprintf("takes the length of a list built over %s, which the checker cannot follow to a list in the input", text(fc.Source)))
+				return shape{}, false
+			}
+			c.paths[p.String()]++
+			src := w.lookupSource(p, c.gs)
+			switch {
+			case !src.declared:
+				w.fail(c, NotTotal, RuleSourceUndeclared, fmt.Sprintf("takes the length of a list built over %s, which the source schema does not declare", w.inputRef(p)))
+				return shape{}, false
+			case !src.present:
+				w.fail(c, NotTotal, RuleSourceAbsent, fmt.Sprintf("takes the length of a list built over %s, which may be absent: %s", w.inputRef(p), src.why))
+				return shape{}, false
+			}
+			var n *interval
+			for _, b := range src.branches {
+				if b.IncompleteKind() != cue.ListKind {
+					w.fail(c, Unknown, RuleUnknownOp, fmt.Sprintf("takes the length of a list built over %s, which may be %s rather than a list", w.inputRef(p), b.IncompleteKind()))
+					return shape{}, false
+				}
+				iv, _, _ := intervalOf(b.Len())
+				iv = iv.meet(lengthRange)
+				if filtered {
+					iv.lo = big.NewInt(0)
+				}
+				if n == nil {
+					n = &iv
+				} else {
+					h := n.hull(iv)
+					n = &h
+				}
+			}
+			if n != nil {
+				total = total.add(*n)
+			}
+		default:
+			total = total.add(point(big.NewInt(1)))
+		}
+	}
+	return shape{kind: cue.IntKind, iv: total.meet(lengthRange)}, true
 }
 
 // lengthRange is the range of a length: a Go int, so within int64.
@@ -1001,10 +1114,12 @@ func (w *walker) head(h head, q cue.Path, gs []pattern, pos token.Pos) {
 	}
 	w.quiet++
 	defer func() { w.quiet-- }()
+	var arms [][]lensir.Node
 	for _, arm := range []struct {
 		x  ast.Expr
 		gs []pattern
 	}{{h.then, append(append([]pattern(nil), gs...), g...)}, {h.els, append(append([]pattern(nil), gs...), neg...)}} {
+		w.ir.push()
 		for _, c := range w.tree.Conjuncts(arm.x) {
 			switch c.Expr.(type) {
 			case *ast.StructLit, *ast.ListLit:
@@ -1016,7 +1131,9 @@ func (w *walker) head(h head, q cue.Path, gs []pattern, pos token.Pos) {
 			}
 			w.conjunct(c, q, arm.gs, pos)
 		}
+		arms = append(arms, w.ir.pop())
 	}
+	w.ir.emit(&lensir.Head{To: w.ir.path(q), When: w.ir.tests(g), Then: arms[0], Else: arms[1]})
 }
 
 // table is T[input.k]: a struct literal indexed by an input path.
@@ -1097,10 +1214,14 @@ func (w *walker) table(t table, q cue.Path, gs []pattern, pos token.Pos) {
 	}
 	w.quiet++
 	defer func() { w.quiet-- }()
+	tb := &lensir.Table{To: w.ir.path(q), Key: w.ir.path(p)}
 	for _, k := range keys {
 		g := pattern{root: w.from, kind: equality, path: p, lit: fmt.Sprintf("%q", k), val: w.ctx.CompileString(fmt.Sprintf("%q", k))}
+		w.ir.push()
 		for _, c := range w.tree.Conjuncts(entries[k].Value) {
 			w.conjunct(c, q, append(append([]pattern(nil), gs...), g), pos)
 		}
+		tb.Entries = append(tb.Entries, lensir.Entry{Key: k, Value: w.ir.pop()})
 	}
+	w.ir.emit(tb)
 }

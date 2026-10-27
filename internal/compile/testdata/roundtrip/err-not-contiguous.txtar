@@ -9,5 +9,10 @@ Schema: {
 	b?: int
 }
 -- out/error --
-0.2.thema: versions must be contiguous; after 0.0 comes 0.1:
-    0.2.thema:1:1
+error[E0205]: 0.2.thema skips a version: after 0.0 comes 0.1
+ --> 0.2.thema:1:1
+  |
+1 | Schema: {
+  | ^^^^^^
+  |
+  = help: rename the file 0.1.thema, or add the versions between

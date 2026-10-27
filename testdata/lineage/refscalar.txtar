@@ -94,3 +94,5 @@ lenses: {}
 Schema count: 1
 Schema versions: 0.0
 Lenses count: 0
+-- out/lensir --
+no lenses

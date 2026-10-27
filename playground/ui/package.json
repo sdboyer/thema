@@ -1,0 +1,33 @@
+{
+  "name": "thema-playground",
+  "private": true,
+  "version": "0.0.0",
+  "description": "A browser playground for thema lineages: bind, validate, translate and generate code, with thema running as WebAssembly.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@codemirror/commands": "6.7.1",
+    "@codemirror/lang-json": "6.0.1",
+    "@codemirror/language": "6.10.8",
+    "@codemirror/lint": "6.8.4",
+    "@codemirror/search": "6.5.8",
+    "@codemirror/state": "6.5.0",
+    "@codemirror/view": "6.36.1",
+    "preact": "10.29.8"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "2.10.6",
+    "@types/node": "26.6.5",
+    "jsdom": "25.0.1",
+    "typescript": "5.6.3",
+    "vite": "5.4.21",
+    "vitest": "2.1.9"
+  }
+}

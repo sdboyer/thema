@@ -1,0 +1,66 @@
+#op: compile
+A mapping reads a field its source version does not declare. No instance of the
+source has it, so the lens never has a value to copy.
+-- ship/history/0.0.thema --
+Schema: {
+	a: string
+}
+-- ship/1.0.thema --
+Schema: {
+	b: string
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		b: v0_0.nope
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0340",
+      "severity": "error",
+      "headline": "0.0 does not declare nope",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 8,
+        "col": 6,
+        "offset": 62,
+        "origin": "user"
+      }
+    },
+    {
+      "code": "E0347",
+      "severity": "error",
+      "headline": "0.0 declares a and 1.0 does not, and nothing maps it: write <field>: v0_0.a to move it, or a: _drop",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 5,
+        "col": 1,
+        "offset": 24,
+        "origin": "user"
+      }
+    }
+  ],
+  "summary": {
+    "errors": 2,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0340]: 0.0 does not declare nope
+ --> 1.0.thema:8:6
+  |
+8 |         b: v0_0.nope
+  |            ^^^^
+  |
+
+error[E0347]: 0.0 declares a and 1.0 does not, and nothing maps it: write <field>: v0_0.a to move it, or a: _drop
+ --> 1.0.thema:5:1
+  |
+5 | ForwardLens: {
+  | ^^^^^^^^^^^
+  |

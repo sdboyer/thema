@@ -4,14 +4,14 @@ go 1.26.0
 
 require (
 	cuelang.org/go v0.18.0-rc.1
-	github.com/cockroachdb/errors v1.9.1
 	github.com/dave/dst v0.27.2
 	github.com/google/go-cmp v0.7.0
+	github.com/gzuidhof/tygo v0.2.21
 	github.com/kr/text v0.2.0
 	github.com/matryer/is v1.4.0
 	github.com/rogpeppe/go-internal v1.16.1-0.20261002162744-ce71b23481ca
 	github.com/spf13/cobra v1.10.2
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.9.0
 	github.com/xeipuuv/gojsonschema v1.2.0
 	github.com/xlab/treeprint v1.1.0
 	github.com/yalue/merged_fs v1.2.2
@@ -23,16 +23,12 @@ require (
 require (
 	cuelabs.dev/go/oci/ociregistry v0.0.0-20261008151123-94f4aa6e0087 // indirect
 	github.com/cockroachdb/apd/v3 v3.2.3 // indirect
-	github.com/cockroachdb/logtags v0.0.0-20211118104740-dabe8e521a4f // indirect
-	github.com/cockroachdb/redact v1.1.3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/emicklei/proto v1.14.3 // indirect
-	github.com/getsentry/sentry-go v0.12.0 // indirect
+	github.com/fatih/structtag v1.2.0 // indirect
 	github.com/goccy/go-yaml v1.19.2 // indirect
-	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/kr/pretty v0.3.1 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/opencontainers/go-digest v1.0.1-0.20260914153615-3650f26df2a1 // indirect
@@ -49,9 +45,13 @@ require (
 	golang.org/x/net v0.61.0 // indirect
 	golang.org/x/oauth2 v0.37.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
-	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+)
+
+ignore (
+	./playground/ui/dist
+	./playground/ui/node_modules
 )

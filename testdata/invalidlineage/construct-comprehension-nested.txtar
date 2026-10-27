@@ -18,5 +18,11 @@ thema.Lineage & {
 	}
 }
 -- out/bindfail --
-schema 0.0: comprehensions are not allowed in schemas:
-    ./in.cue:10:5
+error[E0132]: schema 0.0 uses a comprehension
+  --> /in.cue:10:5
+   |
+10 |                 if kind == "x" {
+   |                 ^^
+   |
+   = note: a schema's fields must be known without evaluating data: no check can describe a schema whose fields depend on evaluation
+   = help: write the fields the comprehension would produce

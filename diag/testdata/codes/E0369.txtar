@@ -1,0 +1,97 @@
+#op: bind
+A field written twice unifies the two values. Where they can disagree, one
+rejects the other's value and the lens fails. Write each field once.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: int
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				a: int
+				k: string
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			a: v0_0.a
+			a: 1000
+			k: "v"
+		}
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			a: v1_0.a
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0369",
+      "severity": "error",
+      "headline": "a in the result of lens 0.0->1.0 is not total for some instance",
+      "path": [
+        "lenses",
+        "0.0->1.0",
+        "v1_0",
+        "a"
+      ],
+      "address": {
+        "field": [
+          "a"
+        ],
+        "from": [
+          0,
+          0
+        ],
+        "kind": "lensResultField",
+        "to": [
+          1,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 23,
+        "col": 4,
+        "offset": 194,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "a in the result of lens 0.0->1.0 is written as v0_0.a and as 1000, and the two unify, so one may reject the other's value; write the field once"
+        },
+        {
+          "label": "a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule write-conflict)"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0369]: a in the result of lens 0.0->1.0 is not total for some instance
+  --> lineage.cue:23:4
+   |
+23 |             a: v0_0.a
+   |             ^
+   |
+   = note: a in the result of lens 0.0->1.0 is written as v0_0.a and as 1000, and the two unify, so one may reject the other's value; write the field once
+   = note: a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule write-conflict)

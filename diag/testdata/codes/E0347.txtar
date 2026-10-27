@@ -1,0 +1,49 @@
+#op: compile
+A field the source version has and the target lacks is either mapped somewhere
+or dropped, explicitly. A forgotten rename would otherwise be silent data loss.
+-- ship/history/0.0.thema --
+Schema: {
+	before:    string
+	unchanged: string
+}
+-- ship/1.0.thema --
+Schema: {
+	after:     string
+	unchanged: string
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		after: "x"
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0347",
+      "severity": "error",
+      "headline": "0.0 declares before and 1.0 does not, and nothing maps it: write <field>: v0_0.before to move it, or before: _drop",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 6,
+        "col": 1,
+        "offset": 51,
+        "origin": "user"
+      }
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0347]: 0.0 declares before and 1.0 does not, and nothing maps it: write <field>: v0_0.before to move it, or before: _drop
+ --> 1.0.thema:6:1
+  |
+6 | ForwardLens: {
+  | ^^^^^^^^^^^
+  |

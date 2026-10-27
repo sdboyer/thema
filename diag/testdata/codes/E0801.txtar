@@ -1,0 +1,29 @@
+#op: playground
+#call: translate-all
+The playground was asked for an operation it does not have, or sent a request
+that is not the JSON the operation takes. This is a bug in whatever sent the
+request; the help lists the operations.
+-- request.json --
+{}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0801",
+      "severity": "error",
+      "headline": "\"translate-all\" is not an operation of the playground",
+      "help": [
+        "the operations are bind, compile, decompile, dehydrate, example, examples, format, hydrate, init, jsonschema, openapi, translate, typescript, validate and validate-any"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0801]: "translate-all" is not an operation of the playground
+  |
+  = help: the operations are bind, compile, decompile, dehydrate, example, examples, format, hydrate, init, jsonschema, openapi, translate, typescript, validate and validate-any

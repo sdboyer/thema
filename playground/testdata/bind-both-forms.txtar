@@ -1,0 +1,19 @@
+#op: bind
+#raw: true
+A lineage is given in exactly one form.
+-- request.json --
+{"lineage": {"name": "ship", "files": [{"path": "0.0.thema", "text": "Schema: {\n\ta: int\n}\n"}], "normal": {"path": "lineage.cue", "text": "name: \"ship\"\n"}}}
+-- out/response.json --
+{
+  "ok": false,
+  "diagnostics": [
+    {
+      "code": "E0802",
+      "severity": "error",
+      "headline": "the lineage is given in both forms",
+      "help": [
+        "send either the authoring form's files or one normal-form file"
+      ]
+    }
+  ]
+}

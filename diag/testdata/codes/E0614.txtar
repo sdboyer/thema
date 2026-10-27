@@ -1,0 +1,38 @@
+#op: cli
+#args: data validate -l lineage.cue -e toml data.json
+The format named with -e is not one thema reads. It takes json or yaml.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+	}
+}
+-- data.json --
+{"a": "Argo"}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0614",
+      "severity": "error",
+      "headline": "-e toml names a format thema does not read",
+      "help": [
+        "-e takes json or yaml"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0614]: -e toml names a format thema does not read
+  |
+  = help: -e takes json or yaml

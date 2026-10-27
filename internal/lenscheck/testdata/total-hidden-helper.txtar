@@ -10,3 +10,8 @@ v1_0: {a: v0_0.a, b: _h}
 _h: 2
 -- out --
 total
+-- ir --
+out: {
+  out.a <- in.a
+  out.b = 2
+}

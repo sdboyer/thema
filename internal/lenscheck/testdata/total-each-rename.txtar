@@ -1,0 +1,17 @@
+# A list mapped element by element: one comprehension over a source list, whose body renames a field and copies another.
+-- source.cue --
+items: [...{title: string, n: int}]
+-- target.cue --
+items: [...{name: string, n: int}]
+-- lens.cue --
+v0_0: _
+v1_0: {items: [for item in v0_0.items {name: item.title, n: item.n}]}
+-- out --
+total
+-- ir --
+out: {
+  out.items = each in.items {
+    out.items[_].name <- in.items[_].title
+    out.items[_].n <- in.items[_].n
+  }
+}

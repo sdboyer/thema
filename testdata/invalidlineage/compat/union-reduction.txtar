@@ -37,12 +37,38 @@ lin: lenses: {
     }
 }
 -- out/bindfail --
-schema 0.1 is not backwards compatible with schema 0.0:
-concreteCross is now "foo" | 42, which has no alternative for the prior "bar" (rule value-narrowed):
-    /in.cue:17:13
-concreteString is now "foo" | "bar", which has no alternative for the prior "baz" (rule value-narrowed):
-    /in.cue:18:13
-crossKind3 is now string | int32, no alternative of which has the kind bytes of the prior alternative bytes (rule value-narrowed):
-    /in.cue:19:13
-crossKind2 was int and is now string (rule value-narrowed):
-    /in.cue:20:13
+error[E0215]: concreteCross in schema 0.1 is now "foo" | 42, which has no alternative for the prior "bar"
+  --> /in.cue:17:13
+   |
+17 |             concreteCross: "foo" | 42
+   |             ^^^^^^^^^^^^^
+   |
+   = note: schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule value-narrowed)
+   = help: make the change compatible, or make this version 1.0
+
+error[E0215]: concreteString in schema 0.1 is now "foo" | "bar", which has no alternative for the prior "baz"
+  --> /in.cue:18:13
+   |
+18 |             concreteString: "foo" | "bar"
+   |             ^^^^^^^^^^^^^^
+   |
+   = note: schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule value-narrowed)
+   = help: make the change compatible, or make this version 1.0
+
+error[E0215]: crossKind2 in schema 0.1 was int and is now string
+  --> /in.cue:20:13
+   |
+20 |             crossKind2: string
+   |             ^^^^^^^^^^
+   |
+   = note: schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule value-narrowed)
+   = help: make the change compatible, or make this version 1.0
+
+error[E0215]: crossKind3 in schema 0.1 is now string | int32, no alternative of which has the kind bytes of the prior alternative bytes
+  --> /in.cue:19:13
+   |
+19 |             crossKind3: string | int32
+   |             ^^^^^^^^^^
+   |
+   = note: schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule value-narrowed)
+   = help: make the change compatible, or make this version 1.0

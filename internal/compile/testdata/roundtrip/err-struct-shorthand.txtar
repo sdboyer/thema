@@ -19,7 +19,20 @@ ForwardLens: v1_0: {
 	}
 }
 -- out/error --
-ForwardLens: v1_0: ... is CUE's struct shorthand; a version file writes ForwardLens with its braces: ForwardLens: {v1_0: ...}:
-    1.0.thema:8:14
-Schema: meta: ... is CUE's struct shorthand; a version file writes Schema with its braces: Schema: {meta: ...}:
-    history/0.0.thema:1:9
+error[E0109]: Schema: meta: ... is CUE's struct shorthand, which a version file's Schema does not use
+ --> history/0.0.thema:1:9
+  |
+1 | Schema: meta: {
+  |         ^^^^
+  |
+  = note: a version file's three fields keep their braces, so that each reads as the block it is
+  = help: write Schema: {meta: ...}
+
+error[E0109]: ForwardLens: v1_0: ... is CUE's struct shorthand, which a version file's ForwardLens does not use
+ --> 1.0.thema:8:14
+  |
+8 | ForwardLens: v1_0: {
+  |              ^^^^
+  |
+  = note: a version file's three fields keep their braces, so that each reads as the block it is
+  = help: write ForwardLens: {v1_0: ...}

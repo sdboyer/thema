@@ -1,0 +1,50 @@
+#op: compile
+each maps the elements of an open list, `[...T]`, in the source to an open list
+in the target, element by element. A source field that is not a list has no
+elements to map.
+-- ship/history/0.0.thema --
+Schema: {
+	name: string
+}
+-- ship/1.0.thema --
+Schema: {
+	names: [...string]
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		names: _each(v0_0.name, {
+			item
+		})
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0353",
+      "severity": "error",
+      "headline": "_each maps a list to a list; 0.0's name and 1.0's names must both be lists",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 8,
+        "col": 10,
+        "offset": 75,
+        "origin": "user"
+      }
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0353]: _each maps a list to a list; 0.0's name and 1.0's names must both be lists
+ --> 1.0.thema:8:10
+  |
+8 |         names: _each(v0_0.name, {
+  |                ^^^^^
+  |

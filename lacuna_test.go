@@ -9,8 +9,17 @@ import (
 	"cuelang.org/go/cue/cuecontext"
 	cerrors "cuelang.org/go/cue/errors"
 
+	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/lacuna"
 )
+
+// renderedDiagnostics is everything err's diagnostics say, as text, for
+// matching expectations against headlines, notes and help alike.
+func renderedDiagnostics(err error) string {
+	var b strings.Builder
+	diag.Render(&b, diag.Diagnostics(err), diag.RenderOptions{})
+	return b.String()
+}
 
 // A lineage whose lenses emit lacunas: 1.0 adds a required field that the
 // forward lens fills with a placeholder, and the backward lens drops it.
@@ -157,12 +166,12 @@ func TestLacunaBindChecks(t *testing.T) {
 		"value may be absent":            {`[thema.Lacuna & {sourceFields: [{path: "b", value: v0_1.b}], message: "m", type: "DroppedField"}]`, "source-absent"},
 		"conditional list":               {`[if v0_1.b != _|_ {thema.Lacuna & {message: "m", type: "DroppedField"}}]`, "listed unconditionally"},
 		"conditional list via let":       {"L\n\t\tlet L = [if v0_1.b != _|_ {thema.Lacuna & {message: \"m\", type: \"DroppedField\"}}]", "listed unconditionally"},
-		"source path not in from schema": {`[thema.Lacuna & {sourceFields: [{path: "nope", value: 1}], message: "m", type: "DroppedField"}]`, `"nope" is not declared by schema 0.1`},
-		"target path not in to schema":   {`[thema.Lacuna & {targetFields: [{path: "b", value: 1}], message: "m", type: "DroppedField"}]`, `"b" is not declared by schema 0.0`},
-		"nested path not declared":       {`[thema.Lacuna & {targetFields: [{path: "nested.y", value: 1}], message: "m", type: "DroppedField"}]`, `"nested.y" is not declared`},
-		"invalid path syntax":            {`[thema.Lacuna & {targetFields: [{path: "a..b", value: 1}], message: "m", type: "DroppedField"}]`, "invalid path"},
-		"missing message":                {`[thema.Lacuna & {type: "DroppedField"}]`, "message is required"},
-		"missing type":                   {`[thema.Lacuna & {message: "m"}]`, "type is required"},
+		"source path not in from schema": {`[thema.Lacuna & {sourceFields: [{path: "nope", value: 1}], message: "m", type: "DroppedField"}]`, `names nope in sourceFields[0], which schema 0.1 does not declare`},
+		"target path not in to schema":   {`[thema.Lacuna & {targetFields: [{path: "b", value: 1}], message: "m", type: "DroppedField"}]`, `names b in targetFields[0], which schema 0.0 does not declare`},
+		"nested path not declared":       {`[thema.Lacuna & {targetFields: [{path: "nested.y", value: 1}], message: "m", type: "DroppedField"}]`, `names nested.y in targetFields[0]`},
+		"invalid path syntax":            {`[thema.Lacuna & {targetFields: [{path: "a..b", value: 1}], message: "m", type: "DroppedField"}]`, "is not a path"},
+		"missing message":                {`[thema.Lacuna & {type: "DroppedField"}]`, "has no message"},
+		"missing type":                   {`[thema.Lacuna & {message: "m"}]`, "has no type"},
 		"unknown type":                   {`[thema.Lacuna & {message: "m", type: "Bogus"}]`, "Bogus"},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -172,8 +181,8 @@ func TestLacunaBindChecks(t *testing.T) {
 				t.Fatalf("unexpected bind error: %v", cerrors.Details(err, nil))
 			case c.errText != "" && err == nil:
 				t.Fatal("bind succeeded, want an error")
-			case c.errText != "" && !strings.Contains(cerrors.Details(err, nil), c.errText):
-				t.Fatalf("error does not mention %q: %v", c.errText, cerrors.Details(err, nil))
+			case c.errText != "" && !strings.Contains(renderedDiagnostics(err), c.errText):
+				t.Fatalf("error does not mention %q:\n%s", c.errText, renderedDiagnostics(err))
 			}
 		})
 	}

@@ -1,0 +1,54 @@
+#op: compile
+A lens block reads like a function: `{v0_0: _, v1_0: {...}}` declares that the
+lens takes an instance of 0.0 and produces an instance of 1.0, with an optional
+`lacunas: {...}`. Here the instance it takes is given a type, where it must be
+`_`: the lens takes any instance of its source version.
+-- ship/0.0.thema --
+Schema: {
+	a: string
+}
+-- ship/1.0.thema --
+Schema: {
+	a: string
+	b: int
+}
+
+ForwardLens: {
+	v0_0: {a: string}
+	v1_0: {
+		b: 1
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0111",
+      "severity": "error",
+      "headline": "ForwardLens takes an instance of 0.0: declare it as v0_0: _",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 7,
+        "col": 8,
+        "offset": 54,
+        "origin": "user"
+      },
+      "help": [
+        "ForwardLens for the lens from 0.0 to 1.0 is {v0_0: _, v1_0: {...}}, with an optional lacunas: {...}"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0111]: ForwardLens takes an instance of 0.0: declare it as v0_0: _
+ --> 1.0.thema:7:8
+  |
+7 |     v0_0: {a: string}
+  |           ^
+  |
+  = help: ForwardLens for the lens from 0.0 to 1.0 is {v0_0: _, v1_0: {...}}, with an optional lacunas: {...}

@@ -14,3 +14,12 @@ lacunas: [{
 }]
 -- out --
 total
+-- ir --
+out: {
+  out.firstfield <- in.firstfield
+  out.secondfield = -1
+}
+lacuna Placeholder {
+  target secondfield = out.secondfield
+  message "placeholder"
+}

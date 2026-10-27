@@ -37,45 +37,61 @@ lenses: {}
     }
 }
 -- out/validate/TestValidate/mapUnionWithInt --
-<union@v0.0>.mapUnion.foo: validation failed, data is not an instance:
-	schema expected `bool`
-		/in.cue:24:30
-		/in.cue:10:41
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:177:19
-	but data contained `42`
-		test:3:16
-<union@v0.0>.mapUnion.foo: validation failed, data is not an instance:
-	schema expected `string`
-		/in.cue:24:21
-		/in.cue:10:41
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:177:19
-	but data contained `42`
-		test:3:16
-<union@v0.0>.theUnion: validation failed, data is not an instance:
-	schema specifies that field exists with type `string | bool`
-		/in.cue:24:21
-		/in.cue:8:31
-	but field was absent from data
+error[E0505]: mapUnion.foo in the data matches none of the alternatives schema 0.0 allows
+  --> in/validate/TestValidate/mapUnionWithInt.data.json:3:16
+   |
+ 3 |         "foo": 42
+   |                ^^
+   |                -- mapUnion.foo: conflicting values 42 and bool (mismatched types int and bool)
+   |                -- mapUnion.foo: conflicting values 42 and string (mismatched types int and string)
+   |
+  ::: /in.cue:24:30
+   |
+24 |             #UnionDef: string | bool
+   |                                 ---- the alternatives are declared here
+   |
+   = detail: mapUnion.foo: 2 errors in empty disjunction:
+
+error[E0501]: the data lacks theUnion, which schema 0.0 declares as string | bool
+ --> in/validate/TestValidate/mapUnionWithInt.data.json:1:1
+  |
+1 | {
+  | ^
+  |
+ ::: /in.cue:8:31
+  |
+8 |             theUnion:            #UnionDef
+  |                                  --------- declared here
+  |
+  = detail: theUnion: incomplete value string | bool
 -- out/validate/TestValidate/theUnionWithInt --
-<union@v0.0>.theUnion: validation failed, data is not an instance:
-	schema expected `bool`
-		/in.cue:24:30
-		/in.cue:8:31
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:177:19
-	but data contained `42`
-		test:2:17
-<union@v0.0>.theUnion: validation failed, data is not an instance:
-	schema expected `string`
-		/in.cue:24:21
-		/in.cue:8:31
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:177:19
-	but data contained `42`
-		test:2:17
-<union@v0.0>.nestedStruct.structUnion: validation failed, data is not an instance:
-	schema specifies that field exists with type `string | bool`
-		/in.cue:24:21
-		/in.cue:20:27
-	but field was absent from data
+error[E0505]: theUnion in the data matches none of the alternatives schema 0.0 allows
+ --> in/validate/TestValidate/theUnionWithInt.data.json:2:17
+  |
+2 |     "theUnion": 42
+  |                 ^^
+  |                 -- theUnion: conflicting values 42 and bool (mismatched types int and bool)
+  |                 -- theUnion: conflicting values 42 and string (mismatched types int and string)
+  |
+ ::: /in.cue:8:31
+  |
+8 |             theUnion:            #UnionDef
+  |                                  --------- the alternatives are declared here
+  |
+  = detail: theUnion: 2 errors in empty disjunction:
+
+error[E0501]: the data lacks nestedStruct.structUnion, which schema 0.0 declares as string | bool
+  --> in/validate/TestValidate/theUnionWithInt.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:20:27
+   |
+20 |                 structUnion: #UnionDef
+   |                              --------- declared here
+   |
+   = detail: nestedStruct.structUnion: incomplete value string | bool
 -- in/validate/TestValidate/theUnionWithInt.data.json --
 {
     "theUnion": 42
@@ -630,3 +646,5 @@ export const defaultUnion: Partial<Union> = {
   emptyStructs: [],
   listUnion: [],
 };
+-- out/lensir --
+no lenses

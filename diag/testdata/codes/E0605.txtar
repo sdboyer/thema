@@ -1,0 +1,38 @@
+#op: cli
+#args: data validate -l lineage.cue -p nothere data.json
+The CUE path given with -p parses, but the package has no value there.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+	}
+}
+-- data.json --
+{"a": "Argo"}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0605",
+      "severity": "error",
+      "headline": "there is no value at nothere in lineage.cue",
+      "help": [
+        "-p names a field of the package that holds the lineage"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0605]: there is no value at nothere in lineage.cue
+  |
+  = help: -p names a field of the package that holds the lineage

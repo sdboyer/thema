@@ -1,0 +1,60 @@
+#op: bind
+Every lineage starts at version 0.0. Versions are contiguous from there, so a
+lineage whose first schema is any other version has a gap before it.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"1": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0201",
+      "severity": "error",
+      "headline": "the first schema is version 1.0, not 0.0",
+      "path": [
+        "schemas",
+        "1",
+        "0",
+        "schema"
+      ],
+      "address": {
+        "kind": "schema",
+        "version": [
+          1,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 4,
+        "col": 3,
+        "offset": 34,
+        "origin": "user"
+      },
+      "help": [
+        "every lineage starts at version 0.0"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0201]: the first schema is version 1.0, not 0.0
+ --> lineage.cue:4:3
+  |
+4 |         "0": {
+  |         ^^^
+  |
+  = help: every lineage starts at version 0.0

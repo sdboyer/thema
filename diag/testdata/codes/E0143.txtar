@@ -1,0 +1,81 @@
+#op: cli
+#args: data validate -l lineage.cue -p lin data.json
+A schema refers to a definition in another package of the author's module.
+Only CUE's builtin packages may be referred to (reference rule ref-import):
+the other package can change without the lineage's file changing, so a
+published version's meaning would not be fixed by the lineage. The schema
+declares the definition itself.
+-- cue.mod/module.cue --
+module: "example.com/m"
+language: version: "v0.9.0"
+-- lineage.cue --
+package m
+
+import "example.com/m/common"
+
+lin: {
+	name: "ship"
+	schemas: {
+		"0": "0": {
+			schema: {c: common.#Color}
+		}
+	}
+}
+-- common/common.cue --
+package common
+
+#Color: "red" | "blue"
+-- data.json --
+{"c": "red"}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0143",
+      "severity": "error",
+      "headline": "c in schema 0.0 refers to common.#Color, in package \"example.com/m/common\", which is not one of CUE's builtin packages",
+      "path": [
+        "schemas",
+        "0",
+        "0",
+        "schema"
+      ],
+      "address": {
+        "kind": "schema",
+        "version": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 9,
+        "col": 16,
+        "offset": 104,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "reference rule ref-import"
+        }
+      ],
+      "help": [
+        "a schema may refer only to its own body and CUE's builtin packages"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0143]: c in schema 0.0 refers to common.#Color, in package "example.com/m/common", which is not one of CUE's builtin packages
+ --> lineage.cue:9:16
+  |
+9 |             schema: {c: common.#Color}
+  |                         ^^^^^^
+  |
+  = note: reference rule ref-import
+  = help: a schema may refer only to its own body and CUE's builtin packages

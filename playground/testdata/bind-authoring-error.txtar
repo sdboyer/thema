@@ -1,0 +1,72 @@
+#op: bind
+A lineage in the authoring form that compiles but does not bind is reported
+in the authoring form's terms, and its normal form is still returned.
+-- ship/history/0.0.thema --
+Schema: {
+	a: int
+}
+-- ship/1.0.thema --
+Schema: {
+	a: int & <10
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		a: v0_0.a
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		a: v1_0.a
+	}
+}
+-- out/response.json --
+{
+  "ok": false,
+  "diagnostics": [
+    {
+      "code": "E0360",
+      "severity": "error",
+      "headline": "a in the ForwardLens in 1.0.thema is not total for some instance",
+      "path": [
+        "lenses",
+        "0.0-\u003e1.0",
+        "v1_0",
+        "a"
+      ],
+      "address": {
+        "field": [
+          "a"
+        ],
+        "from": [
+          0,
+          0
+        ],
+        "kind": "lensResultField",
+        "to": [
+          1,
+          0
+        ]
+      },
+      "primary": {
+        "file": "1.0.thema",
+        "line": 8,
+        "col": 6,
+        "offset": 65,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "a in the ForwardLens in 1.0.thema copies v0_0.a, which is now int \u0026 \u003c10, which does not accept every value of the prior int (compat rule value-narrowed)"
+        },
+        {
+          "label": "a lens must be total: every instance of the schema in history/0.0.thema must translate to an instance of the schema in 1.0.thema (totality rule copy-narrowed)"
+        }
+      ]
+    }
+  ],
+  "normal": "name: \"ship\"\nschemas: {\n\t\"0\": {\n\t\t\"0\": {\n\t\t\tschema: {\n\t\t\t\ta: int\n\t\t\t}\n\t\t}\n\t}\n\t\"1\": {\n\t\t\"0\": {\n\t\t\tschema: {\n\t\t\t\ta: int \u0026 \u003c10\n\t\t\t}\n\t\t}\n\t}\n}\nlenses: {\n\t\"0.0-\u003e1.0\": {\n\t\tv0_0: _\n\t\tv1_0: {\n\t\t\ta: v0_0.a\n\t\t}\n\t}\n\t\"1.0-\u003e0.0\": {\n\t\tv1_0: _\n\t\tv0_0: {\n\t\t\ta: v1_0.a\n\t\t}\n\t}\n}\n"
+}

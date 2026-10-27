@@ -12,12 +12,16 @@ Schema: {
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		kind: match(v0_0.kind, {
+		kind: _match(v0_0.kind, {
 			"a": 1
 			[_]: 0
 		})
 	}
 }
 -- out/error --
-the [_] arm collapses every unmatched value into one: declare what is lost in lacunas: {kind: [{type: Type, message: "..."}]}:
-    1.0.thema:10:4
+error[E0414]: the [_] arm collapses every unmatched value into one: declare what is lost in lacunas: {kind: [{type: Type, message: "..."}]}
+  --> 1.0.thema:10:4
+   |
+10 |             [_]: 0
+   |             ^
+   |

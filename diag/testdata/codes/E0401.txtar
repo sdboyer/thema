@@ -1,0 +1,86 @@
+#op: bind
+A lens lists every lacuna it can emit unconditionally; each lacuna's own
+condition field decides whether it applies to an instance. A list built with a
+comprehension has no known length until data arrives, so the lacunas cannot be
+checked.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+		"1": {
+			schema: {
+				a:  string
+				b?: int
+			}
+		}
+	}
+}
+lenses: {
+	"0.1->0.0": {
+		v0_1: _
+		v0_0: {
+			a: v0_1.a
+		}
+		lacunas: [
+			if v0_1.b != _|_ {
+				{type: "DroppedField", message: "b was dropped"}
+			},
+		]
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0401",
+      "severity": "error",
+      "headline": "the lacunas of lens 0.1->0.0 are not listed unconditionally",
+      "path": [
+        "lenses",
+        "0.1->0.0",
+        "lacunas",
+        "0"
+      ],
+      "address": {
+        "from": [
+          0,
+          1
+        ],
+        "index": 0,
+        "kind": "lacuna",
+        "to": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 23,
+        "col": 3,
+        "offset": 204,
+        "origin": "user"
+      },
+      "help": [
+        "list every lacuna the lens can emit; each lacuna's condition field decides whether it applies"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0401]: the lacunas of lens 0.1->0.0 are not listed unconditionally
+  --> lineage.cue:23:3
+   |
+23 |         lacunas: [
+   |         ^^^^^^^
+   |
+   = help: list every lacuna the lens can emit; each lacuna's condition field decides whether it applies

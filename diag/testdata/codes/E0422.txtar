@@ -1,0 +1,103 @@
+#op: compile
+A when names a field bare, which tests a field's presence when the field is
+optional; a field that is always present is not a condition. Compare it with
+something to make one.
+-- ship/history/0.0.thema --
+Schema: {
+	name: string
+	count: int
+}
+-- ship/1.0.thema --
+Schema: {
+	name: string
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		name:  v0_0.name
+		count: _drop(v0_0.count)
+	}
+	lacunas: {
+		count: [{
+			type:    DroppedField
+			message: "count is gone"
+			when:    v0_0.name
+		}]
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		name:  v1_0.name
+		count: 0
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0418",
+      "severity": "error",
+      "headline": "_drop is not defined in a lens; an expression refers to v0_0, to len, quo, rem, div, mod and to the strings functions",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 9,
+        "col": 10,
+        "offset": 88,
+        "origin": "user"
+      }
+    },
+    {
+      "code": "E0422",
+      "severity": "error",
+      "headline": "v0_0.name is string, not a condition: compare it; an optional field named bare tests its presence",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 15,
+        "col": 13,
+        "offset": 198,
+        "origin": "user"
+      }
+    },
+    {
+      "code": "E0347",
+      "severity": "error",
+      "headline": "0.0 declares count and 1.0 does not, and nothing maps it: write <field>: v0_0.count to move it, or count: _drop",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 5,
+        "col": 1,
+        "offset": 27,
+        "origin": "user"
+      }
+    }
+  ],
+  "summary": {
+    "errors": 3,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0418]: _drop is not defined in a lens; an expression refers to v0_0, to len, quo, rem, div, mod and to the strings functions
+ --> 1.0.thema:9:10
+  |
+9 |         count: _drop(v0_0.count)
+  |                ^^^^^
+  |
+
+error[E0422]: v0_0.name is string, not a condition: compare it; an optional field named bare tests its presence
+  --> 1.0.thema:15:13
+   |
+15 |             when:    v0_0.name
+   |                      ^^^^
+   |
+
+error[E0347]: 0.0 declares count and 1.0 does not, and nothing maps it: write <field>: v0_0.count to move it, or count: _drop
+ --> 1.0.thema:5:1
+  |
+5 | ForwardLens: {
+  | ^^^^^^^^^^^
+  |

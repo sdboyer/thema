@@ -1,0 +1,29 @@
+#op: cli
+#args: serve playground --addr 127.0.0.1:99999
+thema serve playground could not listen on the address given with --addr: it
+is not a valid address, is in use, or needs privileges the command
+lacks. The detail is the operating system's reason.
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0618",
+      "severity": "error",
+      "headline": "cannot listen on 127.0.0.1:99999",
+      "help": [
+        "choose another address with --addr"
+      ],
+      "detail": "listen tcp: address 99999: invalid port"
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0618]: cannot listen on 127.0.0.1:99999
+  |
+  = detail: listen tcp: address 99999: invalid port
+  = help: choose another address with --addr

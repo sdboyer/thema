@@ -12,11 +12,16 @@ Schema: {
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		kind: match(v0_0.kind, {
+		kind: _match(v0_0.kind, {
 			"a": 1
 		})
 	}
 }
 -- out/error --
-match on kind is not exhaustive: 0.0's kind may hold values no arm matches and 1.0's kind does not accept; add a [_] arm:
-    1.0.thema:8:9
+error[E0351]: _match on kind is not exhaustive: 0.0's kind may hold values no arm matches and 1.0's kind does not accept
+ --> 1.0.thema:8:9
+  |
+8 |         kind: _match(v0_0.kind, {
+  |               ^^^^^^
+  |
+  = help: add a [_] arm

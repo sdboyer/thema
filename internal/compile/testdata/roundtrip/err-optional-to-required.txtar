@@ -19,5 +19,9 @@ ForwardLens: {
 	}
 }
 -- out/error --
-b is optional in 0.0 and required in 1.0: write b: orelse(v0_0.b, <fallback>) to say what to use when it is absent:
-    1.0.thema:3:2
+error[E0343]: b is optional in 0.0 and required in 1.0: write b: _orelse(v0_0.b, <fallback>) to say what to use when it is absent
+ --> 1.0.thema:3:2
+  |
+3 |     b: int
+  |     ^
+  |

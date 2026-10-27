@@ -1,0 +1,69 @@
+#op: compile
+A lacuna applies under the condition its mapping implies; an each implies
+none, since it maps every element. A lacuna on an each says when it applies
+with `when`.
+-- ship/history/0.0.thema --
+Schema: {
+	items: [...{
+		title: string
+	}]
+}
+-- ship/1.0.thema --
+Schema: {
+	items: [...{
+		name: string
+	}]
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		items: _each(v0_0.items, {
+			name: _item.title
+		})
+	}
+	lacunas: {
+		items: [{
+			type:    LossyFieldMapping
+			message: "titles were renamed"
+		}]
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		items: _each(v1_0.items, {
+			title: _item.name
+		})
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0415",
+      "severity": "error",
+      "headline": "lacunas.items: a lacuna on _each needs when: <condition>",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 15,
+        "col": 11,
+        "offset": 159,
+        "origin": "user"
+      }
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0415]: lacunas.items: a lacuna on _each needs when: <condition>
+  --> 1.0.thema:15:11
+   |
+15 |         items: [{
+   |                 ^
+   |

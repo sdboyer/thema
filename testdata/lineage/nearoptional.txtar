@@ -25,16 +25,31 @@ lenses: {}
 {
 }
 -- out/validate/TestValidate/missingFields --
-<nearoptional@v0.0>.notoptional: validation failed, data is not an instance:
-	schema specifies that field exists with type `int32`
-	but field was absent from data
+error[E0501]: the data lacks notoptional, which schema 0.0 declares as int32
+ --> in/validate/TestValidate/missingFields.data.json:1:1
+  |
+1 | {
+  | ^
+  |
+ ::: /in.cue:8:10
+  |
+8 |             notoptional: int32
+  |             ----------- declared here
+  |
+  = detail: notoptional: incomplete value int32
 -- out/validate/TestValidate/wrongTypeInListItem --
-<nearoptional@v0.0>.alist.0: validation failed, data is not an instance:
-	schema expected `string`
-		/in.cue:13:24
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:177:19
-	but data contained `42`
-		test:3:15
+error[E0503]: alist.0 in the data is int, but schema 0.0 declares it as string
+  --> in/validate/TestValidate/wrongTypeInListItem.data.json:3:15
+   |
+ 3 |     "alist": [42]
+   |               ^^
+   |
+  ::: /in.cue:13:24
+   |
+13 |             alist?:   [...string]
+   |                           ------ declared here
+   |
+   = detail: alist.0: conflicting values 42 and string (mismatched types int and string)
 -- in/validate/TestValidate/wrongTypeInListItem.data.json --
 {
     "notoptional": 1,
@@ -220,3 +235,5 @@ export interface Nearoptional {
 export const defaultNearoptional: Partial<Nearoptional> = {
   alist: [],
 };
+-- out/lensir --
+no lenses

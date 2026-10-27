@@ -1,0 +1,48 @@
+#op: bind
+Every lineage declares a name and its schemas. This one declares no name. The
+primary position is the lineage itself.
+-- lineage.cue --
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0120",
+      "severity": "error",
+      "headline": "the lineage does not declare name",
+      "address": {
+        "kind": "lineage"
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 1,
+        "col": 1,
+        "origin": "user"
+      },
+      "help": [
+        "every lineage declares name and schemas"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0120]: the lineage does not declare name
+ --> lineage.cue:1:1
+  |
+1 | schemas: {
+  | ^^^^^^^
+  |
+  = help: every lineage declares name and schemas

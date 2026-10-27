@@ -1,0 +1,23 @@
+# a schema refers to its own field through the lineage's path: what the
+# reference denotes lies inside the schema, so it is the schema's own body.
+# It denotes the field as declared (int), not the instance's a, which b: a
+# would.
+#issue: 119
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "refOkSchemaSelfPath"
+	schemas: {
+		"0": "0": {
+			schema: {
+				a: int
+				b: lin.schemas["0"]["0"].schema.a
+			}
+		}
+	}
+}
+-- expect --
+bind ok
+validate 0.0 ok {a: 1, b: 2}
+validate 0.0 fail {a: 1, b: "x"}

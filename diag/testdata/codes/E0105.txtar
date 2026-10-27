@@ -1,0 +1,74 @@
+#op: compile
+A version file has at most three fields: schema, ForwardLens and BackwardLens.
+Anything else is usually a typo; when the name is close to one of the three,
+the help names it.
+-- ship/0.0.thema --
+Schema: {
+	a: string
+}
+-- ship/1.0.thema --
+scehma: {
+	a: string
+	b: int
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		b: 1
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0105",
+      "severity": "error",
+      "headline": "scehma is not a field of a version file",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 1,
+        "col": 1,
+        "origin": "user"
+      },
+      "help": [
+        "did you mean Schema?"
+      ]
+    },
+    {
+      "code": "E0108",
+      "severity": "error",
+      "headline": "1.0.thema declares no Schema",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 1,
+        "col": 1,
+        "origin": "user"
+      },
+      "help": [
+        "every version file declares Schema: {...}"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 2,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0105]: scehma is not a field of a version file
+ --> 1.0.thema:1:1
+  |
+1 | scehma: {
+  | ^^^^^^
+  |
+  = help: did you mean Schema?
+
+error[E0108]: 1.0.thema declares no Schema
+ --> 1.0.thema:1:1
+  |
+1 | scehma: {
+  | ^^^^^^
+  |
+  = help: every version file declares Schema: {...}

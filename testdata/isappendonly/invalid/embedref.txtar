@@ -33,8 +33,18 @@ lin2: schemas: {
 	}
 }
 -- out/isappendonly-fail --
-field #EmbedRef not present in {#EmbedRef:{refField1:string,refField2:1},refField1:string,refField2:1}:
-    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:177:11
-field refField2 not present in {refField1:string,refField2:1}:
-    ./in.cue:25:21
-missing field "#EmbedRef"
+error[E0243]: schema 0.0 differs from the published one
+   --> /in.cue:22:6
+    |
+ 22 |         schema: {
+    |         ^^^^^^
+...
+ 25 |             #EmbedRef: {
+    |                        - here
+    |
+    = note: in thema's own CUE
+     --> thema/lineage.cue:177:11
+    = detail: field refField2 not present in {refField1:string,refField2:1}
+              field #EmbedRef not present in {#EmbedRef:{refField1:string,refField2:1},refField1:string,refField2:1}
+              missing field "#EmbedRef"
+    = help: a published schema is never changed; add a new version instead

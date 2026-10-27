@@ -156,7 +156,7 @@ for example
 
 | Rule | Unknown when | What to do |
 |---|---|---|
-| `ref-unresolved` | a reference selects into the lineage, or beyond it, by a computed label (`lin["na"+"me"]`), or through a construct thema does not read | write the reference with constant labels, or declare what it needs inside the schema or lens |
+| `ref-unresolved` | a reference selects into the lineage, or beyond it, by a label only an instance decides (`lin[a]`, with `a` a field of the schema; a label the evaluator can fold, such as `lin["na"+"me"]`, resolves), or through a construct thema does not read | write the reference with constant labels, or declare what it needs inside the schema or lens |
 
 Every rule has a recorded case in the repository's case corpus
 (`testdata/cases/ref-*`), alongside a case for each allowed form.
@@ -416,6 +416,17 @@ short-circuit: `p != _|_ && p == c` still compares an absent `p`. Unlike
 `match` in Rust, every arm whose pattern holds applies, and the values unify,
 so arms must be exhaustive *and* agree where they overlap.
 
+**Lists mapped element by element.** A list may be written as one
+comprehension over a source list, `[for item in v0_0.items {...}]`. The body
+is proven as a lens from the source list's element to the target list's, with
+`item` standing for the element, and every rule above applies to it. The list
+has one element per element of the source, so the target list's length bounds
+must accept the source list's. A comprehension that filters (`if`), nests
+`for` clauses, or sits beside other elements is not proven. A list the lens
+builds this way and names through a `let` may be measured with `len`, within
+the source list's bounds, and its elements reported by a lacuna under the
+comprehension's own patterns.
+
 **Exhaustiveness.** Every field the target requires must be written for every
 instance. That holds when the field is written unconditionally, or when the
 patterns it is written under together cover every instance:
@@ -513,7 +524,7 @@ for example
 | `unknown-pattern` | an arm's condition is not a pattern (a presence test, an equality or a type test on an input field, or a conjunction of these); a lacuna's condition is neither a pattern nor a boolean the computed rules prove; or an equality tests a field that may be a float | write the condition as a pattern, testing one input field at a time; test a number's type before comparing it |
 | `unknown-exhaustive` | a required field is written only under patterns that cannot be shown to cover every instance | write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field |
 | `unknown-op` | a computation uses an operation outside the proven set: `/`, a float, a builtin not listed above, or `&` or `\|` within an expression; or a call constrains the result | use the listed operations, with `quo` or `div` for integer division; write the result as a struct |
-| `unknown-dynamic` | fields or elements are produced by a `for` clause, a computed label or a list comprehension | write each field by name |
+| `unknown-dynamic` | fields are produced by a `for` clause or a computed label, or list elements by a comprehension that filters, nests `for` clauses, or sits beside other elements | write each field by name; map a list with one comprehension over one source list, every element |
 | `unknown-reference` | the lens reads something that cannot be followed to the input or to a constant: a computed index or label, or a selection into a comprehension's output | select fields by name |
 | `unknown-bounds` | an integer operand has no finite bounds, so the result cannot be shown to fit `int64` or the target, or an operand occurs more than once. Bounds that contain the target's refute nothing when the result need not take them, as with `len` | bound the fields the computation reads (`int32`, `>=0 & <=100`) |
 | `unknown-divisor` | a divisor's bounds include zero, though zero may not be an instance | bound the divisor away from zero (`>0` or `<0`) |
@@ -533,3 +544,23 @@ after upgrading. From v1 they are fixed: a lens that binds under one release
 binds, with the same verdicts, under every later one, and a rule added or
 corrected applies only to lenses published after it. A copy's verdict is a
 compatibility verdict, and moves with it.
+
+### Lens programs
+
+The proof of a lens leaves behind the lens's program (`internal/lensir`): a
+target-neutral account of what the lens writes into its result and from what,
+built node by node at the places in the walk that proved them, so that no
+node exists without its proof. A lens that is not proven total has no program,
+and a lineage bound with `SkipBuggyChecks`, whose lenses were not proven, has
+none; `thema.LensPrograms` returns a lineage's programs or says why there are
+none. Backends such as `encoding/capnp` render the programs; they never consult
+the lens's CUE. The nodes are the proven forms: copies, constants, struct and
+list literals, lists mapped element by element (`each`), branches on patterns,
+heads, tables, computed expressions over the operations above, and the
+declared lacunas, with an entry reported under its own presence test carrying
+that test. Two proven forms are not yet carried, and a lens using them binds
+without a program: a lacuna reporting one entry per element of a source list,
+and `len` of a list the lens builds through a `let`. Each corpus lineage's
+programs are recorded beside it (`out/lensir` in `testdata/lineage`,
+`exemplars/testdata/lensir`), and each proven form's in the lens corpus
+(`internal/lenscheck/testdata`, `ir` sections).

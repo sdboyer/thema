@@ -38,6 +38,11 @@ lenses: {
     }
 }
 -- out/bindfail --
-schema 0.2 is not backwards compatible with schema 0.1:
-aunion fills with "baz" when absent, where the prior schema filled it with "foo" (rule default-changed):
-    /in.cue:19:7
+error[E0214]: aunion in schema 0.2 fills with "baz" when absent, where the prior schema filled it with "foo"
+  --> /in.cue:19:7
+   |
+19 |             aunion: "foo" | "bar" | *"baz"
+   |             ^^^^^^
+   |
+   = note: schema 0.2 is declared as a minor version of 0.1, so every instance of schema 0.1 must be an instance of it (compatibility rule default-changed)
+   = help: make the change compatible, or make this version 1.0

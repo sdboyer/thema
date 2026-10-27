@@ -1,0 +1,51 @@
+#op: compile
+A field optional in the source and required in the target cannot simply be
+copied: an instance that lacks it would have nothing to put there. orelse says
+what to use when it is absent.
+-- ship/history/0.0.thema --
+Schema: {
+	a:  string
+	b?: int
+}
+-- ship/1.0.thema --
+Schema: {
+	a: string
+	b: int
+	c: bool
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		c: true
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0343",
+      "severity": "error",
+      "headline": "b is optional in 0.0 and required in 1.0: write b: _orelse(v0_0.b, <fallback>) to say what to use when it is absent",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 3,
+        "col": 2,
+        "offset": 22,
+        "origin": "user"
+      }
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0343]: b is optional in 0.0 and required in 1.0: write b: _orelse(v0_0.b, <fallback>) to say what to use when it is absent
+ --> 1.0.thema:3:2
+  |
+3 |     b: int
+  |     ^
+  |

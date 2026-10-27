@@ -4,5 +4,10 @@ import "github.com/sdboyer/thema"
 
 thema.Lineage
 -- out/bindfail --
-not a lineage, missing Lineage.name:
-    ./in.cue:2:1
+error[E0120]: the lineage does not declare name
+ --> /in.cue:4:1
+  |
+4 | thema.Lineage
+  | ^^^^^
+  |
+  = help: every lineage declares name and schemas

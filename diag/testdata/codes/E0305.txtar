@@ -1,0 +1,83 @@
+#op: bind
+A lens writes only fields its target schema declares, however open the author
+wrote the schema: a lens is bound to the schema as declared. A field written
+under a condition counts; it exists once data makes the condition true. Hidden
+fields the target does not declare are the lens's own scratch space and are
+not checked.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+		"1": {
+			schema: {
+				a:  string
+				b?: int
+			}
+		}
+	}
+}
+lenses: {
+	"0.1->0.0": {
+		v0_1: _
+		v0_0: {
+			a: v0_1.a
+			if v0_1.a == "boom" {
+				extra: 1
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0305",
+      "severity": "error",
+      "headline": "the result of lens 0.1->0.0 writes extra, which schema 0.0 does not declare",
+      "path": [
+        "lenses",
+        "0.1->0.0",
+        "v0_0"
+      ],
+      "address": {
+        "from": [
+          0,
+          1
+        ],
+        "kind": "lensResult",
+        "to": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 20,
+        "col": 3,
+        "offset": 177,
+        "origin": "user"
+      },
+      "help": [
+        "a lens writes only fields its target schema declares, however open the schema is written"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0305]: the result of lens 0.1->0.0 writes extra, which schema 0.0 does not declare
+  --> lineage.cue:20:3
+   |
+20 |         v0_0: {
+   |         ^^^^
+   |
+   = help: a lens writes only fields its target schema declares, however open the schema is written

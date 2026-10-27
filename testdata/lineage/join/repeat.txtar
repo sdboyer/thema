@@ -90,3 +90,5 @@ Lenses count: 0
 export interface Repeat {
   foo: string;
 }
+-- out/lensir --
+no lenses

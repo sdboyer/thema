@@ -1,0 +1,63 @@
+#op: bind
+A schema may not refer to a value that contains it, such as the lineage's own
+schemas: that is a cycle through the lineage, and the schema's shape would
+depend on the lineage it is part of.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				n: <=len(schemas)
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0134",
+      "severity": "error",
+      "headline": "schema 0.0 refers to schemas, which contains it",
+      "path": [
+        "schemas",
+        "0",
+        "0",
+        "schema"
+      ],
+      "address": {
+        "kind": "schema",
+        "version": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 6,
+        "col": 14,
+        "offset": 67,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "a schema's references may not form a cycle: no check can describe a schema whose paths are unbounded"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0134]: schema 0.0 refers to schemas, which contains it
+ --> lineage.cue:6:14
+  |
+6 |                 n: <=len(schemas)
+  |                          ^^^^^^^
+  |
+  = note: a schema's references may not form a cycle: no check can describe a schema whose paths are unbounded

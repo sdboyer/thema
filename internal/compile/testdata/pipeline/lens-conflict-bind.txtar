@@ -25,13 +25,8 @@ backward: {
 	count: to.count
 }
 -- out/error --
-lens 0.0->1.0: v1_0 is not an instance of schema 1.0:
-Lineage.lenses."0.0->1.0".v1_0.count: conflicting values "many" and int (mismatched types string and int):
-    /github.com/sdboyer/thema/lineage.cue:177:19
-    ship/1.0.thema:3:9
+count in the result of lens 0.0->1.0 is not total for some instance:
     ship/1.0.thema:7:9
-:
-    ship/1.0.thema:6:1
 -- out/positions --
-lens 0.0->1.0: v1_0 is not an instance of schema 1.0:
-	authored ship/1.0.thema:6:1
+count in the result of lens 0.0->1.0 is not total for some instance
+	authored ship/1.0.thema:7:9

@@ -1,0 +1,47 @@
+#op: compile
+orelse supplies a fallback for a field that may be absent. Over a field the
+source always has, the fallback could never apply; write the reference alone.
+-- ship/history/0.0.thema --
+Schema: {
+	a: string
+}
+-- ship/1.0.thema --
+Schema: {
+	b: string
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		b: _orelse(v0_0.a, "x")
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0348",
+      "severity": "error",
+      "headline": "0.0 always has a, so _orelse's fallback could never apply: write b: v0_0.a",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 8,
+        "col": 6,
+        "offset": 62,
+        "origin": "user"
+      }
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0348]: 0.0 always has a, so _orelse's fallback could never apply: write b: v0_0.a
+ --> 1.0.thema:8:6
+  |
+8 |         b: _orelse(v0_0.a, "x")
+  |            ^^^^^^^
+  |

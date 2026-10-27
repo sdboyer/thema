@@ -1,0 +1,68 @@
+#op: compile
+A lacuna on a match applies when its `[_]` arm does. A match with no `[_]`
+arm implies no condition, so a lacuna on it must say when it applies with
+`when`.
+-- ship/history/0.0.thema --
+Schema: {
+	aunion: *"foo" | "bar" | "baz"
+}
+-- ship/1.0.thema --
+Schema: {
+	aunion: "foo" | *"bar" | "baz"
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		aunion: _match(v0_0.aunion, {"foo": "bar"})
+	}
+	lacunas: {
+		aunion: [{
+			type:    ChangedDefault
+			message: "the default changed"
+		}]
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		aunion: _match(v1_0.aunion, {"bar": "foo"})
+	}
+	lacunas: {
+		aunion: [{
+			type:    ChangedDefault
+			message: "the default changed"
+			when:    v1_0.aunion == "bar"
+		}]
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0420",
+      "severity": "error",
+      "headline": "lacunas.aunion: a lacuna on a _match applies when its [_] arm does, and this _match has none: say when it applies with when: <condition>",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 11,
+        "col": 12,
+        "offset": 150,
+        "origin": "user"
+      }
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0420]: lacunas.aunion: a lacuna on a _match applies when its [_] arm does, and this _match has none: say when it applies with when: <condition>
+  --> 1.0.thema:11:12
+   |
+11 |         aunion: [{
+   |                  ^
+   |

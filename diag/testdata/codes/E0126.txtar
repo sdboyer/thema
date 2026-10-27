@@ -1,0 +1,66 @@
+#op: bind
+The lineage is not an instance of thema.Lineage, for a reason thema has no more
+specific code for; CUE's own account is in the detail. Here the name is a
+number where a lineage's name is a string.
+-- lineage.cue --
+name: 5
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0126",
+      "severity": "error",
+      "headline": "the lineage is not an instance of thema.Lineage",
+      "path": [
+        "name"
+      ],
+      "address": {
+        "kind": "name"
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 1,
+        "col": 7,
+        "offset": 6,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "pos": {
+            "file": "/github.com/sdboyer/thema/lineage.cue",
+            "line": 27,
+            "col": 9,
+            "offset": 1049,
+            "origin": "thema"
+          },
+          "label": "in thema's own CUE"
+        }
+      ],
+      "detail": "name: conflicting values 5 and =~\"^[A-Za-z][A-Za-z0-9]*$\" (mismatched types int and string)"
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0126]: the lineage is not an instance of thema.Lineage
+  --> lineage.cue:1:7
+   |
+ 1 | name: 5
+   |       ^
+   |
+   = note: in thema's own CUE
+    --> thema/lineage.cue:27:9
+   = detail: name: conflicting values 5 and =~"^[A-Za-z][A-Za-z0-9]*$" (mismatched types int and string)

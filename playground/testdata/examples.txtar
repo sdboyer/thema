@@ -1,0 +1,193 @@
+#op: examples
+The examples the playground offers.
+-- out/response.json --
+{
+  "ok": true,
+  "diagnostics": [],
+  "examples": [
+    {
+      "id": "docs/ship",
+      "title": "ship",
+      "category": "Exemplars",
+      "summary": "The lineage the docs walk through: a major version adding a required field, with lenses both ways.",
+      "kind": "normal",
+      "binds": true
+    },
+    {
+      "id": "exemplar/defaultchange",
+      "title": "defaultchange",
+      "category": "Exemplars",
+      "summary": "The default value for a field is changed, entailing a new sequence.",
+      "kind": "normal",
+      "binds": true
+    },
+    {
+      "id": "exemplar/expand",
+      "title": "expand",
+      "category": "Exemplars",
+      "summary": "A few schema in a single sequence, illustrating some simple expansions permitted by backwards compatibility rules.",
+      "kind": "normal",
+      "binds": true
+    },
+    {
+      "id": "exemplar/narrowing",
+      "title": "narrowing",
+      "category": "Exemplars",
+      "summary": "Lineage that narrows a sloppily-specified boolean/string-ish type to a proper boolean over a single breaking change.",
+      "kind": "normal",
+      "binds": true
+    },
+    {
+      "id": "exemplar/rename",
+      "title": "rename",
+      "category": "Exemplars",
+      "summary": "A field is renamed - a breaking change, necessitating a new sequence.",
+      "kind": "normal",
+      "binds": true
+    },
+    {
+      "id": "exemplar/single",
+      "title": "single",
+      "category": "Exemplars",
+      "summary": "Lineage containing one sequence with a single, trivial schema.",
+      "kind": "normal",
+      "binds": true
+    },
+    {
+      "id": "authoring/computed",
+      "title": "computed",
+      "category": "Authoring form",
+      "summary": "Computed mappings: arithmetic, a strings function and a comparison over fields 0.0 always has, a computed value over an optional field written only where it is present, and orelse over a computed primary.",
+      "kind": "authoring",
+      "binds": true
+    },
+    {
+      "id": "authoring/each",
+      "title": "each",
+      "category": "Authoring form",
+      "summary": "each: a list of structs mapped element by element, with a rename and a drop inside the body. The drop's derived lacuna aggregates over the elements, and its message is refined by a DroppedField lacuna keyed through the list. each has no derived inverse, so the backward lens is authored.",
+      "kind": "authoring",
+      "binds": true
+    },
+    {
+      "id": "authoring/lacunas",
+      "title": "lacunas",
+      "category": "Authoring form",
+      "summary": "lacunas: several lacunas on one mapping, a lacuna with its own when, and a key nested like the mapping it describes. count's first lacuna applies when the orelse fallback does, its second under the author's condition; name's applies under a condition over a field 0.0 always has, a guard the totality proof accepts as a boolean it can evaluate. The backward lens is wholly derived.",
+      "kind": "authoring",
+      "binds": true
+    },
+    {
+      "id": "authoring/minor",
+      "title": "minor",
+      "category": "Authoring form",
+      "summary": "A minor version adds an optional field. Its file is just the schema: the forward lens is implicit, and the backward lens is a derived drop, conditional on the field being present.",
+      "kind": "authoring",
+      "binds": true
+    },
+    {
+      "id": "authoring/nested",
+      "title": "nested",
+      "category": "Authoring form",
+      "summary": "A nested restructure: a field moves into a struct that embeds its source, and an untouched sibling struct is copied whole.",
+      "kind": "authoring",
+      "binds": true
+    },
+    {
+      "id": "authoring/orelse",
+      "title": "orelse",
+      "category": "Authoring form",
+      "summary": "orelse: an optional source field feeding a required target field, with a constant fallback and with a reference fallback, and a lacuna on the fallback.",
+      "kind": "authoring",
+      "binds": true
+    },
+    {
+      "id": "authoring/rename",
+      "title": "rename",
+      "category": "Authoring form",
+      "summary": "exemplars/rename.cue in authoring form: a rename is one forward entry; the backward entry is derived, and the unchanged field is copied implicitly.",
+      "kind": "authoring",
+      "binds": true
+    },
+    {
+      "id": "authoring/ship",
+      "title": "ship",
+      "category": "Authoring form",
+      "summary": "docs/ship.cue in authoring form: a major version adding a required field, with a placeholder forward and a refined message on the derived backward drop.",
+      "kind": "authoring",
+      "binds": true
+    },
+    {
+      "id": "authoring/when-optional",
+      "title": "when-optional",
+      "category": "Authoring form",
+      "summary": "A when over optional fields. count's reads count, which 0.0 may omit, so the lacuna concerns only instances that have it: the condition compiles to a head over a presence test. flag, optional, named bare, tests its presence; deprecated, a required bool named bare, is its value.",
+      "kind": "authoring",
+      "binds": true
+    },
+    {
+      "id": "authoring/err-match-not-total",
+      "title": "match-not-total",
+      "category": "Errors",
+      "summary": "A match over a string field with no [_] arm: a value no arm maps would reach a target that does not accept it.",
+      "kind": "authoring",
+      "binds": false
+    },
+    {
+      "id": "authoring/err-optional-to-required",
+      "title": "optional-to-required",
+      "category": "Errors",
+      "summary": "An optional source field copied to a required target field: an instance that lacks it would have nothing to put there.",
+      "kind": "authoring",
+      "binds": false
+    },
+    {
+      "id": "authoring/err-required-unproduced",
+      "title": "required-unproduced",
+      "category": "Errors",
+      "summary": "A required target field that nothing produces, and that the source lacks.",
+      "kind": "authoring",
+      "binds": false
+    },
+    {
+      "id": "exemplar/disjunct",
+      "title": "disjunct",
+      "category": "Errors",
+      "summary": "Changes over schemas with complex disjunctions.",
+      "kind": "normal",
+      "binds": false
+    },
+    {
+      "id": "invalid/construct-cycle-mutual",
+      "title": "construct-cycle-mutual",
+      "category": "Errors",
+      "summary": "Two schema fields that refer to each other: a reference cycle no check can describe.",
+      "kind": "normal",
+      "binds": false
+    },
+    {
+      "id": "invalid/empty-schemas",
+      "title": "empty-schemas",
+      "category": "Errors",
+      "summary": "A lineage that declares no schemas.",
+      "kind": "normal",
+      "binds": false
+    },
+    {
+      "id": "invalid/typo-lens-field",
+      "title": "typo-lens-field",
+      "category": "Errors",
+      "summary": "A misspelled field of a lens, and the field it was likely meant to be.",
+      "kind": "normal",
+      "binds": false
+    },
+    {
+      "id": "invalid/typo-lineage-field",
+      "title": "typo-lineage-field",
+      "category": "Errors",
+      "summary": "A misspelled field of a lineage.",
+      "kind": "normal",
+      "binds": false
+    }
+  ]
+}

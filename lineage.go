@@ -1,15 +1,14 @@
 package thema
 
 import (
-	"fmt"
+	"errors"
 	"sort"
 
 	"cuelang.org/go/cue"
-	cerrors "cuelang.org/go/cue/errors"
-	"github.com/cockroachdb/errors"
 
-	terrors "github.com/sdboyer/thema/errors"
+	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/internal/cuetil"
+	"github.com/sdboyer/thema/internal/lensir"
 )
 
 var (
@@ -39,6 +38,15 @@ type baseLineage struct {
 
 	// all the schemas
 	allsch []*schemaDef
+
+	// vocab renders diagnostics about this lineage in the author's terms
+	vocab diag.Vocabulary
+
+	// programs holds the program of each lens, built when the lens was proven
+	// total; nil where the proofs were skipped (SkipBuggyChecks). programErr
+	// says why a proven lens has no program. LensPrograms reads both.
+	programs   lensir.Programs
+	programErr error
 }
 
 // BindLineage takes a raw [cue.Value], checks that it correctly follows Thema's
@@ -151,19 +159,40 @@ func BindLineage(v cue.Value, rt *Runtime, opts ...BindOption) (Lineage, error) 
 	nam, _ := orig.LookupPath(cue.MakePath(cue.Str("name"))).String()
 
 	lin := &baseLineage{
-		validated: true,
-		rt:        rt,
-		name:      nam,
-		raw:       ml.raw,
-		uni:       ml.uni,
-		allsch:    ml.schlist,
-		allv:      ml.allv,
+		validated:  true,
+		rt:         rt,
+		name:       nam,
+		raw:        ml.raw,
+		uni:        ml.uni,
+		allsch:     ml.schlist,
+		allv:       ml.allv,
+		vocab:      ml.vocab(),
+		programs:   ml.programs,
+		programErr: ml.programErr,
 	}
 
 	for _, sch := range lin.allsch {
 		sch.lin = lin
 	}
 	return lin, nil
+}
+
+// LensPrograms returns the program of each of lin's lenses, keyed by edge: the
+// target-neutral form of the lens (internal/lensir) that binding built as a
+// by-product of proving the lens total, for backends such as encoding/capnp
+// to render. A lineage bound with [SkipBuggyChecks] skipped the proofs and has
+// no programs; a lens using a construct the IR does not yet carry binds, but
+// has none either. In both cases the error says so.
+func LensPrograms(lin Lineage) (lensir.Programs, error) {
+	isValidLineage(lin)
+	tlin := lin.(*baseLineage)
+	switch {
+	case tlin.programs == nil:
+		return nil, errors.New("lineage was bound with SkipBuggyChecks, so its lenses were not proven total and have no programs")
+	case tlin.programErr != nil:
+		return nil, tlin.programErr
+	}
+	return tlin.programs, nil
 }
 
 func isValidLineage(lin Lineage) {
@@ -186,14 +215,6 @@ func getLinLib(lin Lineage) *Runtime {
 	default:
 		panic("unreachable")
 	}
-}
-
-func mkerror(val cue.Value, format string, args ...any) error {
-	s := val.Source()
-	if s == nil {
-		return fmt.Errorf(format, args...)
-	}
-	return cerrors.Newf(s.Pos(), format, args...)
 }
 
 // Runtime returns the thema.Runtime instance with which this lineage was built.
@@ -271,7 +292,10 @@ func (lin *baseLineage) Schema(v SyntacticVersion) (Schema, error) {
 	isValidLineage(lin)
 
 	if !synvExists(lin.allv, v) {
-		return nil, errors.Mark(errors.Newf("no schema with version %s in lineage %s", v, lin.name), terrors.ErrVersionNotExist)
+		return nil, diag.New(diag.E0240).
+			Headlinef("lineage %s has no schema %s", lin.name, v).
+			Helpf("its versions are %s", versionList(lin.allv)).
+			Err()
 	}
 
 	return lin.schema(v), nil
@@ -312,7 +336,10 @@ func IsAppendOnly(oldLineage Lineage, newLineage Lineage) error {
 	newSchemas := newLineage.All()
 
 	if len(newSchemas) < len(oldSchemas) {
-		return fmt.Errorf("schemas can't be deleted once published")
+		return diag.New(diag.E0242).
+			Headlinef("the new lineage has %d schemas where the published one has %d", len(newSchemas), len(oldSchemas)).
+			Help("a published schema is never deleted; add versions, do not remove them").
+			Err()
 	}
 
 	// Compare each schema as thema uses it: joined with the joinSchema, and closed,
@@ -324,7 +351,12 @@ func IsAppendOnly(oldLineage Lineage, newLineage Lineage) error {
 		y := cuetil.CloseRecursive(ctx, newSchemas[i].Underlying().LookupPath(pathSchDef))
 
 		if err := cuetil.Equal(x, y); err != nil {
-			return fmt.Errorf("schema %s changed: %w", schema.Version(), err)
+			return diag.New(diag.E0243).
+				Headlinef("schema %s differs from the published one", schema.Version()).
+				AtValue(newSchemas[i].Underlying().LookupPath(pathSch)).
+				Cause(err).
+				Help("a published schema is never changed; add a new version instead").
+				Err()
 		}
 	}
 

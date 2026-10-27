@@ -12,3 +12,7 @@ v1_0: {
 }
 -- out --
 total
+-- ir --
+out: {
+  out.b <- in.a
+}

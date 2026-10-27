@@ -48,6 +48,13 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      # For the playground's frontend, which goreleaser's before hooks build.
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: playground/ui/.nvmrc
+          cache: npm
+          cache-dependency-path: playground/ui/package-lock.json
+
       - uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser

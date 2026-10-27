@@ -39,26 +39,57 @@ lenses: {}
     }
 }
 -- out/validate/TestValidate/disjunction --
-<refstruct@v0.0>.disj: validation failed, data is not an instance:
-	schema specifies that field exists with type `{run:string,tell?:bytes,dat:int32} | {one:string,two:string}`
-		/in.cue:9:10
-	but field was absent from data
-		test:6:13
+error[E0506]: disj in the data is not concrete: it is still {run:string,tell?:bytes,dat:int32} | {one:string,two:string}
+ --> in/validate/TestValidate/disjunction.data.json:6:13
+  |
+6 |     "disj": {}
+  |             ^
+  |
+ ::: /in.cue:9:10
+  |
+9 |             disj: #Baz | #Bar
+  |                   ---- declared here
+  |
+  = detail: disj: incomplete value {run:string,tell?:bytes,dat:int32} | {one:string,two:string}
 -- out/validate/TestValidate/aBazRunWithInt --
-<refstruct@v0.0>.aBaz.run: validation failed, data is not an instance:
-	schema expected `string`
-		/in.cue:12:11
-		/in.cue:8:10
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:177:19
-	but data contained `42`
-		test:3:16
-<refstruct@v0.0>.aBaz.dat: validation failed, data is not an instance:
-	schema specifies that field exists with type `int32`
-	but field was absent from data
-<refstruct@v0.0>.disj: validation failed, data is not an instance:
-	schema specifies that field exists with type `{run:string,tell?:bytes,dat:int32} | {one:string,two:string}`
-		/in.cue:9:10
-	but field was absent from data
+error[E0503]: aBaz.run in the data is int, but schema 0.0 declares it as string
+  --> in/validate/TestValidate/aBazRunWithInt.data.json:3:16
+   |
+ 3 |         "run": 42
+   |                ^^
+   |
+  ::: /in.cue:12:5
+   |
+12 |                 run:  string
+   |                 --- declared here
+   |
+   = detail: aBaz.run: conflicting values 42 and string (mismatched types int and string)
+
+error[E0501]: the data lacks aBaz.dat, which schema 0.0 declares as int32
+  --> in/validate/TestValidate/aBazRunWithInt.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:14:5
+   |
+14 |                 dat:  int32
+   |                 --- declared here
+   |
+   = detail: aBaz.dat: incomplete value int32
+
+error[E0501]: the data lacks disj, which schema 0.0 declares as {run:string,tell?:bytes,dat:int32} | {one:string,two:string}
+ --> in/validate/TestValidate/aBazRunWithInt.data.json:1:1
+  |
+1 | {
+  | ^
+  |
+ ::: /in.cue:9:10
+  |
+9 |             disj: #Baz | #Bar
+  |                   ---- declared here
+  |
+  = detail: disj: incomplete value {run:string,tell?:bytes,dat:int32} | {one:string,two:string}
 -- out/encoding/openapi/TestGenerate/nilcfg --
 == 0.0.json
 {
@@ -345,3 +376,5 @@ export interface Refstruct {
       two: string;
     });
 }
+-- out/lensir --
+no lenses

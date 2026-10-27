@@ -1,0 +1,53 @@
+#op: bind
+A normal-form lineage that imports nothing binds as it is compiled.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": "0": {
+		schema: {
+			name: string
+		}
+	}
+	"1": "0": {
+		schema: {
+			title: string
+			crew:  int | *1
+		}
+	}
+}
+lenses: {
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			name: v1_0.title
+		}
+		lacunas: [{
+			sourceFields: [{path: "crew", value: v1_0.crew}]
+			message: "crew is dropped"
+			type:    "DroppedField"
+		}]
+	}
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			title: v0_0.name
+			crew:  1
+		}
+		lacunas: [{
+			targetFields: [{path: "crew", value: v1_0.crew}]
+			message: "crew is a placeholder"
+			type:    "Placeholder"
+		}]
+	}
+}
+-- out/response.json --
+{
+  "ok": true,
+  "diagnostics": [],
+  "name": "ship",
+  "versions": [
+    "0.0",
+    "1.0"
+  ],
+  "normal": "name: \"ship\"\nschemas: {\n\t\"0\": \"0\": {\n\t\tschema: {\n\t\t\tname: string\n\t\t}\n\t}\n\t\"1\": \"0\": {\n\t\tschema: {\n\t\t\ttitle: string\n\t\t\tcrew:  int | *1\n\t\t}\n\t}\n}\nlenses: {\n\t\"1.0-\u003e0.0\": {\n\t\tv1_0: _\n\t\tv0_0: {\n\t\t\tname: v1_0.title\n\t\t}\n\t\tlacunas: [{\n\t\t\tsourceFields: [{path: \"crew\", value: v1_0.crew}]\n\t\t\tmessage: \"crew is dropped\"\n\t\t\ttype:    \"DroppedField\"\n\t\t}]\n\t}\n\t\"0.0-\u003e1.0\": {\n\t\tv0_0: _\n\t\tv1_0: {\n\t\t\ttitle: v0_0.name\n\t\t\tcrew:  1\n\t\t}\n\t\tlacunas: [{\n\t\t\ttargetFields: [{path: \"crew\", value: v1_0.crew}]\n\t\t\tmessage: \"crew is a placeholder\"\n\t\t\ttype:    \"Placeholder\"\n\t\t}]\n\t}\n}\n"
+}
