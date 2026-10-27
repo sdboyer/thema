@@ -1,6 +1,7 @@
 package cueview
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -111,5 +112,43 @@ func TestTreeDefinitionRoot(t *testing.T) {
 	}
 	if g := strings.Join(got, ","); g != "a,b,_#def" {
 		t.Errorf("got %s, want a,b,_#def", g)
+	}
+}
+
+// The exporter writes an embedding beside a comprehension as a bare expression
+// declaration, and beside plain fields as an *ast.EmbedDecl (see the
+// comprehensions golden). FieldDecls and soleEmbed take both as embeddings.
+func TestTreeEmbedDecl(t *testing.T) {
+	v := cuecontext.New().CompileString(`
+input: _
+cases: {
+	besideComprehension: {input, if input.x != _|_ {extra: 1}}
+	besideField:         {input, extra: 1}
+}`).LookupPath(cue.ParsePath("cases"))
+	tr, err := NewTree(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decls := map[string]string{}
+	for _, root := range tr.Root() {
+		s, ok := root.Expr.(*ast.StructLit)
+		if !ok {
+			continue
+		}
+		for _, fd := range FieldDecls(s.Elts, func(x ast.Expr) []ast.Expr { return []ast.Expr{x} }) {
+			name, _, _ := ast.LabelName(fd.Field.Label)
+			lit, ok := fd.Field.Value.(*ast.StructLit)
+			if !ok {
+				t.Fatalf("%s: value is %T", name, fd.Field.Value)
+			}
+			decls[name] = fmt.Sprintf("%T", lit.Elts[0])
+			if got := soleEmbed(lit.Elts[:1]); got == nil {
+				t.Errorf("%s: soleEmbed does not see the embedding", name)
+			}
+		}
+	}
+	want := map[string]string{"besideComprehension": "*ast.Ident", "besideField": "*ast.EmbedDecl"}
+	if fmt.Sprint(decls) != fmt.Sprint(want) {
+		t.Errorf("first declarations: got %v, want %v", decls, want)
 	}
 }

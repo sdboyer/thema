@@ -1,0 +1,11 @@
+# A table whose entry for one key is an optional field: indexing by that key gives no value.
+-- source.cue --
+k!: "x" | "y"
+-- target.cue --
+n!: int
+-- lens.cue --
+v0_0: _
+v1_0: {n: {x?: 1, y: 2}[v0_0.k]}
+-- out --
+not total
+v1_0.n indexes a table by v0_0.k, which may be "x", for which the table has no entry (rule table-key-missing) @ lens.cue:2:11

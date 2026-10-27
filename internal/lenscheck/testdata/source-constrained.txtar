@@ -1,0 +1,12 @@
+# A lens constraining the field it takes with a default: it must be _, and what the lens copies is the defaulted disjunction, not a value.
+-- source.cue --
+b: string
+-- target.cue --
+a: string
+-- lens.cue --
+v0_0: {b: *"d" | string}
+v1_0: {a: v0_0.b}
+-- out --
+not total
+v0_0 is {b: *"d" | string}, a constraint on what the lens receives; v0_0 must be _, so that the source schema alone says what the lens takes (rule source-constrained) @ lens.cue:1:1
+v1_0.a is *"d" | string, a disjunction rather than a value; a result field must have one concrete value (rule not-a-value) @ lens.cue:2:11
