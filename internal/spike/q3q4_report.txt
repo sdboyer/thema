@@ -13,6 +13,7 @@ division by zero                   | CUE div(7, 0)                    = ERR: x: 
 string len, ASCII                  | CUE len("hello")                 = 5                      | CEL size("hello")                  = 5                      | same
 string len, multibyte              | CUE len("héllo")                 = 6                      | CEL size("héllo")                  = 5                      | DIFFERENT
 strings.Runes len                  | CUE import "strings"; len(strings.Runes("héllo")) = 5                      | CEL size("héllo")                  = 5                      | same
+string len as bytes                | CUE len("héllo")                 = 6                      | CEL size(bytes("héllo"))           = 6                      | same
 string len, emoji (4 bytes)        | CUE len("a😀")                    = 5                      | CEL size("a😀")                     = 2                      | DIFFERENT
 int -> string, interpolation       | CUE "\(42)"                      = "42"                   | CEL string(42)                     = "42"                   | same
 neg int -> string                  | CUE "\(-42)"                     = "-42"                  | CEL string(-42)                    = "-42"                  | same
@@ -20,6 +21,8 @@ bool -> string                     | CUE "\(true)"                    = "true"  
 concat                             | CUE "a" + "b"                    = "ab"                   | CEL "a" + "b"                      = "ab"                   | same
 interp with str+int                | CUE "x-\("s")-\(3)"              = "x-s-3"                | CEL "x-" + "s" + "-" + string(3)   = "x-s-3"                | same
 ToUpper non-ASCII                  | CUE import "strings"; strings.ToUpper("héllo") = "HÉLLO"                | CEL "héllo".upperAscii()           = "HéLLO"                | DIFFERENT
+CUE div via CEL                    | CUE div(-7, 2)                   = -4                     | CEL (-7 - (((-7 % 2) + 2) % 2)) / 2 = -4                     | same
+CUE mod via CEL                    | CUE mod(-7, 2)                   = 1                      | CEL ((-7 % 2) + 2) % 2             = 1                      | same
 int64 max + 1                      | CUE 9223372036854775807 + 1      = 9223372036854775808    | CEL 9223372036854775807 + 1        = ERR: integer overflow  | DIFFERENT
 int64 min - 1                      | CUE -9223372036854775808 - 1     = -9223372036854775809   | CEL -9223372036854775808 - 1       = ERR: integer overflow  | DIFFERENT
 int64 mul overflow                 | CUE 4611686018427387904 * 2      = 9223372036854775808    | CEL 4611686018427387904 * 2        = ERR: integer overflow  | DIFFERENT
@@ -52,8 +55,8 @@ input_n=-9223372036854775808: input_n - 1 -> out=integer overflow err=integer ov
 negate min: out=integer overflow err=integer overflow
 
 == Q3: cost ==
-compile+program: 29.169µs each; eval: 140ns each (ratio 208x)
-eval with prebuilt Activation: 134ns each
+compile+program: 29.408µs each; eval: 136ns each (ratio 216x)
+eval with prebuilt Activation: 135ns each
 
 static output type of "input_s + \"-\" + string(input_n - 1)": string
 type error caught at compile: true (ast nil=true)
