@@ -7,8 +7,8 @@ import (
 
 	"cuelang.org/go/cue"
 
-	terrors "github.com/sdboyer/thema/errors"
 	"github.com/sdboyer/thema/diag"
+	terrors "github.com/sdboyer/thema/errors"
 	"github.com/sdboyer/thema/internal/envvars"
 )
 

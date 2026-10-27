@@ -148,14 +148,6 @@ func fieldPath(path []string) cue.Path {
 	return cue.MakePath(sels...)
 }
 
-// undeclaredErr describes fields at paths that the schema does not declare.
-func (sch *schemaDef) undeclaredErr(paths []string) error {
-	if len(paths) == 0 {
-		return nil
-	}
-	return fmt.Errorf("fields not declared by schema %s: %s", sch.Version(), strings.Join(paths, ", "))
-}
-
 func pathStrings(paths []cue.Path) []string {
 	strs := make([]string, len(paths))
 	for i, p := range paths {
