@@ -3,13 +3,13 @@ package thema
 import (
 	"fmt"
 	"reflect"
-	"sort"
 	"strings"
 	"testing"
 
-	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	cerrors "cuelang.org/go/cue/errors"
+
+	"github.com/sdboyer/thema/lacuna"
 )
 
 // A lineage whose lenses emit lacunas: 1.0 adds a required field that the
@@ -68,9 +68,9 @@ func TestLacunaEmission(t *testing.T) {
 
 	type step struct {
 		from, to SyntacticVersion
-		types    []LacunaType
+		types    []lacuna.LacunaType
 	}
-	steps := func(tl TranslationLacunas) []step {
+	steps := func(tl lacuna.TranslationLacunas) []step {
 		var out []step
 		for _, s := range tl {
 			st := step{from: s.From, to: s.To}
@@ -89,13 +89,13 @@ func TestLacunaEmission(t *testing.T) {
 		want []step
 	}{
 		"condition false": {SV(0, 1), `{a: "x"}`, SV(0, 0), []step{{SV(0, 1), SV(0, 0), nil}}},
-		"condition true":  {SV(0, 1), `{a: "x", note: "n"}`, SV(0, 0), []step{{SV(0, 1), SV(0, 0), []LacunaType{LacunaDroppedField}}}},
+		"condition true":  {SV(0, 1), `{a: "x", note: "n"}`, SV(0, 0), []step{{SV(0, 1), SV(0, 0), []lacuna.LacunaType{lacuna.LacunaDroppedField}}}},
 		"forward, multi-step": {SV(0, 0), `{a: "x"}`, SV(1, 0), []step{
 			{SV(0, 0), SV(0, 1), nil},
-			{SV(0, 1), SV(1, 0), []LacunaType{LacunaPlaceholder}},
+			{SV(0, 1), SV(1, 0), []lacuna.LacunaType{lacuna.LacunaPlaceholder}},
 		}},
 		"backward, multi-step": {SV(1, 0), `{a: "x", id: 3}`, SV(0, 0), []step{
-			{SV(1, 0), SV(0, 1), []LacunaType{LacunaDroppedField}},
+			{SV(1, 0), SV(0, 1), []lacuna.LacunaType{lacuna.LacunaDroppedField}},
 			{SV(0, 1), SV(0, 0), nil},
 		}},
 		"identity": {SV(0, 0), `{a: "x"}`, SV(0, 0), nil},
@@ -188,11 +188,11 @@ func TestGoLensLacunas(t *testing.T) {
 		"0": "1": {schema: {a: string, b?: int}}
 	}
 }`
-	bind := func(lacunas []Lacuna) Lineage {
+	bind := func(lacunas []lacuna.Lacuna) Lineage {
 		t.Helper()
 		v := loadLineageValue(t, ctx, src)
 		lin, err := BindLineage(v, rt, ImperativeLenses(ImperativeLens{From: SV(0, 1), To: SV(0, 0),
-			Mapper: func(inst *Instance, to Schema) (*Instance, []Lacuna, error) {
+			Mapper: func(inst *Instance, to Schema) (*Instance, []lacuna.Lacuna, error) {
 				out, err := to.Validate(ctx.CompileString(`{a: "x"}`))
 				return out, lacunas, err
 			}}))
@@ -201,7 +201,7 @@ func TestGoLensLacunas(t *testing.T) {
 		}
 		return lin
 	}
-	translate := func(lin Lineage) (TranslationLacunas, error) {
+	translate := func(lin Lineage) (lacuna.TranslationLacunas, error) {
 		inst, err := lin.Latest().Validate(ctx.CompileString(`{a: "x", b: 2}`))
 		if err != nil {
 			t.Fatal(err)
@@ -210,50 +210,24 @@ func TestGoLensLacunas(t *testing.T) {
 		return lac, err
 	}
 
-	lac, err := translate(bind([]Lacuna{{Type: LacunaDroppedField, Message: "b dropped", SourceFields: []FieldRef{{Path: "b", Value: 2}}}}))
+	lac, err := translate(bind([]lacuna.Lacuna{{Type: lacuna.LacunaDroppedField, Message: "b dropped", SourceFields: []lacuna.FieldRef{{Path: "b", Value: 2}}}}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(lac) != 1 || lac[0].From != SV(0, 1) || lac[0].To != SV(0, 0) || len(lac[0].Lacunas) != 1 || lac[0].Lacunas[0].Type != LacunaDroppedField {
+	if len(lac) != 1 || lac[0].From != SV(0, 1) || lac[0].To != SV(0, 0) || len(lac[0].Lacunas) != 1 || lac[0].Lacunas[0].Type != lacuna.LacunaDroppedField {
 		t.Fatalf("unexpected lacunas: %+v", lac)
 	}
 
-	for name, l := range map[string]Lacuna{
+	for name, l := range map[string]lacuna.Lacuna{
 		"unknown type":      {Type: "Bogus", Message: "m"},
-		"missing message":   {Type: LacunaDroppedField},
-		"undeclared path":   {Type: LacunaDroppedField, Message: "m", SourceFields: []FieldRef{{Path: "nope"}}},
-		"wrong side's path": {Type: LacunaDroppedField, Message: "m", TargetFields: []FieldRef{{Path: "b"}}},
+		"missing message":   {Type: lacuna.LacunaDroppedField},
+		"undeclared path":   {Type: lacuna.LacunaDroppedField, Message: "m", SourceFields: []lacuna.FieldRef{{Path: "nope"}}},
+		"wrong side's path": {Type: lacuna.LacunaDroppedField, Message: "m", TargetFields: []lacuna.FieldRef{{Path: "b"}}},
 	} {
 		t.Run(name, func(t *testing.T) {
-			if _, err := translate(bind([]Lacuna{l})); err == nil {
+			if _, err := translate(bind([]lacuna.Lacuna{l})); err == nil {
 				t.Error("invalid lacuna from a Go lens was accepted")
 			}
 		})
-	}
-}
-
-// The Go lacuna type constants must match the types defined in thema's CUE.
-func TestLacunaTypesMatchCUE(t *testing.T) {
-	rt := NewRuntime(cuecontext.New())
-	iter, err := rt.Underlying().LookupPath(cue.ParsePath("LacunaTypes")).Fields()
-	if err != nil {
-		t.Fatal(err)
-	}
-	var cueTypes []string
-	for iter.Next() {
-		s, err := iter.Value().String()
-		if err != nil || s != iter.Selector().String() {
-			t.Errorf("LacunaTypes.%s must be the string %q, got %v", iter.Selector(), iter.Selector(), iter.Value())
-		}
-		cueTypes = append(cueTypes, s)
-	}
-	var goTypes []string
-	for lt := range lacunaTypes {
-		goTypes = append(goTypes, string(lt))
-	}
-	sort.Strings(cueTypes)
-	sort.Strings(goTypes)
-	if !reflect.DeepEqual(cueTypes, goTypes) {
-		t.Errorf("CUE lacuna types %v differ from Go constants %v", cueTypes, goTypes)
 	}
 }

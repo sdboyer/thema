@@ -75,7 +75,7 @@ seams: "embedded-module-root": {
 // are checked against it.
 seams: "lacuna-types": {
 	kind:  "shared-kernel"
-	paths: ["lacuna.go"]
+	paths: ["lacuna/lacuna.go"]
 	consult: [
 		"LacunaTypes in lacuna.cue (lockstep test TestLacunaTypesMatchCUE)",
 		"Go lenses, whose lacunas are validated against these types at translation",

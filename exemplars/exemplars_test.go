@@ -7,6 +7,7 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/lacuna"
 )
 
 var allctx = cuecontext.New()
@@ -74,12 +75,12 @@ func TestExemplarLacunas(t *testing.T) {
 		lin      func(*thema.Runtime, ...thema.BindOption) (thema.Lineage, error)
 		from, to thema.SyntacticVersion
 		data     string
-		want     []thema.LacunaType
+		want     []lacuna.LacunaType
 	}{
-		"narrowing, lossy":        {NarrowingLineage, thema.SV(0, 0), thema.SV(1, 0), `{boolish: "maybe"}`, []thema.LacunaType{thema.LacunaLossyFieldMapping}},
+		"narrowing, lossy":        {NarrowingLineage, thema.SV(0, 0), thema.SV(1, 0), `{boolish: "maybe"}`, []lacuna.LacunaType{lacuna.LacunaLossyFieldMapping}},
 		"narrowing, clean":        {NarrowingLineage, thema.SV(0, 0), thema.SV(1, 0), `{boolish: "true"}`, nil},
-		"defaultchange, forward":  {DefaultChangeLineage, thema.SV(0, 0), thema.SV(1, 0), `{aunion: "foo"}`, []thema.LacunaType{thema.LacunaChangedDefault}},
-		"defaultchange, backward": {DefaultChangeLineage, thema.SV(1, 0), thema.SV(0, 0), `{aunion: "bar"}`, []thema.LacunaType{thema.LacunaChangedDefault}},
+		"defaultchange, forward":  {DefaultChangeLineage, thema.SV(0, 0), thema.SV(1, 0), `{aunion: "foo"}`, []lacuna.LacunaType{lacuna.LacunaChangedDefault}},
+		"defaultchange, backward": {DefaultChangeLineage, thema.SV(1, 0), thema.SV(0, 0), `{aunion: "bar"}`, []lacuna.LacunaType{lacuna.LacunaChangedDefault}},
 		"defaultchange, other":    {DefaultChangeLineage, thema.SV(0, 0), thema.SV(1, 0), `{aunion: "baz"}`, nil},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -95,7 +96,7 @@ func TestExemplarLacunas(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			var got []thema.LacunaType
+			var got []lacuna.LacunaType
 			for _, l := range lac.AsList() {
 				got = append(got, l.Type)
 			}

@@ -9,6 +9,7 @@ import (
 
 	terrors "github.com/sdboyer/thema/errors"
 	"github.com/sdboyer/thema/internal/envvars"
+	"github.com/sdboyer/thema/lacuna"
 )
 
 // A CUEWrapper wraps a cue.Value, and can return that value for inspection.
@@ -91,7 +92,7 @@ type Lineage interface {
 // See [ImperativeLenses] for more information.
 type ImperativeLens struct {
 	To, From SyntacticVersion
-	Mapper   func(inst *Instance, to Schema) (*Instance, []Lacuna, error)
+	Mapper   func(inst *Instance, to Schema) (*Instance, []lacuna.Lacuna, error)
 }
 
 // SchemaP returns the schema identified by the provided version. If no schema

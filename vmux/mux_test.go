@@ -10,6 +10,7 @@ import (
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/exemplars"
 	"github.com/sdboyer/thema/internal/envvars"
+	"github.com/sdboyer/thema/lacuna"
 	"github.com/stretchr/testify/require"
 )
 
@@ -89,7 +90,7 @@ type arg struct {
 // image, as in the basic maths notion of the output from a function
 type image struct {
 	str string
-	lac thema.TranslationLacunas
+	lac lacuna.TranslationLacunas
 	err error
 }
 
@@ -286,7 +287,7 @@ func checkSpectrumAcrossMuxers[T thema.Assignee](t *testing.T, clin thema.Conver
 }
 
 // handler for lacunas and errors
-func handleLE(t *testing.T, im image, lac thema.TranslationLacunas, err error) {
+func handleLE(t *testing.T, im image, lac lacuna.TranslationLacunas, err error) {
 	t.Helper()
 	if err != nil && im.err == nil {
 		t.Fatalf("unexpected error while muxing: %s", err)
