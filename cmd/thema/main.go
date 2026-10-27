@@ -73,6 +73,11 @@ func report(err error) int {
 // reread, such as data on stdin, under the name its positions carry.
 var inlineSources = map[string][]byte{}
 
+// sourceDirs are directories that relative positions may be relative to,
+// besides the working directory: a lineage in the authoring form positions its
+// errors by paths relative to its own directory.
+var sourceDirs []string
+
 // readSource reads a file for an excerpt: thema's own CUE from the embedded
 // module, text a command read from stdin from memory, anything else from disk.
 func readSource(file string) ([]byte, bool) {
@@ -83,8 +88,17 @@ func readSource(file string) ([]byte, bool) {
 	if b, ok := inlineSources[file]; ok {
 		return b, true
 	}
-	b, err := os.ReadFile(file)
-	return b, err == nil
+	if b, err := os.ReadFile(file); err == nil {
+		return b, true
+	}
+	if !filepath.IsAbs(file) {
+		for _, dir := range sourceDirs {
+			if b, err := os.ReadFile(filepath.Join(dir, file)); err == nil {
+				return b, true
+			}
+		}
+	}
+	return nil, false
 }
 
 // displayPath is path as a diagnostic names it: relative to the working

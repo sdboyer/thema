@@ -15,6 +15,7 @@ import (
 
 	"cuelang.org/go/cue"
 
+	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/internal/compile"
 )
 
@@ -43,6 +44,15 @@ func Load(fsys fs.FS, dir string) (name string, files []File, err error) {
 // authoring form's terms.
 func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 	return compile.Compile(ctx, name, files)
+}
+
+// Vocabulary names a compiled lineage's parts in the authoring form's terms:
+// a lens is the ForwardLens or BackwardLens in its version file, a schema is
+// the version file that declares it. Bind the compiled lineage with
+// [github.com/sdboyer/thema.WithVocabulary] so that bind's findings read in
+// those terms too.
+func Vocabulary(c *Compiled) diag.Vocabulary {
+	return compile.Vocabulary(c)
 }
 
 // Decompile recovers the authoring files of a lineage in normal form: the

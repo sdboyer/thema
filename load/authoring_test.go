@@ -1,6 +1,7 @@
 package load
 
 import (
+	"strings"
 	"testing"
 	"testing/fstest"
 
@@ -9,6 +10,7 @@ import (
 	cerrors "cuelang.org/go/cue/errors"
 
 	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/diag"
 )
 
 // An authoring directory, as an external module would hold one.
@@ -80,5 +82,44 @@ func TestAuthoringLineageErrorPosition(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("no error positioned in 1.0.thema:\n%s", cerrors.Details(err, nil))
+	}
+}
+
+// Bind's findings about a compiled lineage are worded in the authoring form's
+// terms: the ForwardLens in its version file, not the normal form's lens edge.
+func TestAuthoringLineageVocabulary(t *testing.T) {
+	narrowing := fstest.MapFS{
+		"ship/history/0.0.thema": {Data: []byte("Schema: {\n\ta: int\n}\n")},
+		"ship/1.0.thema": {Data: []byte(`Schema: {
+	a: int & <10
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		a: v0_0.a
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		a: v1_0.a
+	}
+}
+`)},
+	}
+	_, err := AuthoringLineage(narrowing, "ship", thema.NewRuntime(cuecontext.New()))
+	if err == nil {
+		t.Fatal("want an error: the forward lens copies a into a narrower field")
+	}
+	ds := diag.Diagnostics(err)
+	if len(ds) == 0 {
+		t.Fatalf("no diagnostics in %v", err)
+	}
+	for _, d := range ds {
+		if strings.Contains(d.Headline, "0.0->1.0") || !strings.Contains(d.Headline, "1.0.thema") {
+			t.Errorf("headline is not in the authoring form's terms: %q", d.Headline)
+		}
 	}
 }
