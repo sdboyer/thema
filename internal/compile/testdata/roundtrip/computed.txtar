@@ -1,0 +1,240 @@
+Computed mappings: arithmetic, a strings function and a comparison over
+fields 0.0 always has, a computed value over an optional field written only
+where it is present, and orelse over a computed primary.
+-- ship/history/0.0.thema --
+Schema: {
+	name:   string
+	width:  int32
+	height: int32
+	tag?:   string
+	count?: int32
+}
+-- ship/1.0.thema --
+Schema: {
+	name:   string
+	label:  string
+	area:   int64
+	wide:   bool
+	tag?:   string
+	total:  int64
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		label: strings.ToUpper(v0_0.name)
+		area:  v0_0.width * v0_0.height
+		wide:  v0_0.width > v0_0.height
+		tag:   strings.TrimSpace(v0_0.tag)
+		total: orelse(v0_0.count * 2, 0)
+		width:  drop
+		height: drop
+		count:  drop
+	}
+	lacunas: {
+		total: [{
+			type:    Placeholder
+			message: "count was absent; 0 is a placeholder"
+		}]
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		width:  0
+		height: 0
+	}
+}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+Schema: {
+	name:  string
+	label: string
+	area:  int64
+	wide:  bool
+	tag?:  string
+	total: int64
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		label:  strings.ToUpper(v0_0.name)
+		area:   v0_0.width * v0_0.height
+		wide:   v0_0.width > v0_0.height
+		tag:    strings.TrimSpace(v0_0.tag)
+		total:  orelse(v0_0.count * 2, 0)
+		width:  drop
+		height: drop
+		count:  drop
+	}
+	lacunas: {
+		total: [{
+			type:    Placeholder
+			message: "count was absent; 0 is a placeholder"
+		}]
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		width:  0
+		height: 0
+	}
+}
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	name:   string
+	width:  int32
+	height: int32
+	tag?:   string
+	count?: int32
+}
+-- out/normal.cue --
+import "strings"
+
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				name:   string
+				width:  int32
+				height: int32
+				tag?:   string
+				count?: int32
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				name:  string
+				label: string
+				area:  int64
+				wide:  bool
+				tag?:  string
+				total: int64
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			name:  v0_0.name
+			label: strings.ToUpper(v0_0.name)
+			area:  v0_0.width * v0_0.height
+			wide:  v0_0.width > v0_0.height
+			if v0_0.tag != _|_ {
+				tag: strings.TrimSpace(v0_0.tag)
+			}
+			total: [if v0_0.count != _|_ {
+				v0_0.count * 2
+			}, 0][
+				0]
+		}
+		lacunas: [
+			{
+				condition: [
+					if v0_0.count != _|_ {
+						false
+					},
+					true
+				][
+					0]
+				sourceFields: [if v0_0.count != _|_ {
+					path:  "count"
+					value: v0_0.count
+				}]
+				targetFields: [{
+					path:  "total"
+					value: v1_0.total
+				}]
+				message: "count was absent; 0 is a placeholder"
+				type:    "Placeholder"
+			},
+			{
+				@thema(derived)
+				sourceFields: [{
+					path:  "width"
+					value: v0_0.width
+				}]
+				message: "width has no equivalent in 1.0 and was dropped"
+				type:    "DroppedField"
+			},
+			{
+				@thema(derived)
+				sourceFields: [{
+					path:  "height"
+					value: v0_0.height
+				}]
+				message: "height has no equivalent in 1.0 and was dropped"
+				type:    "DroppedField"
+			},
+			{
+				@thema(derived)
+				condition: v0_0.count != _|_
+				sourceFields: [{
+					path:  "count"
+					value: v0_0.count
+				}]
+				message: "count has no equivalent in 1.0 and was dropped"
+				type:    "DroppedField"
+			}
+		]
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			name:   v1_0.name
+			width:  0
+			height: 0
+			if v1_0.tag != _|_ {
+				tag: v1_0.tag
+			}
+		}
+		lacunas: [
+			{
+				@thema(derived)
+				sourceFields: [{
+					path:  "label"
+					value: v1_0.label
+				}]
+				message: "label has no equivalent in 0.0 and was dropped"
+				type:    "DroppedField"
+			},
+			{
+				@thema(derived)
+				sourceFields: [{
+					path:  "area"
+					value: v1_0.area
+				}]
+				message: "area has no equivalent in 0.0 and was dropped"
+				type:    "DroppedField"
+			},
+			{
+				@thema(derived)
+				sourceFields: [{
+					path:  "wide"
+					value: v1_0.wide
+				}]
+				message: "wide has no equivalent in 0.0 and was dropped"
+				type:    "DroppedField"
+			},
+			{
+				@thema(derived)
+				sourceFields: [{
+					path:  "total"
+					value: v1_0.total
+				}]
+				message: "total has no equivalent in 0.0 and was dropped"
+				type:    "DroppedField"
+			}
+		]
+	}
+}

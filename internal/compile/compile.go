@@ -2,6 +2,8 @@ package compile
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/ast"
@@ -49,6 +51,7 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 
 	tip := vs[len(vs)-1]
 	out := &Compiled{Name: name}
+	imports := make(map[string]bool)
 	schemas := &ast.StructLit{}
 	lenses := &ast.StructLit{}
 	majors := make(map[uint]*ast.StructLit)
@@ -82,7 +85,7 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 		}
 
 		// Forward: previous version to this one. Only a major version has one.
-		fe := &edge{ctx: ctx, S: vals[i-1], T: vals[i], sv: prev.v, tv: v.v, dir: forward, file: v.path, blockPos: v.header(), root: paramName(prev.v), lacunas: &lacunaTable{}}
+		fe := &edge{ctx: ctx, S: vals[i-1], T: vals[i], sv: prev.v, tv: v.v, dir: forward, file: v.path, blockPos: v.header(), root: paramName(prev.v), lacunas: &lacunaTable{}, imports: imports}
 		fb := &body{}
 		if v.forward != nil {
 			fe.written, fe.blockPos = true, v.forward.Pos()
@@ -113,7 +116,7 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 
 		// Backward: this version to the previous one, derived from the forward
 		// lens and overridden by what the author wrote.
-		be := &edge{ctx: ctx, S: vals[i], T: vals[i-1], sv: v.v, tv: prev.v, dir: backward, file: v.path, blockPos: v.header(), root: paramName(v.v), lacunas: &lacunaTable{}}
+		be := &edge{ctx: ctx, S: vals[i], T: vals[i-1], sv: v.v, tv: prev.v, dir: backward, file: v.path, blockPos: v.header(), root: paramName(v.v), lacunas: &lacunaTable{}, imports: imports}
 		ab := &body{}
 		if v.backward != nil {
 			be.written, be.blockPos = true, v.backward.Pos()
@@ -135,11 +138,20 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 		return nil, errs
 	}
 
-	out.File = &ast.File{Decls: []ast.Decl{
+	out.File = &ast.File{}
+	if len(imports) > 0 {
+		// The packages the lenses' expressions call into, in a fixed order.
+		var specs []*ast.ImportSpec
+		for _, pkg := range slices.Sorted(maps.Keys(imports)) {
+			specs = append(specs, ast.NewImport(nil, pkg))
+		}
+		out.File.Decls = append(out.File.Decls, &ast.ImportDecl{Specs: specs})
+	}
+	out.File.Decls = append(out.File.Decls,
 		at(tip.header(), &ast.Field{Label: at(tip.header(), ast.NewIdent("name")), Value: at(tip.header(), ast.NewString(name))}),
 		at(tip.header(), &ast.Field{Label: at(tip.header(), ast.NewIdent("schemas")), Value: schemas}),
 		at(tip.header(), &ast.Field{Label: at(tip.header(), ast.NewIdent("lenses")), Value: lenses}),
-	}}
+	)
 	return out, nil
 }
 

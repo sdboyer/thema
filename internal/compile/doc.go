@@ -19,6 +19,7 @@
 //
 //	after: v0_0.before                      // a move: a reference into the instance
 //	kind:  "v2"                             // a constant
+//	area:  v0_0.w * v0_0.h                  // a computed value
 //	meta: {owner: v0_0.name}                // a nested body; {v0_0.m, x: 1} copies from m
 //	legacy: drop                            // a drop, keyed by the source field
 //	nick:  orelse(v0_0.nick, v0_0.name)     // an optional source: the fallback when absent
@@ -57,9 +58,15 @@
 // optional field concerns only the instances that have it; an optional field
 // named bare, when: v0_0.x, tests its presence, and a required bool named
 // bare is its value. Inside an each body, only the DroppedField refinement is
-// supported yet, keyed through the list (items: {legacy: [...]}). Computed
-// expressions are not accepted yet; orelse over a computed primary, the
-// curated builtin table, and conditions reading optional fields are next.
+// supported yet, keyed through the list (items: {legacy: [...]}).
+//
+// A computed value is built from source fields with CUE's operators, len,
+// the integer divisions and the strings functions the totality proof proves
+// (lenscheck.Builtins and lenscheck.StringFuncs, the one list of each); the
+// file needs no import for strings. A computed value that reads optional
+// fields is written only where they are present, so a target field that
+// requires it takes orelse(<expression>, fallback), which uses the fallback
+// where any of them is absent.
 //
 // # Layout
 //
