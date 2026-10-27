@@ -82,15 +82,23 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 		}
 
 		// Forward: previous version to this one. Only a major version has one.
-		fe := &edge{ctx: ctx, from: prev, to: v, S: vals[i-1], T: vals[i], sv: prev.v, tv: v.v, dir: forward, file: v.path, blockPos: v.header()}
+		fe := &edge{ctx: ctx, S: vals[i-1], T: vals[i], sv: prev.v, tv: v.v, dir: forward, file: v.path, blockPos: v.header(), root: paramName(prev.v), emitRoot: rootInput, lacunas: &lacunaTable{}}
 		fb := &body{}
 		if v.forward != nil {
 			fe.written, fe.blockPos = true, v.forward.Pos()
-			if minor && len(v.block(v.forward).Elts) > 0 {
-				errs = cerrors.Append(errs, cerrors.Newf(v.forward.Pos(), "%s: this version is backward compatible with %s, so translating forward is implicit: remove the forward entries, or make the change breaking", v.path, prev.v))
+			lit, lac, lerr := lensBlock(v.forward, prev.v, v.v)
+			if lerr != nil {
+				errs = cerrors.Append(errs, lerr)
 				continue
 			}
-			fe.parseBody(v.block(v.forward), cue.MakePath(), cue.MakePath(), fb)
+			if minor && (len(lit.Elts) > 0 || lac != nil && len(lac.Elts) > 0) {
+				errs = cerrors.Append(errs, cerrors.Newf(v.forward.Pos(), "%s: this version is backward compatible with %s, so translating forward is implicit: remove the ForwardLens entries, or make the change breaking", v.path, prev.v))
+				continue
+			}
+			fe.parseBody(lit, cue.MakePath(), cue.MakePath(), fb)
+			if lac != nil {
+				fe.parseLacunas(lac, cue.MakePath(), fe.lacunas)
+			}
 		}
 		fwd := fe.assemble(fb)
 		if fe.errs != nil {
@@ -105,11 +113,19 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 
 		// Backward: this version to the previous one, derived from the forward
 		// lens and overridden by what the author wrote.
-		be := &edge{ctx: ctx, from: v, to: prev, S: vals[i], T: vals[i-1], sv: v.v, tv: prev.v, dir: backward, file: v.path, blockPos: v.header()}
+		be := &edge{ctx: ctx, S: vals[i], T: vals[i-1], sv: v.v, tv: prev.v, dir: backward, file: v.path, blockPos: v.header(), root: paramName(v.v), emitRoot: rootInput, lacunas: &lacunaTable{}}
 		ab := &body{}
 		if v.backward != nil {
 			be.written, be.blockPos = true, v.backward.Pos()
-			be.parseBody(v.block(v.backward), cue.MakePath(), cue.MakePath(), ab)
+			lit, lac, lerr := lensBlock(v.backward, v.v, prev.v)
+			if lerr != nil {
+				errs = cerrors.Append(errs, lerr)
+				continue
+			}
+			be.parseBody(lit, cue.MakePath(), cue.MakePath(), ab)
+			if lac != nil {
+				be.parseLacunas(lac, cue.MakePath(), be.lacunas)
+			}
 		}
 		bwd := be.assemble(be.derive(fwd, ab))
 		errs = cerrors.Append(errs, be.errs)
@@ -127,12 +143,70 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 	return out, nil
 }
 
+// paramName is the identifier a lens binds an instance of version v to:
+// v0_0 for 0.0.
+func paramName(v thema.SyntacticVersion) string {
+	return fmt.Sprintf("v%d_%d", v[0], v[1])
+}
+
+// lensBlock reads a ForwardLens or BackwardLens block for the edge from -> to:
+// {v<from>: _, v<to>: {...}, lacunas: {...}}. The first field declares the
+// instance the lens takes, the second is the body producing the instance it
+// returns, and the optional third declares the lacunas of the body's mappings.
+func lensBlock(f *ast.Field, from, to thema.SyntacticVersion) (body, lacunas *ast.StructLit, err cerrors.Error) {
+	name, _, _ := ast.LabelName(f.Label)
+	shape := fmt.Sprintf("%s for the lens from %s to %s is {%s: _, %s: {...}}, with an optional %s: {...}", name, from, to, paramName(from), paramName(to), fieldLacunas)
+	var param, result, lac *ast.Field
+	for _, d := range f.Value.(*ast.StructLit).Elts {
+		switch d := d.(type) {
+		case *ast.CommentGroup:
+		case *ast.Field:
+			label, _, err := ast.LabelName(d.Label)
+			if err != nil {
+				return nil, nil, cerrors.Newf(d.Pos(), "%s", shape)
+			}
+			switch label {
+			case paramName(from):
+				if id, ok := d.Value.(*ast.Ident); !ok || id.Name != "_" {
+					return nil, nil, cerrors.Newf(d.Value.Pos(), "%s takes an instance of %s: declare it as %s: _", name, from, paramName(from))
+				}
+				param = d
+			case paramName(to):
+				if _, ok := d.Value.(*ast.StructLit); !ok {
+					return nil, nil, cerrors.Newf(d.Value.Pos(), "%s produces an instance of %s: %s must be a struct of mappings", name, to, paramName(to))
+				}
+				result = d
+			case fieldLacunas:
+				if _, ok := d.Value.(*ast.StructLit); !ok {
+					return nil, nil, cerrors.Newf(d.Value.Pos(), "%s is a struct, keyed by the mappings of %s", fieldLacunas, paramName(to))
+				}
+				lac = d
+			default:
+				return nil, nil, cerrors.Newf(d.Pos(), "%s is not part of %s; %s", label, name, shape)
+			}
+		default:
+			return nil, nil, cerrors.Newf(d.Pos(), "%s", shape)
+		}
+	}
+	if param == nil {
+		return nil, nil, cerrors.Newf(f.Pos(), "%s does not declare the instance it takes; %s", name, shape)
+	}
+	if result == nil {
+		return nil, nil, cerrors.Newf(f.Pos(), "%s does not declare the instance it produces; %s", name, shape)
+	}
+	if lac != nil {
+		lacunas = lac.Value.(*ast.StructLit)
+	}
+	return result.Value.(*ast.StructLit), lacunas, nil
+}
+
 // lensField builds the lenses entry for the edge from -> to.
 func lensField(p token.Pos, from, to thema.SyntacticVersion, l *compiledLens) *ast.Field {
 	elts := []ast.Decl{
 		at(p, &ast.Field{Label: at(p, ast.NewIdent("input")), Value: at(p, ast.NewIdent("_"))}),
-		at(p, &ast.Field{Label: at(p, ast.NewIdent("result")), Value: at(p, l.result)}),
 	}
+	elts = append(elts, l.lets...)
+	elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("result")), Value: at(p, l.result)}))
 	if len(l.lacunas) > 0 {
 		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("lacunas")), Value: at(p, ast.NewList(l.lacunas...))}))
 	}

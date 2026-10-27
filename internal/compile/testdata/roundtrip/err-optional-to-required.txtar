@@ -12,9 +12,12 @@ schema: {
 	c: bool
 }
 
-forward: {
-	c: true
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		c: true
+	}
 }
 -- out/error --
-b is optional in 0.0 and required in 1.0: map it with orelse(input.b, <fallback>), which is not supported yet:
+b is optional in 0.0 and required in 1.0: write b: orelse(v0_0.b, <fallback>) to say what to use when it is absent:
     1.0.thema:3:2

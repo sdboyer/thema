@@ -24,8 +24,8 @@ const Ext = ".thema"
 // The fields of a version file.
 const (
 	fieldSchema   = "schema"
-	fieldForward  = "forward"
-	fieldBackward = "backward"
+	fieldForward  = "ForwardLens"
+	fieldBackward = "BackwardLens"
 )
 
 // File is one authoring file: its path relative to the lineage's directory,
@@ -81,15 +81,6 @@ func (v *version) header() token.Pos {
 	return v.tf.Pos(0, token.NoRelPos)
 }
 
-// block returns the struct literal of the forward or backward field, nil if
-// the field is absent.
-func (v *version) block(f *ast.Field) *ast.StructLit {
-	if f == nil {
-		return nil
-	}
-	return f.Value.(*ast.StructLit)
-}
-
 // parseVersion parses one version file. Its name gives its version; its
 // contents are at most a schema, a forward block and a backward block.
 func parseVersion(f File) (*version, error) {
@@ -117,7 +108,7 @@ func parseVersion(f File) (*version, error) {
 		case *ast.Field:
 			name, _, err := ast.LabelName(d.Label)
 			if err != nil {
-				errs = cerrors.Append(errs, cerrors.Newf(d.Pos(), "a version file has only schema, forward and backward"))
+				errs = cerrors.Append(errs, cerrors.Newf(d.Pos(), "a version file has only schema, ForwardLens and BackwardLens"))
 				continue
 			}
 			var slot **ast.Field
@@ -129,7 +120,7 @@ func parseVersion(f File) (*version, error) {
 			case fieldBackward:
 				slot = &v.backward
 			default:
-				errs = cerrors.Append(errs, cerrors.Newf(d.Pos(), "%s is not a field of a version file; a version file has only schema, forward and backward", name))
+				errs = cerrors.Append(errs, cerrors.Newf(d.Pos(), "%s is not a field of a version file; a version file has only schema, ForwardLens and BackwardLens", name))
 				continue
 			}
 			if *slot != nil {
@@ -138,13 +129,13 @@ func parseVersion(f File) (*version, error) {
 			}
 			if name != fieldSchema {
 				if _, ok := d.Value.(*ast.StructLit); !ok {
-					errs = cerrors.Append(errs, cerrors.Newf(d.Value.Pos(), "%s must be a struct of mappings", name))
+					errs = cerrors.Append(errs, cerrors.Newf(d.Value.Pos(), "%s must be a struct: {v<from>: _, v<to>: {...}}", name))
 					continue
 				}
 			}
 			*slot = d
 		default:
-			errs = cerrors.Append(errs, cerrors.Newf(d.Pos(), "a version file has only schema, forward and backward"))
+			errs = cerrors.Append(errs, cerrors.Newf(d.Pos(), "a version file has only schema, ForwardLens and BackwardLens"))
 		}
 	}
 	if v.schema == nil {

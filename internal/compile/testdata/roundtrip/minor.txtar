@@ -18,8 +18,9 @@ schema: {
 	secondfield?: int
 }
 -- out/decompiled/history/0.0.thema --
-schema:
+schema: {
 	firstfield: string
+}
 -- out/normal.cue --
 name: "ship"
 schemas:

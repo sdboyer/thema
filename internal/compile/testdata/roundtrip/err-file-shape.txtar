@@ -15,13 +15,16 @@ schema: {
 
 extra: 1
 
-forward: {
-	b: 1
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		b: 1
+	}
 }
 -- out/error --
 a version file has no package clause:
     1.0.thema:1:1
 imports are not allowed in a version file:
     1.0.thema:3:1
-extra is not a field of a version file; a version file has only schema, forward and backward:
+extra is not a field of a version file; a version file has only schema, ForwardLens and BackwardLens:
     1.0.thema:10:1

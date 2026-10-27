@@ -9,5 +9,5 @@ schema: {
 	b: int
 }
 -- out/error --
-1.0.thema has no forward lens, and 1.0 requires b: write forward: {b: <mapping>}:
+1.0.thema has no ForwardLens, and 1.0 requires b: write ForwardLens: {v0_0: _, v1_0: {b: <mapping>}}:
     1.0.thema:1:1

@@ -11,8 +11,11 @@ schema: {
 	unchanged: string
 }
 
-forward: {
-	after: input.before
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		after: v0_0.before
+	}
 }
 -- out/bind --
 ok
@@ -22,8 +25,12 @@ schema: {
 	unchanged: string
 }
 
-forward:
-	after: input.before
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		after: v0_0.before
+	}
+}
 -- out/decompiled/history/0.0.thema --
 schema: {
 	before:    string

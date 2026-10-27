@@ -1,0 +1,39 @@
+A lacunas key that names no mapping of the lens. A derived mapping (here,
+the backward drop of secondfield) is not one: to refine its lacuna, write
+the drop.
+-- ship/history/0.0.thema --
+schema: {
+	firstfield: string
+}
+-- ship/1.0.thema --
+schema: {
+	firstfield:  string
+	secondfield: int
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		secondfield: -1
+	}
+	lacunas: {
+		secondfeild: [{
+			type:    Placeholder
+			message: "-1 is a placeholder"
+		}]
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {}
+	lacunas: {
+		secondfield: [{
+			type:    DroppedField
+			message: "secondfield is new in 1.0"
+		}]
+	}
+}
+-- out/error --
+lacunas.secondfeild: ForwardLens has no mapping keyed secondfeild:
+    1.0.thema:12:17

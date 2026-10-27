@@ -1,0 +1,21 @@
+An attribute on a mapping. Nothing attaches to a mapping; a lacuna is
+declared in the lens's lacunas field, keyed by the mapping.
+-- ship/history/0.0.thema --
+schema: {
+	firstfield: string
+}
+-- ship/1.0.thema --
+schema: {
+	firstfield:  string
+	secondfield: int
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		secondfield: -1 @lacuna(Placeholder, "-1 is a placeholder")
+	}
+}
+-- out/error --
+a mapping has no attributes; a lacuna is declared in the lens's lacunas field, keyed by the mapping:
+    1.0.thema:9:19
