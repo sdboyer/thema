@@ -27,14 +27,28 @@ const (
 // Every field is optional.
 type Context struct {
 	Op Op
-	// SourceValue returns the author's value at a normal-form error path, such
-	// as [lenses "0.0->1.0" result count], so that an error CUE positioned only
-	// in thema's CUE can be given the author's position. The path's segments
-	// are unquoted.
+	// Base is the construct the operation is about: the data being validated
+	// against a schema version, the lineage being bound. Shapes refine it with
+	// each error's path.
+	Base Address
+	// PathPrefix is the leading segments every error path carries because of
+	// how the operation evaluated, not because of anything the author wrote:
+	// the definition validation closes a schema in. They are stripped before a
+	// path is used.
+	PathPrefix []string
+	// SourceValue returns the author's value at an error path: for validation,
+	// the schema's value at the data path; for binding, the lineage's value at
+	// the normal-form path. It gives an error CUE positioned only in thema's
+	// CUE the author's position, and lets shapes describe what the author
+	// declared. The path's segments are unquoted.
 	SourceValue func(path []string) (cue.Value, bool)
 	// IsData reports whether a filename is the data document being validated
 	// or translated. Its positions come before the schema's.
 	IsData func(file string) bool
+	// DataPos is the position of the data document itself. It is the primary
+	// when the data has no position for the field at fault, as when the field
+	// is absent.
+	DataPos token.Pos
 	// Vocabulary renders each diagnostic's Address into the author's terms.
 	// nil means [NormalForm].
 	Vocabulary Vocabulary
@@ -49,109 +63,159 @@ func (ctx Context) vocab() Vocabulary {
 	return ctx.Vocabulary
 }
 
+// path returns an error's path as the author sees it: unquoted, without the
+// operation's PathPrefix.
+func (ctx Context) path(e cerrors.Error) []string {
+	p := unquotePath(e.Path())
+	if len(ctx.PathPrefix) > 0 && len(p) >= len(ctx.PathPrefix) {
+		match := true
+		for i, s := range ctx.PathPrefix {
+			if p[i] != s {
+				match = false
+				break
+			}
+		}
+		if match {
+			p = p[len(ctx.PathPrefix):]
+		}
+	}
+	return p
+}
+
 // From converts err into diagnostics. Every [Error] in err contributes its
 // diagnostic; every other cue/errors entry is matched against the shapes thema
 // recognizes, and what matches nothing becomes a generic diagnostic carrying
 // CUE's text verbatim. Nothing in err is dropped.
 func From(err error, ctx Context) []Diagnostic {
+	errs := convert(err, ctx)
+	if len(errs) == 0 {
+		return nil
+	}
+	out := make([]Diagnostic, len(errs))
+	for i, e := range errs {
+		out[i] = e.d
+	}
+	return out
+}
+
+// Convert is [From] as an error: a cue/errors list of one [Error] per
+// diagnostic, or nil when err is nil. Operations return it so that callers
+// get diagnostics through [Diagnostics] and sentinels through errors.Is.
+func Convert(err error, ctx Context) error {
+	errs := convert(err, ctx)
+	if len(errs) == 0 {
+		return nil
+	}
+	var out cerrors.Error
+	for _, e := range errs {
+		out = cerrors.Append(out, e)
+	}
+	return out
+}
+
+func convert(err error, ctx Context) []*Error {
 	if err == nil {
 		return nil
 	}
 	entries := cerrors.Errors(err)
-	var out []Diagnostic
+	var out []*Error
 	for i := 0; i < len(entries); i++ {
 		e := entries[i]
 		if de, ok := e.(*Error); ok {
-			out = append(out, ctx.finish(de.d))
+			out = append(out, ctx.finish(de))
 			continue
 		}
 		if n, ok := disjunctionHeader(e); ok && i+n < len(entries) {
-			out = append(out, ctx.disjunction(e, entries[i+1:i+1+n]))
+			out = append(out, ctx.finish(ctx.disjunction(e, entries[i+1:i+1+n])))
 			i += n
 			continue
 		}
-		if d, ok := ctx.recognize(e); ok {
-			out = append(out, ctx.finish(d))
+		if b, ok := ctx.recognize(e); ok {
+			out = append(out, ctx.finish(b.Err()))
 			continue
 		}
-		out = append(out, ctx.finish(ctx.generic(e)))
+		out = append(out, ctx.finish(ctx.generic(e).Err()))
 	}
 	return out
 }
 
 // finish renders the Path from the Address in the operation's vocabulary.
-func (ctx Context) finish(d Diagnostic) Diagnostic {
-	if d.Address != nil {
-		d.Path = ctx.vocab().Path(*d.Address)
+func (ctx Context) finish(e *Error) *Error {
+	if e.d.Address != nil {
+		e.d.Path = ctx.vocab().Path(*e.d.Address)
 	}
-	return d
+	return e
 }
 
 // generic builds the diagnostic for an entry no shape describes.
-func (ctx Context) generic(e cerrors.Error) Diagnostic {
+func (ctx Context) generic(e cerrors.Error) *B {
 	code := E0902
 	if isPromoted(e) {
 		code = E0903
 	}
-	d := Diagnostic{Code: code, Severity: SeverityError, Detail: e.Error()}
-	d.Headline, _ = title(code)
+	b := New(code).Detail(ctx.cueText(e))
 	if ctx.AddressOf != nil {
-		if a, ok := ctx.AddressOf(unquotePath(e.Path())); ok {
-			d.Address = &a
+		if a, ok := ctx.AddressOf(ctx.path(e)); ok {
+			b.Addr(a)
 		}
 	}
-	ctx.place(&d, e.Path(), positionsOf(e), "")
-	return d
+	ctx.place(b, ctx.path(e), positionsOf(e), "")
+	return b
 }
 
 // disjunction folds the positionless "K errors in empty disjunction" header
 // and its K arms into one diagnostic: the arms are notes, each at its own
-// position with its own text.
-func (ctx Context) disjunction(header cerrors.Error, arms []cerrors.Error) Diagnostic {
-	d := Diagnostic{Code: E0902, Severity: SeverityError, Detail: header.Error()}
-	d.Headline, _ = title(E0902)
-	if ctx.AddressOf != nil {
-		if a, ok := ctx.AddressOf(unquotePath(header.Path())); ok {
-			d.Address = &a
+// position with its own text. A shape for the operation may describe it;
+// otherwise it is generic.
+func (ctx Context) disjunction(header cerrors.Error, arms []cerrors.Error) *Error {
+	b, ok := ctx.recognizeDisjunction(header, arms)
+	if !ok {
+		b = New(E0902).Detail(ctx.cueText(header))
+		if ctx.AddressOf != nil {
+			if a, ok := ctx.AddressOf(ctx.path(header)); ok {
+				b.Addr(a)
+			}
 		}
 	}
 	var ps []token.Pos
 	for _, arm := range arms {
 		armps := positionsOf(arm)
 		if len(armps) == 0 {
-			d.Notes = append(d.Notes, Note{Label: arm.Error()})
+			b.Note(token.NoPos, ctx.cueText(arm))
 			continue
 		}
-		d.Notes = append(d.Notes, Note{Pos: PosOf(armps[0]), Label: arm.Error()})
+		b.Note(armps[0], ctx.cueText(arm))
 		ps = append(ps, armps...)
 	}
-	ctx.place(&d, header.Path(), ps, "also here")
-	return ctx.finish(d)
+	ctx.place(b, ctx.path(header), ps, "also here")
+	return b.Err()
 }
 
-// place chooses d's primary position from ps, per the operation: the data's
+// place chooses b's primary position from ps, per the operation: the data's
 // position first when validating or translating, else the first position in
 // the author's files; failing both, the author's value along path. Every
-// other position becomes a note. Positions already noted are not noted again.
-func (ctx Context) place(d *Diagnostic, path []string, ps []token.Pos, label string) {
+// other position becomes a note, unless already noted. A builder that found
+// the author's position for what thema's CUE says (hideKernel) drops thema's
+// own positions instead of noting them.
+func (ctx Context) place(b *B, path []string, ps []token.Pos, label string) {
 	ps = dedup(ps)
 	noted := make(map[token.Pos]bool)
-	for _, n := range d.Notes {
-		if n.Pos != nil {
-			for _, p := range ps {
-				if PosOf(p).String() == n.Pos.String() {
-					noted[p] = true
-				}
-			}
-		}
+	for _, p := range b.e.notePos {
+		noted[p] = true
 	}
 	primary := token.NoPos
-	if ctx.IsData != nil {
+	if b.e.primary.IsValid() {
+		primary = b.e.primary
+	}
+	if !primary.IsValid() && ctx.IsData != nil {
 		for _, p := range ps {
 			if OriginOf(p.Filename()) == OriginUser && ctx.IsData(p.Filename()) {
 				primary = p
 				break
 			}
+		}
+		if !primary.IsValid() && ctx.DataPos.IsValid() {
+			primary = ctx.DataPos
 		}
 	}
 	if !primary.IsValid() {
@@ -163,28 +227,40 @@ func (ctx Context) place(d *Diagnostic, path []string, ps []token.Pos, label str
 		}
 	}
 	if !primary.IsValid() && ctx.SourceValue != nil {
-		if p, depth, ok := ctx.authorPosAlong(unquotePath(path)); ok {
+		if p, depth, ok := ctx.authorPosAlong(path); ok {
 			primary = p
 			if depth < len(path) {
-				d.Notes = append(d.Notes, Note{Pos: PosOf(p), Label: "reported at the enclosing value"})
+				b.Note(p, "reported at the enclosing value")
 				noted[p] = true
 			}
 		}
 	}
 	if primary.IsValid() {
-		d.Primary = PosOf(primary)
+		b.At(primary)
 	}
 	for _, p := range ps {
 		if p == primary || noted[p] {
 			continue
 		}
+		kernel := OriginOf(p.Filename()) == OriginThema
+		data := ctx.IsData != nil && ctx.IsData(p.Filename())
+		if b.declareWith != "" && kernel {
+			// The shape knows what thema's CUE says here; its position adds nothing.
+			continue
+		}
+		if !b.declared && b.declareWith != "" && !data {
+			b.Note(p, b.declareWith)
+			b.declared = true
+			continue
+		}
+		if b.declared && !data {
+			continue
+		}
 		l := label
-		if l == "" {
-			l = alsoLabel(p)
-		} else if OriginOf(p.Filename()) == OriginThema {
+		if l == "" || kernel {
 			l = alsoLabel(p)
 		}
-		d.Notes = append(d.Notes, Note{Pos: PosOf(p), Label: l})
+		b.Note(p, l)
 	}
 }
 
@@ -213,7 +289,7 @@ func positionsOf(e cerrors.Error) []token.Pos {
 // The header has no position; its arms follow it as separate entries.
 func disjunctionHeader(e cerrors.Error) (int, bool) {
 	format, args := e.Msg()
-	if !strings.Contains(format, "errors in empty disjunction") || len(args) != 1 {
+	if format != msgEmptyDisjunction || len(args) != 1 {
 		return 0, false
 	}
 	switch n := args[0].(type) {
@@ -248,7 +324,26 @@ func unquotePath(path []string) []string {
 	return out
 }
 
-func title(c Code) (string, bool) {
-	info, ok := Lookup(c)
-	return info.Title, ok
+// joinPath renders an unquoted path for a message.
+func joinPath(path []string) string {
+	return strings.Join(unquotePath(path), ".")
+}
+
+// cueText is e's message verbatim, except that the path CUE prefixes it with
+// is written as the author sees it: unquoted, and without the operation's
+// PathPrefix, which is not CUE's wording but thema's evaluation showing.
+func (ctx Context) cueText(e cerrors.Error) string {
+	text := e.Error()
+	if len(e.Path()) == 0 {
+		return text
+	}
+	raw := strings.Join(e.Path(), ".") + ": "
+	rest, ok := strings.CutPrefix(text, raw)
+	if !ok {
+		return text
+	}
+	if p := ctx.path(e); len(p) > 0 {
+		return joinPath(p) + ": " + rest
+	}
+	return rest
 }

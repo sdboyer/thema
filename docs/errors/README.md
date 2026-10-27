@@ -16,6 +16,12 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 
 | Code | Severity | Title |
 |---|---|---|
+| [E0501](E0501.md) | error | the data lacks a field the schema requires |
+| [E0502](E0502.md) | error | the data has a field the schema does not declare |
+| [E0503](E0503.md) | error | a value in the data is of a kind the schema does not accept |
+| [E0504](E0504.md) | error | a value in the data is outside what the schema allows |
+| [E0505](E0505.md) | error | a value in the data matches none of the alternatives the schema allows |
+| [E0506](E0506.md) | error | the data is not concrete |
 | [E0901](E0901.md) | error | thema failed internally |
 | [E0902](E0902.md) | error | CUE reported an error thema does not recognize |
 | [E0903](E0903.md) | error | thema reported an error that has no code |

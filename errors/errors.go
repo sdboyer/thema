@@ -4,43 +4,9 @@ import (
 	"github.com/cockroachdb/errors"
 )
 
-// ValidationCode represents different classes of validation errors that may
-// occur vs. concrete data inputs.
-type ValidationCode uint16
-
-const (
-	// KindConflict indicates a validation failure in which the schema and data
-	// values are of differing, conflicting kinds - the schema value does not
-	// subsume the data value. Example: data: "foo"; schema: int
-	KindConflict ValidationCode = 1 << iota
-
-	// OutOfBounds indicates a validation failure in which the data and schema have
-	// the same (or subsuming) kinds, but the data is out of schema-defined bounds.
-	// Example: data: 4; schema: int & <4
-	OutOfBounds
-
-	// MissingField indicates a validation failure in which the data lacks
-	// a field that is required in the schema.
-	MissingField
-
-	// ExcessField indicates a validation failure in which the schema is treated as
-	// closed, and the data contains a field not specified in the schema.
-	ExcessField
-)
-
-// ValidationError is a subtype of
-type ValidationError struct {
-	msg string
-}
-
-// Unwrap implements standard Go error unwrapping, relied on by errors.Is.
-//
-// All ValidationErrors wrap the general ErrInvalidData sentinel error.
-func (ve *ValidationError) Unwrap() error {
-	return ErrInvalidData
-}
-
-// Validation error codes/types
+// Validation errors. Each failure is a diag.Diagnostic whose code unwraps to
+// ErrInvalidData and to the sentinel for its kind, so errors.Is tells them
+// apart; the codes themselves (E05xx) are the stable identity.
 var (
 	// ErrInvalidData is the general error that indicates some data failed validation
 	// against a Thema schema. Use it with errors.Is() to differentiate validation errors

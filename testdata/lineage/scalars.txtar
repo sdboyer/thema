@@ -135,459 +135,1565 @@ schemas: {
 -- out/validate/TestValidate/stringWithLength --
 <scalar-fields@v0.0>.stringWithLength:
 -- out/validate/TestValidate/someInt8 --
-<scalarFields@v0.0>.someInt8: validation failed, data is not an instance:
-	schema expected `int8`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
-	but data contained `null`
-		test:2:17
-<scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
-	schema expected `strings.MinRunes(10)`
-		/in.cue:26:28
-		/in.cue:26:54
-	but data contained `"hello"`
-		test:15:25
-		test:15:25
+error[E0503]: someInt8 in the data is null, but schema 0.0 declares it as int8
+  --> in/validate/TestValidate/someInt8.data.json:2:17
+   |
+ 2 |     "someInt8": null,
+   |                 ^^^^
+   |
+  ::: /in.cue:17:10
+   |
+17 |             someInt8: int8
+   |             -------- declared here
+   |
+   = detail: someInt8: conflicting values null and int8 (mismatched types null and int)
+
+error[E0504]: stringWithLength in the data is "hello", which fails strings.MinRunes(10) in schema 0.0
+  --> in/validate/TestValidate/someInt8.data.json:15:25
+   |
+15 |     "stringWithLength": "hello"
+   |                         ^^^^^^^
+   |
+  ::: /in.cue:26:28
+   |
+26 |             stringWithLength: string & strings.MinRunes(10)
+   |                               ------ the constraint is applied here
+   |
+   = detail: stringWithLength: invalid value "hello" (does not satisfy strings.MinRunes(10))
 -- out/validate/TestValidate/someInt16 --
-<scalarFields@v0.0>.someInt16: validation failed, data is not an instance:
-	schema expected `int16`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
-	but data contained `null`
-		test:3:18
-<scalarFields@v0.0>.someUInt16: validation failed, data is not an instance:
-	schema expected `uint16`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
-	but data contained `null`
-		test:4:19
-<scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
-	schema expected `strings.MinRunes(10)`
-		/in.cue:26:28
-		/in.cue:26:54
-	but data contained `"hello"`
-		test:15:25
-		test:15:25
+error[E0503]: someInt16 in the data is null, but schema 0.0 declares it as int16
+  --> in/validate/TestValidate/someInt16.data.json:3:18
+   |
+ 3 |     "someInt16": null,
+   |                  ^^^^
+   |
+  ::: /in.cue:18:10
+   |
+18 |             someInt16: int16
+   |             --------- declared here
+   |
+   = detail: someInt16: conflicting values null and int16 (mismatched types null and int)
+
+error[E0503]: someUInt16 in the data is null, but schema 0.0 declares it as uint16
+  --> in/validate/TestValidate/someInt16.data.json:4:19
+   |
+ 4 |     "someUInt16": null,
+   |                   ^^^^
+   |
+  ::: /in.cue:14:10
+   |
+14 |             someUInt16: uint16
+   |             ---------- declared here
+   |
+   = detail: someUInt16: conflicting values null and uint16 (mismatched types null and int)
+
+error[E0504]: stringWithLength in the data is "hello", which fails strings.MinRunes(10) in schema 0.0
+  --> in/validate/TestValidate/someInt16.data.json:15:25
+   |
+15 |     "stringWithLength": "hello"
+   |                         ^^^^^^^
+   |
+  ::: /in.cue:26:28
+   |
+26 |             stringWithLength: string & strings.MinRunes(10)
+   |                               ------ the constraint is applied here
+   |
+   = detail: stringWithLength: invalid value "hello" (does not satisfy strings.MinRunes(10))
 -- out/validate/TestValidate/someUInt16 --
-<scalarFields@v0.0>.someUInt16: validation failed, data is not an instance:
-	schema expected `uint16`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
-	but data contained `null`
-		test:2:19
-<scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
-	schema expected `strings.MinRunes(10)`
-		/in.cue:26:28
-		/in.cue:26:54
-	but data contained `"hello"`
-		test:13:25
-		test:13:25
-<scalarFields@v0.0>.someInt8: validation failed, data is not an instance:
-	schema specifies that field exists with type `int8`
-	but field was absent from data
-<scalarFields@v0.0>.someInt16: validation failed, data is not an instance:
-	schema specifies that field exists with type `int16`
-	but field was absent from data
+error[E0503]: someUInt16 in the data is null, but schema 0.0 declares it as uint16
+  --> in/validate/TestValidate/someUInt16.data.json:2:19
+   |
+ 2 |     "someUInt16": null,
+   |                   ^^^^
+   |
+  ::: /in.cue:14:10
+   |
+14 |             someUInt16: uint16
+   |             ---------- declared here
+   |
+   = detail: someUInt16: conflicting values null and uint16 (mismatched types null and int)
+
+error[E0504]: stringWithLength in the data is "hello", which fails strings.MinRunes(10) in schema 0.0
+  --> in/validate/TestValidate/someUInt16.data.json:13:25
+   |
+13 |     "stringWithLength": "hello"
+   |                         ^^^^^^^
+   |
+  ::: /in.cue:26:28
+   |
+26 |             stringWithLength: string & strings.MinRunes(10)
+   |                               ------ the constraint is applied here
+   |
+   = detail: stringWithLength: invalid value "hello" (does not satisfy strings.MinRunes(10))
+
+error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
+  --> in/validate/TestValidate/someUInt16.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:17:10
+   |
+17 |             someInt8: int8
+   |             -------- declared here
+   |
+   = detail: someInt8: incomplete value int8
+
+error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
+  --> in/validate/TestValidate/someUInt16.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:18:10
+   |
+18 |             someInt16: int16
+   |             --------- declared here
+   |
+   = detail: someInt16: incomplete value int16
 -- out/validate/TestValidate/someUInt32 --
-<scalarFields@v0.0>.someUInt32: validation failed, data is not an instance:
-	schema expected `uint32`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
-	but data contained `null`
-		test:2:19
-<scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
-	schema expected `strings.MinRunes(10)`
-		/in.cue:26:28
-		/in.cue:26:54
-	but data contained `"hello"`
-		test:12:25
-		test:12:25
-<scalarFields@v0.0>.someUInt16: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint16`
-	but field was absent from data
-<scalarFields@v0.0>.someInt8: validation failed, data is not an instance:
-	schema specifies that field exists with type `int8`
-	but field was absent from data
-<scalarFields@v0.0>.someInt16: validation failed, data is not an instance:
-	schema specifies that field exists with type `int16`
-	but field was absent from data
+error[E0503]: someUInt32 in the data is null, but schema 0.0 declares it as uint32
+  --> in/validate/TestValidate/someUInt32.data.json:2:19
+   |
+ 2 |     "someUInt32": null,
+   |                   ^^^^
+   |
+  ::: /in.cue:15:10
+   |
+15 |             someUInt32: uint32
+   |             ---------- declared here
+   |
+   = detail: someUInt32: conflicting values null and uint32 (mismatched types null and int)
+
+error[E0504]: stringWithLength in the data is "hello", which fails strings.MinRunes(10) in schema 0.0
+  --> in/validate/TestValidate/someUInt32.data.json:12:25
+   |
+12 |     "stringWithLength": "hello"
+   |                         ^^^^^^^
+   |
+  ::: /in.cue:26:28
+   |
+26 |             stringWithLength: string & strings.MinRunes(10)
+   |                               ------ the constraint is applied here
+   |
+   = detail: stringWithLength: invalid value "hello" (does not satisfy strings.MinRunes(10))
+
+error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
+  --> in/validate/TestValidate/someUInt32.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:14:10
+   |
+14 |             someUInt16: uint16
+   |             ---------- declared here
+   |
+   = detail: someUInt16: incomplete value uint16
+
+error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
+  --> in/validate/TestValidate/someUInt32.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:17:10
+   |
+17 |             someInt8: int8
+   |             -------- declared here
+   |
+   = detail: someInt8: incomplete value int8
+
+error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
+  --> in/validate/TestValidate/someUInt32.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:18:10
+   |
+18 |             someInt16: int16
+   |             --------- declared here
+   |
+   = detail: someInt16: incomplete value int16
 -- out/validate/TestValidate/someUInt64 --
-<scalarFields@v0.0>.someUInt64: validation failed, data is not an instance:
-	schema expected `uint64`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
-	but data contained `null`
-		test:3:19
-<scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
-	schema expected `strings.MinRunes(10)`
-		/in.cue:26:28
-		/in.cue:26:54
-	but data contained `"hello"`
-		test:12:25
-		test:12:25
-<scalarFields@v0.0>.someUInt16: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint16`
-	but field was absent from data
-<scalarFields@v0.0>.someInt8: validation failed, data is not an instance:
-	schema specifies that field exists with type `int8`
-	but field was absent from data
-<scalarFields@v0.0>.someInt16: validation failed, data is not an instance:
-	schema specifies that field exists with type `int16`
-	but field was absent from data
+error[E0503]: someUInt64 in the data is null, but schema 0.0 declares it as uint64
+  --> in/validate/TestValidate/someUInt64.data.json:3:19
+   |
+ 3 |     "someUInt64": null,
+   |                   ^^^^
+   |
+  ::: /in.cue:16:10
+   |
+16 |             someUInt64: uint64
+   |             ---------- declared here
+   |
+   = detail: someUInt64: conflicting values null and uint64 (mismatched types null and int)
+
+error[E0504]: stringWithLength in the data is "hello", which fails strings.MinRunes(10) in schema 0.0
+  --> in/validate/TestValidate/someUInt64.data.json:12:25
+   |
+12 |     "stringWithLength": "hello"
+   |                         ^^^^^^^
+   |
+  ::: /in.cue:26:28
+   |
+26 |             stringWithLength: string & strings.MinRunes(10)
+   |                               ------ the constraint is applied here
+   |
+   = detail: stringWithLength: invalid value "hello" (does not satisfy strings.MinRunes(10))
+
+error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
+  --> in/validate/TestValidate/someUInt64.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:14:10
+   |
+14 |             someUInt16: uint16
+   |             ---------- declared here
+   |
+   = detail: someUInt16: incomplete value uint16
+
+error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
+  --> in/validate/TestValidate/someUInt64.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:17:10
+   |
+17 |             someInt8: int8
+   |             -------- declared here
+   |
+   = detail: someInt8: incomplete value int8
+
+error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
+  --> in/validate/TestValidate/someUInt64.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:18:10
+   |
+18 |             someInt16: int16
+   |             --------- declared here
+   |
+   = detail: someInt16: incomplete value int16
 -- out/validate/TestValidate/someUInt8 --
-<scalarFields@v0.0>.someUInt8: validation failed, data is not an instance:
-	schema expected `uint8`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
-	but data contained `null`
-		test:2:18
-<scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
-	schema expected `strings.MinRunes(10)`
-		/in.cue:26:28
-		/in.cue:26:54
-	but data contained `"hello"`
-		test:10:25
-		test:10:25
-<scalarFields@v0.0>.someUInt16: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint16`
-	but field was absent from data
-<scalarFields@v0.0>.someUInt32: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint32`
-	but field was absent from data
-<scalarFields@v0.0>.someUInt64: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint64`
-	but field was absent from data
-<scalarFields@v0.0>.someInt8: validation failed, data is not an instance:
-	schema specifies that field exists with type `int8`
-	but field was absent from data
-<scalarFields@v0.0>.someInt16: validation failed, data is not an instance:
-	schema specifies that field exists with type `int16`
-	but field was absent from data
+error[E0503]: someUInt8 in the data is null, but schema 0.0 declares it as uint8
+  --> in/validate/TestValidate/someUInt8.data.json:2:18
+   |
+ 2 |     "someUInt8": null,
+   |                  ^^^^
+   |
+  ::: /in.cue:13:10
+   |
+13 |             someUInt8: uint8
+   |             --------- declared here
+   |
+   = detail: someUInt8: conflicting values null and uint8 (mismatched types null and int)
+
+error[E0504]: stringWithLength in the data is "hello", which fails strings.MinRunes(10) in schema 0.0
+  --> in/validate/TestValidate/someUInt8.data.json:10:25
+   |
+10 |     "stringWithLength": "hello"
+   |                         ^^^^^^^
+   |
+  ::: /in.cue:26:28
+   |
+26 |             stringWithLength: string & strings.MinRunes(10)
+   |                               ------ the constraint is applied here
+   |
+   = detail: stringWithLength: invalid value "hello" (does not satisfy strings.MinRunes(10))
+
+error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
+  --> in/validate/TestValidate/someUInt8.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:14:10
+   |
+14 |             someUInt16: uint16
+   |             ---------- declared here
+   |
+   = detail: someUInt16: incomplete value uint16
+
+error[E0501]: the data lacks someUInt32, which schema 0.0 declares as uint32
+  --> in/validate/TestValidate/someUInt8.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:15:10
+   |
+15 |             someUInt32: uint32
+   |             ---------- declared here
+   |
+   = detail: someUInt32: incomplete value uint32
+
+error[E0501]: the data lacks someUInt64, which schema 0.0 declares as uint64
+  --> in/validate/TestValidate/someUInt8.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:16:10
+   |
+16 |             someUInt64: uint64
+   |             ---------- declared here
+   |
+   = detail: someUInt64: incomplete value uint64
+
+error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
+  --> in/validate/TestValidate/someUInt8.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:17:10
+   |
+17 |             someInt8: int8
+   |             -------- declared here
+   |
+   = detail: someInt8: incomplete value int8
+
+error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
+  --> in/validate/TestValidate/someUInt8.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:18:10
+   |
+18 |             someInt16: int16
+   |             --------- declared here
+   |
+   = detail: someInt16: incomplete value int16
 -- out/validate/TestValidate/missingFields --
-<scalarFields@v0.0>.someUInt8: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint8`
-	but field was absent from data
-<scalarFields@v0.0>.someUInt16: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint16`
-	but field was absent from data
-<scalarFields@v0.0>.someUInt32: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint32`
-	but field was absent from data
-<scalarFields@v0.0>.someUInt64: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint64`
-	but field was absent from data
-<scalarFields@v0.0>.someInt8: validation failed, data is not an instance:
-	schema specifies that field exists with type `int8`
-	but field was absent from data
-<scalarFields@v0.0>.someInt16: validation failed, data is not an instance:
-	schema specifies that field exists with type `int16`
-	but field was absent from data
-<scalarFields@v0.0>.someInt32: validation failed, data is not an instance:
-	schema specifies that field exists with type `int32`
-	but field was absent from data
-<scalarFields@v0.0>.someInt64: validation failed, data is not an instance:
-	schema specifies that field exists with type `int64`
-	but field was absent from data
-<scalarFields@v0.0>.someFloat32: validation failed, data is not an instance:
-	schema specifies that field exists with type `float32`
-	but field was absent from data
-<scalarFields@v0.0>.someFloat64: validation failed, data is not an instance:
-	schema specifies that field exists with type `float64`
-	but field was absent from data
-<scalarFields@v0.0>.intWithBounds: validation failed, data is not an instance:
-	schema specifies that field exists with type `>=0 & <10 & int`
-		/in.cue:23:25
-	but field was absent from data
-<scalarFields@v0.0>.nullableIntWithNoDefault: validation failed, data is not an instance:
-	schema specifies that field exists with type `int | null`
-		/in.cue:24:36
-	but field was absent from data
-<scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
-	schema specifies that field exists with type `strings.MinRunes(10)`
-		/in.cue:26:37
-		/in.cue:26:28
-	but field was absent from data
+error[E0501]: the data lacks someUInt8, which schema 0.0 declares as uint8
+  --> in/validate/TestValidate/missingFields.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:13:10
+   |
+13 |             someUInt8: uint8
+   |             --------- declared here
+   |
+   = detail: someUInt8: incomplete value uint8
+
+error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
+  --> in/validate/TestValidate/missingFields.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:14:10
+   |
+14 |             someUInt16: uint16
+   |             ---------- declared here
+   |
+   = detail: someUInt16: incomplete value uint16
+
+error[E0501]: the data lacks someUInt32, which schema 0.0 declares as uint32
+  --> in/validate/TestValidate/missingFields.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:15:10
+   |
+15 |             someUInt32: uint32
+   |             ---------- declared here
+   |
+   = detail: someUInt32: incomplete value uint32
+
+error[E0501]: the data lacks someUInt64, which schema 0.0 declares as uint64
+  --> in/validate/TestValidate/missingFields.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:16:10
+   |
+16 |             someUInt64: uint64
+   |             ---------- declared here
+   |
+   = detail: someUInt64: incomplete value uint64
+
+error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
+  --> in/validate/TestValidate/missingFields.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:17:10
+   |
+17 |             someInt8: int8
+   |             -------- declared here
+   |
+   = detail: someInt8: incomplete value int8
+
+error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
+  --> in/validate/TestValidate/missingFields.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:18:10
+   |
+18 |             someInt16: int16
+   |             --------- declared here
+   |
+   = detail: someInt16: incomplete value int16
+
+error[E0501]: the data lacks someInt32, which schema 0.0 declares as int32
+  --> in/validate/TestValidate/missingFields.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:19:10
+   |
+19 |             someInt32: int32
+   |             --------- declared here
+   |
+   = detail: someInt32: incomplete value int32
+
+error[E0501]: the data lacks someInt64, which schema 0.0 declares as int64
+  --> in/validate/TestValidate/missingFields.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:20:10
+   |
+20 |             someInt64: int64
+   |             --------- declared here
+   |
+   = detail: someInt64: incomplete value int64
+
+error[E0501]: the data lacks someFloat32, which schema 0.0 declares as float32
+  --> in/validate/TestValidate/missingFields.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:21:10
+   |
+21 |             someFloat32: float32
+   |             ----------- declared here
+   |
+   = detail: someFloat32: incomplete value float32
+
+error[E0501]: the data lacks someFloat64, which schema 0.0 declares as float64
+  --> in/validate/TestValidate/missingFields.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:22:10
+   |
+22 |             someFloat64: float64
+   |             ----------- declared here
+   |
+   = detail: someFloat64: incomplete value float64
+
+error[E0501]: the data lacks intWithBounds, which schema 0.0 declares as >=0 & <10 & int
+  --> in/validate/TestValidate/missingFields.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:23:25
+   |
+23 |             intWithBounds: int & >=0 & <10
+   |                            --- declared here
+   |
+   = detail: intWithBounds: incomplete value >=0 & <10 & int
+
+error[E0501]: the data lacks nullableIntWithNoDefault, which schema 0.0 declares as int | null
+  --> in/validate/TestValidate/missingFields.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:24:36
+   |
+24 |             nullableIntWithNoDefault: int | null
+   |                                       --- declared here
+   |
+   = detail: nullableIntWithNoDefault: incomplete value int | null
+
+error[E0501]: the data lacks stringWithLength, which schema 0.0 declares as strings.MinRunes(10)
+  --> in/validate/TestValidate/missingFields.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:26:28
+   |
+26 |             stringWithLength: string & strings.MinRunes(10)
+   |                               ------ declared here
+   |
+   = detail: stringWithLength: incomplete value strings.MinRunes(10)
 -- out/validate/TestValidate/stringWithLength --
-<scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
-	schema expected `strings.MinRunes(10)`
-		/in.cue:26:28
-		/in.cue:26:54
-	but data contained `"hello"`
-		test:9:25
-		test:9:25
-<scalarFields@v0.0>.someUInt8: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint8`
-	but field was absent from data
-<scalarFields@v0.0>.someUInt16: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint16`
-	but field was absent from data
-<scalarFields@v0.0>.someUInt32: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint32`
-	but field was absent from data
-<scalarFields@v0.0>.someUInt64: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint64`
-	but field was absent from data
-<scalarFields@v0.0>.someInt8: validation failed, data is not an instance:
-	schema specifies that field exists with type `int8`
-	but field was absent from data
-<scalarFields@v0.0>.someInt16: validation failed, data is not an instance:
-	schema specifies that field exists with type `int16`
-	but field was absent from data
+error[E0504]: stringWithLength in the data is "hello", which fails strings.MinRunes(10) in schema 0.0
+  --> in/validate/TestValidate/stringWithLength.data.json:9:25
+   |
+ 9 |     "stringWithLength": "hello"
+   |                         ^^^^^^^
+   |
+  ::: /in.cue:26:28
+   |
+26 |             stringWithLength: string & strings.MinRunes(10)
+   |                               ------ the constraint is applied here
+   |
+   = detail: stringWithLength: invalid value "hello" (does not satisfy strings.MinRunes(10))
+
+error[E0501]: the data lacks someUInt8, which schema 0.0 declares as uint8
+  --> in/validate/TestValidate/stringWithLength.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:13:10
+   |
+13 |             someUInt8: uint8
+   |             --------- declared here
+   |
+   = detail: someUInt8: incomplete value uint8
+
+error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
+  --> in/validate/TestValidate/stringWithLength.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:14:10
+   |
+14 |             someUInt16: uint16
+   |             ---------- declared here
+   |
+   = detail: someUInt16: incomplete value uint16
+
+error[E0501]: the data lacks someUInt32, which schema 0.0 declares as uint32
+  --> in/validate/TestValidate/stringWithLength.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:15:10
+   |
+15 |             someUInt32: uint32
+   |             ---------- declared here
+   |
+   = detail: someUInt32: incomplete value uint32
+
+error[E0501]: the data lacks someUInt64, which schema 0.0 declares as uint64
+  --> in/validate/TestValidate/stringWithLength.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:16:10
+   |
+16 |             someUInt64: uint64
+   |             ---------- declared here
+   |
+   = detail: someUInt64: incomplete value uint64
+
+error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
+  --> in/validate/TestValidate/stringWithLength.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:17:10
+   |
+17 |             someInt8: int8
+   |             -------- declared here
+   |
+   = detail: someInt8: incomplete value int8
+
+error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
+  --> in/validate/TestValidate/stringWithLength.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:18:10
+   |
+18 |             someInt16: int16
+   |             --------- declared here
+   |
+   = detail: someInt16: incomplete value int16
 -- out/validate/TestValidate/outOfBoundsLowerInt --
-<scalarFields@v0.0>.intWithBounds: validation failed, data is not an instance:
-	schema expected `>=0`
-		/in.cue:23:31
-	but data contained `-1`
-		test:2:22
-<scalarFields@v0.0>.someUInt8: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint8`
-	but field was absent from data
-<scalarFields@v0.0>.someUInt16: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint16`
-	but field was absent from data
-<scalarFields@v0.0>.someUInt32: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint32`
-	but field was absent from data
-<scalarFields@v0.0>.someUInt64: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint64`
-	but field was absent from data
-<scalarFields@v0.0>.someInt8: validation failed, data is not an instance:
-	schema specifies that field exists with type `int8`
-	but field was absent from data
-<scalarFields@v0.0>.someInt16: validation failed, data is not an instance:
-	schema specifies that field exists with type `int16`
-	but field was absent from data
-<scalarFields@v0.0>.someInt32: validation failed, data is not an instance:
-	schema specifies that field exists with type `int32`
-	but field was absent from data
-<scalarFields@v0.0>.someInt64: validation failed, data is not an instance:
-	schema specifies that field exists with type `int64`
-	but field was absent from data
-<scalarFields@v0.0>.someFloat32: validation failed, data is not an instance:
-	schema specifies that field exists with type `float32`
-	but field was absent from data
-<scalarFields@v0.0>.someFloat64: validation failed, data is not an instance:
-	schema specifies that field exists with type `float64`
-	but field was absent from data
-<scalarFields@v0.0>.nullableIntWithNoDefault: validation failed, data is not an instance:
-	schema specifies that field exists with type `int | null`
-		/in.cue:24:36
-	but field was absent from data
-<scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
-	schema specifies that field exists with type `strings.MinRunes(10)`
-		/in.cue:26:37
-		/in.cue:26:28
-	but field was absent from data
+error[E0504]: intWithBounds in the data is -1, outside the bound >=0 that schema 0.0 sets
+  --> in/validate/TestValidate/outOfBoundsLowerInt.data.json:2:22
+   |
+ 2 |     "intWithBounds": -1
+   |                      ^
+   |
+  ::: /in.cue:23:25
+   |
+23 |             intWithBounds: int & >=0 & <10
+   |                            --- the bound is set here
+   |
+   = detail: intWithBounds: invalid value -1 (out of bound >=0)
+
+error[E0501]: the data lacks someUInt8, which schema 0.0 declares as uint8
+  --> in/validate/TestValidate/outOfBoundsLowerInt.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:13:10
+   |
+13 |             someUInt8: uint8
+   |             --------- declared here
+   |
+   = detail: someUInt8: incomplete value uint8
+
+error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
+  --> in/validate/TestValidate/outOfBoundsLowerInt.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:14:10
+   |
+14 |             someUInt16: uint16
+   |             ---------- declared here
+   |
+   = detail: someUInt16: incomplete value uint16
+
+error[E0501]: the data lacks someUInt32, which schema 0.0 declares as uint32
+  --> in/validate/TestValidate/outOfBoundsLowerInt.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:15:10
+   |
+15 |             someUInt32: uint32
+   |             ---------- declared here
+   |
+   = detail: someUInt32: incomplete value uint32
+
+error[E0501]: the data lacks someUInt64, which schema 0.0 declares as uint64
+  --> in/validate/TestValidate/outOfBoundsLowerInt.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:16:10
+   |
+16 |             someUInt64: uint64
+   |             ---------- declared here
+   |
+   = detail: someUInt64: incomplete value uint64
+
+error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
+  --> in/validate/TestValidate/outOfBoundsLowerInt.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:17:10
+   |
+17 |             someInt8: int8
+   |             -------- declared here
+   |
+   = detail: someInt8: incomplete value int8
+
+error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
+  --> in/validate/TestValidate/outOfBoundsLowerInt.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:18:10
+   |
+18 |             someInt16: int16
+   |             --------- declared here
+   |
+   = detail: someInt16: incomplete value int16
+
+error[E0501]: the data lacks someInt32, which schema 0.0 declares as int32
+  --> in/validate/TestValidate/outOfBoundsLowerInt.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:19:10
+   |
+19 |             someInt32: int32
+   |             --------- declared here
+   |
+   = detail: someInt32: incomplete value int32
+
+error[E0501]: the data lacks someInt64, which schema 0.0 declares as int64
+  --> in/validate/TestValidate/outOfBoundsLowerInt.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:20:10
+   |
+20 |             someInt64: int64
+   |             --------- declared here
+   |
+   = detail: someInt64: incomplete value int64
+
+error[E0501]: the data lacks someFloat32, which schema 0.0 declares as float32
+  --> in/validate/TestValidate/outOfBoundsLowerInt.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:21:10
+   |
+21 |             someFloat32: float32
+   |             ----------- declared here
+   |
+   = detail: someFloat32: incomplete value float32
+
+error[E0501]: the data lacks someFloat64, which schema 0.0 declares as float64
+  --> in/validate/TestValidate/outOfBoundsLowerInt.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:22:10
+   |
+22 |             someFloat64: float64
+   |             ----------- declared here
+   |
+   = detail: someFloat64: incomplete value float64
+
+error[E0501]: the data lacks nullableIntWithNoDefault, which schema 0.0 declares as int | null
+  --> in/validate/TestValidate/outOfBoundsLowerInt.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:24:36
+   |
+24 |             nullableIntWithNoDefault: int | null
+   |                                       --- declared here
+   |
+   = detail: nullableIntWithNoDefault: incomplete value int | null
+
+error[E0501]: the data lacks stringWithLength, which schema 0.0 declares as strings.MinRunes(10)
+  --> in/validate/TestValidate/outOfBoundsLowerInt.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:26:28
+   |
+26 |             stringWithLength: string & strings.MinRunes(10)
+   |                               ------ declared here
+   |
+   = detail: stringWithLength: incomplete value strings.MinRunes(10)
 -- out/validate/TestValidate/outOfBoundsUpperInt --
-<scalarFields@v0.0>.intWithBounds: validation failed, data is not an instance:
-	schema expected `<10`
-		/in.cue:23:37
-	but data contained `12`
-		test:6:22
-<scalarFields@v0.0>.someUInt8: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint8`
-	but field was absent from data
-<scalarFields@v0.0>.someUInt16: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint16`
-	but field was absent from data
-<scalarFields@v0.0>.someUInt32: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint32`
-	but field was absent from data
-<scalarFields@v0.0>.someUInt64: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint64`
-	but field was absent from data
-<scalarFields@v0.0>.someInt8: validation failed, data is not an instance:
-	schema specifies that field exists with type `int8`
-	but field was absent from data
-<scalarFields@v0.0>.someInt16: validation failed, data is not an instance:
-	schema specifies that field exists with type `int16`
-	but field was absent from data
-<scalarFields@v0.0>.nullableIntWithNoDefault: validation failed, data is not an instance:
-	schema specifies that field exists with type `int | null`
-		/in.cue:24:36
-	but field was absent from data
-<scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
-	schema specifies that field exists with type `strings.MinRunes(10)`
-		/in.cue:26:37
-		/in.cue:26:28
-	but field was absent from data
+error[E0504]: intWithBounds in the data is 12, outside the bound <10 that schema 0.0 sets
+  --> in/validate/TestValidate/outOfBoundsUpperInt.data.json:6:22
+   |
+ 6 |     "intWithBounds": 12
+   |                      ^^
+   |
+  ::: /in.cue:23:25
+   |
+23 |             intWithBounds: int & >=0 & <10
+   |                            --- the bound is set here
+   |
+   = detail: intWithBounds: invalid value 12 (out of bound <10)
+
+error[E0501]: the data lacks someUInt8, which schema 0.0 declares as uint8
+  --> in/validate/TestValidate/outOfBoundsUpperInt.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:13:10
+   |
+13 |             someUInt8: uint8
+   |             --------- declared here
+   |
+   = detail: someUInt8: incomplete value uint8
+
+error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
+  --> in/validate/TestValidate/outOfBoundsUpperInt.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:14:10
+   |
+14 |             someUInt16: uint16
+   |             ---------- declared here
+   |
+   = detail: someUInt16: incomplete value uint16
+
+error[E0501]: the data lacks someUInt32, which schema 0.0 declares as uint32
+  --> in/validate/TestValidate/outOfBoundsUpperInt.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:15:10
+   |
+15 |             someUInt32: uint32
+   |             ---------- declared here
+   |
+   = detail: someUInt32: incomplete value uint32
+
+error[E0501]: the data lacks someUInt64, which schema 0.0 declares as uint64
+  --> in/validate/TestValidate/outOfBoundsUpperInt.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:16:10
+   |
+16 |             someUInt64: uint64
+   |             ---------- declared here
+   |
+   = detail: someUInt64: incomplete value uint64
+
+error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
+  --> in/validate/TestValidate/outOfBoundsUpperInt.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:17:10
+   |
+17 |             someInt8: int8
+   |             -------- declared here
+   |
+   = detail: someInt8: incomplete value int8
+
+error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
+  --> in/validate/TestValidate/outOfBoundsUpperInt.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:18:10
+   |
+18 |             someInt16: int16
+   |             --------- declared here
+   |
+   = detail: someInt16: incomplete value int16
+
+error[E0501]: the data lacks nullableIntWithNoDefault, which schema 0.0 declares as int | null
+  --> in/validate/TestValidate/outOfBoundsUpperInt.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:24:36
+   |
+24 |             nullableIntWithNoDefault: int | null
+   |                                       --- declared here
+   |
+   = detail: nullableIntWithNoDefault: incomplete value int | null
+
+error[E0501]: the data lacks stringWithLength, which schema 0.0 declares as strings.MinRunes(10)
+  --> in/validate/TestValidate/outOfBoundsUpperInt.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:26:28
+   |
+26 |             stringWithLength: string & strings.MinRunes(10)
+   |                               ------ declared here
+   |
+   = detail: stringWithLength: incomplete value strings.MinRunes(10)
 -- out/validate/TestValidate/someInt32 --
-<scalarFields@v0.0>.someInt32: validation failed, data is not an instance:
-	schema expected `int32`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
-	but data contained `"not an int"`
-		test:2:18
-<scalarFields@v0.0>.someUInt8: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint8`
-	but field was absent from data
-<scalarFields@v0.0>.someUInt16: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint16`
-	but field was absent from data
-<scalarFields@v0.0>.someUInt32: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint32`
-	but field was absent from data
-<scalarFields@v0.0>.someUInt64: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint64`
-	but field was absent from data
-<scalarFields@v0.0>.someInt8: validation failed, data is not an instance:
-	schema specifies that field exists with type `int8`
-	but field was absent from data
-<scalarFields@v0.0>.someInt16: validation failed, data is not an instance:
-	schema specifies that field exists with type `int16`
-	but field was absent from data
-<scalarFields@v0.0>.someInt64: validation failed, data is not an instance:
-	schema specifies that field exists with type `int64`
-	but field was absent from data
-<scalarFields@v0.0>.someFloat32: validation failed, data is not an instance:
-	schema specifies that field exists with type `float32`
-	but field was absent from data
-<scalarFields@v0.0>.someFloat64: validation failed, data is not an instance:
-	schema specifies that field exists with type `float64`
-	but field was absent from data
-<scalarFields@v0.0>.intWithBounds: validation failed, data is not an instance:
-	schema specifies that field exists with type `>=0 & <10 & int`
-		/in.cue:23:25
-	but field was absent from data
-<scalarFields@v0.0>.nullableIntWithNoDefault: validation failed, data is not an instance:
-	schema specifies that field exists with type `int | null`
-		/in.cue:24:36
-	but field was absent from data
-<scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
-	schema specifies that field exists with type `strings.MinRunes(10)`
-		/in.cue:26:37
-		/in.cue:26:28
-	but field was absent from data
+error[E0503]: someInt32 in the data is string, but schema 0.0 declares it as int32
+  --> in/validate/TestValidate/someInt32.data.json:2:18
+   |
+ 2 |     "someInt32": "not an int"
+   |                  ^^^^^^^^^^^^
+   |
+  ::: /in.cue:19:10
+   |
+19 |             someInt32: int32
+   |             --------- declared here
+   |
+   = detail: someInt32: conflicting values "not an int" and int32 (mismatched types string and int)
+
+error[E0501]: the data lacks someUInt8, which schema 0.0 declares as uint8
+  --> in/validate/TestValidate/someInt32.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:13:10
+   |
+13 |             someUInt8: uint8
+   |             --------- declared here
+   |
+   = detail: someUInt8: incomplete value uint8
+
+error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
+  --> in/validate/TestValidate/someInt32.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:14:10
+   |
+14 |             someUInt16: uint16
+   |             ---------- declared here
+   |
+   = detail: someUInt16: incomplete value uint16
+
+error[E0501]: the data lacks someUInt32, which schema 0.0 declares as uint32
+  --> in/validate/TestValidate/someInt32.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:15:10
+   |
+15 |             someUInt32: uint32
+   |             ---------- declared here
+   |
+   = detail: someUInt32: incomplete value uint32
+
+error[E0501]: the data lacks someUInt64, which schema 0.0 declares as uint64
+  --> in/validate/TestValidate/someInt32.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:16:10
+   |
+16 |             someUInt64: uint64
+   |             ---------- declared here
+   |
+   = detail: someUInt64: incomplete value uint64
+
+error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
+  --> in/validate/TestValidate/someInt32.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:17:10
+   |
+17 |             someInt8: int8
+   |             -------- declared here
+   |
+   = detail: someInt8: incomplete value int8
+
+error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
+  --> in/validate/TestValidate/someInt32.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:18:10
+   |
+18 |             someInt16: int16
+   |             --------- declared here
+   |
+   = detail: someInt16: incomplete value int16
+
+error[E0501]: the data lacks someInt64, which schema 0.0 declares as int64
+  --> in/validate/TestValidate/someInt32.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:20:10
+   |
+20 |             someInt64: int64
+   |             --------- declared here
+   |
+   = detail: someInt64: incomplete value int64
+
+error[E0501]: the data lacks someFloat32, which schema 0.0 declares as float32
+  --> in/validate/TestValidate/someInt32.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:21:10
+   |
+21 |             someFloat32: float32
+   |             ----------- declared here
+   |
+   = detail: someFloat32: incomplete value float32
+
+error[E0501]: the data lacks someFloat64, which schema 0.0 declares as float64
+  --> in/validate/TestValidate/someInt32.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:22:10
+   |
+22 |             someFloat64: float64
+   |             ----------- declared here
+   |
+   = detail: someFloat64: incomplete value float64
+
+error[E0501]: the data lacks intWithBounds, which schema 0.0 declares as >=0 & <10 & int
+  --> in/validate/TestValidate/someInt32.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:23:25
+   |
+23 |             intWithBounds: int & >=0 & <10
+   |                            --- declared here
+   |
+   = detail: intWithBounds: incomplete value >=0 & <10 & int
+
+error[E0501]: the data lacks nullableIntWithNoDefault, which schema 0.0 declares as int | null
+  --> in/validate/TestValidate/someInt32.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:24:36
+   |
+24 |             nullableIntWithNoDefault: int | null
+   |                                       --- declared here
+   |
+   = detail: nullableIntWithNoDefault: incomplete value int | null
+
+error[E0501]: the data lacks stringWithLength, which schema 0.0 declares as strings.MinRunes(10)
+  --> in/validate/TestValidate/someInt32.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:26:28
+   |
+26 |             stringWithLength: string & strings.MinRunes(10)
+   |                               ------ declared here
+   |
+   = detail: stringWithLength: incomplete value strings.MinRunes(10)
 -- out/validate/TestValidate/someInt64 --
-<scalarFields@v0.0>.someInt64: validation failed, data is not an instance:
-	schema expected `int64`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
-	but data contained `"not an int64"`
-		test:2:18
-<scalarFields@v0.0>.someUInt8: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint8`
-	but field was absent from data
-<scalarFields@v0.0>.someUInt16: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint16`
-	but field was absent from data
-<scalarFields@v0.0>.someUInt32: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint32`
-	but field was absent from data
-<scalarFields@v0.0>.someUInt64: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint64`
-	but field was absent from data
-<scalarFields@v0.0>.someInt8: validation failed, data is not an instance:
-	schema specifies that field exists with type `int8`
-	but field was absent from data
-<scalarFields@v0.0>.someInt16: validation failed, data is not an instance:
-	schema specifies that field exists with type `int16`
-	but field was absent from data
-<scalarFields@v0.0>.someInt32: validation failed, data is not an instance:
-	schema specifies that field exists with type `int32`
-	but field was absent from data
-<scalarFields@v0.0>.someFloat32: validation failed, data is not an instance:
-	schema specifies that field exists with type `float32`
-	but field was absent from data
-<scalarFields@v0.0>.someFloat64: validation failed, data is not an instance:
-	schema specifies that field exists with type `float64`
-	but field was absent from data
-<scalarFields@v0.0>.intWithBounds: validation failed, data is not an instance:
-	schema specifies that field exists with type `>=0 & <10 & int`
-		/in.cue:23:25
-	but field was absent from data
-<scalarFields@v0.0>.nullableIntWithNoDefault: validation failed, data is not an instance:
-	schema specifies that field exists with type `int | null`
-		/in.cue:24:36
-	but field was absent from data
-<scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
-	schema specifies that field exists with type `strings.MinRunes(10)`
-		/in.cue:26:37
-		/in.cue:26:28
-	but field was absent from data
+error[E0503]: someInt64 in the data is string, but schema 0.0 declares it as int64
+  --> in/validate/someInt64.data.json:2:18
+   |
+ 2 |     "someInt64": "not an int64"
+   |                  ^^^^^^^^^^^^^^
+   |
+  ::: /in.cue:20:10
+   |
+20 |             someInt64: int64
+   |             --------- declared here
+   |
+   = detail: someInt64: conflicting values "not an int64" and int64 (mismatched types string and int)
+
+error[E0501]: the data lacks someUInt8, which schema 0.0 declares as uint8
+  --> in/validate/someInt64.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:13:10
+   |
+13 |             someUInt8: uint8
+   |             --------- declared here
+   |
+   = detail: someUInt8: incomplete value uint8
+
+error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
+  --> in/validate/someInt64.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:14:10
+   |
+14 |             someUInt16: uint16
+   |             ---------- declared here
+   |
+   = detail: someUInt16: incomplete value uint16
+
+error[E0501]: the data lacks someUInt32, which schema 0.0 declares as uint32
+  --> in/validate/someInt64.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:15:10
+   |
+15 |             someUInt32: uint32
+   |             ---------- declared here
+   |
+   = detail: someUInt32: incomplete value uint32
+
+error[E0501]: the data lacks someUInt64, which schema 0.0 declares as uint64
+  --> in/validate/someInt64.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:16:10
+   |
+16 |             someUInt64: uint64
+   |             ---------- declared here
+   |
+   = detail: someUInt64: incomplete value uint64
+
+error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
+  --> in/validate/someInt64.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:17:10
+   |
+17 |             someInt8: int8
+   |             -------- declared here
+   |
+   = detail: someInt8: incomplete value int8
+
+error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
+  --> in/validate/someInt64.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:18:10
+   |
+18 |             someInt16: int16
+   |             --------- declared here
+   |
+   = detail: someInt16: incomplete value int16
+
+error[E0501]: the data lacks someInt32, which schema 0.0 declares as int32
+  --> in/validate/someInt64.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:19:10
+   |
+19 |             someInt32: int32
+   |             --------- declared here
+   |
+   = detail: someInt32: incomplete value int32
+
+error[E0501]: the data lacks someFloat32, which schema 0.0 declares as float32
+  --> in/validate/someInt64.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:21:10
+   |
+21 |             someFloat32: float32
+   |             ----------- declared here
+   |
+   = detail: someFloat32: incomplete value float32
+
+error[E0501]: the data lacks someFloat64, which schema 0.0 declares as float64
+  --> in/validate/someInt64.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:22:10
+   |
+22 |             someFloat64: float64
+   |             ----------- declared here
+   |
+   = detail: someFloat64: incomplete value float64
+
+error[E0501]: the data lacks intWithBounds, which schema 0.0 declares as >=0 & <10 & int
+  --> in/validate/someInt64.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:23:25
+   |
+23 |             intWithBounds: int & >=0 & <10
+   |                            --- declared here
+   |
+   = detail: intWithBounds: incomplete value >=0 & <10 & int
+
+error[E0501]: the data lacks nullableIntWithNoDefault, which schema 0.0 declares as int | null
+  --> in/validate/someInt64.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:24:36
+   |
+24 |             nullableIntWithNoDefault: int | null
+   |                                       --- declared here
+   |
+   = detail: nullableIntWithNoDefault: incomplete value int | null
+
+error[E0501]: the data lacks stringWithLength, which schema 0.0 declares as strings.MinRunes(10)
+  --> in/validate/someInt64.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:26:28
+   |
+26 |             stringWithLength: string & strings.MinRunes(10)
+   |                               ------ declared here
+   |
+   = detail: stringWithLength: incomplete value strings.MinRunes(10)
 -- out/validate/TestValidate/someFloat32 --
-<scalarFields@v0.0>.someFloat32: validation failed, data is not an instance:
-	schema expected `float32`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
-	but data contained `"I am a string"`
-		test:2:20
-<scalarFields@v0.0>.someUInt8: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint8`
-	but field was absent from data
-<scalarFields@v0.0>.someUInt16: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint16`
-	but field was absent from data
-<scalarFields@v0.0>.someUInt32: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint32`
-	but field was absent from data
-<scalarFields@v0.0>.someUInt64: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint64`
-	but field was absent from data
-<scalarFields@v0.0>.someInt8: validation failed, data is not an instance:
-	schema specifies that field exists with type `int8`
-	but field was absent from data
-<scalarFields@v0.0>.someInt16: validation failed, data is not an instance:
-	schema specifies that field exists with type `int16`
-	but field was absent from data
-<scalarFields@v0.0>.someInt32: validation failed, data is not an instance:
-	schema specifies that field exists with type `int32`
-	but field was absent from data
-<scalarFields@v0.0>.someInt64: validation failed, data is not an instance:
-	schema specifies that field exists with type `int64`
-	but field was absent from data
-<scalarFields@v0.0>.someFloat64: validation failed, data is not an instance:
-	schema specifies that field exists with type `float64`
-	but field was absent from data
-<scalarFields@v0.0>.intWithBounds: validation failed, data is not an instance:
-	schema specifies that field exists with type `>=0 & <10 & int`
-		/in.cue:23:25
-	but field was absent from data
-<scalarFields@v0.0>.nullableIntWithNoDefault: validation failed, data is not an instance:
-	schema specifies that field exists with type `int | null`
-		/in.cue:24:36
-	but field was absent from data
-<scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
-	schema specifies that field exists with type `strings.MinRunes(10)`
-		/in.cue:26:37
-		/in.cue:26:28
-	but field was absent from data
+error[E0503]: someFloat32 in the data is string, but schema 0.0 declares it as float32
+  --> in/validate/TestValidate/someFloat32.data.json:2:20
+   |
+ 2 |     "someFloat32": "I am a string"
+   |                    ^^^^^^^^^^^^^^^
+   |
+  ::: /in.cue:21:10
+   |
+21 |             someFloat32: float32
+   |             ----------- declared here
+   |
+   = detail: someFloat32: conflicting values "I am a string" and float32 (mismatched types string and number)
+
+error[E0501]: the data lacks someUInt8, which schema 0.0 declares as uint8
+  --> in/validate/TestValidate/someFloat32.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:13:10
+   |
+13 |             someUInt8: uint8
+   |             --------- declared here
+   |
+   = detail: someUInt8: incomplete value uint8
+
+error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
+  --> in/validate/TestValidate/someFloat32.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:14:10
+   |
+14 |             someUInt16: uint16
+   |             ---------- declared here
+   |
+   = detail: someUInt16: incomplete value uint16
+
+error[E0501]: the data lacks someUInt32, which schema 0.0 declares as uint32
+  --> in/validate/TestValidate/someFloat32.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:15:10
+   |
+15 |             someUInt32: uint32
+   |             ---------- declared here
+   |
+   = detail: someUInt32: incomplete value uint32
+
+error[E0501]: the data lacks someUInt64, which schema 0.0 declares as uint64
+  --> in/validate/TestValidate/someFloat32.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:16:10
+   |
+16 |             someUInt64: uint64
+   |             ---------- declared here
+   |
+   = detail: someUInt64: incomplete value uint64
+
+error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
+  --> in/validate/TestValidate/someFloat32.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:17:10
+   |
+17 |             someInt8: int8
+   |             -------- declared here
+   |
+   = detail: someInt8: incomplete value int8
+
+error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
+  --> in/validate/TestValidate/someFloat32.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:18:10
+   |
+18 |             someInt16: int16
+   |             --------- declared here
+   |
+   = detail: someInt16: incomplete value int16
+
+error[E0501]: the data lacks someInt32, which schema 0.0 declares as int32
+  --> in/validate/TestValidate/someFloat32.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:19:10
+   |
+19 |             someInt32: int32
+   |             --------- declared here
+   |
+   = detail: someInt32: incomplete value int32
+
+error[E0501]: the data lacks someInt64, which schema 0.0 declares as int64
+  --> in/validate/TestValidate/someFloat32.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:20:10
+   |
+20 |             someInt64: int64
+   |             --------- declared here
+   |
+   = detail: someInt64: incomplete value int64
+
+error[E0501]: the data lacks someFloat64, which schema 0.0 declares as float64
+  --> in/validate/TestValidate/someFloat32.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:22:10
+   |
+22 |             someFloat64: float64
+   |             ----------- declared here
+   |
+   = detail: someFloat64: incomplete value float64
+
+error[E0501]: the data lacks intWithBounds, which schema 0.0 declares as >=0 & <10 & int
+  --> in/validate/TestValidate/someFloat32.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:23:25
+   |
+23 |             intWithBounds: int & >=0 & <10
+   |                            --- declared here
+   |
+   = detail: intWithBounds: incomplete value >=0 & <10 & int
+
+error[E0501]: the data lacks nullableIntWithNoDefault, which schema 0.0 declares as int | null
+  --> in/validate/TestValidate/someFloat32.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:24:36
+   |
+24 |             nullableIntWithNoDefault: int | null
+   |                                       --- declared here
+   |
+   = detail: nullableIntWithNoDefault: incomplete value int | null
+
+error[E0501]: the data lacks stringWithLength, which schema 0.0 declares as strings.MinRunes(10)
+  --> in/validate/TestValidate/someFloat32.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:26:28
+   |
+26 |             stringWithLength: string & strings.MinRunes(10)
+   |                               ------ declared here
+   |
+   = detail: stringWithLength: incomplete value strings.MinRunes(10)
 -- out/validate/TestValidate/someFloat64 --
-<scalarFields@v0.0>.someFloat64: validation failed, data is not an instance:
-	schema expected `float64`
-		/github.com/sdboyer/thema@v0.1.0/lineage.cue:170:19
-	but data contained `"I am a string"`
-		test:2:20
-<scalarFields@v0.0>.someUInt8: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint8`
-	but field was absent from data
-<scalarFields@v0.0>.someUInt16: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint16`
-	but field was absent from data
-<scalarFields@v0.0>.someUInt32: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint32`
-	but field was absent from data
-<scalarFields@v0.0>.someUInt64: validation failed, data is not an instance:
-	schema specifies that field exists with type `uint64`
-	but field was absent from data
-<scalarFields@v0.0>.someInt8: validation failed, data is not an instance:
-	schema specifies that field exists with type `int8`
-	but field was absent from data
-<scalarFields@v0.0>.someInt16: validation failed, data is not an instance:
-	schema specifies that field exists with type `int16`
-	but field was absent from data
-<scalarFields@v0.0>.someInt32: validation failed, data is not an instance:
-	schema specifies that field exists with type `int32`
-	but field was absent from data
-<scalarFields@v0.0>.someInt64: validation failed, data is not an instance:
-	schema specifies that field exists with type `int64`
-	but field was absent from data
-<scalarFields@v0.0>.someFloat32: validation failed, data is not an instance:
-	schema specifies that field exists with type `float32`
-	but field was absent from data
-<scalarFields@v0.0>.intWithBounds: validation failed, data is not an instance:
-	schema specifies that field exists with type `>=0 & <10 & int`
-		/in.cue:23:25
-	but field was absent from data
-<scalarFields@v0.0>.nullableIntWithNoDefault: validation failed, data is not an instance:
-	schema specifies that field exists with type `int | null`
-		/in.cue:24:36
-	but field was absent from data
-<scalarFields@v0.0>.stringWithLength: validation failed, data is not an instance:
-	schema specifies that field exists with type `strings.MinRunes(10)`
-		/in.cue:26:37
-		/in.cue:26:28
-	but field was absent from data
+error[E0503]: someFloat64 in the data is string, but schema 0.0 declares it as float64
+  --> in/validate/TestValidate/someFloat64.data.json:2:20
+   |
+ 2 |     "someFloat64": "I am a string"
+   |                    ^^^^^^^^^^^^^^^
+   |
+  ::: /in.cue:22:10
+   |
+22 |             someFloat64: float64
+   |             ----------- declared here
+   |
+   = detail: someFloat64: conflicting values "I am a string" and float64 (mismatched types string and number)
+
+error[E0501]: the data lacks someUInt8, which schema 0.0 declares as uint8
+  --> in/validate/TestValidate/someFloat64.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:13:10
+   |
+13 |             someUInt8: uint8
+   |             --------- declared here
+   |
+   = detail: someUInt8: incomplete value uint8
+
+error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
+  --> in/validate/TestValidate/someFloat64.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:14:10
+   |
+14 |             someUInt16: uint16
+   |             ---------- declared here
+   |
+   = detail: someUInt16: incomplete value uint16
+
+error[E0501]: the data lacks someUInt32, which schema 0.0 declares as uint32
+  --> in/validate/TestValidate/someFloat64.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:15:10
+   |
+15 |             someUInt32: uint32
+   |             ---------- declared here
+   |
+   = detail: someUInt32: incomplete value uint32
+
+error[E0501]: the data lacks someUInt64, which schema 0.0 declares as uint64
+  --> in/validate/TestValidate/someFloat64.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:16:10
+   |
+16 |             someUInt64: uint64
+   |             ---------- declared here
+   |
+   = detail: someUInt64: incomplete value uint64
+
+error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
+  --> in/validate/TestValidate/someFloat64.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:17:10
+   |
+17 |             someInt8: int8
+   |             -------- declared here
+   |
+   = detail: someInt8: incomplete value int8
+
+error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
+  --> in/validate/TestValidate/someFloat64.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:18:10
+   |
+18 |             someInt16: int16
+   |             --------- declared here
+   |
+   = detail: someInt16: incomplete value int16
+
+error[E0501]: the data lacks someInt32, which schema 0.0 declares as int32
+  --> in/validate/TestValidate/someFloat64.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:19:10
+   |
+19 |             someInt32: int32
+   |             --------- declared here
+   |
+   = detail: someInt32: incomplete value int32
+
+error[E0501]: the data lacks someInt64, which schema 0.0 declares as int64
+  --> in/validate/TestValidate/someFloat64.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:20:10
+   |
+20 |             someInt64: int64
+   |             --------- declared here
+   |
+   = detail: someInt64: incomplete value int64
+
+error[E0501]: the data lacks someFloat32, which schema 0.0 declares as float32
+  --> in/validate/TestValidate/someFloat64.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:21:10
+   |
+21 |             someFloat32: float32
+   |             ----------- declared here
+   |
+   = detail: someFloat32: incomplete value float32
+
+error[E0501]: the data lacks intWithBounds, which schema 0.0 declares as >=0 & <10 & int
+  --> in/validate/TestValidate/someFloat64.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:23:25
+   |
+23 |             intWithBounds: int & >=0 & <10
+   |                            --- declared here
+   |
+   = detail: intWithBounds: incomplete value >=0 & <10 & int
+
+error[E0501]: the data lacks nullableIntWithNoDefault, which schema 0.0 declares as int | null
+  --> in/validate/TestValidate/someFloat64.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:24:36
+   |
+24 |             nullableIntWithNoDefault: int | null
+   |                                       --- declared here
+   |
+   = detail: nullableIntWithNoDefault: incomplete value int | null
+
+error[E0501]: the data lacks stringWithLength, which schema 0.0 declares as strings.MinRunes(10)
+  --> in/validate/TestValidate/someFloat64.data.json:1:1
+   |
+ 1 | {
+   | ^
+   |
+  ::: /in.cue:26:28
+   |
+26 |             stringWithLength: string & strings.MinRunes(10)
+   |                               ------ declared here
+   |
+   = detail: stringWithLength: incomplete value strings.MinRunes(10)
 -- in/validate/TestValidate/outOfBoundsLowerInt.data.json --
 {
     "intWithBounds": -1

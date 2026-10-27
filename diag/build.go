@@ -19,6 +19,15 @@ import (
 //		Err()
 type B struct {
 	e *Error
+	// declared: the builder has noted the author's declaration of what the
+	// diagnostic is about, so the positions CUE reports for the same
+	// declaration, in thema's CUE or in the author's schema, add nothing and
+	// are not noted. Positions in the data still are.
+	declared bool
+	// declareWith, when the builder could not find the declaration itself,
+	// labels the first position CUE reports outside the data as the
+	// declaration, after which declared applies.
+	declareWith string
 }
 
 // New starts a diagnostic with code c. The code must be declared in [Codes];

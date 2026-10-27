@@ -1,6 +1,7 @@
 package diag
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -44,6 +45,30 @@ type Address struct {
 	Field []string `json:"field,omitempty"`
 	// Name is an example's name, a lacuna field's name, or an unknown field.
 	Name string `json:"name,omitempty"`
+}
+
+// MarshalJSON writes only the fields the Kind gives meaning to, so that a data
+// address does not carry lens versions and a lens address does not carry a
+// schema version.
+func (a Address) MarshalJSON() ([]byte, error) {
+	out := map[string]any{"kind": a.Kind}
+	switch a.Kind {
+	case AddrSchema, AddrSchemaField, AddrExample, AddrData:
+		out["version"] = a.Version
+	case AddrLens, AddrLensInput, AddrLensResult, AddrLensResultField, AddrLacuna, AddrLacunaField, AddrStep:
+		out["from"], out["to"] = a.From, a.To
+	}
+	switch a.Kind {
+	case AddrLacuna, AddrLacunaField, AddrStep:
+		out["index"] = a.Index
+	}
+	if len(a.Field) > 0 {
+		out["field"] = a.Field
+	}
+	if a.Name != "" {
+		out["name"] = a.Name
+	}
+	return json.Marshal(out)
 }
 
 // Vocabulary renders an Address in the terms of one authoring form.

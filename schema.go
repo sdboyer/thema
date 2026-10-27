@@ -7,6 +7,7 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/errors"
 
+	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/internal/cuetil"
 	"github.com/sdboyer/thema/internal/util"
 )
@@ -77,12 +78,6 @@ func (sch *schemaDef) rt() *Runtime {
 func (sch *schemaDef) Validate(data cue.Value) (*Instance, error) {
 	sch.rt().rl()
 	defer sch.rt().ru()
-	// TODO which approach is actually the right one, unify or subsume? ugh
-	// err := sch.raw.Subsume(data, cue.All(), cue.Raw())
-	// if err != nil {
-	// 	return nil, err
-	// 	// return nil, mungeValidateErr(err, sch)
-	// }
 
 	// Schemas are only as closed as their authors wrote them; validation rejects
 	// fields the schema does not define by closing it here.
@@ -93,7 +88,7 @@ func (sch *schemaDef) Validate(data cue.Value) (*Instance, error) {
 	// ie: every field defined by the schema has a concrete value associated to it,
 	// and no required field was omitted.
 	if err := x.Validate(cue.Concrete(true)); err != nil {
-		return nil, mungeValidateErr(err, sch)
+		return nil, diag.Convert(err, sch.validateContext(data))
 	}
 
 	return &Instance{
@@ -102,6 +97,55 @@ func (sch *schemaDef) Validate(data cue.Value) (*Instance, error) {
 		sch:   sch,
 		name:  "", // FIXME how are we getting this out?
 	}, nil
+}
+
+// validateContext is what diag needs to describe a validation failure of data
+// against this schema: the schema's version for the headline, the author's
+// schema value at any data path for positions and suggestions, and which file
+// the data came from so its positions come first.
+func (sch *schemaDef) validateContext(data cue.Value) diag.Context {
+	dataFile := dataFilename(data)
+	return diag.Context{
+		Op:   diag.OpValidate,
+		Base: diag.Address{Kind: diag.AddrData, Version: diag.Version(sch.Version())},
+		// Validation closes the schema in a definition; its label is on every
+		// error path and is not the author's.
+		PathPrefix: []string{"#closed"},
+		SourceValue: func(path []string) (cue.Value, bool) {
+			v := sch.def.LookupPath(fieldPath(path))
+			return v, v.Exists()
+		},
+		IsData:  func(file string) bool { return dataFile != "" && file == dataFile },
+		DataPos: data.Pos(),
+	}
+}
+
+// dataFilename is the file the data was parsed from, or "" when it was built
+// in memory without one.
+func dataFilename(data cue.Value) string {
+	if p := data.Pos(); p.IsValid() {
+		return p.Filename()
+	}
+	iter, err := data.Fields(cue.All())
+	if err != nil {
+		return ""
+	}
+	for iter.Next() {
+		if p := iter.Value().Pos(); p.IsValid() {
+			return p.Filename()
+		}
+	}
+	return ""
+}
+
+// fieldPath is the CUE path of a field path in a schema, where each segment
+// may name a regular, optional or required field.
+func fieldPath(path []string) cue.Path {
+	sels := make([]cue.Selector, len(path))
+	for i, p := range path {
+		sels[i] = cue.Str(p)
+	}
+	return cue.MakePath(sels...)
 }
 
 // undeclaredErr describes fields at paths that the schema does not declare.

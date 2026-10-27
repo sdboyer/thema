@@ -12,7 +12,9 @@ import (
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
+	cjson "cuelang.org/go/encoding/json"
 
+	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/internal/diagdocs"
 	"github.com/sdboyer/thema/internal/diagtest"
@@ -164,6 +166,51 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 			t.Fatal("unify produced no error")
 		}
 		return diag.From(err, diag.Context{})
+	},
+	// validate: bind lineage.cue (a normal form that does not import thema),
+	// validate data.json against the version #version names (default: the
+	// latest), and report the failure.
+	"validate": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {
+		dirs, _ := a.Directives()
+		ctx := cuecontext.New()
+		rt := thema.NewRuntime(ctx)
+		src, ok := a.File("lineage.cue")
+		if !ok {
+			t.Fatal("validate needs lineage.cue")
+		}
+		lin, err := thema.BindLineage(ctx.CompileString(src, cue.Filename("lineage.cue")), rt)
+		if err != nil {
+			t.Fatalf("lineage.cue does not bind: %v", err)
+		}
+		sch := lin.Latest()
+		if v, ok := dirs["version"]; ok {
+			sv, err := thema.ParseSyntacticVersion(v)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if sch, err = lin.Schema(sv); err != nil {
+				t.Fatal(err)
+			}
+		}
+		var data cue.Value
+		if src, ok := a.File("data.cue"); ok {
+			data = ctx.CompileString(src, cue.Filename("data.cue"))
+		} else {
+			text, ok := a.File("data.json")
+			if !ok {
+				t.Fatal("validate needs data.json or data.cue")
+			}
+			expr, err := cjson.Extract("data.json", []byte(text))
+			if err != nil {
+				t.Fatal(err)
+			}
+			data = ctx.BuildExpr(expr)
+		}
+		_, err = sch.Validate(data)
+		if err == nil {
+			t.Fatal("the data is valid")
+		}
+		return diag.Diagnostics(err)
 	},
 	// go-error: a plain Go error with the text of error.txt.
 	"go-error": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {

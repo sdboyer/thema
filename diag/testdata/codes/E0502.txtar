@@ -1,0 +1,71 @@
+#op: validate
+The data has a field the schema does not declare. Schemas are closed when
+validating: an instance may hold only the fields its schema declares, however
+open the author wrote the schema. When the unknown field's name is close to a
+declared one, the help names it.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				name:  string
+				count: int
+			}
+		}
+	}
+}
+-- data.json --
+{
+	"name":  "Argo",
+	"count": 3,
+	"cuont": 4
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0502",
+      "severity": "error",
+      "headline": "the data has cuont, which schema 0.0 does not declare",
+      "path": [
+        "cuont"
+      ],
+      "address": {
+        "field": [
+          "cuont"
+        ],
+        "kind": "data",
+        "version": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "data.json",
+        "line": 4,
+        "col": 3,
+        "offset": 35,
+        "origin": "user"
+      },
+      "help": [
+        "did you mean count?"
+      ],
+      "detail": "cuont: field not allowed"
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0502]: the data has cuont, which schema 0.0 does not declare
+ --> data.json:4:3
+  |
+4 |     "cuont": 4
+  |      ^^^^^
+  |
+  = detail: cuont: field not allowed
+  = help: did you mean count?

@@ -3,6 +3,8 @@ package diag
 import (
 	"slices"
 	"strings"
+
+	terrors "github.com/sdboyer/thema/errors"
 )
 
 // CodeInfo declares one code: what it means and how it behaves.
@@ -35,6 +37,12 @@ type CodeInfo struct {
 // A code's meaning never changes. A code that stops being reported is retired,
 // not reused.
 var Codes = []CodeInfo{
+	{Code: E0501, Severity: SeverityError, Title: "the data lacks a field the schema requires", Sentinels: []error{terrors.ErrInvalidData, terrors.ErrInvalidMissingField}},
+	{Code: E0502, Severity: SeverityError, Title: "the data has a field the schema does not declare", Sentinels: []error{terrors.ErrInvalidData, terrors.ErrInvalidExcessField}},
+	{Code: E0503, Severity: SeverityError, Title: "a value in the data is of a kind the schema does not accept", Sentinels: []error{terrors.ErrInvalidData, terrors.ErrInvalidKindConflict}},
+	{Code: E0504, Severity: SeverityError, Title: "a value in the data is outside what the schema allows", Sentinels: []error{terrors.ErrInvalidData, terrors.ErrInvalidOutOfBounds}},
+	{Code: E0505, Severity: SeverityError, Title: "a value in the data matches none of the alternatives the schema allows", Sentinels: []error{terrors.ErrInvalidData, terrors.ErrInvalidOutOfBounds}},
+	{Code: E0506, Severity: SeverityError, Title: "the data is not concrete", Sentinels: []error{terrors.ErrInvalidData}, Positionless: true},
 	{Code: E0901, Severity: SeverityError, Title: "thema failed internally", Positionless: true},
 	{Code: E0902, Severity: SeverityError, Title: "CUE reported an error thema does not recognize", Positionless: true},
 	{Code: E0903, Severity: SeverityError, Title: "thema reported an error that has no code", Positionless: true},
@@ -42,6 +50,23 @@ var Codes = []CodeInfo{
 
 // The codes.
 const (
+	// E0501: validating data, a field the schema requires is absent.
+	E0501 Code = "E0501"
+	// E0502: validating data, a field the schema does not declare is present.
+	// Schemas are closed when validating.
+	E0502 Code = "E0502"
+	// E0503: validating data, a value is of the wrong kind: a string where the
+	// schema declares an int.
+	E0503 Code = "E0503"
+	// E0504: validating data, a value of the right kind is outside what the
+	// schema allows: out of a bound, failing a validator, or not the constant
+	// the schema fixes.
+	E0504 Code = "E0504"
+	// E0505: validating data, a value matches none of the alternatives of a
+	// disjunction in the schema. Each alternative's reason is a note.
+	E0505 Code = "E0505"
+	// E0506: validating data, the data itself is not concrete.
+	E0506 Code = "E0506"
 	// E0901: a panic inside thema, recovered at an operation boundary. The
 	// detail holds the panic value and stack.
 	E0901 Code = "E0901"
