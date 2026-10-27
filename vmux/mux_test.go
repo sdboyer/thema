@@ -287,7 +287,7 @@ func checkSpectrumAcrossMuxers[T thema.Assignee](t *testing.T, clin thema.Conver
 }
 
 // handler for lacunas and errors
-func handleLE(t *testing.T, im image, lac lacuna.TranslationLacunas, err error) {
+func handleLE(t *testing.T, im image, _ lacuna.TranslationLacunas, err error) {
 	t.Helper()
 	if err != nil && im.err == nil {
 		t.Fatalf("unexpected error while muxing: %s", err)

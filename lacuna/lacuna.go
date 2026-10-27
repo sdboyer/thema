@@ -61,37 +61,37 @@ type Lacuna struct {
 	TargetFields []FieldRef `json:"targetFields,omitempty"`
 
 	// The kind of gap.
-	Type LacunaType `json:"type"`
+	Type Type `json:"type"`
 
 	// A human-readable message describing the gap in translation.
 	Message string `json:"message"`
 }
 
-// LacunaType identifies a kind of gap a lacuna can describe. The types are
+// Type identifies a kind of gap a lacuna can describe. The types are
 // defined, and documented, in thema's CUE (LacunaTypes in lacuna.cue).
-type LacunaType string
+type Type string
 
 // The kinds of gap a lacuna can describe. See LacunaTypes in lacuna.cue for what
 // each means.
 const (
-	LacunaPlaceholder       LacunaType = "Placeholder"
-	LacunaDroppedField      LacunaType = "DroppedField"
-	LacunaLossyFieldMapping LacunaType = "LossyFieldMapping"
-	LacunaChangedDefault    LacunaType = "ChangedDefault"
-	LacunaPrecisionLoss     LacunaType = "PrecisionLoss"
-	LacunaAmbiguousMapping  LacunaType = "AmbiguousMapping"
-	LacunaDefaulted         LacunaType = "Defaulted"
+	Placeholder       Type = "Placeholder"
+	DroppedField      Type = "DroppedField"
+	LossyFieldMapping Type = "LossyFieldMapping"
+	ChangedDefault    Type = "ChangedDefault"
+	PrecisionLoss     Type = "PrecisionLoss"
+	AmbiguousMapping  Type = "AmbiguousMapping"
+	Defaulted         Type = "Defaulted"
 )
 
-// lacunaTypes holds every known LacunaType. It must match LacunaTypes in thema's
+// lacunaTypes holds every known Type. It must match LacunaTypes in thema's
 // CUE, which a test checks.
-var lacunaTypes = map[LacunaType]bool{
-	LacunaPlaceholder: true, LacunaDroppedField: true, LacunaLossyFieldMapping: true, LacunaChangedDefault: true,
-	LacunaPrecisionLoss: true, LacunaAmbiguousMapping: true, LacunaDefaulted: true,
+var lacunaTypes = map[Type]bool{
+	Placeholder: true, DroppedField: true, LossyFieldMapping: true, ChangedDefault: true,
+	PrecisionLoss: true, AmbiguousMapping: true, Defaulted: true,
 }
 
 // Known reports whether t is one of the lacuna types thema defines.
-func (t LacunaType) Known() bool {
+func (t Type) Known() bool {
 	return lacunaTypes[t]
 }
 

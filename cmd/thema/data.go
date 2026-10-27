@@ -422,7 +422,7 @@ func (dc *dataCommand) validateDataInput(cmd *cobra.Command, args []string) erro
 
 // Everything here should become unnecessary once Thema's key invariants are in
 // place
-func (dc *dataCommand) validateTranslationResult(tinst *thema.Instance, lac lacuna.TranslationLacunas) error {
+func (dc *dataCommand) validateTranslationResult(tinst *thema.Instance, _ lacuna.TranslationLacunas) error {
 	if tinst == nil {
 		panic("unreachable, thema.Translate() should never return a nil instance")
 	}

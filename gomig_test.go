@@ -321,14 +321,14 @@ schemas: {
 		_, err = BindLineage(linval, rt, ImperativeLenses(append(correctLenses, ImperativeLens{
 			To:     SV(2, 0),
 			From:   SV(2, 1),
-			Mapper: func(inst *Instance, to Schema) (*Instance, []lacuna.Lacuna, error) { return nil, nil, nil },
+			Mapper: func(_ *Instance, to Schema) (*Instance, []lacuna.Lacuna, error) { return nil, nil, nil },
 		})...))
 		assert.Error(t, err, "expected error when adding Go migration pointing to nonexistent version")
 
 		_, err = BindLineage(linval, rt, ImperativeLenses(append(correctLenses, ImperativeLens{
 			To:     SV(2, 1),
 			From:   SV(2, 0),
-			Mapper: func(inst *Instance, to Schema) (*Instance, []lacuna.Lacuna, error) { return nil, nil, nil },
+			Mapper: func(_ *Instance, to Schema) (*Instance, []lacuna.Lacuna, error) { return nil, nil, nil },
 		})...))
 		assert.Error(t, err, "expected error when adding Go migration pointing to nonexistent version")
 

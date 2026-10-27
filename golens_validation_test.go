@@ -78,7 +78,7 @@ func TestGoLensValidation(t *testing.T) {
 		"0": "0": {schema: {a: string}}
 		"0": "1": {schema: {a: string, b?: int}}
 	}
-}`, ImperativeLenses(ImperativeLens{From: SV(0, 1), To: SV(0, 0), Mapper: func(inst *Instance, to Schema) (*Instance, []lacuna.Lacuna, error) {
+}`, ImperativeLenses(ImperativeLens{From: SV(0, 1), To: SV(0, 0), Mapper: func(_ *Instance, _ Schema) (*Instance, []lacuna.Lacuna, error) {
 			inst, err := other.First().Validate(ctx.CompileString(`{a: 42}`))
 			return inst, nil, err
 		}}))
@@ -102,7 +102,7 @@ func TestGoLensValidation(t *testing.T) {
 		"9.9->3.0": {input: _, result: {nonsense: true}}
 		"0.0->0.0": {input: _, result: {}}
 	}
-}`, ImperativeLenses(ImperativeLens{From: SV(0, 1), To: SV(0, 0), Mapper: func(inst *Instance, to Schema) (*Instance, []lacuna.Lacuna, error) {
+}`, ImperativeLenses(ImperativeLens{From: SV(0, 1), To: SV(0, 0), Mapper: func(_ *Instance, to Schema) (*Instance, []lacuna.Lacuna, error) {
 			inst, err := to.Validate(ctx.CompileString(`{a: "x"}`))
 			return inst, nil, err
 		}}))

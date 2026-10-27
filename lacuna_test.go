@@ -68,7 +68,7 @@ func TestLacunaEmission(t *testing.T) {
 
 	type step struct {
 		from, to SyntacticVersion
-		types    []lacuna.LacunaType
+		types    []lacuna.Type
 	}
 	steps := func(tl lacuna.TranslationLacunas) []step {
 		var out []step
@@ -89,13 +89,13 @@ func TestLacunaEmission(t *testing.T) {
 		want []step
 	}{
 		"condition false": {SV(0, 1), `{a: "x"}`, SV(0, 0), []step{{SV(0, 1), SV(0, 0), nil}}},
-		"condition true":  {SV(0, 1), `{a: "x", note: "n"}`, SV(0, 0), []step{{SV(0, 1), SV(0, 0), []lacuna.LacunaType{lacuna.LacunaDroppedField}}}},
+		"condition true":  {SV(0, 1), `{a: "x", note: "n"}`, SV(0, 0), []step{{SV(0, 1), SV(0, 0), []lacuna.Type{lacuna.DroppedField}}}},
 		"forward, multi-step": {SV(0, 0), `{a: "x"}`, SV(1, 0), []step{
 			{SV(0, 0), SV(0, 1), nil},
-			{SV(0, 1), SV(1, 0), []lacuna.LacunaType{lacuna.LacunaPlaceholder}},
+			{SV(0, 1), SV(1, 0), []lacuna.Type{lacuna.Placeholder}},
 		}},
 		"backward, multi-step": {SV(1, 0), `{a: "x", id: 3}`, SV(0, 0), []step{
-			{SV(1, 0), SV(0, 1), []lacuna.LacunaType{lacuna.LacunaDroppedField}},
+			{SV(1, 0), SV(0, 1), []lacuna.Type{lacuna.DroppedField}},
 			{SV(0, 1), SV(0, 0), nil},
 		}},
 		"identity": {SV(0, 0), `{a: "x"}`, SV(0, 0), nil},
@@ -192,7 +192,7 @@ func TestGoLensLacunas(t *testing.T) {
 		t.Helper()
 		v := loadLineageValue(t, ctx, src)
 		lin, err := BindLineage(v, rt, ImperativeLenses(ImperativeLens{From: SV(0, 1), To: SV(0, 0),
-			Mapper: func(inst *Instance, to Schema) (*Instance, []lacuna.Lacuna, error) {
+			Mapper: func(_ *Instance, to Schema) (*Instance, []lacuna.Lacuna, error) {
 				out, err := to.Validate(ctx.CompileString(`{a: "x"}`))
 				return out, lacunas, err
 			}}))
@@ -210,19 +210,19 @@ func TestGoLensLacunas(t *testing.T) {
 		return lac, err
 	}
 
-	lac, err := translate(bind([]lacuna.Lacuna{{Type: lacuna.LacunaDroppedField, Message: "b dropped", SourceFields: []lacuna.FieldRef{{Path: "b", Value: 2}}}}))
+	lac, err := translate(bind([]lacuna.Lacuna{{Type: lacuna.DroppedField, Message: "b dropped", SourceFields: []lacuna.FieldRef{{Path: "b", Value: 2}}}}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(lac) != 1 || lac[0].From != SV(0, 1) || lac[0].To != SV(0, 0) || len(lac[0].Lacunas) != 1 || lac[0].Lacunas[0].Type != lacuna.LacunaDroppedField {
+	if len(lac) != 1 || lac[0].From != SV(0, 1) || lac[0].To != SV(0, 0) || len(lac[0].Lacunas) != 1 || lac[0].Lacunas[0].Type != lacuna.DroppedField {
 		t.Fatalf("unexpected lacunas: %+v", lac)
 	}
 
 	for name, l := range map[string]lacuna.Lacuna{
 		"unknown type":      {Type: "Bogus", Message: "m"},
-		"missing message":   {Type: lacuna.LacunaDroppedField},
-		"undeclared path":   {Type: lacuna.LacunaDroppedField, Message: "m", SourceFields: []lacuna.FieldRef{{Path: "nope"}}},
-		"wrong side's path": {Type: lacuna.LacunaDroppedField, Message: "m", TargetFields: []lacuna.FieldRef{{Path: "b"}}},
+		"missing message":   {Type: lacuna.DroppedField},
+		"undeclared path":   {Type: lacuna.DroppedField, Message: "m", SourceFields: []lacuna.FieldRef{{Path: "nope"}}},
+		"wrong side's path": {Type: lacuna.DroppedField, Message: "m", TargetFields: []lacuna.FieldRef{{Path: "b"}}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			if _, err := translate(bind([]lacuna.Lacuna{l})); err == nil {

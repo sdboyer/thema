@@ -4,9 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"os/exec"
-	"path/filepath"
 	"reflect"
-	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -48,7 +46,7 @@ func TestLacunaTypesMatchCUE(t *testing.T) {
 	if !reflect.DeepEqual(cueTypes, goTypes) {
 		t.Errorf("CUE lacuna types %v differ from Go constants %v", cueTypes, goTypes)
 	}
-	if lacuna.LacunaType("Bogus").Known() {
+	if lacuna.Type("Bogus").Known() {
 		t.Error("Known() accepts an undefined lacuna type")
 	}
 }
@@ -56,11 +54,10 @@ func TestLacunaTypesMatchCUE(t *testing.T) {
 // The lacuna package must not depend on CUE, directly or transitively. Engines
 // that translate instances without CUE emit its types.
 func TestNoCUEDependency(t *testing.T) {
-	gobin, err := exec.LookPath("go")
-	if err != nil {
-		gobin = filepath.Join(runtime.GOROOT(), "bin", "go")
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go command not found in PATH")
 	}
-	out, err := exec.Command(gobin, "list", "-deps", "-f", "{{.ImportPath}}", ".").Output()
+	out, err := exec.Command("go", "list", "-deps", "-f", "{{.ImportPath}}", ".").Output()
 	if err != nil {
 		if ee, ok := err.(*exec.ExitError); ok {
 			t.Fatalf("go list -deps: %v\n%s", err, ee.Stderr)

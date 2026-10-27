@@ -39,7 +39,7 @@ func TestDocsShip(t *testing.T) {
 	if got, _ := out.Underlying().LookupPath(cue.ParsePath("secondfield")).Int64(); got != -1 {
 		t.Errorf("secondfield = %d, want the placeholder -1", got)
 	}
-	if l := lac.AsList(); len(l) != 1 || l[0].Type != lacuna.LacunaPlaceholder {
+	if l := lac.AsList(); len(l) != 1 || l[0].Type != lacuna.Placeholder {
 		t.Errorf("want one Placeholder lacuna, got %+v", l)
 	}
 }
