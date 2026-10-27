@@ -1,0 +1,56 @@
+#op: compile
+A field both versions declare, and no lens mentions, is copied. The copy has
+to produce a value the target accepts. Here kind narrows from any string to
+two of them, and the ForwardLens does not map it.
+-- ship/history/0.0.thema --
+Schema: {
+	name: string
+	kind: string
+}
+-- ship/1.0.thema --
+Schema: {
+	name: string
+	kind: "a" | "b"
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0358",
+      "severity": "error",
+      "headline": "the ForwardLens in 1.0.thema would copy v0_0.kind into kind, which does not accept every value of it",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 1,
+        "col": 1,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "both 0.0 and 1.0 declare kind, so a lens that does not map it copies it"
+        },
+        {
+          "label": "kind in 1.0 is now \"a\" | \"b\", which does not accept every value of the prior string (copying v0_0.kind; compatibility rule value-narrowed)"
+        }
+      ],
+      "help": [
+        "map kind in the ForwardLens: a match, a computed value, or a constant"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0358]: the ForwardLens in 1.0.thema would copy v0_0.kind into kind, which does not accept every value of it
+ --> 1.0.thema:1:1
+  |
+1 | Schema: {
+  | ^^^^^^
+  |
+  = note: both 0.0 and 1.0 declare kind, so a lens that does not map it copies it
+  = note: kind in 1.0 is now "a" | "b", which does not accept every value of the prior string (copying v0_0.kind; compatibility rule value-narrowed)
+  = help: map kind in the ForwardLens: a match, a computed value, or a constant
