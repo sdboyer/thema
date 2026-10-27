@@ -1,0 +1,15 @@
+-- in.cue --
+
+import "github.com/sdboyer/thema"
+
+thema.Lineage
+name: "emptySchemas"
+schemas: {}
+-- out/bindfail --
+error[E0122]: the lineage declares no schemas
+ --> /in.cue:6:1
+  |
+6 | schemas: {}
+  | ^^^^^^^
+  |
+  = help: declare at least version 0.0 under schemas

@@ -6,11 +6,12 @@ require (
 	cuelang.org/go v0.18.0-rc.1
 	github.com/dave/dst v0.27.2
 	github.com/google/go-cmp v0.7.0
+	github.com/gzuidhof/tygo v0.2.21
 	github.com/kr/text v0.2.0
 	github.com/matryer/is v1.4.0
 	github.com/rogpeppe/go-internal v1.16.1-0.20261002162744-ce71b23481ca
 	github.com/spf13/cobra v1.10.2
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.9.0
 	github.com/xeipuuv/gojsonschema v1.2.0
 	github.com/xlab/treeprint v1.1.0
 	github.com/yalue/merged_fs v1.2.2
@@ -24,6 +25,7 @@ require (
 	github.com/cockroachdb/apd/v3 v3.2.3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/emicklei/proto v1.14.3 // indirect
+	github.com/fatih/structtag v1.2.0 // indirect
 	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect

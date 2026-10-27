@@ -1,0 +1,24 @@
+#op: format
+#raw: true
+A file that is not CUE syntax is reported at the parser's position.
+-- request.json --
+{"file": {"path": "1.0.thema", "text": "Schema: {name: string\n"}}
+-- out/response.json --
+{
+  "ok": false,
+  "diagnostics": [
+    {
+      "code": "E0102",
+      "severity": "error",
+      "headline": "a version file is not CUE syntax",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 1,
+        "col": 23,
+        "offset": 22,
+        "origin": "user"
+      },
+      "detail": "expected '}', found 'EOF'"
+    }
+  ]
+}

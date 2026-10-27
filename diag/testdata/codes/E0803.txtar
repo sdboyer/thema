@@ -1,0 +1,28 @@
+#op: playground
+#call: validate
+A version in a request is written <major>.<minor>. A version that parses but
+that the lineage lacks is E0240 instead.
+-- request.json --
+{"lineage": {"normal": {"path": "lineage.cue", "text": "name: \"ship\"\nschemas: {\n\t\"0\": {\n\t\t\"0\": {\n\t\t\tschema: {\n\t\t\t\tcrew: int\n\t\t\t}\n\t\t}\n\t}\n}\n"}}, "data": {"filename": "data.json", "text": "{\"crew\": 1}"}, "version": "1"}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0803",
+      "severity": "error",
+      "headline": "\"1\" is not a version",
+      "help": [
+        "a version is <major>.<minor>, such as 1.0"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0803]: "1" is not a version
+  |
+  = help: a version is <major>.<minor>, such as 1.0

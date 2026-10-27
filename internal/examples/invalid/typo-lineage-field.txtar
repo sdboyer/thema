@@ -1,0 +1,21 @@
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+thema.Lineage
+name: "typo"
+schemas: {
+	"0": "0": {
+		schema: {
+			foo: string
+		}
+	}
+}
+lense: []
+-- out/bindfail --
+error[E0123]: lense is not a field of a lineage
+  --> /in.cue:12:1
+   |
+12 | lense: []
+   | ^^^^^
+   |
+   = help: did you mean lenses?

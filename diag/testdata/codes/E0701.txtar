@@ -1,0 +1,32 @@
+#op: playground
+#call: typescript
+A generator could not express a schema the lineage accepts: here TypeScript,
+for a struct closed with CUE's close(). The schema is valid; the target
+language has no equivalent for the construct. The detail is the generator's
+own message.
+-- request.json --
+{"lineage": {"normal": {"path": "lineage.cue", "text": "name: \"ship\"\nschemas: {\n\t\"0\": {\n\t\t\"0\": {\n\t\t\tschema: {\n\t\t\t\tcrew: close({size: int})\n\t\t\t}\n\t\t}\n\t}\n}\n"}}}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0701",
+      "severity": "error",
+      "headline": "generating TypeScript from schema 0.0 failed",
+      "help": [
+        "the schema is valid; TypeScript cannot express some construct in it"
+      ],
+      "detail": "generating TS for schema root failed: Found an error in the field 'crew:6:5'. Error: not expecting op type 6"
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0701]: generating TypeScript from schema 0.0 failed
+  |
+  = detail: generating TS for schema root failed: Found an error in the field 'crew:6:5'. Error: not expecting op type 6
+  = help: the schema is valid; TypeScript cannot express some construct in it

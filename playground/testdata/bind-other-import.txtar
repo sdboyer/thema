@@ -1,0 +1,30 @@
+#op: bind
+A lineage that imports a module other than thema is refused before
+anything is loaded: the playground fetches nothing.
+-- lineage.cue --
+package ship
+
+import "example.com/other"
+
+lin: other.Lineage
+-- out/response.json --
+{
+  "ok": false,
+  "diagnostics": [
+    {
+      "code": "E0608",
+      "severity": "error",
+      "headline": "the lineage imports example.com/other, which is not available here",
+      "primary": {
+        "file": "lineage.cue",
+        "line": 3,
+        "col": 8,
+        "offset": 21,
+        "origin": "user"
+      },
+      "help": [
+        "the playground provides github.com/sdboyer/thema and CUE's builtin packages, and no other module"
+      ]
+    }
+  ]
+}

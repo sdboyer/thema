@@ -84,9 +84,9 @@ type Vocabulary interface {
 
 // A Rewriter is a Vocabulary that can also rewrite a sentence about a
 // construct from the normal form's terms into the author's: thema's checkers
-// read the normal form, and say "input.count" where the author of a version
-// file wrote "v0_0.count". The Address says which construct, and so which
-// lens's parameters the sentence refers to.
+// read the normal form, and say "the target schema" where the author of
+// version files wrote 1.0.thema. The Address says which construct, and so
+// which lens's versions the sentence refers to.
 type Rewriter interface {
 	Vocabulary
 	Rewrite(a Address, sentence string) string

@@ -194,7 +194,13 @@ var Codes = []CodeInfo{
 	{Code: E0613, Severity: SeverityError, Title: "no data was given, or the data path cannot be read", Positionless: true},
 	{Code: E0614, Severity: SeverityError, Title: "the data format flag names a format thema does not read", Positionless: true},
 	{Code: E0616, Severity: SeverityError, Title: "a file cannot be written", Positionless: true},
+	{Code: E0617, Severity: SeverityError, Title: "this thema was built without the playground", Positionless: true},
+	{Code: E0618, Severity: SeverityError, Title: "the server cannot listen on the address", Positionless: true},
 	{Code: E0620, Severity: SeverityError, Title: "a flag or argument is not valid", Positionless: true},
+	{Code: E0701, Severity: SeverityError, Title: "generating code from the schema failed", Positionless: true},
+	{Code: E0801, Severity: SeverityError, Title: "the playground request is malformed", Positionless: true},
+	{Code: E0802, Severity: SeverityError, Title: "the playground request gives the lineage in neither form, or in both", Positionless: true},
+	{Code: E0803, Severity: SeverityError, Title: "a version in the playground request is not a version", Positionless: true},
 	{Code: E0901, Severity: SeverityError, Title: "thema failed internally", Positionless: true},
 	{Code: E0902, Severity: SeverityError, Title: "CUE reported an error thema does not recognize", Positionless: true},
 	{Code: E0903, Severity: SeverityError, Title: "thema reported an error that has no code", Positionless: true},
@@ -389,7 +395,17 @@ const (
 	E0613 Code = "E0613" // no data on stdin or path
 	E0614 Code = "E0614" // unknown format flag
 	E0616 Code = "E0616" // writing a file failed
+	E0617 Code = "E0617" // serve playground in a build without it
+	E0618 Code = "E0618" // serve cannot listen
 	E0620 Code = "E0620" // a CLI flag or argument that is not valid
+
+	// E07xx: code generation.
+	E0701 Code = "E0701" // a generator failed on the schema
+
+	// E08xx: the playground's requests.
+	E0801 Code = "E0801" // request JSON malformed, or no such operation
+	E0802 Code = "E0802" // lineage in neither form, or both
+	E0803 Code = "E0803" // a request's version does not parse
 
 	// E0901: a panic inside thema, recovered at an operation boundary. The
 	// detail holds the panic value and stack.

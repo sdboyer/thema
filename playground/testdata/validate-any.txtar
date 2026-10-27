@@ -1,0 +1,127 @@
+#op: validate-any
+The newest schema the data is an instance of, and what every schema said.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": "0": {
+		schema: {
+			name: string
+		}
+	}
+	"1": "0": {
+		schema: {
+			title: string
+			crew:  int | *1
+		}
+	}
+}
+lenses: {
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			name: v1_0.title
+		}
+		lacunas: [{
+			sourceFields: [{path: "crew", value: v1_0.crew}]
+			message: "crew is dropped"
+			type:    "DroppedField"
+		}]
+	}
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			title: v0_0.name
+			crew:  1
+		}
+		lacunas: [{
+			targetFields: [{path: "crew", value: v1_0.crew}]
+			message: "crew is a placeholder"
+			type:    "Placeholder"
+		}]
+	}
+}
+-- data.json --
+{"name": "Argo"}
+-- out/response.json --
+{
+  "ok": true,
+  "diagnostics": [],
+  "version": "0.0",
+  "perVersion": [
+    {
+      "version": "1.0",
+      "diagnostics": [
+        {
+          "code": "E0502",
+          "severity": "error",
+          "headline": "the data has name, which schema 1.0 does not declare",
+          "path": [
+            "name"
+          ],
+          "address": {
+            "field": [
+              "name"
+            ],
+            "kind": "data",
+            "version": [
+              1,
+              0
+            ]
+          },
+          "primary": {
+            "file": "data.json",
+            "line": 1,
+            "col": 3,
+            "offset": 2,
+            "origin": "user"
+          },
+          "help": [
+            "remove name from the data, or declare it in the schema"
+          ],
+          "detail": "name: field not allowed"
+        },
+        {
+          "code": "E0501",
+          "severity": "error",
+          "headline": "the data lacks title, which schema 1.0 declares as string",
+          "path": [
+            "title"
+          ],
+          "address": {
+            "field": [
+              "title"
+            ],
+            "kind": "data",
+            "version": [
+              1,
+              0
+            ]
+          },
+          "primary": {
+            "file": "data.json",
+            "line": 1,
+            "col": 1,
+            "origin": "user"
+          },
+          "notes": [
+            {
+              "pos": {
+                "file": "lineage.cue",
+                "line": 10,
+                "col": 4,
+                "offset": 100,
+                "origin": "user"
+              },
+              "label": "declared here"
+            }
+          ],
+          "detail": "title: incomplete value string"
+        }
+      ]
+    },
+    {
+      "version": "0.0",
+      "diagnostics": []
+    }
+  ]
+}
