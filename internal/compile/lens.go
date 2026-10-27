@@ -2,6 +2,7 @@ package compile
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -13,6 +14,7 @@ import (
 
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/internal/cueview"
+	"github.com/sdboyer/thema/internal/lenscheck"
 	"github.com/sdboyer/thema/lacuna"
 )
 
@@ -43,6 +45,11 @@ type entry struct {
 
 	// fallback is orelse's second argument: a constant, or a reference.
 	fallback ast.Expr
+	// computed is a computed expression: the value of a computed mapping, or
+	// orelse's primary when that is computed. reads are the source paths it
+	// reads, and optional those of them the source may omit.
+	computed        ast.Expr
+	reads, optional []cue.Path
 	// arms and catchAll are match's arms.
 	arms     []arm
 	catchAll *arm
@@ -66,6 +73,7 @@ const (
 	kindOrElse
 	kindMatch
 	kindEach
+	kindComputed
 )
 
 // The operations a lens body may call, and the arguments each takes.
@@ -205,6 +213,9 @@ type edge struct {
 	root string
 	// lacunas is the lens's declared lacunas.
 	lacunas *lacunaTable
+	// imports collects the packages the lens's expressions call into
+	// (strings), for the normal form's import declaration.
+	imports map[string]bool
 	// each is set for the sub-edge compiling an each body.
 	each *eachScope
 	errs cerrors.Error
@@ -317,7 +328,12 @@ func (e *edge) parseField(f *ast.Field, tbase, sbase cue.Path, b *body) {
 		b.add(en)
 		return
 	}
-	e.errf(f.Value.Pos(), "%s: a mapping is a reference to %s, a constant, a nested body, drop, orelse, match or each; other expressions are not supported yet", name, e.root)
+	reads, optional, ok := e.expression(f.Value, false)
+	if !ok {
+		return
+	}
+	en.kind, en.computed, en.reads, en.optional = kindComputed, f.Value, reads, optional
+	b.add(en)
 }
 
 // parseOrElse reads orelse(ref, fallback): ref must refer to an optional
@@ -328,17 +344,27 @@ func (e *edge) parseOrElse(x *ast.CallExpr, en *entry, b *body) {
 		e.errf(x.Pos(), "orelse takes two arguments: orelse(%s.<path>, fallback)", e.root)
 		return
 	}
-	p, ok := e.refPath(x.Args[0])
-	if !ok {
-		e.errf(x.Args[0].Pos(), "orelse's first argument must be a reference to %s; computed expressions are not supported yet", e.root)
-		return
-	}
 	fb := x.Args[1]
 	if _, ok := e.refPath(fb); !ok && !isLiteral(fb) {
 		e.errf(fb.Pos(), "orelse's fallback must be a constant or a reference to %s", e.root)
 		return
 	}
-	en.kind, en.source, en.fallback = kindOrElse, p, fb
+	if p, ok := e.refPath(x.Args[0]); ok {
+		en.kind, en.source, en.fallback = kindOrElse, p, fb
+		b.add(*en)
+		return
+	}
+	// A computed primary: the fallback applies when a field it reads is
+	// absent, so it must read one the source may omit.
+	reads, optional, ok := e.expression(x.Args[0], false)
+	if !ok {
+		return
+	}
+	if len(optional) == 0 {
+		e.errf(x.Args[0].Pos(), "%s always has every field %s reads, so orelse's fallback could never apply: write %s: %s", e.sv, exprText(x.Args[0]), en.target, exprText(x.Args[0]))
+		return
+	}
+	en.kind, en.computed, en.reads, en.optional, en.fallback = kindOrElse, x.Args[0], reads, optional, fb
 	b.add(*en)
 }
 
@@ -571,9 +597,37 @@ func (e *edge) condition(x ast.Expr) (ast.Expr, bool) {
 			return nil, false
 		}
 	}
-	ok := true
-	var optional []cue.Path
+	_, optional, ok := e.expression(x, true)
+	if !ok {
+		return nil, false
+	}
+	if len(optional) == 0 {
+		return x, true
+	}
+	// Only the instances that have every optional field read.
+	return e.head(pos, e.presentAll(pos, optional), x, at(pos, ast.NewBool(false))), true
+}
+
+// expression checks a computed expression, whose references the normal form
+// keeps as written, and returns the source paths it reads, and those of them
+// the source may omit. An expression reads source fields by path, compares
+// and combines them with CUE's operators, and calls len, the integer
+// divisions and the strings functions the totality proof proves. In a
+// condition, a presence test written out is refused in favor of the bare
+// form (see condition).
+func (e *edge) expression(x ast.Expr, inCondition bool) (reads, optional []cue.Path, ok bool) {
+	ok = true
 	seen := make(map[string]bool)
+	read := func(p cue.Path) {
+		if seen[p.String()] {
+			return
+		}
+		seen[p.String()] = true
+		reads = append(reads, p)
+		if e.optional(e.S, p) {
+			optional = append(optional, p)
+		}
+	}
 	labels := make(map[*ast.Ident]bool)
 	ast.Walk(x, func(n ast.Node) bool {
 		switch n := n.(type) {
@@ -589,7 +643,7 @@ func (e *edge) condition(x ast.Expr) (ast.Expr, bool) {
 				case !lookup(e.S, p).Exists():
 					e.errf(n.X.Pos(), "%s does not declare %s", e.sv, p)
 					ok = false
-				case n.Op == token.NEQ:
+				case inCondition && n.Op == token.NEQ:
 					e.errf(n.Pos(), "a condition reading %s.%s concerns only the instances that have it, so its presence need not be tested; to test presence alone, write %s: %s.%s", e.root, p, fieldWhen, e.root, p)
 					ok = false
 				}
@@ -598,15 +652,23 @@ func (e *edge) condition(x ast.Expr) (ast.Expr, bool) {
 			}
 		case *ast.SelectorExpr:
 			if p, isRef := e.refPath(n); isRef {
-				switch {
-				case !lookup(e.S, p).Exists():
+				if !lookup(e.S, p).Exists() {
 					e.errf(n.Pos(), "%s does not declare %s", e.sv, p)
 					ok = false
-				case e.optional(e.S, p) && !seen[p.String()]:
-					seen[p.String()] = true
-					optional = append(optional, p)
+				} else {
+					read(p)
 				}
 				e.unbind(rootIdent(n))
+				return false
+			}
+			if pkg, isID := n.X.(*ast.Ident); isID && pkg.Name == pkgStrings {
+				name, _, err := ast.LabelName(n.Sel)
+				if err != nil || !lenscheck.StringFunc(name) {
+					e.errf(n.Pos(), "%s is not a function a lens may call; the strings functions are %s", exprText(n), strings.Join(lenscheck.StringFuncs(), ", "))
+					ok = false
+				}
+				e.imports[pkgStrings] = true
+				e.unbind(pkg)
 				return false
 			}
 			if id, isID := n.Sel.(*ast.Ident); isID {
@@ -624,36 +686,48 @@ func (e *edge) condition(x ast.Expr) (ast.Expr, bool) {
 				e.unbind(n)
 				return false
 			}
-			e.errf(n.Pos(), "%s is not defined in a lens; a condition refers to %s and to CUE's builtins", n.Name, e.root)
+			e.errf(n.Pos(), "%s is not defined in a lens; an expression refers to %s, to %s and to the strings functions", n.Name, e.root, strings.Join(lenscheck.Builtins, ", "))
 			ok = false
 		}
 		return true
 	}, nil)
-	if !ok {
-		return nil, false
+	return reads, optional, ok
+}
+
+// pkgStrings is the one package a lens's expressions may call into.
+const pkgStrings = "strings"
+
+// inputRefs renders paths as the author reads them, for messages.
+func (e *edge) inputRefs(paths []cue.Path) string {
+	var out []string
+	for _, p := range paths {
+		out = append(out, e.root+"."+p.String())
 	}
-	if len(optional) == 0 {
-		return x, true
+	return strings.Join(out, ", ")
+}
+
+// presentAll is the conjunction of presence tests for paths, positioned at p.
+func (e *edge) presentAll(p token.Pos, paths []cue.Path) ast.Expr {
+	cond := e.present(p, paths[0])
+	for _, q := range paths[1:] {
+		cond = at(p, ast.NewBinExpr(token.LAND, cond, e.present(p, q)))
 	}
-	// Only the instances that have every optional field read.
-	var tests []ast.Expr
-	for _, p := range optional {
-		tests = append(tests, e.present(pos, p))
-	}
-	guard := tests[0]
-	for _, t := range tests[1:] {
-		guard = at(pos, ast.NewBinExpr(token.LAND, guard, t))
-	}
-	return at(pos, &ast.IndexExpr{
-		X: at(pos, &ast.ListLit{Elts: []ast.Expr{
-			at(pos, &ast.Comprehension{
-				Clauses: []ast.Clause{at(pos, &ast.IfClause{Condition: guard})},
-				Value:   at(pos, &ast.StructLit{Elts: []ast.Decl{at(pos, &ast.EmbedDecl{Expr: x})}}),
+	return cond
+}
+
+// head builds [if cond {then}, els][0]: then where cond holds, els otherwise.
+func (e *edge) head(p token.Pos, cond, then, els ast.Expr) ast.Expr {
+	return at(p, &ast.IndexExpr{
+		X: at(p, &ast.ListLit{Elts: []ast.Expr{
+			at(p, &ast.Comprehension{
+				Clauses: []ast.Clause{at(p, &ast.IfClause{Condition: cond})},
+				Value:   at(p, &ast.StructLit{Elts: []ast.Decl{at(p, &ast.EmbedDecl{Expr: then})}}),
 			}),
-			at(pos, ast.NewBool(false)),
+			els,
 		}}),
-		Index: at(pos, ast.NewLit(token.INT, "0")),
-	}), true
+		// Unpositioned: a position would break the index onto its own line.
+		Index: ast.NewLit(token.INT, "0"),
+	})
 }
 
 // unbind drops the binding the parser gave id, to the authoring file's
@@ -678,13 +752,7 @@ func rootIdent(x ast.Expr) *ast.Ident {
 	}
 }
 
-func isBuiltin(name string) bool {
-	switch name {
-	case "len", "quo", "rem", "div", "mod":
-		return true
-	}
-	return false
-}
+func isBuiltin(name string) bool { return slices.Contains(lenscheck.Builtins, name) }
 
 // lacunaDropped is the type of the lacuna a drop derives.
 const lacunaDropped = string(lacuna.DroppedField)
@@ -755,9 +823,9 @@ type node struct {
 	fields map[string]*node
 	// For a leaf: the entry producing it.
 	leaf *entry
-	// present, if non-empty, is an optional source path the leaf is written
-	// under: if <root>.<present> != _|_ {...}.
-	present cue.Path
+	// present, if non-empty, are the optional source paths the leaf is
+	// written under: if <root>.<p> != _|_ && ... {...}.
+	present []cue.Path
 	pos     token.Pos
 }
 
@@ -852,7 +920,7 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 					e.errf(en.pos, "%s is optional in %s and %s requires %s: write orelse(%s.%s, <fallback>) to say what to use when it is absent", en.source, e.sv, e.tv, en.target, e.root, en.source)
 					continue
 				}
-				root.has(en.target).present = en.source
+				root.has(en.target).present = []cue.Path{en.source}
 			}
 			consumed[en.source.String()] = true
 			out.effective = append(out.effective, *en)
@@ -864,12 +932,32 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 				continue
 			}
 		case kindOrElse:
-			consumed[en.source.String()] = true
+			if en.computed == nil {
+				consumed[en.source.String()] = true
+			}
+			for _, p := range en.reads {
+				consumed[p.String()] = true
+			}
 			if p, ok := e.refPath(en.fallback); ok {
 				consumed[p.String()] = true
 			}
 			if !e.checkOrElse(en) || !e.place(root, en) {
 				continue
+			}
+			out.effective = append(out.effective, *en)
+		case kindComputed:
+			for _, p := range en.reads {
+				consumed[p.String()] = true
+			}
+			if !e.place(root, en) {
+				continue
+			}
+			if len(en.optional) > 0 {
+				if e.required(e.T, en.target) {
+					e.errf(en.pos, "%s reads %s, which %s may omit, and %s requires %s: write orelse(%s, <fallback>) to say what to use when it is absent", exprText(en.computed), e.inputRefs(en.optional), e.sv, e.tv, en.target, exprText(en.computed))
+					continue
+				}
+				root.has(en.target).present = en.optional
 			}
 			out.effective = append(out.effective, *en)
 		case kindMatch:
@@ -930,7 +1018,10 @@ func (e *edge) declare(b *body, out *compiledLens) {
 				cond = e.present(d.pos, en.source)
 			}
 		case kindOrElse:
-			if cond == nil {
+			if cond == nil && en.computed != nil {
+				// The fallback was used: not every optional field read was present.
+				cond = e.head(d.pos, e.presentAll(d.pos, en.optional), at(d.pos, ast.NewBool(false)), at(d.pos, ast.NewBool(true)))
+			} else if cond == nil {
 				cond = e.absent(d.pos, en.source)
 			}
 		case kindMatch:
@@ -995,13 +1086,15 @@ func (e *edge) instance(x ast.Expr, tpath cue.Path) bool {
 // checkOrElse checks an orelse entry: its reference is to an optional source
 // field, and its fallback is total for the target.
 func (e *edge) checkOrElse(en *entry) bool {
-	if !lookup(e.S, en.source).Exists() {
-		e.errf(en.expr.Pos(), "%s does not declare %s", e.sv, en.source)
-		return false
-	}
-	if !e.optional(e.S, en.source) {
-		e.errf(en.expr.Pos(), "%s always has %s, so orelse's fallback could never apply: write %s: %s.%s", e.sv, en.source, en.target, e.root, en.source)
-		return false
+	if en.computed == nil {
+		if !lookup(e.S, en.source).Exists() {
+			e.errf(en.expr.Pos(), "%s does not declare %s", e.sv, en.source)
+			return false
+		}
+		if !e.optional(e.S, en.source) {
+			e.errf(en.expr.Pos(), "%s always has %s, so orelse's fallback could never apply: write %s: %s.%s", e.sv, en.source, en.target, e.root, en.source)
+			return false
+		}
 	}
 	if p, ok := e.refPath(en.fallback); ok {
 		if !lookup(e.S, p).Exists() {
@@ -1171,7 +1264,7 @@ func (e *edge) compileEach(en *entry, out *compiledLens) bool {
 		return false
 	}
 	sub := &edge{ctx: e.ctx, S: selem, T: telem, sv: e.sv, tv: e.tv, dir: e.dir, blockPos: en.pos, root: rootItem,
-		lacunas: e.lacunas, each: &eachScope{list: en.source, target: en.target, n: out.nlets}}
+		lacunas: e.lacunas, imports: e.imports, each: &eachScope{list: en.source, target: en.target, n: out.nlets}}
 	b := &body{}
 	sub.parseBody(en.body, cue.MakePath(), cue.MakePath(), b)
 	subOut := &compiledLens{nlets: out.nlets}
@@ -1244,7 +1337,7 @@ func (e *edge) fill(n *node, tbase cue.Path, b *body, consumed, dropped map[stri
 			c.leaf = &en
 			c.pos = en.pos
 			if e.optional(e.S, spath) {
-				c.present = spath
+				c.present = []cue.Path{spath}
 			}
 			consumed[spath.String()] = true
 			out.effective = append(out.effective, en)
@@ -1342,10 +1435,20 @@ func (e *edge) emitLeaf(name string, c *node) []ast.Decl {
 		if fp, ok := e.refPath(en.fallback); ok {
 			fallback = at(en.fallback.Pos(), e.ref(fp))
 		}
+		if en.computed != nil {
+			// The expression where every optional field it reads is present,
+			// the fallback otherwise.
+			return []ast.Decl{field(e.head(p, e.presentAll(p, en.optional), en.computed, fallback))}
+		}
 		return []ast.Decl{
 			branch(e.present(p, en.source), at(p, e.ref(en.source))),
 			branch(e.absent(p, en.source), fallback),
 		}
+	case kindComputed:
+		if len(c.present) > 0 {
+			return []ast.Decl{branch(e.presentAll(p, c.present), en.computed)}
+		}
+		return []ast.Decl{field(en.computed)}
 	case kindMatch:
 		var out []ast.Decl
 		var keys []ast.Expr
@@ -1392,8 +1495,8 @@ func (e *edge) emitLeaf(name string, c *node) []ast.Decl {
 	default:
 		val = at(p, e.ref(en.source))
 	}
-	if len(c.present.Selectors()) > 0 {
-		return []ast.Decl{branch(e.present(p, c.present), val)}
+	if len(c.present) > 0 {
+		return []ast.Decl{branch(e.presentAll(p, c.present), val)}
 	}
 	return []ast.Decl{field(val)}
 }
@@ -1554,12 +1657,20 @@ func (e *edge) lacunaFor(en *entry, d *lacunaDecl, cond ast.Expr) ast.Expr {
 	if en.kind == kindDrop {
 		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewList(e.fieldRef(p, en.source, e.root)))}))
 	} else {
-		if len(en.source.Selectors()) > 0 {
-			src := e.fieldRef(p, en.source, e.root)
-			if e.optional(e.S, en.source) {
-				src = at(p, &ast.Comprehension{Clauses: []ast.Clause{at(p, &ast.IfClause{Condition: e.present(p, en.source)})}, Value: src})
+		var srcs []ast.Expr
+		paths := en.reads
+		if len(paths) == 0 && len(en.source.Selectors()) > 0 {
+			paths = []cue.Path{en.source}
+		}
+		for _, sp := range paths {
+			src := e.fieldRef(p, sp, e.root)
+			if e.optional(e.S, sp) {
+				src = at(p, &ast.Comprehension{Clauses: []ast.Clause{at(p, &ast.IfClause{Condition: e.present(p, sp)})}, Value: src})
 			}
-			elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewList(src))}))
+			srcs = append(srcs, src)
+		}
+		if len(srcs) > 0 {
+			elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewList(srcs...))}))
 		}
 		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("targetFields")), Value: at(p, ast.NewList(e.fieldRef(p, en.target, paramName(e.tv))))}))
 	}
