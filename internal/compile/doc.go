@@ -52,8 +52,9 @@
 // when the [_] arm applies, for a match; when the field is present, for a
 // drop. A DroppedField lacuna on a drop refines the derived one's message. A
 // when replaces the implied condition; it may read fields the source always
-// has, test any source field's presence (v0_0.x != _|_), and call CUE's
-// builtins. Inside an each body, only the DroppedField refinement is
+// has, test any source field's presence (v0_0.x != _|_), compare and
+// combine with CUE's operators, and call len and the integer divisions
+// (quo, rem, div, mod): what the totality proof proves a boolean. Inside an each body, only the DroppedField refinement is
 // supported yet, keyed through the list (items: {legacy: [...]}). Computed
 // expressions are not accepted yet; orelse over a computed primary, the
 // curated builtin table, and conditions reading optional fields are next.

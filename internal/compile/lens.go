@@ -625,7 +625,7 @@ func rootIdent(x ast.Expr) *ast.Ident {
 
 func isBuiltin(name string) bool {
 	switch name {
-	case "len", "and", "or", "div", "mod", "quo", "rem", "close":
+	case "len", "quo", "rem", "div", "mod":
 		return true
 	}
 	return false
