@@ -1,5 +1,5 @@
 exemplars/defaultchange.cue in authoring form: the default of an enum field
-changes, so each direction remaps the old default to the new one, with a
+changes, so each direction matches the old default to the new one, with a
 ChangedDefault lacuna when the arm applies. Neither direction derives from
 the other.
 -- ship/history/0.0.thema --
@@ -14,7 +14,7 @@ schema: {
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		aunion: remap(v0_0.aunion, {"foo": "bar"})
+		aunion: match(v0_0.aunion, {"foo": "bar"})
 	}
 	lacunas: {
 		aunion: [{
@@ -28,7 +28,7 @@ ForwardLens: {
 BackwardLens: {
 	v1_0: _
 	v0_0: {
-		aunion: remap(v1_0.aunion, {"bar": "foo"})
+		aunion: match(v1_0.aunion, {"bar": "foo"})
 	}
 	lacunas: {
 		aunion: [{
@@ -48,7 +48,7 @@ schema: {
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		aunion: remap(v0_0.aunion, {"foo": "bar"})
+		aunion: match(v0_0.aunion, {"foo": "bar"})
 	}
 	lacunas: {
 		aunion: [{
@@ -62,7 +62,7 @@ ForwardLens: {
 BackwardLens: {
 	v1_0: _
 	v0_0: {
-		aunion: remap(v1_0.aunion, {"bar": "foo"})
+		aunion: match(v1_0.aunion, {"bar": "foo"})
 	}
 	lacunas: {
 		aunion: [{

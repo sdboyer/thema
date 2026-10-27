@@ -22,20 +22,20 @@
 //	meta: {owner: v0_0.name}                // a nested body; {v0_0.m, x: 1} copies from m
 //	legacy: drop                            // a drop, keyed by the source field
 //	nick:  orelse(v0_0.nick, v0_0.name)     // an optional source: the fallback when absent
-//	kind:  remap(v0_0.kind, {"a": 1, [_]: 0})      // a value table, with an optional catch-all
+//	kind:  match(v0_0.kind, {"a": 1, [_]: 0})      // a match on the value, with an optional [_] arm
 //	items: each(v0_0.items, {name: item.title})    // a list, mapped element by element
 //
 // A field both schemas declare, that no entry mentions, is copied. A reference
-// to an optional source field is guarded; where the target requires the
-// field, orelse says what to use instead. A remap's arms map keys to constants;
-// a value no arm keys passes through where the target accepts it, else the
-// [_] arm applies, which must have a lacuna; without one, every source value
-// must be keyed or accepted. An each body is a lens body over item. A field
+// to an optional source field is copied only when present; where the target
+// requires the field, orelse says what to use instead. A match's arms map
+// values to constants; a value no arm matches passes through where the target
+// accepts it, else the [_] arm applies, which must have a lacuna; without one,
+// the arms must be exhaustive: every source value matched or accepted. An each body is a lens body over item. A field
 // the forward direction's source has and its target lacks must be mapped or
 // dropped. A required target field must be produced. The backward lens is
 // derived from the forward lens (the inverse of each single-use move, and a
 // drop of each field the version added, with a derived lacuna); what the
-// author writes in BackwardLens overrides it. orelse, remap and each have no
+// author writes in BackwardLens overrides it. orelse, match and each have no
 // derived inverse. A minor version, which the compatibility check derives,
 // has no forward lens and its file is usually just its schema.
 //
@@ -49,7 +49,7 @@
 //
 // Without a when, a lacuna applies under the condition its mapping implies:
 // always, for a move or a constant; when the fallback is used, for an orelse;
-// when the [_] arm applies, for a remap; when the field is present, for a
+// when the [_] arm applies, for a match; when the field is present, for a
 // drop. A DroppedField lacuna on a drop refines the derived one's message. A
 // when replaces the implied condition; it may read fields the source always
 // has, test any source field's presence (v0_0.x != _|_), and call CUE's

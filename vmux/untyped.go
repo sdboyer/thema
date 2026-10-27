@@ -4,11 +4,12 @@ import (
 	"fmt"
 
 	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/lacuna"
 )
 
 // UntypedMux is a version multiplexer that maps a []byte containing data at any
 // schematized version to a [thema.Instance] at a particular schematized version.
-type UntypedMux func(b []byte) (*thema.Instance, thema.TranslationLacunas, error)
+type UntypedMux func(b []byte) (*thema.Instance, lacuna.TranslationLacunas, error)
 
 // NewUntypedMux creates an [UntypedMux] from the provided [thema.Schema].
 //
@@ -17,7 +18,7 @@ type UntypedMux func(b []byte) (*thema.Instance, thema.TranslationLacunas, error
 //   - Decode the input []byte using the provided [Decoder], then
 //   - Pass the result to [thema.Schema.Validate], then
 //   - Call [thema.Instance.Translate] on the result, to the version of the provided [thema.Schema], then
-//   - Return the resulting [thema.Instance], [thema.TranslationLacunas], and error
+//   - Return the resulting [thema.Instance], [lacuna.TranslationLacunas], and error
 //
 // The returned error may be from any of the above steps.
 func NewUntypedMux(sch thema.Schema, dec Decoder) UntypedMux {
@@ -25,7 +26,7 @@ func NewUntypedMux(sch thema.Schema, dec Decoder) UntypedMux {
 	// Prepare no-match error string once for reuse
 	vstring := allvstr(sch)
 
-	return func(b []byte) (*thema.Instance, thema.TranslationLacunas, error) {
+	return func(b []byte) (*thema.Instance, lacuna.TranslationLacunas, error) {
 		v, err := dec.Decode(ctx, b)
 		if err != nil {
 			// TODO wrap error for use with errors.Is

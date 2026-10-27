@@ -1,10 +1,13 @@
 package vmux
 
-import "github.com/sdboyer/thema"
+import (
+	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/lacuna"
+)
 
 // ByteMux is a version multiplexer that maps a []byte containing data at any
 // schematized version to a []byte containing data at a particular schematized version.
-type ByteMux func(b []byte) ([]byte, thema.TranslationLacunas, error)
+type ByteMux func(b []byte) ([]byte, lacuna.TranslationLacunas, error)
 
 // NewByteMux creates a [ByteMux] func from the provided [thema.Schema].
 //
@@ -14,12 +17,12 @@ type ByteMux func(b []byte) ([]byte, thema.TranslationLacunas, error)
 //   - Pass the result to [thema.Schema.Validate], then
 //   - Call [thema.Instance.Translate] on the result, to the version of the provided [thema.Schema], then
 //   - Encode the resulting [thema.Instance] to a []byte, then
-//   - Return the resulting []byte, [thema.TranslationLacunas], and error
+//   - Return the resulting []byte, [lacuna.TranslationLacunas], and error
 //
 // The returned error may be from any of the above steps.
 func NewByteMux(sch thema.Schema, codec Codec) ByteMux {
 	f := NewUntypedMux(sch, codec)
-	return func(b []byte) ([]byte, thema.TranslationLacunas, error) {
+	return func(b []byte) ([]byte, lacuna.TranslationLacunas, error) {
 		ti, lac, err := f(b)
 		if err != nil {
 			return nil, lac, err

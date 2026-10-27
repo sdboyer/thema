@@ -326,7 +326,7 @@ var shipVersion = thema.SV(1, 0)
 
 // JSONToShip converts a byte slice of JSON data containing a single instance of
 // ship valid against any schema
-func JSONToShip(data []byte) (*Ship, thema.TranslationLacunas, error) {
+func JSONToShip(data []byte) (*Ship, lacuna.TranslationLacunas, error) {
 	ship, lac, err := jshipk.Converge(data)
 	if err != nil {
 		return nil, nil, err
