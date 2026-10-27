@@ -23,4 +23,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail schema version 0.2 does not follow 0.0: the next schema must be version 0.1 or 1.0
+bind fail schema version 0.2 does not follow 0.0

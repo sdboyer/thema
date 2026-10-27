@@ -30,4 +30,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail lenses not provided for the following version pairs:
+bind fail has no lens 0.2->0.1

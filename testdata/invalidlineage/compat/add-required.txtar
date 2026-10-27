@@ -29,6 +29,11 @@ lin: lenses: {
     }
 }
 -- out/bindfail --
-schema 0.1 is not backwards compatible with schema 0.0:
-added is required in the new schema but not declared in the prior one (rule field-added-required):
-    /in.cue:15:13
+error[E0210]: added in schema 0.1 is required in the new schema but not declared in the prior one
+  --> /in.cue:15:13
+   |
+15 |             added: int32
+   |             ^^^^^
+   |
+   = note: schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule field-added-required)
+   = help: make the change compatible, or make this version 1.0

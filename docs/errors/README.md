@@ -16,6 +16,77 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 
 | Code | Severity | Title |
 |---|---|---|
+| [E0120](E0120.md) | error | the lineage does not declare a field every lineage has |
+| [E0121](E0121.md) | error | a field every lineage has is not concrete |
+| [E0122](E0122.md) | error | the lineage declares no schemas |
+| [E0123](E0123.md) | error | a field that is not part of a lineage, a schema entry or a lens |
+| [E0124](E0124.md) | error | a schemas key that is not a version |
+| [E0125](E0125.md) | error | a lenses key that is not a lens edge |
+| [E0126](E0126.md) | error | the lineage is not an instance of thema.Lineage |
+| [E0128](E0128.md) | error | there is no value at the path given for the lineage |
+| [E0129](E0129.md) | error | a schema is not a struct |
+| [E0130](E0130.md) | error | the joinSchema is not a struct |
+| [E0131](E0131.md) | error | an example is not an instance of its schema |
+| [E0132](E0132.md) | error | a schema uses a comprehension |
+| [E0133](E0133.md) | error | a schema's references form a cycle |
+| [E0134](E0134.md) | error | a schema refers to a value that contains it |
+| [E0135](E0135.md) | error | a schema's chain of references is too deep to follow |
+| [E0137](E0137.md) | error | the lineage's name is not an identifier |
+| [E0201](E0201.md) | error | the first schema is not version 0.0 |
+| [E0202](E0202.md) | error | a schema's version does not follow its predecessor's |
+| [E0203](E0203.md) | error | a major version declares no schemas |
+| [E0208](E0208.md) | error | a major version is backward compatible with its predecessor |
+| [E0210](E0210.md) | error | a minor version requires a field its predecessor does not declare |
+| [E0211](E0211.md) | error | a minor version rejects a field its predecessor declares |
+| [E0212](E0212.md) | error | a minor version requires a field its predecessor left optional |
+| [E0213](E0213.md) | error | a minor version drops a default its predecessor filled |
+| [E0214](E0214.md) | error | a minor version changes a default |
+| [E0215](E0215.md) | error | a minor version narrows the values a field accepts |
+| [E0216](E0216.md) | error | a minor version narrows a list's length |
+| [E0217](E0217.md) | error | a minor version narrows the field names a struct accepts |
+| [E0218](E0218.md) | error | a minor version adds or tightens a validator |
+| [E0230](E0230.md) | error | a minor version constrains a field by another field's value, which the checker cannot compare |
+| [E0232](E0232.md) | error | a minor version changes a validator the checker has no rule for |
+| [E0233](E0233.md) | error | a minor version's disjunction cannot be shown to cover its predecessor's |
+| [E0234](E0234.md) | error | a minor version's pattern constraints cannot be shown to cover its predecessor's |
+| [E0240](E0240.md) | error | the lineage has no schema with that version |
+| [E0242](E0242.md) | error | a published schema was deleted |
+| [E0243](E0243.md) | error | a published schema was changed |
+| [E0301](E0301.md) | error | the lineage lacks a lens its versions require |
+| [E0302](E0302.md) | error | the lineage declares a lens its versions do not require |
+| [E0303](E0303.md) | error | a lens does not accept every instance of its source schema |
+| [E0304](E0304.md) | error | what a lens produces is not an instance of its target schema |
+| [E0305](E0305.md) | error | a lens writes a field its target schema does not declare |
+| [E0360](E0360.md) | error | a lens copies a value its target rejects for some instance |
+| [E0361](E0361.md) | error | a lens reads a field that may be absent |
+| [E0362](E0362.md) | error | a lens reads a field its source schema does not declare |
+| [E0364](E0364.md) | error | a lens's pattern tests a field that may be absent |
+| [E0365](E0365.md) | error | a lens writes a constraint where an instance needs a value |
+| [E0366](E0366.md) | error | a lens writes a literal its target rejects |
+| [E0367](E0367.md) | error | a lens computes a value its target rejects for some instance |
+| [E0368](E0368.md) | error | a lens leaves a required field unwritten for some instance |
+| [E0369](E0369.md) | error | a lens writes a field twice with values that may disagree |
+| [E0370](E0370.md) | error | a lens's arithmetic may overflow |
+| [E0371](E0371.md) | error | a lens may divide by zero |
+| [E0372](E0372.md) | error | a lens indexes a table with a value that has no entry |
+| [E0380](E0380.md) | error | a lens copies a value the checker cannot show its target accepts |
+| [E0381](E0381.md) | error | a lens's condition is not one the checker can read |
+| [E0382](E0382.md) | error | a lens writes a required field only under conditions the checker cannot show exhaustive |
+| [E0383](E0383.md) | error | a lens computes with an operation the checker cannot prove |
+| [E0384](E0384.md) | error | a lens produces fields or elements dynamically |
+| [E0385](E0385.md) | error | a lens refers to something the checker cannot follow |
+| [E0386](E0386.md) | error | a lens's integer arithmetic has no bounds the checker can trust |
+| [E0387](E0387.md) | error | a lens's divisor may be zero as far as the checker can tell |
+| [E0388](E0388.md) | error | a lens writes to a target constraint the checker cannot compare |
+| [E0389](E0389.md) | error | a lens indexes a table with a value that is not a finite set of constants |
+| [E0390](E0390.md) | error | a lens takes the first element of a list that may be empty |
+| [E0401](E0401.md) | error | a lens's lacunas are not listed unconditionally |
+| [E0402](E0402.md) | error | a lacuna has no message |
+| [E0403](E0403.md) | error | a lacuna has no type |
+| [E0404](E0404.md) | error | a lacuna names a field its schema does not declare |
+| [E0405](E0405.md) | error | a lacuna's field path is not a path |
+| [E0406](E0406.md) | error | a lacuna's type is not a lacuna type |
+| [E0407](E0407.md) | error | a field that is not part of a lacuna |
 | [E0501](E0501.md) | error | the data lacks a field the schema requires |
 | [E0502](E0502.md) | error | the data has a field the schema does not declare |
 | [E0503](E0503.md) | error | a value in the data is of a kind the schema does not accept |

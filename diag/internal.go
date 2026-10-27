@@ -20,3 +20,13 @@ func Internal(recovered any) *Error {
 		Help("this is a bug in thema; please report it with the detail above").
 		Err()
 }
+
+// InternalErr describes an error thema's own code returned where none should
+// be possible, such as failing to read syntax it produced, as an [E0901]
+// diagnostic.
+func InternalErr(err error) *Error {
+	return New(E0901).
+		Detail(err.Error()).
+		Help("this is a bug in thema; please report it with the detail above").
+		Err()
+}

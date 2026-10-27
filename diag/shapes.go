@@ -31,6 +31,10 @@ type shape struct {
 	name string
 	// msg is the format string of the CUE message this shape matches.
 	msg string
+	// kernel marks a message thema's own CUE produces with error(), rather
+	// than one of the evaluator's. The menagerie does not record these; the
+	// lockstep test against thema's CUE files does.
+	kernel bool
 	// ops are the operations the shape applies to.
 	ops []Op
 	// build describes e. It sets the code, headline, address and whatever
@@ -73,6 +77,10 @@ func (ctx Context) recognize(e cerrors.Error) (*B, bool) {
 	for _, s := range shapes {
 		if s.matches(e, ctx) {
 			b := s.build(e, ctx)
+			if b == nil {
+				// The shape looked closer and declined.
+				continue
+			}
 			if b.e.d.Detail == "" {
 				b.Detail(ctx.cueText(e))
 			}
@@ -89,6 +97,9 @@ func (ctx Context) recognizeDisjunction(header cerrors.Error, arms []cerrors.Err
 		return nil, false
 	}
 	b := build(header, arms, ctx)
+	if b == nil {
+		return nil, false
+	}
 	if b.e.d.Detail == "" {
 		b.Detail(ctx.cueText(header))
 	}
@@ -169,9 +180,9 @@ func declaredFields(ctx Context, path []string) []string {
 	return names
 }
 
-// suggest returns the name in candidates closest to name, if one is close
+// Suggest returns the name in candidates closest to name, if one is close
 // enough to be a likely typo.
-func suggest(name string, candidates []string) (string, bool) {
+func Suggest(name string, candidates []string) (string, bool) {
 	best, dist := "", len(name)/2+1
 	for _, c := range candidates {
 		if c == name {

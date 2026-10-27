@@ -1,0 +1,83 @@
+#op: bind
+A lacuna names a field by its path in CUE path syntax, such as `a.b` or
+`list[0]`. This lacuna's path is not one.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+		"1": {
+			schema: {
+				a:  string
+				b?: int
+			}
+		}
+	}
+}
+lenses: {
+	"0.1->0.0": {
+		input: _
+		result: {
+			a: input.a
+		}
+		lacunas: [
+			{
+				type:         "DroppedField"
+				message:      "b was dropped"
+				condition:    input.b != _|_
+				targetFields: [{path: "a..b", value: 1}]
+			},
+		]
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0405",
+      "severity": "error",
+      "headline": "lacuna 0 of lens 0.1->0.0 names a field with targetFields[0].path, but \"a..b\" is not a path",
+      "path": [
+        "lenses",
+        "0.1->0.0",
+        "lacunas",
+        "0"
+      ],
+      "address": {
+        "from": [
+          0,
+          1
+        ],
+        "index": 0,
+        "kind": "lacuna",
+        "to": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 28,
+        "col": 21,
+        "offset": 344,
+        "origin": "user"
+      }
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0405]: lacuna 0 of lens 0.1->0.0 names a field with targetFields[0].path, but "a..b" is not a path
+  --> lineage.cue:28:21
+   |
+28 |                 targetFields: [{path: "a..b", value: 1}]
+   |                                 ^^^^
+   |

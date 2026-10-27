@@ -57,8 +57,10 @@ func (e *Error) Position() token.Pos { return e.primary }
 // InputPositions implements cue/errors.Error: the notes' positions.
 func (e *Error) InputPositions() []token.Pos { return e.notePos }
 
-// Path implements cue/errors.Error.
-func (e *Error) Path() []string { return e.d.Path }
+// Path implements cue/errors.Error. It is nil: the headline names the subject
+// in the author's terms, and a path prefix in CUE's rendering would repeat it
+// in the normal form's.
+func (e *Error) Path() []string { return nil }
 
 // Msg implements cue/errors.Error.
 func (e *Error) Msg() (string, []any) { return "%s", []any{e.d.Headline} }

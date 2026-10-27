@@ -33,6 +33,11 @@ const (
 // see [Codes].
 type Code string
 
+// MaxHeadline is the longest a headline may be. A longer statement is split: a
+// shorter headline names the rule and the construct, and the statement becomes
+// a note.
+const MaxHeadline = 140
+
 // Pos is a position in a file. Line and Col are 1-based; Col counts bytes, as
 // CUE reports it.
 type Pos struct {

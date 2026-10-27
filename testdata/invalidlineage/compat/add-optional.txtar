@@ -35,4 +35,10 @@ lin: lenses: {
     }
 }
 -- out/bindfail --
-schema 1.0 must be backwards incompatible with schema 0.0: introduce a breaking change, or redeclare as version 0.1
+error[E0208]: schema 1.0 is backward compatible with 0.0, so it is not a major version
+  --> /in.cue:13:9
+   |
+13 |         schema: {
+   |         ^^^^^^
+   |
+   = help: declare it as version 0.1, or make a breaking change

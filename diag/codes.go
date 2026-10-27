@@ -37,6 +37,77 @@ type CodeInfo struct {
 // A code's meaning never changes. A code that stops being reported is retired,
 // not reused.
 var Codes = []CodeInfo{
+	{Code: E0120, Severity: SeverityError, Title: "the lineage does not declare a field every lineage has", Sentinels: []error{terrors.ErrValueNotALineage}},
+	{Code: E0121, Severity: SeverityError, Title: "a field every lineage has is not concrete", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0122, Severity: SeverityError, Title: "the lineage declares no schemas", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0123, Severity: SeverityError, Title: "a field that is not part of a lineage, a schema entry or a lens", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0124, Severity: SeverityError, Title: "a schemas key that is not a version", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0125, Severity: SeverityError, Title: "a lenses key that is not a lens edge", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0126, Severity: SeverityError, Title: "the lineage is not an instance of thema.Lineage", Sentinels: []error{terrors.ErrInvalidLineage}, Positionless: true},
+	{Code: E0128, Severity: SeverityError, Title: "there is no value at the path given for the lineage", Sentinels: []error{terrors.ErrValueNotExist}, Positionless: true},
+	{Code: E0129, Severity: SeverityError, Title: "a schema is not a struct", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0130, Severity: SeverityError, Title: "the joinSchema is not a struct", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0131, Severity: SeverityError, Title: "an example is not an instance of its schema", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0132, Severity: SeverityError, Title: "a schema uses a comprehension", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0133, Severity: SeverityError, Title: "a schema's references form a cycle", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0134, Severity: SeverityError, Title: "a schema refers to a value that contains it", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0135, Severity: SeverityError, Title: "a schema's chain of references is too deep to follow", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0137, Severity: SeverityError, Title: "the lineage's name is not an identifier", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0201, Severity: SeverityError, Title: "the first schema is not version 0.0", Sentinels: []error{terrors.ErrNonContiguousVersions}},
+	{Code: E0202, Severity: SeverityError, Title: "a schema's version does not follow its predecessor's", Sentinels: []error{terrors.ErrNonContiguousVersions}},
+	{Code: E0203, Severity: SeverityError, Title: "a major version declares no schemas", Sentinels: []error{terrors.ErrNonContiguousVersions}},
+	{Code: E0208, Severity: SeverityError, Title: "a major version is backward compatible with its predecessor", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0210, Severity: SeverityError, Title: "a minor version requires a field its predecessor does not declare", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0211, Severity: SeverityError, Title: "a minor version rejects a field its predecessor declares", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0212, Severity: SeverityError, Title: "a minor version requires a field its predecessor left optional", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0213, Severity: SeverityError, Title: "a minor version drops a default its predecessor filled", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0214, Severity: SeverityError, Title: "a minor version changes a default", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0215, Severity: SeverityError, Title: "a minor version narrows the values a field accepts", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0216, Severity: SeverityError, Title: "a minor version narrows a list's length", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0217, Severity: SeverityError, Title: "a minor version narrows the field names a struct accepts", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0218, Severity: SeverityError, Title: "a minor version adds or tightens a validator", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0230, Severity: SeverityError, Title: "a minor version constrains a field by another field's value, which the checker cannot compare", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0232, Severity: SeverityError, Title: "a minor version changes a validator the checker has no rule for", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0233, Severity: SeverityError, Title: "a minor version's disjunction cannot be shown to cover its predecessor's", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0234, Severity: SeverityError, Title: "a minor version's pattern constraints cannot be shown to cover its predecessor's", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0240, Severity: SeverityError, Title: "the lineage has no schema with that version", Sentinels: []error{terrors.ErrVersionNotExist}, Positionless: true},
+	{Code: E0242, Severity: SeverityError, Title: "a published schema was deleted", Sentinels: []error{terrors.ErrInvalidLineage}, Positionless: true},
+	{Code: E0243, Severity: SeverityError, Title: "a published schema was changed", Sentinels: []error{terrors.ErrInvalidLineage}, Positionless: true},
+	{Code: E0301, Severity: SeverityError, Title: "the lineage lacks a lens its versions require", Sentinels: []error{terrors.ErrMissingLenses, terrors.ErrInvalidLineage}, Positionless: true},
+	{Code: E0302, Severity: SeverityError, Title: "the lineage declares a lens its versions do not require", Sentinels: []error{terrors.ErrErroneousLenses, terrors.ErrInvalidLineage}},
+	{Code: E0303, Severity: SeverityError, Title: "a lens does not accept every instance of its source schema", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0304, Severity: SeverityError, Title: "what a lens produces is not an instance of its target schema", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0305, Severity: SeverityError, Title: "a lens writes a field its target schema does not declare", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0360, Severity: SeverityError, Title: "a lens copies a value its target rejects for some instance", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0361, Severity: SeverityError, Title: "a lens reads a field that may be absent", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0362, Severity: SeverityError, Title: "a lens reads a field its source schema does not declare", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0364, Severity: SeverityError, Title: "a lens's pattern tests a field that may be absent", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0365, Severity: SeverityError, Title: "a lens writes a constraint where an instance needs a value", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0366, Severity: SeverityError, Title: "a lens writes a literal its target rejects", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0367, Severity: SeverityError, Title: "a lens computes a value its target rejects for some instance", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0368, Severity: SeverityError, Title: "a lens leaves a required field unwritten for some instance", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0369, Severity: SeverityError, Title: "a lens writes a field twice with values that may disagree", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0370, Severity: SeverityError, Title: "a lens's arithmetic may overflow", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0371, Severity: SeverityError, Title: "a lens may divide by zero", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0372, Severity: SeverityError, Title: "a lens indexes a table with a value that has no entry", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0380, Severity: SeverityError, Title: "a lens copies a value the checker cannot show its target accepts", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0381, Severity: SeverityError, Title: "a lens's condition is not one the checker can read", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0382, Severity: SeverityError, Title: "a lens writes a required field only under conditions the checker cannot show exhaustive", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0383, Severity: SeverityError, Title: "a lens computes with an operation the checker cannot prove", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0384, Severity: SeverityError, Title: "a lens produces fields or elements dynamically", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0385, Severity: SeverityError, Title: "a lens refers to something the checker cannot follow", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0386, Severity: SeverityError, Title: "a lens's integer arithmetic has no bounds the checker can trust", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0387, Severity: SeverityError, Title: "a lens's divisor may be zero as far as the checker can tell", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0388, Severity: SeverityError, Title: "a lens writes to a target constraint the checker cannot compare", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0389, Severity: SeverityError, Title: "a lens indexes a table with a value that is not a finite set of constants", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0390, Severity: SeverityError, Title: "a lens takes the first element of a list that may be empty", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0401, Severity: SeverityError, Title: "a lens's lacunas are not listed unconditionally", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0402, Severity: SeverityError, Title: "a lacuna has no message", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0403, Severity: SeverityError, Title: "a lacuna has no type", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0404, Severity: SeverityError, Title: "a lacuna names a field its schema does not declare", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0405, Severity: SeverityError, Title: "a lacuna's field path is not a path", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0406, Severity: SeverityError, Title: "a lacuna's type is not a lacuna type", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0407, Severity: SeverityError, Title: "a field that is not part of a lacuna", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
 	{Code: E0501, Severity: SeverityError, Title: "the data lacks a field the schema requires", Sentinels: []error{terrors.ErrInvalidData, terrors.ErrInvalidMissingField}},
 	{Code: E0502, Severity: SeverityError, Title: "the data has a field the schema does not declare", Sentinels: []error{terrors.ErrInvalidData, terrors.ErrInvalidExcessField}},
 	{Code: E0503, Severity: SeverityError, Title: "a value in the data is of a kind the schema does not accept", Sentinels: []error{terrors.ErrInvalidData, terrors.ErrInvalidKindConflict}},
@@ -50,6 +121,86 @@ var Codes = []CodeInfo{
 
 // The codes.
 const (
+	E0120 Code = "E0120" // the lineage lacks name or schemas
+	E0121 Code = "E0121" // name or schemas is not concrete
+	E0122 Code = "E0122" // schemas declares nothing
+	E0123 Code = "E0123" // a field thema does not define, at the lineage, a schema entry or a lens
+	E0124 Code = "E0124" // a schemas key that is not a version
+	E0125 Code = "E0125" // a lenses key that is not an edge
+	E0126 Code = "E0126" // not an instance of thema.Lineage: CUE's reasons are notes
+	E0128 Code = "E0128" // no value at the path the caller gave
+	E0129 Code = "E0129" // a schema is not struct-kinded
+	E0130 Code = "E0130" // joinSchema is neither a struct nor _
+	E0131 Code = "E0131" // an example fails its schema
+	E0132 Code = "E0132" // a comprehension in a schema
+	E0133 Code = "E0133" // a reference cycle within a schema
+	E0134 Code = "E0134" // a reference from a schema to a value containing it
+	E0135 Code = "E0135" // a reference chain deeper than thema follows
+	E0137 Code = "E0137" // name fails the identifier pattern
+
+	E0201 Code = "E0201" // first version is not 0.0
+	E0202 Code = "E0202" // a version is neither the next minor nor the next major
+	E0203 Code = "E0203" // a major version key with no minor versions
+	E0208 Code = "E0208" // a .0 version that is compatible with its predecessor
+	// E0210 to E0218: one per rule of internal/compat that finds an
+	// incompatibility; E0230 to E0234: one per rule that leaves the verdict
+	// Unknown, which thema treats as incompatible.
+	E0210 Code = "E0210" // field-added-required
+	E0211 Code = "E0211" // field-removed
+	E0212 Code = "E0212" // field-now-required
+	E0213 Code = "E0213" // default-removed
+	E0214 Code = "E0214" // default-changed
+	E0215 Code = "E0215" // value-narrowed
+	E0216 Code = "E0216" // length-narrowed
+	E0217 Code = "E0217" // labels-narrowed
+	E0218 Code = "E0218" // validator-added
+	E0230 Code = "E0230" // unknown-crossfield
+	E0232 Code = "E0232" // unknown-validator
+	E0233 Code = "E0233" // unknown-disjunction
+	E0234 Code = "E0234" // unknown-patterns
+	E0240 Code = "E0240" // no schema with the requested version
+	E0242 Code = "E0242" // IsAppendOnly: a schema was deleted
+	E0243 Code = "E0243" // IsAppendOnly: a schema was changed
+
+	E0301 Code = "E0301" // a required lens is missing
+	E0302 Code = "E0302" // a lens no edge requires
+	E0303 Code = "E0303" // input narrower than the source schema
+	E0304 Code = "E0304" // result not an instance of the target schema, data-independently
+	E0305 Code = "E0305" // result writes fields the target does not declare
+	// E0360 to E0372: one per rule of internal/lenscheck that refutes totality;
+	// E0380 to E0390: one per rule that leaves the verdict Unknown.
+	E0360 Code = "E0360" // copy-narrowed
+	E0361 Code = "E0361" // source-absent
+	E0362 Code = "E0362" // source-undeclared
+	E0364 Code = "E0364" // pattern-absent
+	E0365 Code = "E0365" // not-a-value
+	E0366 Code = "E0366" // literal-not-instance
+	E0367 Code = "E0367" // computed-narrowed
+	E0368 Code = "E0368" // required-not-written
+	E0369 Code = "E0369" // write-conflict
+	E0370 Code = "E0370" // arith-overflow
+	E0371 Code = "E0371" // division-by-zero
+	E0372 Code = "E0372" // table-key-missing
+	E0380 Code = "E0380" // unknown-copy
+	E0381 Code = "E0381" // unknown-pattern
+	E0382 Code = "E0382" // unknown-exhaustive
+	E0383 Code = "E0383" // unknown-op
+	E0384 Code = "E0384" // unknown-dynamic
+	E0385 Code = "E0385" // unknown-reference
+	E0386 Code = "E0386" // unknown-bounds
+	E0387 Code = "E0387" // unknown-divisor
+	E0388 Code = "E0388" // unknown-target-constraint
+	E0389 Code = "E0389" // unknown-table-key
+	E0390 Code = "E0390" // unknown-head
+
+	E0401 Code = "E0401" // lacunas listed conditionally
+	E0402 Code = "E0402" // lacuna without a message
+	E0403 Code = "E0403" // lacuna without a type
+	E0404 Code = "E0404" // lacuna field path not declared by the schema
+	E0405 Code = "E0405" // lacuna field path not a concrete string
+	E0406 Code = "E0406" // lacuna type not in LacunaTypes
+	E0407 Code = "E0407" // a field thema does not define on a lacuna
+
 	// E0501: validating data, a field the schema requires is absent.
 	E0501 Code = "E0501"
 	// E0502: validating data, a field the schema does not declare is present.

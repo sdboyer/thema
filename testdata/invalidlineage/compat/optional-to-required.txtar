@@ -27,6 +27,11 @@ lenses: {
     }
 }
 -- out/bindfail --
-schema 0.1 is not backwards compatible with schema 0.0:
-toUpgrade was optional and is now required (rule field-now-required):
-    /in.cue:14:13
+error[E0212]: toUpgrade in schema 0.1 was optional and is now required
+  --> /in.cue:14:13
+   |
+14 |             toUpgrade: string
+   |             ^^^^^^^^^
+   |
+   = note: schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule field-now-required)
+   = help: make the change compatible, or make this version 1.0

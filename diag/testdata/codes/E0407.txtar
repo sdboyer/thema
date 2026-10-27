@@ -1,0 +1,87 @@
+#op: bind
+A lacuna has a fixed set of fields: condition, sourceFields, targetFields,
+message and type. A field outside that set is usually a typo; the help names
+the closest.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+		"1": {
+			schema: {
+				a:  string
+				b?: int
+			}
+		}
+	}
+}
+lenses: {
+	"0.1->0.0": {
+		input: _
+		result: {
+			a: input.a
+		}
+		lacunas: [
+			{type: "DroppedField", message: "b was dropped", condition: input.b != _|_, severity: 1},
+		]
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0407",
+      "severity": "error",
+      "headline": "severity is not a field of a lacuna",
+      "path": [
+        "lenses",
+        "0.1->0.0",
+        "lacunas",
+        "0",
+        "severity"
+      ],
+      "address": {
+        "from": [
+          0,
+          1
+        ],
+        "index": 0,
+        "kind": "lacunaField",
+        "name": "severity",
+        "to": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 24,
+        "col": 80,
+        "offset": 298,
+        "origin": "user"
+      },
+      "help": [
+        "a lacuna has only condition, sourceFields, targetFields, message, type"
+      ],
+      "detail": "lenses.0.1->0.0.lacunas.0.severity: severity is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type"
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0407]: severity is not a field of a lacuna
+  --> lineage.cue:24:80
+   |
+24 |             {type: "DroppedField", message: "b was dropped", condition: input.b != _|_, severity: 1},
+   |                                                                                         ^^^^^^^^
+   |
+   = detail: lenses.0.1->0.0.lacunas.0.severity: severity is not a field of a lacuna; a lacuna has only condition, sourceFields, targetFields, message and type
+   = help: a lacuna has only condition, sourceFields, targetFields, message, type

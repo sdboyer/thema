@@ -1,0 +1,106 @@
+#op: bind
+#skip-buggy-checks: true
+What a lens produces is an instance of its target schema. Checked at bind time
+with the input standing for any instance of the source, this lens writes a
+string where the target declares an int, whatever the input. When the totality
+checker runs it names the mapping at fault (E0366); this is what remains when it
+does not, as under SkipBuggyChecks here. CUE's account is in the detail.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: int
+			}
+		}
+		"1": {
+			schema: {
+				a: int
+				b?: int
+			}
+		}
+	}
+}
+lenses: {
+	"0.1->0.0": {
+		input: _
+		result: {
+			a: "one"
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0304",
+      "severity": "error",
+      "headline": "the result of lens 0.1->0.0 is not an instance of schema 0.0",
+      "path": [
+        "lenses",
+        "0.1->0.0",
+        "result"
+      ],
+      "address": {
+        "from": [
+          0,
+          1
+        ],
+        "kind": "lensResult",
+        "to": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 20,
+        "col": 3,
+        "offset": 171,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "pos": {
+            "file": "lineage.cue",
+            "line": 21,
+            "col": 7,
+            "offset": 187,
+            "origin": "user"
+          },
+          "label": "here"
+        },
+        {
+          "pos": {
+            "file": "lineage.cue",
+            "line": 6,
+            "col": 8,
+            "offset": 61,
+            "origin": "user"
+          },
+          "label": "also here"
+        }
+      ],
+      "detail": "lenses.\"0.1->0.0\".result.a: conflicting values \"one\" and int (mismatched types string and int)"
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0304]: the result of lens 0.1->0.0 is not an instance of schema 0.0
+  --> lineage.cue:20:3
+   |
+ 6 |                 a: int
+   |                    --- also here
+...
+20 |         result: {
+   |         ^^^^^^
+21 |             a: "one"
+   |                ----- here
+   |
+   = detail: lenses."0.1->0.0".result.a: conflicting values "one" and int (mismatched types string and int)

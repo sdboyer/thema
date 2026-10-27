@@ -1,0 +1,96 @@
+#op: bind
+A lens is total: every instance of its source schema translates to an instance
+of its target. Copying a field whose target is narrower than its source fails
+for the instances the target rejects. Here 0.0 allows any int and 1.0 only
+those below 10, so copying `a` forward is not total.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a!: int
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				a!: int & <10
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		input: _
+		result: {
+			a: input.a
+		}
+	}
+	"1.0->0.0": {
+		input: _
+		result: {
+			a: input.a
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0360",
+      "severity": "error",
+      "headline": "lens 0.0->1.0 is not total at a in the result of lens 0.0->1.0",
+      "path": [
+        "lenses",
+        "0.0->1.0",
+        "result",
+        "a"
+      ],
+      "address": {
+        "field": [
+          "a"
+        ],
+        "from": [
+          0,
+          0
+        ],
+        "kind": "lensResultField",
+        "to": [
+          1,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 22,
+        "col": 7,
+        "offset": 194,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "a in the result of lens 0.0->1.0 copies input.a, which is now int & <10, which does not accept every value of the prior int (compat rule value-narrowed)"
+        },
+        {
+          "label": "a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule copy-narrowed)"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0360]: lens 0.0->1.0 is not total at a in the result of lens 0.0->1.0
+  --> lineage.cue:22:7
+   |
+22 |             a: input.a
+   |                ^^^^^
+   |
+   = note: a in the result of lens 0.0->1.0 copies input.a, which is now int & <10, which does not accept every value of the prior int (compat rule value-narrowed)
+   = note: a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule copy-narrowed)

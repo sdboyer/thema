@@ -2,6 +2,7 @@ package diag
 
 import (
 	"fmt"
+	"strings"
 
 	"cuelang.org/go/cue"
 	cerrors "cuelang.org/go/cue/errors"
@@ -28,6 +29,9 @@ type B struct {
 	// labels the first position CUE reports outside the data as the
 	// declaration, after which declared applies.
 	declareWith string
+	// dropArms: a disjunction shape has said in its own words what each arm
+	// said, so the arms' text and positions are not noted.
+	dropArms bool
 }
 
 // New starts a diagnostic with code c. The code must be declared in [Codes];
@@ -40,7 +44,13 @@ func New(c Code) *B {
 	return &B{e: &Error{d: Diagnostic{Code: c, Severity: info.Severity, Headline: info.Title}}}
 }
 
-// Headlinef sets the headline. Without it, the code's title is the headline.
+// Headline sets the headline. Without it, the code's title is the headline.
+func (b *B) Headline(s string) *B {
+	b.e.d.Headline = s
+	return b
+}
+
+// Headlinef is Headline with a formatted text.
 func (b *B) Headlinef(format string, args ...any) *B {
 	b.e.d.Headline = fmt.Sprintf(format, args...)
 	return b
@@ -113,27 +123,63 @@ func (b *B) Detail(s string) *B {
 	return b
 }
 
-// Cause records the CUE error the diagnostic explains. Its text and positions
-// become notes, each entry's verbatim message at its first position and every
-// other distinct position as a further note, so that nothing CUE said is lost
-// while the headline stays thema's own.
+// Cause records the CUE error the diagnostic explains. Every entry's text
+// goes into the detail, verbatim, and every distinct position becomes a note,
+// so that nothing CUE said is lost while the headline stays thema's own.
 func (b *B) Cause(err error) *B {
 	if err == nil {
 		return b
 	}
 	b.e.cause = err
+	var texts []string
 	for _, e := range cerrors.Errors(err) {
+		texts = append(texts, stripClosed(e.Error()))
 		ps := dedup(append([]token.Pos{e.Position()}, e.InputPositions()...))
-		if len(ps) == 0 {
-			b.Note(token.NoPos, e.Error())
-			continue
+		// Positions in thema's own CUE add nothing once the author's are there.
+		user := false
+		for _, p := range ps {
+			user = user || OriginOf(p.Filename()) == OriginUser
 		}
-		b.Note(ps[0], e.Error())
-		for _, p := range ps[1:] {
-			b.Note(p, alsoLabel(p))
+		first := true
+		for _, p := range ps {
+			if user && OriginOf(p.Filename()) == OriginThema {
+				continue
+			}
+			if first {
+				b.Note(p, hereLabel(p))
+			} else {
+				b.Note(p, alsoLabel(p))
+			}
+			first = false
 		}
 	}
+	detail := strings.Join(texts, "\n")
+	if b.e.d.Detail != "" {
+		detail = b.e.d.Detail + "\n" + detail
+	}
+	b.e.d.Detail = detail
 	return b
+}
+
+// stripClosed removes thema's own roots from the path CUE prefixes a message
+// with: the label thema closes a value under before checking it
+// (internal/cuetil.CloseRecursive), and the kernel's Lineage, which a lineage
+// unified with thema.Lineage is rooted in. The author wrote neither.
+func stripClosed(text string) string {
+	for _, prefix := range []string{"#closed.", "#closed: ", "Lineage."} {
+		if rest, ok := strings.CutPrefix(text, prefix); ok {
+			return rest
+		}
+	}
+	return text
+}
+
+// hereLabel labels the first position of one CUE error.
+func hereLabel(p token.Pos) string {
+	if OriginOf(p.Filename()) == OriginThema {
+		return "in thema's own CUE"
+	}
+	return "here"
 }
 
 // alsoLabel labels a further position of one CUE error.

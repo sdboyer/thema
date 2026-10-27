@@ -1,0 +1,103 @@
+#op: bind
+References within a schema may not form a cycle: a cycle makes the schema's
+paths unbounded, and no check can describe it. Each cycle is reported once, at
+the reference that closes it.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				#A: {b?: #B}
+				#B: {a?: #A}
+				root: #A
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0133",
+      "severity": "error",
+      "headline": "schema 0.0 has a reference cycle: #B -> #A -> #B",
+      "path": [
+        "schemas",
+        "0",
+        "0",
+        "schema"
+      ],
+      "address": {
+        "kind": "schema",
+        "version": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 6,
+        "col": 10,
+        "offset": 63,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "a schema's references may not form a cycle: no check can describe a schema whose paths are unbounded"
+        }
+      ]
+    },
+    {
+      "code": "E0133",
+      "severity": "error",
+      "headline": "schema 0.0 has a reference cycle: #A -> #B -> #A",
+      "path": [
+        "schemas",
+        "0",
+        "0",
+        "schema"
+      ],
+      "address": {
+        "kind": "schema",
+        "version": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 7,
+        "col": 10,
+        "offset": 80,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "a schema's references may not form a cycle: no check can describe a schema whose paths are unbounded"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 2,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0133]: schema 0.0 has a reference cycle: #B -> #A -> #B
+ --> lineage.cue:6:10
+  |
+6 |                 #A: {b?: #B}
+  |                      ^
+  |
+  = note: a schema's references may not form a cycle: no check can describe a schema whose paths are unbounded
+
+error[E0133]: schema 0.0 has a reference cycle: #A -> #B -> #A
+ --> lineage.cue:7:10
+  |
+7 |                 #B: {a?: #A}
+  |                      ^
+  |
+  = note: a schema's references may not form a cycle: no check can describe a schema whose paths are unbounded

@@ -1,0 +1,91 @@
+#op: bind
+A pattern that compares a field tests a field that may be absent. In CUE,
+comparing an absent field is an error rather than false, so the lens fails on
+every instance that lacks the field. Test presence first.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				c?: string
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				q?: int
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		input: _
+		result: {
+			if input.c == "x" {
+				q: 1
+			}
+		}
+	}
+	"1.0->0.0": {
+		input: _
+		result: {}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0364",
+      "severity": "error",
+      "headline": "lens 0.0->1.0 is not total at the result of lens 0.0->1.0",
+      "path": [
+        "lenses",
+        "0.0->1.0",
+        "result"
+      ],
+      "address": {
+        "from": [
+          0,
+          0
+        ],
+        "kind": "lensResult",
+        "to": [
+          1,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 22,
+        "col": 4,
+        "offset": 188,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "the result of lens 0.0->1.0 is under the pattern input.c == \"x\", but input.c may be absent (input.c is optional in the source schema), and comparing an absent field is an error rather than false; test presence first: if input.c != _|_"
+        },
+        {
+          "label": "a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule pattern-absent)"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0364]: lens 0.0->1.0 is not total at the result of lens 0.0->1.0
+  --> lineage.cue:22:4
+   |
+22 |             if input.c == "x" {
+   |             ^^
+   |
+   = note: the result of lens 0.0->1.0 is under the pattern input.c == "x", but input.c may be absent (input.c is optional in the source schema), and comparing an absent field is an error rather than false; test presence first: if input.c != _|_
+   = note: a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule pattern-absent)

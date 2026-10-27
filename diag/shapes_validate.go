@@ -83,7 +83,7 @@ func validateNotAllowed(e cerrors.Error, ctx Context) *B {
 	} else {
 		schemaNote(b, ctx, nil, schemaName(ctx)+" declares its fields here")
 	}
-	if want, ok := suggest(name, declaredFields(ctx, path)); ok {
+	if want, ok := Suggest(name, declaredFields(ctx, path)); ok {
 		b.Helpf("did you mean %s?", want)
 	} else {
 		b.Helpf("remove %s from the data, or declare it in the schema", name)

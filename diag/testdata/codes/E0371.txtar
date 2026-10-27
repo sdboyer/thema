@@ -1,0 +1,93 @@
+#op: bind
+A lens divides by a field that may be zero, which is an error in CUE, so the
+lens fails on every instance where it is. Exclude zero from the divisor's
+schema, or test for it.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				n: int32
+				d: int32
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				q: int
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		input: _
+		result: {
+			q: quo(input.n, input.d)
+		}
+	}
+	"1.0->0.0": {
+		input: _
+		result: {
+			n: 0
+			d: 1
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0371",
+      "severity": "error",
+      "headline": "q in the result of lens 0.0->1.0 divides by input.d, which may be 0",
+      "path": [
+        "lenses",
+        "0.0->1.0",
+        "result",
+        "q"
+      ],
+      "address": {
+        "field": [
+          "q"
+        ],
+        "from": [
+          0,
+          0
+        ],
+        "kind": "lensResultField",
+        "to": [
+          1,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 23,
+        "col": 11,
+        "offset": 205,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule division-by-zero)"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0371]: q in the result of lens 0.0->1.0 divides by input.d, which may be 0
+  --> lineage.cue:23:11
+   |
+23 |             q: quo(input.n, input.d)
+   |                    ^^^^^
+   |
+   = note: a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule division-by-zero)

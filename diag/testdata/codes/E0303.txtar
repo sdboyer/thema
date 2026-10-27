@@ -1,0 +1,97 @@
+#op: bind
+A lens's input stands for any instance of its source schema, so the lens must
+accept every one of them. An input that constrains what it takes rejects some
+instances. Leave the input as `_`.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: int
+			}
+		}
+		"1": {
+			schema: {
+				a: int
+				b?: int
+			}
+		}
+	}
+}
+lenses: {
+	"0.1->0.0": {
+		input: {
+			a: string
+		}
+		result: {
+			a: input.a
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0303",
+      "severity": "error",
+      "headline": "the input of lens 0.1->0.0 does not accept every instance of schema 0.1",
+      "path": [
+        "lenses",
+        "0.1->0.0",
+        "input"
+      ],
+      "address": {
+        "from": [
+          0,
+          1
+        ],
+        "kind": "lensInput",
+        "to": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 19,
+        "col": 3,
+        "offset": 160,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "pos": {
+            "file": "/github.com/sdboyer/thema@v0.1.0/lineage.cue",
+            "line": 170,
+            "col": 11,
+            "offset": 7336,
+            "origin": "thema"
+          },
+          "label": "in thema's own CUE"
+        }
+      ],
+      "help": [
+        "a lens's input stands for any instance of its source schema; leave it as _"
+      ],
+      "detail": "field a not present in {a:int,b?:int}\nmissing field \"a\""
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0303]: the input of lens 0.1->0.0 does not accept every instance of schema 0.1
+   --> lineage.cue:19:3
+    |
+ 19 |         input: {
+    |         ^^^^^
+    |
+    = note: in thema's own CUE
+     --> thema/lineage.cue:170:11
+    = detail: field a not present in {a:int,b?:int}
+              missing field "a"
+    = help: a lens's input stands for any instance of its source schema; leave it as _

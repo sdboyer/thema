@@ -1,0 +1,78 @@
+#op: bind
+A minor version is backward compatible with its predecessor: every instance of
+the predecessor is an instance of it. A new field that data must supply breaks
+that, since no prior instance supplies it. Give the field a default, make it
+optional, or make this a major version.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+		"1": {
+			schema: {
+				a: string
+				b: int
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0210",
+      "severity": "error",
+      "headline": "b in schema 0.1 is required in the new schema but not declared in the prior one",
+      "path": [
+        "schemas",
+        "0",
+        "1",
+        "schema",
+        "b"
+      ],
+      "address": {
+        "field": [
+          "b"
+        ],
+        "kind": "schemaField",
+        "version": [
+          0,
+          1
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 12,
+        "col": 5,
+        "offset": 117,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule field-added-required)"
+        }
+      ],
+      "help": [
+        "make the change compatible, or make this version 1.0"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0210]: b in schema 0.1 is required in the new schema but not declared in the prior one
+  --> lineage.cue:12:5
+   |
+12 |                 b: int
+   |                 ^
+   |
+   = note: schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule field-added-required)
+   = help: make the change compatible, or make this version 1.0

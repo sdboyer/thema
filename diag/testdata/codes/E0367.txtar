@@ -1,0 +1,91 @@
+#op: bind
+A computed value has a possible result the target rejects. Here the lens
+subtracts one from a non-negative int and writes it where the target requires
+a non-negative int: for an input of 0 the result is -1.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: int & >=0
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				n: int & >=0
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		input: _
+		result: {
+			n: input.a - 1
+		}
+	}
+	"1.0->0.0": {
+		input: _
+		result: {
+			a: input.n
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0367",
+      "severity": "error",
+      "headline": "n in the result of lens 0.0->1.0 is input.a - 1, which may be as low as -1, where the target schema requires >=0",
+      "path": [
+        "lenses",
+        "0.0->1.0",
+        "result",
+        "n"
+      ],
+      "address": {
+        "field": [
+          "n"
+        ],
+        "from": [
+          0,
+          0
+        ],
+        "kind": "lensResultField",
+        "to": [
+          1,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 22,
+        "col": 7,
+        "offset": 198,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule computed-narrowed)"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0367]: n in the result of lens 0.0->1.0 is input.a - 1, which may be as low as -1, where the target schema requires >=0
+  --> lineage.cue:22:7
+   |
+22 |             n: input.a - 1
+   |                ^^^^^
+   |
+   = note: a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule computed-narrowed)

@@ -1,0 +1,76 @@
+#op: append-only
+Once a lineage is published, its schemas are fixed: a new revision may only add
+versions. This revision changes a schema that was published, so instances
+validated against the published one may no longer be instances of it.
+-- old.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+	}
+}
+-- new.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: int
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0243",
+      "severity": "error",
+      "headline": "schema 0.0 differs from the published one",
+      "primary": {
+        "file": "new.cue",
+        "line": 5,
+        "col": 4,
+        "offset": 44,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "pos": {
+            "file": "/github.com/sdboyer/thema@v0.1.0/lineage.cue",
+            "line": 170,
+            "col": 11,
+            "offset": 7336,
+            "origin": "thema"
+          },
+          "label": "in thema's own CUE"
+        }
+      ],
+      "help": [
+        "a published schema is never changed; add a new version instead"
+      ],
+      "detail": "field a not present in {a:int}\nmissing field \"a\""
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0243]: schema 0.0 differs from the published one
+   --> new.cue:5:4
+    |
+  5 |             schema: {
+    |             ^^^^^^
+    |
+    = note: in thema's own CUE
+     --> thema/lineage.cue:170:11
+    = detail: field a not present in {a:int}
+              missing field "a"
+    = help: a published schema is never changed; add a new version instead

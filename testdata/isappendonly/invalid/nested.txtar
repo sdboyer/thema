@@ -28,7 +28,15 @@ lin2: schemas: {
 	}
 }
 -- out/isappendonly-fail --
-field anObject not present in {anObject:{aField:string,aNewOptionalField?:string}}:
-    ./github.com/sdboyer/thema@v0.1.0/lineage.cue:170:11
-field not allowed in closed struct: aNewOptionalField
-missing field "anObject"
+error[E0243]: schema 0.0 differs from the published one
+   --> /in.cue:19:6
+    |
+ 19 |         schema: {
+    |         ^^^^^^
+    |
+    = note: in thema's own CUE
+     --> thema/lineage.cue:170:11
+    = detail: field not allowed in closed struct: aNewOptionalField
+              field anObject not present in {anObject:{aField:string,aNewOptionalField?:string}}
+              missing field "anObject"
+    = help: a published schema is never changed; add a new version instead

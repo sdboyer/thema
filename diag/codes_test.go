@@ -212,6 +212,74 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 		}
 		return diag.Diagnostics(err)
 	},
+	// bind: bind lineage.cue (a normal form that does not import thema) and
+	// report the failure. With #path, the lineage is looked up there first.
+	"bind": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {
+		dirs, _ := a.Directives()
+		ctx := cuecontext.New()
+		rt := thema.NewRuntime(ctx)
+		src, ok := a.File("lineage.cue")
+		if !ok {
+			t.Fatal("bind needs lineage.cue")
+		}
+		v := ctx.CompileString(src, cue.Filename("lineage.cue"))
+		if p, ok := dirs["path"]; ok {
+			v = v.LookupPath(cue.ParsePath(p))
+		}
+		var opts []thema.BindOption
+		if dirs["skip-buggy-checks"] == "true" {
+			opts = append(opts, thema.SkipBuggyChecks())
+		}
+		_, err := thema.BindLineage(v, rt, opts...)
+		if err == nil {
+			t.Fatal("the lineage bound")
+		}
+		return diag.Diagnostics(err)
+	},
+	// append-only: bind old.cue and new.cue and check that new only appends
+	// to old (thema.IsAppendOnly).
+	"append-only": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {
+		ctx := cuecontext.New()
+		rt := thema.NewRuntime(ctx)
+		bind := func(name string) thema.Lineage {
+			src, ok := a.File(name)
+			if !ok {
+				t.Fatalf("append-only needs %s", name)
+			}
+			lin, err := thema.BindLineage(ctx.CompileString(src, cue.Filename(name)), rt)
+			if err != nil {
+				t.Fatalf("%s does not bind: %v", name, err)
+			}
+			return lin
+		}
+		err := thema.IsAppendOnly(bind("old.cue"), bind("new.cue"))
+		if err == nil {
+			t.Fatal("the new lineage only appends")
+		}
+		return diag.Diagnostics(err)
+	},
+	// schema: bind lineage.cue and look up the version #version names.
+	"schema": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {
+		dirs, _ := a.Directives()
+		ctx := cuecontext.New()
+		rt := thema.NewRuntime(ctx)
+		src, ok := a.File("lineage.cue")
+		if !ok {
+			t.Fatal("schema needs lineage.cue")
+		}
+		lin, err := thema.BindLineage(ctx.CompileString(src, cue.Filename("lineage.cue")), rt)
+		if err != nil {
+			t.Fatalf("lineage.cue does not bind: %v", err)
+		}
+		sv, err := thema.ParseSyntacticVersion(dirs["version"])
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = lin.Schema(sv); err == nil {
+			t.Fatalf("the lineage has schema %s", sv)
+		}
+		return diag.Diagnostics(err)
+	},
 	// go-error: a plain Go error with the text of error.txt.
 	"go-error": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {
 		text, ok := a.File("error.txt")

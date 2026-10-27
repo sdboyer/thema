@@ -8,9 +8,10 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/build"
 	"cuelang.org/go/cue/cuecontext"
-	"cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/load"
 
+	"github.com/sdboyer/thema/diag"
+	"github.com/sdboyer/thema/internal/diagtest"
 	"github.com/sdboyer/thema/internal/txtartest/vanilla"
 )
 
@@ -77,8 +78,12 @@ func TestInvalidLineages(t *testing.T) {
 		if err == nil {
 			tc.Fatal("expected error from known-invalid lineage")
 		}
-		// TODO more verbose error output, should include CUE line-level analysis
-		tc.WriteErrors(errors.Promote(err, ""))
+		ds := diag.Diagnostics(err)
+		if len(ds) == 0 {
+			tc.Fatalf("a bind failure is made of diagnostics, got: %v", err)
+		}
+		diagtest.Lint(tc, ds, diagtest.Normal)
+		diag.Render(tc, ds, diag.RenderOptions{Source: archiveSource(tc)})
 	})
 }
 
@@ -147,9 +152,26 @@ func TestIsAppendOnlyFail(t *testing.T) {
 			tc.Fatalf("expected error from known invalid updates")
 		}
 
-		// TODO more verbose error output, should include CUE line-level analysis
-		tc.WriteErrors(errors.Promote(err, "IsAppendOnly fail"))
+		ds := diag.Diagnostics(err)
+		if len(ds) == 0 {
+			tc.Fatalf("an append-only failure is made of diagnostics, got: %v", err)
+		}
+		diagtest.Lint(tc, ds, diagtest.Normal)
+		diag.Render(tc, ds, diag.RenderOptions{Source: archiveSource(tc)})
 	})
+}
+
+// archiveSource reads a test archive's files by the names their positions
+// carry: the lineage is loaded at the virtual root.
+func archiveSource(tc *vanilla.Test) func(file string) ([]byte, bool) {
+	return func(file string) ([]byte, bool) {
+		for _, f := range tc.Archive.Files {
+			if f.Name == file || "/"+f.Name == file {
+				return f.Data, true
+			}
+		}
+		return nil, false
+	}
 }
 
 func bindTxtarLineage(t *vanilla.Test, rt *Runtime, path string) (Lineage, error) {

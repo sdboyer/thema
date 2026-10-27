@@ -5,7 +5,9 @@ import (
 	"encoding/hex"
 	"fmt"
 	"maps"
+	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -253,7 +255,7 @@ func TestShapesCovered(t *testing.T) {
 		}
 	}
 	for _, s := range diag.Shapes() {
-		if s.Msg == "" {
+		if s.Msg == "" || s.Kernel {
 			continue
 		}
 		if !recorded[fmt.Sprintf("%q", s.Msg)] {
@@ -276,6 +278,35 @@ func TestShapesCovered(t *testing.T) {
 	}
 }
 
+// TestKernelShapes: every shape that matches a message of thema's own CUE
+// matches one its error() guards produce, as written in the kernel's files.
+// The kernel interpolates the offending key with \(K); as a CUE error message
+// that is %v. The kernel files are the lineage-kernel seam; this is one of the
+// consultations a change there owes.
+func TestKernelShapes(t *testing.T) {
+	guards := map[string]bool{}
+	re := regexp.MustCompile(`error\("((?:[^"\\]|\\.)*)"\)`)
+	for _, f := range []string{"lineage.cue", "lacuna.cue", "translate.cue", "traverse.cue"} {
+		src, err := os.ReadFile(filepath.Join("..", f))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, m := range re.FindAllStringSubmatch(string(src), -1) {
+			msg := strings.ReplaceAll(m[1], `\(K)`, "%v")
+			msg = strings.ReplaceAll(msg, `\"`, `"`)
+			guards[msg] = true
+		}
+	}
+	for _, s := range diag.Shapes() {
+		if !s.Kernel {
+			continue
+		}
+		if !guards[s.Msg] {
+			t.Errorf("shape %s matches %q, which no error() guard in thema's CUE produces", s.Name, s.Msg)
+		}
+	}
+}
+
 // unmatchedByDesign lists recorded message formats thema reports generically
 // on purpose, as the menagerie quotes them.
 var unmatchedByDesign = map[string]bool{
@@ -288,7 +319,6 @@ var unmatchedByDesign = map[string]bool{
 // migration step that adds a shape removes its entry, and the test above
 // insists on it.
 var unmatchedYet = map[string]bool{
-	`"%d errors in empty disjunction:"`:                    true,
 	`"%v is not a field of s"`:                             true,
 	`"cannot find package %q"`:                             true,
 	`"cannot reference optional field: %s"`:                true,

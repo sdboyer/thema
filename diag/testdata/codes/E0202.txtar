@@ -1,0 +1,67 @@
+#op: bind
+Versions are contiguous: each schema is the next minor version of its
+predecessor, or the first version of the next major. A skipped version would be
+a version with no schema.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+		"2": {
+			schema: {
+				a: string
+				b?: int
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0202",
+      "severity": "error",
+      "headline": "schema version 0.2 does not follow 0.0",
+      "path": [
+        "schemas",
+        "0",
+        "2",
+        "schema"
+      ],
+      "address": {
+        "kind": "schema",
+        "version": [
+          0,
+          2
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 9,
+        "col": 3,
+        "offset": 79,
+        "origin": "user"
+      },
+      "help": [
+        "the next schema after 0.0 is version 0.1 or 1.0"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0202]: schema version 0.2 does not follow 0.0
+ --> lineage.cue:9:3
+  |
+9 |         "2": {
+  |         ^^^
+  |
+  = help: the next schema after 0.0 is version 0.1 or 1.0

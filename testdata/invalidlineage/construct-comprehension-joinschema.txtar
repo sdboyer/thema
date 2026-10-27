@@ -15,5 +15,11 @@ thema.Lineage & {
 	}
 }
 -- out/bindfail --
-joinSchema: comprehensions are not allowed in schemas:
-    ./in.cue:7:3
+error[E0132]: joinSchema uses a comprehension
+ --> /in.cue:7:3
+  |
+7 |         if kind == "x" {
+  |         ^^
+  |
+  = note: a schema's fields must be known without evaluating data: no check can describe a schema whose fields depend on evaluation
+  = help: write the fields the comprehension would produce

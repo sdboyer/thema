@@ -19,4 +19,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail not backwards compatible
+bind fail accepts it through ...

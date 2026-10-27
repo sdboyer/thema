@@ -1,0 +1,62 @@
+#op: append-only
+Once a lineage is published, its schemas are fixed: a new revision of the
+lineage may only add versions. This revision has fewer schemas than the
+published one, so a schema was deleted.
+-- old.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+		"1": {
+			schema: {
+				a: string
+				b?: int
+			}
+		}
+	}
+}
+lenses: {
+	"0.1->0.0": {
+		input: _
+		result: {
+			a: input.a
+		}
+	}
+}
+-- new.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0242",
+      "severity": "error",
+      "headline": "the new lineage has 1 schemas where the published one has 2",
+      "help": [
+        "a published schema is never deleted; add versions, do not remove them"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0242]: the new lineage has 1 schemas where the published one has 2
+  |
+  = help: a published schema is never deleted; add versions, do not remove them

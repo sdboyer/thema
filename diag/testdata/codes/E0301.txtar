@@ -1,0 +1,71 @@
+#op: bind
+A lineage declares a lens from every schema back to its predecessor, and one
+forward across every major version, so that an instance of any version can be
+translated to any other. This lineage adds version 0.1 without the lens back to
+0.0.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+		"1": {
+			schema: {
+				a: string
+				b?: int
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0301",
+      "severity": "error",
+      "headline": "the lineage has no lens 0.1->0.0",
+      "path": [
+        "lenses",
+        "0.1->0.0"
+      ],
+      "address": {
+        "from": [
+          0,
+          1
+        ],
+        "kind": "lens",
+        "to": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 1,
+        "col": 1,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "every schema needs a lens back to its predecessor, so that instances of 0.1 can be translated to 0.0"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0301]: the lineage has no lens 0.1->0.0
+ --> lineage.cue:1:1
+  |
+1 | name: "ship"
+  | ^^^^
+  |
+  = note: every schema needs a lens back to its predecessor, so that instances of 0.1 can be translated to 0.0

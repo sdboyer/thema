@@ -1,0 +1,78 @@
+#op: bind
+Every lacuna has a message: the human-readable account of the gap in the
+translation. This one has none.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+		"1": {
+			schema: {
+				a:  string
+				b?: int
+			}
+		}
+	}
+}
+lenses: {
+	"0.1->0.0": {
+		input: _
+		result: {
+			a: input.a
+		}
+		lacunas: [
+			{type: "DroppedField", condition: input.b != _|_},
+		]
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0402",
+      "severity": "error",
+      "headline": "lacuna 0 of lens 0.1->0.0 has no message",
+      "path": [
+        "lenses",
+        "0.1->0.0",
+        "lacunas",
+        "0"
+      ],
+      "address": {
+        "from": [
+          0,
+          1
+        ],
+        "index": 0,
+        "kind": "lacuna",
+        "to": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 24,
+        "col": 4,
+        "offset": 222,
+        "origin": "user"
+      }
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0402]: lacuna 0 of lens 0.1->0.0 has no message
+  --> lineage.cue:24:4
+   |
+24 |             {type: "DroppedField", condition: input.b != _|_},
+   |             ^
+   |

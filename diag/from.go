@@ -54,6 +54,10 @@ type Context struct {
 	Vocabulary Vocabulary
 	// AddressOf maps a normal-form error path to the construct it is in.
 	AddressOf func(path []string) (Address, bool)
+	// Generic is the code for a CUE error no shape describes, when the
+	// operation knows what such an error means for it: at bind, that the
+	// lineage is not an instance of thema.Lineage. Empty means [E0902].
+	Generic Code
 }
 
 func (ctx Context) vocab() Vocabulary {
@@ -150,6 +154,9 @@ func (ctx Context) finish(e *Error) *Error {
 // generic builds the diagnostic for an entry no shape describes.
 func (ctx Context) generic(e cerrors.Error) *B {
 	code := E0902
+	if ctx.Generic != "" {
+		code = ctx.Generic
+	}
 	if isPromoted(e) {
 		code = E0903
 	}
@@ -170,7 +177,11 @@ func (ctx Context) generic(e cerrors.Error) *B {
 func (ctx Context) disjunction(header cerrors.Error, arms []cerrors.Error) *Error {
 	b, ok := ctx.recognizeDisjunction(header, arms)
 	if !ok {
-		b = New(E0902).Detail(ctx.cueText(header))
+		code := E0902
+		if ctx.Generic != "" {
+			code = ctx.Generic
+		}
+		b = New(code).Detail(ctx.cueText(header))
 		if ctx.AddressOf != nil {
 			if a, ok := ctx.AddressOf(ctx.path(header)); ok {
 				b.Addr(a)
@@ -180,11 +191,24 @@ func (ctx Context) disjunction(header cerrors.Error, arms []cerrors.Error) *Erro
 	var ps []token.Pos
 	for _, arm := range arms {
 		armps := positionsOf(arm)
+		if b.dropArms {
+			ps = append(ps, armps...)
+			continue
+		}
 		if len(armps) == 0 {
 			b.Note(token.NoPos, ctx.cueText(arm))
 			continue
 		}
-		b.Note(armps[0], ctx.cueText(arm))
+		// An arm is noted at its first position in the author's text, so that
+		// what it says is read against what the author wrote, not thema's CUE.
+		at := armps[0]
+		for _, p := range armps {
+			if OriginOf(p.Filename()) == OriginUser {
+				at = p
+				break
+			}
+		}
+		b.Note(at, ctx.cueText(arm))
 		ps = append(ps, armps...)
 	}
 	ctx.place(b, ctx.path(header), ps, "also here")

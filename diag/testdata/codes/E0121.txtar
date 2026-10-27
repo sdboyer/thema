@@ -1,0 +1,48 @@
+#op: bind
+A lineage's name and schemas are concrete: the name is a string literal, not a
+constraint on one. Here the name is left as `string`, so there is no name.
+-- lineage.cue --
+name: string
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0121",
+      "severity": "error",
+      "headline": "name is not concrete",
+      "path": [
+        "name"
+      ],
+      "address": {
+        "kind": "name"
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 1,
+        "col": 1,
+        "origin": "user"
+      }
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0121]: name is not concrete
+ --> lineage.cue:1:1
+  |
+1 | name: string
+  | ^^^^
+  |

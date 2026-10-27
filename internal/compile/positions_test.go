@@ -246,20 +246,20 @@ func posStrings(err error) []string {
 	return out
 }
 
-// TestUnpositionedResultFallsToKernel shows what BindLineage reports when a
-// lens result has no position. thema's Go checks position their errors at the
-// first conjunct of a value not in thema's own CUE (bind.go userPos), and
-// recognize thema's CUE by the embedded module's root, embedreg.Root(), which
-// is also where the Runtime loads it. With no authored position to find, the
-// error falls back to the value's own position, which is in thema's
-// lineage.cue, at Lens's result field, as if the author had written it.
+// TestUnpositionedResultCitesMapping shows what BindLineage reports when a
+// lens result has no position of its own but its mapping does: the diagnostic
+// is positioned at the mapping that conflicts with the target, and nothing in
+// thema's own CUE is shown as if the author had written it. Before thema's
+// diagnostics, the error fell back to the result's position, which with none
+// authored was Lens's result field in thema's lineage.cue.
 //
 // The lens-conflict-bind pipeline case is the same lineage with the result
 // positioned at the lens.
-func TestUnpositionedResultFallsToKernel(t *testing.T) {
+func TestUnpositionedResultCitesMapping(t *testing.T) {
 	a := readArchive(t, "testdata/pipeline/lens-conflict-bind.txtar")
 	s := shipFrom(t, a)
-	s.fwdCount = at(s.v1.at(`"many"`), ast.NewString("many"))
+	mapping := s.v1.at(`"many"`)
+	s.fwdCount = at(mapping, ast.NewString("many"))
 	s.unpositioned = true
 
 	ctx := cuecontext.New()
@@ -271,9 +271,13 @@ func TestUnpositionedResultFallsToKernel(t *testing.T) {
 	if len(errs) != 1 {
 		t.Fatalf("want one error, got %d: %v", len(errs), err)
 	}
-	p := errs[0].Position()
-	if classify(p) != whereKernel || !strings.HasSuffix(p.Filename(), "lineage.cue") {
-		t.Errorf("error positioned at %v, want thema's lineage.cue", p)
+	if p := errs[0].Position(); p != mapping {
+		t.Errorf("error positioned at %v, want the mapping at %v", p, mapping)
+	}
+	for _, p := range errs[0].InputPositions() {
+		if classify(p) == whereKernel {
+			t.Errorf("a note points into thema's own CUE at %v", p)
+		}
 	}
 }
 

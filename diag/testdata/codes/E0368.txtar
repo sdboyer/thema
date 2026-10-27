@@ -1,0 +1,92 @@
+#op: bind
+The target schema requires a field the lens never writes, so no result is an
+instance of the target. Write the field: from the input, as a constant, or
+through a mapping.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				a: string
+				b: int
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		input: _
+		result: {
+			a: input.a
+		}
+	}
+	"1.0->0.0": {
+		input: _
+		result: {
+			a: input.a
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0368",
+      "severity": "error",
+      "headline": "b in the result of lens 0.0->1.0 is required by the target schema and never written",
+      "path": [
+        "lenses",
+        "0.0->1.0",
+        "result",
+        "b"
+      ],
+      "address": {
+        "field": [
+          "b"
+        ],
+        "from": [
+          0,
+          0
+        ],
+        "kind": "lensResultField",
+        "to": [
+          1,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 22,
+        "col": 3,
+        "offset": 187,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule required-not-written)"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0368]: b in the result of lens 0.0->1.0 is required by the target schema and never written
+  --> lineage.cue:22:3
+   |
+22 |         result: {
+   |         ^^^^^^
+   |
+   = note: a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule required-not-written)

@@ -5,5 +5,10 @@ import "github.com/sdboyer/thema"
 thema.Lineage
 name: "schemaless"
 -- out/bindfail --
-not a lineage, missing Lineage.schemas:
-    ./in.cue:2:1
+error[E0120]: the lineage does not declare schemas
+ --> /in.cue:4:1
+  |
+4 | thema.Lineage
+  | ^^^^^
+  |
+  = help: every lineage declares name and schemas

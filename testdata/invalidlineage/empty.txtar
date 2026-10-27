@@ -1,4 +1,9 @@
 -- in.cue --
 -- out/bindfail --
-not a lineage, missing Lineage.name:
-    ./in.cue:1:1
+error[E0120]: the lineage does not declare name
+ --> /in.cue:1:1
+  |
+1 | 
+  | ^
+  |
+  = help: every lineage declares name and schemas

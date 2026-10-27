@@ -1,0 +1,91 @@
+#op: bind
+A lens looks a value up in a table, and some value the source allows has no
+entry. Give the table an entry for every value, or a catch-all.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				t: "a" | "b" | "c"
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				u: 1 | 2
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		_T: {a: 1, b: 2}
+		input: _
+		result: {
+			u: _T[input.t]
+		}
+	}
+	"1.0->0.0": {
+		input: _
+		result: {
+			t: "a"
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0372",
+      "severity": "error",
+      "headline": "u in the result of lens 0.0->1.0 indexes a table by input.t, which may be \"c\", for which the table has no entry",
+      "path": [
+        "lenses",
+        "0.0->1.0",
+        "result",
+        "u"
+      ],
+      "address": {
+        "field": [
+          "u"
+        ],
+        "from": [
+          0,
+          0
+        ],
+        "kind": "lensResultField",
+        "to": [
+          1,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 23,
+        "col": 7,
+        "offset": 219,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule table-key-missing)"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0372]: u in the result of lens 0.0->1.0 indexes a table by input.t, which may be "c", for which the table has no entry
+  --> lineage.cue:23:7
+   |
+23 |             u: _T[input.t]
+   |                ^^
+   |
+   = note: a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule table-key-missing)

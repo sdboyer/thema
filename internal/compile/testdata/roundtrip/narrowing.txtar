@@ -36,12 +36,10 @@ BackwardLens: {
 	}
 }
 -- out/bind --
-lens 0.0->1.0: result is not an instance of schema 1.0:
-Lineage.lenses."0.0->1.0".result.properbool: conflicting values false and true:
-    1.0.thema:9:13
-    1.0.thema:10:13
-:
+lens 0.0->1.0 is not total at properbool in the result of lens 0.0->1.0:
     1.0.thema:5:1
+lens 0.0->1.0 is not total at properbool in the result of lens 0.0->1.0:
+    1.0.thema:8:3
 -- out/decompiled/1.0.thema --
 schema: {
 	properbool: bool

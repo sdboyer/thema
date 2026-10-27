@@ -1,0 +1,41 @@
+#op: bind
+A lineage declares at least one schema, version 0.0. This one declares none.
+-- lineage.cue --
+name: "ship"
+schemas: {}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0122",
+      "severity": "error",
+      "headline": "the lineage declares no schemas",
+      "address": {
+        "kind": "lineage"
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 2,
+        "col": 1,
+        "offset": 13,
+        "origin": "user"
+      },
+      "help": [
+        "declare at least version 0.0 under schemas"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0122]: the lineage declares no schemas
+ --> lineage.cue:2:1
+  |
+2 | schemas: {}
+  | ^^^^^^^
+  |
+  = help: declare at least version 0.0 under schemas

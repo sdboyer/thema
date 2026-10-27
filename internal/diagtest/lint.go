@@ -30,7 +30,6 @@ const (
 var kernelTerms = []string{
 	"_accum", "_schema", "_join", "_lens", "_version", "_ordered", "_counts", "#closed",
 	"steps.", "Translate.out", "Lineage.", "SchemaDef", "/github.com/sdboyer/thema",
-	"_|_",
 }
 
 // Terms the authoring form does not use.
@@ -53,9 +52,6 @@ var (
 	positionInText = regexp.MustCompile(`\S+\.(cue|thema|json|yaml|yml):\d+:\d+`)
 	bracketVersion = regexp.MustCompile(`\[\d+ \d+\]`)
 )
-
-// MaxHeadline is the longest a headline may be.
-const MaxHeadline = 140
 
 // Lint checks ds against the mechanical authoring rules, failing t for each
 // violation. It is called by every test whose output is diagnostics.
@@ -129,8 +125,8 @@ func lintText(t testing.TB, where, s string, form Form, headline bool) {
 	if strings.HasSuffix(s, ".") && !strings.HasSuffix(s, "...") {
 		t.Errorf("%s: ends with a period: %q", where, s)
 	}
-	if len(s) > MaxHeadline {
-		t.Errorf("%s: longer than %d characters: %q", where, MaxHeadline, s)
+	if len(s) > diag.MaxHeadline {
+		t.Errorf("%s: longer than %d characters: %q", where, diag.MaxHeadline, s)
 	}
 	if r := []rune(s)[0]; unicode.IsUpper(r) && !startsWithIdentifier(s) {
 		t.Errorf("%s: starts with a capital that is not an identifier: %q", where, s)
