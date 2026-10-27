@@ -8,3 +8,7 @@ v0_0: _
 v1_0: {m: v0_0.n + 1}
 -- out --
 total
+-- ir --
+out: {
+  out.m = in.n + 1
+}

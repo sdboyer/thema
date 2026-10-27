@@ -498,3 +498,5 @@ export interface Maps {
   foo: string,
 }>;
 }
+-- out/lensir --
+no lenses

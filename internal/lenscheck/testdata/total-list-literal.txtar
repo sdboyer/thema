@@ -8,3 +8,10 @@ v0_0: _
 v1_0: {l: [v0_0.a, 1]}
 -- out --
 total
+-- ir --
+out: {
+  out.l: [2] {
+    out.l[0] <- in.a
+    out.l[1] = 1
+  }
+}

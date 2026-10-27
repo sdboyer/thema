@@ -378,3 +378,5 @@ export interface UnionNull {
     withNull: (string | null);
   };
 }
+-- out/lensir --
+no lenses

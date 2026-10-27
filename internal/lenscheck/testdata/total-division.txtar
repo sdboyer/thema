@@ -10,3 +10,8 @@ v0_0: _
 v1_0: {q: quo(v0_0.n, v0_0.d), r: rem(v0_0.n, 7)}
 -- out --
 total
+-- ir --
+out: {
+  out.q = quo(in.n, in.d)
+  out.r = rem(in.n, 7)
+}

@@ -2,6 +2,7 @@ package thema
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"slices"
 	"sort"
@@ -18,6 +19,8 @@ import (
 	"github.com/sdboyer/thema/internal/cuetil"
 	"github.com/sdboyer/thema/internal/cueview"
 	"github.com/sdboyer/thema/internal/lenscheck"
+	"github.com/sdboyer/thema/internal/lensir"
+	"github.com/sdboyer/thema/lacuna"
 )
 
 // maybeLineage is an intermediate processing structure used to validate
@@ -47,6 +50,12 @@ type maybeLineage struct {
 	schlist []*schemaDef
 
 	allv []SyntacticVersion
+
+	// programs holds the program built for each lens as checkLensTotality
+	// proves it (internal/lensir); nil where the check was skipped.
+	// programErr says why a total lens has no program.
+	programs   lensir.Programs
+	programErr error
 
 	// The raw input value is the root of a package instance
 	// rawIsPackage bool
@@ -628,7 +637,7 @@ func (ml *maybeLineage) checkLensResults() error {
 		if err := result.Unify(cuetil.CloseRecursive(ctx, tsch.def)).Validate(); err != nil {
 			// The totality checker usually knows the rule behind the conflict,
 			// and names the mapping; prefer its account when it has one.
-			if findings := ml.totalityFindings(lens, fsch, tsch); len(findings) > 0 {
+			if _, findings := ml.totalityFindings(lens, fsch, tsch); len(findings) > 0 {
 				errs = append(errs, findings...)
 				continue
 			}
@@ -800,6 +809,11 @@ func (ml *maybeLineage) checkReferences() error {
 // evaluates a lens only against data, so without this a lens that drops a field
 // or overflows a bound surfaces at translate, for the instance that hits it.
 //
+// Each lens proven total leaves its program (internal/lensir) behind, built
+// by the walk as a by-product of the proof; [LensPrograms] returns them. A
+// lens the IR cannot yet carry binds all the same, and the accessor says why
+// it has no program.
+//
 // SkipBuggyChecks skips it: the corpus has lenses the check correctly refuses
 // (exemplars/expand, 0.3->0.2, drops "baz"), which #87 migrates.
 func (ml *maybeLineage) checkLensTotality(cfg *bindConfig) error {
@@ -810,6 +824,7 @@ func (ml *maybeLineage) checkLensTotality(cfg *bindConfig) error {
 	for _, sch := range ml.schlist {
 		byVersion[sch.v] = sch
 	}
+	ml.programs = lensir.Programs{}
 
 	var errs []error
 	for _, cl := range ml.cueLenses() {
@@ -818,18 +833,29 @@ func (ml *maybeLineage) checkLensTotality(cfg *bindConfig) error {
 		if fsch == nil || tsch == nil {
 			continue
 		}
-		errs = append(errs, ml.totalityFindings(lens, fsch, tsch)...)
+		res, findings := ml.totalityFindings(lens, fsch, tsch)
+		if len(findings) > 0 {
+			errs = append(errs, findings...)
+			continue
+		}
+		edge := lensir.Edge{From: lacuna.SyntacticVersion(from), To: lacuna.SyntacticVersion(to)}
+		if res.Program == nil {
+			ml.programErr = errors.Join(ml.programErr, fmt.Errorf("lens %s has no program: %w", edge, res.ProgramErr))
+			continue
+		}
+		res.Program.Edge = edge
+		ml.programs[edge] = res.Program
 	}
 
 	return diag.Join(errs...)
 }
 
-// totalityFindings runs the totality checker over one lens and returns a
-// diagnostic per finding that is not Total. Under SkipBuggyChecks there are
-// none.
-func (ml *maybeLineage) totalityFindings(lens cue.Value, fsch, tsch *schemaDef) []error {
+// totalityFindings runs the totality checker over one lens and returns its
+// result, with a diagnostic per finding that is not Total. Under
+// SkipBuggyChecks there are none.
+func (ml *maybeLineage) totalityFindings(lens cue.Value, fsch, tsch *schemaDef) (lenscheck.Result, []error) {
 	if ml.cfg.skipbuggychecks {
-		return nil
+		return lenscheck.Result{}, nil
 	}
 	var errs []error
 	res := lenscheck.Check(ml.rt.Context(), lens, fsch.def, tsch.def, lensParam(fsch.v), lensParam(tsch.v))
@@ -838,7 +864,7 @@ func (ml *maybeLineage) totalityFindings(lens cue.Value, fsch, tsch *schemaDef) 
 			errs = append(errs, ml.totalityDiag(f, fsch.v, tsch.v))
 		}
 	}
-	return errs
+	return res, errs
 }
 
 // checkLensEdges checks that a lineage has exactly the lenses its schema

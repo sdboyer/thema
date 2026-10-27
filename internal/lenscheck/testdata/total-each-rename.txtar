@@ -8,3 +8,10 @@ v0_0: _
 v1_0: {items: [for item in v0_0.items {name: item.title, n: item.n}]}
 -- out --
 total
+-- ir --
+out: {
+  out.items = each in.items {
+    out.items[_].name <- in.items[_].title
+    out.items[_].n <- in.items[_].n
+  }
+}

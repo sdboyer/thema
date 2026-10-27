@@ -154,3 +154,5 @@ export interface Embedref {
   refField1: string;
   refField2: 42;
 }
+-- out/lensir --
+no lenses
