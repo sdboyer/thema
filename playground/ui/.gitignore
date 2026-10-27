@@ -1,0 +1,13 @@
+node_modules/
+dist/
+release/
+
+# thema's build artefacts, placed by `npm run sync-thema`. They come from the
+# thema commit pinned in thema.version, and are never committed.
+public/thema.wasm
+public/thema.wasm.gz
+public/wasm_exec.js
+public/thema-fs.js
+public/MANIFEST.json
+
+.DS_Store
