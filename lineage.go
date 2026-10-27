@@ -39,8 +39,6 @@ type baseLineage struct {
 
 	// all the schemas
 	allsch []*schemaDef
-
-	lensmap map[lensID]ImperativeLens
 }
 
 // BindLineage takes a raw [cue.Value], checks that it correctly follows Thema's
@@ -108,12 +106,11 @@ func BindLineage(v cue.Value, rt *Runtime, opts ...BindOption) (Lineage, error) 
 	}
 
 	ml := &maybeLineage{
-		rt:      rt,
-		orig:    orig,
-		raw:     raw,
-		uni:     uni,
-		cfg:     cfg,
-		implens: cfg.implens,
+		rt:   rt,
+		orig: orig,
+		raw:  raw,
+		uni:  uni,
+		cfg:  cfg,
 	}
 
 	if err := ml.checkExists(cfg); err != nil {
@@ -155,7 +152,6 @@ func BindLineage(v cue.Value, rt *Runtime, opts ...BindOption) (Lineage, error) 
 		uni:       ml.uni,
 		allsch:    ml.schlist,
 		allv:      ml.allv,
-		lensmap:   ml.lensmap,
 	}
 
 	for _, sch := range lin.allsch {

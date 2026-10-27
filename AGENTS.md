@@ -64,9 +64,7 @@ semantics apply them where they are used:
   they also matter for compiling lenses to targets without an expression
   language, which can only copy. Hidden fields follow closedness: one the target
   doesn't declare is the lens's scratch space and isn't checked; beneath one it
-  declares, the lens may write only what it declares. For Go lenses, whose
-  results are opaque, fields unchanged from the input at the same path count as
-  copied.
+  declares, the lens may write only what it declares.
 
 Typos at thema-owned levels are caught twice:
 
@@ -95,11 +93,11 @@ read the taps. They are facts about your diff, not opinions, and they never bloc
 - **cueview-goldens** (`shared-kernel`): internal/cueview/testdata/*.txtar is co-owned kernel. A change there owes consultation with: every caller of the view whose output changed (internal/cuetil syntax.go reads Evaluated through cueview.Tree); the view's doc comment in internal/cueview/view.go, which lists its quirks.
 - **embedded-module-root** (`shared-kernel`): internal/embedreg/embedreg.go is co-owned kernel. A change there owes consultation with: users reading error positions (the path is user-facing); golden error output in testdata.
 - **embedded-registry** (`choke-point`): in internal/embedreg/*.go, only Configure may construct registry. Constructing it elsewhere skips what the choke point enforces.
-- **go-residual-checks** (`declared-set`): the check* functions in bind.go are an intentional, enumerated set (11 declared). Adding one requires declaring why it belongs.
+- **go-residual-checks** (`declared-set`): the check* functions in bind.go are an intentional, enumerated set (10 declared). Adding one requires declaring why it belongs.
 - **kernel-definitions** (`declared-set`): the *#* definitions in lineage.cue, translate.cue, lacuna.cue, traverse.cue are an intentional, enumerated set (1 declared). Adding one requires declaring why it belongs.
 - **kernel-paths** (`shared-kernel`): runtime.go is co-owned kernel. A change there owes consultation with: bind.go userPos and authorWrote, which recognize thema's CUE only at embedreg.Root(); internal/compile classify, and the kernel positions in its pipeline goldens.
-- **lacuna-types** (`shared-kernel`): lacuna.go is co-owned kernel. A change there owes consultation with: LacunaTypes in lacuna.cue (lockstep test TestLacunaTypesMatchCUE); Go lenses, whose lacunas are validated against these types at translation.
-- **lens-result-fields** (`shared-kernel`): internal/cuetil/declared.go, internal/cuetil/syntax.go, internal/cueview/tree.go is co-owned kernel. A change there owes consultation with: bind.go checkGoLensCompleteness and checkLacunas, and instance.go Translate (Go lenses) and checkLensResultFields (CUE lenses): all must apply the same rule; AGENTS.md, Lens results; testdata/cases/lens-* and the construction-independence tests in internal/cuetil.
+- **lacuna-types** (`shared-kernel`): lacuna.go is co-owned kernel. A change there owes consultation with: LacunaTypes in lacuna.cue (lockstep test TestLacunaTypesMatchCUE); instance.go Translate, which decodes the lacunas of every step into these types.
+- **lens-result-fields** (`shared-kernel`): internal/cuetil/declared.go, internal/cuetil/syntax.go, internal/cueview/tree.go is co-owned kernel. A change there owes consultation with: bind.go checkLensResults and checkLacunas, and instance.go checkLensResultFields: all must apply the same rule; AGENTS.md, Lens results; testdata/cases/lens-* and the construction-independence tests in internal/cuetil.
 - **lineage-kernel** (`shared-kernel`): lineage.cue, translate.cue, lacuna.cue, traverse.cue is co-owned kernel. A change there owes consultation with: every lineage that unifies with thema.Lineage; the Go facade (bind.go, lineage.go, surface.go); Go code that calls thema's CUE pseudofunctions and decodes their output shape (instance.go Translate decodes Translate's out); bind.go parseVersionKey, parseLensEdge and lensID.String, which mirror the schemas and lenses key formats (versionKey, edgeKey in lineage.cue).
 - **lineages** (`published-language`): exemplars/*.cue, docs/*.cue is a versioned contract for consumers you cannot enumerate. A change owes them compatibility; a breaking change is loud even when correct.
 - **thema-module-identity** (`shared-kernel`): internal/util/modfile.go is co-owned kernel. A change there owes consultation with: cue.mod/module.cue (lockstep test in internal/util); the release process, which tags the Go and CUE modules with ThemaModuleVersion; every module.cue thema synthesizes (util.ModuleFile) and every cue.Hid lookup.

@@ -178,60 +178,6 @@ func TestLacunaBindChecks(t *testing.T) {
 	}
 }
 
-func TestGoLensLacunas(t *testing.T) {
-	ctx := cuecontext.New()
-	rt := NewRuntime(ctx)
-	src := `lin: thema.Lineage & {
-	name: "golens"
-	schemas: {
-		"0": "0": {schema: {a: string}}
-		"0": "1": {schema: {a: string, b?: int}}
-	}
-}`
-	bind := func(lacunas []Lacuna) Lineage {
-		t.Helper()
-		v := loadLineageValue(t, ctx, src)
-		lin, err := BindLineage(v, rt, ImperativeLenses(ImperativeLens{From: SV(0, 1), To: SV(0, 0),
-			Mapper: func(inst *Instance, to Schema) (*Instance, []Lacuna, error) {
-				out, err := to.Validate(ctx.CompileString(`{a: "x"}`))
-				return out, lacunas, err
-			}}))
-		if err != nil {
-			t.Fatal(err)
-		}
-		return lin
-	}
-	translate := func(lin Lineage) (TranslationLacunas, error) {
-		inst, err := lin.Latest().Validate(ctx.CompileString(`{a: "x", b: 2}`))
-		if err != nil {
-			t.Fatal(err)
-		}
-		_, lac, err := inst.Translate(SV(0, 0))
-		return lac, err
-	}
-
-	lac, err := translate(bind([]Lacuna{{Type: LacunaDroppedField, Message: "b dropped", SourceFields: []FieldRef{{Path: "b", Value: 2}}}}))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(lac) != 1 || lac[0].From != SV(0, 1) || lac[0].To != SV(0, 0) || len(lac[0].Lacunas) != 1 || lac[0].Lacunas[0].Type != LacunaDroppedField {
-		t.Fatalf("unexpected lacunas: %+v", lac)
-	}
-
-	for name, l := range map[string]Lacuna{
-		"unknown type":      {Type: "Bogus", Message: "m"},
-		"missing message":   {Type: LacunaDroppedField},
-		"undeclared path":   {Type: LacunaDroppedField, Message: "m", SourceFields: []FieldRef{{Path: "nope"}}},
-		"wrong side's path": {Type: LacunaDroppedField, Message: "m", TargetFields: []FieldRef{{Path: "b"}}},
-	} {
-		t.Run(name, func(t *testing.T) {
-			if _, err := translate(bind([]Lacuna{l})); err == nil {
-				t.Error("invalid lacuna from a Go lens was accepted")
-			}
-		})
-	}
-}
-
 // The Go lacuna type constants must match the types defined in thema's CUE.
 func TestLacunaTypesMatchCUE(t *testing.T) {
 	rt := NewRuntime(cuecontext.New())

@@ -49,10 +49,6 @@ type maybeLineage struct {
 
 	allv []SyntacticVersion
 
-	implens []ImperativeLens
-
-	lensmap map[lensID]ImperativeLens
-
 	// The raw input value is the root of a package instance
 	// rawIsPackage bool
 }
@@ -392,9 +388,6 @@ func (ml *maybeLineage) checkSchemaShapes() error {
 // target schema and build only fields the target declares. This catches at bind
 // time what would otherwise fail only when a matching instance is translated.
 func (ml *maybeLineage) checkLensResults() error {
-	if len(ml.implens) > 0 {
-		return nil
-	}
 	ctx := ml.rt.Context()
 	byVersion := make(map[SyntacticVersion]*schemaDef, len(ml.schlist))
 	for _, sch := range ml.schlist {
@@ -526,76 +519,19 @@ func (ml *maybeLineage) checkLacunas() error {
 	return nil
 }
 
-// checkLensEdges checks that the edges a lineage has lenses for, whether in Go or
-// in CUE, are exactly those its schema versions require.
-func (ml *maybeLineage) checkLensEdges() error {
-	cuelenses := ml.cueLenses()
-	// Two distinct validation paths, depending on whether the lenses were defined in
-	// Go or CUE.
-	if len(ml.implens) > 0 {
-		// A lineage's lenses come from Go or from CUE, never both: with Go lenses
-		// supplied, CUE lenses would be neither used nor checked.
-		if len(cuelenses) > 0 {
-			return errors.Mark(errors.New("lineage declares CUE lenses, but Go lenses were supplied: a lineage's lenses must all be in Go or all in CUE"), terrors.ErrErroneousLenses)
-		}
-		ids := make([]lensID, 0, len(ml.implens))
-		for _, lens := range ml.implens {
-			if lens.Mapper == nil {
-				return fmt.Errorf("nil Go migration func for %s", lid(lens.From, lens.To))
-			}
-			ids = append(ids, lid(lens.From, lens.To))
-		}
-		if err := ml.checkLensCompleteness(ids, "Go migrations"); err != nil {
-			return err
-		}
-		ml.lensmap = make(map[lensID]ImperativeLens, len(ml.implens))
-		for _, lens := range ml.implens {
-			ml.lensmap[lid(lens.From, lens.To)] = lens
-		}
-		return nil
-	}
-
-	ids := make([]lensID, 0, len(cuelenses))
-	for _, cl := range cuelenses {
-		ids = append(ids, cl.id)
-	}
-	return ml.checkLensCompleteness(ids, "lenses")
-}
-
-// cueLens is a lens declared in a lineage's CUE, and the edge it is declared at.
-type cueLens struct {
-	id lensID
-	v  cue.Value
-}
-
-// cueLenses returns the lenses declared in the lineage's CUE. Their keys have
-// already been checked by checkUnknownFields.
-func (ml *maybeLineage) cueLenses() []cueLens {
-	iter, err := ml.uni.LookupPath(cue.MakePath(cue.Str("lenses"))).Fields()
-	if err != nil {
-		return nil
-	}
-	var lenses []cueLens
-	for iter.Next() {
-		id, _ := parseLensEdge(iter.Selector().Unquoted())
-		lenses = append(lenses, cueLens{id: id, v: iter.Value()})
-	}
-	return lenses
-}
-
-// checkLensCompleteness checks that a lineage has exactly the lenses its schema
+// checkLensEdges checks that a lineage has exactly the lenses its schema
 // versions require: a lens from every schema back to its predecessor, and a lens
-// forward across every major version boundary. Duplicates, self-lenses, lenses
-// between nonexistent or non-adjacent versions, and forward lenses across minor
-// versions (which are implicit) are all errors. kind names the lenses in errors,
-// e.g. "CUE lenses".
-func (ml *maybeLineage) checkLensCompleteness(ids []lensID, kind string) error {
-	all := make(map[lensID]bool)
-	for _, id := range ids {
-		if all[id] {
-			return errors.Mark(fmt.Errorf("duplicate %s for %s", kind, id), terrors.ErrErroneousLenses)
-		}
-		all[id] = true
+// forward across every major version boundary. Self-lenses, lenses between
+// nonexistent or non-adjacent versions, and forward lenses across minor versions
+// (which are implicit) are all errors. Lenses are keyed by edge, so an edge
+// can't repeat.
+func (ml *maybeLineage) checkLensEdges() error {
+	lenses := ml.cueLenses()
+	ids := make([]lensID, 0, len(lenses))
+	all := make(map[lensID]bool, len(lenses))
+	for _, cl := range lenses {
+		ids = append(ids, cl.id)
+		all[cl.id] = true
 	}
 
 	var missing []lensID
@@ -628,7 +564,7 @@ func (ml *maybeLineage) checkLensCompleteness(ids []lensID, kind string) error {
 	if len(missing) > 0 {
 		b := new(bytes.Buffer)
 
-		fmt.Fprintf(b, "%s not provided for the following version pairs:\n", kind)
+		b.WriteString("lenses not provided for the following version pairs:\n")
 		for _, mlid := range missing {
 			fmt.Fprint(b, "\t", mlid, "\n")
 		}
@@ -638,7 +574,7 @@ func (ml *maybeLineage) checkLensCompleteness(ids []lensID, kind string) error {
 	if len(all) > 0 {
 		b := new(bytes.Buffer)
 
-		fmt.Fprintf(b, "%s erroneously provided for the following version pairs:\n", kind)
+		b.WriteString("lenses erroneously provided for the following version pairs:\n")
 		// walk the slice so output is reliably ordered
 		for _, elid := range ids {
 			// if it's not in the list it's because it was expected & already processed
@@ -651,6 +587,27 @@ func (ml *maybeLineage) checkLensCompleteness(ids []lensID, kind string) error {
 	}
 
 	return nil
+}
+
+// cueLens is a lens declared in a lineage's CUE, and the edge it is declared at.
+type cueLens struct {
+	id lensID
+	v  cue.Value
+}
+
+// cueLenses returns the lenses declared in the lineage's CUE. Their keys have
+// already been checked by checkUnknownFields.
+func (ml *maybeLineage) cueLenses() []cueLens {
+	iter, err := ml.uni.LookupPath(cue.MakePath(cue.Str("lenses"))).Fields()
+	if err != nil {
+		return nil
+	}
+	var lenses []cueLens
+	for iter.Next() {
+		id, _ := parseLensEdge(iter.Selector().Unquoted())
+		lenses = append(lenses, cueLens{id: id, v: iter.Value()})
+	}
+	return lenses
 }
 
 // erroneousLensReason explains why a lens the lineage doesn't require is wrong.
