@@ -1,13 +1,13 @@
-// Where the page points for what thema's terms mean: thema's own docs at the
-// commit thema.version pins, so they describe the thema the page runs, and
-// pkg.go.dev for what only the Go API documents.
-import pin from "../../thema.version?raw";
+// Where the page points for what thema's terms mean: thema's own docs, which
+// live in this tree beside the playground, and pkg.go.dev for what only the
+// Go API documents.
 
-export const themaCommit = pin.trim();
+// docsBase is where thema's docs/ is published.
+export const docsBase = "https://github.com/sdboyer/thema/blob/main/docs/";
 
-// themaDoc is the URL of a file under thema's docs/ at the pinned commit.
+// themaDoc is the URL of a file under thema's docs/.
 export function themaDoc(path: string): string {
-  return `https://github.com/sdboyer/thema/blob/${themaCommit}/docs/${path}`;
+  return docsBase + path;
 }
 
 // goDoc is a package's page on pkg.go.dev. pkg.go.dev resolves versions, not
