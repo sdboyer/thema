@@ -8,5 +8,5 @@ input: _
 result: {y: input.x.y}
 -- out --
 not total
-result.y copies input.x.y, which may be absent: input.x is _ in the source schema, which need not hold y; guard the field with if input.x.y != _|_ (rule source-absent) @ lens.cue:2:13
+result.y copies input.x.y, which may be absent: input.x is _ in the source schema, which need not hold y; write the field under if input.x.y != _|_ (rule source-absent) @ lens.cue:2:13
 result.y copies input.x.y, which is now int, which does not accept every value of the prior _ (compat rule value-narrowed) (rule copy-narrowed) @ lens.cue:2:13

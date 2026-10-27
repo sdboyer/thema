@@ -13,4 +13,4 @@ lacunas: [{
 }]
 -- out --
 unknown
-lacunas[0].targetFields[0].value refers to result.a, which is written only under input.k == "x": neither covering every instance nor implied by the lacuna's condition (rule unknown-coverage) @ lens.cue:4:36
+lacunas[0].targetFields[0].value refers to result.a, which is written only under input.k == "x": neither covering every instance nor implied by the lacuna's condition (rule unknown-exhaustive) @ lens.cue:4:36

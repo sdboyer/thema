@@ -665,7 +665,7 @@ func (ml *maybeLineage) checkLacunas() error {
 // field, and nothing in the lens fails to evaluate on the way. The walk
 // (internal/lenscheck) reads the lens's syntax and queries the schemas: a copy is
 // judged by the compatibility checker, a constant or computation by what the
-// target accepts, a comprehension by whether its guards cover every instance.
+// target accepts, a comprehension by whether its patterns cover every instance.
 // What it cannot decide is an error too, saying what the author can do. CUE
 // evaluates a lens only against data, so without this a lens that drops a field
 // or overflows a bound surfaces at translate, for the instance that hits it.

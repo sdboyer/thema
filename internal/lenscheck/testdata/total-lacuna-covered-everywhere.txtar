@@ -1,4 +1,4 @@
-# A lacuna whose condition tests a field unrelated to the guards its target field is written under. The field is written on every instance (present and absent branches), so it is present whenever the lacuna applies.
+# A lacuna whose condition tests a field unrelated to the patterns its target field is written under. The field is written on every instance (present and absent branches), so it is present whenever the lacuna applies.
 -- source.cue --
 name: string
 count?: int

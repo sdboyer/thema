@@ -286,11 +286,11 @@ refers to.
 thema proves totality from the lens's text, one result field at a time, asking
 the schemas about every path the lens reads or writes. A lens is proven total
 when every field satisfies the rule for what it is built from, and the lens as
-a whole satisfies the coverage and single-write rules.
+a whole satisfies the exhaustiveness and single-write rules.
 
 **Copies.** A field that copies an input path is total when the source
 declares the path, the path is present in every instance where the copy is
-evaluated (an optional field must be guarded), and every value the source
+evaluated (an optional field must be under a presence pattern), and every value the source
 allows there is accepted by the target at the field. The last condition is the
 first clause of the backwards-compatibility definition above, applied to the
 two paths. Its default rules do not apply, because a copied value is data.
@@ -302,19 +302,21 @@ elements is proven in turn at its own path.
 **Computed values.** A computed field uses only the operations listed below,
 and every value it can take must fit the target at the field.
 
-**Guards.** A field may be written under an `if`. The condition must be one of
-these, over input paths: a presence test (`p != _|_`), an equality with a
-literal (`p == c`), a type test (`(p & T) != _|_`), the negation of one of
-them, or a conjunction (`&&`) of them. Under the guard, the proof knows what
-the condition establishes: that `p` is present, holds `c`, or is a `T`. A type
-test against a literal, `(p & c) != _|_`, is the equality `p == c`, since
-input is data.
+**Patterns and arms.** A field may be written under an `if`, which makes the
+field an arm of a match on the input. The condition must be a pattern over
+input paths: a presence test (`p != _|_`), an equality with a literal
+(`p == c`), a type test (`(p & T) != _|_`), the negation of one of them, or a
+conjunction (`&&`) of them. Within an arm, the proof knows what its pattern
+establishes: that `p` is present, holds `c`, or is a `T`. A type test against
+a literal, `(p & c) != _|_`, is the equality `p == c`, since input is data.
+Unlike `match` in Rust, every arm whose pattern holds applies, and the values
+unify, so arms must be exhaustive *and* agree where they overlap.
 
-**Coverage.** Every field the target requires must be written for every
+**Exhaustiveness.** Every field the target requires must be written for every
 instance. That holds when the field is written unconditionally, or when the
-guards it is written under together cover every instance:
+patterns it is written under together cover every instance:
 
-- a guard and its negation,
+- a pattern and its negation,
 - type tests that together cover every alternative of the tested field, or
 - equalities with every alternative of the tested field, when each alternative
   is a constant.
@@ -323,9 +325,9 @@ guards it is written under together cover every instance:
 cannot disagree. Two writes to one path unify, so the second can reject the
 first's value.
 
-**Lacunas.** A lacuna's condition must be a guard. Every input path the lacuna
-reports must be present whenever the condition holds. Every result field it
-reports must be written for every instance, or under guards the condition
+**Lacunas.** A lacuna's condition must be a pattern. Every input path the
+lacuna reports must be present whenever the condition holds. Every result field
+it reports must be written for every instance, or under patterns the condition
 implies.
 
 **Operations.** The computed operations thema proves, over integers, strings
@@ -357,7 +359,7 @@ Each place in the lens gets one of three verdicts.
 - **unknown**: thema cannot decide. Deciding would need the instance itself (a
   `for` clause, a computed label), an analysis thema does not attempt (regular
   expression containment, string contents), or a form outside the rules above
-  (a guard that is not a presence test, an equality or a type test).
+  (a condition that is not a presence test, an equality or a type test).
 
 A lens's verdict is the worst of its places: not total if any place is, else
 unknown if any is, else total. Binding treats unknown as a failure. A lens must
@@ -371,7 +373,7 @@ the lacuna field. It reads
 
 for example
 
-    result.a copies input.c, which may be absent: input.c is optional in the source schema; guard the field with if input.c != _|_ (rule source-absent)
+    result.a copies input.c, which may be absent: input.c is optional in the source schema; write the field under if input.c != _|_ (rule source-absent)
 
 | Rule | Not total when |
 |---|---|
@@ -379,7 +381,7 @@ for example
 | `source-absent` | a path the lens reads may be absent where it is read: an optional field, an element past a list's minimum length, or a field beneath `_`, with no presence or type test establishing it |
 | `source-undeclared` | the lens reads a path the source schema does not declare |
 | `target-undeclared` | the lens writes a path the target schema does not declare |
-| `guard-absent` | an equality tests a path that may be absent. CUE makes comparing an absent field an error, not `false` |
+| `pattern-absent` | an equality tests a path that may be absent. CUE makes comparing an absent field an error, not `false` |
 | `not-a-value` | a result field is a constraint (`int`, `_`), an error (`_\|_`), or a disjunction, where an instance needs one concrete value |
 | `literal-not-instance` | a literal, struct or list is not an instance of the target at its path: a wrong kind, a value outside the target, a list of the wrong length |
 | `computed-narrowed` | a computed value has a possible result the target rejects: a kind the target lacks, a boolean it does not accept, or an integer outside its bounds |
@@ -392,8 +394,8 @@ for example
 | Rule | Unknown when | What to do |
 |---|---|---|
 | `unknown-copy` | the compatibility rules cannot decide whether the copied value fits the target: a constraint between fields, a pending comprehension, a validator, or a disjunction they cannot match | copy a value whose schemas the compatibility rules decide (see their Unknown table) |
-| `unknown-guard` | a condition is not a presence test, an equality or a type test on an input field, or a conjunction of these | write the condition in one of those forms, testing one input field at a time |
-| `unknown-coverage` | a required field is written only under conditions that cannot be shown to cover every instance | write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field |
+| `unknown-pattern` | a condition is not a pattern: a presence test, an equality or a type test on an input field, or a conjunction of these | write the condition as a pattern, testing one input field at a time |
+| `unknown-exhaustive` | a required field is written only under patterns that cannot be shown to cover every instance | write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field |
 | `unknown-op` | a computation uses an operation outside the proven set: `/`, a float, a builtin not listed above, or `&` or `\|` within an expression | use the listed operations, with `quo` or `div` for integer division |
 | `unknown-dynamic` | fields or elements are produced by a `for` clause, a computed label or a list comprehension | write each field by name |
 | `unknown-reference` | the lens reads something that cannot be followed to the input or to a constant: a computed index or label, or a selection into a comprehension's output | select fields by name |

@@ -9,4 +9,4 @@ input: _
 result: {a: input.c}
 -- out --
 not total
-result.a copies input.c, which may be absent: input.c is optional in the source schema; guard the field with if input.c != _|_ (rule source-absent) @ lens.cue:2:13
+result.a copies input.c, which may be absent: input.c is optional in the source schema; write the field under if input.c != _|_ (rule source-absent) @ lens.cue:2:13

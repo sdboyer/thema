@@ -1,0 +1,11 @@
+# An equality pattern on an optional field: comparing an absent field is an error in CUE, not false.
+-- source.cue --
+c?: string
+-- target.cue --
+q?: int
+-- lens.cue --
+input: _
+result: {if input.c == "x" {q: 1}}
+-- out --
+not total
+result is under the pattern input.c == "x", but input.c may be absent (input.c is optional in the source schema), and comparing an absent field is an error rather than false; test presence first: if input.c != _|_ (rule pattern-absent) @ lens.cue:2:10

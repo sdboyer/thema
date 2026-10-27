@@ -8,5 +8,5 @@ input: _
 result: {if input.c == _|_ {a: input.c}}
 -- out --
 not total
-result.a copies input.c, which may be absent: input.c is optional in the source schema; guard the field with if input.c != _|_ (rule source-absent) @ lens.cue:2:32
-result.a is required by the target schema, and is written only under input.c == _|_, which the checker cannot show cover every instance; write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field (rule unknown-coverage) @ lens.cue:2:1
+result.a copies input.c, which may be absent: input.c is optional in the source schema; write the field under if input.c != _|_ (rule source-absent) @ lens.cue:2:32
+result.a is required by the target schema, and is written only under input.c == _|_, which the checker cannot show cover every instance; write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field (rule unknown-exhaustive) @ lens.cue:2:1

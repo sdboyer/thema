@@ -1,4 +1,4 @@
-# An operand refined by an equality guard: the result is a point.
+# An operand refined by an equality pattern: the result is a point.
 -- source.cue --
 n: int32
 -- target.cue --

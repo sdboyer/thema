@@ -13,13 +13,13 @@ import (
 	"github.com/sdboyer/thema/internal/cuetil"
 )
 
-// guardKind is the form of a comprehension's or lacuna's condition.
-type guardKind int
+// patternKind is the form of a comprehension's or lacuna's condition.
+type patternKind int
 
 const (
 	// opaque is a condition the checker could not classify. It never matches
-	// another guard, so coverage beneath it stays Unknown.
-	opaque guardKind = iota
+	// another pattern, so coverage beneath it stays Unknown.
+	opaque patternKind = iota
 	// presence is p != _|_ (neg: p == _|_).
 	presence
 	// equality is p == c for a literal c (neg: p != c).
@@ -28,11 +28,11 @@ const (
 	typeTest
 )
 
-// A guard is one condition a comprehension or lacuna applies to the input,
+// A pattern is one condition a comprehension or lacuna applies to the input,
 // classified so that the walk can refine the source beneath it and compare
-// guards to one another.
-type guard struct {
-	kind guardKind
+// patterns to one another.
+type pattern struct {
+	kind patternKind
 	path cue.Path // the input path tested
 	neg  bool
 	lit  string    // equality: the literal; typeTest: the type, as written
@@ -40,20 +40,20 @@ type guard struct {
 	text string    // opaque: the condition as written
 }
 
-// key identifies the condition, for comparing guards.
-func (g guard) key() string {
+// key identifies the condition, for comparing patterns.
+func (g pattern) key() string {
 	if g.kind == opaque {
 		return "opaque|" + g.text
 	}
 	return fmt.Sprintf("%d|%s|%v|%s", g.kind, g.path, g.neg, g.lit)
 }
 
-func (g guard) negated() guard {
+func (g pattern) negated() pattern {
 	g.neg = !g.neg
 	return g
 }
 
-func (g guard) String() string {
+func (g pattern) String() string {
 	p := inputRef(g.path)
 	switch g.kind {
 	case presence:
@@ -75,7 +75,7 @@ func (g guard) String() string {
 	return g.text
 }
 
-func guardsString(gs []guard) string {
+func patternsString(gs []pattern) string {
 	if len(gs) == 0 {
 		return "no condition"
 	}
@@ -86,7 +86,7 @@ func guardsString(gs []guard) string {
 	return strings.Join(ss, " && ")
 }
 
-func guardsKey(gs []guard) string {
+func patternsKey(gs []pattern) string {
 	var ss []string
 	for _, g := range gs {
 		ss = append(ss, g.key())
@@ -94,11 +94,11 @@ func guardsKey(gs []guard) string {
 	return strings.Join(ss, "&")
 }
 
-func describeGuardSets(sets [][]guard) string {
+func describePatternSets(sets [][]pattern) string {
 	var ss []string
 	seen := map[string]bool{}
 	for _, gs := range sets {
-		s := guardsString(gs)
+		s := patternsString(gs)
 		if !seen[s] {
 			seen[s] = true
 			ss = append(ss, s)
@@ -108,31 +108,31 @@ func describeGuardSets(sets [][]guard) string {
 	return strings.Join(ss, "; ")
 }
 
-// parseGuard classifies a condition: a presence test, an equality or a type
+// parsePattern classifies a condition: a presence test, an equality or a type
 // test on an input path, or a conjunction (&&) of these. Operands are matched
 // in either order, since export may reorder them.
-func (w *walker) parseGuard(x ast.Expr) ([]guard, bool) {
+func (w *walker) parsePattern(x ast.Expr) ([]pattern, bool) {
 	switch e := x.(type) {
 	case *ast.ParenExpr:
-		return w.parseGuard(e.X)
+		return w.parsePattern(e.X)
 	case *ast.UnaryExpr:
 		if e.Op == token.NOT {
-			gs, ok := w.parseGuard(e.X)
+			gs, ok := w.parsePattern(e.X)
 			if ok && len(gs) == 1 && gs[0].kind != opaque {
-				return []guard{gs[0].negated()}, true
+				return []pattern{gs[0].negated()}, true
 			}
 		}
 	case *ast.BinaryExpr:
 		switch e.Op {
 		case token.LAND:
-			l, ok1 := w.parseGuard(e.X)
-			r, ok2 := w.parseGuard(e.Y)
+			l, ok1 := w.parsePattern(e.X)
+			r, ok2 := w.parsePattern(e.Y)
 			return append(l, r...), ok1 && ok2
 		case token.EQL, token.NEQ:
 			if other, ok := bottomSide(e); ok {
 				neg := e.Op == token.EQL
 				if p, ok := w.pathOf(other); ok {
-					return []guard{{kind: presence, path: p, neg: neg}}, true
+					return []pattern{{kind: presence, path: p, neg: neg}}, true
 				}
 				if be, ok := stripParens(other).(*ast.BinaryExpr); ok && be.Op == token.AND {
 					for _, pair := range [][2]ast.Expr{{be.X, be.Y}, {be.Y, be.X}} {
@@ -143,10 +143,10 @@ func (w *walker) parseGuard(x ast.Expr) ([]guard, bool) {
 						// (p & c) != _|_ for a literal c is p == c: input is data,
 						// so the unification succeeds exactly when p holds c.
 						if lv, ok := w.literalValue(pair[1]); ok {
-							return []guard{{kind: equality, path: p, neg: neg, lit: text(pair[1]), val: lv}}, true
+							return []pattern{{kind: equality, path: p, neg: neg, lit: text(pair[1]), val: lv}}, true
 						}
 						if tv, ok := w.constraintValue(pair[1]); ok {
-							return []guard{{kind: typeTest, path: p, neg: neg, lit: text(pair[1]), val: tv}}, true
+							return []pattern{{kind: typeTest, path: p, neg: neg, lit: text(pair[1]), val: tv}}, true
 						}
 					}
 				}
@@ -158,7 +158,7 @@ func (w *walker) parseGuard(x ast.Expr) ([]guard, bool) {
 					continue
 				}
 				if lv, ok := w.literalValue(pair[1]); ok {
-					return []guard{{kind: equality, path: p, neg: e.Op == token.NEQ, lit: text(pair[1]), val: lv}}, true
+					return []pattern{{kind: equality, path: p, neg: e.Op == token.NEQ, lit: text(pair[1]), val: lv}}, true
 				}
 			}
 		}
@@ -236,10 +236,10 @@ func (w *walker) constraintValue(x ast.Expr) (cue.Value, bool) {
 	return v, v.Err() == nil
 }
 
-// checkGuards checks the guards gs, applied where outer already hold: an
+// checkPatterns checks the patterns gs, applied where outer already hold: an
 // equality tests a path that must be present (an absent operand is an error,
 // not false), and every tested path must be declared.
-func (w *walker) checkGuards(gs, outer []guard, subj string, pos token.Pos) {
+func (w *walker) checkPatterns(gs, outer []pattern, subj string, pos token.Pos) {
 	for _, g := range gs {
 		if g.kind == opaque {
 			continue
@@ -247,19 +247,19 @@ func (w *walker) checkGuards(gs, outer []guard, subj string, pos token.Pos) {
 		src := w.lookupSource(g.path, outer)
 		if !src.declared {
 			w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleSourceUndeclared,
-				Detail: fmt.Sprintf("is guarded by %s, but the source schema does not declare %s", g, inputRef(g.path)), Pos: pos})
+				Detail: fmt.Sprintf("is under the pattern %s, but the source schema does not declare %s", g, inputRef(g.path)), Pos: pos})
 			continue
 		}
 		if g.kind == equality && !src.present {
-			w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleGuardAbsent,
-				Detail: fmt.Sprintf("is guarded by %s, but %s may be absent (%s), and comparing an absent field is an error rather than false; test presence first: if %s != _|_", g, inputRef(g.path), src.why, inputRef(g.path)), Pos: pos})
+			w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RulePatternAbsent,
+				Detail: fmt.Sprintf("is under the pattern %s, but %s may be absent (%s), and comparing an absent field is an error rather than false; test presence first: if %s != _|_", g, inputRef(g.path), src.why, inputRef(g.path)), Pos: pos})
 		}
 	}
 }
 
 // establishes reports whether gs establish that input path p is present: a
 // presence or type test (not negated) on p or a path beneath it.
-func establishes(gs []guard, p cue.Path) bool {
+func establishes(gs []pattern, p cue.Path) bool {
 	for _, g := range gs {
 		if (g.kind == presence || g.kind == typeTest) && !g.neg && cuetil.PathHasPrefix(g.path, p) {
 			return true
@@ -268,12 +268,12 @@ func establishes(gs []guard, p cue.Path) bool {
 	return false
 }
 
-// refine narrows the alternatives of the source at p by the guards on exactly
+// refine narrows the alternatives of the source at p by the patterns on exactly
 // p: an equality fixes the value, a negated one removes a constant
 // alternative, a type test keeps what unifies with the type, a negated one
-// drops the alternatives the type subsumes. It reports whether any guard
+// drops the alternatives the type subsumes. It reports whether any pattern
 // applied.
-func refine(branches []cue.Value, p cue.Path, gs []guard) ([]cue.Value, bool) {
+func refine(branches []cue.Value, p cue.Path, gs []pattern) ([]cue.Value, bool) {
 	refined := false
 	for _, g := range gs {
 		if g.kind == opaque || g.kind == presence || g.path.String() != p.String() {
@@ -311,8 +311,8 @@ func refine(branches []cue.Value, p cue.Path, gs []guard) ([]cue.Value, bool) {
 	return branches, refined
 }
 
-// guardsHavePrefix reports whether gs begins with prefix.
-func guardsHavePrefix(gs, prefix []guard) bool {
+// patternsHavePrefix reports whether gs begins with prefix.
+func patternsHavePrefix(gs, prefix []pattern) bool {
 	if len(gs) < len(prefix) {
 		return false
 	}
@@ -324,8 +324,8 @@ func guardsHavePrefix(gs, prefix []guard) bool {
 	return true
 }
 
-// guardsImplied reports whether every guard in gs is among have.
-func guardsImplied(have, gs []guard) bool {
+// patternsImplied reports whether every pattern in gs is among have.
+func patternsImplied(have, gs []pattern) bool {
 	for _, g := range gs {
 		found := false
 		for _, h := range have {
@@ -341,10 +341,10 @@ func guardsImplied(have, gs []guard) bool {
 	return true
 }
 
-// guardsDisjoint reports whether a and b can never hold together: one has a
-// guard the other negates, or each tests the same path for a value or type
+// patternsDisjoint reports whether a and b can never hold together: one has a
+// pattern the other negates, or each tests the same path for a value or type
 // and no value satisfies both (the two unify to an error).
-func guardsDisjoint(a, b []guard) bool {
+func patternsDisjoint(a, b []pattern) bool {
 	for _, g := range a {
 		if g.kind == opaque {
 			continue
@@ -362,12 +362,12 @@ func guardsDisjoint(a, b []guard) bool {
 	return false
 }
 
-// covers reports whether the guard sets cands, each the conditions under which
+// covers reports whether the pattern sets cands, each the conditions under which
 // some write gives a field its value, together hold for every instance. An
-// empty set is unconditional. Otherwise the sets' first guards must test one
-// path and together cover it (coverSet), and beneath each first guard the rest
+// empty set is unconditional. Otherwise the sets' first patterns must test one
+// path and together cover it (coverSet), and beneath each first pattern the rest
 // must cover in turn.
-func (w *walker) covers(cands [][]guard) bool {
+func (w *walker) covers(cands [][]pattern) bool {
 	for _, c := range cands {
 		if len(c) == 0 {
 			return true
@@ -376,7 +376,7 @@ func (w *walker) covers(cands [][]guard) bool {
 	if len(cands) == 0 {
 		return false
 	}
-	var firsts []guard
+	var firsts []pattern
 	seen := map[string]bool{}
 	for _, c := range cands {
 		g := c[0]
@@ -392,7 +392,7 @@ func (w *walker) covers(cands [][]guard) bool {
 		return false
 	}
 	for _, f := range firsts {
-		var rest [][]guard
+		var rest [][]pattern
 		for _, c := range cands {
 			if c[0].key() == f.key() {
 				rest = append(rest, c[1:])
@@ -405,11 +405,11 @@ func (w *walker) covers(cands [][]guard) bool {
 	return true
 }
 
-// coverSet reports whether the guards, all on one input path, together hold for
-// every instance: a guard and its negation; type tests one of which subsumes
+// coverSet reports whether the patterns, all on one input path, together hold for
+// every instance: a pattern and its negation; type tests one of which subsumes
 // each alternative of the path; or equalities with every alternative of the
 // path, each a constant. The latter two need the path present.
-func (w *walker) coverSet(firsts []guard) bool {
+func (w *walker) coverSet(firsts []pattern) bool {
 	for i, a := range firsts {
 		for _, b := range firsts[i+1:] {
 			if a.negated().key() == b.key() {
