@@ -80,6 +80,94 @@ references are fine: `d: #T`, `b?: a`, `x: y.z`. Trees and JSON-like values
 over one would have to be recursive, a lacuna's path unbounded, and a lens
 compiled to a copy-only target impossible.
 
+## References
+
+A schema declares what instances look like, and a lens declares how an
+instance of one schema becomes an instance of another. thema's invariants hold
+only while those declarations are sealed: a published schema must mean
+tomorrow what it means today, and what a lens returns must be determined by
+the instance it takes. Both are true only when whatever a schema or lens
+refers to is as fixed as the schema or lens itself. CUE resolves a reference to anything in lexical
+scope, so a sibling schema, the lineage's `name`, a helper declared beside the
+lineage or a definition in another package all evaluate without complaint, and
+each of them can change without the referring schema's own text changing.
+
+This section states what a schema and a lens may refer to, how thema decides
+it, and what is left to admit later.
+
+### Rules
+
+**A schema refers only to its own body and CUE's builtin packages.** Its body
+is everything declared inside it, at any depth: regular and hidden fields,
+definitions, `let`s and aliases. The builtin packages (`strings`, `list`,
+`time`, ...) are part of the CUE version thema pins, not something an author
+edits. The `joinSchema` is a schema for this purpose: it refers only to its
+own body. A schema does not refer to the `joinSchema`; thema unifies it into
+every schema itself.
+
+**A lens refers only to the instance it takes, its own body and CUE's builtin
+packages.** The instance it takes is the field named after its from version,
+`v1_0` for a lens from 1.0, declared `_` (the Source rule under Lens totality
+says why), and its body is the instance it returns (`v0_0`), `lacunas` and
+anything else declared inside the lens, such as a hidden lookup table or a
+`let`. thema's own package is part of the substrate, so
+`thema.Lacuna` and `thema.LacunaTypes` are fine.
+
+Everything else is refused when the lineage binds, with the error positioned
+at the referring field. The refused thing is spelled where it is used: a
+definition two schemas share is declared in each of them, and a table a lens
+looks up moves inside the lens. Two versions that share a declaration are
+not sealed separately, which is the point: editing the shared declaration
+edits the published version too.
+
+The rules start from the conservative side. Referring to another lineage, or
+to a package of the author's own module, is a goal, not an error in
+principle: a disciplined account of what such a reference means for a
+published schema when its referent moves, and of how thema would pin and
+check it, is future work. Admitting a form later refuses nothing that binds
+today.
+
+### Verdicts and rules
+
+Each reference in a schema or lens gets one of three verdicts.
+
+- **allowed**: the reference stays within what the rules name.
+- **refused**: the reference leaves it. Binding fails, and the finding names
+  the rule and what the reference denotes.
+- **unknown**: thema cannot tell from the schema's or lens's text what the
+  reference denotes. Binding treats unknown as a failure.
+
+Every finding is positioned at the referring field and reads
+
+    <owner>: <path> refers to <reference>, <what it denotes>; <the rule> (rule <name>)
+
+for example
+
+    schema 0.0: color refers to #Color, which is declared outside the lineage; a schema may refer only to its own body and CUE's builtin packages (rule ref-outside-lineage)
+
+| Rule | Refused when |
+|---|---|
+| `ref-sibling-schema` | a schema refers to another schema of the lineage through `schemas`, such as a field of the version before it |
+| `ref-lineage-meta` | a schema or lens refers to something declared in the lineage outside itself: `name`, `#LatestVersion`, the `joinSchema`, a helper field or definition declared in the lineage, or `schemas` or `lenses` as a whole |
+| `ref-outside-lineage` | a schema or lens refers to something declared outside the lineage, such as a definition at the top of the file |
+| `ref-import` | a schema or lens refers to a package other than CUE's builtins, including another package of the author's module |
+| `ref-lens-to-schema` | a lens refers to a schema of the lineage |
+| `ref-lens-to-lens` | a lens refers to another lens of the lineage |
+
+| Rule | Unknown when | What to do |
+|---|---|---|
+| `ref-unresolved` | a reference selects into the lineage, or beyond it, by a computed label (`lin["na"+"me"]`), or through a construct thema does not read | write the reference with constant labels, or declare what it needs inside the schema or lens |
+
+Every rule has a recorded case in the repository's case corpus
+(`testdata/cases/ref-*`), alongside a case for each allowed form.
+
+### Stability of verdicts
+
+A lineage that binds satisfies these rules, and every other check in this
+document relies on it. A rule here is only ever loosened, by admitting a
+reference form, so a lineage that binds under one release binds under every
+later one, before v1 as well as after it.
+
 ## Backwards compatibility
 
 A lineage may take a minor version step only when the new schema is backwards
@@ -342,12 +430,16 @@ patterns it is written under together cover every instance:
 cannot disagree. Two writes to one path unify, so the second can reject the
 first's value.
 
-**Lacunas.** A lacuna's condition must be a pattern. Every input path the
-lacuna reports must be present whenever the condition holds. Every result field
-it reports must be written for every instance, or under patterns the condition
-implies. A lacuna's message follows the rules for a result field whose target
-is any string, each value it reports follows the rules for a computed value,
-and its type is a literal naming one of thema's lacuna types.
+**Lacunas.** A lacuna's condition is a pattern, or a guard: a boolean
+expression that the operations below prove to evaluate for every instance.
+Every input path the lacuna reports must be present whenever the condition
+holds, and every result field it reports must be written for every instance,
+or under patterns the condition implies. A guard establishes nothing about the
+source, so under a guard the reported paths must be present, and the reported
+fields written, for every instance. A lacuna's message follows the rules for a
+result field whose target is any string, each value it reports follows the
+rules for a computed value, and its type is a literal naming one of thema's
+lacuna types.
 
 **Operations.** The computed operations thema proves, over integers, strings
 and booleans. Integer results are proven under an `int64` arithmetic model,
@@ -418,7 +510,7 @@ for example
 | Rule | Unknown when | What to do |
 |---|---|---|
 | `unknown-copy` | the compatibility rules cannot decide whether the copied value fits the target: a constraint between fields, a pending comprehension, a validator, or a disjunction they cannot match | copy a value whose schemas the compatibility rules decide (see their Unknown table) |
-| `unknown-pattern` | a condition is not a pattern: a presence test, an equality or a type test on an input field, or a conjunction of these; or an equality tests a field that may be a float | write the condition as a pattern, testing one input field at a time; test a number's type before comparing it |
+| `unknown-pattern` | an arm's condition is not a pattern (a presence test, an equality or a type test on an input field, or a conjunction of these); a lacuna's condition is neither a pattern nor a boolean the computed rules prove; or an equality tests a field that may be a float | write the condition as a pattern, testing one input field at a time; test a number's type before comparing it |
 | `unknown-exhaustive` | a required field is written only under patterns that cannot be shown to cover every instance | write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field |
 | `unknown-op` | a computation uses an operation outside the proven set: `/`, a float, a builtin not listed above, or `&` or `\|` within an expression; or a call constrains the result | use the listed operations, with `quo` or `div` for integer division; write the result as a struct |
 | `unknown-dynamic` | fields or elements are produced by a `for` clause, a computed label or a list comprehension | write each field by name |

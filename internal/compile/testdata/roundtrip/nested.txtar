@@ -1,7 +1,7 @@
 A nested restructure: a field moves into a struct that embeds its source, and
 an untouched sibling struct is copied whole.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	ownerName: string
 	meta: {
 		created: string
@@ -12,7 +12,7 @@ schema: {
 	}
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	meta: {
 		created: string
 		owner:   string
@@ -34,7 +34,7 @@ ForwardLens: {
 -- out/bind --
 ok
 -- out/decompiled/1.0.thema --
-schema: {
+Schema: {
 	meta: {
 		created: string
 		owner:   string
@@ -54,7 +54,7 @@ ForwardLens: {
 	}
 }
 -- out/decompiled/history/0.0.thema --
-schema: {
+Schema: {
 	ownerName: string
 	meta: {
 		created: string

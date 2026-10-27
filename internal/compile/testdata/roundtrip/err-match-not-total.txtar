@@ -1,11 +1,11 @@
 A match over a string field with no [_] arm: a value no arm maps would reach
 a target that does not accept it.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	kind: string
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	kind: int
 }
 

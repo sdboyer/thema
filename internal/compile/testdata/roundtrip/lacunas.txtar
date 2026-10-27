@@ -1,12 +1,11 @@
 lacunas: several lacunas on one mapping, a lacuna with its own when, and a
 key nested like the mapping it describes. count's first lacuna applies when
 the orelse fallback does, its second under the author's condition; name's
-applies under a condition over a field 0.0 always has. The backward lens is
-wholly derived. The totality check accepts only guards as lacuna conditions,
-not name's len(...) > 64, so the lineage does not bind (#99); out/bind records
-the finding until it does.
+applies under a condition over a field 0.0 always has, a guard the totality
+proof accepts as a boolean it can evaluate. The backward lens is wholly
+derived.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	name: string
 	meta: {
 		owner: string
@@ -14,7 +13,7 @@ schema: {
 	count?: int
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	name: string
 	meta: {
 		owner: string
@@ -55,12 +54,9 @@ ForwardLens: {
 	}
 }
 -- out/bind --
-lens 0.0->1.0 cannot be shown total over schema 0.0:
-    1.0.thema:10:1
-lens 0.0->1.0: lacunas[0].condition is len(v0_0.name) > 64, which is not a pattern: a presence test (p != _|_), an equality (p == c) or a type test ((p & T) != _|_) on an input field, or a conjunction (&&) of these (rule unknown-pattern):
-    1.0.thema:20:10
+ok
 -- out/decompiled/1.0.thema --
-schema: {
+Schema: {
 	name: string
 	meta: {
 		owner: string
@@ -101,7 +97,7 @@ ForwardLens: {
 	}
 }
 -- out/decompiled/history/0.0.thema --
-schema: {
+Schema: {
 	name: string
 	meta: {
 		owner: string

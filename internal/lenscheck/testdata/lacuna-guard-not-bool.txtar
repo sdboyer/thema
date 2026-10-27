@@ -1,0 +1,17 @@
+# A lacuna condition the computed rules evaluate, but not to a boolean.
+-- source.cue --
+n: int32
+-- target.cue --
+n: int32
+-- lens.cue --
+v0_0: _
+v1_0: {n: v0_0.n}
+lacunas: [{
+	condition: v0_0.n + 1
+	sourceFields: [{path: "n", value: v0_0.n}]
+	message: "big"
+	type: "PrecisionLoss"
+}]
+-- out --
+unknown
+lacunas[0].condition is v0_0.n + 1, which is neither a pattern (a presence test, an equality or a type test on an input field, or a conjunction of these) nor a boolean: it is an integer in [-2147483647, 2147483648] (rule unknown-pattern) @ lens.cue:4:13

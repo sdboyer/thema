@@ -7,7 +7,7 @@
 // file per version: <major>.<minor>.thema, at the top of the directory or
 // under history/. Each file is CUE syntax with at most three fields:
 //
-//	schema: {...}
+//	Schema: {...}
 //	ForwardLens:  {v0_0: _, v1_0: {...}, lacunas: {...}}   // from the previous version to this one
 //	BackwardLens: {v1_0: _, v0_0: {...}, lacunas: {...}}   // from this version to the previous one
 //
@@ -52,8 +52,9 @@
 // when the [_] arm applies, for a match; when the field is present, for a
 // drop. A DroppedField lacuna on a drop refines the derived one's message. A
 // when replaces the implied condition; it may read fields the source always
-// has, test any source field's presence (v0_0.x != _|_), and call CUE's
-// builtins. Inside an each body, only the DroppedField refinement is
+// has, test any source field's presence (v0_0.x != _|_), compare and
+// combine with CUE's operators, and call len and the integer divisions
+// (quo, rem, div, mod): what the totality proof proves a boolean. Inside an each body, only the DroppedField refinement is
 // supported yet, keyed through the list (items: {legacy: [...]}). Computed
 // expressions are not accepted yet; orelse over a computed primary, the
 // curated builtin table, and conditions reading optional fields are next.
@@ -63,8 +64,9 @@
 // Format lays authoring text out in thema's style: every struct keeps its
 // braces and every field has its own line. CUE has no normal form and this
 // is not one; it is the one layout Decompile produces, so that decompiling a
-// formatted file gives back its text. CUE's struct shorthand, a: b: c, is
-// refused in a version file wherever it appears; Format expands it.
+// formatted file gives back its text. A version file's three fields are
+// written with their braces: CUE's struct shorthand, Schema: a: int, is
+// refused on them, and expanded by Format beneath them.
 //
 // # Positions
 //

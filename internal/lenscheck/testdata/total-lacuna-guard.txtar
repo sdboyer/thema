@@ -1,0 +1,16 @@
+# A lacuna condition that is not a pattern but a guard: a boolean the computed rules prove to evaluate for every instance. It establishes nothing about the source, so the lacuna reports a field that is always present.
+-- source.cue --
+n: int32
+-- target.cue --
+n: int32
+-- lens.cue --
+v0_0: _
+v1_0: {n: v0_0.n}
+lacunas: [{
+	condition: v0_0.n > 5
+	sourceFields: [{path: "n", value: v0_0.n}]
+	message: "big"
+	type: "PrecisionLoss"
+}]
+-- out --
+total

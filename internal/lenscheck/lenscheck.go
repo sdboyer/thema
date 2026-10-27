@@ -129,8 +129,9 @@ const (
 	// RuleUnknownCopy: compat.Check cannot decide whether the copied value fits
 	// the target.
 	RuleUnknownCopy Rule = "unknown-copy"
-	// RuleUnknownPattern: a comprehension's or lacuna's condition is not a presence
-	// test, an equality or a type test on an input field.
+	// RuleUnknownPattern: a comprehension's condition is not a presence test, an
+	// equality or a type test on an input field, or a lacuna's condition is
+	// neither one of those nor a boolean the computed rules prove.
 	RuleUnknownPattern Rule = "unknown-pattern"
 	// RuleUnknownExhaustive: a required field is written only under conditions the
 	// checker cannot show cover every instance.
@@ -1378,7 +1379,7 @@ func (w *walker) lacunaType(lp cue.Path, x ast.Expr) {
 	}
 }
 
-// lacunaCondition parses a lacuna's condition as patterns.
+// lacunaCondition parses a lacuna's condition: patterns, or a guard.
 func (w *walker) lacunaCondition(lp cue.Path, x ast.Expr) []pattern {
 	cp := appendPath(lp, cue.Str("condition"))
 	subj := cp.String()
@@ -1395,14 +1396,29 @@ func (w *walker) lacunaCondition(lp cue.Path, x ast.Expr) []pattern {
 		}
 		g, ok := w.parsePattern(c.Expr)
 		if !ok {
-			w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownPattern,
-				Detail: fmt.Sprintf("is %s, which is not a pattern: a presence test (p != _|_), an equality (p == c) or a type test ((p & T) != _|_) on an input field, or a conjunction (&&) of these", text(c.Expr)), Pos: pos})
+			w.guard(c.Expr, subj, pos)
 			g = []pattern{{root: w.from, kind: opaque, text: text(c.Expr)}}
 		}
 		w.checkPatterns(g, nil, subj, pos)
 		gs = append(gs, g...)
 	}
 	return gs
+}
+
+// guard proves a lacuna condition outside the pattern forms: a boolean the
+// computed-expression rules prove to evaluate for every instance. A guard
+// establishes nothing about the source, so it is kept as an opaque pattern,
+// under which the lacuna's values must be present for every instance.
+func (w *walker) guard(x ast.Expr, subj string, pos token.Pos) {
+	c := &exprCtx{subj: subj, pos: pos, paths: map[string]int{}}
+	sh, ok := w.shape(x, c)
+	switch {
+	case !ok, sh.dead:
+		// The rules reported what is outside the provable set.
+	case sh.kind != cue.BoolKind:
+		w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownPattern,
+			Detail: fmt.Sprintf("is %s, which is neither a pattern (a presence test, an equality or a type test on an input field, or a conjunction of these) nor a boolean: it is %s", text(x), sh), Pos: pos})
+	}
 }
 
 // lacunaRefs checks the values a lacuna's sourceFields or targetFields report.

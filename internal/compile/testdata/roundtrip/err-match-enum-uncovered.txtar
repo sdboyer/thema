@@ -1,11 +1,11 @@
 A match over an enum where one value is neither keyed nor accepted by the
 target.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	kind: "a" | "b" | "c"
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	kind: "a" | "b"
 }
 

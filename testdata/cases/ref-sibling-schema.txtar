@@ -1,0 +1,28 @@
+# schema 0.1 reads a field of schema 0.0 through the lineage: a schema may
+# refer only to its own body and CUE's builtin packages, and one reached
+# through the lineage's schemas is another schema (rule ref-sibling-schema).
+# The versions agree today, and compatibility passes; what is wrong is that
+# 0.1's meaning lives in 0.0. Each schema declares its own fields.
+#issue: 21
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "refSiblingSchema"
+	schemas: {
+		"0": "0": {
+			schema: {a: int}
+		}
+		"0": "1": {
+			schema: {a: lin.schemas["0"]["0"].schema.a, b?: int}
+		}
+	}
+	lenses: {
+		"0.1->0.0": {
+			v0_1: _
+			v0_0: {a: v0_1.a}
+		}
+	}
+}
+-- expect --
+bind fail ref-sibling-schema

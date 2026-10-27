@@ -671,6 +671,48 @@ func (ml *maybeLineage) checkLacunas() error {
 	return nil
 }
 
+// checkReferences checks what each schema, the joinSchema and each CUE lens
+// refer to: a schema only its own body and CUE's builtin packages, a lens only
+// the instance it takes, its own body and the builtin packages
+// (docs/invariants.md, References). CUE resolves any reference in lexical scope, so a schema that
+// reads a sibling schema, the lineage's name or a file-level helper evaluates
+// without complaint; the rule is thema's. References are read from each
+// value's syntax (the Raw view), the only place every one is visible as
+// written: the evaluator resolves lets and index expressions and leaves the
+// bodies of pending comprehensions unevaluated (references.go says more).
+// Schemas are checked first, and a lineage whose schemas fail is reported
+// without its lenses: a lens is judged against schemas that mean what they say.
+func (ml *maybeLineage) checkReferences() error {
+	rc := newRefChecker(ml.rt.Context(), ml.raw)
+	var errs cerrors.Error
+	check := func(o refOwner) {
+		for _, f := range rc.check(o) {
+			errs = cerrors.Append(errs, cerrors.Newf(refPos(o, f.field), "%s", f.String(o)))
+		}
+	}
+
+	for _, sch := range ml.schlist {
+		rel := cue.MakePath(cue.Str(labelSchemas), cue.Str(strconv.Itoa(int(sch.v[0]))), cue.Str(strconv.Itoa(int(sch.v[1]))), cue.Str("schema"))
+		check(refOwner{name: fmt.Sprintf("schema %s", sch.v), v: ml.raw.LookupPath(rel), rel: rel})
+	}
+	// thema's default joinSchema is _, which joins nothing and is not the author's.
+	if rel := cue.MakePath(cue.Str(labelJoinSchema)); ml.raw.LookupPath(rel).IncompleteKind() != cue.TopKind {
+		check(refOwner{name: labelJoinSchema, v: ml.raw.LookupPath(rel), rel: rel})
+	}
+	if errs != nil {
+		return errors.Mark(errs, terrors.ErrInvalidLineage)
+	}
+
+	for _, cl := range ml.cueLenses() {
+		rel := cue.MakePath(cue.Str(labelLenses), cue.Str(cl.id.String()))
+		check(refOwner{name: fmt.Sprintf("lens %s", cl.id), v: ml.raw.LookupPath(rel), rel: rel, lens: true, takes: lensParam(cl.id.From)})
+	}
+	if errs != nil {
+		return errors.Mark(errs, terrors.ErrInvalidLens)
+	}
+	return nil
+}
+
 // checkLensTotality proves each CUE lens total: for every instance of its source
 // schema, the result is an instance of its target schema, with every required
 // field, and nothing in the lens fails to evaluate on the way. The walk

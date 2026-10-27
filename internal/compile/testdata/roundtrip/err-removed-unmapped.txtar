@@ -1,12 +1,12 @@
 A field the new version removes, that nothing maps or drops: a forgotten
 rename would otherwise be silent data loss.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	before:    string
 	unchanged: string
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	after:     string
 	unchanged: string
 }
