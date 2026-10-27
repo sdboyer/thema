@@ -292,3 +292,64 @@ error: cases.inDefinition.a: incomplete value int
 		_h: a
 	}
 }
+-- out/selfcontained --
+## plain
+{
+	a:  1
+	_h: 2
+}
+## referenced
+{
+	a:  _h
+	_h: 2
+}
+## comprehensionUnderHidden
+{
+	_h: {if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}}
+	r: _h
+
+	//cue:path: input
+	let INPUT = _
+}
+## selected
+{
+	if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## viaOutsideHidden
+{
+	k: {if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}}
+
+	//cue:path: input
+	let INPUT = _
+}
+## embedded
+{
+	_h
+	_h: {if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}}
+
+	//cue:path: input
+	let INPUT = _
+}
+## inDefinition
+{
+	_#def
+	_#def: {
+		a:  int
+		_h: a
+	}
+}

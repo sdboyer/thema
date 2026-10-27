@@ -1,5 +1,7 @@
-# schema 0.0 is constrained by the number of schemas, so appending a version changes it
+# a schema that refers to the lineage it belongs to refers, through it, to
+# itself: the hazard in #21 is a reference cycle (#78)
 #issue: 21
+#lineagePath: lin
 -- in.cue --
 import "github.com/sdboyer/thema"
 
@@ -20,5 +22,6 @@ lin: thema.Lineage & {
 		}
 	}
 }
--- expect --
-bind fail
+-- out/bindfail --
+schema 0.0: reference to lin.schemas, which contains the schema; schemas may not contain circular references:
+    ./in.cue:7:22

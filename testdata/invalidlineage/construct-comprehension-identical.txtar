@@ -1,0 +1,19 @@
+# identical schemas with a conditional field: the comprehension is refused
+# before the compatibility check ever sees it (#18, #77)
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+thema.Lineage & {
+	name: "comprehensionIdentical"
+	schemas: "0": {
+		"0": schema: {kind: string, if kind == "x" {extra?: int}}
+		"1": schema: {kind: string, if kind == "x" {extra?: int}}
+	}
+	lenses: "0.1->0.0": {
+		input: _
+		result: input
+	}
+}
+-- out/bindfail --
+schema 0.0: comprehensions are not allowed in schemas:
+    ./in.cue:6:31
