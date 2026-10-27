@@ -27,7 +27,7 @@ func All(rt *thema.Runtime) map[string]thema.Lineage {
 		v := iter.Value().LookupPath(cue.ParsePath("l"))
 		name, _ := v.LookupPath(cue.ParsePath("name")).String()
 
-		lin, err := thema.BindLineage(v, rt, nameOpts[name]...)
+		lin, err := thema.BindLineage(v, rt)
 		if err != nil {
 			panic(err)
 		}
@@ -35,15 +35,6 @@ func All(rt *thema.Runtime) map[string]thema.Lineage {
 	}
 
 	return all
-}
-
-var nameOpts = map[string][]thema.BindOption{
-	"defaultchange": {thema.SkipBuggyChecks()},
-	"disjunct":      {},
-	"narrowing":     {},
-	"rename":        {},
-	"expand":        {},
-	"single":        {},
 }
 
 func buildAll(ctx *cue.Context) cue.Value {
@@ -149,10 +140,6 @@ func harnessForExemplar(name string, rt *thema.Runtime) cue.Value {
 
 // Build a Lineage representing a single exemplar.
 func lineageForExemplar(name string, rt *thema.Runtime, o ...thema.BindOption) (thema.Lineage, error) {
-	switch name {
-	case "defaultchange", "narrowing", "rename":
-		o = append(o, thema.SkipBuggyChecks())
-	}
 	return thema.BindLineage(harnessForExemplar(name, rt), rt, o...)
 }
 

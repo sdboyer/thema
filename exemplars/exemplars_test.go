@@ -30,7 +30,7 @@ func TestExemplarValidity(t *testing.T) {
 		name, _ := v.LookupPath(cue.ParsePath("name")).String()
 		t.Run("Bind-"+name, func(t *testing.T) {
 			t.Parallel()
-			_, err := thema.BindLineage(v, allrt, nameOpts[name]...)
+			_, err := thema.BindLineage(v, allrt)
 			if err != nil {
 				// t.Fatal(errors.Details(err, nil))
 				t.Fatalf("%T %+v", err, err)
