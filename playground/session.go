@@ -35,6 +35,7 @@ type Session struct {
 	mu    sync.Mutex
 	rt    *thema.Runtime
 	cache *lineageCache
+	ops   map[string]op
 }
 
 // New creates a session. Loading thema's own CUE cannot fail in a correct
@@ -48,6 +49,7 @@ func New() (s *Session, err error) {
 	return &Session{
 		rt:    thema.NewRuntime(cuecontext.New()),
 		cache: newLineageCache(cacheSize),
+		ops:   operations(),
 	}, nil
 }
 
@@ -60,10 +62,11 @@ const cacheSize = 16
 // op is one operation: it decodes its request and answers it.
 type op func(s *Session, req json.RawMessage) any
 
-var ops map[string]op
-
-func init() {
-	ops = map[string]op{
+// operations is the table a session answers [Session.Call] from, by name.
+// Each session builds its own: the init operation lists the operations, so
+// a package variable holding the table would be an initialization cycle.
+func operations() map[string]op {
+	return map[string]op{
 		"init":         noRequest(func(s *Session) any { return s.Init() }),
 		"bind":         typed(func(s *Session, r BindRequest) any { return s.Bind(r) }),
 		"validate":     typed(func(s *Session, r ValidateRequest) any { return s.Validate(r) }),
@@ -100,8 +103,8 @@ func noRequest(f func(*Session) any) op {
 
 // Ops returns the names of the operations [Session.Call] answers, sorted.
 func (s *Session) Ops() []string {
-	names := make([]string, 0, len(ops))
-	for name := range ops {
+	names := make([]string, 0, len(s.ops))
+	for name := range s.ops {
 		names = append(names, name)
 	}
 	sort.Strings(names)
@@ -114,7 +117,7 @@ func (s *Session) Ops() []string {
 // response.
 func (s *Session) Call(name string, req json.RawMessage) json.RawMessage {
 	var resp any
-	if f, ok := ops[name]; ok {
+	if f, ok := s.ops[name]; ok {
 		resp = s.guard(func() any { return f(s, req) })
 	} else {
 		resp = failed(diag.New(diag.E0801).Headlinef("%q is not an operation of the playground", name).
