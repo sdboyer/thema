@@ -140,7 +140,7 @@ func BindLineage(v cue.Value, rt *Runtime, opts ...BindOption) (Lineage, error) 
 	if err := ml.checkLacunas(); err != nil {
 		return nil, err
 	}
-	if err := ml.checkLensTotality(cfg); err != nil {
+	if err := ml.checkLensTotality(); err != nil {
 		return nil, err
 	}
 

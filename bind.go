@@ -680,13 +680,9 @@ func (ml *maybeLineage) checkLacunas() error {
 // What it cannot decide is an error too, saying what the author can do. CUE
 // evaluates a lens only against data, so without this a lens that drops a field
 // or overflows a bound surfaces at translate, for the instance that hits it.
-//
-// SkipBuggyChecks skips it: the corpus has a lens the check correctly refuses
-// (exemplars/disjunct, 0.1->0.0, writes nothing), which #87 migrates.
-func (ml *maybeLineage) checkLensTotality(cfg *bindConfig) error {
-	if cfg.skipbuggychecks {
-		return nil
-	}
+// SkipBuggyChecks does not skip it: translation relies on every lens being
+// total, so an unproven lens does not bind, whatever the caller asks.
+func (ml *maybeLineage) checkLensTotality() error {
 	ctx := ml.rt.Context()
 	byVersion := make(map[SyntacticVersion]*schemaDef, len(ml.schlist))
 	for _, sch := range ml.schlist {
