@@ -5,7 +5,8 @@
 # as bare values, report every field of the alternative removed (compat rule
 # field-removed), where the same pair beneath a field is compatible
 # (internal/compat/testdata/struct-disjunction-widened). Recorded as a checker
-# gap (#87); when it closes, the expectation becomes bind ok.
+# gap, #120; when it closes, the expectation becomes bind ok.
+#issue: 120
 -- in.cue --
 import "github.com/sdboyer/thema"
 

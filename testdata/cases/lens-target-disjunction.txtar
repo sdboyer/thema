@@ -12,7 +12,10 @@
 # judged against the target disjunction alternative by alternative without the
 # arm's equality on rootfield.branch narrowing the parent, so the branch-3
 # alternative is still among what is copied (copy-narrowed). The lineage lived
-# in exemplars until the totality check was enforced there (#87).
+# in exemplars until the totality check was enforced there (#87); #121 is the
+# checker work (descent beneath a disjunctive target, child-path refinement)
+# after which it binds and returns to exemplars.
+#issue: 121
 -- in.cue --
 import "github.com/sdboyer/thema"
 
