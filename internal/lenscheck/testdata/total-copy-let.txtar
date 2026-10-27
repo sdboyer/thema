@@ -11,3 +11,8 @@ let N = v0_0.n
 v1_0: {a: v0_0.a, n: N}
 -- out --
 total
+-- ir --
+out: {
+  out.a <- in.a
+  out.n <- in.n
+}

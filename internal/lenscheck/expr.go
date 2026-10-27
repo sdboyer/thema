@@ -12,6 +12,7 @@ import (
 
 	"github.com/sdboyer/thema/internal/compat"
 	"github.com/sdboyer/thema/internal/cueview"
+	"github.com/sdboyer/thema/internal/lensir"
 )
 
 // interval is a range of integers; a nil bound is unbounded on that side.
@@ -308,7 +309,7 @@ func (s shape) String() string {
 }
 
 // exprCtx carries what a computed expression's analysis needs from the write
-// it belongs to.
+// it belongs to, and records what the analysis resolved, for the program.
 type exprCtx struct {
 	q      cue.Path
 	subj   string
@@ -320,6 +321,14 @@ type exprCtx struct {
 	// operand leaves it incomplete, which is not an error, and nothing requires
 	// its value.
 	hidden bool
+	// resolved is what each operand was resolved to, and matches the patterns
+	// each comparison was classified as; the program reads both.
+	resolved map[ast.Expr]operandRes
+	matches  map[*ast.BinaryExpr][]pattern
+}
+
+func newExprCtx(subj string, gs []pattern, pos token.Pos) *exprCtx {
+	return &exprCtx{subj: subj, gs: gs, pos: pos, paths: map[string]int{}, resolved: map[ast.Expr]operandRes{}, matches: map[*ast.BinaryExpr][]pattern{}}
 }
 
 func (w *walker) fail(c *exprCtx, verdict Verdict, rule Rule, detail string) {
@@ -340,9 +349,14 @@ func (w *walker) computed(x ast.Expr, q cue.Path, gs []pattern, pos token.Pos) {
 		return
 	}
 	w.record(&write{q: q, patterns: gs, kind: computedW, text: text(x), pos: pos})
-	c := &exprCtx{q: q, subj: w.subject(q), gs: gs, pos: pos, paths: map[string]int{}, hidden: w.hidden > 0}
+	c := newExprCtx(w.subject(q), gs, pos)
+	c.q, c.hidden = q, w.hidden > 0
 	sh, ok := w.shape(x, c)
-	if !ok || sh.dead || c.hidden {
+	if !ok || sh.dead {
+		return
+	}
+	w.ir.emit(&lensir.Computed{To: w.ir.path(q), Expr: w.ir.expr(x, c)})
+	if c.hidden {
 		return
 	}
 	repeated := false
@@ -440,6 +454,7 @@ func (w *walker) binary(e *ast.BinaryExpr, c *exprCtx) (shape, bool) {
 	switch e.Op {
 	case token.EQL, token.NEQ:
 		if gs, ok := w.parsePattern(e); ok {
+			c.matches[e] = gs
 			if !c.hidden {
 				w.checkPatterns(gs, c.gs, c.subj, c.pos)
 			}
@@ -529,6 +544,12 @@ func (w *walker) operand(x ast.Expr, c *exprCtx) (shape, bool) {
 		return shape{}, false
 	}
 	var out *shape
+	var res operandRes
+	if r, ok := w.resultRef(x); ok {
+		// The proof follows the reference to what the result holds there; the
+		// program reads the field, as CUE does.
+		res.result = &r
+	}
 	for _, cj := range conjs {
 		var s shape
 		if w.syn.FromInput(cj) {
@@ -537,6 +558,7 @@ func (w *walker) operand(x ast.Expr, c *exprCtx) (shape, bool) {
 				w.fail(c, Unknown, RuleUnknownReference, fmt.Sprintf("reads %s, a selection into the input the checker cannot follow; select fields by name", text(cj.Expr)))
 				return shape{}, false
 			}
+			res.alts = append(res.alts, operandAlt{input: &p})
 			c.paths[p.String()]++
 			src := w.lookupSource(p, c.gs)
 			if !src.declared {
@@ -552,6 +574,7 @@ func (w *walker) operand(x ast.Expr, c *exprCtx) (shape, bool) {
 				return shape{}, false
 			}
 		} else {
+			res.alts = append(res.alts, operandAlt{expr: cj.Expr})
 			switch ex := cj.Expr.(type) {
 			case *ast.BasicLit, *ast.UnaryExpr, *ast.Interpolation, *ast.BinaryExpr, *ast.CallExpr, *ast.ParenExpr:
 				var ok bool
@@ -588,6 +611,7 @@ func (w *walker) operand(x ast.Expr, c *exprCtx) (shape, bool) {
 		}
 		out.iv, out.exact = out.iv.hull(s.iv), out.exact && s.exact
 	}
+	c.resolved[x] = res
 	if out == nil {
 		return shape{dead: true}, true
 	}
@@ -743,6 +767,7 @@ func (w *walker) length(x ast.Expr, c *exprCtx) (shape, bool) {
 	if p, ok := w.pathOf(x); ok {
 		src := w.lookupSource(p, c.gs)
 		c.paths[p.String()]++
+		c.resolved[x] = operandRes{alts: []operandAlt{{input: &p}}}
 		switch {
 		case !src.declared:
 			w.fail(c, NotTotal, RuleSourceUndeclared, fmt.Sprintf("reads %s, which the source schema does not declare", w.inputRef(p)))
@@ -1001,10 +1026,12 @@ func (w *walker) head(h head, q cue.Path, gs []pattern, pos token.Pos) {
 	}
 	w.quiet++
 	defer func() { w.quiet-- }()
+	var arms [][]lensir.Node
 	for _, arm := range []struct {
 		x  ast.Expr
 		gs []pattern
 	}{{h.then, append(append([]pattern(nil), gs...), g...)}, {h.els, append(append([]pattern(nil), gs...), neg...)}} {
+		w.ir.push()
 		for _, c := range w.tree.Conjuncts(arm.x) {
 			switch c.Expr.(type) {
 			case *ast.StructLit, *ast.ListLit:
@@ -1016,7 +1043,9 @@ func (w *walker) head(h head, q cue.Path, gs []pattern, pos token.Pos) {
 			}
 			w.conjunct(c, q, arm.gs, pos)
 		}
+		arms = append(arms, w.ir.pop())
 	}
+	w.ir.emit(&lensir.Head{To: w.ir.path(q), When: w.ir.tests(g), Then: arms[0], Else: arms[1]})
 }
 
 // table is T[input.k]: a struct literal indexed by an input path.
@@ -1097,10 +1126,14 @@ func (w *walker) table(t table, q cue.Path, gs []pattern, pos token.Pos) {
 	}
 	w.quiet++
 	defer func() { w.quiet-- }()
+	tb := &lensir.Table{To: w.ir.path(q), Key: w.ir.path(p)}
 	for _, k := range keys {
 		g := pattern{root: w.from, kind: equality, path: p, lit: fmt.Sprintf("%q", k), val: w.ctx.CompileString(fmt.Sprintf("%q", k))}
+		w.ir.push()
 		for _, c := range w.tree.Conjuncts(entries[k].Value) {
 			w.conjunct(c, q, append(append([]pattern(nil), gs...), g), pos)
 		}
+		tb.Entries = append(tb.Entries, lensir.Entry{Key: k, Value: w.ir.pop()})
 	}
+	w.ir.emit(tb)
 }

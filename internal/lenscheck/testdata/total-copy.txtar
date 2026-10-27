@@ -10,3 +10,8 @@ v0_0: _
 v1_0: {b: v0_0.a, n: v0_0.n}
 -- out --
 total
+-- ir --
+out: {
+  out.b <- in.a
+  out.n <- in.n
+}

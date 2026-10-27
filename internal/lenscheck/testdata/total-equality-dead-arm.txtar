@@ -11,3 +11,12 @@ v1_0: {
 }
 -- out --
 total
+-- ir --
+out: {
+  if in.a == "z" {
+    out.b <- in.a
+  }
+  if in.a != "z" {
+    out.b <- in.a
+  }
+}

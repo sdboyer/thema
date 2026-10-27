@@ -9,3 +9,14 @@ v0_0: _
 v1_0: {u: _T[v0_0.t]}
 -- out --
 total
+-- ir --
+out: {
+  out.u = table in.t {
+    "a" {
+      out.u = 1
+    }
+    "b" {
+      out.u = 2
+    }
+  }
+}

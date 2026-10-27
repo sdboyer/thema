@@ -18,3 +18,18 @@ lacunas: [{
 }]
 -- out --
 total
+-- ir --
+out: {
+  if (in.boolish & string) != _|_ {
+    out.properbool = in.boolish == "true"
+  }
+  if (in.boolish & bool) != _|_ {
+    out.properbool <- in.boolish
+  }
+}
+lacuna LossyFieldMapping {
+  when (in.boolish & string) != _|_ && (in.boolish & ("true" | "false")) == _|_
+  source boolish = in.boolish
+  target properbool = out.properbool
+  message "lossy"
+}

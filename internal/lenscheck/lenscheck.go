@@ -46,6 +46,7 @@ import (
 	"github.com/sdboyer/thema/internal/cuetil"
 	"github.com/sdboyer/thema/internal/cueview"
 	"github.com/sdboyer/thema/internal/embedreg"
+	"github.com/sdboyer/thema/internal/lensir"
 )
 
 // Verdict is the outcome of a totality check, for one field or overall.
@@ -183,9 +184,15 @@ func (f Finding) String() string {
 }
 
 // Result is the outcome of [Check]: the findings at every place that is not
-// Total.
+// Total, and, where the lens is Total, its program.
 type Result struct {
 	Findings []Finding
+	// Program is the lens's program (internal/lensir), built as a by-product
+	// of the proof: nil unless the lens is Total. It is also nil, with
+	// ProgramErr saying why, where the lens is Total but uses a construct the
+	// IR does not yet carry.
+	Program    *lensir.Program
+	ProgramErr error
 }
 
 // Verdict is the overall verdict: NotTotal if any finding is, since one
@@ -236,6 +243,7 @@ func Check(ctx *cue.Context, lens, source, target cue.Value, from, to string) Re
 		targets: map[string]targetLookup{},
 		pinned:  map[string]cue.Value{},
 	}
+	w.ir = newIRBuilder(w)
 	syn, err := cuetil.ParseLens(lens, from, to)
 	if err != nil {
 		w.add(Finding{Path: to, Verdict: Unknown, Rule: RuleUnknownReference,
@@ -249,7 +257,17 @@ func Check(ctx *cue.Context, lens, source, target cue.Value, from, to string) Re
 	w.checkCopies()
 	w.checkExhaustive()
 	w.checkConflicts()
-	return w.result()
+	res := w.result()
+	if res.Total() {
+		// The program is what the walk proved. Only here is one built: a
+		// lens with a finding has no program (the lensir-programs seam).
+		if w.ir.err != nil {
+			res.ProgramErr = w.ir.err
+		} else {
+			res.Program = &lensir.Program{Result: w.ir.result(), Lacunas: w.ir.lacunas}
+		}
+	}
+	return res
 }
 
 var lacunasPath = cue.MakePath(cue.Str("lacunas"))
@@ -285,6 +303,8 @@ type walker struct {
 	// read: a result field goes under a presence test, a lacuna's condition
 	// gains one.
 	absentAdvice func(p cue.Path) string
+	// ir collects the lens's program as the walk proves it.
+	ir *irBuilder
 }
 
 // checkInput refuses a lens that constrains the field it takes. Translate fills
@@ -713,6 +733,7 @@ func isBoolName(name string) bool {
 // copy proves the copy of input p into result q under patterns gs.
 func (w *walker) copy(q, p cue.Path, gs []pattern, pos token.Pos) {
 	w.record(&write{q: q, patterns: gs, kind: copyW, src: p, text: w.inputRef(p), pos: pos})
+	w.ir.emit(&lensir.Copy{To: w.ir.path(q), From: w.ir.path(p)})
 	src := w.lookupSource(p, gs)
 	subj := w.subject(q)
 	if !src.declared {
@@ -818,7 +839,9 @@ func (w *walker) composite(e *ast.StructLit, q cue.Path, gs []pattern, pos token
 			Detail: fmt.Sprintf("is a struct, where the target schema wants %s", tgt.IncompleteKind()), Pos: pos})
 		return
 	}
+	w.ir.push()
 	w.decls(e.Elts, q, gs, pos)
+	w.ir.emit(&lensir.Wrap{To: w.ir.path(q), Kind: lensir.StructWrap, Children: w.ir.pop()})
 }
 
 // list walks a list literal written at q: each element is written at its index.
@@ -849,22 +872,25 @@ func (w *walker) list(e *ast.ListLit, q cue.Path, gs []pattern, pos token.Pos) {
 			return
 		}
 	}
+	w.ir.push()
 	for i, x := range e.Elts {
 		eq := appendPath(q, cue.Index(i))
 		for _, c := range w.tree.Conjuncts(x) {
 			w.conjunct(c, eq, gs, pos)
 		}
 	}
+	w.ir.emit(&lensir.Wrap{To: w.ir.path(q), Kind: lensir.ListWrap, Len: len(e.Elts), Children: w.ir.pop()})
 }
 
 // literal proves the scalar literal x written at q.
 func (w *walker) literal(x ast.Expr, q cue.Path, gs []pattern, pos token.Pos) {
 	w.record(&write{q: q, patterns: gs, kind: literalW, text: text(x), pos: pos})
+	v := w.ctx.BuildExpr(x)
+	w.ir.emit(&lensir.Constant{To: w.ir.path(q), Value: w.ir.literal(v)})
 	tgt, ok := w.targetAt(q, pos)
 	if !ok {
 		return
 	}
-	v := w.ctx.BuildExpr(x)
 	if err := tgt.Unify(v).Validate(cue.Concrete(true)); err != nil {
 		w.add(Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleLiteralNotInstance,
 			Detail: fmt.Sprintf("is the constant %s, which the target schema does not accept: %s", text(x), errMsg(err)), Pos: pos})
@@ -933,13 +959,15 @@ func (w *walker) decls(decls []ast.Decl, q cue.Path, gs []pattern, pos token.Pos
 			if !walkable {
 				continue
 			}
+			w.ir.push()
 			if s, ok := x.Value.(*ast.StructLit); ok {
 				w.decls(s.Elts, q, ngs, cpos)
-				continue
+			} else {
+				for _, c := range w.tree.Conjuncts(x.Value) {
+					w.conjunct(c, q, ngs, cpos)
+				}
 			}
-			for _, c := range w.tree.Conjuncts(x.Value) {
-				w.conjunct(c, q, ngs, cpos)
-			}
+			w.ir.branch(ngs[len(gs):])
 		case *ast.EmbedDecl:
 			for _, c := range w.tree.Conjuncts(x.Expr) {
 				w.conjunct(c, q, gs, pos)
@@ -1319,6 +1347,7 @@ func (w *walker) walkLacunas() {
 				continue
 			}
 			lp := cue.MakePath(cue.Str("lacunas"), cue.Index(i))
+			w.ir.beginLacuna()
 			var fields []cueview.FieldDecl
 			for _, lc := range w.tree.Conjuncts(x) {
 				if s, ok := lc.Expr.(*ast.StructLit); ok {
@@ -1345,6 +1374,7 @@ func (w *walker) walkLacunas() {
 					w.lacunaType(lp, fd.Field.Value)
 				}
 			}
+			w.ir.endLacuna(lp)
 		}
 	}
 }
@@ -1356,9 +1386,11 @@ func (w *walker) lacunaMessage(lp cue.Path, x ast.Expr, gs []pattern) {
 	mp := appendPath(lp, cue.Str("message"))
 	w.pinned[mp.String()] = w.ctx.CompileString("string")
 	pos := w.lensPos(mp)
+	w.ir.push()
 	for _, c := range w.tree.Conjuncts(x) {
 		w.conjunct(c, mp, gs, pos)
 	}
+	w.ir.lacuna.Message = w.ir.value(w.ir.pop())
 }
 
 // lacunaType checks that a lacuna's type is written as a literal, or as a
@@ -1385,10 +1417,13 @@ func (w *walker) lacunaCondition(lp cue.Path, x ast.Expr) []pattern {
 	subj := cp.String()
 	pos := w.lensPos(cp)
 	var gs []pattern
+	var when []lensir.Expr
+	never := false
 	for _, c := range w.tree.Conjuncts(x) {
 		switch e := c.Expr.(type) {
 		case *ast.Ident:
 			if w.predeclared(e) && (e.Name == "bool" || isBoolName(e.Name)) {
+				never = never || e.Name == falseName
 				continue
 			}
 		case *ast.BasicLit:
@@ -1396,21 +1431,27 @@ func (w *walker) lacunaCondition(lp cue.Path, x ast.Expr) []pattern {
 		}
 		g, ok := w.parsePattern(c.Expr)
 		if !ok {
-			w.guard(c.Expr, subj, pos)
+			if x := w.guard(c.Expr, subj, pos); x != nil {
+				when = append(when, x)
+			}
 			g = []pattern{{root: w.from, kind: opaque, text: text(c.Expr)}}
+		} else {
+			when = append(when, &lensir.Match{Tests: w.ir.tests(g)})
 		}
 		w.checkPatterns(g, nil, subj, pos)
 		gs = append(gs, g...)
 	}
+	w.ir.condition(when, never)
 	return gs
 }
 
 // guard proves a lacuna condition outside the pattern forms: a boolean the
 // computed-expression rules prove to evaluate for every instance. A guard
 // establishes nothing about the source, so it is kept as an opaque pattern,
-// under which the lacuna's values must be present for every instance.
-func (w *walker) guard(x ast.Expr, subj string, pos token.Pos) {
-	c := &exprCtx{subj: subj, pos: pos, paths: map[string]int{}}
+// under which the lacuna's values must be present for every instance. It
+// returns the guard as the program's expression, where it is proven.
+func (w *walker) guard(x ast.Expr, subj string, pos token.Pos) lensir.Expr {
+	c := newExprCtx(subj, nil, pos)
 	sh, ok := w.shape(x, c)
 	switch {
 	case !ok, sh.dead:
@@ -1418,7 +1459,10 @@ func (w *walker) guard(x ast.Expr, subj string, pos token.Pos) {
 	case sh.kind != cue.BoolKind:
 		w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownPattern,
 			Detail: fmt.Sprintf("is %s, which is neither a pattern (a presence test, an equality or a type test on an input field, or a conjunction of these) nor a boolean: it is %s", text(x), sh), Pos: pos})
+	default:
+		return w.ir.expr(x, c)
 	}
+	return nil
 }
 
 // lacunaRefs checks the values a lacuna's sourceFields or targetFields report.
@@ -1438,7 +1482,7 @@ func (w *walker) lacunaRefs(lp cue.Path, name string, x ast.Expr, gs []pattern) 
 				for _, fd := range cueview.FieldDecls(s.Elts, w.embedded) {
 					if fname, _, err := ast.LabelName(fd.Field.Label); err == nil && fname == "value" {
 						vp := appendPath(rp, cue.Str("value"))
-						w.lacunaValue(vp.String(), fd.Field.Value, gs, w.lensPos(vp))
+						w.ir.fieldRef(name, rp, w.lacunaValue(vp.String(), fd.Field.Value, gs, w.lensPos(vp)))
 					}
 				}
 			}
@@ -1449,8 +1493,9 @@ func (w *walker) lacunaRefs(lp cue.Path, name string, x ast.Expr, gs []pattern) 
 // lacunaValue checks that the value a lacuna reports evaluates when the
 // lacuna's condition (gs) holds: input paths it reads are present, a result
 // field it refers to is written under the condition, and a computation is
-// over the provable operations.
-func (w *walker) lacunaValue(subj string, x ast.Expr, gs []pattern, pos token.Pos) {
+// over the provable operations. It returns the value as the program's
+// expression.
+func (w *walker) lacunaValue(subj string, x ast.Expr, gs []pattern, pos token.Pos) lensir.Expr {
 	if r, ok := w.resultRef(x); ok {
 		// The field is present when the lacuna applies if its writes cover
 		// every instance, whatever the condition, or cover the condition.
@@ -1465,18 +1510,31 @@ func (w *walker) lacunaValue(subj string, x ast.Expr, gs []pattern, pos token.Po
 			w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownExhaustive,
 				Detail: fmt.Sprintf("refers to %s, which is written only under %s: neither covering every instance nor implied by the lacuna's condition%s", w.subject(r), describePatternSets(all), underPatterns(gs)), Pos: pos})
 		}
-		return
+		return &lensir.ResultRef{Path: w.ir.path(r)}
 	}
-	if _, isPath := w.pathOf(x); !isPath {
-		switch x.(type) {
-		case *ast.StructLit, *ast.ListLit, *ast.BasicLit:
-		default:
-			// A computation: it must evaluate, whatever it is worth.
-			c := &exprCtx{subj: subj, gs: gs, pos: pos, paths: map[string]int{}}
-			w.shape(x, c)
-			return
-		}
+	if p, isPath := w.pathOf(x); isPath {
+		w.lacunaInputs(subj, x, gs, pos)
+		return &lensir.Ref{Path: w.ir.path(p)}
 	}
+	switch e := x.(type) {
+	case *ast.BasicLit:
+		return w.ir.literal(w.ctx.BuildExpr(e))
+	case *ast.StructLit, *ast.ListLit:
+		w.lacunaInputs(subj, x, gs, pos)
+		w.ir.failf("%s is a struct or list, which the IR carries only as a result field", subj)
+		return nil
+	}
+	// A computation: it must evaluate, whatever it is worth.
+	c := newExprCtx(subj, gs, pos)
+	if _, ok := w.shape(x, c); !ok {
+		return nil
+	}
+	return w.ir.expr(x, c)
+}
+
+// lacunaInputs checks that the input paths the lacuna value x reads are
+// present when the lacuna's condition (gs) holds.
+func (w *walker) lacunaInputs(subj string, x ast.Expr, gs []pattern, pos token.Pos) {
 	for _, p := range w.inputRefs(x) {
 		src := w.lookupSource(p, gs)
 		switch {

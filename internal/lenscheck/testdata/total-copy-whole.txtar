@@ -9,3 +9,5 @@ v0_0: _
 v1_0: v0_0
 -- out --
 total
+-- ir --
+out <- in

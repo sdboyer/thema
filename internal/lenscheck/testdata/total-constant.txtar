@@ -10,3 +10,9 @@ v0_0: _
 v1_0: {a: 1, s: "x", d: "bar"}
 -- out --
 total
+-- ir --
+out: {
+  out.a = 1
+  out.s = "x"
+  out.d = "bar"
+}
