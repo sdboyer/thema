@@ -180,7 +180,7 @@ var pipelineCases = map[string]pipelineCase{
 	"lens-nonconcrete": {
 		build:     func(t *testing.T, a *archive) *ast.File { return shipFrom(t, a).lineage() },
 		translate: true,
-		is:        terrors.ErrLensIncomplete,
+		is:        terrors.ErrInvalidLens,
 	},
 	"lens-undeclared": {
 		build: func(t *testing.T, a *archive) *ast.File {

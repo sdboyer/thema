@@ -19,6 +19,9 @@ func TestGenerate(t *testing.T) {
 			"lineage/refexscalar": "bounds constraints are not supported as they lack a direct typescript equivalent",
 			"lineage/refscalar":   "bounds constraints are not supported as they lack a direct typescript equivalent",
 		},
+		ToDo: map[string]string{
+			"lineage/expand": "#87: lens 0.3->0.2 copies withDefault into a schema without \"baz\" (lens totality rule copy-narrowed)",
+		},
 	}
 
 	ctx := cuecontext.New()

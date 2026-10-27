@@ -1,4 +1,6 @@
-# lens result is read from another lens (via the lineage path) rather than from its own input
+# lens result is read from another lens (via the lineage path) rather than from
+# its own input: what it reads is that lens's input default, a disjunction, not
+# a value
 #issue: 20
 -- in.cue --
 import (
@@ -27,4 +29,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail
+bind fail not-a-value

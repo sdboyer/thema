@@ -1,9 +1,11 @@
-The forward lens maps an optional field (from.count, line 7 of 1.0) that the
-data lacks, so its result is incomplete.
+The forward lens copies an optional field (from.count, line 7 of 1.0) that the
+data lacks, so its result would be incomplete. Before lens totality was proven
+at bind, only Translate found it, and wrapped the evaluator's error with
+fmt.Errorf so that its position (the mapping itself) survived only as text.
 
-The evaluator positions this at the mapping itself, the most useful position of
-any case here. But Translate wraps it with fmt.Errorf and cerrors.Details, so
-the position survives only as text and the error carries none.
+Bind now refuses the lens (checkLensTotality) at the mapping, as a structured
+position, together with the bound the copy also narrows (count: int & <10,
+line 3), which the data in this case happens not to exercise.
 -- ship/history/0.0.thema --
 schema: {
 	title: string
@@ -25,8 +27,16 @@ backward: {
 -- data.json --
 {"title": "a"}
 -- out/error --
-lens produced a non-concrete result: Translate.out.steps.0.result.count: cannot reference optional field: count:
+lens 0.0->1.0 is not total over schema 0.0:
+    ship/1.0.thema:6:1
+lens 0.0->1.0: result.count copies input.count, which is now int & <10, which does not accept every value of the prior int (compat rule value-narrowed) (rule copy-narrowed):
+    ship/1.0.thema:7:9
+lens 0.0->1.0: result.count copies input.count, which may be absent: input.count is optional in the source schema; guard the field with if input.count != _|_ (rule source-absent):
     ship/1.0.thema:7:9
 -- out/positions --
-lens produced a non-concrete result: Translate.out.steps.0.result.count: cannot reference optional field: count:
-	no positions
+lens 0.0->1.0 is not total over schema 0.0
+	authored ship/1.0.thema:6:1
+lens 0.0->1.0: result.count copies input.count, which is now int & <10, which does not accept every value of the prior int (compat rule value-narrowed) (rule copy-narrowed)
+	authored ship/1.0.thema:7:9
+lens 0.0->1.0: result.count copies input.count, which may be absent: input.count is optional in the source schema; guard the field with if input.count != _|_ (rule source-absent)
+	authored ship/1.0.thema:7:9

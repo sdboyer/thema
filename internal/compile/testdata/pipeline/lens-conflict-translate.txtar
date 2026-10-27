@@ -1,11 +1,14 @@
-Data (count: 20) passes through the forward lens's mapping (from.count, line 7
-of 1.0) and violates schema 1.0's bound (<10, line 3). Only Translate finds it.
+The forward lens copies an optional, unbounded field (from.count, line 7 of
+1.0) into a required, bounded one (count: int & <10, line 3), and the data
+(count: 20) violates the bound. Before lens totality was proven at bind, only
+Translate found it, and positioned the error at the bound and the data, never
+at the mapping that carried the value; a second error from the comprehension
+in translate.cue added a kernel position.
 
-The positions are the bound and the data, never the mapping that carried the
-value: the evaluator cites values, and the lens's reference is not a conjunct
-where the conflict arises. A second error, from the comprehension in
-translate.cue that builds the steps, adds a kernel position. Paths are
-Translate's internals (Translate.out.steps._accum.1.result.count).
+Bind now refuses the lens (checkLensTotality), with two findings at the
+mapping: the copy is narrowed (the source accepts 20, the target does not),
+and its source may be absent. Every position is authored. The translate-time
+shape is no longer reachable from a bound lineage.
 -- ship/history/0.0.thema --
 schema: {
 	title: string
@@ -27,18 +30,16 @@ backward: {
 -- data.json --
 {"title": "a", "count": 20}
 -- out/error --
-Translate.out.steps: error in call to list.Drop: invalid value 20 (out of bound <10):
-    /github.com/sdboyer/thema/translate.cue:135:5
-    data.json:1:25
-    ship/1.0.thema:3:15
-Translate.out.steps._accum.1.result.count: invalid value 20 (out of bound <10):
-    ship/1.0.thema:3:15
-    data.json:1:25
+lens 0.0->1.0 is not total over schema 0.0:
+    ship/1.0.thema:6:1
+lens 0.0->1.0: result.count copies input.count, which is now int & <10, which does not accept every value of the prior int (compat rule value-narrowed) (rule copy-narrowed):
+    ship/1.0.thema:7:9
+lens 0.0->1.0: result.count copies input.count, which may be absent: input.count is optional in the source schema; guard the field with if input.count != _|_ (rule source-absent):
+    ship/1.0.thema:7:9
 -- out/positions --
-Translate.out.steps: error in call to list.Drop: invalid value 20 (out of bound <10)
-	kernel /github.com/sdboyer/thema/translate.cue:135:5
-	data data.json:1:25
-	authored ship/1.0.thema:3:15
-Translate.out.steps._accum.1.result.count: invalid value 20 (out of bound <10)
-	authored ship/1.0.thema:3:15
-	data data.json:1:25
+lens 0.0->1.0 is not total over schema 0.0
+	authored ship/1.0.thema:6:1
+lens 0.0->1.0: result.count copies input.count, which is now int & <10, which does not accept every value of the prior int (compat rule value-narrowed) (rule copy-narrowed)
+	authored ship/1.0.thema:7:9
+lens 0.0->1.0: result.count copies input.count, which may be absent: input.count is optional in the source schema; guard the field with if input.count != _|_ (rule source-absent)
+	authored ship/1.0.thema:7:9
