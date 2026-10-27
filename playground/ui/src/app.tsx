@@ -14,6 +14,7 @@ import {
   shareWarnBytes,
 } from "./state/session";
 import { Diagnostics } from "./ui/Diagnostics";
+import { DocLink, hasDoc } from "./ui/docs";
 import { Editor, type Language } from "./ui/Editor";
 import { filesOf, markersFor } from "./ui/markers";
 import { type Outcome, Output } from "./ui/Output";
@@ -225,9 +226,12 @@ export function App() {
             ))}
           </select>
         </label>
-        <button onClick={switchForm} title="Convert the lineage to the other form">
-          Show as {session.form === "authoring" ? "normal form" : "version files"}
-        </button>
+        <span>
+          <button onClick={switchForm} title="Convert the lineage to the other form">
+            Show as {session.form === "authoring" ? "normal form" : "version files"}
+          </button>
+          <DocLink topic="forms" />
+        </span>
         <button onClick={share}>Share</button>
         <span class="version">
           thema {thema.init.themaVersion} · CUE {thema.init.cueVersion}
@@ -268,6 +272,7 @@ export function App() {
             <span class={`bind-status ${lineageOK ? "ok" : "failed"}`}>
               {bound === null ? "binding…" : lineageOK ? `binds: ${versions.join(", ")}` : `${bindDiagnostics.length} diagnostics`}
             </span>
+            <DocLink topic="bind" />
           </div>
           {session.form === "authoring" ? (
             <Tabs
@@ -390,6 +395,7 @@ function OpBar({ session, versions, update, onRun, running, disabled }: OpBarPro
       <button aria-pressed={session.op === o} onClick={() => update((s) => ({ ...s, op: o }))}>
         {o}
       </button>
+      {hasDoc(o) && <DocLink topic={o} />}
     </span>
   );
   return (

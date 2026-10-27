@@ -8,6 +8,7 @@ import type {
   ValidateResponse,
 } from "../api/types";
 import { Diagnostics } from "./Diagnostics";
+import { DocLink } from "./docs";
 import { Editor } from "./Editor";
 
 export type Outcome =
@@ -114,6 +115,9 @@ function Lacunas({ resp }: { resp: TranslateResponse }) {
   if (steps.length === 0) return null;
   return (
     <table class="lacunas">
+      <caption>
+        Lacunas <DocLink topic="lacunas" />
+      </caption>
       <thead>
         <tr>
           <th>step</th>

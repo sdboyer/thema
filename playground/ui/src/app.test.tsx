@@ -3,6 +3,7 @@ import { render } from "preact";
 import { act } from "preact/test-utils";
 import { describe, expect, it, vi } from "vitest";
 import type { Thema } from "./api/client";
+import { themaCommit } from "./ui/docs";
 
 // A thema that answers like the real one for what the page asks at start
 // and on edits.
@@ -90,6 +91,18 @@ describe("App", () => {
     expect(root.querySelector(".work .panel")).not.toBeNull();
     await act(async () => opButton(root, "translate").click());
     expect(dataEditor()).not.toBeNull();
+    render(null, root);
+  });
+
+  it("links the less obvious operations to their docs, and not validate", async () => {
+    const root = await mount();
+    const link = (op: string) => opButton(root, op).parentElement!.querySelector<HTMLAnchorElement>("a.doc-link");
+    expect(link("validate")).toBeNull();
+    expect(link("translate")!.href).toBe(`https://github.com/sdboyer/thema/blob/${themaCommit}/docs/go-usage.md#translate`);
+    expect(link("translate")!.target).toBe("_blank");
+    for (const op of ["validate-any", "hydrate", "dehydrate", "openapi", "jsonschema", "typescript"]) {
+      expect(link(op), op).not.toBeNull();
+    }
     render(null, root);
   });
 });
