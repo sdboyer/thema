@@ -62,13 +62,6 @@ const (
 // categories lists the categories in the order the playground lists them.
 var categories = []string{CategoryExemplar, CategoryAuthoring, CategoryErrors}
 
-// The exemplars that bind only with thema.SkipBuggyChecks: the lens totality
-// check correctly refuses one of their lenses (#87). The playground binds
-// without it, so they are examples of that diagnostic.
-var exemplarsFailing = map[string]bool{
-	"disjunct": true,
-}
-
 // The round-trip fixtures offered: the ones that bind, and a few that show
 // one of the compiler's diagnostics.
 var roundtrips = []string{
@@ -133,10 +126,7 @@ func exemplarExamples() []Example {
 			Summary:  string(m[1]),
 			Normal:   File{Path: file, Text: text},
 			Path:     name + ".l",
-			Binds:    !exemplarsFailing[name],
-		}
-		if !e.Binds {
-			e.Category = CategoryErrors
+			Binds:    true,
 		}
 		out = append(out, e)
 	}

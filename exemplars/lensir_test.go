@@ -17,8 +17,7 @@ import (
 
 // TestLensPrograms records, for each exemplar as All binds it, the program
 // built for each of its lenses when it was proven total (internal/lensir), as
-// lensir.Print renders it, in testdata/lensir/<name>.txt. An exemplar bound
-// with SkipBuggyChecks has no programs, and the golden says so.
+// lensir.Print renders it, in testdata/lensir/<name>.txt.
 func TestLensPrograms(t *testing.T) {
 	all := All(allrt)
 	names := make([]string, 0, len(all))

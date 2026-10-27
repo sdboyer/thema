@@ -848,12 +848,8 @@ func (ml *maybeLineage) checkLensTotality() error {
 }
 
 // totalityFindings runs the totality checker over one lens and returns its
-// result, with a diagnostic per finding that is not Total. Under
-// SkipBuggyChecks there are none.
+// result, with a diagnostic per finding that is not Total.
 func (ml *maybeLineage) totalityFindings(lens cue.Value, fsch, tsch *schemaDef) (lenscheck.Result, []error) {
-	if ml.cfg.skipbuggychecks {
-		return lenscheck.Result{}, nil
-	}
 	var errs []error
 	res := lenscheck.Check(ml.rt.Context(), lens, fsch.def, tsch.def, lensParam(fsch.v), lensParam(tsch.v))
 	for _, f := range res.Findings {

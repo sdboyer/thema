@@ -77,14 +77,18 @@ func TestExemplarLacunas(t *testing.T) {
 		data     string
 		want     []lacuna.Type
 	}{
-		"narrowing, lossy":        {NarrowingLineage, thema.SV(0, 0), thema.SV(1, 0), `{boolish: "maybe"}`, []lacuna.Type{lacuna.LossyFieldMapping}},
-		"narrowing, clean":        {NarrowingLineage, thema.SV(0, 0), thema.SV(1, 0), `{boolish: "true"}`, nil},
-		"defaultchange, forward":  {DefaultChangeLineage, thema.SV(0, 0), thema.SV(1, 0), `{aunion: "foo"}`, []lacuna.Type{lacuna.ChangedDefault}},
-		"defaultchange, backward": {DefaultChangeLineage, thema.SV(1, 0), thema.SV(0, 0), `{aunion: "bar"}`, []lacuna.Type{lacuna.ChangedDefault}},
-		"defaultchange, other":    {DefaultChangeLineage, thema.SV(0, 0), thema.SV(1, 0), `{aunion: "baz"}`, nil},
-		"expand, baz":             {ExpandLineage, thema.SV(0, 3), thema.SV(0, 2), `{init: "x", withDefault: "baz"}`, []lacuna.Type{lacuna.LossyFieldMapping}},
-		"expand, kept":            {ExpandLineage, thema.SV(0, 3), thema.SV(0, 2), `{init: "x", withDefault: "bar"}`, nil},
-		"expand, absent":          {ExpandLineage, thema.SV(0, 3), thema.SV(0, 2), `{init: "x"}`, nil},
+		"narrowing, lossy":         {NarrowingLineage, thema.SV(0, 0), thema.SV(1, 0), `{boolish: "maybe"}`, []lacuna.Type{lacuna.LossyFieldMapping}},
+		"narrowing, clean":         {NarrowingLineage, thema.SV(0, 0), thema.SV(1, 0), `{boolish: "true"}`, nil},
+		"defaultchange, forward":   {DefaultChangeLineage, thema.SV(0, 0), thema.SV(1, 0), `{aunion: "foo"}`, []lacuna.Type{lacuna.ChangedDefault}},
+		"defaultchange, backward":  {DefaultChangeLineage, thema.SV(1, 0), thema.SV(0, 0), `{aunion: "bar"}`, []lacuna.Type{lacuna.ChangedDefault}},
+		"defaultchange, other":     {DefaultChangeLineage, thema.SV(0, 0), thema.SV(1, 0), `{aunion: "baz"}`, nil},
+		"expand, baz":              {ExpandLineage, thema.SV(0, 3), thema.SV(0, 2), `{init: "x", withDefault: "baz"}`, []lacuna.Type{lacuna.LossyFieldMapping}},
+		"expand, kept":             {ExpandLineage, thema.SV(0, 3), thema.SV(0, 2), `{init: "x", withDefault: "bar"}`, nil},
+		"expand, absent":           {ExpandLineage, thema.SV(0, 3), thema.SV(0, 2), `{init: "x"}`, nil},
+		"disjunct, branch three":   {DisjunctLineage, thema.SV(0, 1), thema.SV(0, 0), `{rootfield: {branch: 3, branchthree: {branchthreeinner: 5}}}`, []lacuna.Type{lacuna.LossyFieldMapping}},
+		"disjunct, branch three s": {DisjunctLineage, thema.SV(0, 1), thema.SV(0, 0), `{rootfield: {branch: 3, branchthree: {branchthreeinner: "s"}}}`, []lacuna.Type{lacuna.LossyFieldMapping}},
+		"disjunct, branch one":     {DisjunctLineage, thema.SV(0, 1), thema.SV(0, 0), `{rootfield: {branch: 1, branchone: "a"}}`, nil},
+		"disjunct, branch two":     {DisjunctLineage, thema.SV(0, 1), thema.SV(0, 0), `{rootfield: {branch: 2, branchtwo: "b"}}`, nil},
 	} {
 		t.Run(name, func(t *testing.T) {
 			lin, err := c.lin(allrt)

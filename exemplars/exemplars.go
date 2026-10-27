@@ -39,6 +39,7 @@ func All(rt *thema.Runtime) map[string]thema.Lineage {
 
 var nameOpts = map[string][]thema.BindOption{
 	"defaultchange": {thema.SkipBuggyChecks()},
+	"disjunct":      {},
 	"narrowing":     {},
 	"rename":        {},
 	"expand":        {},
@@ -121,6 +122,11 @@ func ExpandLineage(rt *thema.Runtime, o ...thema.BindOption) (thema.Lineage, err
 // SingleLineage returns a handle for using the "single" exemplar lineage.
 func SingleLineage(rt *thema.Runtime, o ...thema.BindOption) (thema.Lineage, error) {
 	return lineageForExemplar("single", rt, o...)
+}
+
+// DisjunctLineage returns a handle for using the "disjunct" exemplar lineage.
+func DisjunctLineage(rt *thema.Runtime, o ...thema.BindOption) (thema.Lineage, error) {
+	return lineageForExemplar("disjunct", rt, o...)
 }
 
 var _ thema.LineageFactory = NarrowingLineage

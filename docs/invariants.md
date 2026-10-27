@@ -580,10 +580,9 @@ compatibility verdict, and moves with it.
 The proof of a lens leaves behind the lens's program (`internal/lensir`): a
 target-neutral account of what the lens writes into its result and from what,
 built node by node at the places in the walk that proved them, so that no
-node exists without its proof. A lens that is not proven total has no program,
-and a lineage bound with `SkipBuggyChecks`, whose lenses were not proven, has
-none; `thema.LensPrograms` returns a lineage's programs or says why there are
-none. Backends such as `encoding/capnp` render the programs; they never consult
+node exists without its proof. A lens that is not proven total has no program;
+`thema.LensPrograms` returns a lineage's programs or says why there are none.
+Backends such as `encoding/capnp` render the programs; they never consult
 the lens's CUE. The nodes are the proven forms: copies, constants, struct and
 list literals, lists mapped element by element (`each`), branches on patterns,
 heads, tables, computed expressions over the operations above, and the
