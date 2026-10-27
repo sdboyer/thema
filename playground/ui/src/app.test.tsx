@@ -40,14 +40,25 @@ async function settle() {
   }
 }
 
+async function mount(): Promise<HTMLElement> {
+  const root = document.createElement("div");
+  document.body.append(root);
+  await act(async () => {
+    render(<App />, root);
+  });
+  await settle();
+  return root;
+}
+
+function opButton(root: HTMLElement, op: string): HTMLButtonElement {
+  const b = [...root.querySelectorAll<HTMLButtonElement>(".op button")].find((x) => x.textContent === op);
+  if (!b) throw new Error(`no button for ${op}`);
+  return b;
+}
+
 describe("App", () => {
   it("survives an edit to the lineage", async () => {
-    const root = document.createElement("div");
-    document.body.append(root);
-    await act(async () => {
-      render(<App />, root);
-    });
-    await settle();
+    const root = await mount();
     const dom = root.querySelector<HTMLElement>(".lineage .cm-editor");
     expect(dom).not.toBeNull();
     const view = EditorView.findFromDOM(dom!)!;
@@ -57,4 +68,28 @@ describe("App", () => {
     await settle();
     expect(view.state.doc.toString()).toContain("x: 1");
   }, 10000);
+
+  it("leads the work column with a button for every operation", async () => {
+    const root = await mount();
+    const work = root.querySelector(".work")!;
+    expect(work.firstElementChild!.classList.contains("ops")).toBe(true);
+    const ops = [...work.querySelectorAll(".op button")].map((b) => b.textContent);
+    expect(ops).toEqual(["validate", "validate-any", "translate", "hydrate", "dehydrate", "openapi", "jsonschema", "typescript"]);
+    expect(opButton(root, "validate").getAttribute("aria-pressed")).toBe("true");
+    render(null, root);
+  });
+
+  it("shows the data only for operations that take it", async () => {
+    const root = await mount();
+    const dataEditor = () => root.querySelector(".work .data-editor");
+    expect(dataEditor()).not.toBeNull();
+    await act(async () => opButton(root, "typescript").click());
+    expect(opButton(root, "typescript").getAttribute("aria-pressed")).toBe("true");
+    expect(opButton(root, "validate").getAttribute("aria-pressed")).toBe("false");
+    expect(dataEditor()).toBeNull();
+    expect(root.querySelector(".work .panel")).not.toBeNull();
+    await act(async () => opButton(root, "translate").click());
+    expect(dataEditor()).not.toBeNull();
+    render(null, root);
+  });
 });

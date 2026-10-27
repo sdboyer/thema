@@ -89,6 +89,12 @@ section { display: flex; flex-direction: column; min-height: 0; min-width: 0; bo
 
 .bar { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; padding: .4rem .6rem; border-bottom: 1px solid var(--border); }
 .bind-status { margin-left: auto; font-size: .85em; }
+.ops .bar { gap: .4rem 1.5rem; }
+.op-group { display: inline-flex; flex-wrap: wrap; gap: .3rem .5rem; }
+.op { white-space: nowrap; }
+.op button { font-family: var(--mono); font-size: .9em; }
+.op button[aria-pressed="true"] { background: var(--selection); border-color: var(--accent); }
+.op-args .primary { margin-left: auto; }
 .ok { color: var(--ok); }
 .failed { color: var(--error); }
 .muted { color: var(--muted); padding: .5rem .75rem; margin: 0; }
