@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"sort"
+	"strings"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/ast"
@@ -673,6 +675,17 @@ func (w *walker) call(e *ast.CallExpr, c *exprCtx) (shape, bool) {
 	return shape{}, false
 }
 
+// Builtins are the predeclared functions the computed rules prove, besides
+// the strings functions: what a lens may call by name.
+var Builtins = []string{"len", "quo", "rem", "div", "mod"}
+
+// StringFunc reports whether strings.<name> is a function the computed rules
+// prove.
+func StringFunc(name string) bool {
+	_, ok := stringFuncs[name]
+	return ok
+}
+
 // stringSig is the signature of a total string function: its argument kinds
 // and result kind.
 type stringSig struct {
@@ -696,23 +709,18 @@ var stringFuncs = map[string]stringSig{
 }
 
 func stringFuncNames() string {
+	return strings.Join(StringFuncs(), ", ")
+}
+
+// StringFuncs lists the strings functions the computed rules prove, as
+// strings.<name>, sorted.
+func StringFuncs() []string {
 	names := make([]string, 0, len(stringFuncs))
 	for n := range stringFuncs {
 		names = append(names, "strings."+n)
 	}
-	for i := 1; i < len(names); i++ {
-		for j := i; j > 0 && names[j] < names[j-1]; j-- {
-			names[j], names[j-1] = names[j-1], names[j]
-		}
-	}
-	s := ""
-	for i, n := range names {
-		if i > 0 {
-			s += ", "
-		}
-		s += n
-	}
-	return s
+	sort.Strings(names)
+	return names
 }
 
 func (w *walker) stringCall(e *ast.CallExpr, sig stringSig, c *exprCtx) (shape, bool) {

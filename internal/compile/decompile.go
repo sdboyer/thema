@@ -14,6 +14,7 @@ import (
 
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/internal/cueview"
+	"github.com/sdboyer/thema/internal/lenscheck"
 )
 
 // Decompile recovers the authoring files of a lineage in normal form. It is
@@ -142,6 +143,9 @@ type dentry struct {
 	// implicit marks a copy (a move from a path to itself) Compile would
 	// regenerate, which is omitted unless a lacuna names it.
 	implicit bool
+	// computed is a computed mapping's expression, or orelse's computed
+	// primary.
+	computed ast.Expr
 }
 
 // A dbody is a lens body read back from the normal form, in result order
@@ -178,9 +182,9 @@ func decompileLens(l cue.Value, key string, sv, tv thema.SyntacticVersion) (*dbo
 	if err != nil {
 		return nil, fmt.Errorf("lens %s: %w", key, err)
 	}
-	lens, ok := n.(*ast.StructLit)
-	if !ok {
-		return nil, fmt.Errorf("lens %s is outside the authoring form: it needs imports", key)
+	lens, err := lensDecls(n, key)
+	if err != nil {
+		return nil, err
 	}
 	var result *ast.StructLit
 	var lacunas *ast.ListLit
@@ -216,13 +220,51 @@ func decompileLens(l cue.Value, key string, sv, tv thema.SyntacticVersion) (*dbo
 	return b, nil
 }
 
+// lensDecls returns an exported lens as a struct. A lens whose expressions
+// call into strings exports as a file importing it, which the authoring form
+// writes without the import; any other import is outside the form.
+func lensDecls(n ast.Node, key string) (*ast.StructLit, error) {
+	switch n := n.(type) {
+	case *ast.StructLit:
+		return n, nil
+	case *ast.File:
+		lit := &ast.StructLit{}
+		for _, d := range n.Decls {
+			imp, ok := d.(*ast.ImportDecl)
+			if !ok {
+				lit.Elts = append(lit.Elts, d)
+				continue
+			}
+			for _, spec := range imp.Specs {
+				if path, _ := literal.Unquote(spec.Path.Value); path != pkgStrings || spec.Name != nil {
+					return nil, fmt.Errorf("lens %s is outside the authoring form: it imports %s", key, spec.Path.Value)
+				}
+			}
+		}
+		return lit, nil
+	}
+	return nil, fmt.Errorf("lens %s is outside the authoring form: it is not a struct", key)
+}
+
 // walk reads a result struct's declarations into the body.
 func (b *dbody) walk(decls []ast.Decl, tbase cue.Path, key string) error {
 	var branches []branch
+	start := len(b.entries)
+	// order is each field's place in the result, by name beneath tbase, so
+	// that fields written under arms keep it.
+	order := make(map[string]int)
+	note := func(f *ast.Field) {
+		if name, _, err := ast.LabelName(f.Label); err == nil {
+			if _, seen := order[name]; !seen {
+				order[name] = len(order)
+			}
+		}
+	}
 	for _, d := range decls {
 		switch d := d.(type) {
 		case *ast.CommentGroup:
 		case *ast.Field:
+			note(d)
 			if err := b.field(d, tbase, key); err != nil {
 				return err
 			}
@@ -231,12 +273,30 @@ func (b *dbody) walk(decls []ast.Decl, tbase cue.Path, key string) error {
 			if !ok {
 				return fmt.Errorf("lens %s is outside the authoring form: a comprehension in its result that is not an arm", key)
 			}
+			note(br.field)
 			branches = append(branches, br)
 		default:
 			return fmt.Errorf("lens %s is outside the authoring form: %T in its result", key, d)
 		}
 	}
-	return b.branches(branches, tbase, key)
+	if err := b.branches(branches, tbase, key); err != nil {
+		return err
+	}
+	depth := len(tbase.Selectors())
+	rank := func(en dentry) int {
+		sels := en.target.Selectors()
+		if len(sels) <= depth {
+			return len(order)
+		}
+		if i, ok := order[sels[depth].Unquoted()]; ok {
+			return i
+		}
+		return len(order)
+	}
+	sort.SliceStable(b.entries[start:], func(i, j int) bool {
+		return rank(b.entries[start+i]) < rank(b.entries[start+j])
+	})
+	return nil
 }
 
 func (b *dbody) field(f *ast.Field, tbase cue.Path, key string) error {
@@ -259,8 +319,17 @@ func (b *dbody) field(f *ast.Field, tbase cue.Path, key string) error {
 		if eerr != nil {
 			return eerr
 		}
+	} else if h, ok := asHeadSyntax(f.Value); ok && b.allPresence(h.cond) {
+		// orelse over a computed primary: the expression where the optional
+		// fields it reads are present, the fallback otherwise.
+		if _, _, isRef := refPathAny(h.els); !isRef && !isLiteral(h.els) {
+			return fmt.Errorf("lens %s is outside the authoring form: the fallback of %s is computed", key, tpath)
+		}
+		en.kind, en.computed, en.fallback = kindOrElse, h.then, h.els
+	} else if b.expressionOK(f.Value) {
+		en.kind, en.computed = kindComputed, f.Value
 	} else {
-		return fmt.Errorf("lens %s is outside the authoring form: %s is computed", key, tpath)
+		return fmt.Errorf("lens %s is outside the authoring form: %s is an expression the authoring form cannot write", key, tpath)
 	}
 	b.entries = append(b.entries, en)
 	return nil
@@ -409,6 +478,18 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 	for _, g := range groups {
 		tpath := appendPath(tbase, cue.Str(g.name))
 		en := dentry{target: tpath, comments: ast.Comments(g.brs[0].field)}
+		if len(g.brs) == 1 && b.allPresence(g.brs[0].cond) {
+			if _, _, isRef := refPathAny(g.brs[0].field.Value); !isRef && !isLiteral(g.brs[0].field.Value) {
+				// A computed mapping that reads optional fields, written only
+				// where they are present.
+				if !b.expressionOK(g.brs[0].field.Value) {
+					return fmt.Errorf("lens %s is outside the authoring form: %s is an expression the authoring form cannot write", key, tpath)
+				}
+				en.kind, en.computed = kindComputed, g.brs[0].field.Value
+				b.entries = append(b.entries, en)
+				continue
+			}
+		}
 		var present, absent, passthrough, catchAll []branch
 		var arms []branch
 		var armKeys []string
@@ -596,6 +677,12 @@ func (b *dbody) when(en *dentry, cond ast.Expr) (when ast.Expr, structural bool)
 	if cond == nil {
 		return nil, en.kind != kindEach
 	}
+	if en.kind == kindOrElse && en.computed != nil {
+		// The fallback was used: [if <presence> {false}, true][0].
+		if h, ok := asHeadSyntax(cond); ok && b.allPresence(h.cond) && isBoolLit(h.then, litFalse) && isBoolLit(h.els, litTrue) {
+			return nil, true
+		}
+	}
 	ts, ok := b.tests(cond)
 	if ok {
 		last := ts[len(ts)-1]
@@ -626,6 +713,104 @@ func (b *dbody) when(en *dentry, cond ast.Expr) (when ast.Expr, structural bool)
 	return cond, false
 }
 
+// headSyntax is [if cond {then}, els][0], as written.
+type headSyntax struct {
+	cond, then, els ast.Expr
+}
+
+// asHeadSyntax recognizes [if cond {then}, els][0].
+func asHeadSyntax(x ast.Expr) (headSyntax, bool) {
+	ix, ok := x.(*ast.IndexExpr)
+	if !ok {
+		return headSyntax{}, false
+	}
+	if lit, isLit := ix.Index.(*ast.BasicLit); !isLit || lit.Value != "0" {
+		return headSyntax{}, false
+	}
+	l, ok := ix.X.(*ast.ListLit)
+	if !ok || len(l.Elts) != 2 {
+		return headSyntax{}, false
+	}
+	comp, ok := l.Elts[0].(*ast.Comprehension)
+	if !ok || len(comp.Clauses) != 1 {
+		return headSyntax{}, false
+	}
+	ifc, isIf := comp.Clauses[0].(*ast.IfClause)
+	if !isIf {
+		return headSyntax{}, false
+	}
+	s, ok := comp.Value.(*ast.StructLit)
+	if !ok || len(s.Elts) != 1 {
+		return headSyntax{}, false
+	}
+	emb, ok := s.Elts[0].(*ast.EmbedDecl)
+	if !ok {
+		return headSyntax{}, false
+	}
+	return headSyntax{cond: ifc.Condition, then: emb.Expr, els: l.Elts[1]}, true
+}
+
+// The bool literals, as written.
+const (
+	litTrue  = "true"
+	litFalse = "false"
+)
+
+func isBoolLit(x ast.Expr, v string) bool {
+	switch x := x.(type) {
+	case *ast.BasicLit:
+		return x.Value == v
+	case *ast.Ident:
+		return x.Name == v
+	}
+	return false
+}
+
+// allPresence reports whether cond is presence tests on the root, joined by &&.
+func (b *dbody) allPresence(cond ast.Expr) bool {
+	ts, ok := b.tests(cond)
+	if !ok || len(ts) == 0 {
+		return false
+	}
+	for _, t := range ts {
+		if t.operand != nil || !t.present {
+			return false
+		}
+	}
+	return true
+}
+
+// expressionOK reports whether x is an expression the authoring form writes
+// as a computed mapping: references from the root, literals, operators, and
+// calls to the builtins and strings functions a lens may call.
+func (b *dbody) expressionOK(x ast.Expr) bool {
+	ok := true
+	ast.Walk(x, func(n ast.Node) bool {
+		if !ok {
+			return false
+		}
+		switch n := n.(type) {
+		case *ast.SelectorExpr:
+			if root, _, isRef := refPathAny(n); isRef && root == b.root {
+				return false
+			}
+			if pkg, isID := n.X.(*ast.Ident); isID && pkg.Name == pkgStrings {
+				name, _, err := ast.LabelName(n.Sel)
+				ok = err == nil && lenscheck.StringFunc(name)
+				return false
+			}
+			ok = false
+		case *ast.Ident:
+			ok = n.Name == b.root || isBuiltin(n.Name) || n.Name == litTrue || n.Name == litFalse || n.Name == "null"
+		case *ast.BinaryExpr, *ast.UnaryExpr, *ast.ParenExpr, *ast.CallExpr, *ast.BasicLit, *ast.Interpolation:
+		default:
+			ok = false
+		}
+		return ok
+	}, nil)
+	return ok
+}
+
 // headCondition recognizes [if <presence tests> {when}, false][0], the form a
 // when that reads optional fields compiles to, and returns the when.
 func headCondition(x ast.Expr) (ast.Expr, bool) {
@@ -640,7 +825,7 @@ func headCondition(x ast.Expr) (ast.Expr, bool) {
 	if !ok || len(l.Elts) != 2 {
 		return nil, false
 	}
-	if lit, isLit := l.Elts[1].(*ast.BasicLit); !isLit || lit.Value != "false" {
+	if lit, isLit := l.Elts[1].(*ast.BasicLit); !isLit || lit.Value != litFalse {
 		return nil, false
 	}
 	comp, ok := l.Elts[0].(*ast.Comprehension)
@@ -901,7 +1086,13 @@ func (b *dbody) syntax() *ast.StructLit {
 			if root, p, ok := refPathAny(fallback); ok && root == b.root {
 				fallback = ref(b.root, p)
 			}
-			val = &ast.CallExpr{Fun: ast.NewIdent(opOrElse), Args: []ast.Expr{ref(b.root, en.source), fallback}}
+			primary := en.computed
+			if primary == nil {
+				primary = ref(b.root, en.source)
+			}
+			val = &ast.CallExpr{Fun: ast.NewIdent(opOrElse), Args: []ast.Expr{primary, fallback}}
+		case kindComputed:
+			val = en.computed
 		case kindMatch:
 			arms := &ast.StructLit{}
 			for _, a := range en.arms {
