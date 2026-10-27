@@ -113,7 +113,7 @@ func (i *Instance) AsSuccessor() (*Instance, lacuna.TranslationLacunas, error) {
 		if err != nil {
 			return nil, nil, errors.Mark(fmt.Errorf("instance of %s is not an instance of its successor %s: %w", i.Schema().Version(), nsch.Version(), err), terrors.ErrInvalidData)
 		}
-		return ni, lacuna.TranslationLacunas{{From: i.Schema().Version(), To: nsch.Version(), Lacunas: []lacuna.Lacuna{}}}, nil
+		return ni, lacuna.TranslationLacunas{{From: lacuna.SyntacticVersion(i.Schema().Version()), To: lacuna.SyntacticVersion(nsch.Version()), Lacunas: []lacuna.Lacuna{}}}, nil
 	}
 	return i.Translate(i.sch.Successor().Version())
 }
@@ -337,7 +337,7 @@ func (i *Instance) translateGo(to SyntacticVersion) (*Instance, lacuna.Translati
 		if steplac == nil {
 			steplac = []lacuna.Lacuna{}
 		}
-		lac = append(lac, lacuna.TranslationStep{From: sch.Version(), To: nsch.Version(), Lacunas: steplac})
+		lac = append(lac, lacuna.TranslationStep{From: lacuna.SyntacticVersion(sch.Version()), To: lacuna.SyntacticVersion(nsch.Version()), Lacunas: steplac})
 		*ti = *rti
 		sch = nsch
 	}

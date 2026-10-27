@@ -51,6 +51,17 @@ func TestLacunaTypesMatchCUE(t *testing.T) {
 	}
 }
 
+// SyntacticVersion converts to and from thema's, and formats the same way.
+func TestSyntacticVersion(t *testing.T) {
+	sv := lacuna.SyntacticVersion(thema.SV(3, 12))
+	if got, want := sv.String(), thema.SV(3, 12).String(); got != want {
+		t.Errorf("String() = %q, want %q", got, want)
+	}
+	if thema.SyntacticVersion(sv) != thema.SV(3, 12) {
+		t.Errorf("round trip through thema.SyntacticVersion changed %v", sv)
+	}
+}
+
 // The lacuna package must not depend on CUE, directly or transitively. Engines
 // that translate instances without CUE emit its types.
 func TestNoCUEDependency(t *testing.T) {

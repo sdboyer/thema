@@ -12,6 +12,8 @@
 // name fields its schemas declare, live with the callers that have CUE.
 package lacuna
 
+import "strconv"
+
 // TranslationLacunas holds the lacunas emitted by a translation, step by step.
 //
 // A translation between non-adjacent schemas passes through each intermediate
@@ -22,15 +24,24 @@ type TranslationLacunas []TranslationStep
 
 // TranslationStep is a single step of a translation, between adjacent schemas,
 // and the lacunas emitted by that step.
-//
-// From and To are the syntactic versions of the step's source and target
-// schemas: the index of the schema's sequence within the lineage, then the
-// index of the schema within that sequence. thema.SyntacticVersion has this
-// underlying type, so values of each are assignable to the other.
 type TranslationStep struct {
-	From    [2]uint  `json:"from"`
-	To      [2]uint  `json:"to"`
-	Lacunas []Lacuna `json:"lacunas"`
+	From    SyntacticVersion `json:"from"`
+	To      SyntacticVersion `json:"to"`
+	Lacunas []Lacuna         `json:"lacunas"`
+}
+
+// SyntacticVersion is the position of a schema within a lineage: the index of
+// the schema's sequence within the lineage, then the index of the schema within
+// that sequence.
+//
+// It duplicates thema.SyntacticVersion, which this package cannot import
+// without depending on CUE. The two have the same underlying type, so each
+// converts to the other.
+type SyntacticVersion [2]uint
+
+// String formats the version canonically, as "<sequence>.<schema>".
+func (sv SyntacticVersion) String() string {
+	return strconv.FormatUint(uint64(sv[0]), 10) + "." + strconv.FormatUint(uint64(sv[1]), 10)
 }
 
 // AsList returns the lacunas from all steps of the translation, in order. It

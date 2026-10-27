@@ -73,7 +73,7 @@ func TestLacunaEmission(t *testing.T) {
 	steps := func(tl lacuna.TranslationLacunas) []step {
 		var out []step
 		for _, s := range tl {
-			st := step{from: s.From, to: s.To}
+			st := step{from: SyntacticVersion(s.From), to: SyntacticVersion(s.To)}
 			for _, l := range s.Lacunas {
 				st.types = append(st.types, l.Type)
 			}
@@ -214,7 +214,7 @@ func TestGoLensLacunas(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(lac) != 1 || lac[0].From != SV(0, 1) || lac[0].To != SV(0, 0) || len(lac[0].Lacunas) != 1 || lac[0].Lacunas[0].Type != lacuna.DroppedField {
+	if len(lac) != 1 || lac[0].From != lacuna.SyntacticVersion(SV(0, 1)) || lac[0].To != lacuna.SyntacticVersion(SV(0, 0)) || len(lac[0].Lacunas) != 1 || lac[0].Lacunas[0].Type != lacuna.DroppedField {
 		t.Fatalf("unexpected lacunas: %+v", lac)
 	}
 
