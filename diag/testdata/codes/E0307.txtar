@@ -1,0 +1,98 @@
+#op: translate
+#skip-buggy-checks: true
+#from: 0.0
+#to: 1.0
+Translating an instance, a lens produced a result that is not concrete: a field
+is left as a constraint rather than a value, so the result is not an instance of
+anything. The totality checker refuses such a lens at bind (E0365); this is
+what remains when it does not run, as under SkipBuggyChecks here. Every
+translate-time failure is a bug in the lens, not in the data.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				a: string
+				n: int
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		input: _
+		result: {
+			a: input.a
+			n: int
+		}
+	}
+	"1.0->0.0": {
+		input: _
+		result: {
+			a: input.a
+		}
+	}
+}
+-- data.json --
+{
+	"a": "Argo"
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0307",
+      "severity": "error",
+      "headline": "n in the result of lens 0.0->1.0 is not concrete for this instance",
+      "path": [
+        "lenses",
+        "0.0->1.0",
+        "result",
+        "n"
+      ],
+      "address": {
+        "field": [
+          "n"
+        ],
+        "from": [
+          0,
+          0
+        ],
+        "kind": "lensResultField",
+        "to": [
+          1,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 24,
+        "col": 4,
+        "offset": 214,
+        "origin": "user"
+      },
+      "detail": "cue: marshal error: Translate.out.steps.0.result.n: cannot convert incomplete value \"int\" to JSON"
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0307]: n in the result of lens 0.0->1.0 is not concrete for this instance
+  --> lineage.cue:24:4
+   |
+24 |             n: int
+   |             ^
+   |
+   = detail: cue: marshal error: Translate.out.steps.0.result.n: cannot convert incomplete value "int" to JSON

@@ -58,6 +58,11 @@ type Context struct {
 	// operation knows what such an error means for it: at bind, that the
 	// lineage is not an instance of thema.Lineage. Empty means [E0902].
 	Generic Code
+	// PreferSource makes the author's value at the error path (SourceValue)
+	// the primary position even when CUE positions the error in the author's
+	// files elsewhere: when translating, the lens mapping is at fault, not the
+	// data it was given.
+	PreferSource bool
 }
 
 func (ctx Context) vocab() Vocabulary {
@@ -121,7 +126,7 @@ func convert(err error, ctx Context) []*Error {
 	if err == nil {
 		return nil
 	}
-	entries := cerrors.Errors(err)
+	entries := unwrapped(cerrors.Errors(err))
 	var out []*Error
 	for i := 0; i < len(entries); i++ {
 		e := entries[i]
@@ -164,6 +169,25 @@ func (ctx Context) generic(e cerrors.Error) *B {
 	if ctx.AddressOf != nil {
 		if a, ok := ctx.AddressOf(ctx.path(e)); ok {
 			b.Addr(a)
+			// CUE's text, with the path it names written as the author's.
+			if raw := strings.Join(e.Path(), ".") + ": "; len(e.Path()) > 0 {
+				if rest, ok := strings.CutPrefix(e.Error(), raw); ok {
+					b.Detail(strings.Join(ctx.vocab().Path(a), ".") + ": " + rest)
+				}
+			}
+			if ctx.Op == OpTranslate {
+				switch code {
+				case E0307:
+					b.Headlinef("%s is not concrete for this instance", ctx.vocab().Term(a))
+				default:
+					b.Headlinef("%s failed for this instance", ctx.vocab().Term(a))
+				}
+			}
+		}
+	}
+	if ctx.PreferSource && ctx.SourceValue != nil {
+		if p, _, ok := ctx.authorPosAlong(ctx.path(e)); ok {
+			b.At(p)
 		}
 	}
 	ctx.place(b, ctx.path(e), positionsOf(e), "")
@@ -266,6 +290,11 @@ func (ctx Context) place(b *B, path []string, ps []token.Pos, label string) {
 		if p == primary || noted[p] {
 			continue
 		}
+		if label == "" && primary.IsValid() && p.Filename() == primary.Filename() && p.Line() == primary.Line() {
+			// The same declaration as the primary, seen from its value rather
+			// than its label; a second mark on the line says nothing.
+			continue
+		}
 		kernel := OriginOf(p.Filename()) == OriginThema
 		data := ctx.IsData != nil && ctx.IsData(p.Filename())
 		if b.declareWith != "" && kernel {
@@ -301,6 +330,36 @@ func (ctx Context) authorPosAlong(path []string) (token.Pos, int, bool) {
 		}
 	}
 	return token.NoPos, 0, false
+}
+
+// unwrapped drops entries that only wrap another entry: CUE reports a failure
+// inside a builtin call both as itself and as "error in call to f: <itself>"
+// at the call. The inner entry says everything the wrapper does, at the
+// position that matters.
+func unwrapped(entries []cerrors.Error) []cerrors.Error {
+	// Compared without the path CUE prefixes each message with, since the
+	// wrapper and the inner error are at different paths.
+	texts := make([]string, len(entries))
+	for i, e := range entries {
+		texts[i] = e.Error()
+		if p := e.Path(); len(p) > 0 {
+			texts[i] = strings.TrimPrefix(texts[i], strings.Join(p, ".")+": ")
+		}
+	}
+	out := make([]cerrors.Error, 0, len(entries))
+	for i, e := range entries {
+		wrapper := false
+		for j, inner := range texts {
+			if i != j && inner != "" && len(texts[i]) > len(inner) && strings.HasSuffix(texts[i], inner) {
+				wrapper = true
+				break
+			}
+		}
+		if !wrapper {
+			out = append(out, e)
+		}
+	}
+	return out
 }
 
 // positionsOf returns an entry's positions, its own first, without

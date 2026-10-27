@@ -11,6 +11,7 @@ import (
 	"github.com/sdboyer/thema/internal/compat"
 	"github.com/sdboyer/thema/internal/cuetil"
 	"github.com/sdboyer/thema/internal/lenscheck"
+	"github.com/sdboyer/thema/internal/util"
 )
 
 // This file is where thema's Go knows the normal form's layout for the sake of
@@ -332,6 +333,107 @@ func lensAddress(path string, from, to SyntacticVersion) diag.Address {
 		}
 	}
 	return a
+}
+
+// translateContext is what diag needs to describe a failure of thema's CUE
+// Translate over out, its output: the error paths run through the kernel's
+// accumulator, out.steps._accum[N].result.<p>, and the author's value for
+// such a path is step N's lens result at <p>, which the lineage author wrote.
+func (lin *baseLineage) translateContext(out cue.Value) diag.Context {
+	steps := out.LookupPath(cue.MakePath(cue.Str("steps")))
+	// When a step fails, steps itself is an error (list.Drop over the
+	// accumulator fails), so the accumulator is read directly.
+	accum := steps.LookupPath(cue.MakePath(cue.Hid("_accum", util.ThemaPackageID)))
+	lensPath := cue.MakePath(cue.Hid("_lens", util.ThemaPackageID))
+
+	// step returns the translation step an error path names, as the kernel
+	// evaluated it, and the field path below its result: steps.N is step N,
+	// and steps._accum.N is accumulator entry N, which is step N-1.
+	step := func(path []string) (cue.Value, []string, bool) {
+		for i, s := range path {
+			if s != "steps" || i+1 >= len(path) {
+				continue
+			}
+			var st cue.Value
+			var rest []string
+			if path[i+1] == "_accum" && i+2 < len(path) {
+				n, err := strconv.Atoi(path[i+2])
+				if err != nil || n < 1 {
+					return cue.Value{}, nil, false
+				}
+				st, rest = accum.LookupPath(cue.MakePath(cue.Index(n))), path[i+3:]
+			} else {
+				n, err := strconv.Atoi(path[i+1])
+				if err != nil {
+					return cue.Value{}, nil, false
+				}
+				st, rest = steps.LookupPath(cue.MakePath(cue.Index(n))), path[i+2:]
+			}
+			if !st.Exists() {
+				return cue.Value{}, nil, false
+			}
+			if len(rest) > 0 && rest[0] == "result" {
+				rest = rest[1:]
+			}
+			return st, rest, true
+		}
+		return cue.Value{}, nil, false
+	}
+	edge := func(st cue.Value) (from, to SyntacticVersion, ok bool) {
+		if st.LookupPath(cue.MakePath(cue.Str("from"))).Decode(&from) != nil {
+			return from, to, false
+		}
+		if st.LookupPath(cue.MakePath(cue.Str("to"))).Decode(&to) != nil {
+			return from, to, false
+		}
+		return from, to, true
+	}
+
+	return diag.Context{
+		Op:           diag.OpTranslate,
+		Vocabulary:   lin.vocab,
+		Generic:      diag.E0308,
+		PreferSource: true,
+		SourceValue: func(path []string) (cue.Value, bool) {
+			st, field, ok := step(path)
+			if !ok {
+				return cue.Value{}, false
+			}
+			lens := st.LookupPath(lensPath)
+			if !lens.Exists() {
+				// A minor step has no lens; its result is the prior one.
+				return cue.Value{}, false
+			}
+			v := lens.LookupPath(cue.MakePath(cue.Str("result"))).LookupPath(fieldPath(field))
+			if !v.Exists() {
+				return cue.Value{}, false
+			}
+			// The lens as thema evaluated it has the kernel's conjuncts; the
+			// author's are on the lineage's own copy of the lens.
+			if from, to, ok := edge(st); ok {
+				own := lin.uni.LookupPath(cue.MakePath(cue.Str("lenses"), cue.Str(lid(from, to).String()), cue.Str("result"))).LookupPath(fieldPath(field))
+				if own.Exists() {
+					return own, true
+				}
+			}
+			return v, true
+		},
+		AddressOf: func(path []string) (diag.Address, bool) {
+			st, field, ok := step(path)
+			if !ok {
+				return diag.Address{}, false
+			}
+			from, to, ok := edge(st)
+			if !ok {
+				return diag.Address{}, false
+			}
+			a := diag.Address{Kind: diag.AddrLensResult, From: diag.Version(from), To: diag.Version(to)}
+			if len(field) > 0 {
+				a.Kind, a.Field = diag.AddrLensResultField, field
+			}
+			return a, true
+		},
+	}
 }
 
 // pathSegments renders a CUE path's selectors as segments: string labels

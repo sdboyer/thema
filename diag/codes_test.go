@@ -236,6 +236,51 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 		}
 		return diag.Diagnostics(err)
 	},
+	// translate: bind lineage.cue (with #skip-buggy-checks, when the totality
+	// checker would refuse the lens at bind), validate data.json against
+	// #from, and translate it to #to.
+	"translate": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {
+		dirs, _ := a.Directives()
+		ctx := cuecontext.New()
+		rt := thema.NewRuntime(ctx)
+		src, ok := a.File("lineage.cue")
+		if !ok {
+			t.Fatal("translate needs lineage.cue")
+		}
+		var opts []thema.BindOption
+		if dirs["skip-buggy-checks"] == "true" {
+			opts = append(opts, thema.SkipBuggyChecks())
+		}
+		lin, err := thema.BindLineage(ctx.CompileString(src, cue.Filename("lineage.cue")), rt, opts...)
+		if err != nil {
+			t.Fatalf("lineage.cue does not bind: %v", err)
+		}
+		from, err := thema.ParseSyntacticVersion(dirs["from"])
+		if err != nil {
+			t.Fatal(err)
+		}
+		to, err := thema.ParseSyntacticVersion(dirs["to"])
+		if err != nil {
+			t.Fatal(err)
+		}
+		text, ok := a.File("data.json")
+		if !ok {
+			t.Fatal("translate needs data.json")
+		}
+		expr, err := cjson.Extract("data.json", []byte(text))
+		if err != nil {
+			t.Fatal(err)
+		}
+		inst, err := thema.SchemaP(lin, from).Validate(ctx.BuildExpr(expr))
+		if err != nil {
+			t.Fatalf("data.json is not an instance of %s: %v", from, err)
+		}
+		_, _, err = inst.Translate(to)
+		if err == nil {
+			t.Fatal("the instance translated")
+		}
+		return diag.Diagnostics(err)
+	},
 	// append-only: bind old.cue and new.cue and check that new only appends
 	// to old (thema.IsAppendOnly).
 	"append-only": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {

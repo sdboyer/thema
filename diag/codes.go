@@ -78,6 +78,8 @@ var Codes = []CodeInfo{
 	{Code: E0303, Severity: SeverityError, Title: "a lens does not accept every instance of its source schema", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
 	{Code: E0304, Severity: SeverityError, Title: "what a lens produces is not an instance of its target schema", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
 	{Code: E0305, Severity: SeverityError, Title: "a lens writes a field its target schema does not declare", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0307, Severity: SeverityError, Title: "translating an instance, a lens produced something that is not concrete", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrLensIncomplete}},
+	{Code: E0308, Severity: SeverityError, Title: "translating an instance, a lens failed", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0360, Severity: SeverityError, Title: "a lens copies a value its target rejects for some instance", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
 	{Code: E0361, Severity: SeverityError, Title: "a lens reads a field that may be absent", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
 	{Code: E0362, Severity: SeverityError, Title: "a lens reads a field its source schema does not declare", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
@@ -167,6 +169,11 @@ const (
 	E0303 Code = "E0303" // input narrower than the source schema
 	E0304 Code = "E0304" // result not an instance of the target schema, data-independently
 	E0305 Code = "E0305" // result writes fields the target does not declare
+	// E0307 and E0308 arise when translating an instance, for a lens the
+	// totality checker did not refuse at bind: under SkipBuggyChecks, or for
+	// what the checker cannot yet see. Every one is a lens bug (#57).
+	E0307 Code = "E0307" // the lens's result for this instance is not concrete
+	E0308 Code = "E0308" // the lens failed to evaluate for this instance
 	// E0360 to E0372: one per rule of internal/lenscheck that refutes totality;
 	// E0380 to E0390: one per rule that leaves the verdict Unknown.
 	E0360 Code = "E0360" // copy-narrowed

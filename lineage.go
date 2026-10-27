@@ -36,6 +36,9 @@ type baseLineage struct {
 
 	// all the schemas
 	allsch []*schemaDef
+
+	// vocab renders diagnostics about this lineage in the author's terms
+	vocab diag.Vocabulary
 }
 
 // BindLineage takes a raw [cue.Value], checks that it correctly follows Thema's
@@ -152,6 +155,7 @@ func BindLineage(v cue.Value, rt *Runtime, opts ...BindOption) (Lineage, error) 
 		uni:       ml.uni,
 		allsch:    ml.schlist,
 		allv:      ml.allv,
+		vocab:     ml.vocab(),
 	}
 
 	for _, sch := range lin.allsch {

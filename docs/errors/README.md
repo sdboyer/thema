@@ -57,6 +57,8 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0303](E0303.md) | error | a lens does not accept every instance of its source schema |
 | [E0304](E0304.md) | error | what a lens produces is not an instance of its target schema |
 | [E0305](E0305.md) | error | a lens writes a field its target schema does not declare |
+| [E0307](E0307.md) | error | translating an instance, a lens produced something that is not concrete |
+| [E0308](E0308.md) | error | translating an instance, a lens failed |
 | [E0360](E0360.md) | error | a lens copies a value its target rejects for some instance |
 | [E0361](E0361.md) | error | a lens reads a field that may be absent |
 | [E0362](E0362.md) | error | a lens reads a field its source schema does not declare |
