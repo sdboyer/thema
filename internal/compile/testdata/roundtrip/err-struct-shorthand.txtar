@@ -1,0 +1,26 @@
+CUE's struct shorthand, a: b: c, in a schema and in a lens body. A version
+file writes every struct with its braces; the shorthand is refused wherever
+it appears, and Format expands it.
+-- ship/history/0.0.thema --
+schema: {
+	meta: owner: string
+}
+-- ship/1.0.thema --
+schema: {
+	meta: {
+		owner: string
+		team:  string
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: meta: team: "unassigned"
+}
+-- out/error --
+v1_0: meta: ... is CUE's struct shorthand, which a version file does not use: write v1_0: {meta: ...}:
+    1.0.thema:10:8
+meta: team: ... is CUE's struct shorthand, which a version file does not use: write meta: {team: ...}:
+    1.0.thema:10:14
+meta: owner: ... is CUE's struct shorthand, which a version file does not use: write meta: {owner: ...}:
+    history/0.0.thema:2:8
