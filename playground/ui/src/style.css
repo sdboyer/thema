@@ -22,8 +22,11 @@
   --syn-meta: #9a3b6e;
   --syn-punctuation: #57606a;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  /* Code in the editors, diagnostics and tooltips. Sizes are relative to the
+     browser's own font size, so its setting and zoom carry through. */
+  --code-size: .9375rem;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  font-size: 14px;
+  font-size: 100%;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -76,7 +79,7 @@ header {
   display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
   padding: .5rem .75rem; border-bottom: 1px solid var(--border); background: var(--panel);
 }
-header h1 { font-size: 1rem; margin: 0 .5rem 0 0; }
+header h1 { font-size: 1.1rem; margin: 0 .5rem 0 0; }
 header .version { margin-left: auto; color: var(--muted); font-size: .85em; }
 .notice { padding: .4rem .75rem; background: var(--panel); border-bottom: 1px solid var(--border); }
 
@@ -93,7 +96,7 @@ section { display: flex; flex-direction: column; min-height: 0; min-width: 0; bo
 .tabs { display: flex; flex-wrap: wrap; gap: 2px; padding: 4px 6px 0; border-bottom: 1px solid var(--border); background: var(--panel); }
 .tab { display: inline-flex; align-items: center; border: 1px solid var(--border); border-bottom: none; border-radius: 4px 4px 0 0; background: var(--panel); }
 .tab.active { background: var(--bg); }
-.tab button { border: none; background: none; font-family: var(--mono); font-size: .85em; }
+.tab button { border: none; background: none; font-family: var(--mono); font-size: .9em; }
 .tab .close { color: var(--muted); padding: 0 6px 0 0; }
 .tabs .add { border: none; background: none; color: var(--muted); }
 .flag { color: var(--error); margin-right: 4px; font-size: .7em; vertical-align: middle; }
@@ -110,7 +113,7 @@ section { display: flex; flex-direction: column; min-height: 0; min-width: 0; bo
 .status.ok { color: var(--ok); }
 .status.failed { color: var(--error); }
 
-.diagnostics { list-style: none; margin: 0; padding: 0; font-family: var(--mono); font-size: 12.5px; }
+.diagnostics { list-style: none; margin: 0; padding: 0; font-family: var(--mono); font-size: var(--code-size); }
 .diagnostic { padding: .5rem .75rem; border-bottom: 1px solid var(--border); }
 .diagnostic .headline { font-weight: 600; white-space: pre-wrap; }
 .diagnostic.error .code { color: var(--error); }

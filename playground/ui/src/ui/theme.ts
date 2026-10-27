@@ -33,7 +33,7 @@ export const highlight = HighlightStyle.define([
 ]);
 
 const spec = {
-  "&": { height: "100%", fontSize: "13px", color: "var(--text)", backgroundColor: "var(--bg)" },
+  "&": { height: "100%", fontSize: "var(--code-size)", color: "var(--text)", backgroundColor: "var(--bg)" },
   ".cm-scroller": { fontFamily: "var(--mono)", lineHeight: "1.5" },
   ".cm-content": { caretColor: "var(--text)" },
   ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--text)" },
@@ -44,7 +44,7 @@ const spec = {
     background: "var(--selection)",
   },
   ".cm-tooltip": { background: "var(--panel)", color: "var(--text)", border: "1px solid var(--border)" },
-  ".cm-tooltip-lint": { fontFamily: "var(--mono)", fontSize: "12.5px" },
+  ".cm-tooltip-lint": { fontFamily: "var(--mono)", fontSize: "var(--code-size)" },
   ".cm-diagnostic": { whiteSpace: "pre-wrap" },
   ".cm-diagnosticSource": { color: "var(--muted)" },
   "&.cm-focused": { outline: "none" },
