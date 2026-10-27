@@ -3,12 +3,12 @@ evaluates when the field is absent, so it is refused; a condition may test
 the field's presence. Reading it under a presence test is for the slice that proves
 computed expressions.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	name:   string
 	count?: int
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	name:  string
 	count: int
 }

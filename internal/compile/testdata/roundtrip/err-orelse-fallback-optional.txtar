@@ -1,11 +1,11 @@
 orelse whose fallback is itself optional in the source.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	a?: string
 	b?: string
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	c: string
 }
 

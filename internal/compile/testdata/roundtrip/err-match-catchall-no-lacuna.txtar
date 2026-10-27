@@ -1,11 +1,11 @@
 A [_] arm without a lacuna: it collapses every unmapped value into one, and
 must say so.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	kind: string
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	kind: int
 }
 

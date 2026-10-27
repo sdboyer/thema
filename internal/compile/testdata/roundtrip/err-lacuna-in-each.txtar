@@ -2,13 +2,13 @@ A lacuna on a mapping inside an each body, which would have to aggregate over
 the list's elements like a drop's does. Not supported yet; only a
 DroppedField lacuna on a drop in the body is.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	items: [...{
 		title?: string
 	}]
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	items: [...{
 		name: string
 	}]
