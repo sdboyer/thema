@@ -1,0 +1,32 @@
+The forward lens maps an optional field (from.count, line 7 of 1.0) that the
+data lacks, so its result is incomplete.
+
+The evaluator positions this at the mapping itself, the most useful position of
+any case here. But Translate wraps it with fmt.Errorf and cerrors.Details, so
+the position survives only as text and the error carries none.
+-- ship/history/0.0.thema --
+schema: {
+	title: string
+	count?: int
+}
+-- ship/1.0.thema --
+schema: {
+	title: string
+	count: int & <10
+}
+
+forward: {
+	count: from.count
+}
+
+backward: {
+	count: to.count
+}
+-- data.json --
+{"title": "a"}
+-- out/error --
+lens produced a non-concrete result: Translate.out.steps.0.result.count: cannot reference optional field: count:
+    ship/1.0.thema:7:9
+-- out/positions --
+lens produced a non-concrete result: Translate.out.steps.0.result.count: cannot reference optional field: count:
+	no positions

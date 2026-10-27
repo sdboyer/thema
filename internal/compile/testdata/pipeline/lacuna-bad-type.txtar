@@ -1,0 +1,117 @@
+A lacuna type that isn't one of LacunaTypes ("Guess", line 9 of 1.0), caught by
+CUE in thema's kernel (Lacuna's type!: or([...])) as an empty disjunction.
+
+Each alternative is its own error, citing the authored value and four kernel
+positions. The summary error has no position.
+-- ship/history/0.0.thema --
+schema: {
+	title: string
+	count?: int
+}
+-- ship/1.0.thema --
+schema: {
+	title: string
+	count: int & <10
+}
+
+forward: {
+	count: from.count
+	lacuna: {
+		kind: "Guess"
+		target: "count"
+		message: "count is a placeholder"
+	}
+}
+
+backward: {
+	count: to.count
+}
+-- out/error --
+Lineage.lenses."0.0->1.0".lacunas.0.type: 7 errors in empty disjunction:
+Lineage.lenses."0.0->1.0".lacunas.0.type: conflicting values "AmbiguousMapping" and "Guess":
+    /github.com/sdboyer/thema/lacuna.cue:37:38
+    /github.com/sdboyer/thema/lacuna.cue:105:20
+    /github.com/sdboyer/thema/lineage.cue:99:16
+    /github.com/sdboyer/thema/lineage.cue:209:15
+    ship/1.0.thema:9:9
+Lineage.lenses."0.0->1.0".lacunas.0.type: conflicting values "ChangedDefault" and "Guess":
+    /github.com/sdboyer/thema/lacuna.cue:37:38
+    /github.com/sdboyer/thema/lacuna.cue:95:18
+    /github.com/sdboyer/thema/lineage.cue:99:16
+    /github.com/sdboyer/thema/lineage.cue:209:15
+    ship/1.0.thema:9:9
+Lineage.lenses."0.0->1.0".lacunas.0.type: conflicting values "Defaulted" and "Guess":
+    /github.com/sdboyer/thema/lacuna.cue:37:38
+    /github.com/sdboyer/thema/lacuna.cue:111:13
+    /github.com/sdboyer/thema/lineage.cue:99:16
+    /github.com/sdboyer/thema/lineage.cue:209:15
+    ship/1.0.thema:9:9
+Lineage.lenses."0.0->1.0".lacunas.0.type: conflicting values "DroppedField" and "Guess":
+    /github.com/sdboyer/thema/lacuna.cue:37:38
+    /github.com/sdboyer/thema/lacuna.cue:76:16
+    /github.com/sdboyer/thema/lineage.cue:99:16
+    /github.com/sdboyer/thema/lineage.cue:209:15
+    ship/1.0.thema:9:9
+Lineage.lenses."0.0->1.0".lacunas.0.type: conflicting values "LossyFieldMapping" and "Guess":
+    /github.com/sdboyer/thema/lacuna.cue:37:38
+    /github.com/sdboyer/thema/lacuna.cue:86:21
+    /github.com/sdboyer/thema/lineage.cue:99:16
+    /github.com/sdboyer/thema/lineage.cue:209:15
+    ship/1.0.thema:9:9
+Lineage.lenses."0.0->1.0".lacunas.0.type: conflicting values "Placeholder" and "Guess":
+    /github.com/sdboyer/thema/lacuna.cue:37:38
+    /github.com/sdboyer/thema/lacuna.cue:67:15
+    /github.com/sdboyer/thema/lineage.cue:99:16
+    /github.com/sdboyer/thema/lineage.cue:209:15
+    ship/1.0.thema:9:9
+Lineage.lenses."0.0->1.0".lacunas.0.type: conflicting values "PrecisionLoss" and "Guess":
+    /github.com/sdboyer/thema/lacuna.cue:37:38
+    /github.com/sdboyer/thema/lacuna.cue:100:17
+    /github.com/sdboyer/thema/lineage.cue:99:16
+    /github.com/sdboyer/thema/lineage.cue:209:15
+    ship/1.0.thema:9:9
+-- out/positions --
+Lineage.lenses."0.0->1.0".lacunas.0.type: 7 errors in empty disjunction:
+	no positions
+Lineage.lenses."0.0->1.0".lacunas.0.type: conflicting values "AmbiguousMapping" and "Guess"
+	kernel /github.com/sdboyer/thema/lacuna.cue:37:38
+	kernel /github.com/sdboyer/thema/lacuna.cue:105:20
+	kernel /github.com/sdboyer/thema/lineage.cue:99:16
+	kernel /github.com/sdboyer/thema/lineage.cue:209:15
+	authored ship/1.0.thema:9:9
+Lineage.lenses."0.0->1.0".lacunas.0.type: conflicting values "ChangedDefault" and "Guess"
+	kernel /github.com/sdboyer/thema/lacuna.cue:37:38
+	kernel /github.com/sdboyer/thema/lacuna.cue:95:18
+	kernel /github.com/sdboyer/thema/lineage.cue:99:16
+	kernel /github.com/sdboyer/thema/lineage.cue:209:15
+	authored ship/1.0.thema:9:9
+Lineage.lenses."0.0->1.0".lacunas.0.type: conflicting values "Defaulted" and "Guess"
+	kernel /github.com/sdboyer/thema/lacuna.cue:37:38
+	kernel /github.com/sdboyer/thema/lacuna.cue:111:13
+	kernel /github.com/sdboyer/thema/lineage.cue:99:16
+	kernel /github.com/sdboyer/thema/lineage.cue:209:15
+	authored ship/1.0.thema:9:9
+Lineage.lenses."0.0->1.0".lacunas.0.type: conflicting values "DroppedField" and "Guess"
+	kernel /github.com/sdboyer/thema/lacuna.cue:37:38
+	kernel /github.com/sdboyer/thema/lacuna.cue:76:16
+	kernel /github.com/sdboyer/thema/lineage.cue:99:16
+	kernel /github.com/sdboyer/thema/lineage.cue:209:15
+	authored ship/1.0.thema:9:9
+Lineage.lenses."0.0->1.0".lacunas.0.type: conflicting values "LossyFieldMapping" and "Guess"
+	kernel /github.com/sdboyer/thema/lacuna.cue:37:38
+	kernel /github.com/sdboyer/thema/lacuna.cue:86:21
+	kernel /github.com/sdboyer/thema/lineage.cue:99:16
+	kernel /github.com/sdboyer/thema/lineage.cue:209:15
+	authored ship/1.0.thema:9:9
+Lineage.lenses."0.0->1.0".lacunas.0.type: conflicting values "Placeholder" and "Guess"
+	kernel /github.com/sdboyer/thema/lacuna.cue:37:38
+	kernel /github.com/sdboyer/thema/lacuna.cue:67:15
+	kernel /github.com/sdboyer/thema/lineage.cue:99:16
+	kernel /github.com/sdboyer/thema/lineage.cue:209:15
+	authored ship/1.0.thema:9:9
+Lineage.lenses."0.0->1.0".lacunas.0.type: conflicting values "PrecisionLoss" and "Guess"
+	kernel /github.com/sdboyer/thema/lacuna.cue:37:38
+	kernel /github.com/sdboyer/thema/lacuna.cue:100:17
+	kernel /github.com/sdboyer/thema/lineage.cue:99:16
+	kernel /github.com/sdboyer/thema/lineage.cue:209:15
+	authored ship/1.0.thema:9:9
