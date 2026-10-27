@@ -8,6 +8,7 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/ast"
 	"cuelang.org/go/cue/ast/astutil"
+	"cuelang.org/go/cue/literal"
 	"cuelang.org/go/cue/token"
 )
 
@@ -127,11 +128,22 @@ func (t *Tree) conjuncts(x ast.Expr, via *ast.Field, seen map[ast.Node]bool) []C
 			})
 		}
 	case *ast.IndexExpr:
-		if lit, ok := e.Index.(*ast.BasicLit); ok && lit.Kind == token.INT {
-			if i, err := strconv.Atoi(lit.Value); err == nil {
-				return t.selectAll(t.conjuncts(e.X, via, seen), x, func(s ast.Expr) []Conjunct {
-					return t.selectElem(s, i, seen)
-				})
+		if lit, ok := e.Index.(*ast.BasicLit); ok {
+			switch lit.Kind {
+			case token.INT:
+				if i, err := strconv.Atoi(lit.Value); err == nil {
+					return t.selectAll(t.conjuncts(e.X, via, seen), x, func(s ast.Expr) []Conjunct {
+						return t.selectElem(s, i, seen)
+					})
+				}
+			case token.STRING:
+				// x["name"] selects the field x.name; a quoted label is how a
+				// name that is not an identifier is selected.
+				if name, err := literal.Unquote(lit.Value); err == nil {
+					return t.selectAll(t.conjuncts(e.X, via, seen), x, func(s ast.Expr) []Conjunct {
+						return t.selectField(s, name, seen)
+					})
+				}
 			}
 		}
 	}
@@ -343,6 +355,7 @@ type FieldDecl struct {
 func FieldDecls(decls []ast.Decl, embedded func(ast.Expr) []ast.Expr) []FieldDecl {
 	var out []FieldDecl
 	var walk func(decls []ast.Decl, cond bool)
+	var embed func(x ast.Expr, cond bool)
 	walk = func(decls []ast.Decl, cond bool) {
 		for _, d := range decls {
 			switch x := d.(type) {
@@ -353,11 +366,19 @@ func FieldDecls(decls []ast.Decl, embedded func(ast.Expr) []ast.Expr) []FieldDec
 					walk(s.Elts, true)
 				}
 			case *ast.EmbedDecl:
-				for _, e := range embedded(x.Expr) {
-					if s, ok := e.(*ast.StructLit); ok {
-						walk(s.Elts, cond)
-					}
-				}
+				embed(x.Expr, cond)
+			case ast.Expr:
+				// The exporter writes an embedding beside a comprehension as a bare
+				// expression declaration rather than an *ast.EmbedDecl (see the
+				// comprehensions golden, embedBesideComprehension).
+				embed(x, cond)
+			}
+		}
+	}
+	embed = func(x ast.Expr, cond bool) {
+		for _, e := range embedded(x) {
+			if s, ok := e.(*ast.StructLit); ok {
+				walk(s.Elts, cond)
 			}
 		}
 	}
@@ -377,6 +398,14 @@ func soleEmbed(decls []ast.Decl) ast.Expr {
 				return nil
 			}
 			embed = e.Expr
+		case *ast.Comprehension:
+			return nil
+		case ast.Expr:
+			// A bare expression declaration is an embedding too (see FieldDecls).
+			if embed != nil {
+				return nil
+			}
+			embed = e
 		default:
 			return nil
 		}

@@ -1,0 +1,16 @@
+# A lacuna field value that is an expression the checker cannot prove evaluates.
+-- source.cue --
+a!: int
+-- target.cue --
+b!: int
+-- lens.cue --
+v0_0: _
+v1_0: {b: v0_0.a}
+lacunas: [{
+	sourceFields: [{path: "a", value: v0_0.a + "x"}]
+	message: "m"
+	type:    "DroppedField"
+}]
+-- out --
+unknown
+lacunas[0].sourceFields[0].value applies + to an integer in [-inf, +inf] and a string (rule unknown-op) @ lens.cue:4:36

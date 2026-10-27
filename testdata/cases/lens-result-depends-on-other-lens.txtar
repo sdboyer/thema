@@ -1,6 +1,6 @@
 # lens result is read from another lens (via the lineage path) rather than from
-# its own input: what it reads is that lens's input default, a disjunction, not
-# a value
+# its own input: that lens constrains the field it takes with a default, which is refused
+# on its own; what the reading lens would see is that disjunction, not a value
 #issue: 20
 -- in.cue --
 import (
@@ -19,7 +19,7 @@ lin: thema.Lineage & {
 	}
 	lenses: {
 		"1.0->0.0": {
-			v1_0: {b: *"default-from-lens-input" | string}
+			v1_0: {b: *"default-from-lens-v1_0" | string}
 			v0_0: {a: v1_0.b}
 		}
 		"0.0->1.0": {
@@ -29,4 +29,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail not-a-value
+bind fail source-constrained
