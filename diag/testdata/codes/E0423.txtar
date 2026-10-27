@@ -16,7 +16,7 @@ ForwardLens: {
 	v0_0: _
 	v1_0: {
 		name:  v0_0.name
-		count: drop(v0_0.count)
+		count: _drop(v0_0.count)
 	}
 	lacunas: {
 		count: [{
@@ -39,7 +39,7 @@ BackwardLens: {
     {
       "code": "E0418",
       "severity": "error",
-      "headline": "drop is not defined in a lens; an expression refers to v0_0, to len, quo, rem, div, mod and to the strings functions",
+      "headline": "_drop is not defined in a lens; an expression refers to v0_0, to len, quo, rem, div, mod and to the strings functions",
       "primary": {
         "file": "1.0.thema",
         "line": 9,
@@ -56,7 +56,7 @@ BackwardLens: {
         "file": "1.0.thema",
         "line": 15,
         "col": 13,
-        "offset": 205,
+        "offset": 206,
         "origin": "user"
       },
       "notes": [
@@ -71,7 +71,7 @@ BackwardLens: {
     {
       "code": "E0347",
       "severity": "error",
-      "headline": "0.0 declares count and 1.0 does not, and nothing maps it: write <field>: v0_0.count to move it, or count: drop",
+      "headline": "0.0 declares count and 1.0 does not, and nothing maps it: write <field>: v0_0.count to move it, or count: _drop",
       "primary": {
         "file": "1.0.thema",
         "line": 5,
@@ -88,11 +88,11 @@ BackwardLens: {
   }
 }
 -- out/text --
-error[E0418]: drop is not defined in a lens; an expression refers to v0_0, to len, quo, rem, div, mod and to the strings functions
+error[E0418]: _drop is not defined in a lens; an expression refers to v0_0, to len, quo, rem, div, mod and to the strings functions
  --> 1.0.thema:9:10
   |
-9 |         count: drop(v0_0.count)
-  |                ^^^^
+9 |         count: _drop(v0_0.count)
+  |                ^^^^^
   |
 
 error[E0423]: this condition tests the presence of v0_0.count, which it also reads
@@ -104,7 +104,7 @@ error[E0423]: this condition tests the presence of v0_0.count, which it also rea
    = note: a condition reading an optional field concerns only the instances that have it, so testing its presence says nothing more
    = help: drop the presence test; to test presence alone, write when: v0_0.count
 
-error[E0347]: 0.0 declares count and 1.0 does not, and nothing maps it: write <field>: v0_0.count to move it, or count: drop
+error[E0347]: 0.0 declares count and 1.0 does not, and nothing maps it: write <field>: v0_0.count to move it, or count: _drop
  --> 1.0.thema:5:1
   |
 5 | ForwardLens: {

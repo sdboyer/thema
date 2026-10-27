@@ -47,7 +47,7 @@ BackwardLens: {
     {
       "code": "E0347",
       "severity": "error",
-      "headline": "0.0 declares count and 1.0 does not, and nothing maps it: write <field>: v0_0.count to move it, or count: drop",
+      "headline": "0.0 declares count and 1.0 does not, and nothing maps it: write <field>: v0_0.count to move it, or count: _drop",
       "primary": {
         "file": "1.0.thema",
         "line": 5,
@@ -72,7 +72,7 @@ error[E0357]: strings.Reverse is not a function a lens may call
   |
   = help: the strings functions a lens may call are strings.Contains, strings.HasPrefix, strings.HasSuffix, strings.Replace, strings.ToLower, strings.ToUpper, strings.Trim, strings.TrimLeft, strings.TrimPrefix, strings.TrimRight, strings.TrimSpace, strings.TrimSuffix
 
-error[E0347]: 0.0 declares count and 1.0 does not, and nothing maps it: write <field>: v0_0.count to move it, or count: drop
+error[E0347]: 0.0 declares count and 1.0 does not, and nothing maps it: write <field>: v0_0.count to move it, or count: _drop
  --> 1.0.thema:5:1
   |
 5 | ForwardLens: {

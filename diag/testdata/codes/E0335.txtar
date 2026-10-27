@@ -13,7 +13,7 @@ Schema: {
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		b: orelse(v0_0.a)
+		b: _orelse(v0_0.a)
 	}
 }
 -- out/json --
@@ -22,7 +22,7 @@ ForwardLens: {
     {
       "code": "E0335",
       "severity": "error",
-      "headline": "orelse takes two arguments: orelse(v0_0.<path>, fallback)",
+      "headline": "_orelse takes two arguments: _orelse(v0_0.<path>, fallback)",
       "primary": {
         "file": "1.0.thema",
         "line": 8,
@@ -34,7 +34,7 @@ ForwardLens: {
     {
       "code": "E0347",
       "severity": "error",
-      "headline": "0.0 declares a and 1.0 does not, and nothing maps it: write <field>: v0_0.a to move it, or a: drop",
+      "headline": "0.0 declares a and 1.0 does not, and nothing maps it: write <field>: v0_0.a to move it, or a: _drop",
       "primary": {
         "file": "1.0.thema",
         "line": 5,
@@ -51,14 +51,14 @@ ForwardLens: {
   }
 }
 -- out/text --
-error[E0335]: orelse takes two arguments: orelse(v0_0.<path>, fallback)
+error[E0335]: _orelse takes two arguments: _orelse(v0_0.<path>, fallback)
  --> 1.0.thema:8:6
   |
-8 |         b: orelse(v0_0.a)
-  |            ^^^^^^
+8 |         b: _orelse(v0_0.a)
+  |            ^^^^^^^
   |
 
-error[E0347]: 0.0 declares a and 1.0 does not, and nothing maps it: write <field>: v0_0.a to move it, or a: drop
+error[E0347]: 0.0 declares a and 1.0 does not, and nothing maps it: write <field>: v0_0.a to move it, or a: _drop
  --> 1.0.thema:5:1
   |
 5 | ForwardLens: {

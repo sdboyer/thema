@@ -12,13 +12,13 @@ Schema: {
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		c: orelse(v0_0.a, v0_0.b)
+		c: _orelse(v0_0.a, v0_0.b)
 	}
 }
 -- out/error --
-error[E0349]: b is optional in 0.0, so it cannot be orelse's fallback: the fallback must always exist
- --> 1.0.thema:8:21
+error[E0349]: b is optional in 0.0, so it cannot be _orelse's fallback: the fallback must always exist
+ --> 1.0.thema:8:22
   |
-8 |         c: orelse(v0_0.a, v0_0.b)
-  |                           ^^^^
+8 |         c: _orelse(v0_0.a, v0_0.b)
+  |                            ^^^^
   |

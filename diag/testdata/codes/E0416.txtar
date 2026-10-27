@@ -14,7 +14,7 @@ Schema: {
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		b: drop
+		b: _drop
 	}
 	lacunas: {
 		b: [{
@@ -39,12 +39,12 @@ BackwardLens: {
     {
       "code": "E0416",
       "severity": "error",
-      "headline": "lacunas.b: a drop has one DroppedField lacuna, which refines the one it derives",
+      "headline": "lacunas.b: a _drop has one DroppedField lacuna, which refines the one it derives",
       "primary": {
         "file": "1.0.thema",
         "line": 14,
         "col": 6,
-        "offset": 144,
+        "offset": 145,
         "origin": "user"
       }
     }
@@ -56,7 +56,7 @@ BackwardLens: {
   }
 }
 -- out/text --
-error[E0416]: lacunas.b: a drop has one DroppedField lacuna, which refines the one it derives
+error[E0416]: lacunas.b: a _drop has one DroppedField lacuna, which refines the one it derives
   --> 1.0.thema:14:6
    |
 14 |         }, {

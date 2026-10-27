@@ -21,22 +21,25 @@
 //	kind:  "v2"                             // a constant
 //	area:  v0_0.w * v0_0.h                  // a computed value
 //	meta: {owner: v0_0.name}                // a nested body; {v0_0.m, x: 1} copies from m
-//	legacy: drop                            // a drop, keyed by the source field
-//	nick:  orelse(v0_0.nick, v0_0.name)     // an optional source: the fallback when absent
-//	kind:  match(v0_0.kind, {"a": 1, [_]: 0})      // a match on the value, with an optional [_] arm
-//	items: each(v0_0.items, {name: item.title})    // a list, mapped element by element
+//	legacy: _drop                           // a drop, keyed by the source field
+//	nick:  _orelse(v0_0.nick, v0_0.name)    // an optional source: the fallback when absent
+//	kind:  _match(v0_0.kind, {"a": 1, [_]: 0})     // a match on the value, with an optional [_] arm
+//	items: _each(v0_0.items, {name: _item.title})  // a list, mapped element by element
+//
+// The operations and _item start with _, a hidden identifier in CUE: a lens
+// body declares no hidden field (E0333), so nothing in it can shadow them.
 //
 // A field both schemas declare, that no entry mentions, is copied. A reference
 // to an optional source field is copied only when present; where the target
-// requires the field, orelse says what to use instead. A match's arms map
+// requires the field, _orelse says what to use instead. A match's arms map
 // values to constants; a value no arm matches passes through where the target
 // accepts it, else the [_] arm applies, which must have a lacuna; without one,
-// the arms must be exhaustive: every source value matched or accepted. An each body is a lens body over item. A field
+// the arms must be exhaustive: every source value matched or accepted. An _each body is a lens body over _item. A field
 // the forward direction's source has and its target lacks must be mapped or
 // dropped. A required target field must be produced. The backward lens is
 // derived from the forward lens (the inverse of each single-use move, and a
 // drop of each field the version added, with a derived lacuna); what the
-// author writes in BackwardLens overrides it. orelse, match and each have no
+// author writes in BackwardLens overrides it. _orelse, _match and _each have no
 // derived inverse. A minor version, which the compatibility check derives,
 // has no forward lens and its file is usually just its schema.
 //
@@ -49,7 +52,7 @@
 //	}
 //
 // Without a when, a lacuna applies under the condition its mapping implies:
-// always, for a move or a constant; when the fallback is used, for an orelse;
+// always, for a move or a constant; when the fallback is used, for an _orelse;
 // when the [_] arm applies, for a match; when the field is present, for a
 // drop. A DroppedField lacuna on a drop refines the derived one's message. A
 // when replaces the implied condition. It compares and combines source
@@ -65,7 +68,7 @@
 // (lenscheck.Builtins and lenscheck.StringFuncs, the one list of each); the
 // file needs no import for strings. A computed value that reads optional
 // fields is written only where they are present, so a target field that
-// requires it takes orelse(<expression>, fallback), which uses the fallback
+// requires it takes _orelse(<expression>, fallback), which uses the fallback
 // where any of them is absent.
 //
 // # Layout

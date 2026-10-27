@@ -19,9 +19,9 @@ Schema: {
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		items: each(v0_0.items, {
-			name:   item.title
-			legacy: drop
+		items: _each(v0_0.items, {
+			name:   _item.title
+			legacy: _drop
 		})
 	}
 	lacunas: {
@@ -37,8 +37,8 @@ ForwardLens: {
 BackwardLens: {
 	v1_0: _
 	v0_0: {
-		items: each(v1_0.items, {
-			title: item.name
+		items: _each(v1_0.items, {
+			title: _item.name
 		})
 	}
 }
@@ -52,9 +52,9 @@ Schema: {
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		items: each(v0_0.items, {
-			name:   item.title
-			legacy: drop
+		items: _each(v0_0.items, {
+			name:   _item.title
+			legacy: _drop
 		})
 	}
 	lacunas: {
@@ -70,7 +70,7 @@ ForwardLens: {
 BackwardLens: {
 	v1_0: _
 	v0_0: {
-		items: each(v1_0.items, {title: item.name})
+		items: _each(v1_0.items, {title: _item.name})
 	}
 }
 -- out/decompiled/history/0.0.thema --
@@ -106,13 +106,13 @@ schemas: {
 lenses: {
 	"0.0->1.0": {
 		v0_0: _
-		let _d_0 = [for i, item in v0_0.items if item.legacy != _|_ {
+		let _d_0 = [for i, _item in v0_0.items if _item.legacy != _|_ {
 			path:  "items[\(i)].legacy"
-			value: item.legacy
+			value: _item.legacy
 		}]
 		v1_0: {
-			items: [for item in v0_0.items {
-				name: item.title
+			items: [for _item in v0_0.items {
+				name: _item.title
 			}]
 		}
 		lacunas: [{
@@ -126,8 +126,8 @@ lenses: {
 	"1.0->0.0": {
 		v1_0: _
 		v0_0: {
-			items: [for item in v1_0.items {
-				title: item.name
+			items: [for _item in v1_0.items {
+				title: _item.name
 			}]
 		}
 	}

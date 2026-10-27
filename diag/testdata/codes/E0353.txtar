@@ -14,7 +14,7 @@ Schema: {
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		names: each(v0_0.name, {
+		names: _each(v0_0.name, {
 			item
 		})
 	}
@@ -25,7 +25,7 @@ ForwardLens: {
     {
       "code": "E0353",
       "severity": "error",
-      "headline": "each maps a list to a list; 0.0's name and 1.0's names must both be lists",
+      "headline": "_each maps a list to a list; 0.0's name and 1.0's names must both be lists",
       "primary": {
         "file": "1.0.thema",
         "line": 8,
@@ -42,9 +42,9 @@ ForwardLens: {
   }
 }
 -- out/text --
-error[E0353]: each maps a list to a list; 0.0's name and 1.0's names must both be lists
+error[E0353]: _each maps a list to a list; 0.0's name and 1.0's names must both be lists
  --> 1.0.thema:8:10
   |
-8 |         names: each(v0_0.name, {
-  |                ^^^^
+8 |         names: _each(v0_0.name, {
+  |                ^^^^^
   |

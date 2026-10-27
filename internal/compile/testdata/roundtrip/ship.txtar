@@ -27,7 +27,7 @@ ForwardLens: {
 BackwardLens: {
 	v1_0: _
 	v0_0: {
-		secondfield: drop
+		secondfield: _drop
 	}
 	lacunas: {
 		secondfield: [{
@@ -61,7 +61,7 @@ ForwardLens: {
 BackwardLens: {
 	v1_0: _
 	v0_0: {
-		secondfield: drop
+		secondfield: _drop
 	}
 	lacunas: {
 		secondfield: [{
