@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>thema playground</title>
+<style>
+  :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+  body { margin: 0 auto; max-width: 72rem; padding: 1rem; }
+  textarea, pre { width: 100%; box-sizing: border-box; font: 13px/1.4 ui-monospace, monospace; }
+  textarea { height: 18rem; }
+  pre { white-space: pre-wrap; border: 1px solid #8884; padding: .5rem; min-height: 6rem; }
+  .row { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; margin: .5rem 0; }
+  #status { opacity: .7; }
+</style>
+</head>
+<body>
+<h1>thema playground</h1>
+<p>A placeholder for the playground's interface: it calls thema's operations
+directly. Pick an example to fill in a request, choose an operation, and run
+it.</p>
+<div class="row">
+  <label>Example <select id="example"><option value="">loading…</option></select></label>
+  <label>Operation <select id="op"></select></label>
+  <button id="run" disabled>Run</button>
+  <span id="status">loading thema.wasm…</span>
+</div>
+<textarea id="request" spellcheck="false">{}</textarea>
+<h2>Response</h2>
+<pre id="response"></pre>
+<script>
+  const worker = new Worker("worker.js");
+  let id = 0;
+  const pending = new Map();
+  worker.onmessage = (e) => {
+    const { id, response, error, ready } = e.data;
+    if (ready) return onReady(ready);
+    const p = pending.get(id);
+    pending.delete(id);
+    error ? p.reject(new Error(error)) : p.resolve(response);
+  };
+  const call = (op, req) => new Promise((resolve, reject) => {
+    pending.set(++id, { resolve, reject });
+    worker.postMessage({ id, op, request: JSON.stringify(req) });
+  });
+  const $ = (s) => document.querySelector(s);
+
+  async function onReady(init) {
+    $("#status").textContent = `thema ${init.themaVersion}, CUE ${init.cueVersion}`;
+    for (const op of init.ops) $("#op").add(new Option(op, op));
+    $("#op").value = "bind";
+    const ex = JSON.parse(await call("examples", {}));
+    $("#example").innerHTML = "<option value=''>(none)</option>";
+    for (const e of ex.examples) $("#example").add(new Option(`${e.category}: ${e.title}`, e.id));
+    $("#run").disabled = false;
+  }
+
+  $("#example").onchange = async () => {
+    const id = $("#example").value;
+    if (!id) return;
+    const ex = JSON.parse(await call("example", { id }));
+    const req = { lineage: ex.lineage };
+    if (ex.data.length) req.data = ex.data[0];
+    $("#request").value = JSON.stringify(req, null, 2);
+  };
+
+  $("#run").onclick = async () => {
+    let req;
+    try { req = JSON.parse($("#request").value); }
+    catch (e) { $("#response").textContent = `the request is not JSON: ${e.message}`; return; }
+    const t = performance.now();
+    const resp = JSON.parse(await call($("#op").value, req));
+    $("#response").textContent = JSON.stringify(resp, null, 2);
+    $("#status").textContent = `${$("#op").value}: ${resp.ok ? "ok" : "failed"} in ${Math.round(performance.now() - t)} ms`;
+  };
+</script>
+</body>
+</html>

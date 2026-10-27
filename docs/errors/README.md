@@ -173,7 +173,13 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0613](E0613.md) | error | no data was given, or the data path cannot be read |
 | [E0614](E0614.md) | error | the data format flag names a format thema does not read |
 | [E0616](E0616.md) | error | a file cannot be written |
+| [E0617](E0617.md) | error | this thema was built without the playground |
+| [E0618](E0618.md) | error | the server cannot listen on the address |
 | [E0620](E0620.md) | error | a flag or argument is not valid |
+| [E0701](E0701.md) | error | generating code from the schema failed |
+| [E0801](E0801.md) | error | the playground request is malformed |
+| [E0802](E0802.md) | error | the playground request gives the lineage in neither form, or in both |
+| [E0803](E0803.md) | error | a version in the playground request is not a version |
 | [E0901](E0901.md) | error | thema failed internally |
 | [E0902](E0902.md) | error | CUE reported an error thema does not recognize |
 | [E0903](E0903.md) | error | thema reported an error that has no code |

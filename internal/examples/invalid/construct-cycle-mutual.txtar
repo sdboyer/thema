@@ -1,0 +1,30 @@
+# two definitions that refer to each other are a reference cycle (#78)
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+thema.Lineage & {
+	name: "cycleMutual"
+	schemas: "0": "0": {
+		schema: {
+			#A: {b?: #B}
+			#B: {a?: #A}
+			a: #A
+		}
+	}
+}
+-- out/bindfail --
+error[E0133]: schema 0.0 has a reference cycle: #B -> #A -> #B
+ --> /in.cue:7:9
+  |
+7 |             #A: {b?: #B}
+  |                  ^
+  |
+  = note: a schema's references may not form a cycle: no check can describe a schema whose paths are unbounded
+
+error[E0133]: schema 0.0 has a reference cycle: #A -> #B -> #A
+ --> /in.cue:8:9
+  |
+8 |             #B: {a?: #A}
+  |                  ^
+  |
+  = note: a schema's references may not form a cycle: no check can describe a schema whose paths are unbounded

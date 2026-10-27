@@ -1,0 +1,11 @@
+#op: format
+#raw: true
+A version file in the authoring form's one layout.
+-- request.json --
+{"file": {"path": "1.0.thema", "text": "Schema: {name: string, crew: int}\n"}}
+-- out/response.json --
+{
+  "ok": true,
+  "diagnostics": [],
+  "text": "Schema: {\n\tname: string\n\tcrew: int\n}\n"
+}

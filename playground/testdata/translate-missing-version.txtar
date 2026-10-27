@@ -1,0 +1,61 @@
+#op: translate
+Translating to a version the lineage does not have is a diagnostic, not a
+panic.
+-- request.json --
+{"from": "0.0", "to": "7.0"}
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": "0": {
+		schema: {
+			name: string
+		}
+	}
+	"1": "0": {
+		schema: {
+			title: string
+			crew:  int | *1
+		}
+	}
+}
+lenses: {
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			name: v1_0.title
+		}
+		lacunas: [{
+			sourceFields: [{path: "crew", value: v1_0.crew}]
+			message: "crew is dropped"
+			type:    "DroppedField"
+		}]
+	}
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			title: v0_0.name
+			crew:  1
+		}
+		lacunas: [{
+			targetFields: [{path: "crew", value: v1_0.crew}]
+			message: "crew is a placeholder"
+			type:    "Placeholder"
+		}]
+	}
+}
+-- data.json --
+{"name": "Argo"}
+-- out/response.json --
+{
+  "ok": false,
+  "diagnostics": [
+    {
+      "code": "E0240",
+      "severity": "error",
+      "headline": "lineage ship has no schema 7.0",
+      "help": [
+        "its versions are 0.0, 1.0"
+      ]
+    }
+  ]
+}

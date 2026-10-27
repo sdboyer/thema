@@ -23,6 +23,7 @@ import (
 	"github.com/sdboyer/thema/internal/compile"
 	"github.com/sdboyer/thema/internal/diagdocs"
 	"github.com/sdboyer/thema/internal/diagtest"
+	"github.com/sdboyer/thema/playground"
 )
 
 // Every code has a reproducer: diag/testdata/codes/<code>.txtar, whose comment
@@ -432,6 +433,27 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 			}
 		}
 		return out.Diagnostics
+	},
+	// playground: answer the playground operation #call with request.json,
+	// and report the response's diagnostics.
+	"playground": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {
+		dirs, _ := a.Directives()
+		req, _ := a.File("request.json")
+		s, err := playground.New()
+		if err != nil {
+			t.Fatal(err)
+		}
+		var resp struct {
+			OK          bool              `json:"ok"`
+			Diagnostics []diag.Diagnostic `json:"diagnostics"`
+		}
+		if err := json.Unmarshal(s.Call(dirs["call"], json.RawMessage(req)), &resp); err != nil {
+			t.Fatal(err)
+		}
+		if resp.OK {
+			t.Fatalf("%s succeeded", dirs["call"])
+		}
+		return resp.Diagnostics
 	},
 	// go-error: a plain Go error with the text of error.txt.
 	"go-error": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {

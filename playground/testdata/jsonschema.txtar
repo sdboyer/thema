@@ -1,0 +1,51 @@
+#op: jsonschema
+JSON Schema of one schema, as JSON.
+-- request.json --
+{"version": "0.0"}
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": "0": {
+		schema: {
+			name: string
+		}
+	}
+	"1": "0": {
+		schema: {
+			title: string
+			crew:  int | *1
+		}
+	}
+}
+lenses: {
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			name: v1_0.title
+		}
+		lacunas: [{
+			sourceFields: [{path: "crew", value: v1_0.crew}]
+			message: "crew is dropped"
+			type:    "DroppedField"
+		}]
+	}
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			title: v0_0.name
+			crew:  1
+		}
+		lacunas: [{
+			targetFields: [{path: "crew", value: v1_0.crew}]
+			message: "crew is a placeholder"
+			type:    "Placeholder"
+		}]
+	}
+}
+-- out/response.json --
+{
+  "ok": true,
+  "diagnostics": [],
+  "version": "0.0",
+  "output": "{\n  \"openapi\": \"3.0.0\",\n  \"info\": {\n    \"title\": \"ship\",\n    \"version\": \"0.0\"\n  },\n  \"paths\": {},\n  \"components\": {\n    \"schemas\": {\n      \"ship\": {\n        \"type\": \"object\",\n        \"required\": [\n          \"name\"\n        ],\n        \"properties\": {\n          \"name\": {\n            \"type\": \"string\"\n          }\n        },\n        \"$schema\": \"http://json-schema.org/draft-04/schema#\"\n      }\n    }\n  }\n}\n"
+}

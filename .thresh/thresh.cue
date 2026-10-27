@@ -227,6 +227,32 @@ seams: "content-hash": {
 	]
 }
 
+// The playground's wire format is a contract with a frontend in another
+// repository (sdboyer/thema-playground), which reads it through types.ts and
+// calls it through thema.wasm's bridge. thresh's published-language kind reads
+// only version tuples, so it is declared as a kernel to fire on touch, as
+// compat-verdicts is (sdboyer/thresh#6).
+seams: "playground-api": {
+	kind:  "shared-kernel"
+	paths: ["playground/types.go", "playground/types.ts", "playground/session.go", "cmd/thema-wasm/main.go", "cmd/thema-wasm/thema-fs.js"]
+	consult: [
+		"sdboyer/thema-playground at the release cmd/thema/playground/VERSION pins: a renamed field, operation or bridge function breaks it, and the pin and the frontend move together",
+		"playground/types.ts, regenerated from the Go types (THEMA_UPDATE_GOLDEN=1 go test ./playground), and the response goldens in playground/testdata",
+		"the release assets the static site fetches by tag: thema.wasm, wasm_exec.js, thema-fs.js, types.ts",
+	]
+}
+
+// The frontend release the CLI embeds. Bumping it changes what thema serve
+// playground serves, and must match the wire format this thema speaks.
+seams: "playground-ui-pin": {
+	kind:  "shared-kernel"
+	paths: ["cmd/thema/playground/VERSION"]
+	consult: [
+		"the playground-api seam: the pinned frontend must speak this thema's wire format",
+		"the release workflow, which runs go generate ./cmd/thema/playground and attaches the bundle's wasm assets",
+	]
+}
+
 // --- choke-point ------------------------------------------------------------------
 
 // BindLineage is the sole verification choke point (see docs/go-mapping.md).

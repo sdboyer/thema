@@ -1,0 +1,17 @@
+#op: bind
+#raw: true
+A request that is not the JSON the operation takes.
+-- request.json --
+{"lineage": 7}
+-- out/response.json --
+{
+  "ok": false,
+  "diagnostics": [
+    {
+      "code": "E0801",
+      "severity": "error",
+      "headline": "the request is not the JSON this operation takes",
+      "detail": "json: cannot unmarshal number into Go struct field BindRequest.lineage of type playground.LineageInput"
+    }
+  ]
+}
