@@ -1,0 +1,12 @@
+# Constants that are instances of the target.
+-- source.cue --
+k: string
+-- target.cue --
+a: int
+s: "x" | "y"
+d: *"foo" | "bar"
+-- lens.cue --
+input: _
+result: {a: 1, s: "x", d: "bar"}
+-- out --
+total

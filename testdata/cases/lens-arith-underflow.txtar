@@ -1,0 +1,31 @@
+# lens subtracts from a uint into a uint, so the valid input {a: 0} has no
+# translation (#20, value-level case "arithmetic")
+#issue: 20
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "lensArithUnderflow"
+	schemas: {
+		"0": "0": {
+			schema: {n!: uint}
+		}
+		"1": "0": {
+			schema: {a!: uint}
+		}
+	}
+	lenses: {
+		"1.0->0.0": {
+			input: _
+			result: {n: input.a - 1}
+		}
+		"0.0->1.0": {
+			input: _
+			result: {a: input.n + 1}
+		}
+	}
+}
+-- expect --
+bind fail computed-narrowed

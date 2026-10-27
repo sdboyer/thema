@@ -1,0 +1,11 @@
+# A divisor whose range includes zero though zero is not an instance.
+-- source.cue --
+d: int & !=0 & >=-5 & <=5
+-- target.cue --
+q: int
+-- lens.cue --
+input: _
+result: {q: quo(10, input.d)}
+-- out --
+unknown
+result.q divides by input.d, whose range [-5, 5] includes 0, though 0 may not be an instance; bound the divisor away from 0 (>0 or <0) (rule unknown-divisor) @ lens.cue:2:17

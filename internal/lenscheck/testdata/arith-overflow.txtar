@@ -1,0 +1,12 @@
+# Arithmetic over int64 operands whose result may exceed int64.
+-- source.cue --
+a: int64
+b: int64
+-- target.cue --
+n: int
+-- lens.cue --
+input: _
+result: {n: input.a + input.b}
+-- out --
+not total
+result.n computes input.a + input.b, whose result may be [-18446744073709551616, 18446744073709551614], outside int64; bound the fields it reads so that the result fits (rule arith-overflow) @ lens.cue:2:13

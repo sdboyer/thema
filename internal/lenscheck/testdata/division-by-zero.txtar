@@ -1,0 +1,12 @@
+# A divisor that may be zero.
+-- source.cue --
+n: int32
+d: int32
+-- target.cue --
+q: int
+-- lens.cue --
+input: _
+result: {q: quo(input.n, input.d)}
+-- out --
+not total
+result.q divides by input.d, which may be 0 (rule division-by-zero) @ lens.cue:2:17

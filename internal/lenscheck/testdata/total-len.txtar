@@ -1,0 +1,10 @@
+# The length of a string, into an unbounded non-negative target.
+-- source.cue --
+s: string
+-- target.cue --
+n: int & >=0
+-- lens.cue --
+input: _
+result: {n: len(input.s)}
+-- out --
+total

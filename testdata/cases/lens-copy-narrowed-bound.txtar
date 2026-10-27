@@ -1,0 +1,28 @@
+# lens copies a field into a target whose bound is narrower, so the valid input
+# {a: 50} has no translation (#20, value-level case "bound narrowed"); 0.1 widens
+# the bound, a compatible change, and the lens back must narrow it
+#issue: 20
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "lensCopyNarrowedBound"
+	schemas: {
+		"0": "0": {
+			schema: {a!: int & <10}
+		}
+		"0": "1": {
+			schema: {a!: int}
+		}
+	}
+	lenses: {
+		"0.1->0.0": {
+			input: _
+			result: {a: input.a}
+		}
+	}
+}
+-- expect --
+bind fail copy-narrowed

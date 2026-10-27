@@ -1,0 +1,12 @@
+# Total string functions, and a predicate on a string.
+-- source.cue --
+a: string
+-- target.cue --
+b: string
+has: bool
+-- lens.cue --
+import "strings"
+input: _
+result: {b: strings.ToUpper(input.a), has: strings.HasPrefix(input.a, "x")}
+-- out --
+total

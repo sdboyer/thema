@@ -250,3 +250,170 @@ so a lineage that binds under one v1 release binds, with the same verdicts,
 under every later one. A rule may still be added or corrected after v1, but it
 applies only to schemas published after it; schemas already published keep the
 verdicts they were given.
+
+## Lens totality
+
+Every lens in a lineage is total: for every instance of its source schema, the
+lens produces a complete instance of its target schema, and never an error.
+thema proves this when it binds a lineage, and a lineage with a lens it cannot
+prove total does not bind. Binding is how thema loads a lineage and checks every
+invariant in this document, and nothing in thema uses a lineage that has not
+bound. Because every lens is total, translating an instance from one version to
+another cannot fail.
+
+This section defines totality, states the rules a lens must satisfy for thema
+to prove it, and says what the verdicts are worth across thema releases.
+
+### Definition
+
+A lens from schema *S* to schema *T* is total when, for every instance *i* of
+*S*:
+
+1. evaluating the lens with *i* as its input gives a result that is an instance
+   of *T*, closed, with every field *T* requires, and
+2. every lacuna's condition and reported field values evaluate to concrete
+   values.
+
+Instances are what translation sees: *i* unified with *S*, so defaults are
+filled in and optional fields may be absent. The result is closed against *T*,
+so a field *T* does not declare is an error. Both schemas are closed for the
+proof, keeping an author's `...`. Hidden fields, definitions and `let`s in a
+lens are not data. A result field that refers to one is judged by what it
+refers to.
+
+### Rules for a lens
+
+thema proves totality from the lens's text, one result field at a time, asking
+the schemas about every path the lens reads or writes. A lens is proven total
+when every field satisfies the rule for what it is built from, and the lens as
+a whole satisfies the exhaustiveness and single-write rules.
+
+**Copies.** A field that copies an input path is total when the source
+declares the path, the path is present in every instance where the copy is
+evaluated (an optional field must be under a presence pattern), and every value the source
+allows there is accepted by the target at the field. The last condition is the
+first clause of the backwards-compatibility definition above, applied to the
+two paths. Its default rules do not apply, because a copied value is data.
+
+**Literals.** A literal must be an instance of the target at its field. A
+struct or list literal must have the target's kind, and each of its fields or
+elements is proven in turn at its own path.
+
+**Computed values.** A computed field uses only the operations listed below,
+and every value it can take must fit the target at the field.
+
+**Patterns and arms.** A field may be written under an `if`, which makes the
+field an arm of a match on the input. The condition must be a pattern over
+input paths: a presence test (`p != _|_`), an equality with a literal
+(`p == c`), a type test (`(p & T) != _|_`), the negation of one of them, or a
+conjunction (`&&`) of them. Within an arm, the proof knows what its pattern
+establishes: that `p` is present, holds `c`, or is a `T`. A type test against
+a literal, `(p & c) != _|_`, is the equality `p == c`, since input is data.
+Unlike `match` in Rust, every arm whose pattern holds applies, and the values
+unify, so arms must be exhaustive *and* agree where they overlap.
+
+**Exhaustiveness.** Every field the target requires must be written for every
+instance. That holds when the field is written unconditionally, or when the
+patterns it is written under together cover every instance:
+
+- a pattern and its negation,
+- type tests that together cover every alternative of the tested field, or
+- equalities with every alternative of the tested field, when each alternative
+  is a constant.
+
+**One value per path.** No path may be written twice unless the two values
+cannot disagree. Two writes to one path unify, so the second can reject the
+first's value.
+
+**Lacunas.** A lacuna's condition must be a pattern. Every input path the
+lacuna reports must be present whenever the condition holds. Every result field
+it reports must be written for every instance, or under patterns the condition
+implies.
+
+**Operations.** The computed operations thema proves, over integers, strings
+and booleans:
+
+- Scalar remaps: `==` and `!=` as values. A table `{k: v, ...}[input.p]`, when
+  every alternative of `input.p` is a string constant with an entry. The head
+  of a list, `[if c {x}, y][0]`, when the last element is unconditional.
+- Integer arithmetic: `+`, `-`, `*`, unary `-`, `quo`, `rem`, `div`, `mod` and
+  `len`. Each operand needs finite bounds, from a sized type (`int32`), a
+  bounds expression (`>=0 & <=100`) or constant alternatives. The result must
+  fit `int64` and the target's bounds, and a divisor's bounds must exclude
+  zero. `/` yields a float in CUE and is not proven. Each occurrence of an
+  operand is bounded on its own, so `input.n - input.n` is bounded like any
+  difference and is never refuted.
+- Strings: concatenation and interpolation of strings and integers, and
+  `strings.ToUpper`, `ToLower`, `TrimSpace`, `Trim`, `TrimLeft`, `TrimRight`,
+  `TrimPrefix`, `TrimSuffix` and `Replace` with an integer count.
+  `strings.HasPrefix`, `HasSuffix` and `Contains` as booleans. A string result
+  is proven only into a target that accepts any string.
+- Floats are outside the set.
+
+### Verdicts and rules
+
+Each place in the lens gets one of three verdicts.
+
+- **total**: the rule holds for every instance.
+- **not total**: some instance of *S* has no result, or a result *T* rejects.
+- **unknown**: thema cannot decide. Deciding would need the instance itself (a
+  `for` clause, a computed label), an analysis thema does not attempt (regular
+  expression containment, string contents), or a form outside the rules above
+  (a condition that is not a presence test, an equality or a type test).
+
+A lens's verdict is the worst of its places: not total if any place is, else
+unknown if any is, else total. Binding treats unknown as a failure. A lens must
+be shown total, so the author rewrites it into a form thema decides.
+
+Every finding names the rule that produced it, and is positioned at the
+author's construct: the result field, the comprehension it is declared in, or
+the lacuna field. It reads
+
+    <path> <what is wrong> (rule <name>)
+
+for example
+
+    result.a copies input.c, which may be absent: input.c is optional in the source schema; write the field under if input.c != _|_ (rule source-absent)
+
+| Rule | Not total when |
+|---|---|
+| `copy-narrowed` | a copied value has an instance the target rejects: a kind, bound, alternative, constant or field the target lacks, or a field it requires that the source does not declare. The finding names the compatibility rule |
+| `source-absent` | a path the lens reads may be absent where it is read: an optional field, an element past a list's minimum length, or a field beneath `_`, with no presence or type test establishing it |
+| `source-undeclared` | the lens reads a path the source schema does not declare |
+| `target-undeclared` | the lens writes a path the target schema does not declare |
+| `pattern-absent` | an equality tests a path that may be absent. CUE makes comparing an absent field an error, not `false` |
+| `not-a-value` | a result field is a constraint (`int`, `_`), an error (`_\|_`), or a disjunction, where an instance needs one concrete value |
+| `literal-not-instance` | a literal, struct or list is not an instance of the target at its path: a wrong kind, a value outside the target, a list of the wrong length |
+| `computed-narrowed` | a computed value has a possible result the target rejects: a kind the target lacks, a boolean it does not accept, or an integer outside its bounds |
+| `required-not-written` | a field the target requires is never written on some path through the lens |
+| `write-conflict` | a path is written twice with values that may disagree |
+| `arith-overflow` | an integer operation's result may exceed `int64` |
+| `division-by-zero` | a divisor is zero for some instance |
+| `table-key-missing` | a table is indexed by a value with no entry |
+
+| Rule | Unknown when | What to do |
+|---|---|---|
+| `unknown-copy` | the compatibility rules cannot decide whether the copied value fits the target: a constraint between fields, a pending comprehension, a validator, or a disjunction they cannot match | copy a value whose schemas the compatibility rules decide (see their Unknown table) |
+| `unknown-pattern` | a condition is not a pattern: a presence test, an equality or a type test on an input field, or a conjunction of these | write the condition as a pattern, testing one input field at a time |
+| `unknown-exhaustive` | a required field is written only under patterns that cannot be shown to cover every instance | write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field |
+| `unknown-op` | a computation uses an operation outside the proven set: `/`, a float, a builtin not listed above, or `&` or `\|` within an expression | use the listed operations, with `quo` or `div` for integer division |
+| `unknown-dynamic` | fields or elements are produced by a `for` clause, a computed label or a list comprehension | write each field by name |
+| `unknown-reference` | the lens reads something that cannot be followed to the input or to a constant: a computed index or label, or a selection into a comprehension's output | select fields by name |
+| `unknown-bounds` | an integer operand has no finite bounds, so the result cannot be shown to fit `int64` or the target, or an operand occurs more than once | bound the fields the computation reads (`int32`, `>=0 & <=100`) |
+| `unknown-divisor` | a divisor's bounds include zero, though zero may not be an instance | bound the divisor away from zero (`>0` or `<0`) |
+| `unknown-target-constraint` | the target constrains a computed value in a way the proof does not compare: a regular expression, a validator, alternatives with gaps, or a disjunction above the written path | express the constraint with `>=`, `<=` or a sized type, make a string target accept any string, or write a disjunctive target as one value |
+| `unknown-table-key` | a table is indexed by a value that is not a finite set of string constants | index by an input field whose alternatives are string constants |
+| `unknown-head` | the first element of a list built by a comprehension is taken with no unconditional fallback | add a fallback element: `[if c {x}, y][0]` |
+
+Every rule has a recorded case in the repository's lens corpus
+(`internal/lenscheck/testdata`).
+
+### Stability of verdicts
+
+A lens that binds is total, and translation relies on it. The verdicts follow
+the policy for compatibility verdicts. Before thema v1 they are unstable: a
+verdict may change between releases, and the change surfaces as a bind error
+after upgrading. From v1 they are fixed: a lens that binds under one release
+binds, with the same verdicts, under every later one, and a rule added or
+corrected applies only to lenses published after it. A copy's verdict is a
+compatibility verdict, and moves with it.

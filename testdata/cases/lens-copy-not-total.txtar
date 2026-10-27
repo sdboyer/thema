@@ -1,5 +1,5 @@
 # a lens copying from a source's ... into a destination the target types can't
-# translate every valid source instance, yet binds
+# translate every valid source instance: the copy is narrowed
 #issue: 46
 -- in.cue --
 import (
@@ -26,4 +26,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail
+bind fail copy-narrowed

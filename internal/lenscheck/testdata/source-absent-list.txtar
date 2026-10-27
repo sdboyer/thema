@@ -1,0 +1,11 @@
+# A list element the list need not have.
+-- source.cue --
+l: [...int]
+-- target.cue --
+f: int
+-- lens.cue --
+input: _
+result: {f: input.l[0]}
+-- out --
+not total
+result.f copies input.l[0], which may be absent: input.l[0] is an element the list need not have (its length is uint); write the field under if input.l[0] != _|_ (rule source-absent) @ lens.cue:2:13

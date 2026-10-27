@@ -1,0 +1,11 @@
+# A copy whose source has an alternative the target lacks (exemplars/expand 0.3->0.2).
+-- source.cue --
+withDefault?: *"foo" | "bar" | "baz"
+-- target.cue --
+withDefault?: *"foo" | "bar"
+-- lens.cue --
+input: _
+result: {if input.withDefault != _|_ {withDefault: input.withDefault}}
+-- out --
+not total
+result.withDefault copies input.withDefault, which was *"foo" | "bar" | "baz" and is now *"foo" | "bar" (compat rule value-narrowed) (rule copy-narrowed) @ lens.cue:2:10

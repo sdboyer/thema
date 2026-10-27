@@ -166,6 +166,25 @@ func (r Result) Compatible() bool {
 	return r.Verdict() == Compatible
 }
 
+// Instances keeps only the findings about clause 1 of compatibility: whether
+// every instance of the predecessor is an instance of the successor. Findings
+// about defaults alone (default-removed, default-changed) are dropped: they
+// concern what an absent field means, not which instances are accepted.
+//
+// A lens copy is judged by this clause: the copied value is present data, so
+// what the target would fill in for an absent field does not apply to it.
+func (r Result) Instances() Result {
+	var out Result
+	for _, f := range r.Findings {
+		switch f.Rule {
+		case RuleDefaultRemoved, RuleDefaultChanged:
+			continue
+		}
+		out.Findings = append(out.Findings, f)
+	}
+	return out
+}
+
 // Error returns the findings as a CUE error list positioned at the authors'
 // fields, or nil if Compatible.
 func (r Result) Error() error {
@@ -334,12 +353,16 @@ func (w *walker) refPair(pred, succ cue.Value) (string, bool) {
 	return op.String() + " / " + np.String(), true
 }
 
-// branches splits v into its disjunction alternatives, with defaults removed:
+// Branches splits v into its disjunction alternatives, with defaults removed:
 // Expr reports *1 | int as the single alternative int, and *"a" | "a" | "b" as
 // "a" and "b". Defaults are compared separately, by the field that holds them.
 // A reference is split as the value it refers to, since Expr would report
 // only the reference; a builtin validator value (time.Time) is kept as is, so
 // that it is still read as a validator.
+func Branches(v cue.Value) []cue.Value {
+	return branches(v)
+}
+
 func branches(v cue.Value) []cue.Value {
 	if _, rp := v.ReferencePath(); len(rp.Selectors()) > 0 {
 		if _, builtin := packageMember(v); !builtin {
@@ -419,19 +442,39 @@ func pending(v cue.Value) bool {
 	return isStruct(v) && v.Err() != nil
 }
 
-// fieldClass is what concrete data can observe about a field: whether it may
-// be absent, and if so, what the consumer sees.
-type fieldClass int
+// Form is what concrete data can observe about a field: whether it may be
+// absent, and if so, what the consumer sees. See docs/invariants.md, "Field
+// forms".
+type Form int
 
 const (
-	required  fieldClass = iota // must be present
-	optional                    // may be absent, and then stays absent
-	defaulted                   // may be absent, and then fills with a value
+	// Required means an instance must supply the field.
+	Required Form = iota
+	// Optional means an instance may omit the field, and it then stays absent.
+	Optional
+	// Defaulted means an instance may omit the field, and the consumer then sees
+	// the value the schema fills in.
+	Defaulted
 )
 
-func (c fieldClass) String() string {
+func (c Form) String() string {
 	return [...]string{"required", "optional", "defaulted"}[c]
 }
+
+// FormOf derives the form of the field sel with value v, by the rules of the
+// field forms table in docs/invariants.md.
+func FormOf(sel cue.Selector, v cue.Value) Form {
+	return classify(sel, v).class
+}
+
+// fieldClass is the internal name of Form.
+type fieldClass = Form
+
+const (
+	required  = Required
+	optional  = Optional
+	defaulted = Defaulted
+)
 
 type field struct {
 	sel   cue.Selector
@@ -1003,10 +1046,15 @@ func (w *walker) dataRefs(v, root cue.Value, acc []cue.Path) []cue.Path {
 	return acc
 }
 
-// constantTarget reports whether a referenced value is a constant for data: a
-// scalar with exactly one instance. A default makes a value concrete without
-// fixing it (lim: *5 | int accepts lim: 10), and an open list or struct is
-// concrete but accepts more, so neither is a constant.
+// ConstantTarget reports whether a value is a constant for data: a scalar with
+// exactly one instance. A default makes a value concrete without fixing it
+// (lim: *5 | int accepts lim: 10), and an open list or struct is concrete but
+// accepts more, so neither is a constant. This is the reference for "concrete
+// is not constant" (AGENTS.md).
+func ConstantTarget(d cue.Value) bool {
+	return constantTarget(d)
+}
+
 func constantTarget(d cue.Value) bool {
 	if _, hasDefault := d.Default(); hasDefault {
 		return false

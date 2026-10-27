@@ -1,4 +1,5 @@
-# lens maps a required target field from an optional source field, so it is undefined when that field is absent
+# lens maps a required target field from an optional source field, so it is
+# undefined when that field is absent
 #issue: 20
 -- in.cue --
 import (
@@ -27,4 +28,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail
+bind fail source-absent

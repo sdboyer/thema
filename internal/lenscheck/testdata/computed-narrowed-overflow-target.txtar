@@ -1,0 +1,11 @@
+# Arithmetic whose upper bound exceeds the target.
+-- source.cue --
+a: int32
+-- target.cue --
+n: uint8
+-- lens.cue --
+input: _
+result: {n: input.a + 1}
+-- out --
+not total
+result.n is input.a + 1, which may be as low as -2147483647, where the target schema requires >=0 (rule computed-narrowed) @ lens.cue:2:13

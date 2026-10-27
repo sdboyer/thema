@@ -1,0 +1,11 @@
+# A required field of a struct the lens writes, never written beneath it.
+-- source.cue --
+a: string
+-- target.cue --
+o: {init: string, more: int}
+-- lens.cue --
+input: _
+result: {o: {init: input.a}}
+-- out --
+not total
+result.o.more is required by the target schema and never written (rule required-not-written) @ lens.cue:2:10

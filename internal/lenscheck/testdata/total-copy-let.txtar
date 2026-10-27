@@ -1,0 +1,13 @@
+# A copy reached through a let.
+-- source.cue --
+a: string
+n: {p: int, ...}
+-- target.cue --
+a: string
+n: {p: int, ...}
+-- lens.cue --
+input: _
+let N = input.n
+result: {a: input.a, n: N}
+-- out --
+total

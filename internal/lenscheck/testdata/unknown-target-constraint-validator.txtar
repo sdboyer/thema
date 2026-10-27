@@ -1,0 +1,12 @@
+# An integer computed for a target with a validator beyond bounds.
+-- source.cue --
+n: int32
+-- target.cue --
+import "math"
+m: int & math.MultipleOf(2)
+-- lens.cue --
+input: _
+result: {m: input.n * 2}
+-- out --
+unknown
+result.m is an integer computed by input.n * 2, and the target schema constrains it beyond bounds (int & math.MultipleOf(2)); express the constraint with >=, <= or a sized type such as int32 (rule unknown-target-constraint) @ lens.cue:2:13

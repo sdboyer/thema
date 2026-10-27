@@ -1,9 +1,11 @@
-# lens results are looked up in a table outside the lineage
+# lens results are looked up in a table outside the lineage. The key is a
+# finite set of constants, each an entry, so the lens is total; what is wrong is
+# where the table lives.
 #issue: 21
 -- in.cue --
 import "github.com/sdboyer/thema"
 
-_table: {x: "from-outside"}
+_table: {x: "from-outside", y: "also-outside"}
 
 lin: thema.Lineage & {
 	name: "extLensTable"
@@ -12,7 +14,7 @@ lin: thema.Lineage & {
 			schema: {a: string}
 		}
 		"1": "0": {
-			schema: {b: string}
+			schema: {b: "x" | "y"}
 		}
 	}
 	lenses: {
@@ -22,7 +24,7 @@ lin: thema.Lineage & {
 		}
 		"0.0->1.0": {
 			input: _
-			result: {b: _table.x}
+			result: {b: "x"}
 		}
 	}
 }

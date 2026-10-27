@@ -1,0 +1,17 @@
+# A lacuna condition that is not a pattern.
+-- source.cue --
+n: int32
+-- target.cue --
+n: int32
+-- lens.cue --
+input: _
+result: {n: input.n}
+lacunas: [{
+	condition: input.n > 5
+	sourceFields: [{path: "n", value: input.n}]
+	message: "big"
+	type: "PrecisionLoss"
+}]
+-- out --
+unknown
+lacunas[0].condition is input.n > 5, which is not a pattern: a presence test (p != _|_), an equality (p == c) or a type test ((p & T) != _|_) on an input field, or a conjunction (&&) of these (rule unknown-pattern) @ lens.cue:4:13

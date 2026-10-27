@@ -1,0 +1,12 @@
+# A copy of a field the source constrains by another field: compat cannot compare it.
+-- source.cue --
+a: int
+b: <a
+-- target.cue --
+b: int
+-- lens.cue --
+input: _
+result: {b: input.b}
+-- out --
+unknown
+result.b copies input.b, which is constrained by a in the source schema and not in the new one; the checker cannot compare constraints between fields (compat rule unknown-crossfield) (rule unknown-copy) @ lens.cue:2:13

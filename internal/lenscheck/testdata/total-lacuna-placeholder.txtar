@@ -1,0 +1,16 @@
+# A lacuna reporting a constant the lens wrote (docs/ship.cue).
+-- source.cue --
+firstfield: string
+-- target.cue --
+firstfield: string
+secondfield: int
+-- lens.cue --
+input: _
+result: {firstfield: input.firstfield, secondfield: -1}
+lacunas: [{
+	targetFields: [{path: "secondfield", value: result.secondfield}]
+	message: "placeholder"
+	type: "Placeholder"
+}]
+-- out --
+total

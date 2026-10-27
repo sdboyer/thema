@@ -21,6 +21,7 @@ import (
 	"github.com/sdboyer/thema/internal/cuetil"
 	"github.com/sdboyer/thema/internal/cueview"
 	"github.com/sdboyer/thema/internal/embedreg"
+	"github.com/sdboyer/thema/internal/lenscheck"
 )
 
 // maybeLineage is an intermediate processing structure used to validate
@@ -650,6 +651,55 @@ func (ml *maybeLineage) checkLacunas() error {
 					}
 				}
 			}
+		}
+	}
+
+	if errs != nil {
+		return errors.Mark(errs, terrors.ErrInvalidLens)
+	}
+	return nil
+}
+
+// checkLensTotality proves each CUE lens total: for every instance of its source
+// schema, the result is an instance of its target schema, with every required
+// field, and nothing in the lens fails to evaluate on the way. The walk
+// (internal/lenscheck) reads the lens's syntax and queries the schemas: a copy is
+// judged by the compatibility checker, a constant or computation by what the
+// target accepts, a comprehension by whether its patterns cover every instance.
+// What it cannot decide is an error too, saying what the author can do. CUE
+// evaluates a lens only against data, so without this a lens that drops a field
+// or overflows a bound surfaces at translate, for the instance that hits it.
+//
+// SkipBuggyChecks skips it: the corpus has lenses the check correctly refuses
+// (exemplars/expand, 0.3->0.2, drops "baz"), which #87 migrates.
+func (ml *maybeLineage) checkLensTotality(cfg *bindConfig) error {
+	if cfg.skipbuggychecks {
+		return nil
+	}
+	ctx := ml.rt.Context()
+	byVersion := make(map[SyntacticVersion]*schemaDef, len(ml.schlist))
+	for _, sch := range ml.schlist {
+		byVersion[sch.v] = sch
+	}
+
+	var errs cerrors.Error
+	for _, cl := range ml.cueLenses() {
+		lens, from, to := cl.v, cl.id.From, cl.id.To
+		fsch, tsch := byVersion[from], byVersion[to]
+		if fsch == nil || tsch == nil {
+			continue
+		}
+		res := lenscheck.Check(ctx, lens, fsch.def, tsch.def)
+		if res.Total() {
+			continue
+		}
+		verb := "is not total over"
+		if res.Verdict() == lenscheck.Unknown {
+			verb = "cannot be shown total over"
+		}
+		errs = cerrors.Append(errs, cerrors.Newf(userPos(lens), "lens %s->%s %s schema %s", from, to, verb, from))
+		for _, f := range res.Findings {
+			errs = cerrors.Append(errs, cerrors.Newf(f.Pos, "lens %s->%s: %s", from, to, f))
 		}
 	}
 

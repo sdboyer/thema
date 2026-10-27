@@ -1,0 +1,11 @@
+# Fields produced by a for clause.
+-- source.cue --
+m: [string]: int
+-- target.cue --
+m: [string]: int
+-- lens.cue --
+input: _
+result: {for k, v in input.m {"\(k)": v}}
+-- out --
+unknown
+result has fields produced by a for clause over input.m, so which fields exist depends on the instance; write each field (rule unknown-dynamic) @ lens.cue:2:10
