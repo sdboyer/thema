@@ -325,10 +325,13 @@ patterns it is written under together cover every instance:
 cannot disagree. Two writes to one path unify, so the second can reject the
 first's value.
 
-**Lacunas.** A lacuna's condition must be a pattern. Every input path the
-lacuna reports must be present whenever the condition holds. Every result field
-it reports must be written for every instance, or under patterns the condition
-implies.
+**Lacunas.** A lacuna's condition is a pattern, or a guard: a boolean
+expression that the operations below prove to evaluate for every instance.
+Every input path the lacuna reports must be present whenever the condition
+holds, and every result field it reports must be written for every instance,
+or under patterns the condition implies. A guard establishes nothing about the
+source, so under a guard the reported paths must be present, and the reported
+fields written, for every instance.
 
 **Operations.** The computed operations thema proves, over integers, strings
 and booleans:
@@ -394,7 +397,7 @@ for example
 | Rule | Unknown when | What to do |
 |---|---|---|
 | `unknown-copy` | the compatibility rules cannot decide whether the copied value fits the target: a constraint between fields, a pending comprehension, a validator, or a disjunction they cannot match | copy a value whose schemas the compatibility rules decide (see their Unknown table) |
-| `unknown-pattern` | a condition is not a pattern: a presence test, an equality or a type test on an input field, or a conjunction of these | write the condition as a pattern, testing one input field at a time |
+| `unknown-pattern` | an arm's condition is not a pattern (a presence test, an equality or a type test on an input field, or a conjunction of these), or a lacuna's condition is neither a pattern nor a boolean the computed rules prove | write the condition as a pattern, testing one input field at a time; for a lacuna, a boolean over the provable operations |
 | `unknown-exhaustive` | a required field is written only under patterns that cannot be shown to cover every instance | write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field |
 | `unknown-op` | a computation uses an operation outside the proven set: `/`, a float, a builtin not listed above, or `&` or `\|` within an expression | use the listed operations, with `quo` or `div` for integer division |
 | `unknown-dynamic` | fields or elements are produced by a `for` clause, a computed label or a list comprehension | write each field by name |

@@ -1,0 +1,17 @@
+# A guard that reads an optional field. Nothing establishes the field under a guard, so the condition may fail to evaluate.
+-- source.cue --
+n?: int32
+-- target.cue --
+n?: int32
+-- lens.cue --
+v0_0: _
+v1_0: {if v0_0.n != _|_ {n: v0_0.n}}
+lacunas: [{
+	condition: v0_0.n > 5
+	sourceFields: [if v0_0.n != _|_ {path: "n", value: v0_0.n}]
+	message: "big"
+	type: "PrecisionLoss"
+}]
+-- out --
+not total
+lacunas[0].condition reads v0_0.n, which may be absent: v0_0.n is optional in the source schema; write the field under if v0_0.n != _|_ (rule source-absent) @ lens.cue:4:13
