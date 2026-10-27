@@ -1,12 +1,12 @@
-# A write beneath a disjunction of structs in the target.
+# A list literal beneath a disjunction in the target: the checker matches a
+# struct literal to an alternative, and nothing else beneath a disjunction.
 -- source.cue --
 a: string
 -- target.cue --
-rootfield: {branch: 1, one: string} | {branch: 2, two: string}
+x: [int] | [string]
 -- lens.cue --
 v0_0: _
-v1_0: {rootfield: {branch: 1, one: v0_0.a}}
+v1_0: {x: [1]}
 -- out --
 unknown
-v1_0.rootfield.branch is written beneath v1_0.rootfield, which is a disjunction in the target schema; the checker descends only into a single struct or list, so write v1_0.rootfield as one value (rule unknown-target-constraint) @ lens.cue:2:20
-v1_0.rootfield.one is written beneath v1_0.rootfield, which is a disjunction in the target schema; the checker descends only into a single struct or list, so write v1_0.rootfield as one value (rule unknown-target-constraint) @ lens.cue:2:36
+v1_0.x[0] is written beneath v1_0.x, which is a disjunction in the target schema; the checker proves a struct literal written at v1_0.x against one of its alternatives, and descends into nothing else beneath it (rule unknown-target-constraint) @ lens.cue:2:8

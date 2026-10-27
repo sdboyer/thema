@@ -1,0 +1,8 @@
+# a single struct at the top of a schema, widened to a disjunction containing
+# it (#120)
+-- old.cue --
+{a: int}
+-- new.cue --
+{a: int} | {b: int}
+-- out --
+compatible

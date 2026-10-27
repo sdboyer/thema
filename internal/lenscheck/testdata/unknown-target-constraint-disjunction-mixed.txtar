@@ -1,0 +1,19 @@
+# A struct literal at a disjunctive target mixing a plain field with
+# conditional ones: which alternative the instance's struct is depends on
+# which arms hold, so it is matched to none.
+-- source.cue --
+k: "a" | "b"
+-- target.cue --
+o: {branch: 1, one: string} | {branch: 2, two: string}
+-- lens.cue --
+v0_0: _
+v1_0: {
+	o: {
+		branch: 1
+		if v0_0.k == "a" {one: "x"}
+		if v0_0.k == "b" {one: "y"}
+	}
+}
+-- out --
+unknown
+v1_0.o is a struct written to v1_0.o, a disjunction in the target schema, mixing fields with conditional fields or embeddings, so which alternative it is an instance of depends on the instance; write it as one struct per alternative, each with its fields unconditional, in its own arm (rule unknown-target-constraint) @ lens.cue:3:2
