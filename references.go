@@ -12,6 +12,7 @@ import (
 
 	"github.com/sdboyer/thema/internal/compat"
 	"github.com/sdboyer/thema/internal/cueview"
+	"github.com/sdboyer/thema/internal/embedreg"
 	"github.com/sdboyer/thema/internal/util"
 )
 
@@ -588,8 +589,8 @@ func refPos(o refOwner, field []string) token.Pos {
 			v = fieldByName(v, name)
 		}
 		if v.Exists() {
-			return userPos(v)
+			return embedreg.AuthorPos(v)
 		}
 	}
-	return userPos(o.v)
+	return embedreg.AuthorPos(o.v)
 }

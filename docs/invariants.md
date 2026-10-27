@@ -107,9 +107,10 @@ every schema itself.
 
 **A lens refers only to the instance it takes, its own body and CUE's builtin
 packages.** The instance it takes is the field named after its from version,
-`v1_0` for a lens from 1.0, and its body is the instance it returns (`v0_0`),
-`lacunas` and anything else declared inside the lens, such as a hidden lookup
-table or a `let`. thema's own package is part of the substrate, so
+`v1_0` for a lens from 1.0, declared `_` (the Source rule under Lens totality
+says why), and its body is the instance it returns (`v0_0`), `lacunas` and
+anything else declared inside the lens, such as a hidden lookup table or a
+`let`. thema's own package is part of the substrate, so
 `thema.Lacuna` and `thema.LacunaTypes` are fine.
 
 Everything else is refused when the lineage binds, with the error positioned
@@ -366,7 +367,8 @@ filled in and optional fields may be absent. The result is closed against *T*,
 so a field *T* does not declare is an error. Both schemas are closed for the
 proof, keeping an author's `...`. Hidden fields, definitions and `let`s in a
 lens are not data. A result field that refers to one is judged by what it
-refers to.
+refers to. A hidden field in the result is evaluated all the same, so it must
+evaluate on every instance, though it need not be anything the target knows.
 
 ### Rules for a lens
 
@@ -375,12 +377,21 @@ the schemas about every path the lens reads or writes. A lens is proven total
 when every field satisfies the rule for what it is built from, and the lens as
 a whole satisfies the exhaustiveness and single-write rules.
 
+**Source.** The field the lens takes (`v0_0`, for a lens from 0.0) is `_`.
+Any other constraint on it, a type, a field or a default, says what the lens
+receives where the source schema alone must say it, and the proof is over the
+source schema's instances.
+
 **Copies.** A field that copies an input path is total when the source
 declares the path, the path is present in every instance where the copy is
 evaluated (an optional field must be under a presence pattern), and every value the source
 allows there is accepted by the target at the field. The last condition is the
 first clause of the backwards-compatibility definition above, applied to the
-two paths. Its default rules do not apply, because a copied value is data.
+two paths, defaults included: an instance that omits a field with a default
+is not filled with the default alone but with the whole defaulted field
+(`*1 | int`), so copying it into a field with another default gives two
+defaults and no single value. An optional field an instance omits stays
+absent, and copies nothing.
 
 **Literals.** A literal must be an instance of the target at its field. A
 struct or list literal must have the target's kind, and each of its fields or
@@ -393,20 +404,27 @@ and every value it can take must fit the target at the field.
 field an arm of a match on the input. The condition must be a pattern over
 input paths: a presence test (`p != _|_`), an equality with a literal
 (`p == c`), a type test (`(p & T) != _|_`), the negation of one of them, or a
-conjunction (`&&`) of them. Within an arm, the proof knows what its pattern
-establishes: that `p` is present, holds `c`, or is a `T`. A type test against
-a literal, `(p & c) != _|_`, is the equality `p == c`, since input is data.
-Unlike `match` in Rust, every arm whose pattern holds applies, and the values
-unify, so arms must be exhaustive *and* agree where they overlap.
+conjunction (`&&`) of them. A boolean field on its own, `p`, is the equality
+`p == true`. Within an arm, the proof knows what its pattern establishes: that
+`p` is present, holds `c`, or is a `T`. A type test against a literal,
+`(p & c) != _|_`, is the equality `p == c`, since input is data; unlike
+`p == c` it is `false` rather than an error where `p` is absent, so it may
+test an optional field, and where it holds `p` is present. An equality on a
+field that may be a float is not a pattern: CUE compares numbers by value
+(`5.0 == 5`), so holding `c` does not fix the kind. A conjunction does not
+short-circuit: `p != _|_ && p == c` still compares an absent `p`. Unlike
+`match` in Rust, every arm whose pattern holds applies, and the values unify,
+so arms must be exhaustive *and* agree where they overlap.
 
 **Exhaustiveness.** Every field the target requires must be written for every
 instance. That holds when the field is written unconditionally, or when the
 patterns it is written under together cover every instance:
 
 - a pattern and its negation,
-- type tests that together cover every alternative of the tested field, or
+- type tests that together cover every alternative of the tested field,
 - equalities with every alternative of the tested field, when each alternative
-  is a constant.
+  is a constant, or
+- equalities with `true` and with `false`, for a boolean field.
 
 **One value per path.** No path may be written twice unless the two values
 cannot disagree. Two writes to one path unify, so the second can reject the
@@ -415,10 +433,14 @@ first's value.
 **Lacunas.** A lacuna's condition must be a pattern. Every input path the
 lacuna reports must be present whenever the condition holds. Every result field
 it reports must be written for every instance, or under patterns the condition
-implies.
+implies. A lacuna's message follows the rules for a result field whose target
+is any string, each value it reports follows the rules for a computed value,
+and its type is a literal naming one of thema's lacuna types.
 
 **Operations.** The computed operations thema proves, over integers, strings
-and booleans:
+and booleans. Integer results are proven under an `int64` arithmetic model,
+which the compiled engine requires; CUE's unbounded integers are not relied
+upon.
 
 - Scalar remaps: `==` and `!=` as values. A table `{k: v, ...}[v0_0.p]`, when
   every alternative of `v0_0.p` is a string constant with an entry. The head
@@ -429,7 +451,9 @@ and booleans:
   fit `int64` and the target's bounds, and a divisor's bounds must exclude
   zero. `/` yields a float in CUE and is not proven. Each occurrence of an
   operand is bounded on its own, so `v0_0.n - v0_0.n` is bounded like any
-  difference and is never refuted.
+  difference and is never refuted. `len` is bounded by the list's declared
+  length, and for a string not at all: a validator such as
+  `strings.MaxRunes` is not read.
 - Strings: concatenation and interpolation of strings and integers, and
   `strings.ToUpper`, `ToLower`, `TrimSpace`, `Trim`, `TrimLeft`, `TrimRight`,
   `TrimPrefix`, `TrimSuffix` and `Replace` with an integer count.
@@ -464,12 +488,13 @@ for example
 
 | Rule | Not total when |
 |---|---|
-| `copy-narrowed` | a copied value has an instance the target rejects: a kind, bound, alternative, constant or field the target lacks, or a field it requires that the source does not declare. The finding names the compatibility rule |
+| `source-constrained` | the lens constrains the field it takes with anything but `_`: a type, a field or a default |
+| `copy-narrowed` | a copied value has an instance the target rejects: a kind, bound, alternative, constant or field the target lacks, a field it requires that the source does not declare, or a default differing from the source's. The finding names the compatibility rule |
 | `source-absent` | a path the lens reads may be absent where it is read: an optional field, an element past a list's minimum length, or a field beneath `_`, with no presence or type test establishing it |
 | `source-undeclared` | the lens reads a path the source schema does not declare |
 | `target-undeclared` | the lens writes a path the target schema does not declare |
 | `pattern-absent` | an equality tests a path that may be absent. CUE makes comparing an absent field an error, not `false` |
-| `not-a-value` | a result field is a constraint (`int`, `_`), an error (`_\|_`), or a disjunction, where an instance needs one concrete value |
+| `not-a-value` | a result field is a constraint (`int`, `_`), an error (`_\|_`), or a disjunction, where an instance needs one concrete value; or a lacuna's type is not a literal |
 | `literal-not-instance` | a literal, struct or list is not an instance of the target at its path: a wrong kind, a value outside the target, a list of the wrong length |
 | `computed-narrowed` | a computed value has a possible result the target rejects: a kind the target lacks, a boolean it does not accept, or an integer outside its bounds |
 | `required-not-written` | a field the target requires is never written on some path through the lens |
@@ -481,16 +506,16 @@ for example
 | Rule | Unknown when | What to do |
 |---|---|---|
 | `unknown-copy` | the compatibility rules cannot decide whether the copied value fits the target: a constraint between fields, a pending comprehension, a validator, or a disjunction they cannot match | copy a value whose schemas the compatibility rules decide (see their Unknown table) |
-| `unknown-pattern` | a condition is not a pattern: a presence test, an equality or a type test on an input field, or a conjunction of these | write the condition as a pattern, testing one input field at a time |
+| `unknown-pattern` | a condition is not a pattern: a presence test, an equality or a type test on an input field, or a conjunction of these; or an equality tests a field that may be a float | write the condition as a pattern, testing one input field at a time; test a number's type before comparing it |
 | `unknown-exhaustive` | a required field is written only under patterns that cannot be shown to cover every instance | write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field |
-| `unknown-op` | a computation uses an operation outside the proven set: `/`, a float, a builtin not listed above, or `&` or `\|` within an expression | use the listed operations, with `quo` or `div` for integer division |
+| `unknown-op` | a computation uses an operation outside the proven set: `/`, a float, a builtin not listed above, or `&` or `\|` within an expression; or a call constrains the result | use the listed operations, with `quo` or `div` for integer division; write the result as a struct |
 | `unknown-dynamic` | fields or elements are produced by a `for` clause, a computed label or a list comprehension | write each field by name |
 | `unknown-reference` | the lens reads something that cannot be followed to the input or to a constant: a computed index or label, or a selection into a comprehension's output | select fields by name |
-| `unknown-bounds` | an integer operand has no finite bounds, so the result cannot be shown to fit `int64` or the target, or an operand occurs more than once | bound the fields the computation reads (`int32`, `>=0 & <=100`) |
+| `unknown-bounds` | an integer operand has no finite bounds, so the result cannot be shown to fit `int64` or the target, or an operand occurs more than once. Bounds that contain the target's refute nothing when the result need not take them, as with `len` | bound the fields the computation reads (`int32`, `>=0 & <=100`) |
 | `unknown-divisor` | a divisor's bounds include zero, though zero may not be an instance | bound the divisor away from zero (`>0` or `<0`) |
 | `unknown-target-constraint` | the target constrains a computed value in a way the proof does not compare: a regular expression, a validator, alternatives with gaps, or a disjunction above the written path | express the constraint with `>=`, `<=` or a sized type, make a string target accept any string, or write a disjunctive target as one value |
 | `unknown-table-key` | a table is indexed by a value that is not a finite set of string constants | index by an input field whose alternatives are string constants |
-| `unknown-head` | the first element of a list built by a comprehension is taken with no unconditional fallback | add a fallback element: `[if c {x}, y][0]` |
+| `unknown-head` | the first element of a list built by a comprehension is taken with no unconditional fallback, or with one that is itself conditional | add an unconditional fallback element: `[if c {x}, y][0]` |
 
 Every rule has a recorded case in the repository's lens corpus
 (`internal/lenscheck/testdata`).

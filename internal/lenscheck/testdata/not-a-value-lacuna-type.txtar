@@ -1,0 +1,17 @@
+# A lacuna type that is not a literal: Translate checks it against thema's lacuna types, so it must be known from the lens.
+-- source.cue --
+a!: int
+t!: string
+-- target.cue --
+b!: int
+-- lens.cue --
+v0_0: _
+v1_0: {b: v0_0.a}
+lacunas: [{
+	sourceFields: [{path: "a", value: v0_0.a}]
+	message: "m"
+	type:    v0_0.t
+}]
+-- out --
+not total
+lacunas[0].type is v0_0.t, which is not a literal; write a lacuna's type as one of thema's lacuna types, as a string or as thema.LacunaTypes.<name> (rule not-a-value) @ lens.cue:6:11
