@@ -19,7 +19,7 @@ ForwardLens: {
 BackwardLens: {
 	v1_0: _
 	v0_0: {
-		after: drop
+		after: _drop
 	}
 }
 -- out/error --

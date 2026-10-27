@@ -24,7 +24,7 @@ One example, with data documents from its schemas' examples.
       },
       {
         "path": "1.0.thema",
-        "text": "Schema: {\n\tfirstfield:  string\n\tsecondfield: int\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {\n\t\t// 0.0 has no data for secondfield.\n\t\tsecondfield: -1\n\t}\n\tlacunas: {\n\t\tsecondfield: [{\n\t\t\ttype:    Placeholder\n\t\t\tmessage: \"-1 used as a placeholder value - replace with a real value before persisting!\"\n\t\t}]\n\t}\n}\n\nBackwardLens: {\n\tv1_0: _\n\tv0_0: {\n\t\tsecondfield: drop\n\t}\n\tlacunas: {\n\t\tsecondfield: [{\n\t\t\ttype:    DroppedField\n\t\t\tmessage: \"secondfield is new in 1.0; 0.0 has nowhere to keep it\"\n\t\t}]\n\t}\n}\n"
+        "text": "Schema: {\n\tfirstfield:  string\n\tsecondfield: int\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {\n\t\t// 0.0 has no data for secondfield.\n\t\tsecondfield: -1\n\t}\n\tlacunas: {\n\t\tsecondfield: [{\n\t\t\ttype:    Placeholder\n\t\t\tmessage: \"-1 used as a placeholder value - replace with a real value before persisting!\"\n\t\t}]\n\t}\n}\n\nBackwardLens: {\n\tv1_0: _\n\tv0_0: {\n\t\tsecondfield: _drop\n\t}\n\tlacunas: {\n\t\tsecondfield: [{\n\t\t\ttype:    DroppedField\n\t\t\tmessage: \"secondfield is new in 1.0; 0.0 has nowhere to keep it\"\n\t\t}]\n\t}\n}\n"
       }
     ]
   },

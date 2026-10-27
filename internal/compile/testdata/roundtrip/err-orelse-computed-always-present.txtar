@@ -12,14 +12,14 @@ Schema: {
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		total: orelse(v0_0.count * 2, 0)
-		count: drop
+		total: _orelse(v0_0.count * 2, 0)
+		count: _drop
 	}
 }
 -- out/error --
-error[E0348]: 0.0 always has every field v0_0.count * 2 reads, so orelse's fallback could never apply: write total: v0_0.count * 2
- --> 1.0.thema:8:17
+error[E0348]: 0.0 always has every field v0_0.count * 2 reads, so _orelse's fallback could never apply: write total: v0_0.count * 2
+ --> 1.0.thema:8:18
   |
-8 |         total: orelse(v0_0.count * 2, 0)
-  |                       ^^^^
+8 |         total: _orelse(v0_0.count * 2, 0)
+  |                        ^^^^
   |

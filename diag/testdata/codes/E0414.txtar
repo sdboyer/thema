@@ -13,7 +13,7 @@ Schema: {
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		kind: match(v0_0.kind, {
+		kind: _match(v0_0.kind, {
 			"a": 1
 			[_]: 0
 		})
@@ -30,7 +30,7 @@ ForwardLens: {
         "file": "1.0.thema",
         "line": 10,
         "col": 4,
-        "offset": 97,
+        "offset": 98,
         "origin": "user"
       }
     }

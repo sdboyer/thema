@@ -1,0 +1,74 @@
+A target field whose name starts with _ is data when quoted, so a lens maps it
+by quoting its key. Decompiling quotes it again.
+-- ship/history/0.0.thema --
+Schema: {
+	"_id": string
+	kind:  string
+}
+-- ship/1.0.thema --
+Schema: {
+	"_id":   string
+	"_kind": string
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		"_kind": v0_0.kind
+	}
+}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+Schema: {
+	"_id":   string
+	"_kind": string
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		"_kind": v0_0.kind
+	}
+}
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	"_id": string
+	kind:  string
+}
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				"_id": string
+				kind:  string
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				"_id":   string
+				"_kind": string
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			"_id":   v0_0."_id"
+			"_kind": v0_0.kind
+		}
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			"_id": v1_0."_id"
+			kind:  v1_0."_kind"
+		}
+	}
+}

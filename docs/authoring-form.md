@@ -44,7 +44,7 @@ ForwardLens: {
 BackwardLens: {
 	v1_0: _
 	v0_0: {
-		secondfield: drop
+		secondfield: _drop
 	}
 }
 ```
@@ -80,17 +80,19 @@ The body holds the target schema's fields. Each entry is a *mapping*: it names a
 | `kind: "v2"` | **Constant.** The field takes a fixed value: a number, a string, `true`, `false`, `null`, or a list of these. The value must be one the target field accepts. |
 | `area: v0_0.width * v0_0.height` | **Computed.** The field takes a value computed from source fields: arithmetic (`+`, `-`, `*`, and whole-number division with `quo`, `rem`, `div`, `mod`), comparisons, `&&`, `||` and `!`, joining strings with `+` or `"\(...)"`, `len` for the length of a string or list, and the string functions `strings.ToUpper`, `ToLower`, `TrimSpace`, `Trim`, `TrimLeft`, `TrimRight`, `TrimPrefix`, `TrimSuffix`, `Replace`, `HasPrefix`, `HasSuffix` and `Contains`. These are exactly the computations thema can prove never fail; anything else is an error naming what is allowed. |
 | `meta: {owner: v0_0.name}` | **Nested body.** A block is a body for the target field it names, holding mappings for the fields inside. To copy the rest of its fields from a different part of the source, name that part first: `{v0_0.m, x: 1}`. |
-| `legacy: drop` | **Drop.** The source field named by the key has no place in the target and is dropped. A field the target requires cannot be dropped. |
-| `nick: orelse(v0_0.nick, v0_0.name)` | **Fallback.** The source field is optional; when the instance lacks it, the fallback is used. The first argument may also be a computed value, `orelse(v0_0.count * 2, 0)`, and the fallback is used when any field it reads is absent. The fallback is a constant, or a field the source always has. An `orelse` whose first argument reads only fields the source always has is an error. |
-| `kind: match(v0_0.kind, {"a": 1, [_]: 0})` | **Match.** The source value is matched against the arms. A value an arm matches becomes that arm's constant. A value no arm matches passes through unchanged where the target accepts it, and otherwise takes the wildcard arm `[_]`, which must declare a lacuna. Without a wildcard arm the arms must be exhaustive: every value the source may hold is matched or accepted. |
-| `items: each(v0_0.items, {name: item.title})` | **Each.** A list is mapped element by element. The block is a lens body over `item`, the element, and every mapping above is available in it. `each` applies to lists of any length (`[...T]`). |
+| `legacy: _drop` | **Drop.** The source field named by the key has no place in the target and is dropped. A field the target requires cannot be dropped. |
+| `nick: _orelse(v0_0.nick, v0_0.name)` | **Fallback.** The source field is optional; when the instance lacks it, the fallback is used. The first argument may also be a computed value, `_orelse(v0_0.count * 2, 0)`, and the fallback is used when any field it reads is absent. The fallback is a constant, or a field the source always has. An `_orelse` whose first argument reads only fields the source always has is an error. |
+| `kind: _match(v0_0.kind, {"a": 1, [_]: 0})` | **Match.** The source value is matched against the arms. A value an arm matches becomes that arm's constant. A value no arm matches passes through unchanged where the target accepts it, and otherwise takes the wildcard arm `[_]`, which must declare a lacuna. Without a wildcard arm the arms must be exhaustive: every value the source may hold is matched or accepted. |
+| `items: _each(v0_0.items, {name: _item.title})` | **Each.** A list is mapped element by element. The block is a lens body over `_item`, the element, and every mapping above is available in it. `_each` applies to lists of any length (`[...T]`). |
 
 A mapping's key is a plain field name, and its value is one of the forms above. Nothing else attaches to a mapping.
+
+The operations, `_drop`, `_orelse`, `_match` and `_each`, and `_item` inside an `_each` body, start with `_` so that they can never be mistaken for a field. In CUE, a name that starts with `_` is a hidden field, which is not data, and a lens body never declares one: a key there names a field of the target. A field whose name starts with `_` is mapped by quoting its key, `"_x": v0_0.y`.
 
 ### What is written and what is implied
 
 - **Copies are implicit.** A field both schemas declare, that no mapping mentions, is copied. The copy is made as high as the two schemas agree: a field whose contents the target declares whole is copied whole, and one whose contents differ is descended into.
-- **Optional sources are used only when present.** A copy, a move or a computed value that reads a field the source may omit is written only when the instance has it. Where the target requires the field, the author must say what to use when it is absent, with `orelse`.
+- **Optional sources are used only when present.** A copy, a move or a computed value that reads a field the source may omit is written only when the instance has it. Where the target requires the field, the author must say what to use when it is absent, with `_orelse`.
 - **Removed fields must be accounted for.** In the forward direction, a field the source declares and the target does not must be moved somewhere or dropped. A forgotten rename is an error, not a silent loss.
 - **Required fields must be produced.** A field the target requires that no mapping and no copy produces is an error, naming the lens and the field.
 
@@ -102,7 +104,7 @@ The backward lens is derived from the forward lens:
 - every field the new version added is dropped, with a derived `DroppedField` lacuna saying so;
 - fields both versions share are copied, as always.
 
-What the author writes in `BackwardLens` overrides the derivation at the same key or beneath it. Writing `x: drop` for a field the derivation would have moved suppresses the move. `orelse`, `match` and `each` have no derived inverse, so a forward lens that uses them usually needs a written backward lens.
+What the author writes in `BackwardLens` overrides the derivation at the same key or beneath it. Writing `x: _drop` for a field the derivation would have moved suppresses the move. `_orelse`, `_match` and `_each` have no derived inverse, so a forward lens that uses them usually needs a written backward lens.
 
 ## Lacunas
 
@@ -116,7 +118,7 @@ ForwardLens: {
 		meta: {
 			team: "unassigned"
 		}
-		count: orelse(v0_0.count, 0)
+		count: _orelse(v0_0.count, 0)
 	}
 	lacunas: {
 		name: [{
@@ -151,9 +153,9 @@ A key must name a mapping the author wrote. A copy the author wants a lacuna on 
 | Mapping | The lacuna applies when |
 |---|---|
 | move, constant | always |
-| `orelse` | the fallback was used |
-| `match` | the wildcard arm applied |
-| `drop` | the dropped field was present |
+| `_orelse` | the fallback was used |
+| `_match` | the wildcard arm applied |
+| `_drop` | the dropped field was present |
 
 A `when` replaces the implied condition. It is a comparison or combination of source fields, built from the usual operators (`==`, `!=`, `<`, `>`, `<=`, `>=`, `&&`, `||`, `!`, `+`, `-`, `*`), `len` for the length of a string or list, and whole-number division (`quo`, `rem`, `div`, `mod`). Three rules govern the fields it reads:
 
@@ -165,21 +167,21 @@ A `when` replaces the implied condition. It is a comparison or combination of so
 
 **Matches.** A wildcard arm must have a lacuna: one on the match's key without a `when`, which applies when the arm does. A lacuna on an arm other than the wildcard is written with a `when` naming the value, `when: v0_0.kind == "a"`. A match without a wildcard arm has no implied condition, so every lacuna on it needs a `when`.
 
-**Inside `each`.** A lacuna on a mapping in an `each` body is keyed through the list, `items: {legacy: [...]}`. Only the `DroppedField` refinement of a drop in the body is supported today; it applies to the drop's derived lacuna, which is reported once for the whole list, naming every element that had the field.
+**Inside `_each`.** A lacuna on a mapping in an `_each` body is keyed through the list, `items: {legacy: [...]}`. Only the `DroppedField` refinement of a drop in the body is supported today; it applies to the drop's derived lacuna, which is reported once for the whole list, naming every element that had the field.
 
 ## What is not accepted yet
 
 Each of these is refused with an error naming what to write instead, rather than compiled approximately:
 
 - **Constraints from CUE's standard packages** in a schema, such as `strings.MinRunes` or `time.Format`, since a version file imports nothing ([#104](https://github.com/sdboyer/thema/issues/104)).
-- **`each` inside `each`**, and a reference to the whole source instance from inside an `each` body.
-- **Lacunas inside `each`** other than the `DroppedField` refinement ([#103](https://github.com/sdboyer/thema/issues/103)).
+- **`_each` inside `_each`**, and a reference to the whole source instance from inside an `_each` body.
+- **Lacunas inside `_each`** other than the `DroppedField` refinement ([#103](https://github.com/sdboyer/thema/issues/103)).
 - **A match passthrough into a target whose type refers to other fields.** The passthrough tests the value against the target's type, which must stand on its own to be restated; match every value with an arm instead.
 - **List-to-map and map-to-list mappings** ([#102](https://github.com/sdboyer/thema/issues/102)).
 
 ## What it compiles to
 
-The compiler produces the normal form that the tutorial shows: a `thema.Lineage` with schemas keyed by version and lenses keyed by edge. A lens's fields keep their names, `v0_0` and `v1_0`, so a normal-form lens reads as its authoring form did. Implicit copies are written out, a copy of an optional field is written under a presence test, `orelse` and `match` become one branch per case, `each` becomes a loop over the list, and each lacuna becomes an entry of the lens's `lacunas` list with its condition and the fields it reports.
+The compiler produces the normal form that the tutorial shows: a `thema.Lineage` with schemas keyed by version and lenses keyed by edge. A lens's fields keep their names, `v0_0` and `v1_0`, so a normal-form lens reads as its authoring form did. Implicit copies are written out, a copy of an optional field is written under a presence test, `_orelse` and `_match` become one branch per case, `_each` becomes a loop over the list, and each lacuna becomes an entry of the lens's `lacunas` list with its condition and the fields it reports.
 
 Every part of the normal form is positioned in the authoring file it came from. An error from the evaluator, from binding or from translation points at the author's line, and the compiler's own errors are worded in these terms: the file, the lens block and the mapping.
 

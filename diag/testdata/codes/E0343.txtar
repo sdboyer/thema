@@ -26,7 +26,7 @@ ForwardLens: {
     {
       "code": "E0343",
       "severity": "error",
-      "headline": "b is optional in 0.0 and required in 1.0: write b: orelse(v0_0.b, <fallback>) to say what to use when it is absent",
+      "headline": "b is optional in 0.0 and required in 1.0: write b: _orelse(v0_0.b, <fallback>) to say what to use when it is absent",
       "primary": {
         "file": "1.0.thema",
         "line": 3,
@@ -43,7 +43,7 @@ ForwardLens: {
   }
 }
 -- out/text --
-error[E0343]: b is optional in 0.0 and required in 1.0: write b: orelse(v0_0.b, <fallback>) to say what to use when it is absent
+error[E0343]: b is optional in 0.0 and required in 1.0: write b: _orelse(v0_0.b, <fallback>) to say what to use when it is absent
  --> 1.0.thema:3:2
   |
 3 |     b: int

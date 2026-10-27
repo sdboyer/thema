@@ -1,0 +1,10 @@
+# A data field whose name starts with _, written with a quoted label, as JSON's "_id" is. It is data, not a hidden field, so the lens must write it, and does.
+-- source.cue --
+"_id": string
+-- target.cue --
+"_id": string
+-- lens.cue --
+v0_0: _
+v1_0: {"_id": v0_0."_id"}
+-- out --
+total

@@ -1025,7 +1025,7 @@ func (w *walker) decls(decls []ast.Decl, q cue.Path, gs []pattern, pos token.Pos
 					Detail: fmt.Sprintf("has a field whose label %s is computed, so which field it is depends on the instance; write the label", text(x.Label)), Pos: pos})
 				continue
 			}
-			if strings.HasPrefix(name, "#") {
+			if isIdent && strings.HasPrefix(name, "#") {
 				// Definitions are not data. A regular field that refers to one
 				// is followed to what it refers to.
 				continue
@@ -1036,8 +1036,9 @@ func (w *walker) decls(decls []ast.Decl, q cue.Path, gs []pattern, pos token.Pos
 			}
 			cq := appendPath(q, cue.Str(name))
 			cpos := w.resultPos(cq, pos)
-			if strings.HasPrefix(name, "_") {
-				// A hidden field is not data either, but it is evaluated.
+			if isIdent && strings.HasPrefix(name, "_") {
+				// A hidden field is not data either, but it is evaluated. A
+				// quoted label ("_id") is data.
 				cq = appendPath(q, cue.Hid(name, "_"))
 				w.hidden++
 				for _, c := range w.tree.Conjuncts(x.Value) {

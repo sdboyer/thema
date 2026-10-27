@@ -205,7 +205,7 @@ func (w walker) undeclaredInStruct(data, sch cue.Value, p cue.Path, b *LensField
 			continue
 		}
 		name := sel.Unquoted()
-		cb, through := b.child(name)
+		cb, through := b.child(dataKey(name))
 		if through {
 			continue
 		}
