@@ -4,8 +4,8 @@ a: string
 -- target.cue --
 o: {init: string, more: int}
 -- lens.cue --
-input: _
-result: {o: {init: input.a}}
+v0_0: _
+v1_0: {o: {init: v0_0.a}}
 -- out --
 not total
-result.o.more is required by the target schema and never written (rule required-not-written) @ lens.cue:2:10
+v1_0.o.more is required by the target schema and never written (rule required-not-written) @ lens.cue:2:8

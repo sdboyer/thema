@@ -27,12 +27,12 @@ lin: schemas: {
 
 lin: lenses: {
     "0.1->0.0": {
-    	input: _
-    	result: {
-            concreteCross: input.concreteCross
-            concreteString: input.concreteString
-            crossKind3: input.crossKind3
-            crossKind2: input.crossKind2
+    	v0_1: _
+    	v0_0: {
+            concreteCross: v0_1.concreteCross
+            concreteString: v0_1.concreteString
+            crossKind3: v0_1.crossKind3
+            crossKind2: v0_1.crossKind2
     	}
     }
 }

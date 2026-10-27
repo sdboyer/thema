@@ -57,7 +57,7 @@ ForwardLens: {
 -- out/bind --
 lens 0.0->1.0 cannot be shown total over schema 0.0:
     1.0.thema:10:1
-lens 0.0->1.0: lacunas[0].condition is len(input.name) > 64, which is not a pattern: a presence test (p != _|_), an equality (p == c) or a type test ((p & T) != _|_) on an input field, or a conjunction (&&) of these (rule unknown-pattern):
+lens 0.0->1.0: lacunas[0].condition is len(v0_0.name) > 64, which is not a pattern: a presence test (p != _|_), an equality (p == c) or a type test ((p & T) != _|_) on an input field, or a conjunction (&&) of these (rule unknown-pattern):
     1.0.thema:20:10
 -- out/decompiled/1.0.thema --
 schema: {
@@ -137,30 +137,30 @@ schemas: {
 }
 lenses: {
 	"0.0->1.0": {
-		input: _
-		result: {
-			name: input.name
+		v0_0: _
+		v1_0: {
+			name: v0_0.name
 			meta: {
-				owner: input.meta.owner
+				owner: v0_0.meta.owner
 				team:  "unassigned"
 			}
-			if input.count != _|_ {
-				count: input.count
+			if v0_0.count != _|_ {
+				count: v0_0.count
 			}
-			if input.count == _|_ {
+			if v0_0.count == _|_ {
 				count: 0
 			}
 		}
 		lacunas: [
 			{
-				condition: len(input.name) > 64
+				condition: len(v0_0.name) > 64
 				sourceFields: [{
 					path:  "name"
-					value: input.name
+					value: v0_0.name
 				}]
 				targetFields: [{
 					path:  "name"
-					value: result.name
+					value: v1_0.name
 				}]
 				message: "names longer than 64 characters are truncated downstream"
 				type:    "LossyFieldMapping"
@@ -168,33 +168,33 @@ lenses: {
 			{
 				targetFields: [{
 					path:  "meta.team"
-					value: result.meta.team
+					value: v1_0.meta.team
 				}]
 				message: "0.0 has no team; \"unassigned\" is a placeholder"
 				type:    "Placeholder"
 			},
 			{
-				condition: input.count == _|_
-				sourceFields: [if input.count != _|_ {
+				condition: v0_0.count == _|_
+				sourceFields: [if v0_0.count != _|_ {
 					path:  "count"
-					value: input.count
+					value: v0_0.count
 				}]
 				targetFields: [{
 					path:  "count"
-					value: result.count
+					value: v1_0.count
 				}]
 				message: "count was absent; 0 is a placeholder"
 				type:    "Placeholder"
 			},
 			{
-				condition: input.name == "legacy"
-				sourceFields: [if input.count != _|_ {
+				condition: v0_0.name == "legacy"
+				sourceFields: [if v0_0.count != _|_ {
 					path:  "count"
-					value: input.count
+					value: v0_0.count
 				}]
 				targetFields: [{
 					path:  "count"
-					value: result.count
+					value: v1_0.count
 				}]
 				message: "legacy records never recorded a count, so 0 may be real"
 				type:    "AmbiguousMapping"
@@ -202,18 +202,18 @@ lenses: {
 		]
 	}
 	"1.0->0.0": {
-		input: _
-		result: {
-			name: input.name
+		v1_0: _
+		v0_0: {
+			name: v1_0.name
 			meta:
-				owner: input.meta.owner
-			count: input.count
+				owner: v1_0.meta.owner
+			count: v1_0.count
 		}
 		lacunas: [{
 			@thema(derived)
 			sourceFields: [{
 				path:  "meta.team"
-				value: input.meta.team
+				value: v1_0.meta.team
 			}]
 			message: "meta.team has no equivalent in 0.0 and was dropped"
 			type:    "DroppedField"

@@ -4,8 +4,8 @@ withDefault?: *"foo" | "bar" | "baz"
 -- target.cue --
 withDefault?: *"foo" | "bar"
 -- lens.cue --
-input: _
-result: {if input.withDefault != _|_ {withDefault: input.withDefault}}
+v0_0: _
+v1_0: {if v0_0.withDefault != _|_ {withDefault: v0_0.withDefault}}
 -- out --
 not total
-result.withDefault copies input.withDefault, which was *"foo" | "bar" | "baz" and is now *"foo" | "bar" (compat rule value-narrowed) (rule copy-narrowed) @ lens.cue:2:10
+v1_0.withDefault copies v0_0.withDefault, which was *"foo" | "bar" | "baz" and is now *"foo" | "bar" (compat rule value-narrowed) (rule copy-narrowed) @ lens.cue:2:8

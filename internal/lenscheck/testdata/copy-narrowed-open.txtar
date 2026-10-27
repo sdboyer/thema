@@ -7,8 +7,8 @@ a: string
 zzz?: string
 ...
 -- lens.cue --
-input: _
-result: input
+v0_0: _
+v1_0: v0_0
 -- out --
 not total
-result copies input, whose zzz is now string, which does not accept every value of the prior _ (compat rule value-narrowed) (rule copy-narrowed) @ lens.cue:2:9
+v1_0 copies v0_0, whose zzz is now string, which does not accept every value of the prior _ (compat rule value-narrowed) (rule copy-narrowed) @ lens.cue:2:7

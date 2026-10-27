@@ -79,8 +79,7 @@ const (
 
 // The roots references start from: input in a lens body, item in an each body.
 const (
-	rootInput = "input"
-	rootItem  = "item"
+	rootItem = "item"
 )
 
 // The fields of a lens block beside its two versions, and of a lacuna.
@@ -200,10 +199,10 @@ type edge struct {
 	file     string
 	written  bool
 	blockPos token.Pos
-	// root is the identifier the author's references start from: the
-	// version's parameter (v0_0), or item inside an each body. emitRoot is
-	// what the normal form uses for it: input, or item.
-	root, emitRoot string
+	// root is the identifier the author's references start from, which is
+	// also the normal form's field for the instance the lens takes: the
+	// version's parameter (v0_0), or item inside an each body.
+	root string
 	// lacunas is the lens's declared lacunas.
 	lacunas *lacunaTable
 	// each is set for the sub-edge compiling an each body.
@@ -541,8 +540,8 @@ func (e *edge) parseLacuna(x ast.Expr, p cue.Path) *lacunaDecl {
 	return d
 }
 
-// condition checks an authored condition and rewrites its references to the
-// normal form's root. A condition reads fields the source always has, tests
+// condition checks an authored condition, whose references the normal form
+// keeps as written. A condition reads fields the source always has, tests
 // the presence of any source field (<ref> != _|_, <ref> == _|_), and uses
 // CUE's builtins; reading an optional field is not supported yet, since
 // nothing proves the condition evaluates when it is absent.
@@ -563,7 +562,7 @@ func (e *edge) condition(x ast.Expr) bool {
 					e.errf(n.X.Pos(), "%s does not declare %s", e.sv, p)
 					ok = false
 				}
-				e.rebind(rootIdent(n.X))
+				e.unbind(rootIdent(n.X))
 				return false
 			}
 		case *ast.SelectorExpr:
@@ -576,7 +575,7 @@ func (e *edge) condition(x ast.Expr) bool {
 					e.errf(n.Pos(), "%s is optional in %s, and a condition reading an optional field is not supported yet; a condition may test its presence: %s.%s != _|_", p, e.sv, e.root, p)
 					ok = false
 				}
-				e.rebind(rootIdent(n))
+				e.unbind(rootIdent(n))
 				return false
 			}
 			if id, isID := n.Sel.(*ast.Ident); isID {
@@ -591,7 +590,7 @@ func (e *edge) condition(x ast.Expr) bool {
 				return false
 			}
 			if n.Name == e.root {
-				e.rebind(n)
+				e.unbind(n)
 				return false
 			}
 			e.errf(n.Pos(), "%s is not defined in a lens; a condition refers to %s and to CUE's builtins", n.Name, e.root)
@@ -602,11 +601,10 @@ func (e *edge) condition(x ast.Expr) bool {
 	return ok
 }
 
-// rebind makes id refer to the normal form's root. The parser bound it to the
-// authoring file's parameter field; the binding is dropped so that the
-// evaluator resolves the name in the normal form.
-func (e *edge) rebind(id *ast.Ident) {
-	id.Name = e.emitRoot
+// unbind drops the binding the parser gave id, to the authoring file's
+// parameter field, so that the evaluator resolves the name in the normal
+// form, where the lens's field of the same name declares it.
+func (e *edge) unbind(id *ast.Ident) {
 	id.Node = nil
 	id.Scope = nil
 }
@@ -1117,7 +1115,7 @@ func (e *edge) compileEach(en *entry, out *compiledLens) bool {
 		e.errf(en.expr.Pos(), "each inside each is not supported yet")
 		return false
 	}
-	sub := &edge{ctx: e.ctx, S: selem, T: telem, sv: e.sv, tv: e.tv, dir: e.dir, blockPos: en.pos, root: rootItem, emitRoot: rootItem,
+	sub := &edge{ctx: e.ctx, S: selem, T: telem, sv: e.sv, tv: e.tv, dir: e.dir, blockPos: en.pos, root: rootItem,
 		lacunas: e.lacunas, each: &eachScope{list: en.source, target: en.target, n: out.nlets}}
 	b := &body{}
 	sub.parseBody(en.body, cue.MakePath(), cue.MakePath(), b)
@@ -1424,7 +1422,7 @@ func (e *edge) dropLacuna(out *compiledLens, en *entry) {
 		// let _d_<n> = [for i, item in input.<list> if item.<p> != _|_ {path: "<list>[\(i)].<p>", value: item.<p>}]
 		name := fmt.Sprintf("_d_%d", out.nlets)
 		out.nlets++
-		clauses := []ast.Clause{at(p, &ast.ForClause{Key: at(p, ast.NewIdent("i")), Value: at(p, ast.NewIdent(rootItem)), Source: at(p, ref(rootInput, e.each.list))})}
+		clauses := []ast.Clause{at(p, &ast.ForClause{Key: at(p, ast.NewIdent("i")), Value: at(p, ast.NewIdent(rootItem)), Source: at(p, ref(paramName(e.sv), e.each.list))})}
 		if e.optional(e.S, en.source) {
 			clauses = append(clauses, at(p, &ast.IfClause{Condition: e.present(p, en.source)}))
 		}
@@ -1449,7 +1447,7 @@ func (e *edge) dropLacuna(out *compiledLens, en *entry) {
 		case e.optional(e.S, en.source):
 			elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("condition")), Value: e.present(p, en.source)}))
 		}
-		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewList(e.fieldRef(p, en.source, e.emitRoot)))}))
+		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewList(e.fieldRef(p, en.source, e.root)))}))
 	}
 	elts = append(elts,
 		at(p, &ast.Field{Label: at(p, ast.NewIdent("message")), Value: at(p, ast.NewString(msg))}),
@@ -1499,16 +1497,16 @@ func (e *edge) lacunaFor(en *entry, d *lacunaDecl, cond ast.Expr) ast.Expr {
 		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("condition")), Value: cond}))
 	}
 	if en.kind == kindDrop {
-		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewList(e.fieldRef(p, en.source, e.emitRoot)))}))
+		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewList(e.fieldRef(p, en.source, e.root)))}))
 	} else {
 		if len(en.source.Selectors()) > 0 {
-			src := e.fieldRef(p, en.source, e.emitRoot)
+			src := e.fieldRef(p, en.source, e.root)
 			if e.optional(e.S, en.source) {
 				src = at(p, &ast.Comprehension{Clauses: []ast.Clause{at(p, &ast.IfClause{Condition: e.present(p, en.source)})}, Value: src})
 			}
 			elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewList(src))}))
 		}
-		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("targetFields")), Value: at(p, ast.NewList(e.fieldRef(p, en.target, "result")))}))
+		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("targetFields")), Value: at(p, ast.NewList(e.fieldRef(p, en.target, paramName(e.tv))))}))
 	}
 	elts = append(elts,
 		at(p, &ast.Field{Label: at(p, ast.NewIdent("message")), Value: at(p, ast.NewString(d.msg))}),
@@ -1526,7 +1524,7 @@ func (e *edge) fieldRef(pos token.Pos, p cue.Path, root string) ast.Expr {
 }
 
 // ref builds <root>.<p>, with the edge's root.
-func (e *edge) ref(p cue.Path) ast.Expr { return ref(e.emitRoot, p) }
+func (e *edge) ref(p cue.Path) ast.Expr { return ref(e.root, p) }
 
 func ref(root string, p cue.Path) ast.Expr {
 	var names []string

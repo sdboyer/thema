@@ -27,9 +27,9 @@ schemas: {
 
 lenses: {
     "0.1->0.0": {
-        input: _
-        result: {
-            firstfield: input.firstfield
+        v0_1: _
+        v0_0: {
+            firstfield: v0_1.firstfield
         }
     }
 }

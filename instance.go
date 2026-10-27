@@ -277,17 +277,25 @@ func (i *Instance) checkLensResultFields(out cue.Value) error {
 		if !lens.Exists() {
 			continue
 		}
-		result := lens.LookupPath(cue.MakePath(cue.Str("result")))
-		var to SyntacticVersion
+		var from, to SyntacticVersion
+		if err := steps.Value().LookupPath(cue.MakePath(cue.Str("from"))).Decode(&from); err != nil {
+			return err
+		}
 		if err := steps.Value().LookupPath(cue.MakePath(cue.Str("to"))).Decode(&to); err != nil {
 			return err
 		}
+		result := lens.LookupPath(cue.MakePath(cue.Str(lensParam(to))))
 		sch, err := i.Schema().Lineage().Schema(to)
 		if err != nil {
 			return err
 		}
 		def := sch.(*schemaDef)
-		syn, err := cuetil.ParseLens(lens)
+		// The lens's syntax is read from the lineage's lens, not from the step's
+		// copy of it: the syntax depends only on what the lens is, and the
+		// step's copy, filled with the instance, is not exportable (CUE's
+		// exporter cannot name a path through the lens's edge key).
+		declared := i.Schema().Lineage().Underlying().LookupPath(cue.MakePath(cue.Str("lenses"), cue.Str(lensID{From: from, To: to}.String())))
+		syn, err := cuetil.ParseLens(declared, lensParam(from), lensParam(to))
 		if err != nil {
 			return fmt.Errorf("lens to %s: %w", to, err)
 		}

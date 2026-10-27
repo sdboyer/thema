@@ -4,15 +4,15 @@ boolish: "true" | "false" | bool | string
 -- target.cue --
 properbool: bool
 -- lens.cue --
-input: _
-result: {
-	if (input.boolish & string) != _|_ {properbool: input.boolish == "true"}
-	if (input.boolish & bool) != _|_ {properbool: input.boolish}
+v0_0: _
+v1_0: {
+	if (v0_0.boolish & string) != _|_ {properbool: v0_0.boolish == "true"}
+	if (v0_0.boolish & bool) != _|_ {properbool: v0_0.boolish}
 }
 lacunas: [{
-	condition: ((input.boolish & string) != _|_) && ((input.boolish & ("true" | "false")) == _|_)
-	sourceFields: [{path: "boolish", value: input.boolish}]
-	targetFields: [{path: "properbool", value: result.properbool}]
+	condition: ((v0_0.boolish & string) != _|_) && ((v0_0.boolish & ("true" | "false")) == _|_)
+	sourceFields: [{path: "boolish", value: v0_0.boolish}]
+	targetFields: [{path: "properbool", value: v1_0.properbool}]
 	message: "lossy"
 	type: "LossyFieldMapping"
 }]

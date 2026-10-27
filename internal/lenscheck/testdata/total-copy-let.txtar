@@ -6,8 +6,8 @@ n: {p: int, ...}
 a: string
 n: {p: int, ...}
 -- lens.cue --
-input: _
-let N = input.n
-result: {a: input.a, n: N}
+v0_0: _
+let N = v0_0.n
+v1_0: {a: v0_0.a, n: N}
 -- out --
 total

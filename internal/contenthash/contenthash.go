@@ -42,6 +42,8 @@ import (
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/ast"
+
+	"github.com/sdboyer/thema/internal/cuetil"
 )
 
 // Digest is a SHA-256 digest of a canonical form.
@@ -94,7 +96,7 @@ func SchemaForm(lin cue.Value, v Version) (string, error) {
 // LensForm returns the canonical form of the lenses on the edge into version v
 // of the lineage lin, whose digest is the lens part of v's ID: a struct with a
 // forward and a backward field for the lenses there are, each holding the
-// lens's input, result and lacunas.
+// lens's source, result and lacunas fields.
 func LensForm(lin cue.Value, v Version) (string, error) {
 	fwd, back, err := versionLenses(lin, v)
 	if err != nil {
@@ -103,12 +105,12 @@ func LensForm(lin cue.Value, v Version) (string, error) {
 	edge := &ast.StructLit{}
 	for _, l := range []struct {
 		name string
-		lens cue.Value
+		edgeLens
 	}{{"forward", fwd}, {"backward", back}} {
 		if !l.lens.Exists() {
 			continue
 		}
-		x, err := lensSyntax(l.lens)
+		x, err := lensSyntax(l.lens, l.from, l.to)
 		if err != nil {
 			return "", err
 		}
@@ -117,13 +119,22 @@ func LensForm(lin cue.Value, v Version) (string, error) {
 	return canonicalize(edge)
 }
 
-// lensSyntax returns the exported content fields of lens, as a struct. Each is
-// exported on its own, so a reference to input is one that leaves the field,
-// bound in a let CUE generates (let INPUT = _).
-func lensSyntax(lens cue.Value) (ast.Expr, error) {
+// lensSyntax returns the exported content fields of the lens from version from
+// to version to, as a struct: its source field, its result field (both named
+// by their version, cuetil.LensParam) and its lacunas. The edge is the lens's
+// position, which, like a schema's version, is not hashed. Each field is
+// exported on its own, so a reference to the source is one that leaves the
+// field, bound in a let CUE generates (let V0_0 = _).
+func lensSyntax(lens cue.Value, from, to Version) (ast.Expr, error) {
 	s := &ast.StructLit{}
-	for _, name := range lensFields {
-		fv := lens.LookupPath(cue.MakePath(cue.Str(name)))
+	// The fields are named after the edge's versions, which is the lens's
+	// position; the canonical form labels them by role instead.
+	for _, f := range []struct{ name, label string }{
+		{cuetil.LensParam(from[0], from[1]), "takes"},
+		{cuetil.LensParam(to[0], to[1]), "returns"},
+		{"lacunas", "lacunas"},
+	} {
+		fv := lens.LookupPath(cue.MakePath(cue.Str(f.name)))
 		if !fv.Exists() {
 			continue
 		}
@@ -131,7 +142,7 @@ func lensSyntax(lens cue.Value) (ast.Expr, error) {
 		if err != nil {
 			return nil, err
 		}
-		s.Elts = append(s.Elts, &ast.Field{Label: ast.NewIdent(name), Value: x})
+		s.Elts = append(s.Elts, &ast.Field{Label: ast.NewIdent(f.label), Value: x})
 	}
 	return s, nil
 }

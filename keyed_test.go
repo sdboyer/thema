@@ -81,7 +81,7 @@ func TestKeyedNormalFormCUE(t *testing.T) {
 	lenses: "0.1 -> 0.0": {input: _, result: {a: input.a}}`, "0.1 -> 0.0 is not a lens edge"},
 		"schema version field": {`schemas: "0": "0": {version: [0, 0], schema: {a: int}}`, "version is not a field of a schema"},
 		"lens from field": {`schemas: "0": {"0": schema: {a: int}, "1": schema: {a: int, b?: int}}
-	lenses: "0.1->0.0": {from: [0, 1], input: _, result: {a: input.a}}`, "from is not a field of a lens"},
+	lenses: "0.1->0.0": {from: [0, 1], v0_1: _, v0_0: {a: v0_1.a}}`, "from is not a field of a lens"},
 	} {
 		t.Run("rejects "+name, func(t *testing.T) {
 			lin := loadLineageValue(t, ctx, "lin: thema.Lineage & {\n\tname: \"x\"\n\t"+c.src+"\n}")
@@ -89,5 +89,23 @@ func TestKeyedNormalFormCUE(t *testing.T) {
 				t.Errorf("want error containing %q, got %v", c.err, err)
 			}
 		})
+	}
+}
+
+// The Go side names a lens's fields with cuetil.LensParam; thema's CUE names
+// them in Lens.takes and Lens.returns. The two must agree.
+func TestLensParamMatchesCUE(t *testing.T) {
+	rt := NewRuntime(cuecontext.New())
+	def := rt.Underlying().LookupPath(cue.MakePath(cue.Str("Lens"))).
+		FillPath(cue.MakePath(cue.Str("from")), SV(0, 1)).
+		FillPath(cue.MakePath(cue.Str("to")), SV(12, 3))
+	for name, want := range map[string]string{"takes": lensParam(SV(0, 1)), "returns": lensParam(SV(12, 3))} {
+		got, err := def.LookupPath(cue.MakePath(cue.Str(name))).String()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != want {
+			t.Errorf("Lens.%s = %q, Go names it %q", name, got, want)
+		}
 	}
 }

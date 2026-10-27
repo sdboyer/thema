@@ -4,8 +4,8 @@ a: int
 -- target.cue --
 a: int
 -- lens.cue --
-input: _
-result: {input, a: 5}
+v0_0: _
+v1_0: {v0_0, a: 5}
 -- out --
 not total
-result.a is written as 5 and as input.a (through input), and the two unify, so one may reject the other's value; write the field once (rule write-conflict) @ lens.cue:2:10
+v1_0.a is written as 5 and as v0_0.a (through v0_0), and the two unify, so one may reject the other's value; write the field once (rule write-conflict) @ lens.cue:2:8

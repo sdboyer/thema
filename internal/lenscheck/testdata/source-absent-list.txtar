@@ -4,8 +4,8 @@ l: [...int]
 -- target.cue --
 f: int
 -- lens.cue --
-input: _
-result: {f: input.l[0]}
+v0_0: _
+v1_0: {f: v0_0.l[0]}
 -- out --
 not total
-result.f copies input.l[0], which may be absent: input.l[0] is an element the list need not have (its length is uint); write the field under if input.l[0] != _|_ (rule source-absent) @ lens.cue:2:13
+v1_0.f copies v0_0.l[0], which may be absent: v0_0.l[0] is an element the list need not have (its length is uint); write the field under if v0_0.l[0] != _|_ (rule source-absent) @ lens.cue:2:11

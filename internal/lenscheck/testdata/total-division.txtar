@@ -6,7 +6,7 @@ d: int & >=1 & <=10
 q: int
 r: int
 -- lens.cue --
-input: _
-result: {q: quo(input.n, input.d), r: rem(input.n, 7)}
+v0_0: _
+v1_0: {q: quo(v0_0.n, v0_0.d), r: rem(v0_0.n, 7)}
 -- out --
 total

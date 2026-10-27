@@ -17,11 +17,11 @@ lin: thema.Lineage & {
 	}
 	lenses: {
 		"0.1->0.0": {
-			input: _
-			result: R
+			v0_1: _
+			v0_0: R
 			let R = {
-				a: input.a
-				if input.a == "boom" {extra: 1}
+				a: v0_1.a
+				if v0_1.a == "boom" {extra: 1}
 			}
 		}
 	}
