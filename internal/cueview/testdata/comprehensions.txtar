@@ -11,6 +11,12 @@ How comprehensions are presented.
   not otherwise (listConcrete).
 - A comparison with _|_ carries the comment "explicit error (_|_ literal) in
   source".
+- An embedding beside a comprehension (embedBesideComprehension) is exported as
+  a bare expression declaration, not an *ast.EmbedDecl, which it is beside
+  plain fields (embedBesideField). In evaluated the former is a reference
+  (INPUT) to the let the exporter generates for the embedded value, where the
+  latter inlines it (_). The node types are pinned by TestTreeEmbedDecl. Walks
+  over declarations must take any ast.Expr declaration as an embedding.
 -- in.cue --
 input: _
 cases: {
@@ -22,6 +28,8 @@ cases: {
 	nested:      {m: {if input.z == 1 {d: 4}}, e: 5}
 	list:        [if input.x != _|_ {1}]
 	listConcrete: [for i in [1, 2] {i}]
+	embedBesideComprehension: {input, if input.x != _|_ {extra: 1}}
+	embedBesideField:         {input, extra: 1}
 }
 -- conjunct 0 --
 ifPending: {a: 1, if input.x != _|_ {extra: 1}}
@@ -94,6 +102,16 @@ list: [if input.x != _|_ {1}]
 ## listConcrete
 >> operand 0
 listConcrete: [for i in [1, 2] {i}]
+## embedBesideComprehension
+>> operand 0
+input
+>> operand 1
+<nil>
+## embedBesideField
+>> operand 0
+input
+>> operand 1
+<nil>
 -- out/evaluated --
 ## ifPending
 {
@@ -157,6 +175,22 @@ listConcrete: [for i in [1, 2] {i}]
 [for i in [1, 2] {
 	i
 }]
+## embedBesideComprehension
+{
+	INPUT
+	if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## embedBesideField
+{
+	_
+	extra: 1
+}
 -- out/raw --
 ## ifPending
 {
@@ -204,6 +238,19 @@ listConcrete: [for i in [1, 2] {i}]
 [for i in [1, 2] {
 	i
 }]
+## embedBesideComprehension
+{
+	input
+	if input.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}
+}
+## embedBesideField
+{
+	input
+	extra: 1
+}
 -- out/final --
 ## ifPending
 {a: 1}
@@ -242,6 +289,10 @@ listConcrete: [for i in [1, 2] {i}]
 []
 ## listConcrete
 [1, 2]
+## embedBesideComprehension
+{}
+## embedBesideField
+{extra: 1}
 -- out/data --
 ## ifPending
 {a: 1}
@@ -265,6 +316,10 @@ error: cases.nested.m: input.z undefined as input is incomplete (type _)
 []
 ## listConcrete
 [1, 2]
+## embedBesideComprehension
+{}
+## embedBesideField
+{extra: 1}
 -- out/documented --
 ## ifPending
 {
@@ -328,6 +383,22 @@ error: cases.nested.m: input.z undefined as input is incomplete (type _)
 [for i in [1, 2] {
 	i
 }]
+## embedBesideComprehension
+{
+	INPUT
+	if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## embedBesideField
+{
+	_
+	extra: 1
+}
 -- out/selfcontained --
 ## ifPending
 {
@@ -391,3 +462,19 @@ error: cases.nested.m: input.z undefined as input is incomplete (type _)
 [for i in [1, 2] {
 	i
 }]
+## embedBesideComprehension
+{
+	INPUT
+	if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## embedBesideField
+{
+	_
+	extra: 1
+}

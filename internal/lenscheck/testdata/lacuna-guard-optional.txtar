@@ -14,4 +14,4 @@ lacunas: [{
 }]
 -- out --
 not total
-lacunas[0].condition reads v0_0.n, which may be absent: v0_0.n is optional in the source schema; write the field under if v0_0.n != _|_ (rule source-absent) @ lens.cue:4:13
+lacunas[0].condition reads v0_0.n, which may be absent: v0_0.n is optional in the source schema; add v0_0.n != _|_ to the lacuna's condition (rule source-absent) @ lens.cue:4:13

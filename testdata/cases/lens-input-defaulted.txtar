@@ -1,0 +1,25 @@
+# the lens gives the field it takes a default: that field must be _, so that the
+# source schema alone says what the lens receives
+#issue: 107
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "lensInputDefaulted"
+	schemas: {
+		"0": "0": {schema: {a: *"x" | string}}
+		"1": "0": {schema: {b!: string}}
+	}
+	lenses: {
+		"0.0->1.0": {
+			v0_0: {a: *"y" | string}
+			v1_0: {b: v0_0.a}
+		}
+		"1.0->0.0": {
+			v1_0: _
+			v0_0: {a: v1_0.b}
+		}
+	}
+}
+-- expect --
+bind fail source-constrained
