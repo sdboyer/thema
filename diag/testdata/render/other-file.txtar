@@ -1,0 +1,40 @@
+The primary in one authoring file and a note in another, both with excerpts; a
+tab-indented line and a multibyte character before the marked token.
+-- diag.json --
+[{
+  "code": "E0340",
+  "severity": "error",
+  "headline": "the mapping for naïve reads v0_0.missing, which schema 0.0 does not declare",
+  "primary": {"file": "1.0.thema", "line": 7, "col": 11, "origin": "user"},
+  "notes": [
+    {"pos": {"file": "0.0.thema", "line": 2, "col": 2, "origin": "user"}, "label": "schema 0.0 declares only naïve"}
+  ],
+  "help": ["read a field schema 0.0 declares, or write a constant"]
+}]
+-- 0.0.thema --
+schema: {
+	naïve: string
+}
+-- 1.0.thema --
+schema: {
+	naïve: string
+}
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		naïve: v0_0.missing
+	}
+}
+-- out/text --
+error[E0340]: the mapping for naïve reads v0_0.missing, which schema 0.0 does not declare
+ --> 1.0.thema:7:11
+  |
+7 |         naïve: v0_0.missing
+  |                ^^^^
+  |
+ ::: 0.0.thema:2:2
+  |
+2 |     naïve: string
+  |     ----- schema 0.0 declares only naïve
+  |
+  = help: read a field schema 0.0 declares, or write a constant

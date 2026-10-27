@@ -99,6 +99,28 @@ func Configure(cfg *load.Config, themaFS fs.FS) error {
 	return nil
 }
 
+// IsKernelFile reports whether filename is a file of thema's own CUE module, as
+// opposed to a file an author wrote or data being validated. Error positions in
+// thema's CUE are never the author's line; callers choosing a position to show
+// treat them as supporting notes.
+func IsKernelFile(filename string) bool {
+	_, ok := KernelPath(filename)
+	return ok
+}
+
+// KernelPath returns filename relative to the root of thema's CUE module, if
+// filename is a file of that module: lineage.cue for /github.com/sdboyer/thema@v0.1.0/lineage.cue.
+func KernelPath(filename string) (string, bool) {
+	// The Runtime loads thema's CUE at a path without a version.
+	base, _, _ := strings.Cut(util.ThemaModulePath, "@")
+	for _, root := range []string{Root(), filepath.Join(util.Prefix, filepath.FromSlash(base))} {
+		if rel, ok := strings.CutPrefix(filename, root+string(filepath.Separator)); ok {
+			return filepath.ToSlash(rel), true
+		}
+	}
+	return "", false
+}
+
 // rootFS reports [Root] as its OS root, which is where the CUE loader then
 // reads the module's files from, via the overlay.
 type rootFS struct {

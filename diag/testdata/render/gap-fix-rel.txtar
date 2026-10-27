@@ -1,0 +1,49 @@
+#rel: /work/proj
+Two diagnostics. The first is a warning with notes far apart in one file (an
+elision between them), a fix, and an absolute path shown relative to #rel. The
+second is a note-severity diagnostic with nothing but a headline.
+-- diag.json --
+[{
+  "code": "E0109",
+  "severity": "warning",
+  "headline": "kind: name: ... is CUE's struct shorthand, which a version file does not use",
+  "primary": {"file": "/work/proj/ship/0.0.thema", "line": 9, "col": 8, "origin": "user"},
+  "notes": [
+    {"pos": {"file": "/work/proj/ship/0.0.thema", "line": 1, "col": 1, "origin": "user"}, "label": "every struct in a version file keeps its braces"}
+  ],
+  "fix": {
+    "span": {
+      "start": {"file": "/work/proj/ship/0.0.thema", "line": 9, "col": 2, "origin": "user"},
+      "end": {"file": "/work/proj/ship/0.0.thema", "line": 9, "col": 22, "origin": "user"}
+    },
+    "replacement": "kind: {name: string}"
+  }
+}, {
+  "code": "E0902",
+  "severity": "note",
+  "headline": "one file was formatted"
+}]
+-- /work/proj/ship/0.0.thema --
+schema: {
+	a: string
+	b: string
+	c: string
+	d: string
+	e: string
+	f: string
+	g: string
+	kind: name: string
+}
+-- out/text --
+warning[E0109]: kind: name: ... is CUE's struct shorthand, which a version file does not use
+ --> ship/0.0.thema:9:8
+  |
+1 | schema: {
+  | ------ every struct in a version file keeps its braces
+...
+9 |     kind: name: string
+  |           ^^^^
+  |
+  = fix: at ship/0.0.thema:9:2, write kind: {name: string}
+
+note[E0902]: one file was formatted
