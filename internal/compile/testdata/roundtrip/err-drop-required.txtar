@@ -1,11 +1,11 @@
 A drop of a field the target requires. The backward lens of a rename, with
 the derived entry overridden by a drop, leaves 0.0 without its field.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	before: string
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	after: string
 }
 

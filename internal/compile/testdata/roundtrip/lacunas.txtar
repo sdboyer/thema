@@ -5,7 +5,7 @@ applies under a condition over a field 0.0 always has, a guard the totality
 proof accepts as a boolean it can evaluate. The backward lens is wholly
 derived.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	name: string
 	meta: {
 		owner: string
@@ -13,7 +13,7 @@ schema: {
 	count?: int
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	name: string
 	meta: {
 		owner: string
@@ -56,7 +56,7 @@ ForwardLens: {
 -- out/bind --
 ok
 -- out/decompiled/1.0.thema --
-schema: {
+Schema: {
 	name: string
 	meta: {
 		owner: string
@@ -97,7 +97,7 @@ ForwardLens: {
 	}
 }
 -- out/decompiled/history/0.0.thema --
-schema: {
+Schema: {
 	name: string
 	meta: {
 		owner: string

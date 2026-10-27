@@ -1,11 +1,11 @@
 A file named as a major version whose change is backward compatible: the
 version is derived from the compatibility check, and the name must agree.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	a: string
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	a:  string
 	b?: int
 }

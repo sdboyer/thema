@@ -4,11 +4,11 @@ other string to the [_] arm, which must have a lacuna: the one declared on
 properbool without a when. Backward is a move, since 0.0's boolish accepts a
 bool.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	boolish: "true" | "false" | bool | string
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	properbool: bool
 }
 
@@ -43,7 +43,7 @@ Lineage.lenses."0.0->1.0".v1_0.properbool: conflicting values false and true:
 :
     1.0.thema:5:1
 -- out/decompiled/1.0.thema --
-schema: {
+Schema: {
 	properbool: bool
 }
 
@@ -71,7 +71,7 @@ BackwardLens: {
 	}
 }
 -- out/decompiled/history/0.0.thema --
-schema: {
+Schema: {
 	boolish: "true" | "false" | bool | string
 }
 -- out/normal.cue --

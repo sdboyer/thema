@@ -5,14 +5,14 @@ has no derived inverse, so the backward lens is authored. The totality check
 does not prove a list comprehension yet, so the lineage does not bind (#98);
 out/bind records the findings until it does.
 -- ship/history/0.0.thema --
-schema: {
+Schema: {
 	items: [...{
 		title:   string
 		legacy?: string
 	}]
 }
 -- ship/1.0.thema --
-schema: {
+Schema: {
 	items: [...{
 		name: string
 	}]
@@ -56,7 +56,7 @@ lens 1.0->0.0 cannot be shown total over schema 1.0:
 lens 1.0->0.0: v0_0.items builds list elements with a comprehension, so how many there are and what they hold depends on the instance; write each element (rule unknown-dynamic):
     1.0.thema:28:3
 -- out/decompiled/1.0.thema --
-schema: {
+Schema: {
 	items: [...{name: string}]
 }
 
@@ -85,7 +85,7 @@ BackwardLens: {
 	}
 }
 -- out/decompiled/history/0.0.thema --
-schema: {
+Schema: {
 	items: [...{
 		title:   string
 		legacy?: string
