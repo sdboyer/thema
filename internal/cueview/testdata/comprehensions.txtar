@@ -328,3 +328,66 @@ error: cases.nested.m: input.z undefined as input is incomplete (type _)
 [for i in [1, 2] {
 	i
 }]
+-- out/selfcontained --
+## ifPending
+{
+	a: 1
+	if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## ifDecided
+{
+	a: 1
+	if true {
+		extra: 1
+	}
+}
+## forPending
+{
+	for k, v in INPUT.m {
+		"\(k)": v
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## forConcrete
+{for k, v in {
+	p: 1
+	q: 2
+} {
+	"\(k)x": v
+}}
+## letClause
+{for k, v in {p: 1} let W = v + 1 {
+	"\(k)": W
+}}
+## nested
+{
+	m: {if INPUT.z == 1 {
+		d: 4
+	}}
+	e: 5
+
+	//cue:path: input
+	let INPUT = _
+}
+## list
+{
+	[if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		1
+	}]
+
+	//cue:path: input
+	let INPUT = _
+}
+## listConcrete
+[for i in [1, 2] {
+	i
+}]

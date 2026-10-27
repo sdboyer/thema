@@ -1,0 +1,19 @@
+# the joinSchema is checked like a schema (#77)
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+thema.Lineage & {
+	name: "comprehensionJoin"
+	joinSchema: {
+		kind: string
+		if kind == "x" {
+			extra?: int
+		}
+	}
+	schemas: "0": "0": {
+		schema: {a: int}
+	}
+}
+-- out/bindfail --
+joinSchema: comprehensions are not allowed in schemas:
+    ./in.cue:7:3

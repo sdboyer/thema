@@ -23,5 +23,5 @@ BackwardLens: {
 	}
 }
 -- out/error --
-0.0 requires before, and nothing produces it: map it in BackwardLens:
-    history/0.0.thema:2:2
+BackwardLens produces nothing for before, which 0.0 requires: add before: <mapping> to v0_0:
+    1.0.thema:12:1

@@ -212,10 +212,6 @@ func (inst *TypedInstance[T]) ValueP() T {
 func (i *Instance) Translate(to SyntacticVersion) (*Instance, TranslationLacunas, error) {
 	i.check()
 
-	if len(i.Schema().Lineage().(*baseLineage).lensmap) > 0 {
-		return i.translateGo(to)
-	}
-
 	// TODO define this in terms of AsSuccessor and AsPredecessor, rather than those in terms of this.
 	newsch, err := i.Schema().Lineage().Schema(to)
 	if err != nil {
@@ -262,86 +258,6 @@ func (i *Instance) Translate(to SyntacticVersion) (*Instance, TranslationLacunas
 		return nil, nil, errors.Mark(fmt.Errorf("lens produced invalid lacunas: %s", cerrors.Details(err, nil)), terrors.ErrInvalidLens)
 	}
 	return inst, lac, nil
-}
-
-func (i *Instance) translateGo(to SyntacticVersion) (*Instance, TranslationLacunas, error) {
-	from := i.Schema().Version()
-	if to == from {
-		// TODO make sure this mirrors the pure CUE behavior
-		return i, TranslationLacunas{}, nil
-	}
-	lensmap := i.Schema().Lineage().(*baseLineage).lensmap
-	lac := TranslationLacunas{}
-
-	sch := i.Schema()
-	ti := new(Instance)
-	*ti = *i
-	for sch.Version() != to {
-		var nsch Schema
-		if to.Less(from) {
-			nsch = sch.Predecessor()
-		} else {
-			nsch = sch.Successor()
-		}
-
-		var rti *Instance
-		var steplac []Lacuna
-		var err error
-		if to.Less(from) || sch.Version()[0] != nsch.Version()[0] {
-			// Going backward, or crossing major version - need explicit lens
-			mlid := lid(sch.Version(), nsch.Version())
-			rti, steplac, err = lensmap[mlid].Mapper(ti, nsch)
-			if err != nil {
-				return nil, nil, fmt.Errorf("error executing %s migration: %w", mlid, err)
-			}
-			// Ensure that
-			//  - the returned instance exists
-			//  - the caller returned an instance of the expected schema version
-			if rti == nil {
-				return nil, nil, fmt.Errorf("lens returned a nil instance")
-			}
-			if rti.Schema().Version() != nsch.Version() {
-				return nil, nil, fmt.Errorf("lens returned an instance of the wrong schema version: expected %v, got %v", nsch.Version(), rti.Schema().Version())
-			}
-			// The returned instance may come from any schema, even another lineage's.
-			// Only its data is trusted, and only once validated against the target.
-			if rti, err = nsch.Validate(rti.Underlying()); err != nil {
-				return nil, nil, errors.Mark(fmt.Errorf("%s lens returned data that is not an instance of %s: %w", mlid, nsch.Version(), err), terrors.ErrLensResultIsInvalidData)
-			}
-			// A Go lens's result is opaque, so fields carried over unchanged from its
-			// input at the same path count as copied.
-			var written []cue.Path
-			for _, p := range cuetil.UndeclaredFields(i.rt().Context(), rti.Underlying(), nsch.(*schemaDef).def) {
-				if in := ti.raw.LookupPath(p); !in.Exists() || cuetil.Equal(in, rti.Underlying().LookupPath(p)) != nil {
-					written = append(written, p)
-				}
-			}
-			if uerr := nsch.(*schemaDef).undeclaredErr(pathStrings(written)); uerr != nil {
-				return nil, nil, errors.Mark(fmt.Errorf("%s lens: %w", mlid, uerr), terrors.ErrLensResultIsInvalidData)
-			}
-			// Go lenses can't be checked statically, so check their lacunas as they
-			// are emitted, by the same rules CUE lenses are held to at bind time.
-			for _, l := range steplac {
-				if err := checkLacuna(i.rt().Context(), l, sch.(*schemaDef), nsch.(*schemaDef)); err != nil {
-					return nil, nil, errors.Mark(fmt.Errorf("%s lens: %w", mlid, err), terrors.ErrInvalidLens)
-				}
-			}
-		} else {
-			// going up a minor version - no lens, so no lacunas
-			rti, _, err = ti.AsSuccessor()
-			if err != nil {
-				return nil, nil, err
-			}
-		}
-		if steplac == nil {
-			steplac = []Lacuna{}
-		}
-		lac = append(lac, TranslationStep{From: sch.Version(), To: nsch.Version(), Lacunas: steplac})
-		*ti = *rti
-		sch = nsch
-	}
-
-	return ti, lac, nil
 }
 
 // checkLensResultFields checks that each lens applied by a CUE Translate (whose

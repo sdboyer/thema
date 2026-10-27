@@ -1,0 +1,22 @@
+# a comprehension nested in a sub-struct is found too; the top-level kind
+# stays struct, so only this check catches it (#77)
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+thema.Lineage & {
+	name: "comprehensionNested"
+	schemas: "0": "0": {
+		schema: {
+			a: int
+			m: {
+				kind: string
+				if kind == "x" {
+					extra?: int
+				}
+			}
+		}
+	}
+}
+-- out/bindfail --
+schema 0.0: comprehensions are not allowed in schemas:
+    ./in.cue:10:5

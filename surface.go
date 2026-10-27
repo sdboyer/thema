@@ -85,15 +85,6 @@ type Lineage interface {
 	allVersions() versionList
 }
 
-// ImperativeLens is a lens transformation defined as a Go function, rather than
-// in native CUE alongside the lineage.
-//
-// See [ImperativeLenses] for more information.
-type ImperativeLens struct {
-	To, From SyntacticVersion
-	Mapper   func(inst *Instance, to Schema) (*Instance, []Lacuna, error)
-}
-
 // SchemaP returns the schema identified by the provided version. If no schema
 // exists in the lineage with the provided version, it panics.
 //
@@ -169,7 +160,6 @@ type bindOption func(c *bindConfig)
 // Internal bind-time configuration options.
 type bindConfig struct {
 	skipbuggychecks bool
-	implens         []ImperativeLens
 }
 
 // SkipBuggyChecks indicates that [BindLineage] should skip validation checks
@@ -193,28 +183,6 @@ func SkipBuggyChecks() BindOption {
 		if !envvars.ForceVerify {
 			c.skipbuggychecks = true
 		}
-	}
-}
-
-// ImperativeLenses takes a slice of [ImperativeLens]. These lenses will be
-// executed on calls to [Instance.Translate].
-//
-// Currently, the entire lens set must be provided in either Go or CUE. This
-// restriction may be relaxed in the future to allow a mix of Go and CUE lenses,
-// or to allow Go funcs to supersede CUE lenses as a performance optimization.
-//
-// When providing lenses in this way, [BindLineage] will fail unless exactly the
-// set of expected lenses is provided. The correctness of the function bodies
-// cannot be pre-verified in this way, as Go is Turing-complete, but it is enforced
-// at runtime that lenses return an [Instance] of the schema version they claim to
-// in [ImperativeLens.To].
-//
-// Writing lenses in Go means that pure native CUE is no longer sufficient to
-// produce a valid lineage. As a result, lineages are no longer portable outside
-// of Go programs with compile-time access to the Go-defined lenses.
-func ImperativeLenses(lenses ...ImperativeLens) BindOption {
-	return func(c *bindConfig) {
-		c.implens = append(c.implens, lenses...)
 	}
 }
 

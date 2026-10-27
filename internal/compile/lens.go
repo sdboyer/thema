@@ -191,9 +191,14 @@ type edge struct {
 	// S and T are the source and target schema values of the lens being
 	// compiled; the author's input and result. For an each body, the element
 	// values.
-	S, T     cue.Value
-	sv, tv   thema.SyntacticVersion
-	dir      direction
+	S, T   cue.Value
+	sv, tv thema.SyntacticVersion
+	dir    direction
+	// file is the version file the lens belongs to (the newer version's), and
+	// blockPos the position of its block there, or of the file when the
+	// author wrote none.
+	file     string
+	written  bool
 	blockPos token.Pos
 	// root is the identifier the author's references start from: the
 	// version's parameter (v0_0), or item inside an each body. emitRoot is
@@ -1186,9 +1191,19 @@ func (e *edge) fill(n *node, tbase cue.Path, b *body, consumed, dropped map[stri
 			continue
 		}
 		if e.required(e.T, tpath) && !b.claimed[tpath.String()] {
-			e.errf(lookup(e.T, tpath).Pos(), "%s requires %s, and nothing produces it: map it in %s", e.tv, tpath, e.dir)
+			e.unproduced(tpath)
 		}
 	}
+}
+
+// unproduced reports a required target field no mapping produces, at the
+// lens block the author must add it to, or at the file when there is none.
+func (e *edge) unproduced(tpath cue.Path) {
+	if e.written {
+		e.errf(e.blockPos, "%s produces nothing for %s, which %s requires: add %s: <mapping> to %s", e.dir, tpath, e.tv, tpath, paramName(e.tv))
+		return
+	}
+	e.errf(e.blockPos, "%s has no %s, and %s requires %s: write %s: {%s: _, %s: {%s: <mapping>}}", e.file, e.dir, e.tv, tpath, e.dir, paramName(e.sv), paramName(e.tv), tpath)
 }
 
 // unmapped applies the direction's rule to every source field the target does

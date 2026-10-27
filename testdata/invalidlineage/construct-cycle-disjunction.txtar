@@ -1,0 +1,16 @@
+# a JSON-like value type recurses through a list and a pattern (#78)
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+thema.Lineage & {
+	name: "cycleDisjunction"
+	schemas: "0": "0": {
+		schema: {
+			#Value: string | [...#Value] | {[string]: #Value}
+			v: #Value
+		}
+	}
+}
+-- out/bindfail --
+schema 0.0: reference cycle #Value -> #Value; schemas may not contain circular references:
+    ./in.cue:7:25
