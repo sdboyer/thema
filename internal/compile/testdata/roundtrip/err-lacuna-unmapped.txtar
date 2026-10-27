@@ -35,5 +35,9 @@ BackwardLens: {
 	}
 }
 -- out/error --
-lacunas.secondfeild: ForwardLens has no mapping keyed secondfeild:
-    1.0.thema:12:17
+error[E0412]: lacunas.secondfeild: ForwardLens has no mapping keyed secondfeild
+  --> 1.0.thema:12:17
+   |
+12 |         secondfeild: [{
+   |                       ^
+   |

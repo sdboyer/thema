@@ -1,0 +1,59 @@
+#op: compile
+A minor version is backward compatible with its predecessor, so an instance of
+the predecessor is already an instance of it: translating forward is implicit,
+and a minor version's file has no ForwardLens.
+-- ship/history/0.0.thema --
+schema: {
+	a: string
+}
+-- ship/0.1.thema --
+schema: {
+	a:  string
+	b?: int
+}
+
+ForwardLens: {
+	v0_0: _
+	v0_1: {
+		b: 1
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0355",
+      "severity": "error",
+      "headline": "0.1.thema is backward compatible with 0.0, so it has no ForwardLens",
+      "primary": {
+        "file": "0.1.thema",
+        "line": 6,
+        "col": 1,
+        "offset": 34,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "an instance of a version is already an instance of its minor successor; translating forward is implicit"
+        }
+      ],
+      "help": [
+        "remove the ForwardLens, or make a breaking change"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0355]: 0.1.thema is backward compatible with 0.0, so it has no ForwardLens
+ --> 0.1.thema:6:1
+  |
+6 | ForwardLens: {
+  | ^^^^^^^^^^^
+  |
+  = note: an instance of a version is already an instance of its minor successor; translating forward is implicit
+  = help: remove the ForwardLens, or make a breaking change

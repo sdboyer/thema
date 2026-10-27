@@ -1,0 +1,35 @@
+#op: compile
+A lineage's directory holds one file per version, named `<major>.<minor>.thema`,
+at the top of the directory or under `history/`. A `.thema` file with any other
+name is not a version file, and there is nothing to compile it as.
+-- ship/0.0.thema --
+schema: {
+	a: string
+}
+-- ship/v1.thema --
+schema: {
+	a: string
+	b: int
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0101",
+      "severity": "error",
+      "headline": "v1.thema is not a version file",
+      "help": [
+        "a version file is named <major>.<minor>.thema, in the lineage's directory or its history directory"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0101]: v1.thema is not a version file
+  |
+  = help: a version file is named <major>.<minor>.thema, in the lineage's directory or its history directory

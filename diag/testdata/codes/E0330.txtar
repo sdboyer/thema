@@ -1,0 +1,88 @@
+#op: compile
+A lens body holds only mappings: a target field and where it comes from.
+Embeddings, comprehensions and let declarations are not mappings. A reference
+to an optional field is guarded for you, and orelse decides what to use when it
+is absent.
+-- ship/history/0.0.thema --
+schema: {
+	a: string
+}
+-- ship/1.0.thema --
+schema: {
+	b: string
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		let x = v0_0.a
+		b: x
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0330",
+      "severity": "error",
+      "headline": "let is not allowed in a lens body",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 8,
+        "col": 3,
+        "offset": 59,
+        "origin": "user"
+      }
+    },
+    {
+      "code": "E0333",
+      "severity": "error",
+      "headline": "b: a mapping is a reference to v0_0, a constant, a nested body, drop, orelse, remap or each; other expressions are not supported yet",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 9,
+        "col": 6,
+        "offset": 79,
+        "origin": "user"
+      }
+    },
+    {
+      "code": "E0347",
+      "severity": "error",
+      "headline": "0.0 declares a and 1.0 does not, and nothing maps it: write <field>: v0_0.a to move it, or a: drop",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 5,
+        "col": 1,
+        "offset": 24,
+        "origin": "user"
+      }
+    }
+  ],
+  "summary": {
+    "errors": 3,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0330]: let is not allowed in a lens body
+ --> 1.0.thema:8:3
+  |
+8 |         let x = v0_0.a
+  |         ^^^
+  |
+
+error[E0333]: b: a mapping is a reference to v0_0, a constant, a nested body, drop, orelse, remap or each; other expressions are not supported yet
+ --> 1.0.thema:9:6
+  |
+9 |         b: x
+  |            ^
+  |
+
+error[E0347]: 0.0 declares a and 1.0 does not, and nothing maps it: write <field>: v0_0.a to move it, or a: drop
+ --> 1.0.thema:5:1
+  |
+5 | ForwardLens: {
+  | ^^^^^^^^^^^
+  |

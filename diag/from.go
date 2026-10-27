@@ -109,8 +109,10 @@ func From(err error, ctx Context) []Diagnostic {
 
 // Convert is [From] as an error: a cue/errors list of one [Error] per
 // diagnostic, or nil when err is nil. Operations return it so that callers
-// get diagnostics through [Diagnostics] and sentinels through errors.Is.
-func Convert(err error, ctx Context) error {
+// get diagnostics through [Diagnostics] and sentinels through errors.Is. It
+// is typed as a cue/errors.Error so that it can join a cue/errors list; a nil
+// result is nil as an error too.
+func Convert(err error, ctx Context) cerrors.Error {
 	errs := convert(err, ctx)
 	if len(errs) == 0 {
 		return nil

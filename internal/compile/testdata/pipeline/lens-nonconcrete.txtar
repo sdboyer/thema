@@ -27,8 +27,8 @@ backward: {
 -- data.json --
 {"title": "a"}
 -- out/error --
-lens 0.0->1.0 is not total at count in the result of lens 0.0->1.0:
+count in the result of lens 0.0->1.0 is not total for some instance:
     ship/1.0.thema:7:9
 -- out/positions --
-lens 0.0->1.0 is not total at count in the result of lens 0.0->1.0
+count in the result of lens 0.0->1.0 is not total for some instance
 	authored ship/1.0.thema:7:9

@@ -1,0 +1,50 @@
+#op: compile
+A remap's `[_]` arm collapses every value no other arm maps into one, which
+loses information. It must say so, with a lacuna keyed by the mapping.
+-- ship/history/0.0.thema --
+schema: {
+	kind: string
+}
+-- ship/1.0.thema --
+schema: {
+	kind: int
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		kind: remap(v0_0.kind, {
+			"a": 1
+			[_]: 0
+		})
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0414",
+      "severity": "error",
+      "headline": "the [_] arm collapses every unmapped value into one: declare what is lost in lacunas: {kind: [{type: Type, message: \"...\"}]}",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 10,
+        "col": 4,
+        "offset": 97,
+        "origin": "user"
+      }
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0414]: the [_] arm collapses every unmapped value into one: declare what is lost in lacunas: {kind: [{type: Type, message: "..."}]}
+  --> 1.0.thema:10:4
+   |
+10 |             [_]: 0
+   |             ^
+   |

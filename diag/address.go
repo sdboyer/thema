@@ -80,6 +80,24 @@ type Vocabulary interface {
 	Term(a Address) string
 }
 
+// A Rewriter is a Vocabulary that can also rewrite a sentence about a
+// construct from the normal form's terms into the author's: thema's checkers
+// read the normal form, and say "input.count" where the author of a version
+// file wrote "v0_0.count". The Address says which construct, and so which
+// lens's parameters the sentence refers to.
+type Rewriter interface {
+	Vocabulary
+	Rewrite(a Address, sentence string) string
+}
+
+// RewriteFor applies v's rewriting to sentence, when v has any.
+func RewriteFor(v Vocabulary, a Address, sentence string) string {
+	if r, ok := v.(Rewriter); ok {
+		return r.Rewrite(a, sentence)
+	}
+	return sentence
+}
+
 // NormalForm is the Vocabulary of a lineage written as thema.Lineage CUE:
 // schemas keyed by version, lenses keyed by edge, with input and result.
 var NormalForm Vocabulary = normalForm{}

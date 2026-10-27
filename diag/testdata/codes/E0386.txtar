@@ -40,7 +40,7 @@ lenses: {
     {
       "code": "E0386",
       "severity": "error",
-      "headline": "lens 0.0->1.0 is not total at m in the result of lens 0.0->1.0",
+      "headline": "m in the result of lens 0.0->1.0 is not total for some instance",
       "path": [
         "lenses",
         "0.0->1.0",
@@ -88,7 +88,7 @@ lenses: {
   }
 }
 -- out/text --
-error[E0386]: lens 0.0->1.0 is not total at m in the result of lens 0.0->1.0
+error[E0386]: m in the result of lens 0.0->1.0 is not total for some instance
   --> lineage.cue:22:7
    |
 22 |             m: input.n + 1

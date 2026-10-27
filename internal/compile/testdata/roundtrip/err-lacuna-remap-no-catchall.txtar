@@ -37,5 +37,9 @@ BackwardLens: {
 	}
 }
 -- out/error --
-lacunas.aunion: a lacuna on a remap applies when its [_] arm does, and this remap has none: say when it applies with when: <condition>:
-    1.0.thema:11:12
+error[E0420]: lacunas.aunion: a lacuna on a remap applies when its [_] arm does, and this remap has none: say when it applies with when: <condition>
+  --> 1.0.thema:11:12
+   |
+11 |         aunion: [{
+   |                  ^
+   |

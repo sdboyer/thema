@@ -1,0 +1,55 @@
+#op: compile
+A lacuna's `when` refers to the lens's source instance and to CUE's builtins,
+and to nothing else. A bare name that is neither is undefined.
+-- ship/history/0.0.thema --
+schema: {
+	a: string
+}
+-- ship/1.0.thema --
+schema: {
+	a: string
+	b: int
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		b: 0
+	}
+	lacunas: {
+		b: [{
+			type:    Placeholder
+			message: "0 is a placeholder"
+			when:    threshold > 1
+		}]
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0418",
+      "severity": "error",
+      "headline": "threshold is not defined in a lens; a condition refers to v0_0 and to CUE's builtins",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 15,
+        "col": 13,
+        "offset": 164,
+        "origin": "user"
+      }
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0418]: threshold is not defined in a lens; a condition refers to v0_0 and to CUE's builtins
+  --> 1.0.thema:15:13
+   |
+15 |             when:    threshold > 1
+   |                      ^^^^^^^^^
+   |

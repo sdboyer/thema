@@ -1,0 +1,45 @@
+#op: compile
+Versions are contiguous: each file is the next minor version of its
+predecessor, or the first version of the next major. A gap would be a version
+with no file.
+-- ship/history/0.0.thema --
+schema: {
+	a: string
+}
+-- ship/0.2.thema --
+schema: {
+	a:  string
+	b?: int
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0205",
+      "severity": "error",
+      "headline": "0.2.thema skips a version: after 0.0 comes 0.1",
+      "primary": {
+        "file": "0.2.thema",
+        "line": 1,
+        "col": 1,
+        "origin": "user"
+      },
+      "help": [
+        "rename the file 0.1.thema, or add the versions between"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0205]: 0.2.thema skips a version: after 0.0 comes 0.1
+ --> 0.2.thema:1:1
+  |
+1 | schema: {
+  | ^^^^^^
+  |
+  = help: rename the file 0.1.thema, or add the versions between

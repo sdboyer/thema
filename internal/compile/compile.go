@@ -10,6 +10,7 @@ import (
 	"cuelang.org/go/cue/token"
 
 	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/internal/compat"
 )
 
@@ -18,10 +19,13 @@ type Compiled struct {
 	Name string
 	// File is the normal form: name, schemas and lenses, every node positioned
 	// in the authoring file it came from. Build it with cue.Context.BuildFile
-	// and bind it with thema.BindLineage.
+	// and bind it with thema.BindLineage, passing [Vocabulary] so that its
+	// diagnostics name the author's files and lenses.
 	File *ast.File
 	// Versions are the lineage's versions in order.
 	Versions []thema.SyntacticVersion
+	// paths is the version file each version was read from.
+	paths map[thema.SyntacticVersion]string
 }
 
 // Compile compiles the authoring files of the lineage name to its normal form.
@@ -38,7 +42,7 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 	for i, v := range vs {
 		sv := ctx.BuildFile(&ast.File{Decls: []ast.Decl{v.schema}}).LookupPath(cue.MakePath(cue.Str("schema")))
 		if err := sv.Err(); err != nil {
-			errs = cerrors.Append(errs, cerrors.Promote(err, v.path))
+			errs = cerrors.Append(errs, diag.Convert(err, diag.Context{Op: diag.OpCompile, Generic: diag.E0112}))
 			continue
 		}
 		vals[i] = sv
@@ -48,12 +52,13 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 	}
 
 	tip := vs[len(vs)-1]
-	out := &Compiled{Name: name}
+	out := &Compiled{Name: name, paths: make(map[thema.SyntacticVersion]string, len(vs))}
 	schemas := &ast.StructLit{}
 	lenses := &ast.StructLit{}
 	majors := make(map[uint]*ast.StructLit)
 	for i, v := range vs {
 		out.Versions = append(out.Versions, v.v)
+		out.paths[v.v] = v.path
 		m, ok := majors[v.v[0]]
 		if !ok {
 			m = at(v.header(), &ast.StructLit{})
@@ -65,7 +70,16 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 
 		if i == 0 {
 			if v.forward != nil || v.backward != nil {
-				errs = cerrors.Append(errs, cerrors.Newf(v.header(), "%s is the first version, and has no previous version to map from", v.path))
+				at := v.header()
+				if v.forward != nil {
+					at = v.forward.Pos()
+				} else {
+					at = v.backward.Pos()
+				}
+				errs = cerrors.Append(errs, diag.New(diag.E0354).At(at).
+					Headlinef("%s is the first version, and has no previous version to map from", v.path).
+					Help("remove the lens; a lens maps between a version and its predecessor").
+					Err())
 			}
 			continue
 		}
@@ -74,10 +88,20 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 		minor := res.Compatible()
 		switch {
 		case minor && v.v[1] == 0:
-			errs = cerrors.Append(errs, cerrors.Newf(v.header(), "%s: this version is backward compatible with %s, so it is minor version %s: rename the file, or make the change breaking", v.path, prev.v, thema.SV(prev.v[0], prev.v[1]+1)))
+			errs = cerrors.Append(errs, diag.New(diag.E0206).At(v.header()).
+				Headlinef("%s is backward compatible with %s, so it is minor version %s, not a major version", v.path, prev.v, thema.SV(prev.v[0], prev.v[1]+1)).
+				Helpf("rename the file %s%s, or make a breaking change", thema.SV(prev.v[0], prev.v[1]+1), Ext).
+				Err())
 			continue
 		case !minor && v.v[1] != 0:
-			errs = cerrors.Append(errs, cerrors.Newf(v.header(), "%s: this version is not backward compatible with %s, so it is major version %s: rename the file, or make the change compatible:\n%s", v.path, prev.v, thema.SV(prev.v[0]+1, 0), cerrors.Details(res.Error(), nil)))
+			// One diagnostic per finding, under the finding's rule, each saying
+			// what to do about the file.
+			for _, f := range res.Findings {
+				if f.Verdict == compat.Compatible {
+					continue
+				}
+				errs = cerrors.Append(errs, compatDiag(f, prev, v))
+			}
 			continue
 		}
 
@@ -92,7 +116,11 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 				continue
 			}
 			if minor && (len(lit.Elts) > 0 || lac != nil && len(lac.Elts) > 0) {
-				errs = cerrors.Append(errs, cerrors.Newf(v.forward.Pos(), "%s: this version is backward compatible with %s, so translating forward is implicit: remove the ForwardLens entries, or make the change breaking", v.path, prev.v))
+				errs = cerrors.Append(errs, diag.New(diag.E0355).At(v.forward.Pos()).
+					Headlinef("%s is backward compatible with %s, so it has no %s", v.path, prev.v, fieldForward).
+					Note(token.NoPos, "an instance of a version is already an instance of its minor successor; translating forward is implicit").
+					Helpf("remove the %s, or make a breaking change", fieldForward).
+					Err())
 				continue
 			}
 			fe.parseBody(lit, cue.MakePath(), cue.MakePath(), fb)
@@ -156,6 +184,9 @@ func paramName(v thema.SyntacticVersion) string {
 func lensBlock(f *ast.Field, from, to thema.SyntacticVersion) (body, lacunas *ast.StructLit, err cerrors.Error) {
 	name, _, _ := ast.LabelName(f.Label)
 	shape := fmt.Sprintf("%s for the lens from %s to %s is {%s: _, %s: {...}}, with an optional %s: {...}", name, from, to, paramName(from), paramName(to), fieldLacunas)
+	fail := func(p token.Pos, format string, args ...any) cerrors.Error {
+		return diag.New(diag.E0111).At(p).Headlinef(format, args...).Help(shape).Err()
+	}
 	var param, result, lac *ast.Field
 	for _, d := range f.Value.(*ast.StructLit).Elts {
 		switch d := d.(type) {
@@ -163,36 +194,36 @@ func lensBlock(f *ast.Field, from, to thema.SyntacticVersion) (body, lacunas *as
 		case *ast.Field:
 			label, _, err := ast.LabelName(d.Label)
 			if err != nil {
-				return nil, nil, cerrors.Newf(d.Pos(), "%s", shape)
+				return nil, nil, fail(d.Pos(), "%s has a field whose label is not a name", name)
 			}
 			switch label {
 			case paramName(from):
 				if id, ok := d.Value.(*ast.Ident); !ok || id.Name != "_" {
-					return nil, nil, cerrors.Newf(d.Value.Pos(), "%s takes an instance of %s: declare it as %s: _", name, from, paramName(from))
+					return nil, nil, fail(d.Value.Pos(), "%s takes an instance of %s: declare it as %s: _", name, from, paramName(from))
 				}
 				param = d
 			case paramName(to):
 				if _, ok := d.Value.(*ast.StructLit); !ok {
-					return nil, nil, cerrors.Newf(d.Value.Pos(), "%s produces an instance of %s: %s must be a struct of mappings", name, to, paramName(to))
+					return nil, nil, fail(d.Value.Pos(), "%s produces an instance of %s: %s must be a struct of mappings", name, to, paramName(to))
 				}
 				result = d
 			case fieldLacunas:
 				if _, ok := d.Value.(*ast.StructLit); !ok {
-					return nil, nil, cerrors.Newf(d.Value.Pos(), "%s is a struct, keyed by the mappings of %s", fieldLacunas, paramName(to))
+					return nil, nil, fail(d.Value.Pos(), "%s is a struct, keyed by the mappings of %s", fieldLacunas, paramName(to))
 				}
 				lac = d
 			default:
-				return nil, nil, cerrors.Newf(d.Pos(), "%s is not part of %s; %s", label, name, shape)
+				return nil, nil, fail(d.Pos(), "%s is not part of %s", label, name)
 			}
 		default:
-			return nil, nil, cerrors.Newf(d.Pos(), "%s", shape)
+			return nil, nil, fail(d.Pos(), "%s holds a declaration that is not a field", name)
 		}
 	}
 	if param == nil {
-		return nil, nil, cerrors.Newf(f.Pos(), "%s does not declare the instance it takes; %s", name, shape)
+		return nil, nil, fail(f.Pos(), "%s does not declare the instance it takes", name)
 	}
 	if result == nil {
-		return nil, nil, cerrors.Newf(f.Pos(), "%s does not declare the instance it produces; %s", name, shape)
+		return nil, nil, fail(f.Pos(), "%s does not declare the instance it produces", name)
 	}
 	if lac != nil {
 		lacunas = lac.Value.(*ast.StructLit)

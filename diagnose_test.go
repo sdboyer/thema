@@ -8,6 +8,7 @@ import (
 	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/internal/compat"
 	"github.com/sdboyer/thema/internal/lenscheck"
+	"github.com/sdboyer/thema/internal/rulecodes"
 )
 
 // Every rule of the compatibility and totality checkers has a code, and no
@@ -18,9 +19,9 @@ func TestCompatCodes(t *testing.T) {
 	rules := ruleConstants(t, "internal/compat/compat.go")
 	seen := map[diag.Code]compat.Rule{}
 	for _, r := range rules {
-		code, ok := compatCodes[compat.Rule(r)]
+		code, ok := rulecodes.Compat[compat.Rule(r)]
 		if !ok {
-			t.Errorf("compat rule %s has no code in compatCodes", r)
+			t.Errorf("compat rule %s has no code in rulecodes.Compat", r)
 			continue
 		}
 		if _, ok := diag.Lookup(code); !ok {
@@ -31,8 +32,8 @@ func TestCompatCodes(t *testing.T) {
 		}
 		seen[code] = compat.Rule(r)
 	}
-	if len(rules) != len(compatCodes) {
-		t.Errorf("compatCodes has %d entries for %d rules", len(compatCodes), len(rules))
+	if len(rules) != len(rulecodes.Compat) {
+		t.Errorf("rulecodes.Compat has %d entries for %d rules", len(rulecodes.Compat), len(rules))
 	}
 }
 
@@ -40,9 +41,9 @@ func TestLenscheckCodes(t *testing.T) {
 	rules := ruleConstants(t, "internal/lenscheck/lenscheck.go")
 	seen := map[diag.Code]lenscheck.Rule{}
 	for _, r := range rules {
-		code, ok := lenscheckCodes[lenscheck.Rule(r)]
+		code, ok := rulecodes.Lenscheck[lenscheck.Rule(r)]
 		if !ok {
-			t.Errorf("lenscheck rule %s has no code in lenscheckCodes", r)
+			t.Errorf("lenscheck rule %s has no code in rulecodes.Lenscheck", r)
 			continue
 		}
 		if _, ok := diag.Lookup(code); !ok {
@@ -55,8 +56,8 @@ func TestLenscheckCodes(t *testing.T) {
 		}
 		seen[code] = lenscheck.Rule(r)
 	}
-	if len(rules) != len(lenscheckCodes) {
-		t.Errorf("lenscheckCodes has %d entries for %d rules", len(lenscheckCodes), len(rules))
+	if len(rules) != len(rulecodes.Lenscheck) {
+		t.Errorf("rulecodes.Lenscheck has %d entries for %d rules", len(rulecodes.Lenscheck), len(rules))
 	}
 }
 

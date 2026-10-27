@@ -17,5 +17,9 @@ ForwardLens: {
 	}
 }
 -- out/error --
-a mapping has no attributes; a lacuna is declared in the lens's lacunas field, keyed by the mapping:
-    1.0.thema:9:19
+error[E0332]: a mapping has no attributes; a lacuna is declared in the lens's lacunas field, keyed by the mapping
+ --> 1.0.thema:9:19
+  |
+9 |         secondfield: -1 @lacuna(Placeholder, "-1 is a placeholder")
+  |                         ^
+  |

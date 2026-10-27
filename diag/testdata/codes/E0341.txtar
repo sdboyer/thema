@@ -1,0 +1,48 @@
+#op: compile
+A mapping produces a field its target version does not declare. A lens writes
+only what its target declares, however open the author wrote the schema.
+-- ship/history/0.0.thema --
+schema: {
+	a: string
+}
+-- ship/1.0.thema --
+schema: {
+	b: string
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		b:    v0_0.a
+		nope: v0_0.a
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0341",
+      "severity": "error",
+      "headline": "1.0 does not declare nope",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 9,
+        "col": 3,
+        "offset": 74,
+        "origin": "user"
+      }
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0341]: 1.0 does not declare nope
+ --> 1.0.thema:9:3
+  |
+9 |         nope: v0_0.a
+  |         ^^^^
+  |

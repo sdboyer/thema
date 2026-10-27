@@ -1,0 +1,51 @@
+#op: compile
+Each arm of a remap table maps one source value; two arms for the same value
+would have to agree. Write each value once.
+-- ship/history/0.0.thema --
+schema: {
+	kind: "a" | "b"
+}
+-- ship/1.0.thema --
+schema: {
+	kind: 1 | 2
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		kind: remap(v0_0.kind, {
+			"a": 1
+			"a": 2
+			"b": 2
+		})
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0350",
+      "severity": "error",
+      "headline": "remap maps \"a\" twice",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 10,
+        "col": 4,
+        "offset": 99,
+        "origin": "user"
+      }
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0350]: remap maps "a" twice
+  --> 1.0.thema:10:4
+   |
+10 |             "a": 2
+   |             ^^^
+   |

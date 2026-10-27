@@ -1,7 +1,7 @@
 package errors
 
 import (
-	"github.com/cockroachdb/errors"
+	"errors"
 )
 
 // Validation errors. Each failure is a diag.Diagnostic whose code unwraps to

@@ -10,5 +10,10 @@ schema: {
 	b?: int
 }
 -- out/error --
-1.0.thema: this version is backward compatible with 0.0, so it is minor version 0.1: rename the file, or make the change breaking:
-    1.0.thema:1:1
+error[E0206]: 1.0.thema is backward compatible with 0.0, so it is minor version 0.1, not a major version
+ --> 1.0.thema:1:1
+  |
+1 | schema: {
+  | ^^^^^^
+  |
+  = help: rename the file 0.1.thema, or make a breaking change

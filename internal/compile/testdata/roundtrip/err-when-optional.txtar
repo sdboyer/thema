@@ -27,5 +27,10 @@ ForwardLens: {
 	}
 }
 -- out/error --
-count is optional in 0.0, and a condition reading an optional field is not supported yet; a condition may test its presence: v0_0.count != _|_:
-    1.0.thema:15:34
+error[E0417]: count is optional in 0.0, and a condition reading an optional field is not supported yet
+  --> 1.0.thema:15:34
+   |
+15 |             when:    v0_0.count != _|_ && v0_0.count > 1000
+   |                                           ^^^^
+   |
+   = help: a condition may test its presence: v0_0.count != _|_

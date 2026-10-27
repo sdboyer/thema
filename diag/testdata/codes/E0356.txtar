@@ -1,0 +1,71 @@
+#op: decompile
+Decompile turns a normal-form lineage back into version files. It expresses
+exactly the lenses the compiler produces: mappings that move, drop, orelse,
+remap and each. A lens that computes a value is outside that, and Decompile
+refuses it rather than approximate.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				a: string
+				n: int
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		input: _
+		result: {
+			a: input.a
+			n: len(input.a)
+		}
+	}
+	"1.0->0.0": {
+		input: _
+		result: {
+			a: input.a
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0356",
+      "severity": "error",
+      "headline": "lens 0.0->1.0 is outside the authoring form: n is computed",
+      "primary": {
+        "file": "lineage.cue",
+        "line": 1,
+        "col": 1,
+        "origin": "user"
+      },
+      "help": [
+        "the authoring form expresses the lenses Compile produces: mappings that move, drop, orelse, remap and each"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0356]: lens 0.0->1.0 is outside the authoring form: n is computed
+ --> lineage.cue:1:1
+  |
+1 | name: "ship"
+  | ^^^^
+  |
+  = help: the authoring form expresses the lenses Compile produces: mappings that move, drop, orelse, remap and each

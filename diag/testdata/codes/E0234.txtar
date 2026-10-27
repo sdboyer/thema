@@ -24,7 +24,7 @@ schemas: {
     {
       "code": "E0234",
       "severity": "error",
-      "headline": "schema 0.1 is not backward compatible with 0.0 at m in schema 0.1",
+      "headline": "m in schema 0.1 is not backward compatible with 0.0",
       "path": [
         "schemas",
         "0",
@@ -69,7 +69,7 @@ schemas: {
   }
 }
 -- out/text --
-error[E0234]: schema 0.1 is not backward compatible with 0.0 at m in schema 0.1
+error[E0234]: m in schema 0.1 is not backward compatible with 0.0
   --> lineage.cue:11:5
    |
 11 |                 m: {[=~"^a"]: int, [=~"^b"]: number}

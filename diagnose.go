@@ -11,6 +11,7 @@ import (
 	"github.com/sdboyer/thema/internal/compat"
 	"github.com/sdboyer/thema/internal/cuetil"
 	"github.com/sdboyer/thema/internal/lenscheck"
+	"github.com/sdboyer/thema/internal/rulecodes"
 	"github.com/sdboyer/thema/internal/util"
 )
 
@@ -197,65 +198,12 @@ func min2(a, b int) int {
 	return b
 }
 
-// compatCodes maps each rule of the compatibility checker to its code. The
-// lockstep test TestCompatCodes checks every rule has one.
-var compatCodes = map[compat.Rule]diag.Code{
-	compat.RuleFieldAddedRequired:   diag.E0210,
-	compat.RuleFieldRemoved:         diag.E0211,
-	compat.RuleFieldNowRequired:     diag.E0212,
-	compat.RuleDefaultRemoved:       diag.E0213,
-	compat.RuleDefaultChanged:       diag.E0214,
-	compat.RuleValueNarrowed:        diag.E0215,
-	compat.RuleLengthNarrowed:       diag.E0216,
-	compat.RuleLabelsNarrowed:       diag.E0217,
-	compat.RuleValidatorAdded:       diag.E0218,
-	compat.RuleUnknownCrossField:    diag.E0230,
-	// A comprehension in a schema is refused before compatibility is checked
-	// (checkSchemaConstructs), under the same code.
-	compat.RuleUnknownComprehension: diag.E0132,
-	compat.RuleUnknownValidator:     diag.E0232,
-	compat.RuleUnknownDisjunction:   diag.E0233,
-	compat.RuleUnknownPatterns:      diag.E0234,
-}
-
-// lenscheckCodes maps each rule of the totality checker to its code. The
-// lockstep test TestLenscheckCodes checks every rule has one.
-var lenscheckCodes = map[lenscheck.Rule]diag.Code{
-	lenscheck.RuleCopyNarrowed:            diag.E0360,
-	lenscheck.RuleSourceAbsent:            diag.E0361,
-	lenscheck.RuleSourceUndeclared:        diag.E0362,
-	lenscheck.RuleTargetUndeclared:        diag.E0305,
-	lenscheck.RulePatternAbsent:           diag.E0364,
-	lenscheck.RuleNotAValue:               diag.E0365,
-	lenscheck.RuleLiteralNotInstance:      diag.E0366,
-	lenscheck.RuleComputedNarrowed:        diag.E0367,
-	lenscheck.RuleRequiredNotWritten:      diag.E0368,
-	lenscheck.RuleWriteConflict:           diag.E0369,
-	lenscheck.RuleArithOverflow:           diag.E0370,
-	lenscheck.RuleDivisionByZero:          diag.E0371,
-	lenscheck.RuleTableKeyMissing:         diag.E0372,
-	lenscheck.RuleUnknownCopy:             diag.E0380,
-	lenscheck.RuleUnknownPattern:          diag.E0381,
-	lenscheck.RuleUnknownExhaustive:       diag.E0382,
-	lenscheck.RuleUnknownOp:               diag.E0383,
-	lenscheck.RuleUnknownDynamic:          diag.E0384,
-	lenscheck.RuleUnknownReference:        diag.E0385,
-	lenscheck.RuleUnknownBounds:           diag.E0386,
-	lenscheck.RuleUnknownDivisor:          diag.E0387,
-	lenscheck.RuleUnknownTargetConstraint: diag.E0388,
-	lenscheck.RuleUnknownTableKey:         diag.E0389,
-	lenscheck.RuleUnknownHead:             diag.E0390,
-}
-
 // compatDiag describes one finding of the compatibility checker between prev
 // and curr, which were declared as a minor step. The headline is the finding's
 // own sentence about the field; the help says what makes it compatible, or
 // that it is a major version.
 func (ml *maybeLineage) compatDiag(f compat.Finding, prev, curr *schemaDef) *diag.Error {
-	code, ok := compatCodes[f.Rule]
-	if !ok {
-		code = diag.E0215
-	}
+	code := rulecodes.CompatCode(f.Rule)
 	schema := schemaAddr(curr.v)
 	prior := schemaAddr(prev.v)
 	subject := ml.term(schema)
@@ -265,7 +213,7 @@ func (ml *maybeLineage) compatDiag(f compat.Finding, prev, curr *schemaDef) *dia
 		subject = ml.term(addr)
 	}
 	b := ml.diag(code).Addr(addr)
-	statement(b, subject+" "+f.Detail, ml.term(schema)+" is not backward compatible with "+prev.v.String()+" at "+subject)
+	statement(b, subject+" "+diag.RewriteFor(ml.vocab(), addr, f.Detail), subject+" is not backward compatible with "+prev.v.String())
 	if f.Pos.IsValid() {
 		b.At(f.Pos)
 	} else {
@@ -297,13 +245,10 @@ func statement(b *diag.B, sentence, short string) {
 // totalityDiag describes one finding of the lens totality checker for the lens
 // from -> to.
 func (ml *maybeLineage) totalityDiag(f lenscheck.Finding, from, to SyntacticVersion) *diag.Error {
-	code, ok := lenscheckCodes[f.Rule]
-	if !ok {
-		code = diag.E0360
-	}
+	code := rulecodes.LenscheckCode(f.Rule)
 	addr := lensAddress(f.Path, from, to)
 	b := ml.diag(code).Addr(addr).At(f.Pos)
-	statement(b, ml.term(addr)+" "+f.Detail, ml.term(lensAddr(from, to))+" is not total at "+ml.term(addr))
+	statement(b, ml.term(addr)+" "+diag.RewriteFor(ml.vocab(), addr, f.Detail), ml.term(addr)+" is not total for some instance")
 	b.Notef(token.NoPos, "a lens must be total: every instance of %s must translate to an instance of %s (totality rule %s)", ml.term(schemaAddr(from)), ml.term(schemaAddr(to)), f.Rule)
 	if f.Verdict == lenscheck.Unknown {
 		b.Help("write the mapping in a form the checker can follow, or add a lacuna where it cannot decide")

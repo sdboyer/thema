@@ -18,5 +18,9 @@ ForwardLens: {
 	}
 }
 -- out/error --
-remap of kind is not total: 0.0's kind may be "c", which no arm maps and 1.0's kind does not accept; add an arm for it, or a [_] arm:
-    1.0.thema:8:9
+error[E0351]: remap of kind is not total: 0.0's kind may be "c", which no arm maps and 1.0's kind does not accept; add an arm for it, or a [_] arm
+ --> 1.0.thema:8:9
+  |
+8 |         kind: remap(v0_0.kind, {
+  |               ^^^^^
+  |

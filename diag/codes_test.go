@@ -16,6 +16,7 @@ import (
 
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/diag"
+	"github.com/sdboyer/thema/internal/compile"
 	"github.com/sdboyer/thema/internal/diagdocs"
 	"github.com/sdboyer/thema/internal/diagtest"
 )
@@ -281,6 +282,55 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 		}
 		return diag.Diagnostics(err)
 	},
+	// compile: compile the authoring files under the archive's one directory,
+	// whose name is the lineage's, and report what fails. When the files
+	// compile, the normal form is bound with the authoring vocabulary and
+	// bind's diagnostics are reported instead.
+	"compile": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {
+		dirs, _ := a.Directives()
+		name := dirs["name"]
+		var files []compile.File
+		for _, f := range a.Inputs() {
+			dir, rest, ok := strings.Cut(f.Name, "/")
+			if !ok {
+				continue
+			}
+			if name == "" {
+				name = dir
+			}
+			files = append(files, compile.File{Path: rest, Text: f.Data})
+		}
+		if name == "" {
+			t.Fatal("compile needs authoring files under the lineage's directory")
+		}
+		ctx := cuecontext.New()
+		c, err := compile.Compile(ctx, name, files)
+		if err != nil {
+			return diag.Diagnostics(err)
+		}
+		_, err = thema.BindLineage(ctx.BuildFile(c.File), thema.NewRuntime(ctx), thema.WithVocabulary(compile.Vocabulary(c)))
+		if err == nil {
+			t.Fatal("the authoring files compiled and bound")
+		}
+		return diag.Diagnostics(err)
+	},
+	// decompile: bind lineage.cue and decompile it to the authoring form.
+	"decompile": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {
+		ctx := cuecontext.New()
+		src, ok := a.File("lineage.cue")
+		if !ok {
+			t.Fatal("decompile needs lineage.cue")
+		}
+		v := ctx.CompileString(src, cue.Filename("lineage.cue"))
+		if _, err := thema.BindLineage(v, thema.NewRuntime(ctx)); err != nil {
+			t.Fatalf("lineage.cue does not bind: %v", err)
+		}
+		_, _, err := compile.Decompile(v)
+		if err == nil {
+			t.Fatal("the lineage decompiled")
+		}
+		return diag.Diagnostics(err)
+	},
 	// append-only: bind old.cue and new.cue and check that new only appends
 	// to old (thema.IsAppendOnly).
 	"append-only": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {
@@ -367,9 +417,21 @@ func formOf(a *diagtest.Archive) diagtest.Form {
 	return diagtest.Normal
 }
 
+// renderText renders with the archive's files as sources. Authoring files are
+// stored under the lineage's directory but positioned by their path within it.
 func renderText(ds []diag.Diagnostic, a *diagtest.Archive) string {
 	var b bytes.Buffer
-	diag.Render(&b, ds, diag.RenderOptions{Source: a.Source})
+	diag.Render(&b, ds, diag.RenderOptions{Source: func(file string) ([]byte, bool) {
+		if src, ok := a.Source(file); ok {
+			return src, true
+		}
+		for _, f := range a.Inputs() {
+			if strings.HasSuffix(f.Name, "/"+file) {
+				return f.Data, true
+			}
+		}
+		return nil, false
+	}})
 	return b.String()
 }
 

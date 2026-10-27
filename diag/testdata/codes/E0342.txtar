@@ -1,0 +1,49 @@
+#op: compile
+A drop says a source field has no place in the target. Where the target
+requires a field of that name, dropping it would leave a required field absent.
+-- ship/history/0.0.thema --
+schema: {
+	a: string
+}
+-- ship/1.0.thema --
+schema: {
+	a: string
+	b: int
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		a: drop
+		b: 1
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0342",
+      "severity": "error",
+      "headline": "1.0 requires a; dropping it would leave it absent",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 9,
+        "col": 3,
+        "offset": 67,
+        "origin": "user"
+      }
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0342]: 1.0 requires a; dropping it would leave it absent
+ --> 1.0.thema:9:3
+  |
+9 |         a: drop
+  |         ^
+  |

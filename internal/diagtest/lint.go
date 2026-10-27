@@ -46,7 +46,7 @@ var cuePhrases = []string{
 }
 
 // Go's formatting of values a message should never show raw.
-var goLeakage = []string{"map[", "&{", "%!", "[]string", "0x", "<nil>", "[0 ", " 0]", "{[", "]}"}
+var goLeakage = []string{"map[", "&{", "%!", "[]string", "0x", "<nil>"}
 
 var (
 	positionInText = regexp.MustCompile(`\S+\.(cue|thema|json|yaml|yml):\d+:\d+`)

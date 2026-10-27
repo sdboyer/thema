@@ -16,5 +16,14 @@ ForwardLens: {
 	}
 }
 -- out/error --
-"one" is not an instance of 1.0's b: schema.b: conflicting values int and "one" (mismatched types int and string):
-    1.0.thema:9:6
+error[E0344]: "one" is not an instance of 1.0's b
+ --> 1.0.thema:9:6
+  |
+3 |     b: int
+  |        --- here
+...
+9 |         b: "one"
+  |            ^^^^^
+  |            ----- also here
+  |
+  = detail: schema.b: conflicting values int and "one" (mismatched types int and string)

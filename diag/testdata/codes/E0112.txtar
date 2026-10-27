@@ -1,0 +1,53 @@
+#op: compile
+A version file's schema is evaluated on its own before the lineage is
+assembled, and this one has an error of its own: a conflict CUE reports.
+-- ship/0.0.thema --
+schema: {
+	a: 1
+	a: 2
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0112",
+      "severity": "error",
+      "headline": "a version file's schema has an error",
+      "primary": {
+        "file": "0.0.thema",
+        "line": 3,
+        "col": 5,
+        "offset": 20,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "pos": {
+            "file": "0.0.thema",
+            "line": 2,
+            "col": 5,
+            "offset": 14,
+            "origin": "user"
+          },
+          "label": "also here"
+        }
+      ],
+      "detail": "schema.a: conflicting values 2 and 1"
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0112]: a version file's schema has an error
+ --> 0.0.thema:3:5
+  |
+2 |     a: 1
+  |        - also here
+3 |     a: 2
+  |        ^
+  |
+  = detail: schema.a: conflicting values 2 and 1

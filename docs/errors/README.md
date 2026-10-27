@@ -16,6 +16,18 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 
 | Code | Severity | Title |
 |---|---|---|
+| [E0101](E0101.md) | error | a file in the lineage's directory is not a version file |
+| [E0102](E0102.md) | error | a version file is not CUE syntax |
+| [E0103](E0103.md) | error | a version file has a package clause |
+| [E0104](E0104.md) | error | a version file imports a package |
+| [E0105](E0105.md) | error | a version file has a field that is not schema, ForwardLens or BackwardLens |
+| [E0106](E0106.md) | error | a version file declares a field twice |
+| [E0107](E0107.md) | error | a lens block is not a struct |
+| [E0108](E0108.md) | error | a version file declares no schema |
+| [E0109](E0109.md) | error | a version file uses CUE's struct shorthand |
+| [E0110](E0110.md) | error | the lineage's directory has no version files |
+| [E0111](E0111.md) | error | a lens block is not shaped as a lens |
+| [E0112](E0112.md) | error | a version file's schema has an error |
 | [E0120](E0120.md) | error | the lineage does not declare a field every lineage has |
 | [E0121](E0121.md) | error | a field every lineage has is not concrete |
 | [E0122](E0122.md) | error | the lineage declares no schemas |
@@ -35,6 +47,9 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0201](E0201.md) | error | the first schema is not version 0.0 |
 | [E0202](E0202.md) | error | a schema's version does not follow its predecessor's |
 | [E0203](E0203.md) | error | a major version declares no schemas |
+| [E0204](E0204.md) | error | two version files declare the same version |
+| [E0205](E0205.md) | error | the version files skip a version |
+| [E0206](E0206.md) | error | a version file named as a major version is backward compatible with its predecessor |
 | [E0208](E0208.md) | error | a major version is backward compatible with its predecessor |
 | [E0210](E0210.md) | error | a minor version requires a field its predecessor does not declare |
 | [E0211](E0211.md) | error | a minor version rejects a field its predecessor declares |
@@ -59,6 +74,32 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0305](E0305.md) | error | a lens writes a field its target schema does not declare |
 | [E0307](E0307.md) | error | translating an instance, a lens produced something that is not concrete |
 | [E0308](E0308.md) | error | translating an instance, a lens failed |
+| [E0330](E0330.md) | error | a lens body holds something that is not a mapping |
+| [E0331](E0331.md) | error | a mapping's key is not a plain field name |
+| [E0332](E0332.md) | error | a mapping has an attribute |
+| [E0333](E0333.md) | error | a mapping is an expression the lens language does not have |
+| [E0334](E0334.md) | error | a nested body embeds something other than a path into the source instance |
+| [E0335](E0335.md) | error | an orelse is not orelse(source path, fallback) |
+| [E0336](E0336.md) | error | a remap is not remap(source path, table) |
+| [E0337](E0337.md) | error | an each is not each(source list, body) |
+| [E0338](E0338.md) | error | a remap table is not a struct of constant arms with at most one catch-all |
+| [E0340](E0340.md) | error | a lens reads a field its source version does not declare |
+| [E0341](E0341.md) | error | a lens maps a field its target version does not declare |
+| [E0342](E0342.md) | error | a lens drops a field its target version requires |
+| [E0343](E0343.md) | error | a lens moves an optional field to a required one with no fallback |
+| [E0344](E0344.md) | error | a constant in a lens is not an instance of its target field |
+| [E0345](E0345.md) | error | a lens maps a target field twice |
+| [E0346](E0346.md) | error | a lens produces nothing for a field its target version requires |
+| [E0347](E0347.md) | error | a field the source version has and the target lacks is neither mapped nor dropped |
+| [E0348](E0348.md) | error | an orelse reads a field the source version always has |
+| [E0349](E0349.md) | error | an orelse's fallback may itself be absent |
+| [E0350](E0350.md) | error | a remap maps a value twice |
+| [E0351](E0351.md) | error | a remap maps some values nowhere |
+| [E0352](E0352.md) | error | a remap passes values through to a target the lens cannot test them against |
+| [E0353](E0353.md) | error | an each maps something other than an open list to an open list |
+| [E0354](E0354.md) | error | the first version has a lens |
+| [E0355](E0355.md) | error | a minor version has a ForwardLens |
+| [E0356](E0356.md) | error | a normal-form lens is outside what the authoring form expresses |
 | [E0360](E0360.md) | error | a lens copies a value its target rejects for some instance |
 | [E0361](E0361.md) | error | a lens reads a field that may be absent |
 | [E0362](E0362.md) | error | a lens reads a field its source schema does not declare |
@@ -89,6 +130,17 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0405](E0405.md) | error | a lacuna's field path is not a path |
 | [E0406](E0406.md) | error | a lacuna's type is not a lacuna type |
 | [E0407](E0407.md) | error | a field that is not part of a lacuna |
+| [E0410](E0410.md) | error | a lacunas declaration is not shaped as lacunas |
+| [E0411](E0411.md) | error | a lacuna's type is not a lacuna type |
+| [E0412](E0412.md) | error | a lacunas key names a mapping the lens does not have |
+| [E0413](E0413.md) | error | a lacuna on a mapping inside each |
+| [E0414](E0414.md) | error | a remap's catch-all arm has no lacuna |
+| [E0415](E0415.md) | error | a lacuna on each has no when |
+| [E0416](E0416.md) | error | a drop has a lacuna that is not its one DroppedField refinement |
+| [E0417](E0417.md) | error | a condition reads an optional field |
+| [E0418](E0418.md) | error | a condition refers to a name a lens does not define |
+| [E0420](E0420.md) | error | a lacuna on a remap with no catch-all arm has no when |
+| [E0421](E0421.md) | error | a lacuna on a drop inside each has a when |
 | [E0501](E0501.md) | error | the data lacks a field the schema requires |
 | [E0502](E0502.md) | error | the data has a field the schema does not declare |
 | [E0503](E0503.md) | error | a value in the data is of a kind the schema does not accept |

@@ -1,0 +1,58 @@
+#op: compile
+A lacuna's type is one of thema's lacuna types, written as a bare name. The
+message lists them.
+-- ship/history/0.0.thema --
+schema: {
+	a: string
+}
+-- ship/1.0.thema --
+schema: {
+	a: string
+	b: int
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		b: -1
+	}
+	lacunas: {
+		b: [{
+			type:    Guess
+			message: "-1 is a placeholder"
+		}]
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0411",
+      "severity": "error",
+      "headline": "the lacuna's type Guess is not a lacuna type",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 13,
+        "col": 13,
+        "offset": 108,
+        "origin": "user"
+      },
+      "help": [
+        "the lacuna types are Placeholder, DroppedField, LossyFieldMapping, ChangedDefault, PrecisionLoss, AmbiguousMapping, Defaulted"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0411]: the lacuna's type Guess is not a lacuna type
+  --> 1.0.thema:13:13
+   |
+13 |             type:    Guess
+   |                      ^^^^^
+   |
+   = help: the lacuna types are Placeholder, DroppedField, LossyFieldMapping, ChangedDefault, PrecisionLoss, AmbiguousMapping, Defaulted
