@@ -141,10 +141,38 @@ func parseVersion(f File) (*version, error) {
 	if v.schema == nil {
 		errs = cerrors.Append(errs, cerrors.Newf(v.header(), "%s declares no schema", f.Path))
 	}
+	errs = cerrors.Append(errs, noShorthand(af))
 	if errs != nil {
 		return nil, errs
 	}
 	return v, nil
+}
+
+// noShorthand rejects CUE's struct shorthand, a: b: c, anywhere in a version
+// file: a version file writes every struct with its braces, so that a lens
+// body, a lacunas key and a schema read the same way. The parser leaves the
+// shorthand's struct without a brace position.
+func noShorthand(af *ast.File) cerrors.Error {
+	var errs cerrors.Error
+	ast.Walk(af, func(n ast.Node) bool {
+		f, ok := n.(*ast.Field)
+		if !ok {
+			return true
+		}
+		s, ok := f.Value.(*ast.StructLit)
+		if !ok || s.Lbrace.IsValid() || len(s.Elts) != 1 {
+			return true
+		}
+		inner, ok := s.Elts[0].(*ast.Field)
+		if !ok {
+			return true
+		}
+		outer, _, _ := ast.LabelName(f.Label)
+		label, _, _ := ast.LabelName(inner.Label)
+		errs = cerrors.Append(errs, cerrors.Newf(inner.Pos(), "%s: %s: ... is CUE's struct shorthand, which a version file does not use: write %s: {%s: ...}", outer, label, outer, label))
+		return true
+	}, nil)
+	return errs
 }
 
 // parseVersions parses every file and orders the versions, which must be

@@ -63,7 +63,8 @@
 // Format lays authoring text out in thema's style: every struct keeps its
 // braces and every field has its own line. CUE has no normal form and this
 // is not one; it is the one layout Decompile produces, so that decompiling a
-// formatted file gives back its text.
+// formatted file gives back its text. CUE's struct shorthand, a: b: c, is
+// refused in a version file wherever it appears; Format expands it.
 //
 // # Positions
 //
