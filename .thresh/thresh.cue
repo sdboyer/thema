@@ -179,6 +179,22 @@ seams: "lens-result-fields": {
 	]
 }
 
+// The lens IR (internal/lensir) is what every lens compiles to: its node set,
+// what each node carries and how Print renders it are read by every backend
+// (encoding/capnp renders CEL and layout from it) and recorded in the goldens
+// of every corpus lineage (testdata/lineage out/lensir, exemplars/testdata/
+// lensir) and of every proven form (internal/lenscheck/testdata ir sections).
+// A change here changes what each of them sees.
+seams: "lens-ir": {
+	kind:  "shared-kernel"
+	paths: ["internal/lensir/*.go"]
+	consult: [
+		"encoding/capnp, which renders CEL and capnp layout from the IR, and every other backend built on it",
+		"the IR goldens: out/lensir in testdata/lineage, exemplars/testdata/lensir and the ir sections of internal/lenscheck/testdata, which record what each lens and each proven form compiles to",
+		"internal/lenscheck ir.go, which emits every node and must carry what the proof established for each",
+	]
+}
+
 // A version's ID is two digests of canonical forms of its content. IDs are
 // stored (envelopes, a registry of record), so the canonical form is co-owned
 // with every ID ever computed: a change to it, or to where a version's schema and
@@ -202,6 +218,20 @@ seams: bindlineage: {
 	paths:  ["*.go"]
 	type:   "baseLineage"
 	onlyIn: ["BindLineage"]
+}
+
+// A lens program (internal/lensir) is the by-product of proving the lens
+// total: lenscheck.Check builds it from what the walk proved, and only where
+// the verdict is Total, so no node exists without its proof. A program built
+// anywhere else would be a claim about a lens nothing has checked. thresh
+// sees a construction by its unqualified type name, so this fires on Program
+// literals inside lensir and lenscheck; the qualified lensir.Program{} in
+// Check is the choke point itself.
+seams: "lensir-programs": {
+	kind:   "choke-point"
+	paths:  ["internal/lensir/*.go", "internal/lenscheck/*.go", "*.go", "encoding/*/*.go"]
+	type:   "Program"
+	onlyIn: ["Check"]
 }
 
 // Configure is the only way thema's CUE module gets served to the loader. Building
