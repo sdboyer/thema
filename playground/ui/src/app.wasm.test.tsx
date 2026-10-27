@@ -1,5 +1,5 @@
 // The page against the real thema: start, load the default example, edit it.
-// Needs npm run sync-thema; skipped without it.
+// Needs go generate ./cmd/thema/playground; skipped without it.
 import { appendFileSync } from "node:fs";
 import { cursorLineEnd, insertNewlineAndIndent } from "@codemirror/commands";
 import { EditorView } from "@codemirror/view";

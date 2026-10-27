@@ -10,9 +10,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit",
-    "sync-thema": "node scripts/sync-thema.mjs",
-    "package": "node scripts/package.mjs"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@codemirror/commands": "6.7.1",
@@ -26,6 +24,7 @@
   },
   "devDependencies": {
     "@preact/preset-vite": "2.10.6",
+    "@types/node": "26.6.5",
     "jsdom": "25.0.1",
     "typescript": "5.6.3",
     "vite": "5.4.21",

@@ -1,7 +1,8 @@
 // Runs thema.wasm off the page's thread. A classic worker, not bundled: it
 // loads thema's own scripts beside it, thema-fs.js before wasm_exec.js as
 // thema requires, and they and thema.wasm are whatever thema build was put
-// next to it (npm run sync-thema, or thema serve playground's own).
+// next to it: this tree's, by go generate ./cmd/thema/playground, or the one
+// thema serve playground was built with.
 //
 // Messages to the page:
 //   {type: "progress", loaded}  bytes of thema.wasm received so far

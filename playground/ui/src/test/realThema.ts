@@ -1,6 +1,7 @@
-// Runs the synced thema.wasm in the test's own process, the way
+// Runs this tree's thema.wasm in the test's own process, the way
 // public/thema-worker.js runs it in a worker, for tests that need thema's
-// real answers. Returns null when npm run sync-thema has not been run.
+// real answers. haveThema says whether go generate ./cmd/thema/playground
+// has put it in public/.
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
