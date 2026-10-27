@@ -135,7 +135,7 @@ func run(out, versionFile string) error {
 	copies := map[string]string{
 		"wasm_exec.js": filepath.Join(strings.TrimSpace(string(goroot)), "lib", "wasm", "wasm_exec.js"),
 		"thema-fs.js":  filepath.Join(root, "cmd", "thema-wasm", "thema-fs.js"),
-		"types.ts":     filepath.Join(root, "playground", "types.ts"),
+		"types.ts":     filepath.Join(root, "playground", "ui", "src", "api", "types.ts"),
 	}
 	for name, src := range copies {
 		if err = copyFile(filepath.Join(out, name), src); err != nil {
