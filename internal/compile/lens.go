@@ -2,7 +2,6 @@ package compile
 
 import (
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -14,6 +13,7 @@ import (
 
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/internal/cueview"
+	"github.com/sdboyer/thema/lacuna"
 )
 
 // An entry is one mapping in a lens body, after the body's nesting has been
@@ -508,7 +508,7 @@ func (e *edge) parseLacuna(x ast.Expr, p cue.Path) *lacunaDecl {
 		case fieldType:
 			id, ok := f.Value.(*ast.Ident)
 			if !ok || !isLacunaType(id.Name) {
-				e.errf(f.Value.Pos(), "%s is not a lacuna type; the types are %s", exprText(f.Value), strings.Join(lacunaTypes, ", "))
+				e.errf(f.Value.Pos(), "%s is not a lacuna type; the types are %s", exprText(f.Value), lacunaTypeNames())
 				return nil
 			}
 			d.typ = id.Name
@@ -634,11 +634,18 @@ func isBuiltin(name string) bool {
 }
 
 // lacunaDropped is the type of the lacuna a drop derives.
-const lacunaDropped = "DroppedField"
+const lacunaDropped = string(lacuna.DroppedField)
 
-var lacunaTypes = []string{"Placeholder", lacunaDropped, "LossyFieldMapping", "ChangedDefault", "PrecisionLoss", "AmbiguousMapping", "Defaulted"}
+func isLacunaType(s string) bool { return lacuna.Type(s).Known() }
 
-func isLacunaType(s string) bool { return slices.Contains(lacunaTypes, s) }
+// lacunaTypeNames lists the lacuna types, for error messages.
+func lacunaTypeNames() string {
+	var names []string
+	for _, t := range lacuna.Types() {
+		names = append(names, string(t))
+	}
+	return strings.Join(names, ", ")
+}
 
 // refPath returns the path of a reference <root>.a.b, if x is one.
 func (e *edge) refPath(x ast.Expr) (cue.Path, bool) {
