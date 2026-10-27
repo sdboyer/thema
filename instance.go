@@ -61,8 +61,7 @@ func (i *Instance) check() {
 func (i *Instance) Hydrate() *Instance {
 	i.check()
 
-	i.sch.Lineage().Runtime()
-	ni, err := doHydrate(i.sch.Underlying(), i.raw)
+	ni, err := doHydrate(i.sch.(*schemaDef).def, i.raw)
 	// FIXME For now, just no-op it if we error
 	if err != nil {
 		return i
@@ -84,7 +83,7 @@ func (i *Instance) Hydrate() *Instance {
 func (i *Instance) Dehydrate() *Instance {
 	i.check()
 
-	ni, _, err := doDehydrate(i.sch.Underlying(), i.raw)
+	ni, _, err := doDehydrate(i.sch.(*schemaDef).def, i.raw)
 	// FIXME For now, just no-op it if we error
 	if err != nil {
 		return i
