@@ -2,7 +2,7 @@
 // reports edits and shows markers.
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { json } from "@codemirror/lang-json";
-import { bracketMatching, defaultHighlightStyle, indentOnInput, syntaxHighlighting } from "@codemirror/language";
+import { bracketMatching, defaultHighlightStyle, indentOnInput, indentUnit, syntaxHighlighting } from "@codemirror/language";
 import { lintGutter, setDiagnostics } from "@codemirror/lint";
 import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
 import { Compartment, EditorState } from "@codemirror/state";
@@ -23,7 +23,8 @@ interface Props {
 }
 
 const languages = {
-  cue: () => [cue],
+  // CUE's formatter indents with tabs, and so does every file it formats.
+  cue: () => [cue, indentUnit.of("\t")],
   json: () => [json()],
   yaml: () => [],
   text: () => [],
