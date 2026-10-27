@@ -105,4 +105,16 @@ describe("App", () => {
     }
     render(null, root);
   });
+
+  it("opens the tour beside the work, and closes it", async () => {
+    const root = await mount();
+    const tourButton = [...root.querySelectorAll<HTMLButtonElement>("header button")].find((b) => b.textContent === "Tour")!;
+    expect(root.querySelector(".tour")).toBeNull();
+    await act(async () => tourButton.click());
+    expect(root.querySelector("main > .tour")).not.toBeNull();
+    expect(root.querySelector("main")!.classList.contains("touring")).toBe(true);
+    await act(async () => root.querySelector<HTMLButtonElement>(".tour .close")!.click());
+    expect(root.querySelector(".tour")).toBeNull();
+    render(null, root);
+  });
 });

@@ -84,7 +84,8 @@ header .version { margin-left: auto; color: var(--muted); font-size: .85em; }
 .notice { padding: .4rem .75rem; background: var(--panel); border-bottom: 1px solid var(--border); }
 
 main { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
-@media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+main.touring { grid-template-columns: 1fr 1fr minmax(18rem, 26rem); }
+@media (max-width: 900px) { main, main.touring { grid-template-columns: 1fr; } }
 section { display: flex; flex-direction: column; min-height: 0; min-width: 0; border-right: 1px solid var(--border); }
 
 .bar { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; padding: .4rem .6rem; border-bottom: 1px solid var(--border); }
@@ -148,3 +149,21 @@ section { display: flex; flex-direction: column; min-height: 0; min-width: 0; bo
 .lacunas caption { text-align: left; font-weight: 600; padding: .5rem .75rem .25rem; }
 .lacunas th, .lacunas td { text-align: left; padding: .3rem .75rem; border-bottom: 1px solid var(--border); }
 .lacunas td:nth-child(-n+3) { font-family: var(--mono); white-space: nowrap; }
+
+header button[aria-pressed="true"] { background: var(--selection); border-color: var(--accent); }
+
+.tour { display: flex; flex-direction: column; min-height: 0; background: var(--panel); }
+.tour .bar h2 { font-size: 1rem; margin: 0; }
+.tour .close { margin-left: auto; border: none; background: none; color: var(--muted); font-size: 1.2em; }
+.tour .steps { flex: 1; overflow: auto; margin: 0; padding: .5rem 1rem 2rem 2.2rem; }
+.step { margin-bottom: 1.25rem; line-height: 1.45; }
+.step h3 { font-size: 1rem; margin: .5rem 0 .25rem; }
+.step p { margin: .35rem 0; }
+.step code { font-family: var(--mono); font-size: .9em; }
+.step .todo { font-weight: 500; }
+.step .see .label { font-weight: 600; }
+.snippet { margin: .4rem 0; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); }
+.snippet figcaption { display: flex; align-items: center; padding: .2rem .5rem; font-size: .85em; color: var(--muted); border-bottom: 1px solid var(--border); }
+.snippet figcaption button { margin-left: auto; padding: 1px 8px; font-size: .9em; }
+.snippet pre, .step .result-text { margin: 0; padding: .4rem .6rem; font-family: var(--mono); font-size: var(--code-size); overflow-x: auto; tab-size: 4; }
+.step .result-text { border-left: 3px solid var(--ok); background: var(--bg); }

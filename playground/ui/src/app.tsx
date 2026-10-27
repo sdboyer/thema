@@ -13,6 +13,7 @@ import {
   lineageInput,
   shareWarnBytes,
 } from "./state/session";
+import { Tour } from "./tour/Tour";
 import { Diagnostics } from "./ui/Diagnostics";
 import { DocLink, hasDoc } from "./ui/docs";
 import { Editor, type Language } from "./ui/Editor";
@@ -36,6 +37,7 @@ export function App() {
   const [running, setRunning] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [panel, setPanel] = useState<"diagnostics" | "result" | "normal">("diagnostics");
+  const [touring, setTouring] = useState(false);
 
   // Start thema, then restore a shared session or load the default example.
   useEffect(() => {
@@ -233,6 +235,9 @@ export function App() {
           <DocLink topic="forms" />
         </span>
         <button onClick={share}>Share</button>
+        <button onClick={() => setTouring((t) => !t)} aria-pressed={touring} title="Steps through what thema does">
+          Tour
+        </button>
         <span class="version">
           thema {thema.init.themaVersion} · CUE {thema.init.cueVersion}
         </span>
@@ -245,7 +250,7 @@ export function App() {
           </button>
         </div>
       )}
-      <main>
+      <main class={touring ? "touring" : undefined}>
         <section class="lineage" aria-label="Lineage">
           <div class="bar">
             {session.form === "authoring" ? (
@@ -363,6 +368,7 @@ export function App() {
             )}
           </div>
         </section>
+        {touring && <Tour onClose={() => setTouring(false)} />}
       </main>
     </div>
   );
