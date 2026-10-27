@@ -920,3 +920,5 @@ export interface ScalarFields {
 export const defaultScalarFields: Partial<ScalarFields> = {
   nullableIntWithDefault: 10,
 };
+-- out/lensir --
+no lenses

@@ -460,3 +460,36 @@ export interface Expand {
 export const defaultExpand: Partial<Expand> = {
   withDefault: 'foo',
 };
+-- out/lensir --
+lens 0.1->0.0
+  out: {
+    out.init <- in.init
+  }
+lens 0.2->0.1
+  out: {
+    out.init <- in.init
+    if in.optional != _|_ {
+      out.optional <- in.optional
+    }
+  }
+lens 0.3->0.2
+  out: {
+    out.init <- in.init
+    if in.optional != _|_ {
+      out.optional <- in.optional
+    }
+    if in.withDefault != _|_ {
+      if in.withDefault != "baz" {
+        out.withDefault <- in.withDefault
+      }
+      if in.withDefault == "baz" {
+        out.withDefault = "foo"
+      }
+    }
+  }
+  lacuna LossyFieldMapping {
+    when (in.withDefault & "baz") != _|_
+    source withDefault = in.withDefault
+    target withDefault = out.withDefault
+    message "withDefault was \"baz\", which 0.2 does not have; \"foo\", its default, was substituted"
+  }

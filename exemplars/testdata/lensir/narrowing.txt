@@ -1,0 +1,19 @@
+lens 0.0->1.0
+  out: {
+    if (in.boolish & string) != _|_ {
+      out.properbool = in.boolish == "true"
+    }
+    if (in.boolish & bool) != _|_ {
+      out.properbool <- in.boolish
+    }
+  }
+  lacuna LossyFieldMapping {
+    when (in.boolish & string) != _|_ && (in.boolish & ("true" | "false")) == _|_
+    source boolish = in.boolish
+    target properbool = out.properbool
+    message "boolish was a string but neither \"true\" nor \"false\"; fallback to treating as false"
+  }
+lens 1.0->0.0
+  out: {
+    out.boolish <- in.properbool
+  }

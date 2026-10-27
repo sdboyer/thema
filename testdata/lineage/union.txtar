@@ -630,3 +630,5 @@ export const defaultUnion: Partial<Union> = {
   emptyStructs: [],
   listUnion: [],
 };
+-- out/lensir --
+no lenses

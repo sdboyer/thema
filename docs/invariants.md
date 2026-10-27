@@ -533,3 +533,19 @@ after upgrading. From v1 they are fixed: a lens that binds under one release
 binds, with the same verdicts, under every later one, and a rule added or
 corrected applies only to lenses published after it. A copy's verdict is a
 compatibility verdict, and moves with it.
+
+### Lens programs
+
+The proof of a lens leaves behind the lens's program (`internal/lensir`): a
+target-neutral account of what the lens writes into its result and from what,
+built node by node at the places in the walk that proved them, so that no
+node exists without its proof. A lens that is not proven total has no program,
+and a lineage bound with `SkipBuggyChecks`, whose lenses were not proven, has
+none; `thema.LensPrograms` returns a lineage's programs or says why there are
+none. Backends such as `encoding/capnp` render the programs; they never consult
+the lens's CUE. The nodes are the proven forms: copies, constants, struct and
+list literals, branches on patterns, heads, tables, computed expressions over
+the operations above, and the declared lacunas. Each corpus lineage's programs
+are recorded beside it (`out/lensir` in `testdata/lineage`,
+`exemplars/testdata/lensir`), and each proven form's in the lens corpus
+(`internal/lenscheck/testdata`, `ir` sections).

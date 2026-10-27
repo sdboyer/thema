@@ -204,3 +204,8 @@ export interface TrivialTwo {
   firstfield: string;
   secondfield?: number;
 }
+-- out/lensir --
+lens 0.1->0.0
+  out: {
+    out.firstfield <- in.firstfield
+  }

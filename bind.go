@@ -21,6 +21,8 @@ import (
 	"github.com/sdboyer/thema/internal/cueview"
 	"github.com/sdboyer/thema/internal/embedreg"
 	"github.com/sdboyer/thema/internal/lenscheck"
+	"github.com/sdboyer/thema/internal/lensir"
+	"github.com/sdboyer/thema/lacuna"
 )
 
 // maybeLineage is an intermediate processing structure used to validate
@@ -50,6 +52,12 @@ type maybeLineage struct {
 	schlist []*schemaDef
 
 	allv []SyntacticVersion
+
+	// programs holds the program built for each lens as checkLensTotality
+	// proves it (internal/lensir); nil where the check was skipped.
+	// programErr says why a total lens has no program.
+	programs   lensir.Programs
+	programErr error
 
 	// The raw input value is the root of a package instance
 	// rawIsPackage bool
@@ -723,6 +731,11 @@ func (ml *maybeLineage) checkReferences() error {
 // evaluates a lens only against data, so without this a lens that drops a field
 // or overflows a bound surfaces at translate, for the instance that hits it.
 //
+// Each lens proven total leaves its program (internal/lensir) behind, built
+// by the walk as a by-product of the proof; [LensPrograms] returns them. A
+// lens the IR cannot yet carry binds all the same, and the accessor says why
+// it has no program.
+//
 // SkipBuggyChecks skips it: the corpus has a lens the check correctly refuses
 // (exemplars/disjunct, 0.1->0.0, writes nothing), which #87 migrates.
 func (ml *maybeLineage) checkLensTotality(cfg *bindConfig) error {
@@ -734,6 +747,7 @@ func (ml *maybeLineage) checkLensTotality(cfg *bindConfig) error {
 	for _, sch := range ml.schlist {
 		byVersion[sch.v] = sch
 	}
+	ml.programs = lensir.Programs{}
 
 	var errs cerrors.Error
 	for _, cl := range ml.cueLenses() {
@@ -744,6 +758,13 @@ func (ml *maybeLineage) checkLensTotality(cfg *bindConfig) error {
 		}
 		res := lenscheck.Check(ctx, lens, fsch.def, tsch.def, lensParam(from), lensParam(to))
 		if res.Total() {
+			edge := lensir.Edge{From: lacuna.SyntacticVersion(from), To: lacuna.SyntacticVersion(to)}
+			if res.Program == nil {
+				ml.programErr = errors.CombineErrors(ml.programErr, fmt.Errorf("lens %s has no program: %w", edge, res.ProgramErr))
+				continue
+			}
+			res.Program.Edge = edge
+			ml.programs[edge] = res.Program
 			continue
 		}
 		verb := "is not total over"

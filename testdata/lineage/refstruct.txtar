@@ -345,3 +345,5 @@ export interface Refstruct {
       two: string;
     });
 }
+-- out/lensir --
+no lenses

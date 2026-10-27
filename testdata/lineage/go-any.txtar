@@ -273,3 +273,5 @@ export interface GoAny {
   };
   value: (string | boolean);
 }
+-- out/lensir --
+no lenses

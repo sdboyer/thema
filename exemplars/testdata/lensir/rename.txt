@@ -1,0 +1,10 @@
+lens 0.0->1.0
+  out: {
+    out.after <- in.before
+    out.unchanged <- in.unchanged
+  }
+lens 1.0->0.0
+  out: {
+    out.before <- in.after
+    out.unchanged <- in.unchanged
+  }

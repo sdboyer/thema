@@ -138,3 +138,5 @@ export interface Onestruct {
   };
   foo: string;
 }
+-- out/lensir --
+no lenses
