@@ -1304,7 +1304,11 @@ func (w *walker) walkLacunas() {
 	w.quiet++
 	defer func() { w.quiet-- }()
 	w.absentAdvice = func(p cue.Path) string {
-		return fmt.Sprintf("add %s != _|_ to the lacuna's condition", w.inputRef(p))
+		// A presence test in the condition establishes the field for the
+		// values the lacuna reports. A read of the field in the condition
+		// itself must sit under the test: && does not short-circuit, so a
+		// read beside the test is an error where the field is absent.
+		return fmt.Sprintf("add %s != _|_ to the lacuna's condition, and read it only under that test: [if %s != _|_ {...}, false][0]", w.inputRef(p), w.inputRef(p))
 	}
 	defer func() { w.absentAdvice = nil }()
 	for _, c := range w.syn.LacunaConjuncts() {
