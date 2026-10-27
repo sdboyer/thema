@@ -613,8 +613,52 @@ func (b *dbody) when(en *dentry, cond ast.Expr) (when ast.Expr, structural bool)
 				return nil, true
 			}
 		}
+		if len(ts) == 1 && last.operand == nil && last.present {
+			// A presence test alone is an optional field named bare.
+			return ref(b.root, last.path), false
+		}
+	}
+	if inner, ok := headCondition(cond); ok {
+		// A condition reading optional fields, compiled to apply only where
+		// they are present; the when is the inner expression.
+		return inner, false
 	}
 	return cond, false
+}
+
+// headCondition recognizes [if <presence tests> {when}, false][0], the form a
+// when that reads optional fields compiles to, and returns the when.
+func headCondition(x ast.Expr) (ast.Expr, bool) {
+	ix, ok := x.(*ast.IndexExpr)
+	if !ok {
+		return nil, false
+	}
+	if lit, isLit := ix.Index.(*ast.BasicLit); !isLit || lit.Value != "0" {
+		return nil, false
+	}
+	l, ok := ix.X.(*ast.ListLit)
+	if !ok || len(l.Elts) != 2 {
+		return nil, false
+	}
+	if lit, isLit := l.Elts[1].(*ast.BasicLit); !isLit || lit.Value != "false" {
+		return nil, false
+	}
+	comp, ok := l.Elts[0].(*ast.Comprehension)
+	if !ok || len(comp.Clauses) != 1 {
+		return nil, false
+	}
+	if _, isIf := comp.Clauses[0].(*ast.IfClause); !isIf {
+		return nil, false
+	}
+	s, ok := comp.Value.(*ast.StructLit)
+	if !ok || len(s.Elts) != 1 {
+		return nil, false
+	}
+	emb, ok := s.Elts[0].(*ast.EmbedDecl)
+	if !ok {
+		return nil, false
+	}
+	return emb.Expr, true
 }
 
 func joinPath(p, q cue.Path) cue.Path {

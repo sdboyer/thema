@@ -1191,7 +1191,24 @@ func (w *walker) lacunaCondition(lp cue.Path, x ast.Expr) []pattern {
 // establishes nothing about the source, so it is kept as an opaque pattern,
 // under which the lacuna's values must be present for every instance.
 func (w *walker) guard(x ast.Expr, subj string, pos token.Pos) {
-	c := &exprCtx{subj: subj, pos: pos, paths: map[string]int{}}
+	var gs []pattern
+	if h, ok := asHead(x); ok {
+		// [if <patterns> {cond}, false][0]: cond under the patterns, which is
+		// how a condition over optional fields applies only where they are
+		// present.
+		g, ok := w.parsePattern(h.cond)
+		if !ok {
+			w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownPattern,
+				Detail: fmt.Sprintf("chooses by %s, which is not a pattern (a presence test, an equality or a type test on an input field, or a conjunction of these)", text(h.cond)), Pos: pos})
+			return
+		}
+		w.checkPatterns(g, nil, subj, pos)
+		if h.els != nil {
+			w.guard(h.els, subj, pos)
+		}
+		gs, x = g, h.then
+	}
+	c := &exprCtx{subj: subj, pos: pos, gs: gs, paths: map[string]int{}}
 	sh, ok := w.shape(x, c)
 	switch {
 	case !ok, sh.dead:
