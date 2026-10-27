@@ -1,0 +1,28 @@
+# rule int-unbounded: an integer with no finite bounds, however it is
+# written (int, int & >=0, a list of them, a map value, a disjunction
+# alternative), has no capnp size. Bounded integers beside them compile.
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+thema.Lineage
+name: "intUnbounded"
+schemas: "0": "0": schema: {
+	plain:    int
+	lower:    int & >=0
+	upper:    int & <=100
+	elems:    [...int]
+	mapped:   [string]: int
+	alt:      string | int
+	sized:    int32
+	bounded:  int & >=0 & <=255
+	constant: 7
+}
+lenses: {}
+-- out/capnp --
+rejected
+schema 0.0: alt is int, an integer with no finite bounds; capnp integers are sized (int32, uint8, >=0 & <=100) (rule int-unbounded) @ /in.cue:11:21
+schema 0.0: elems.[_] is int, an integer with no finite bounds; capnp integers are sized (int32, uint8, >=0 & <=100) (rule int-unbounded) @ /in.cue:9:16
+schema 0.0: lower is uint, an integer with no finite bounds; capnp integers are sized (int32, uint8, >=0 & <=100) (rule int-unbounded) @ /in.cue:7:2
+schema 0.0: mapped.[_] is int, an integer with no finite bounds; capnp integers are sized (int32, uint8, >=0 & <=100) (rule int-unbounded) @ /in.cue:10:12
+schema 0.0: plain is int, an integer with no finite bounds; capnp integers are sized (int32, uint8, >=0 & <=100) (rule int-unbounded) @ /in.cue:6:2
+schema 0.0: upper is int & <=100, an integer with no finite bounds; capnp integers are sized (int32, uint8, >=0 & <=100) (rule int-unbounded) @ /in.cue:8:2

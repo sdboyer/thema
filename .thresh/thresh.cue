@@ -49,6 +49,23 @@ seams: "lenscheck-verdicts": {
 	]
 }
 
+// Every capnp compilation verdict, and every ordinal and type ID the goldens
+// record, is part of what a compiled artifact relies on: a verdict that moves
+// stops a lineage compiling or admits a shape no reader handles, and an
+// ordinal or ID that moves misreads every message already written. The corpus
+// records one verdict per rule and one case per generation transition; a diff
+// there is a contract change, even when it fixes a bug. Declared as a kernel to
+// fire on touch, as compat-verdicts is (sdboyer/thresh#6).
+seams: "capnp-verdicts": {
+	kind:  "shared-kernel"
+	paths: ["encoding/capnp/testdata/*.txtar", "encoding/capnp/testdata/exemplars/*.txt"]
+	consult: [
+		"every artifact already compiled: an ordinal, type ID or generation split that moves misreads messages written under the earlier schema",
+		"the rule tables in docs/capnp.md, which must describe the recorded verdicts",
+		"the ID derivation in encoding/capnp/generations.go (hashID, nestedID) and the stability test, which pin what a Namespace reproduces",
+	]
+}
+
 // The compiler and the decompiler are inverses on the canonical subset of the
 // normal form, and the round-trip fixtures prove it in both directions. A
 // change to what either emits or recognizes owes the other the same change.

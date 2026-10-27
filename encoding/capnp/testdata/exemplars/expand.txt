@@ -1,0 +1,4 @@
+rejected
+schema 0.1: optional is int, an integer with no finite bounds; capnp integers are sized (int32, uint8, >=0 & <=100) (rule int-unbounded) @ /github.com/sdboyer/thema/exemplars/expand.cue:17:6
+schema 0.2: optional is int, an integer with no finite bounds; capnp integers are sized (int32, uint8, >=0 & <=100) (rule int-unbounded) @ /github.com/sdboyer/thema/exemplars/expand.cue:23:6
+schema 0.3: optional is int, an integer with no finite bounds; capnp integers are sized (int32, uint8, >=0 & <=100) (rule int-unbounded) @ /github.com/sdboyer/thema/exemplars/expand.cue:30:6

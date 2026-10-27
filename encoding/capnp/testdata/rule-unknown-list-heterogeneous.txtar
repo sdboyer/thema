@@ -1,0 +1,23 @@
+# rule unknown-list-heterogeneous: a closed list whose elements differ is a
+# tuple, which capnp has no type for; the verdict is unknown. Closed lists of
+# one element type compile as lists.
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+thema.Lineage
+name: "heterogeneous"
+schemas: "0": "0": schema: {
+	pair:     [string, int8]
+	triple:   [string, string, bool]
+	nested:   [[string], [int8]]
+	same:     [string, string]
+	constants: ["a", "b"]
+	empty:    []
+}
+lenses: {}
+-- out/capnp --
+unknown
+schema 0.0: constants is the closed list ["a", "b"], whose elements do not all map to one type; capnp lists are homogeneous (rule unknown-list-heterogeneous) @ /in.cue:10:2
+schema 0.0: nested is the closed list [[string], [int8]], whose elements do not all map to one type; capnp lists are homogeneous (rule unknown-list-heterogeneous) @ /in.cue:8:2
+schema 0.0: pair is the closed list [string, int8], whose elements do not all map to one type; capnp lists are homogeneous (rule unknown-list-heterogeneous) @ /in.cue:6:2
+schema 0.0: triple is the closed list [string, string, bool], whose elements do not all map to one type; capnp lists are homogeneous (rule unknown-list-heterogeneous) @ /in.cue:7:2

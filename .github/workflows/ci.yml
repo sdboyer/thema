@@ -29,6 +29,11 @@ jobs:
           go-version: ${{ matrix.go-version }}
           cache: true
 
+      # encoding/capnp runs the capnp tool for struct layouts; without it the
+      # layout goldens are not checked.
+      - name: Install capnp
+        run: sudo apt-get update && sudo apt-get install -y capnproto
+
       - name: Test
         run: go test ./...
 

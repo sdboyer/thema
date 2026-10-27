@@ -1,0 +1,2 @@
+rejected
+schema 0.0: boolish is "true" | "false" | bool | string, with several alternatives of kind string that are not all constants; no discriminant can be derived from a value (rule disjunction-undiscriminated) @ /github.com/sdboyer/thema/exemplars/narrowing.cue:10:13

@@ -237,3 +237,6 @@ export const defaultNearoptional: Partial<Nearoptional> = {
 };
 -- out/lensir --
 no lenses
+-- out/encoding/capnp --
+rejected
+schema 0.0: anint is int, an integer with no finite bounds; capnp integers are sized (int32, uint8, >=0 & <=100) (rule int-unbounded) @ /in.cue:10:10

@@ -1,0 +1,28 @@
+# rule float: number, float, float32 and float64 are rejected wherever they
+# appear, including as a disjunction alternative and as a default.
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+thema.Lineage
+name: "floats"
+schemas: "0": "0": schema: {
+	num:    number
+	f:      float
+	f32:    float32
+	f64:    float64
+	alt:    string | float64
+	def:    *1.5 | float64
+	nested: inner: float32
+	elems:  [...float32]
+}
+lenses: {}
+-- out/capnp --
+rejected
+schema 0.0: alt has the alternative float64, a number that may be a float; floats are outside the compiled target (rule float) @ /in.cue:10:2
+schema 0.0: def is *1.5 | float64, a number that may be a float; floats are outside the compiled target (rule float) @ /in.cue:11:2
+schema 0.0: elems.[_] is float32, a number that may be a float; floats are outside the compiled target (rule float) @ /in.cue:13:2
+schema 0.0: f is float, a number that may be a float; floats are outside the compiled target (rule float) @ /in.cue:7:2
+schema 0.0: f32 is float32, a number that may be a float; floats are outside the compiled target (rule float) @ /in.cue:8:2
+schema 0.0: f64 is float64, a number that may be a float; floats are outside the compiled target (rule float) @ /in.cue:9:2
+schema 0.0: nested.inner is float32, a number that may be a float; floats are outside the compiled target (rule float) @ /in.cue:12:10
+schema 0.0: num is number, a number that may be a float; floats are outside the compiled target (rule float) @ /in.cue:6:2

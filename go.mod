@@ -3,6 +3,7 @@ module github.com/sdboyer/thema
 go 1.26.0
 
 require (
+	capnproto.org/go/capnp/v3 v3.1.0-alpha.2
 	cuelang.org/go v0.18.0-rc.1
 	github.com/dave/dst v0.27.2
 	github.com/google/go-cmp v0.7.0
@@ -23,6 +24,7 @@ require (
 require (
 	cuelabs.dev/go/oci/ociregistry v0.0.0-20261008151123-94f4aa6e0087 // indirect
 	github.com/cockroachdb/apd/v3 v3.2.3 // indirect
+	github.com/colega/zeropool v0.0.0-20230505084239-6fb4a4f75381 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/emicklei/proto v1.14.3 // indirect
 	github.com/fatih/structtag v1.2.0 // indirect

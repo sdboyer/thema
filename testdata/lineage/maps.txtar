@@ -500,3 +500,6 @@ export interface Maps {
 }
 -- out/lensir --
 no lenses
+-- out/encoding/capnp --
+unknown
+schema 0.0: aComplexMap has pattern constraints [=~"^i"], [=~"^b"], [>"c"] beside its fields; the compiler carries only a lone [string]: T on a struct declaring no other field (rule unknown-pattern-labels) @ /in.cue:17:10

@@ -1,0 +1,36 @@
+# rule disjunction-undiscriminated: a disjunction compiles only when a value
+# decides its alternative. Two non-constant alternatives of one kind cannot
+# be told apart, nor can structs sharing no label that holds a distinct
+# constant in each, nor a constant beside the open type of its own kind.
+# Mixed forms that do discriminate compile (see disjunctions.txtar).
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+thema.Lineage
+name: "undiscriminated"
+schemas: "0": "0": schema: {
+	twoStrings:    =~"^a" | =~"^b"
+	constAndOpen:  "a" | string
+	twoInts:       int8 | int16
+	structsNoTag:  {a: string} | {b: string}
+	structsNoConst: {kind: string, a: string} | {kind: string, b: string}
+	structsSameTag: {kind: "x", a: string} | {kind: "x", b: string}
+	structsMixedTag: {kind: "x", a: string} | {kind: 1, b: string}
+	structAndTagless: {kind: "x", a: string} | {b: string}
+	listsOfTwo:    [...string] | [...int8]
+	nested: inner: "a" | string
+	optional?:     =~"^a" | =~"^b"
+}
+lenses: {}
+-- out/capnp --
+rejected
+schema 0.0: constAndOpen is "a" | string, with several alternatives of kind string that are not all constants; no discriminant can be derived from a value (rule disjunction-undiscriminated) @ /in.cue:7:2
+schema 0.0: listsOfTwo is [...string] | [...int8], with several alternatives of kind list that are not all constants; no discriminant can be derived from a value (rule disjunction-undiscriminated) @ /in.cue:14:2
+schema 0.0: nested.inner is "a" | string, with several alternatives of kind string that are not all constants; no discriminant can be derived from a value (rule disjunction-undiscriminated) @ /in.cue:15:10
+schema 0.0: optional is =~"^a" | =~"^b", with several alternatives of kind string that are not all constants; no discriminant can be derived from a value (rule disjunction-undiscriminated) @ /in.cue:16:2
+schema 0.0: structAndTagless is { kind: "x" a: string } | {b: string}, whose struct alternatives share no label holding a distinct constant in each; no discriminant can be derived from a value (rule disjunction-undiscriminated) @ /in.cue:13:2
+schema 0.0: structsNoConst is { kind: string a: string } | { kind: string b: string }, whose struct alternatives share no label holding a distinct constant in each; no discriminant can be derived from a value (rule disjunction-undiscriminated) @ /in.cue:10:2
+schema 0.0: structsNoTag is {a: string} | {b: string}, whose struct alternatives share no label holding a distinct constant in each; no discriminant can be derived from a value (rule disjunction-undiscriminated) @ /in.cue:9:2
+schema 0.0: structsSameTag is { kind: "x" a: string } | { kind: "x" b: string }, whose struct alternatives share no label holding a distinct constant in each; no discriminant can be derived from a value (rule disjunction-undiscriminated) @ /in.cue:11:2
+schema 0.0: twoInts is int8 | int16, with several alternatives of kind int that are not all constants; no discriminant can be derived from a value (rule disjunction-undiscriminated) @ /in.cue:8:2
+schema 0.0: twoStrings is =~"^a" | =~"^b", with several alternatives of kind string that are not all constants; no discriminant can be derived from a value (rule disjunction-undiscriminated) @ /in.cue:6:2

@@ -1,0 +1,24 @@
+# rule top: _ has no type, including as a list element, a map value or an
+# optional field; a disjunction alternative of _ makes the whole value _.
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+thema.Lineage
+name: "top"
+schemas: "0": "0": schema: {
+	any:      _
+	opt?:     _
+	elems:    [...]
+	mapped:   [string]: _
+	alt:      string | _
+	nested:   inner: _
+}
+lenses: {}
+-- out/capnp --
+rejected
+schema 0.0: alt is string | _, whose alternative _ has no type (rule top) @ /in.cue:10:2
+schema 0.0: any is _, which has no type (rule top) @ /in.cue:6:2
+schema 0.0: elems.[_] is _, which has no type (rule top) @ /in.cue:8:2
+schema 0.0: mapped.[_] is _, which has no type (rule top) @ /in.cue:9:12
+schema 0.0: nested.inner is _, which has no type (rule top) @ /in.cue:11:12
+schema 0.0: opt is _, which has no type (rule top) @ /in.cue:7:2
