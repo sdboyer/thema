@@ -13,7 +13,7 @@ import (
 // schema of a lineage, in a file that also holds scope.
 func schemaForm(t *testing.T, scope, expr string) string {
 	t.Helper()
-	v := cuecontext.New().CompileString(scope + "\nlin: schemas: [{version: [0, 0], schema: " + expr + "}]")
+	v := cuecontext.New().CompileString(scope + "\nlin: schemas: \"0\": \"0\": schema: " + expr)
 	if err := v.Err(); err != nil {
 		t.Fatalf("%s: %v", expr, err)
 	}
@@ -215,7 +215,7 @@ func TestSchemaFormDifferMeaning(t *testing.T) {
 }
 
 func TestSchemaFormErrors(t *testing.T) {
-	v := cuecontext.New().CompileString(`lin: schemas: [{version: [0, 0], schema: {a: 1 & 2}}]`)
+	v := cuecontext.New().CompileString(`lin: schemas: "0": "0": schema: {a: 1 & 2}`)
 	if _, err := SchemaForm(v.LookupPath(cue.ParsePath("lin")), Version{0, 0}); err == nil {
 		t.Error("a schema with an error has a canonical form; every error would have the same one")
 	}
@@ -236,7 +236,7 @@ func TestSchemaFormEntry(t *testing.T) {
 			t.Fatal(err)
 		}
 		var ver Version
-		if strings.Contains(src, "[3, 1]") {
+		if strings.Contains(src, `"3": "1"`) {
 			ver = Version{3, 1}
 		}
 		f, err := SchemaForm(v.LookupPath(cue.ParsePath("lin")), ver)
@@ -245,12 +245,11 @@ func TestSchemaFormEntry(t *testing.T) {
 		}
 		return f
 	}
-	base := form(`lin: schemas: [{version: [0, 0], schema: {k: string, a: int}}]`)
+	base := form(`lin: schemas: "0": "0": schema: {k: string, a: int}`)
 	for name, src := range map[string]string{
-		"version omitted": `lin: schemas: [{schema: {k: string, a: int}}]`,
-		"other version":   `lin: schemas: [{version: [3, 1], schema: {k: string, a: int}}]`,
-		"examples":        `lin: schemas: [{version: [0, 0], schema: {k: string, a: int}, examples: e: {k: "x", a: 1}}]`,
-		"joinSchema":      `lin: {joinSchema: {k: string}, schemas: [{version: [0, 0], schema: {a: int}}]}`,
+		"other version": `lin: schemas: "3": "1": schema: {k: string, a: int}`,
+		"examples":      `lin: schemas: "0": "0": {schema: {k: string, a: int}, examples: e: {k: "x", a: 1}}`,
+		"joinSchema":    `lin: {joinSchema: {k: string}, schemas: "0": "0": schema: {a: int}}`,
 	} {
 		if got := form(src); got != base {
 			t.Errorf("%s: form differs:\n%s\n---\n%s", name, got, base)
@@ -261,7 +260,7 @@ func TestSchemaFormEntry(t *testing.T) {
 var idPattern = regexp.MustCompile(`^[0-9a-f]{64}:[0-9a-f]{64}$`)
 
 func TestIDString(t *testing.T) {
-	v := cuecontext.New().CompileString(`lin: schemas: [{version: [0, 0], schema: {a: int}}]`)
+	v := cuecontext.New().CompileString(`lin: schemas: "0": "0": schema: {a: int}`)
 	id, err := VersionID(v.LookupPath(cue.ParsePath("lin")), Version{0, 0})
 	if err != nil {
 		t.Fatal(err)

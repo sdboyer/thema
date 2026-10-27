@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -46,25 +47,60 @@ func mustLensForm(t *testing.T, lin cue.Value, v Version) string {
 	return f
 }
 
+// versions lists the versions of lin's schemas, in key order: by major, then
+// minor.
+func versions(t *testing.T, lin cue.Value) []Version {
+	t.Helper()
+	var out []Version
+	majors, err := lin.LookupPath(pathSchemas).Fields()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for majors.Next() {
+		minors, err := majors.Value().Fields()
+		if err != nil {
+			t.Fatal(err)
+		}
+		for minors.Next() {
+			var v Version
+			for i, s := range []string{majors.Selector().Unquoted(), minors.Selector().Unquoted()} {
+				n, err := strconv.ParseUint(s, 10, 64)
+				if err != nil {
+					t.Fatalf("schema key %q: %v", s, err)
+				}
+				v[i] = uint(n)
+			}
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
 // lineage returns a lineage with versions 0.0, 0.1 and 1.0, whose lens from 1.0
 // to 0.1 has the result back.
 func lineage(back string) string {
 	return `lin: {
-	schemas: [
-		{version: [0, 0], schema: {a: string}},
-		{version: [0, 1], schema: {a: string, b?: int}},
-		{version: [1, 0], schema: {a: string, b: int}},
-	]
-	lenses: [{
-		from: [0, 1], to: [0, 0], input: _
-		result: {a: input.a}
-	}, {
-		from: [0, 1], to: [1, 0], input: _
-		result: {a: input.a, b: *input.b | 0}
-	}, {
-		from: [1, 0], to: [0, 1], input: _
-		result: ` + back + `
-	}]
+	schemas: {
+		"0": {
+			"0": {schema: {a: string}}
+			"1": {schema: {a: string, b?: int}}
+		}
+		"1": {"0": {schema: {a: string, b: int}}}
+	}
+	lenses: {
+		"0.1->0.0": {
+			input: _
+			result: {a: input.a}
+		}
+		"0.1->1.0": {
+			input: _
+			result: {a: input.a, b: *input.b | 0}
+		}
+		"1.0->0.1": {
+			input: _
+			result: ` + back + `
+		}
+	}
 }`
 }
 
@@ -119,8 +155,8 @@ func TestLensFix(t *testing.T) {
 // holds the ones it has.
 func TestLensFormMissing(t *testing.T) {
 	lin := compileLineage(t, `lin: {
-	schemas: [{version: [0, 0], schema: {a: string}}, {version: [1, 0], schema: {b: string}}]
-	lenses: [{from: [1, 0], to: [0, 0], input: _, result: {a: input.b}}]
+	schemas: {"0": {"0": {schema: {a: string}}}, "1": {"0": {schema: {b: string}}}}
+	lenses: {"1.0->0.0": {input: _, result: {a: input.b}}}
 }`)
 	got := mustLensForm(t, lin, Version{1, 0})
 	if strings.Contains(got, "forward") || !strings.Contains(got, "backward") {
@@ -132,24 +168,24 @@ func TestLensFormMissing(t *testing.T) {
 // lenses, numbered differently, have the same IDs.
 func TestIDPositionIndependent(t *testing.T) {
 	a := compileLineage(t, `lin: {
-	schemas: [{version: [0, 0], schema: {a: string}}, {version: [1, 0], schema: {b: string}}]
-	lenses: [
-		{from: [0, 0], to: [1, 0], input: _, result: {b: input.a}},
-		{from: [1, 0], to: [0, 0], input: _, result: {a: input.b}},
-	]
+	schemas: {"0": {"0": {schema: {a: string}}}, "1": {"0": {schema: {b: string}}}}
+	lenses: {
+		"0.0->1.0": {input: _, result: {b: input.a}}
+		"1.0->0.0": {input: _, result: {a: input.b}}
+	}
 }`)
 	b := compileLineage(t, `lin: {
-	schemas: [
-		{version: [0, 0], schema: {z: string}},
-		{version: [1, 0], schema: {a: string}},
-		{version: [2, 0], schema: {b: string}},
-	]
-	lenses: [
-		{from: [0, 0], to: [1, 0], input: _, result: {a: input.z}},
-		{from: [1, 0], to: [0, 0], input: _, result: {z: input.a}},
-		{from: [1, 0], to: [2, 0], input: _, result: {b: input.a}},
-		{from: [2, 0], to: [1, 0], input: _, result: {a: input.b}},
-	]
+	schemas: {
+		"0": {"0": {schema: {z: string}}}
+		"1": {"0": {schema: {a: string}}}
+		"2": {"0": {schema: {b: string}}}
+	}
+	lenses: {
+		"0.0->1.0": {input: _, result: {a: input.z}}
+		"1.0->0.0": {input: _, result: {z: input.a}}
+		"1.0->2.0": {input: _, result: {b: input.a}}
+		"2.0->1.0": {input: _, result: {a: input.b}}
+	}
 }`)
 	if ida, idb := mustID(t, a, Version{1, 0}), mustID(t, b, Version{2, 0}); ida != idb {
 		t.Errorf("a 1.0 %s != b 2.0 %s", ida, idb)
@@ -161,8 +197,8 @@ func TestLensFormConstruction(t *testing.T) {
 	form := func(lens string) string {
 		t.Helper()
 		lin := compileLineage(t, `lin: {
-	schemas: [{version: [0, 0], schema: {a: string, b: int}}, {version: [0, 1], schema: {a: string, b: int, c?: int}}]
-	lenses: [{from: [0, 1], to: [0, 0], input: _, `+lens+`}]
+	schemas: {"0": {"0": {schema: {a: string, b: int}}, "1": {schema: {a: string, b: int, c?: int}}}}
+	lenses: {"0.1->0.0": {input: _, `+lens+`}}
 }`)
 		return mustLensForm(t, lin, Version{0, 1})
 	}
@@ -235,15 +271,7 @@ func TestGoldens(t *testing.T) {
 
 			got := map[string][]byte{}
 			var order []string
-			iter, err := lin.LookupPath(pathSchemas).List()
-			if err != nil {
-				t.Fatal(err)
-			}
-			for iter.Next() {
-				ver, err := schemaVersion(iter.Value())
-				if err != nil {
-					t.Fatal(err)
-				}
+			for _, ver := range versions(t, lin) {
 				id := mustID(t, lin, ver)
 				sch, err := SchemaForm(lin, ver)
 				if err != nil {

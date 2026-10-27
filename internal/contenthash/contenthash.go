@@ -103,7 +103,7 @@ func LensForm(lin cue.Value, v Version) (string, error) {
 	edge := &ast.StructLit{}
 	for _, l := range []struct {
 		name string
-		lens cue.Value
+		edgeLens
 	}{{"forward", fwd}, {"backward", back}} {
 		if !l.lens.Exists() {
 			continue

@@ -16,8 +16,8 @@ import (
 lin: {
 	name: "kitchen"
 	joinSchema: {kind: string}
-	schemas: [{
-		version: [0, 0]
+	schemas: {
+		"0": {"0": {
 		schema: {
 			kind:  "kitchen"
 			title: string & strings.MinRunes(1)
@@ -28,15 +28,15 @@ lin: {
 			[=~"^x-"]: string
 		}
 		examples: basic: {kind: "kitchen", title: "t", tags: []}
-	}, {
-		version: [0, 1]
-		schema: schemas[0].schema & {
+		}
+		"1": {
+		schema: schemas["0"]["0"].schema & {
 			owner?: #Person
 			#Person: {name!: string, email?: string}
 			_scratch: int | *0
 		}
-	}, {
-		version: [1, 0]
+		}}
+		"1": {"0": {
 		schema: {
 			kind:   "kitchen"
 			title:  string & strings.MinRunes(1)
@@ -45,10 +45,10 @@ lin: {
 			labels: [string]: string
 			owner?: {name!: string, email?: string}
 		}
-	}]
-	lenses: [{
-		from: [0, 1]
-		to: [0, 0]
+		}}
+	}
+	lenses: {
+		"0.1->0.0": {
 		input: _
 		result: {
 			kind:  input.kind
@@ -64,9 +64,8 @@ lin: {
 				type:    thema.LacunaTypes.DroppedField
 			}
 		}]
-	}, {
-		from: [0, 1]
-		to: [1, 0]
+		}
+		"0.1->1.0": {
 		input: _
 		result: {
 			kind:  input.kind
@@ -77,9 +76,8 @@ lin: {
 			if input.owner != _|_ {owner: input.owner}
 		}
 		lacunas: []
-	}, {
-		from: [1, 0]
-		to: [0, 1]
+		}
+		"1.0->0.1": {
 		input: _
 		result: {
 			kind:  input.kind
@@ -94,7 +92,8 @@ lin: {
 			message: "label values are dropped"
 			type:    thema.LacunaTypes.LossyFieldMapping
 		}]
-	}]
+		}
+	}
 }
 -- out/0.0 --
 # id

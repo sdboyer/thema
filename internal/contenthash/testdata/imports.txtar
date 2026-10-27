@@ -15,24 +15,20 @@ import "example.com/p/shared"
 
 lin: {
 	name: "imports"
-	schemas: [{
-		version: [0, 0]
-		schema: {a: shared.#Thing, b: shared.Reg}
-	}, {
-		version: [1, 0]
-		schema: {a: shared.#Thing}
-	}]
-	lenses: [{
-		from: [0, 0]
-		to: [1, 0]
-		input: _
-		result: a: input.a
-	}, {
-		from: [1, 0]
-		to: [0, 0]
-		input: _
-		result: {a: input.a, b: shared.Fallback}
-	}]
+	schemas: {
+		"0": {"0": {schema: {a: shared.#Thing, b: shared.Reg}}}
+		"1": {"0": {schema: {a: shared.#Thing}}}
+	}
+	lenses: {
+		"0.0->1.0": {
+			input: _
+			result: a: input.a
+		}
+		"1.0->0.0": {
+			input: _
+			result: {a: input.a, b: shared.Fallback}
+		}
+	}
 }
 -- out/0.0 --
 # id
