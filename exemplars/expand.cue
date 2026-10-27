@@ -57,11 +57,31 @@ expand: {
 						optional: input.optional
 					}
 					if input.withDefault != _|_ {
-						// if the value is "baz" (not allowed by the to schema), then the to
-						// schema's default value "foo" will be selected by Thema's #Translate
-						withDefault: input.withDefault
+						if input.withDefault != "baz" {
+							withDefault: input.withDefault
+						}
+						if input.withDefault == "baz" {
+							// 0.2 has no "baz"; its default stands in for it, and the
+							// lacuna below says so.
+							withDefault: "foo"
+						}
 					}
 				}
+				lacunas: [
+					thema.Lacuna & {
+						condition: (input.withDefault & "baz") != _|_
+						sourceFields: [{
+							path:  "withDefault"
+							value: input.withDefault
+						}]
+						targetFields: [{
+							path:  "withDefault"
+							value: result.withDefault
+						}]
+						message: "withDefault was \"baz\", which 0.2 does not have; \"foo\", its default, was substituted"
+						type:    thema.LacunaTypes.LossyFieldMapping
+					},
+				]
 			}
 		}
 	}

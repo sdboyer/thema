@@ -155,9 +155,25 @@ lenses: {
             if (input.optional != _|_) {
                 optional: input.optional
             }
-            // TODO: withDefault: input.withDefault doesn't work
-            withDefault: "foo"
+            if input.withDefault != _|_ {
+                if input.withDefault != "baz" {
+                    withDefault: input.withDefault
+                }
+                if input.withDefault == "baz" {
+                    // 0.2 has no "baz"; its default stands in for it.
+                    withDefault: "foo"
+                }
+            }
         }
+        lacunas: [
+            thema.Lacuna & {
+                condition: (input.withDefault & "baz") != _|_
+                sourceFields: [{path: "withDefault", value: input.withDefault}]
+                targetFields: [{path: "withDefault", value: result.withDefault}]
+                message: "withDefault was \"baz\", which 0.2 does not have; \"foo\", its default, was substituted"
+                type:    thema.LacunaTypes.LossyFieldMapping
+            },
+        ]
     }
     "1.0->0.3": {
         input: _
@@ -166,8 +182,14 @@ lenses: {
             if (input.optional != _|_) {
                 optional: input.optional
             }
-    
-            withDefault: input.withDefault
+            // 1.0 defaults withDefault to "bar" and 0.3 to "foo": an instance
+            // omitting it means "bar", which 0.3 must say outright.
+            if input.withDefault != "bar" {
+                withDefault: input.withDefault
+            }
+            if input.withDefault == "bar" {
+                withDefault: "bar"
+            }
         }
     }
     "0.3->1.0": {
@@ -177,8 +199,13 @@ lenses: {
             if (input.optional != _|_) {
                 optional: input.optional
             }
-            // TODO: withDefault: input.withDefault doesn't work
-            withDefault: "foo"
+            if input.withDefault != _|_ {
+                withDefault: input.withDefault
+            }
+            if input.withDefault == _|_ {
+                // absent in 0.3 means its default, "foo"; 1.0 defaults to "bar".
+                withDefault: "foo"
+            }
         }
     }
     "1.1->1.0": {
@@ -188,9 +215,23 @@ lenses: {
             if (input.optional != _|_) {
                 optional: input.optional
             }
-            // TODO: withDefault: input.withDefault doesn't work
-            withDefault: "foo"
+            if input.withDefault != "bing" {
+                withDefault: input.withDefault
+            }
+            if input.withDefault == "bing" {
+                // 1.0 has no "bing"; its default stands in for it.
+                withDefault: "bar"
+            }
         }
+        lacunas: [
+            thema.Lacuna & {
+                condition: input.withDefault == "bing"
+                sourceFields: [{path: "withDefault", value: input.withDefault}]
+                targetFields: [{path: "withDefault", value: result.withDefault}]
+                message: "withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"
+                type:    thema.LacunaTypes.LossyFieldMapping
+            },
+        ]
     }
     "2.0->1.1": {
         input: _
@@ -199,8 +240,7 @@ lenses: {
             if (input.optional != _|_) {
                 optional: input.optional
             }
-            // TODO: withDefault: input.withDefault doesn't work
-            withDefault: "foo"
+            withDefault: input.withDefault
         }
     }
     "1.1->2.0": {
@@ -212,8 +252,7 @@ lenses: {
             if (input.optional != _|_) {
                 optional: input.optional
             }
-            // TODO: withDefault: input.withDefault doesn't work
-            withDefault: "foo"
+            withDefault: input.withDefault
         }
     }
 }
@@ -347,72 +386,100 @@ lenses: {
 [{"from":[0,2],"to":[0,3],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.2-withOptional->1.0.json --
 {"init":"some string","optional":32,"withDefault":"bar"}
-{"renamed":"some string","optional":32,"withDefault":"foo"}
+{"renamed":"some string","optional":32,"withDefault":"bar"}
 [{"from":[0,2],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[1,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.2-withOptional->1.1.json --
 {"init":"some string","optional":32,"withDefault":"bar"}
-{"renamed":"some string","optional":32,"withDefault":"foo"}
+{"renamed":"some string","optional":32,"withDefault":"bar"}
 [{"from":[0,2],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[1,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.2-withOptional->2.0.json --
 {"init":"some string","optional":32,"withDefault":"bar"}
-{"toObj":{"init":"some string"},"optional":32,"withDefault":"foo"}
+{"toObj":{"init":"some string"},"optional":32,"withDefault":"bar"}
 [{"from":[0,2],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[2,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withoutOptional->0.0.json --
 {"init":"some string","withDefault":"baz"}
 {"init":"some string"}
-[{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
+[{"from":[0,3],"to":[0,2],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"baz"}],"targetFields":[{"path":"withDefault","value":"foo"}],"type":"LossyFieldMapping","message":"withDefault was \"baz\", which 0.2 does not have; \"foo\", its default, was substituted"}]},{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withoutOptional->0.1.json --
 {"init":"some string","withDefault":"baz"}
 {"init":"some string"}
-[{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]}]
+[{"from":[0,3],"to":[0,2],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"baz"}],"targetFields":[{"path":"withDefault","value":"foo"}],"type":"LossyFieldMapping","message":"withDefault was \"baz\", which 0.2 does not have; \"foo\", its default, was substituted"}]},{"from":[0,2],"to":[0,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withoutOptional->0.2.json --
 {"init":"some string","withDefault":"baz"}
 {"init":"some string","withDefault":"foo"}
-[{"from":[0,3],"to":[0,2],"lacunas":[]}]
+[{"from":[0,3],"to":[0,2],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"baz"}],"targetFields":[{"path":"withDefault","value":"foo"}],"type":"LossyFieldMapping","message":"withDefault was \"baz\", which 0.2 does not have; \"foo\", its default, was substituted"}]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withoutOptional->0.3.json --
 {"init":"some string","withDefault":"baz"}
 {"init":"some string","withDefault":"baz"}
 []
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withoutOptional->1.0.json --
 {"init":"some string","withDefault":"baz"}
-{"renamed":"some string","withDefault":"foo"}
+{"renamed":"some string","withDefault":"baz"}
 [{"from":[0,3],"to":[1,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withoutOptional->1.1.json --
 {"init":"some string","withDefault":"baz"}
-{"renamed":"some string","withDefault":"foo"}
+{"renamed":"some string","withDefault":"baz"}
 [{"from":[0,3],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[1,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withoutOptional->2.0.json --
 {"init":"some string","withDefault":"baz"}
-{"toObj":{"init":"some string"},"withDefault":"foo"}
+{"toObj":{"init":"some string"},"withDefault":"baz"}
 [{"from":[0,3],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[2,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withOptional->0.0.json --
 {"init":"some string","optional":32,"withDefault":"baz"}
 {"init":"some string"}
-[{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
+[{"from":[0,3],"to":[0,2],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"baz"}],"targetFields":[{"path":"withDefault","value":"foo"}],"type":"LossyFieldMapping","message":"withDefault was \"baz\", which 0.2 does not have; \"foo\", its default, was substituted"}]},{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withOptional->0.1.json --
 {"init":"some string","optional":32,"withDefault":"baz"}
 {"init":"some string","optional":32}
-[{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]}]
+[{"from":[0,3],"to":[0,2],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"baz"}],"targetFields":[{"path":"withDefault","value":"foo"}],"type":"LossyFieldMapping","message":"withDefault was \"baz\", which 0.2 does not have; \"foo\", its default, was substituted"}]},{"from":[0,2],"to":[0,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withOptional->0.2.json --
 {"init":"some string","optional":32,"withDefault":"baz"}
 {"init":"some string","optional":32,"withDefault":"foo"}
-[{"from":[0,3],"to":[0,2],"lacunas":[]}]
+[{"from":[0,3],"to":[0,2],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"baz"}],"targetFields":[{"path":"withDefault","value":"foo"}],"type":"LossyFieldMapping","message":"withDefault was \"baz\", which 0.2 does not have; \"foo\", its default, was substituted"}]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withOptional->0.3.json --
 {"init":"some string","optional":32,"withDefault":"baz"}
 {"init":"some string","optional":32,"withDefault":"baz"}
 []
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withOptional->1.0.json --
 {"init":"some string","optional":32,"withDefault":"baz"}
-{"renamed":"some string","optional":32,"withDefault":"foo"}
+{"renamed":"some string","optional":32,"withDefault":"baz"}
 [{"from":[0,3],"to":[1,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withOptional->1.1.json --
 {"init":"some string","optional":32,"withDefault":"baz"}
-{"renamed":"some string","optional":32,"withDefault":"foo"}
+{"renamed":"some string","optional":32,"withDefault":"baz"}
 [{"from":[0,3],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[1,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withOptional->2.0.json --
 {"init":"some string","optional":32,"withDefault":"baz"}
-{"toObj":{"init":"some string"},"optional":32,"withDefault":"foo"}
+{"toObj":{"init":"some string"},"optional":32,"withDefault":"baz"}
 [{"from":[0,3],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[2,0],"lacunas":[]}]
+-- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->0.0.json --
+{"renamed":"some string","optional":32,"withDefault":"bar"}
+{"init":"some string"}
+[{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
+-- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->0.1.json --
+{"renamed":"some string","optional":32,"withDefault":"bar"}
+{"init":"some string","optional":32}
+[{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]}]
+-- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->0.2.json --
+{"renamed":"some string","optional":32,"withDefault":"bar"}
+{"init":"some string","optional":32,"withDefault":"bar"}
+[{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]}]
+-- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->0.3.json --
+{"renamed":"some string","optional":32,"withDefault":"bar"}
+{"init":"some string","optional":32,"withDefault":"bar"}
+[{"from":[1,0],"to":[0,3],"lacunas":[]}]
+-- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->1.0.json --
+{"renamed":"some string","optional":32,"withDefault":"bar"}
+{"renamed":"some string","optional":32,"withDefault":"bar"}
+[]
+-- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->1.1.json --
+{"renamed":"some string","optional":32,"withDefault":"bar"}
+{"renamed":"some string","optional":32,"withDefault":"bar"}
+[{"from":[1,0],"to":[1,1],"lacunas":[]}]
+-- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->2.0.json --
+{"renamed":"some string","optional":32,"withDefault":"bar"}
+{"toObj":{"init":"some string"},"optional":32,"withDefault":"bar"}
+[{"from":[1,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[2,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withoutOptional->0.0.json --
 {"renamed":"some string","withDefault":"foo"}
 {"init":"some string"}
@@ -441,113 +508,85 @@ lenses: {
 {"renamed":"some string","withDefault":"foo"}
 {"toObj":{"init":"some string"},"withDefault":"foo"}
 [{"from":[1,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[2,0],"lacunas":[]}]
--- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->0.0.json --
-{"renamed":"some string","optional":32,"withDefault":"bar"}
-{"init":"some string"}
-[{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
--- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->0.1.json --
-{"renamed":"some string","optional":32,"withDefault":"bar"}
-{"init":"some string","optional":32}
-[{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]}]
--- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->0.2.json --
-{"renamed":"some string","optional":32,"withDefault":"bar"}
-{"init":"some string","optional":32,"withDefault":"foo"}
-[{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]}]
--- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->0.3.json --
-{"renamed":"some string","optional":32,"withDefault":"bar"}
-{"init":"some string","optional":32,"withDefault":"bar"}
-[{"from":[1,0],"to":[0,3],"lacunas":[]}]
--- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->1.0.json --
-{"renamed":"some string","optional":32,"withDefault":"bar"}
-{"renamed":"some string","optional":32,"withDefault":"bar"}
-[]
--- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->1.1.json --
-{"renamed":"some string","optional":32,"withDefault":"bar"}
-{"renamed":"some string","optional":32,"withDefault":"bar"}
-[{"from":[1,0],"to":[1,1],"lacunas":[]}]
--- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->2.0.json --
-{"renamed":"some string","optional":32,"withDefault":"bar"}
-{"toObj":{"init":"some string"},"optional":32,"withDefault":"foo"}
-[{"from":[1,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[2,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withoutOptional->0.0.json --
 {"renamed":"some string","withDefault":"bing"}
 {"init":"some string"}
-[{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
+[{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withoutOptional->0.1.json --
 {"renamed":"some string","withDefault":"bing"}
 {"init":"some string"}
-[{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]}]
+[{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withoutOptional->0.2.json --
 {"renamed":"some string","withDefault":"bing"}
-{"init":"some string","withDefault":"foo"}
-[{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]}]
+{"init":"some string","withDefault":"bar"}
+[{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withoutOptional->0.3.json --
 {"renamed":"some string","withDefault":"bing"}
-{"init":"some string","withDefault":"foo"}
-[{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]}]
+{"init":"some string","withDefault":"bar"}
+[{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withoutOptional->1.0.json --
 {"renamed":"some string","withDefault":"bing"}
-{"renamed":"some string","withDefault":"foo"}
-[{"from":[1,1],"to":[1,0],"lacunas":[]}]
+{"renamed":"some string","withDefault":"bar"}
+[{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withoutOptional->1.1.json --
 {"renamed":"some string","withDefault":"bing"}
 {"renamed":"some string","withDefault":"bing"}
 []
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withoutOptional->2.0.json --
 {"renamed":"some string","withDefault":"bing"}
-{"toObj":{"init":"some string"},"withDefault":"foo"}
+{"toObj":{"init":"some string"},"withDefault":"bing"}
 [{"from":[1,1],"to":[2,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withOptional->0.0.json --
 {"renamed":"some string","optional":32,"withDefault":"bing"}
 {"init":"some string"}
-[{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
+[{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withOptional->0.1.json --
 {"renamed":"some string","optional":32,"withDefault":"bing"}
 {"init":"some string","optional":32}
-[{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]}]
+[{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withOptional->0.2.json --
 {"renamed":"some string","optional":32,"withDefault":"bing"}
-{"init":"some string","optional":32,"withDefault":"foo"}
-[{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]}]
+{"init":"some string","optional":32,"withDefault":"bar"}
+[{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withOptional->0.3.json --
 {"renamed":"some string","optional":32,"withDefault":"bing"}
-{"init":"some string","optional":32,"withDefault":"foo"}
-[{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]}]
+{"init":"some string","optional":32,"withDefault":"bar"}
+[{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withOptional->1.0.json --
 {"renamed":"some string","optional":32,"withDefault":"bing"}
-{"renamed":"some string","optional":32,"withDefault":"foo"}
-[{"from":[1,1],"to":[1,0],"lacunas":[]}]
+{"renamed":"some string","optional":32,"withDefault":"bar"}
+[{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withOptional->1.1.json --
 {"renamed":"some string","optional":32,"withDefault":"bing"}
 {"renamed":"some string","optional":32,"withDefault":"bing"}
 []
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withOptional->2.0.json --
 {"renamed":"some string","optional":32,"withDefault":"bing"}
-{"toObj":{"init":"some string"},"optional":32,"withDefault":"foo"}
+{"toObj":{"init":"some string"},"optional":32,"withDefault":"bing"}
 [{"from":[1,1],"to":[2,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withoutOptional->0.0.json --
 {"toObj":{"init":"some string"},"withDefault":"bing"}
 {"init":"some string"}
-[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
+[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withoutOptional->0.1.json --
 {"toObj":{"init":"some string"},"withDefault":"bing"}
 {"init":"some string"}
-[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]}]
+[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withoutOptional->0.2.json --
 {"toObj":{"init":"some string"},"withDefault":"bing"}
-{"init":"some string","withDefault":"foo"}
-[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]}]
+{"init":"some string","withDefault":"bar"}
+[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withoutOptional->0.3.json --
 {"toObj":{"init":"some string"},"withDefault":"bing"}
-{"init":"some string","withDefault":"foo"}
-[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]}]
+{"init":"some string","withDefault":"bar"}
+[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withoutOptional->1.0.json --
 {"toObj":{"init":"some string"},"withDefault":"bing"}
-{"renamed":"some string","withDefault":"foo"}
-[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[]}]
+{"renamed":"some string","withDefault":"bar"}
+[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withoutOptional->1.1.json --
 {"toObj":{"init":"some string"},"withDefault":"bing"}
-{"renamed":"some string","withDefault":"foo"}
+{"renamed":"some string","withDefault":"bing"}
 [{"from":[2,0],"to":[1,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withoutOptional->2.0.json --
 {"toObj":{"init":"some string"},"withDefault":"bing"}
@@ -556,26 +595,26 @@ lenses: {
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withOptional->0.0.json --
 {"toObj":{"init":"some string"},"optional":32,"withDefault":"bing"}
 {"init":"some string"}
-[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
+[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withOptional->0.1.json --
 {"toObj":{"init":"some string"},"optional":32,"withDefault":"bing"}
 {"init":"some string","optional":32}
-[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]}]
+[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withOptional->0.2.json --
 {"toObj":{"init":"some string"},"optional":32,"withDefault":"bing"}
-{"init":"some string","optional":32,"withDefault":"foo"}
-[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]}]
+{"init":"some string","optional":32,"withDefault":"bar"}
+[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withOptional->0.3.json --
 {"toObj":{"init":"some string"},"optional":32,"withDefault":"bing"}
-{"init":"some string","optional":32,"withDefault":"foo"}
-[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[0,3],"lacunas":[]}]
+{"init":"some string","optional":32,"withDefault":"bar"}
+[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withOptional->1.0.json --
 {"toObj":{"init":"some string"},"optional":32,"withDefault":"bing"}
-{"renamed":"some string","optional":32,"withDefault":"foo"}
-[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[]}]
+{"renamed":"some string","optional":32,"withDefault":"bar"}
+[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withOptional->1.1.json --
 {"toObj":{"init":"some string"},"optional":32,"withDefault":"bing"}
-{"renamed":"some string","optional":32,"withDefault":"foo"}
+{"renamed":"some string","optional":32,"withDefault":"bing"}
 [{"from":[2,0],"to":[1,1],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withOptional->2.0.json --
 {"toObj":{"init":"some string"},"optional":32,"withDefault":"bing"}
