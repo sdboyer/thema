@@ -237,6 +237,7 @@ seams: "go-residual-checks": {
 		checkUnknownFields:    "unknown lineage/schema/lens fields, and schemas/lenses keys that aren't versions/edges; CUE rejects them too, but positions the error at its guard in thema's CUE, while Go can point at the author's line. Known fields are read from thema's CUE, not duplicated"
 		checkLensTotality:     "every CUE lens must map every instance of its source schema to an instance of its target: a quantified claim over instances, which CUE can only evaluate one instance at a time. The walk (internal/lenscheck) reads each lens's syntax, judges copies with the compat checker and bounds through Expr(), and treats what it cannot decide as an error"
 		checkSchemaConstructs: "no comprehensions or reference cycles in a schema: CUE evaluates both happily, but no later check (compat, lens results, lacunas) can describe a schema whose fields depend on evaluation or whose paths are unbounded; refused before any of them runs, and reported at the construct"
+		checkReferences:       "a schema refers only to its own body and CUE's builtin packages, a lens only to input, its own body and those packages: CUE resolves a reference to anything in lexical scope, so a sibling schema, the lineage's name, a helper beside the lineage or another package all evaluate without complaint, and each can change a published schema's meaning without its text changing. Read from each schema's and lens's syntax, because lets, pending comprehensions and index expressions hide references from the value API"
 	}
 }
 

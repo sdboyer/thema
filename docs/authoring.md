@@ -46,7 +46,7 @@ thema checks the fields of a lineage, its schema entries and its lenses: a missp
 
 Each entry in `schemas` declares one schema, keyed by its version: `"0": "1": {...}` is version 0.1. Keys are non-negative integers, written as strings. An entry holds the `schema` itself, and optionally named `examples` of it; the version is never written inside the entry. Schemas are CUE structs, from a single field to highly complex, deeply nested objects. Complex CUE constraints may also be used, though they may limit translatability to other languages.
 
-Lineages should be sealed structures, as thema's invariants only hold in the context of immutable schema declarations. A schema should refer only to itself and the lineage's `joinSchema`; values from elsewhere, especially from other CUE modules, may change when their source changes.
+Lineages should be sealed structures, as thema's invariants only hold in the context of immutable schema declarations. A schema may refer only to its own body (a definition, hidden field or `let` declared inside it) and CUE's builtin packages. Anything else (another schema, a helper beside the lineage, another CUE package) may change when its source changes, and thema refuses the reference when the lineage binds. The [invariants](invariants.md#references) say exactly what may be referred to, and what is left to admit later.
 
 Let's define our first schema as an object containing a single field named `firstfield`, which must be of type `string`.
 
@@ -208,7 +208,7 @@ A lineage must have exactly these lenses:
 
 Moving forward within a major version needs no lens, as backward compatibility already guarantees an old instance is a new instance.
 
-Each lens is keyed by the versions it maps between, written `"<from>-><to>"`: `"1.0->0.0"` maps instances of `1.0` to `0.0`. A lens has an `input` that stands for an instance of the `from` schema, and a `result`: the instance of the `to` schema, built from `input`. A lens's result may contain only fields its `to` schema declares. thema checks lenses when the lineage is loaded, treating `input` as any instance of its schema: a result that couldn't be an instance of the `to` schema, or that refers to a field `input` can't have, is an error before any data is ever translated.
+Each lens is keyed by the versions it maps between, written `"<from>-><to>"`: `"1.0->0.0"` maps instances of `1.0` to `0.0`. A lens has an `input` that stands for an instance of the `from` schema, and a `result`: the instance of the `to` schema, built from `input`. A lens's result may contain only fields its `to` schema declares, and a lens may refer only to `input`, its own body and CUE's builtin packages (see the [invariants](invariants.md#references)). thema checks lenses when the lineage is loaded, treating `input` as any instance of its schema: a result that couldn't be an instance of the `to` schema, or that refers to a field `input` can't have, is an error before any data is ever translated.
 
 The change to the `Ship` schema is trivial, but presents an interesting challenge - because we specifically don't want to make `secondfield` optional or give it a default value, how can we define a forward lens that still produces a valid instance of `Ship@1.0`?
 
