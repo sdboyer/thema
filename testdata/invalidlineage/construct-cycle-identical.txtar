@@ -1,5 +1,7 @@
-# recursive schema: nested instances validate, but Translate reports their fields as undeclared
+# a recursive schema is refused even when identical across versions, and even
+# though CUE validates and translates its instances: see #78 for why
 #issue: 25
+#lineagePath: lin
 -- in.cue --
 import (
 	"github.com/sdboyer/thema"
@@ -22,6 +24,6 @@ lin: thema.Lineage & {
 		}
 	}
 }
--- expect --
-validate 0.0 ok {root: {v: 1, next: {v: 2}}}
-translate 0.0 0.1 ok {root: {v: 1, next: {v: 2}}}
+-- out/bindfail --
+schema 0.0: reference cycle #Node -> #Node; schemas may not contain circular references:
+    ./in.cue:9:29

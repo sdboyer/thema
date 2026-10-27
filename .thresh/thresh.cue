@@ -206,6 +206,7 @@ seams: "go-residual-checks": {
 		checkLensResults:        "static lens checks with input standing for any source instance: needs each lens paired with its source and target schemas, closedness applied at use, and the declared-fields walker"
 		checkLacunas:            "lacuna lists must be enumerable without input, and lacuna field paths declared by the lens's schemas: needs the lineage's schemas, and CUE would only report missing required lacuna fields once data arrives"
 		checkUnknownFields:      "unknown lineage/schema/lens fields, and schemas/lenses keys that aren't versions/edges; CUE rejects them too, but positions the error at its guard in thema's CUE, while Go can point at the author's line. Known fields are read from thema's CUE, not duplicated"
+		checkSchemaConstructs:   "no comprehensions or reference cycles in a schema: CUE evaluates both happily, but no later check (compat, lens results, lacunas) can describe a schema whose fields depend on evaluation or whose paths are unbounded; refused before any of them runs, and reported at the construct"
 	}
 }
 

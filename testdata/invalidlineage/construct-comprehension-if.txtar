@@ -1,0 +1,18 @@
+# an if comprehension over a data field is not allowed in a schema (#77)
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+thema.Lineage & {
+	name: "comprehensionIf"
+	schemas: "0": "0": {
+		schema: {
+			kind: string
+			if kind == "x" {
+				extra?: int
+			}
+		}
+	}
+}
+-- out/bindfail --
+schema 0.0: comprehensions are not allowed in schemas:
+    ./in.cue:8:4
