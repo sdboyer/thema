@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Diagnostic } from "../api/types";
+import { docsBase } from "./docs";
 import { docsURL, filesOf, markersFor } from "./markers";
 
 const text = "Schema: {\n\tcount: int\n}\n";
@@ -45,6 +46,6 @@ describe("filesOf", () => {
 
 describe("docsURL", () => {
   it("links the code's page", () => {
-    expect(docsURL("E0360")).toBe("https://github.com/sdboyer/thema/blob/main/docs/errors/E0360.md");
+    expect(docsURL("E0360")).toBe(`${docsBase}errors/E0360.md`);
   });
 });

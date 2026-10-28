@@ -13,7 +13,9 @@ import {
   lineageInput,
   shareWarnBytes,
 } from "./state/session";
+import { Tour } from "./tour/Tour";
 import { Diagnostics } from "./ui/Diagnostics";
+import { DocLink, hasDoc } from "./ui/docs";
 import { Editor, type Language } from "./ui/Editor";
 import { filesOf, markersFor } from "./ui/markers";
 import { type Outcome, Output } from "./ui/Output";
@@ -35,6 +37,7 @@ export function App() {
   const [running, setRunning] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [panel, setPanel] = useState<"diagnostics" | "result" | "normal">("diagnostics");
+  const [touring, setTouring] = useState(false);
 
   // Start thema, then restore a shared session or load the default example.
   useEffect(() => {
@@ -170,6 +173,8 @@ export function App() {
     });
 
   const doc = session.data[session.activeData];
+  // Code generation reads only the lineage, so the data has no place beside it.
+  const usesData = !isCodegen(session.op);
   const outcomeDiagnostics = outcome?.resp.diagnostics ?? [];
   const openFile = (file: string) => {
     if (session.form === "authoring") {
@@ -223,10 +228,16 @@ export function App() {
             ))}
           </select>
         </label>
-        <button onClick={switchForm} title="Convert the lineage to the other form">
-          Show as {session.form === "authoring" ? "normal form" : "version files"}
-        </button>
+        <span>
+          <button onClick={switchForm} title="Convert the lineage to the other form">
+            Show as {session.form === "authoring" ? "normal form" : "version files"}
+          </button>
+          <DocLink topic="forms" />
+        </span>
         <button onClick={share}>Share</button>
+        <button onClick={() => setTouring((t) => !t)} aria-pressed={touring} title="Steps through what thema does">
+          Tour
+        </button>
         <span class="version">
           thema {thema.init.themaVersion} · CUE {thema.init.cueVersion}
         </span>
@@ -239,7 +250,7 @@ export function App() {
           </button>
         </div>
       )}
-      <main>
+      <main class={touring ? "touring" : undefined}>
         <section class="lineage" aria-label="Lineage">
           <div class="bar">
             {session.form === "authoring" ? (
@@ -266,6 +277,7 @@ export function App() {
             <span class={`bind-status ${lineageOK ? "ok" : "failed"}`}>
               {bound === null ? "binding…" : lineageOK ? `binds: ${versions.join(", ")}` : `${bindDiagnostics.length} diagnostics`}
             </span>
+            <DocLink topic="bind" />
           </div>
           {session.form === "authoring" ? (
             <Tabs
@@ -293,44 +305,49 @@ export function App() {
           <Editor text={lin.text} language="cue" onChange={setLinText} markers={markersFor(bindDiagnostics, lin.path, lin.text)} label={`Lineage file ${lin.path}`} />
         </section>
 
-        <section class="work" aria-label="Data and operations">
-          <Tabs
-            label="data documents"
-            names={session.data.map((d) => d.filename)}
-            active={session.activeData}
-            flagged={filesOf(outcomeDiagnostics)}
-            onSelect={(i) => update((s) => ({ ...s, activeData: i }))}
-            onAdd={() =>
-              update((s) => {
-                s.data = [...s.data, { filename: nextDataFile(s.data.map((d) => d.filename)), text: "{}\n" }];
-                s.activeData = s.data.length - 1;
-                return s;
-              })
-            }
-            onRename={(i, filename) => update((s) => ({ ...s, data: s.data.map((d, j) => (j === i ? { ...d, filename } : d)) }))}
-            onRemove={(i) =>
-              update((s) => ({ ...s, data: s.data.filter((_, j) => j !== i), activeData: Math.max(0, Math.min(s.activeData, s.data.length - 2)) }))
-            }
-          />
-          <div class="data-editor">
-            {doc ? (
-              <Editor
-                text={doc.text}
-                language={dataLanguage(doc.filename)}
-                onChange={(text) => update((s) => ({ ...s, data: s.data.map((d, i) => (i === s.activeData ? { ...d, text } : d)) }))}
-                markers={markersFor(outcomeDiagnostics, doc.filename, doc.text)}
-                label={`Data document ${doc.filename}`}
-              />
-            ) : (
-              <p class="muted">No data documents. Add one with +.</p>
-            )}
-          </div>
-
+        <section class="work" aria-label="Operations and results">
           <OpBar session={session} versions={versions} update={update} onRun={run} running={running} disabled={!lineageOK} />
+
+          {usesData && (
+            <>
+              <Tabs
+                label="data documents"
+                names={session.data.map((d) => d.filename)}
+                active={session.activeData}
+                flagged={filesOf(outcomeDiagnostics)}
+                onSelect={(i) => update((s) => ({ ...s, activeData: i }))}
+                onAdd={() =>
+                  update((s) => {
+                    s.data = [...s.data, { filename: nextDataFile(s.data.map((d) => d.filename)), text: "{}\n" }];
+                    s.activeData = s.data.length - 1;
+                    return s;
+                  })
+                }
+                onRename={(i, filename) => update((s) => ({ ...s, data: s.data.map((d, j) => (j === i ? { ...d, filename } : d)) }))}
+                onRemove={(i) =>
+                  update((s) => ({ ...s, data: s.data.filter((_, j) => j !== i), activeData: Math.max(0, Math.min(s.activeData, s.data.length - 2)) }))
+                }
+              />
+              <div class="data-editor">
+                {doc ? (
+                  <Editor
+                    text={doc.text}
+                    language={dataLanguage(doc.filename)}
+                    onChange={(text) => update((s) => ({ ...s, data: s.data.map((d, i) => (i === s.activeData ? { ...d, text } : d)) }))}
+                    markers={markersFor(outcomeDiagnostics, doc.filename, doc.text)}
+                    label={`Data document ${doc.filename}`}
+                  />
+                ) : (
+                  <p class="muted">No data documents. Add one with +.</p>
+                )}
+              </div>
+            </>
+          )}
 
           <Tabs
             label="output"
             names={session.form === "authoring" ? ["diagnostics", "result", "normal form"] : ["diagnostics", "result"]}
+            docs={[undefined, undefined, "forms"]}
             active={["diagnostics", "result", "normal"].indexOf(panel)}
             onSelect={(i) => setPanel((["diagnostics", "result", "normal"] as const)[i]!)}
           />
@@ -352,6 +369,7 @@ export function App() {
             )}
           </div>
         </section>
+        {touring && <Tour onClose={() => setTouring(false)} />}
       </main>
     </div>
   );
@@ -379,42 +397,44 @@ function OpBar({ session, versions, update, onRun, running, disabled }: OpBarPro
     </select>
   );
   const args = argsOf(session.op);
-  return (
-    <div class="bar ops">
-      <select value={session.op} onChange={(e) => update((s) => ({ ...s, op: (e.target as HTMLSelectElement).value as UserOp }))} aria-label="operation">
-        <optgroup label="Data">
-          {dataOps.map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-        </optgroup>
-        <optgroup label="Code">
-          {codegenOps.map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-        </optgroup>
-      </select>
-      {args.includes("version") && (
-        <label>schema {versionSelect("version", isCodegen(session.op) || session.op === "validate" ? "latest" : "any that accepts it")}</label>
-      )}
-      {args.includes("from") && <label>from {versionSelect("from", "the data's")}</label>}
-      {args.includes("to") && <label>to {versionSelect("to", "choose")}</label>}
-      {args.includes("format") && (
-        <label>
-          as{" "}
-          <select value={session.args.format} onChange={(e) => setArg("format", (e.target as HTMLSelectElement).value)} aria-label="format">
-            <option value="">{session.op === "openapi" ? "YAML" : "JSON"}</option>
-            <option value="json">JSON</option>
-            <option value="yaml">YAML</option>
-          </select>
-        </label>
-      )}
-      <button class="primary" onClick={onRun} disabled={disabled || running} title={disabled ? "The lineage must bind first" : undefined}>
-        {running ? "Running…" : "Run"}
+  const opButton = (o: UserOp) => (
+    <span key={o} class="op">
+      <button aria-pressed={session.op === o} onClick={() => update((s) => ({ ...s, op: o }))}>
+        {o}
       </button>
+      {hasDoc(o) && <DocLink topic={o} />}
+    </span>
+  );
+  return (
+    <div class="ops">
+      <div class="bar" role="toolbar" aria-label="Operations">
+        <span class="op-group" role="group" aria-label="On data">
+          {dataOps.map(opButton)}
+        </span>
+        <span class="op-group" role="group" aria-label="Code generation">
+          {codegenOps.map(opButton)}
+        </span>
+      </div>
+      <div class="bar op-args">
+        {args.includes("version") && (
+          <label>schema {versionSelect("version", isCodegen(session.op) || session.op === "validate" ? "latest" : "any that accepts it")}</label>
+        )}
+        {args.includes("from") && <label>from {versionSelect("from", "the data's")}</label>}
+        {args.includes("to") && <label>to {versionSelect("to", "choose")}</label>}
+        {args.includes("format") && (
+          <label>
+            as{" "}
+            <select value={session.args.format} onChange={(e) => setArg("format", (e.target as HTMLSelectElement).value)} aria-label="format">
+              <option value="">{session.op === "openapi" ? "YAML" : "JSON"}</option>
+              <option value="json">JSON</option>
+              <option value="yaml">YAML</option>
+            </select>
+          </label>
+        )}
+        <button class="primary" onClick={onRun} disabled={disabled || running} title={disabled ? "The lineage must bind first" : undefined}>
+          {running ? "Running…" : "Run"}
+        </button>
+      </div>
     </div>
   );
 }

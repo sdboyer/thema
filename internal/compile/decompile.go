@@ -14,6 +14,7 @@ import (
 
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/diag"
+	"github.com/sdboyer/thema/internal/compat"
 	"github.com/sdboyer/thema/internal/cueview"
 	"github.com/sdboyer/thema/internal/lenscheck"
 )
@@ -994,11 +995,44 @@ func versionText(v dversion, prev thema.SyntacticVersion, fwd, bwd *dbody) (stri
 	if err != nil {
 		return "", fmt.Errorf("%s: schema: %w", v.v, err)
 	}
-	expr, ok := n.(ast.Expr)
-	if !ok {
-		return "", fmt.Errorf("%s: schema is outside the authoring form: it needs imports", v.v)
-	}
 	var parts []string
+	var expr ast.Expr
+	switch n := n.(type) {
+	case ast.Expr:
+		expr = n
+	case *ast.File:
+		// A schema that uses CUE's builtin packages exports with their
+		// imports, which the version file carries.
+		var paths []string
+		lit := &ast.StructLit{}
+		for _, d := range n.Decls {
+			imp, ok := d.(*ast.ImportDecl)
+			if !ok {
+				lit.Elts = append(lit.Elts, d)
+				continue
+			}
+			for _, spec := range imp.Specs {
+				path, _ := literal.Unquote(spec.Path.Value)
+				if !compat.IsBuiltinPackage(path) {
+					return "", fmt.Errorf("%s: schema is outside the authoring form: it imports %s", v.v, path)
+				}
+				paths = append(paths, path)
+			}
+		}
+		expr = lit
+		sort.Strings(paths)
+		decl := &ast.ImportDecl{}
+		for _, p := range paths {
+			decl.Specs = append(decl.Specs, ast.NewImport(nil, p))
+		}
+		text, err := format.Node(&ast.File{Decls: []ast.Decl{decl}})
+		if err != nil {
+			return "", err
+		}
+		parts = append(parts, strings.TrimRight(string(text), "\n")+"\n")
+	default:
+		return "", fmt.Errorf("%s: schema is outside the authoring form", v.v)
+	}
 	for _, block := range []struct {
 		name string
 		b    *dbody

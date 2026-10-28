@@ -186,7 +186,7 @@ var genJschLineageCmd = &cobra.Command{
 	Short: "Generate JSON Schema from a lineage",
 	Long: `Generate JSON Schema from a lineage.
 
-Generate a JSON Schema (Draft 4) document representing a single schema in a lineage,
+Generate a JSON Schema (draft 2020-12) document representing a single schema in a lineage,
 and print it to stdout.
 `,
 }

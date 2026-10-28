@@ -42,9 +42,9 @@ schemas: {
         {
           "pos": {
             "file": "/github.com/sdboyer/thema/lineage.cue",
-            "line": 177,
+            "line": 178,
             "col": 11,
-            "offset": 7772,
+            "offset": 7893,
             "origin": "thema"
           },
           "label": "in thema's own CUE"
@@ -70,7 +70,7 @@ error[E0243]: schema 0.0 differs from the published one
     |             ^^^^^^
     |
     = note: in thema's own CUE
-     --> thema/lineage.cue:177:11
+     --> thema/lineage.cue:178:11
     = detail: field a not present in {a:int}
               missing field "a"
     = help: a published schema is never changed; add a new version instead
