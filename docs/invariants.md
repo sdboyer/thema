@@ -197,9 +197,14 @@ undeclared field is rejected unless the author wrote `...`.
 
 A disjunction is compared alternative by alternative wherever it stands,
 beneath a field or as the whole of a schema. Each *prior* alternative must be
-accepted by one *new* alternative on its own; the `unknown-disjunction` row
-below says what happens when none does, and a *new* alternative no prior
-alternative needs is a widening. A conjunction with a disjunctive operand,
+accepted by one *new* alternative on its own. Where none does, a value of the
+*prior* alternative that *new* rejects is a counterexample, and the step is
+incompatible. The checker looks for one in three places: the alternative
+itself when it is concrete, any of its values when no *new* alternative shares
+its kind, and, for each scalar kind it admits, the first value of a fixed
+sequence that equals no concrete *new* alternative (`""` for `string` →
+`"a" | "b"`, `2` for `int` → `0 | 1`). Otherwise the `unknown-disjunction` row below applies. A *new* alternative no
+prior alternative needs is a widening. A conjunction with a disjunctive operand,
 `(A | B) & C` or `#Union & {d?: int}`, is the disjunction of that operand's
 alternatives, each unified with the rest.
 

@@ -1,0 +1,14 @@
+# a constraint whose values the new alternatives may cover together: the
+# checker finds no value of the prior constraint that new rejects, and does not
+# combine alternatives, so it cannot decide (beside
+# disjunction-narrowed-to-values)
+-- old.cue --
+r!: =~"^(a|b)$"
+b!: bool
+-- new.cue --
+r!: "a" | "b"
+b!: true | false
+-- out --
+unknown
+b is now true | false, no single alternative of which covers the prior alternative bool; the checker does not combine alternatives (rule unknown-disjunction) @ new.cue:2:1
+r is now "a" | "b", no single alternative of which covers the prior alternative =~"^(a|b)$"; the checker does not combine alternatives (rule unknown-disjunction) @ new.cue:1:1
