@@ -11,11 +11,13 @@ import (
 
 	"cuelang.org/go/cue/ast"
 	cerrors "cuelang.org/go/cue/errors"
+	"cuelang.org/go/cue/literal"
 	"cuelang.org/go/cue/parser"
 	"cuelang.org/go/cue/token"
 
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/diag"
+	"github.com/sdboyer/thema/internal/compat"
 )
 
 // Ext is the extension of authoring files.
@@ -73,12 +75,36 @@ type version struct {
 	tf   *token.File
 	// The file's three fields. forward and backward may be nil.
 	schema, forward, backward *ast.Field
+	// imports are the file's imports, each of one of CUE's builtin packages.
+	imports []*ast.ImportSpec
 }
 
 // header is the position of the start of the file, where constructs the file
 // implies but does not spell out are positioned.
 func (v *version) header() token.Pos {
 	return v.tf.Pos(0, token.NoRelPos)
+}
+
+// usedImports returns the import specs that references within f resolve to.
+func usedImports(f *ast.Field) map[*ast.ImportSpec]bool {
+	used := make(map[*ast.ImportSpec]bool)
+	ast.Walk(f, func(n ast.Node) bool {
+		if id, ok := n.(*ast.Ident); ok {
+			if spec, ok := id.Node.(*ast.ImportSpec); ok {
+				used[spec] = true
+			}
+		}
+		return true
+	}, nil)
+	return used
+}
+
+// importDecls is the version file's imports, as a declaration, or none.
+func (v *version) importDecls() []ast.Decl {
+	if len(v.imports) == 0 {
+		return nil
+	}
+	return []ast.Decl{&ast.ImportDecl{Specs: v.imports}}
 }
 
 // schemaField is the version's Schema field under the normal form's name,
@@ -121,7 +147,19 @@ func parseVersion(f File) (*version, error) {
 		case *ast.Package:
 			report(diag.E0103, d.Pos(), "%s has a package clause", f.Path).Help("a version file is not a CUE package; remove the clause")
 		case *ast.ImportDecl:
-			report(diag.E0104, d.Pos(), "%s imports a package", f.Path).Help("a version file imports nothing; a schema uses only CUE's builtins")
+			for _, spec := range d.Specs {
+				path, _ := literal.Unquote(spec.Path.Value)
+				switch {
+				case !compat.IsBuiltinPackage(path):
+					report(diag.E0143, spec.Pos(), "%s imports %s, which is not one of CUE's builtin packages", f.Path, path).
+						Help("a version file imports only CUE's builtin packages, such as strings, list or time")
+				case spec.Name != nil:
+					report(diag.E0105, spec.Pos(), "%s imports %s under another name, %s", f.Path, path, spec.Name.Name).
+						Help("import a package by its own name")
+				default:
+					v.imports = append(v.imports, spec)
+				}
+			}
 		case *ast.CommentGroup:
 		case *ast.Field:
 			name, _, err := ast.LabelName(d.Label)
@@ -161,6 +199,22 @@ func parseVersion(f File) (*version, error) {
 		default:
 			report(diag.E0105, d.Pos(), "%s has a declaration that is not a field", f.Path).Help(only)
 		}
+	}
+	if v.schema != nil {
+		// An import serves the schema: a lens calls the strings functions
+		// without one, so an import the schema does not use has no purpose.
+		used := usedImports(v.schema)
+		var keep []*ast.ImportSpec
+		for _, spec := range v.imports {
+			if used[spec] {
+				keep = append(keep, spec)
+				continue
+			}
+			path, _ := literal.Unquote(spec.Path.Value)
+			report(diag.E0147, spec.Pos(), "%s imports %s, which its Schema does not use", f.Path, path).
+				Help("remove the import: a lens calls the strings functions without one")
+		}
+		v.imports = keep
 	}
 	if v.schema == nil {
 		report(diag.E0108, v.header(), "%s declares no Schema", f.Path).Help("every version file declares Schema: {...}")

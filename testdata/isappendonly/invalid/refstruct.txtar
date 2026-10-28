@@ -41,7 +41,7 @@ error[E0243]: schema 0.0 differs from the published one
     |         ^^^^^^
     |
     = note: in thema's own CUE
-     --> thema/lineage.cue:177:11
+     --> thema/lineage.cue:178:11
     = detail: regular field is constraint in subsumed value: tell
               field aBaz not present in {aBaz:~(#closed.#Baz),#Baz:{run:string,dat:int32}}
               missing field "aBaz"

@@ -35,7 +35,7 @@ error[E0243]: schema 0.0 differs from the published one
     |         ^^^^^^
     |
     = note: in thema's own CUE
-     --> thema/lineage.cue:177:11
+     --> thema/lineage.cue:178:11
     = detail: field not allowed in closed struct: aNewOptionalField
               field anObject not present in {anObject:{aField:string,aNewOptionalField?:string}}
               missing field "anObject"
