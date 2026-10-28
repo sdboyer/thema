@@ -841,71 +841,57 @@ func (w *walker) listLength(l *ast.ListLit, c *exprCtx) (shape, bool) {
 			w.fail(c, Unknown, RuleUnknownOp, "takes the length of an open list ([...]), which is a constraint rather than a value")
 			return shape{}, false
 		case *ast.Comprehension:
-			var fc *ast.ForClause
+			// Each for clause iterates a source list, the first from the
+			// input and each later one, nested, typically from the item of
+			// the one before: the list has up to the product of their
+			// lengths, exactly it when nothing filters. A pattern tested
+			// before a for clause guards the iteration: where it fails, the
+			// list is empty, and where it holds, the source is read under it.
+			last := -1
+			for i, cl := range e.Clauses {
+				if _, ok := cl.(*ast.ForClause); ok {
+					last = i
+				}
+			}
+			if last < 0 {
+				w.fail(c, Unknown, RuleUnknownOp, "takes the length of a list built by a comprehension with no for clause")
+				return shape{}, false
+			}
 			filtered := false
-			// A pattern tested before the for clause guards the iteration:
-			// where it fails, the list is empty, and where it holds, the
-			// source is read under it.
 			gs := c.gs
-			for _, cl := range e.Clauses {
+			n := point(big.NewInt(1))
+			dead := false
+			for i, cl := range e.Clauses {
 				switch cc := cl.(type) {
-				case *ast.ForClause:
-					if fc != nil {
-						w.fail(c, Unknown, RuleUnknownOp, "takes the length of a list built by nested for clauses")
-						return shape{}, false
-					}
-					fc = cc
 				case *ast.IfClause:
 					filtered = true
-					if fc != nil {
+					if i > last {
 						continue
 					}
 					if g, ok := w.parsePattern(cc.Condition); ok {
 						w.checkPatterns(g, gs, c.subj, c.pos)
 						gs = append(gs[:len(gs):len(gs)], g...)
 					}
+				case *ast.ForClause:
+					iv, ok := w.forLength(cc, gs, c)
+					if !ok {
+						return shape{}, false
+					}
+					if iv == nil {
+						dead = true
+						continue
+					}
+					n = n.mul(*iv)
 				}
 			}
-			if fc == nil {
-				w.fail(c, Unknown, RuleUnknownOp, "takes the length of a list built by a comprehension with no for clause")
-				return shape{}, false
+			if dead {
+				continue
 			}
-			p, ok := w.pathOf(fc.Source)
-			if !ok {
-				w.fail(c, Unknown, RuleUnknownReference, fmt.Sprintf("takes the length of a list built over %s, which the checker cannot follow to a list in the input", text(fc.Source)))
-				return shape{}, false
+			n = n.meet(lengthRange)
+			if filtered {
+				n.lo = big.NewInt(0)
 			}
-			c.paths[p.String()]++
-			src := w.lookupSource(p, gs)
-			switch {
-			case !src.declared:
-				w.fail(c, NotTotal, RuleSourceUndeclared, fmt.Sprintf("takes the length of a list built over %s, which the source schema does not declare", w.inputRef(p)))
-				return shape{}, false
-			case !src.present:
-				w.fail(c, NotTotal, RuleSourceAbsent, fmt.Sprintf("takes the length of a list built over %s, which may be absent: %s", w.inputRef(p), src.why))
-				return shape{}, false
-			}
-			var n *interval
-			for _, b := range src.branches {
-				if b.IncompleteKind() != cue.ListKind {
-					w.fail(c, Unknown, RuleUnknownOp, fmt.Sprintf("takes the length of a list built over %s, which may be %s rather than a list", w.inputRef(p), b.IncompleteKind()))
-					return shape{}, false
-				}
-				iv, _, _ := intervalOf(b.Len())
-				iv = iv.meet(lengthRange)
-				if filtered {
-					iv.lo = big.NewInt(0)
-				}
-				if n == nil {
-					n = &iv
-				} else {
-					h := n.hull(iv)
-					n = &h
-				}
-			}
-			if n != nil {
-				total = total.add(*n)
-			}
+			total = total.add(n)
 		default:
 			total = total.add(point(big.NewInt(1)))
 		}
@@ -915,6 +901,43 @@ func (w *walker) listLength(l *ast.ListLit, c *exprCtx) (shape, bool) {
 
 // lengthRange is the range of a length: a Go int, so within int64.
 var lengthRange = interval{lo: big.NewInt(0), hi: big.NewInt(math.MaxInt64)}
+
+// forLength bounds the length of the source list the for clause fc iterates,
+// read under the patterns gs. Nil where no alternative of the source can hold
+// (a dead arm): the clause produces nothing.
+func (w *walker) forLength(fc *ast.ForClause, gs []pattern, c *exprCtx) (*interval, bool) {
+	p, ok := w.pathOf(fc.Source)
+	if !ok {
+		w.fail(c, Unknown, RuleUnknownReference, fmt.Sprintf("takes the length of a list built over %s, which the checker cannot follow to a list in the input", text(fc.Source)))
+		return nil, false
+	}
+	c.paths[p.String()]++
+	src := w.lookupSource(p, gs)
+	switch {
+	case !src.declared:
+		w.fail(c, NotTotal, RuleSourceUndeclared, fmt.Sprintf("takes the length of a list built over %s, which the source schema does not declare", w.inputRef(p)))
+		return nil, false
+	case !src.present:
+		w.fail(c, NotTotal, RuleSourceAbsent, fmt.Sprintf("takes the length of a list built over %s, which may be absent: %s", w.inputRef(p), src.why))
+		return nil, false
+	}
+	var n *interval
+	for _, b := range src.branches {
+		if b.IncompleteKind() != cue.ListKind {
+			w.fail(c, Unknown, RuleUnknownOp, fmt.Sprintf("takes the length of a list built over %s, which may be %s rather than a list", w.inputRef(p), b.IncompleteKind()))
+			return nil, false
+		}
+		iv, _, _ := intervalOf(b.Len())
+		iv = iv.meet(lengthRange)
+		if n == nil {
+			n = &iv
+		} else {
+			h := n.hull(iv)
+			n = &h
+		}
+	}
+	return n, true
+}
 
 // division analyzes quo, rem, div or mod: the divisor must exclude zero, and
 // the result's magnitude is bounded by the dividend's (quo, div) or the
