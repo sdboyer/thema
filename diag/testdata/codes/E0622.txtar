@@ -1,0 +1,37 @@
+#op: cli
+#args: playground examples lineages
+A directory of lineages offers the playground the ones with an example.cue
+beside their version files, and a directory with none offers nothing, which
+is a mistake: the notes list the lineages it holds without one.
+-- lineages/wip/draft/0.0.thema --
+Schema: {
+	x: int
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0622",
+      "severity": "error",
+      "headline": "lineages holds no example",
+      "notes": [
+        {
+          "label": "lineages/wip/draft holds a lineage but no example.cue"
+        }
+      ],
+      "help": [
+        "an example is a lineage's directory of version files with an example.cue beside them"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0622]: lineages holds no example
+  |
+  = note: lineages/wip/draft holds a lineage but no example.cue
+  = help: an example is a lineage's directory of version files with an example.cue beside them

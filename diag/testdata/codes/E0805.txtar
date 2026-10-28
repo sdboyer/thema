@@ -1,0 +1,37 @@
+#op: playground
+#call: register-examples
+A playground deployment registers examples of its own beside thema's, and
+each declares whether its lineage binds: an example of an error does not.
+Registering an example binds its lineage, and refuses it when the outcome
+differs from what it declares; the notes say what binding it reported. The
+other examples in the request are registered regardless.
+-- request.json --
+{"examples": [{"example": {"id": "pets/empty", "title": "empty", "category": "Pets", "summary": "", "kind": "", "binds": true}, "lineage": {"normal": {"path": "lineage.cue", "text": "name: \"empty\"\nschemas: {}\n"}}}]}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0805",
+      "severity": "error",
+      "headline": "host example \"pets/empty\" is declared to bind, but does not",
+      "notes": [
+        {
+          "label": "binding it reports E0122: the lineage declares no schemas"
+        }
+      ],
+      "help": [
+        "fix the lineage, or set binds to false if the example is meant to show an error"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0805]: host example "pets/empty" is declared to bind, but does not
+  |
+  = note: binding it reports E0122: the lineage declares no schemas
+  = help: fix the lineage, or set binds to false if the example is meant to show an error

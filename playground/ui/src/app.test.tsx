@@ -1,18 +1,30 @@
 import { EditorView } from "@codemirror/view";
 import { render } from "preact";
 import { act } from "preact/test-utils";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Thema } from "./api/client";
+import type { HostExample, RegisterExamplesRequest, RegisterExamplesResponse } from "./api/types";
 import { docsBase } from "./ui/docs";
 
 // A thema that answers like the real one for what the page asks at start
-// and on edits.
+// and on edits. calls records the operations asked of it; registered is what
+// register-examples answers, and what examples lists.
+const calls: string[] = [];
+let registered: RegisterExamplesResponse = { ok: true, diagnostics: [], registered: [] };
 const fakeThema: Thema = {
   init: { ok: true, diagnostics: [], themaVersion: "v0.1.0", cueVersion: "v0.18.0", ops: [] },
-  call: (async (op: string) => {
+  call: (async (op: string, req: unknown) => {
+    calls.push(op);
     switch (op) {
+      case "register-examples":
+        hostManifestSent = req as RegisterExamplesRequest;
+        return registered;
       case "examples":
-        return { ok: true, diagnostics: [], examples: [] };
+        return {
+          ok: true,
+          diagnostics: [],
+          examples: (hostManifestSent?.examples ?? []).filter((h) => registered.registered.includes(h.example.id)).map((h) => h.example),
+        };
       case "example":
         return {
           ok: true,
@@ -29,7 +41,18 @@ const fakeThema: Thema = {
   }) as Thema["call"],
 };
 
-vi.mock("./api/client", () => ({ startThema: () => Promise.resolve(fakeThema) }));
+// hostManifest is what fetchHostExamples finds: the host's examples.json, or
+// null for none. hostManifestSent is what the page registered.
+let hostManifest: RegisterExamplesRequest | Error | null = null;
+let hostManifestSent: RegisterExamplesRequest | null = null;
+
+vi.mock("./api/client", () => ({
+  startThema: () => Promise.resolve(fakeThema),
+  fetchHostExamples: async () => {
+    if (hostManifest instanceof Error) throw hostManifest;
+    return hostManifest;
+  },
+}));
 
 const { App } = await import("./app");
 
@@ -42,6 +65,7 @@ async function settle() {
 }
 
 async function mount(): Promise<HTMLElement> {
+  calls.length = 0;
   const root = document.createElement("div");
   document.body.append(root);
   await act(async () => {
@@ -122,5 +146,60 @@ describe("App", () => {
     await act(async () => root.querySelector<HTMLButtonElement>(".tour .close")!.click());
     expect(root.querySelector(".tour")).toBeNull();
     render(null, root);
+  });
+
+  describe("with a host's examples", () => {
+    const pet: HostExample = {
+      example: { id: "pets/pet", title: "pet", category: "Pets", summary: "A pet.", kind: "normal", binds: true },
+      lineage: { normal: { path: "lineage.cue", text: 'name: "pet"\n' } },
+    };
+    const empty: HostExample = { ...pet, example: { ...pet.example, id: "pets/empty", title: "empty" } };
+    afterEach(() => {
+      hostManifest = null;
+      hostManifestSent = null;
+      registered = { ok: true, diagnostics: [], registered: [] };
+    });
+
+    it("registers them before listing the examples, and offers them under their category", async () => {
+      hostManifest = { examples: [pet] };
+      registered = { ok: true, diagnostics: [], registered: ["pets/pet"] };
+      const root = await mount();
+      expect(hostManifestSent).toEqual(hostManifest);
+      expect(calls.indexOf("register-examples")).toBeLessThan(calls.indexOf("examples"));
+      const group = root.querySelector<HTMLOptGroupElement>('header select optgroup[label="Pets"]');
+      expect([...group!.querySelectorAll("option")].map((o) => o.value)).toEqual(["pets/pet"]);
+      expect(root.querySelector(".notice")).toBeNull();
+      render(null, root);
+    });
+
+    it("says which were left out", async () => {
+      hostManifest = { examples: [pet, empty] };
+      registered = {
+        ok: false,
+        diagnostics: [{ code: "E0805", severity: "error", headline: 'host example "pets/empty" is declared to bind, but does not' }],
+        registered: ["pets/pet"],
+      };
+      const root = await mount();
+      expect(root.querySelector(".notice")!.textContent).toContain('host example "pets/empty" is declared to bind, but does not');
+      expect(root.querySelector('header select option[value="pets/pet"]')).not.toBeNull();
+      render(null, root);
+    });
+
+    it("says when they cannot be read, and goes on without them", async () => {
+      hostManifest = new Error("fetching examples.json: 500 Internal Server Error");
+      const root = await mount();
+      expect(calls).not.toContain("register-examples");
+      expect(root.querySelector(".notice")!.textContent).toContain("500");
+      expect(root.querySelector(".lineage .cm-editor")).not.toBeNull();
+      render(null, root);
+    });
+
+    it("registers nothing when the host serves none", async () => {
+      const root = await mount();
+      expect(calls).not.toContain("register-examples");
+      expect(calls).toContain("examples");
+      expect(root.querySelector(".notice")).toBeNull();
+      render(null, root);
+    });
   });
 });
