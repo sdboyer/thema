@@ -1055,9 +1055,11 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 }
 
 // declare emits the lacunas the lens declares, in declared order, each under
-// its when or the condition its mapping implies: for an orelse, that the
-// fallback was used; for a match, that the [_] arm was; for a drop, that the
-// field was present. A [_] arm must have a lacuna under its condition.
+// its when or the condition its mapping implies: for a move or a computed
+// value that reads optional fields, that they were present; for an orelse,
+// that the fallback was used; for a match, that the [_] arm was; for a drop,
+// that the field was present. A [_] arm must have a lacuna under its
+// condition.
 func (e *edge) declare(b *body, out *compiledLens) {
 	catchAllLacuna := make(map[*entry]bool)
 	for _, d := range e.lacunas.decls {
@@ -1083,6 +1085,11 @@ func (e *edge) declare(b *body, out *compiledLens) {
 		case kindDrop:
 			if cond == nil && e.optional(e.S, en.source) {
 				cond = e.present(d.pos, en.source)
+			}
+		case kindMove, kindComputed:
+			if present := e.presence(en); cond == nil && len(present) > 0 {
+				// Where the mapping writes nothing, it loses nothing.
+				cond = e.presentAll(d.pos, present)
 			}
 		case kindOrElse:
 			if cond == nil && en.computed != nil {

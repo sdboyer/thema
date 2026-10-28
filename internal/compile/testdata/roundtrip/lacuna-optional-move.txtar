@@ -2,8 +2,9 @@ Lacunas on mappings from optional fields. Each mapping is written only where
 the instance has what it reads, so the lacuna's targetFields value is written
 under the same presence test: dimension moves size, area computes from w and
 h. A when that reads an optional field concerns only the instances that have
-it. label's lacuna has no when, so it applies always, as a move's lacuna
-does, and reports label only where it was written.
+it. A lacuna without a when applies where its mapping writes: label's where
+tag is present, area's second where both w and h are. An instance with none
+of them raises no lacuna.
 -- ship/history/0.0.thema --
 Schema: {
 	size?: int
@@ -35,6 +36,9 @@ ForwardLens: {
 			type:    PrecisionLoss
 			message: "large areas are rounded"
 			when:    v0_0.w > 10
+		}, {
+			type:    LossyFieldMapping
+			message: "areas are approximate"
 		}]
 		label: [{
 			type:    LossyFieldMapping
@@ -48,6 +52,8 @@ ForwardLens: {
 {"size": 5, "w": 2, "h": 3, "tag": "t"}
 -- data/0.0/large.json --
 {"size": 500, "w": 20, "h": 3}
+-- data/0.0/partial.json --
+{"w": 20}
 -- out/bind --
 ok
 -- out/decompiled/1.0.thema --
@@ -74,6 +80,9 @@ ForwardLens: {
 			type:    PrecisionLoss
 			message: "large areas are rounded"
 			when:    v0_0.w > 10
+		}, {
+			type:    LossyFieldMapping
+			message: "areas are approximate"
 		}]
 		label: [{
 			type:    LossyFieldMapping
@@ -171,6 +180,26 @@ lenses: {
 				type:    "PrecisionLoss"
 			},
 			{
+				condition: v0_0.w != _|_ && v0_0.h != _|_
+				sourceFields: [
+					if v0_0.w != _|_ {
+						path:  "w"
+						value: v0_0.w
+					},
+					if v0_0.h != _|_ {
+						path:  "h"
+						value: v0_0.h
+					}
+				]
+				targetFields: [if v0_0.w != _|_ && v0_0.h != _|_ {
+					path:  "area"
+					value: v1_0.area
+				}]
+				message: "areas are approximate"
+				type:    "LossyFieldMapping"
+			},
+			{
+				condition: v0_0.tag != _|_
 				sourceFields: [if v0_0.tag != _|_ {
 					path:  "tag"
 					value: v0_0.tag
@@ -208,10 +237,13 @@ lenses: {
 }
 -- out/translate/0.0/absent->1.0 --
 {}
-[{"type":"LossyFieldMapping","message":"labels are truncated downstream"}]
+[]
 -- out/translate/0.0/large->1.0 --
 {"dimension":500,"area":60}
-[{"sourceFields":[{"path":"size","value":500}],"targetFields":[{"path":"dimension","value":500}],"type":"LossyFieldMapping","message":"large sizes are clamped"},{"sourceFields":[{"path":"w","value":20},{"path":"h","value":3}],"targetFields":[{"path":"area","value":60}],"type":"PrecisionLoss","message":"large areas are rounded"},{"type":"LossyFieldMapping","message":"labels are truncated downstream"}]
+[{"sourceFields":[{"path":"size","value":500}],"targetFields":[{"path":"dimension","value":500}],"type":"LossyFieldMapping","message":"large sizes are clamped"},{"sourceFields":[{"path":"w","value":20},{"path":"h","value":3}],"targetFields":[{"path":"area","value":60}],"type":"PrecisionLoss","message":"large areas are rounded"},{"sourceFields":[{"path":"w","value":20},{"path":"h","value":3}],"targetFields":[{"path":"area","value":60}],"type":"LossyFieldMapping","message":"areas are approximate"}]
+-- out/translate/0.0/partial->1.0 --
+{}
+[{"sourceFields":[{"path":"w","value":20}],"type":"PrecisionLoss","message":"large areas are rounded"}]
 -- out/translate/0.0/small->1.0 --
 {"dimension":5,"area":6,"label":"t"}
-[{"sourceFields":[{"path":"tag","value":"t"}],"targetFields":[{"path":"label","value":"t"}],"type":"LossyFieldMapping","message":"labels are truncated downstream"}]
+[{"sourceFields":[{"path":"w","value":2},{"path":"h","value":3}],"targetFields":[{"path":"area","value":6}],"type":"LossyFieldMapping","message":"areas are approximate"},{"sourceFields":[{"path":"tag","value":"t"}],"targetFields":[{"path":"label","value":"t"}],"type":"LossyFieldMapping","message":"labels are truncated downstream"}]

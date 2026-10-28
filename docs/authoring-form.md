@@ -153,7 +153,8 @@ A key must name a mapping the author wrote. A copy the author wants a lacuna on 
 
 | Mapping | The lacuna applies when |
 |---|---|
-| move, constant | always |
+| constant; move or computed value reading only fields the source always has | always |
+| move or computed value reading a field the source may omit | the fields it reads were present, so that it was written |
 | `_orelse` | the fallback was used |
 | `_match` | the wildcard arm applied |
 | `_drop` | the dropped field was present |
@@ -164,7 +165,7 @@ A `when` replaces the implied condition. It is a comparison or combination of so
 - **A field the source may omit, named bare, tests its presence.** `when: v0_0.flag` applies to the instances that have `flag`, whatever its value. To test a bare optional field's value, compare it: `when: v0_0.flag == true`.
 - **A required true-or-false field named bare is its value.** `when: v0_0.deprecated` applies when `deprecated` is true. Any other field named bare is an error: compare it.
 
-**The fields a lacuna reports.** A lacuna reports the source fields its mapping reads and the target field it writes, each only where the translation has it. A move or computed value that reads a field the source may omit writes its target field only where the instance has what it reads, so a lacuna on it reports the target field only there. The lacuna still applies under its condition, which for a move without a `when` is always.
+**The fields a lacuna reports.** A lacuna reports the source fields its mapping reads and the target field it writes, each only where the translation has it. A move or computed value that reads a field the source may omit writes its target field only where the instance has what it reads, so a lacuna on it reports the target field only there. Without a `when`, such a lacuna applies only where the mapping writes, so an instance that lacks what it reads raises none; a `when` replaces that condition, as it does any other.
 
 **Drops.** A drop derives a `DroppedField` lacuna by itself. A `DroppedField` lacuna declared on a drop replaces the derived message. A lacuna of another type on a drop is added beside the derived one. A drop of a struct derives one lacuna, about the struct, not one for each field beneath it.
 

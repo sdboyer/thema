@@ -157,6 +157,9 @@ type dentry struct {
 	// implicit marks a copy (a move from a path to itself) Compile would
 	// regenerate, which is omitted unless a lacuna names it.
 	implicit bool
+	// present are the optional source paths the mapping is written under,
+	// whose presence is the condition a lacuna on it implies.
+	present []cue.Path
 	// computed is a computed mapping's expression, or orelse's computed
 	// primary.
 	computed ast.Expr
@@ -511,6 +514,10 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 				if !b.expressionOK(g.brs[0].field.Value) {
 					return fmt.Errorf("lens %s is outside the authoring form: %s is an expression the authoring form cannot write", key, tpath)
 				}
+				ts, _ := b.tests(g.brs[0].cond)
+				for _, t := range ts {
+					en.present = append(en.present, t.path)
+				}
 				en.kind, en.computed = kindComputed, g.brs[0].field.Value
 				b.entries = append(b.entries, en)
 				continue
@@ -583,6 +590,7 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 				return fmt.Errorf("lens %s is outside the authoring form: the presence test on %s does not test its own reference", key, tpath)
 			}
 			en.kind, en.source, en.expr, en.implicit = kindMove, p, present[0].field.Value, p.String() == tpath.String()
+			en.present = []cue.Path{p}
 		default:
 			return fmt.Errorf("lens %s is outside the authoring form: the arms of %s", key, tpath)
 		}
@@ -696,9 +704,11 @@ func (b *dbody) find(p cue.Path, drop bool) *dentry {
 }
 
 // when turns a lacuna's condition into the authored when: nil, and
-// structural, if the condition is the one en implies (none for a move or a
-// constant; the fallback for an orelse; the [_] arm for a match; presence
-// for a drop), else the condition as written.
+// structural, if the condition is the one en implies (none for a constant,
+// or a move or computed value that reads only fields the source always has;
+// the presence of the optional fields it reads for one that does; the
+// fallback for an orelse; the [_] arm for a match; presence for a drop), else
+// the condition as written.
 func (b *dbody) when(en *dentry, cond ast.Expr) (when ast.Expr, structural bool) {
 	if cond == nil {
 		return nil, en.kind != kindEach
@@ -725,6 +735,10 @@ func (b *dbody) when(en *dentry, cond ast.Expr) (when ast.Expr, structural bool)
 			if len(ts) == 1 && last.operand == nil && last.present && last.path.String() == en.source.String() {
 				return nil, true
 			}
+		case kindMove, kindComputed:
+			if presenceOf(ts, en.present) {
+				return nil, true
+			}
 		}
 		if len(ts) == 1 && last.operand == nil && last.present {
 			// A presence test alone is an optional field named bare.
@@ -737,6 +751,19 @@ func (b *dbody) when(en *dentry, cond ast.Expr) (when ast.Expr, structural bool)
 		return inner, false
 	}
 	return cond, false
+}
+
+// presenceOf reports whether ts are presence tests of exactly paths, in order.
+func presenceOf(ts []test, paths []cue.Path) bool {
+	if len(paths) == 0 || len(ts) != len(paths) {
+		return false
+	}
+	for i, t := range ts {
+		if t.operand != nil || !t.present || t.path.String() != paths[i].String() {
+			return false
+		}
+	}
+	return true
 }
 
 // headSyntax is [if cond {then}, els][0], as written.

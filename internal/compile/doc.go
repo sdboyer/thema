@@ -56,7 +56,9 @@
 //	}
 //
 // Without a when, a lacuna applies under the condition its mapping implies:
-// always, for a move or a constant; when the fallback is used, for an _orelse;
+// always, for a constant; where it is written, for a move or a computed value
+// (when the optional fields it reads are present); when the fallback is used,
+// for an _orelse;
 // when the [_] arm applies, for a match; when the field is present, for a
 // drop. A DroppedField lacuna on a drop refines the derived one's message. A
 // when replaces the implied condition. It compares and combines source
