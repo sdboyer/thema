@@ -240,6 +240,9 @@ type eachScope struct {
 	target cue.Path
 	// n numbers the body's generated lets within the lens.
 	n int
+	// optional is set when the source may omit the list, so that what
+	// iterates it outside the result tests its presence first.
+	optional bool
 }
 
 // errf reports a problem with the lens at p, under code. The message is in the
@@ -1022,8 +1025,19 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 			out.effective = append(out.effective, *en)
 		case kindEach:
 			consumed[en.source.String()] = true
+			optional := e.optional(e.S, en.source)
+			if optional && e.required(e.T, en.target) {
+				e.errs = cerrors.Append(e.errs, diag.New(diag.E0343).At(en.pos).
+					Headlinef("%s is optional in %s and %s requires %s, which _each cannot produce where it is absent", en.source, e.sv, e.tv, en.target).
+					Note(token.NoPos, "an _each over a list the source may omit is written only where the list is present, and _each has no fallback").
+					Err())
+				continue
+			}
 			if !e.place(root, en) || !e.compileEach(en, out) {
 				continue
+			}
+			if optional {
+				root.has(en.target).present = []cue.Path{en.source}
 			}
 			out.effective = append(out.effective, *en)
 		}
@@ -1325,7 +1339,7 @@ func (e *edge) compileEach(en *entry, out *compiledLens) bool {
 		return false
 	}
 	sub := &edge{ctx: e.ctx, S: selem, T: telem, sv: e.sv, tv: e.tv, dir: e.dir, blockPos: en.pos, root: rootItem,
-		lacunas: e.lacunas, imports: e.imports, each: &eachScope{list: en.source, target: en.target, n: out.nlets}}
+		lacunas: e.lacunas, imports: e.imports, each: &eachScope{list: en.source, target: en.target, n: out.nlets, optional: e.optional(e.S, en.source)}}
 	b := &body{}
 	sub.parseBody(en.body, cue.MakePath(), cue.MakePath(), b)
 	subOut := &compiledLens{nlets: out.nlets}
@@ -1608,6 +1622,9 @@ func (e *edge) emitLeaf(name string, c *node) []ast.Decl {
 			Clauses: []ast.Clause{at(p, &ast.ForClause{Value: at(p, ast.NewIdent(rootItem)), Source: at(p, e.ref(en.source))})},
 			Value:   en.body,
 		})}})
+		if len(c.present) > 0 {
+			return []ast.Decl{branch(e.presentAll(p, c.present), list)}
+		}
 		return []ast.Decl{field(list)}
 	}
 	var val ast.Expr
@@ -1703,10 +1720,15 @@ func (e *edge) dropLacuna(out *compiledLens, en *entry) {
 	p := en.pos
 	elts := []ast.Decl{at(p, &ast.Attribute{Text: "@thema(derived)"})}
 	if e.each != nil {
-		// let _d_<n> = [for i, item in input.<list> if item.<p> != _|_ {path: "<list>[\(i)].<p>", value: item.<p>}]
+		// let _d_<n> = [for i, item in input.<list> if item.<p> != _|_ {path: "<list>[\(i)].<p>", value: item.<p>}],
+		// testing first that the list is present where the source may omit it.
 		name := fmt.Sprintf("_d_%d", out.nlets)
 		out.nlets++
-		clauses := []ast.Clause{at(p, &ast.ForClause{Key: at(p, ast.NewIdent("i")), Value: at(p, ast.NewIdent(rootItem)), Source: at(p, ref(paramName(e.sv), e.each.list))})}
+		var clauses []ast.Clause
+		if e.each.optional {
+			clauses = append(clauses, at(p, &ast.IfClause{Condition: at(p, ast.NewBinExpr(token.NEQ, at(p, ref(paramName(e.sv), e.each.list)), at(p, &ast.BottomLit{})))}))
+		}
+		clauses = append(clauses, at(p, &ast.ForClause{Key: at(p, ast.NewIdent("i")), Value: at(p, ast.NewIdent(rootItem)), Source: at(p, ref(paramName(e.sv), e.each.list))}))
 		if e.optional(e.S, en.source) {
 			clauses = append(clauses, at(p, &ast.IfClause{Condition: e.present(p, en.source)}))
 		}
@@ -1953,13 +1975,36 @@ func (e *edge) optional(v cue.Value, p cue.Path) bool {
 }
 
 // required reports whether an instance of v must supply p: it is not optional,
-// and the value there is not complete without data (a default, a constant or a
-// struct whose fields all fill count as complete).
+// and it is marked required (p!), or the value there is not complete without
+// data (a default, a constant or a struct whose fields all fill count as
+// complete). An open list is complete, as the empty list, unless marked.
 func (e *edge) required(v cue.Value, p cue.Path) bool {
 	if e.optional(v, p) {
 		return false
 	}
+	if e.marked(v, p) {
+		return true
+	}
 	return lookup(v, p).Validate(cue.Concrete(true)) != nil
+}
+
+// marked reports whether the last field along p is a required field (p!).
+func (e *edge) marked(v cue.Value, p cue.Path) bool {
+	sels := p.Selectors()
+	if len(sels) == 0 {
+		return false
+	}
+	iter, err := lookup(v, cue.MakePath(sels[:len(sels)-1]...)).Fields(cue.Optional(true))
+	if err != nil {
+		return false
+	}
+	last := sels[len(sels)-1]
+	for iter.Next() {
+		if sel := iter.Selector(); sel.IsString() && sel.Unquoted() == last.Unquoted() {
+			return sel.ConstraintType() == cue.RequiredConstraint
+		}
+	}
+	return false
 }
 
 // lookup returns the value v declares at p, whatever the form of the fields

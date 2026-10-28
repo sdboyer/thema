@@ -92,7 +92,7 @@ The operations, `_drop`, `_orelse`, `_match` and `_each`, and `_item` inside an 
 ### What is written and what is implied
 
 - **Copies are implicit.** A field both schemas declare, that no mapping mentions, is copied. The copy is made as high as the two schemas agree: a field whose contents the target declares whole is copied whole, and one whose contents differ is descended into. A copy, like a move, must fit: the target field has to accept every value the source field may hold, or the field must be mapped.
-- **Optional sources are used only when present.** A copy, a move or a computed value that reads a field the source may omit is written only when the instance has it. Where the target requires the field, the author must say what to use when it is absent, with `_orelse`.
+- **Optional sources are used only when present.** A copy, a move, a computed value or an `_each` that reads a field the source may omit is written only when the instance has it. Where the target requires the field, the author must say what to use when it is absent, with `_orelse`; an `_each` has no fallback yet, so it maps an optional list only into a list the target does not require.
 - **Removed fields must be accounted for.** In the forward direction, a field the source declares and the target does not must be moved somewhere or dropped. A forgotten rename is an error, not a silent loss.
 - **Required fields must be produced.** A field the target requires that no mapping and no copy produces is an error, naming the lens and the field.
 
@@ -174,6 +174,7 @@ A `when` replaces the implied condition. It is a comparison or combination of so
 Each of these is refused with an error naming what to write instead, rather than compiled approximately:
 
 - **`each` inside `each`**, and a reference to the whole source instance from inside an `each` body.
+- **An `_each` over a list the source may omit, into a list the target requires** (`l!: [...T]`, or a list with elements it must have). `_each` has no fallback for an absent list.
 - **Lacunas inside `each`** other than the `DroppedField` refinement ([#103](https://github.com/sdboyer/thema/issues/103)).
 - **A match passthrough into a target whose type refers to other fields.** The passthrough tests the value against the target's type, which must stand on its own to be restated; match every value with an arm instead.
 - **List-to-map and map-to-list mappings** ([#102](https://github.com/sdboyer/thema/issues/102)).
