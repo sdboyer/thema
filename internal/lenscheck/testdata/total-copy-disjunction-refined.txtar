@@ -1,0 +1,47 @@
+# The disjunct exemplar's 0.1->0.0 lens: a disjunction of structs with a third
+# alternative copied back into one without it. An equality on the constant
+# branch beneath the copied path refines the alternatives of the copy, so each
+# copying arm carries one alternative, the third arm writes a constant struct
+# proven against the first target alternative, and the three equalities cover
+# the source's constant branches (#121).
+-- source.cue --
+rootfield: {branch: 1, one: string} | {branch: 2, two: string} | {branch: 3, three: {inner: int} | {inner: string}}
+-- target.cue --
+rootfield: {branch: 1, one: string} | {branch: 2, two: string}
+-- lens.cue --
+v0_0: _
+v1_0: {
+	if v0_0.rootfield.branch == 1 {rootfield: v0_0.rootfield}
+	if v0_0.rootfield.branch == 2 {rootfield: v0_0.rootfield}
+	if v0_0.rootfield.branch == 3 {rootfield: {branch: 1, one: "wasthree"}}
+}
+lacunas: [{
+	condition: v0_0.rootfield.branch == 3
+	sourceFields: [{path: "rootfield", value: v0_0.rootfield}]
+	targetFields: [{path: "rootfield", value: v1_0.rootfield}]
+	message: "rootfield was branch 3, which the target does not have; branch 1 was substituted"
+	type:    "LossyFieldMapping"
+}]
+-- out --
+total
+-- ir --
+out: {
+  if in.rootfield.branch == 1 {
+    out.rootfield <- in.rootfield (alt 0 -> 0)
+  }
+  if in.rootfield.branch == 2 {
+    out.rootfield <- in.rootfield (alt 1 -> 1)
+  }
+  if in.rootfield.branch == 3 {
+    out.rootfield: alt 0 {
+      out.rootfield.branch = 1
+      out.rootfield.one = "wasthree"
+    }
+  }
+}
+lacuna LossyFieldMapping {
+  when in.rootfield.branch == 3
+  source rootfield = in.rootfield
+  target rootfield = out.rootfield
+  message "rootfield was branch 3, which the target does not have; branch 1 was substituted"
+}

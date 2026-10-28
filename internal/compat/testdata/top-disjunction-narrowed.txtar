@@ -1,0 +1,11 @@
+# a disjunction of structs at the top of a schema, reduced to one of them
+-- old.cue --
+{a: int} | {b: int}
+-- new.cue --
+{a: int}
+-- out --
+incompatible
+the top level accepts any field name in the prior schema and is closed in the new one (rule labels-narrowed) @ old.cue:1:1
+the top level accepts any field name in the prior schema and is closed in the new one (rule labels-narrowed) @ old.cue:1:12
+a is required in the new schema but not declared in the prior one (rule field-added-required) @ new.cue:1:2
+b is declared in the prior schema and not accepted by the new one (rule field-removed) @ old.cue:1:13

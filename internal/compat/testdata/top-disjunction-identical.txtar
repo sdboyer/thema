@@ -1,0 +1,8 @@
+# a schema that is a disjunction of structs at its top, unchanged: compared
+# alternative by alternative at the top as beneath a field (#120)
+-- old.cue --
+{a: int} | {b: int}
+-- new.cue --
+{a: int} | {b: int}
+-- out --
+compatible

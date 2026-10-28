@@ -22,6 +22,14 @@ The examples the playground offers.
       "binds": true
     },
     {
+      "id": "exemplar/disjunct",
+      "title": "disjunct",
+      "category": "Exemplars",
+      "summary": "Changes over schemas with complex disjunctions.",
+      "kind": "normal",
+      "binds": true
+    },
+    {
       "id": "exemplar/expand",
       "title": "expand",
       "category": "Exemplars",
@@ -147,14 +155,6 @@ The examples the playground offers.
       "category": "Errors",
       "summary": "A required target field that nothing produces, and that the source lacks.",
       "kind": "authoring",
-      "binds": false
-    },
-    {
-      "id": "exemplar/disjunct",
-      "title": "disjunct",
-      "category": "Errors",
-      "summary": "Changes over schemas with complex disjunctions.",
-      "kind": "normal",
       "binds": false
     },
     {

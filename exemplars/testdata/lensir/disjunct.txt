@@ -1,1 +1,21 @@
-no lens programs: lineage was bound with SkipBuggyChecks, so its lenses were not proven total and have no programs
+lens 0.1->0.0
+  out: {
+    if in.rootfield.branch == 1 {
+      out.rootfield <- in.rootfield (alt 0 -> 0)
+    }
+    if in.rootfield.branch == 2 {
+      out.rootfield <- in.rootfield (alt 1 -> 1)
+    }
+    if in.rootfield.branch == 3 {
+      out.rootfield: alt 0 {
+        out.rootfield.branch = 1
+        out.rootfield.branchone = "wasthree"
+      }
+    }
+  }
+  lacuna LossyFieldMapping {
+    when in.rootfield.branch == 3
+    source rootfield = in.rootfield
+    target rootfield = out.rootfield
+    message "rootfield was branch 3, which 0.0 does not have; branch 1 with branchone \"wasthree\" was substituted"
+  }

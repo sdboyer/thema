@@ -272,6 +272,9 @@ func Check(ctx *cue.Context, lens, source, target cue.Value, from, to string) Re
 
 var lacunasPath = cue.MakePath(cue.Str("lacunas"))
 
+// structText names a struct literal in a write's text, for messages.
+const structText = "{...}"
+
 type walker struct {
 	ctx  *cue.Context
 	lens cue.Value
@@ -299,6 +302,11 @@ type walker struct {
 	// pinned holds the value a lens path must fit where that is not the target
 	// schema's: a lacuna's message is a string.
 	pinned map[string]cue.Value
+	// altPins holds, innermost last, the alternative of a disjunctive target
+	// that a struct literal being walked was matched to: lookups beneath the
+	// literal's path descend from it. A pin with no value marks a literal no
+	// alternative was chosen for, beneath which nothing is looked up.
+	altPins []altPin
 	// absentAdvice says what to do about a path that may be absent, where it is
 	// read: a result field goes under a presence test, a lacuna's condition
 	// gains one.
@@ -360,6 +368,12 @@ const (
 	literalW                    // a scalar literal
 	computedW                   // an expression, a head or a table
 	compositeW                  // a struct or list literal, whose children are written in turn
+	// armsW is a struct literal at a disjunctive target whose declarations
+	// are all comprehensions: it writes nothing itself, each arm's struct
+	// writing the path as an instance of one alternative, and it is kept only
+	// so that exhaustiveness can ask whether the arms together give the path
+	// an alternative on every instance.
+	armsW
 )
 
 // A write is one value the lens's result gets at a path, under the patterns of
@@ -371,6 +385,15 @@ type write struct {
 	src      cue.Path // copyW: the source path copied
 	text     string   // the expression, for messages and conflicts
 	pos      token.Pos
+	// tgt is the target alternative a struct literal was proven against,
+	// where the target at q is a disjunction; exhaustiveness beneath q is
+	// judged by it.
+	tgt cue.Value
+	// alts are the alternatives of a disjunctive target at q the write may
+	// produce, by index: one for a struct literal proven against it, those the
+	// copied source alternatives land in for a copy. nil where the target at q
+	// is not a disjunction of structs or lists, or the write was not proven.
+	alts []int
 }
 
 func (w *walker) record(wr *write) {
@@ -751,8 +774,10 @@ func isBoolName(name string) bool {
 
 // copy proves the copy of input p into result q under patterns gs.
 func (w *walker) copy(q, p cue.Path, gs []pattern, pos token.Pos) {
-	w.record(&write{q: q, patterns: gs, kind: copyW, src: p, text: w.inputRef(p), pos: pos})
-	w.ir.emit(&lensir.Copy{To: w.ir.path(q), From: w.ir.path(p)})
+	wr := &write{q: q, patterns: gs, kind: copyW, src: p, text: w.inputRef(p), pos: pos}
+	w.record(wr)
+	node := &lensir.Copy{To: w.ir.path(q), From: w.ir.path(p)}
+	w.ir.emit(node)
 	src := w.lookupSource(p, gs)
 	subj := w.subject(q)
 	if !src.declared {
@@ -782,7 +807,7 @@ func (w *walker) copy(q, p cue.Path, gs []pattern, pos token.Pos) {
 			if !hasDefault {
 				continue
 			}
-			if admitted, _ := refine([]cue.Value{d}, p, gs); len(admitted) == 0 {
+			if admitted, _, _ := w.refine([]cue.Value{d}, p, gs); len(admitted) == 0 {
 				continue
 			}
 			if e, ok := tgt.Default(); ok && cuetil.Equal(d, e) != nil {
@@ -791,30 +816,40 @@ func (w *walker) copy(q, p cue.Path, gs []pattern, pos token.Pos) {
 			}
 		}
 	}
-	w.copies = append(w.copies, pendingCopy{q: q, p: p, branches: src.branches, tgt: tgt, pos: pos})
+	w.copies = append(w.copies, pendingCopy{q: q, p: p, branches: src.branches, origins: src.origins, tgt: tgt, pos: pos, wr: wr, node: node})
 }
 
 // A pendingCopy is a copy of input p into result q whose alternatives
 // (branches: each alternative of the source at p, refined by the patterns the
-// copy is written under) await the compatibility judgement against the target
-// at q.
+// copy is written under; origins: each one's index among the source's
+// alternatives at p) await the compatibility judgement against the target at
+// q. wr is the copy's write and node its program node, which the judgement
+// completes with the target alternatives the copy lands in.
 type pendingCopy struct {
 	q, p     cue.Path
 	branches []cue.Value
+	origins  []int
 	tgt      cue.Value
 	pos      token.Pos
+	wr       *write
+	node     *lensir.Copy
 }
 
 // checkCopies judges every copy by compat.Check clause 1: each alternative of
 // the source at p, closed, must be accepted by the target at q, closed. An
 // alternative a pattern has fixed to a constant is an instance, and is checked
-// as one.
+// as one. Where the target is a disjunction, compat matches each source
+// alternative to a target alternative that accepts it; a clean copy into a
+// disjunction of structs or lists records which, for the program and for
+// conflicts with other writes of the path.
 func (w *walker) checkCopies() {
 	for _, c := range w.copies {
 		subj := w.subject(c.q)
+		clean := true
 		for _, b := range c.branches {
 			if compat.ConstantTarget(b) {
 				if err := c.tgt.Unify(b).Validate(cue.Concrete(true)); err != nil {
+					clean = false
 					w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleCopyNarrowed,
 						Detail: fmt.Sprintf("copies %s, which may be %s, which the target schema does not accept: %s", w.inputRef(c.p), fmtv(b), errMsg(err)), Pos: c.pos})
 				}
@@ -826,6 +861,7 @@ func (w *walker) checkCopies() {
 					// The lens writes the field itself; coverage decides.
 					continue
 				}
+				clean = false
 				verdict, rule := NotTotal, RuleCopyNarrowed
 				if f.Verdict == compat.Unknown {
 					verdict, rule = Unknown, RuleUnknownCopy
@@ -834,7 +870,64 @@ func (w *walker) checkCopies() {
 					Detail: fmt.Sprintf("copies %s, %s", w.inputRef(c.p), compatDetail(f)), Pos: c.pos})
 			}
 		}
+		if clean {
+			w.copyAlternatives(c)
+		}
 	}
+}
+
+// copyAlternatives records, for a clean copy into a disjunction of structs or
+// lists, the target alternative each copied source alternative lands in: the
+// first that accepts it on its own, which is how compat covered it.
+func (w *walker) copyAlternatives(c pendingCopy) {
+	alts := compat.Branches(c.tgt)
+	if !compositeDisjunction(alts) {
+		return
+	}
+	seen := map[int]bool{}
+	for i, b := range c.branches {
+		to := -1
+		for j, alt := range alts {
+			if acceptsAlternative(w.ctx, alt, b) {
+				to = j
+				break
+			}
+		}
+		if to < 0 {
+			w.ir.failf("%s copies %s, whose alternative %s compat accepted without one alternative of the target accepting it", w.subject(c.q), w.inputRef(c.p), fmtv(b))
+			return
+		}
+		c.node.Alts = append(c.node.Alts, lensir.Alt{From: c.origins[i], To: to})
+		if !seen[to] {
+			seen[to] = true
+			c.wr.alts = append(c.wr.alts, to)
+		}
+	}
+}
+
+// compositeDisjunction reports whether alts are the alternatives of a
+// disjunction with a struct or list among them: one a backend lowers to a
+// tagged union, whose member a write must name.
+func compositeDisjunction(alts []cue.Value) bool {
+	if len(alts) <= 1 {
+		return false
+	}
+	for _, a := range alts {
+		if a.IncompleteKind()&(cue.StructKind|cue.ListKind) != 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// acceptsAlternative reports whether the single target alternative alt accepts
+// every instance of the source alternative b: an instance, where b is a
+// constant, or compat's clause 1.
+func acceptsAlternative(ctx *cue.Context, alt, b cue.Value) bool {
+	if compat.ConstantTarget(b) {
+		return alt.Unify(b).Validate(cue.Concrete(true)) == nil
+	}
+	return len(compat.Check(ctx, b, alt).Instances().Findings) == 0
 }
 
 // compatDetail renders a compat finding about a copied value as a clause about
@@ -850,17 +943,214 @@ func compatDetail(f compat.Finding) string {
 	return fmt.Sprintf("whose %s %s (compat rule %s)", f.Path, detail, f.Rule)
 }
 
-// composite walks a struct literal written at q.
+// composite walks a struct literal written at q. Where the target at q is a
+// disjunction, the literal is proven against one of its alternatives
+// (compositeDisjunct).
 func (w *walker) composite(e *ast.StructLit, q cue.Path, gs []pattern, pos token.Pos) {
-	w.record(&write{q: q, patterns: gs, kind: compositeW, text: "{...}", pos: pos})
-	if tgt, ok := w.targetAt(q, pos); ok && tgt.IncompleteKind()&cue.StructKind == 0 {
+	tgt, ok := w.targetAt(q, pos)
+	if ok && tgt.IncompleteKind()&cue.StructKind == 0 {
+		w.record(&write{q: q, patterns: gs, kind: compositeW, text: structText, pos: pos})
 		w.add(Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleLiteralNotInstance,
 			Detail: fmt.Sprintf("is a struct, where the target schema wants %s", tgt.IncompleteKind()), Pos: pos})
 		return
 	}
+	if ok {
+		if alts := compat.Branches(tgt); len(alts) > 1 {
+			w.compositeDisjunct(e, q, gs, pos, alts)
+			return
+		}
+	}
+	w.record(&write{q: q, patterns: gs, kind: compositeW, text: structText, pos: pos})
 	w.ir.push()
 	w.decls(e.Elts, q, gs, pos)
 	w.ir.emit(&lensir.Wrap{To: w.ir.path(q), Kind: lensir.StructWrap, Children: w.ir.pop()})
+}
+
+// compositeDisjunct walks a struct literal written at q, where the target at
+// q is the disjunction with alternatives alts. Translate closes the result
+// against the target, so the literal must be an instance of one alternative,
+// and the proof checks it against that alternative alone. Which one is read
+// from the literal's own declarations:
+//
+//   - fields, all unconditional: the alternatives that declare every label
+//     the literal writes and accept every scalar literal it writes directly
+//     are candidates; one candidate is the alternative, none is a
+//     counterexample, and several leave the choice to the instance;
+//   - comprehensions only: each arm's struct is a literal at q in its own
+//     right, under the arm's patterns, proven the same way, so that arms may
+//     write different alternatives; the literal itself then writes nothing,
+//     and the arms must give q an alternative on every instance;
+//   - embeddings only (a copy, or a struct reached by reference): each is
+//     written at q and proven as what it is;
+//   - a mixture of these is not proven: what the instance's struct is made of
+//     depends on which arms hold.
+func (w *walker) compositeDisjunct(e *ast.StructLit, q cue.Path, gs []pattern, pos token.Pos, alts []cue.Value) {
+	subj := w.subject(q)
+	var fields []*ast.Field
+	var arms []*ast.Comprehension
+	embeds := 0
+	for _, d := range e.Elts {
+		switch x := d.(type) {
+		case *ast.Field:
+			name, _, err := ast.LabelName(x.Label)
+			if err != nil || strings.HasPrefix(name, "#") || strings.HasPrefix(name, "_") || x.Constraint == token.OPTION || x.Constraint == token.NOT {
+				continue
+			}
+			fields = append(fields, x)
+		case *ast.Comprehension:
+			arms = append(arms, x)
+		case *ast.EmbedDecl, ast.Expr:
+			embeds++
+		}
+	}
+	kinds := 0
+	for _, n := range []int{len(fields), len(arms), embeds} {
+		if n > 0 {
+			kinds++
+		}
+	}
+	switch {
+	case kinds > 1:
+		w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownTargetConstraint,
+			Detail: fmt.Sprintf("is a struct written to %s, a disjunction in the target schema, mixing fields with conditional fields or embeddings, so which alternative it is an instance of depends on the instance; write it as one struct per alternative, each with its fields unconditional, in its own arm", subj), Pos: pos})
+		w.record(&write{q: q, patterns: gs, kind: compositeW, text: structText, pos: pos})
+		w.altPins = append(w.altPins, altPin{q: q})
+		defer w.unpin()
+		w.ir.push()
+		w.decls(e.Elts, q, gs, pos)
+		w.ir.emit(&lensir.Wrap{To: w.ir.path(q), Kind: lensir.StructWrap, Children: w.ir.pop()})
+	case len(arms) > 0:
+		w.record(&write{q: q, patterns: gs, kind: armsW, text: structText, pos: pos})
+		w.ir.push()
+		for _, x := range arms {
+			ngs, cpos, ok := w.armPatterns(x, q, gs, pos)
+			if !ok {
+				continue
+			}
+			w.ir.push()
+			switch s, isStruct := x.Value.(*ast.StructLit); {
+			case isStruct && onlyEmbeddings(s):
+				// The arm embeds a copy, or a struct reached by reference: each
+				// is written at q, as decls walks an arm's struct.
+				w.decls(s.Elts, q, ngs, cpos)
+			case isStruct:
+				w.composite(s, q, ngs, cpos)
+			default:
+				for _, c := range w.tree.Conjuncts(x.Value) {
+					w.conjunct(c, q, ngs, cpos)
+				}
+			}
+			w.ir.branch(ngs[len(gs):])
+		}
+		w.ir.emit(&lensir.Wrap{To: w.ir.path(q), Kind: lensir.StructWrap, Children: w.ir.pop()})
+	case embeds > 0:
+		w.ir.push()
+		w.decls(e.Elts, q, gs, pos)
+		w.ir.emit(&lensir.Wrap{To: w.ir.path(q), Kind: lensir.StructWrap, Children: w.ir.pop()})
+	default:
+		wr := &write{q: q, patterns: gs, kind: compositeW, text: structText, pos: pos}
+		w.record(wr)
+		i, ok := w.chooseAlternative(fields, q, alts, pos)
+		if !ok {
+			w.altPins = append(w.altPins, altPin{q: q})
+		} else {
+			w.altPins = append(w.altPins, altPin{q: q, v: alts[i]})
+			wr.tgt, wr.alts = alts[i], []int{i}
+		}
+		defer w.unpin()
+		w.ir.push()
+		w.decls(e.Elts, q, gs, pos)
+		wrap := &lensir.Wrap{To: w.ir.path(q), Kind: lensir.StructWrap, Children: w.ir.pop()}
+		if ok {
+			wrap.Alt = &i
+		}
+		w.ir.emit(wrap)
+	}
+}
+
+// altPin pins the target beneath result path q to the alternative v of a
+// disjunction there, or, where v does not exist, to nothing.
+type altPin struct {
+	q cue.Path
+	v cue.Value
+}
+
+func (w *walker) unpin() {
+	w.altPins = w.altPins[:len(w.altPins)-1]
+}
+
+// onlyEmbeddings reports whether the struct literal s declares nothing but
+// embeddings.
+func onlyEmbeddings(s *ast.StructLit) bool {
+	for _, d := range s.Elts {
+		switch d.(type) {
+		case *ast.EmbedDecl, ast.Expr:
+		default:
+			return false
+		}
+	}
+	return len(s.Elts) > 0
+}
+
+// chooseAlternative picks, among the alternatives alts of the disjunctive
+// target at q, the one the struct literal with the given fields is an
+// instance of: the alternative declaring every label the literal writes and
+// accepting every scalar literal it writes directly. Several candidates, or
+// none, are reported, and nothing is chosen.
+func (w *walker) chooseAlternative(fields []*ast.Field, q cue.Path, alts []cue.Value, pos token.Pos) (int, bool) {
+	subj := w.subject(q)
+	skeleton := w.ctx.CompileString("{}")
+	var labels []string
+	for _, f := range fields {
+		name, _, _ := ast.LabelName(f.Label)
+		labels = append(labels, name)
+		conjs := w.tree.Conjuncts(f.Value)
+		if len(conjs) != 1 || w.syn.FromInput(conjs[0]) || conjs[0].Disjunction != nil {
+			continue
+		}
+		if lv, ok := w.literalValue(conjs[0].Expr); ok {
+			skeleton = skeleton.FillPath(cue.MakePath(cue.Str(name)), lv)
+		}
+	}
+	var candidates []int
+	var reasons []string
+	for i, alt := range alts {
+		if alt.IncompleteKind()&cue.StructKind == 0 {
+			reasons = append(reasons, fmt.Sprintf("%s is not a struct", fmtv(alt)))
+			continue
+		}
+		undeclared := ""
+		for _, name := range labels {
+			if _, _, ok := cuetil.DeclaredChild(w.ctx, alt, cue.Str(name)); !ok {
+				undeclared = name
+				break
+			}
+		}
+		if undeclared != "" {
+			reasons = append(reasons, fmt.Sprintf("%s does not declare %s", fmtv(alt), undeclared))
+			continue
+		}
+		if err := alt.Unify(skeleton).Validate(); err != nil {
+			reasons = append(reasons, fmt.Sprintf("%s rejects it: %s", fmtv(alt), errMsg(err)))
+			continue
+		}
+		candidates = append(candidates, i)
+	}
+	switch len(candidates) {
+	case 1:
+		return candidates[0], true
+	case 0:
+		w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleLiteralNotInstance,
+			Detail: fmt.Sprintf("is a struct that no alternative of %s in the target schema accepts: %s", subj, strings.Join(reasons, "; ")), Pos: pos})
+	default:
+		var names []string
+		for _, i := range candidates {
+			names = append(names, fmtv(alts[i]))
+		}
+		w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownTargetConstraint,
+			Detail: fmt.Sprintf("is a struct that fits several alternatives of %s in the target schema (%s), and the checker proves it against one; write a constant field that tells them apart", subj, strings.Join(names, ", ")), Pos: pos})
+	}
+	return 0, false
 }
 
 // list walks a list literal written at q: each element is written at its index.
@@ -1051,30 +1341,8 @@ func (w *walker) decls(decls []ast.Decl, q cue.Path, gs []pattern, pos token.Pos
 				w.conjunct(c, cq, gs, cpos)
 			}
 		case *ast.Comprehension:
-			cpos := pos
-			if p := x.Pos(); p.IsValid() {
-				cpos = p
-			}
-			ngs := append([]pattern(nil), gs...)
-			walkable := true
-			for _, cl := range x.Clauses {
-				switch c := cl.(type) {
-				case *ast.IfClause:
-					g, ok := w.parsePattern(c.Condition)
-					if !ok {
-						w.add(Finding{Path: w.subject(q), Verdict: Unknown, Rule: RuleUnknownPattern,
-							Detail: fmt.Sprintf("has fields under %s, which is not a pattern: a presence test (p != _|_), an equality (p == c) or a type test ((p & T) != _|_) on an input field, or a conjunction (&&) of these", text(c.Condition)), Pos: cpos})
-						g = []pattern{{root: w.from, kind: opaque, text: text(c.Condition)}}
-					}
-					w.checkPatterns(g, ngs, w.subject(q), cpos)
-					ngs = append(ngs, g...)
-				case *ast.ForClause:
-					w.add(Finding{Path: w.subject(q), Verdict: Unknown, Rule: RuleUnknownDynamic,
-						Detail: fmt.Sprintf("has fields produced by a for clause over %s, so which fields exist depends on the instance; write each field", text(c.Source)), Pos: cpos})
-					walkable = false
-				}
-			}
-			if !walkable {
+			ngs, cpos, ok := w.armPatterns(x, q, gs, pos)
+			if !ok {
 				continue
 			}
 			w.ir.push()
@@ -1110,6 +1378,37 @@ func (w *walker) embedded(x ast.Expr) []ast.Expr {
 	return out
 }
 
+// armPatterns reads the clauses of the comprehension x, declared at q under
+// patterns gs: the patterns its arm is under (gs, then its own), the position
+// to report at, and whether the arm can be walked (a for clause produces
+// fields the instance decides).
+func (w *walker) armPatterns(x *ast.Comprehension, q cue.Path, gs []pattern, pos token.Pos) ([]pattern, token.Pos, bool) {
+	cpos := pos
+	if p := x.Pos(); p.IsValid() {
+		cpos = p
+	}
+	ngs := append([]pattern(nil), gs...)
+	walkable := true
+	for _, cl := range x.Clauses {
+		switch c := cl.(type) {
+		case *ast.IfClause:
+			g, ok := w.parsePattern(c.Condition)
+			if !ok {
+				w.add(Finding{Path: w.subject(q), Verdict: Unknown, Rule: RuleUnknownPattern,
+					Detail: fmt.Sprintf("has fields under %s, which is not a pattern: a presence test (p != _|_), an equality (p == c) or a type test ((p & T) != _|_) on an input field, or a conjunction (&&) of these", text(c.Condition)), Pos: cpos})
+				g = []pattern{{root: w.from, kind: opaque, text: text(c.Condition)}}
+			}
+			w.checkPatterns(g, ngs, w.subject(q), cpos)
+			ngs = append(ngs, g...)
+		case *ast.ForClause:
+			w.add(Finding{Path: w.subject(q), Verdict: Unknown, Rule: RuleUnknownDynamic,
+				Detail: fmt.Sprintf("has fields produced by a for clause over %s, so which fields exist depends on the instance; write each field", text(c.Source)), Pos: cpos})
+			walkable = false
+		}
+	}
+	return ngs, cpos, walkable
+}
+
 // targetLookup is what the target schema has at a result path.
 type targetLookup struct {
 	v  cue.Value
@@ -1120,7 +1419,8 @@ type targetLookup struct {
 
 // targetAt returns the target schema's value at result path q, reporting at pos
 // a path the target does not declare, or one beneath a disjunction, which the
-// checker does not descend into.
+// checker descends into only through a struct literal proven against one of
+// its alternatives (compositeDisjunct).
 func (w *walker) targetAt(q cue.Path, pos token.Pos) (cue.Value, bool) {
 	l := w.lookupTarget(q)
 	if l.finding != nil {
@@ -1131,7 +1431,21 @@ func (w *walker) targetAt(q cue.Path, pos token.Pos) (cue.Value, bool) {
 	return l.v, l.ok
 }
 
+// lookupTarget looks up result path q in the target schema, or, beneath a
+// struct literal matched to an alternative of a disjunctive target, in that
+// alternative (altPins). Lookups from the schema are memoized; those beneath
+// a pin are not, since the pin is scoped to the literal's walk.
 func (w *walker) lookupTarget(q cue.Path) targetLookup {
+	for i := len(w.altPins) - 1; i >= 0; i-- {
+		pin := w.altPins[i]
+		if !cuetil.PathHasPrefix(q, pin.q) {
+			continue
+		}
+		if !pin.v.Exists() {
+			return targetLookup{}
+		}
+		return w.descendTarget(pin.v, q, len(pin.q.Selectors()))
+	}
 	key := q.String()
 	if l, ok := w.targets[key]; ok {
 		return l
@@ -1139,40 +1453,45 @@ func (w *walker) lookupTarget(q cue.Path) targetLookup {
 	if v, ok := w.pinned[key]; ok {
 		return targetLookup{v: v, ok: true}
 	}
-	cur := w.target
+	l := w.descendTarget(w.target, q, 0)
+	w.targets[key] = l
+	return l
+}
+
+// descendTarget selects the selectors of q from index from onward, starting at
+// root, the target's value at q's first from selectors.
+func (w *walker) descendTarget(root cue.Value, q cue.Path, from int) targetLookup {
+	cur := root
 	sels := q.Selectors()
-	for i, sel := range sels {
+	for i := from; i < len(sels); i++ {
 		if cur.IncompleteKind() == cue.TopKind {
 			// _ declares everything beneath it.
 			break
 		}
 		if alts := compat.Branches(cur); len(alts) > 1 {
 			prefix := cue.MakePath(sels[:i]...)
-			l := targetLookup{finding: &Finding{Path: w.subject(q), Verdict: Unknown, Rule: RuleUnknownTargetConstraint,
-				Detail: fmt.Sprintf("is written beneath %s, which is a disjunction in the target schema; the checker descends only into a single struct or list, so write %s as one value", w.subject(prefix), w.subject(prefix))}}
-			w.targets[key] = l
-			return l
+			return targetLookup{finding: &Finding{Path: w.subject(q), Verdict: Unknown, Rule: RuleUnknownTargetConstraint,
+				Detail: fmt.Sprintf("is written beneath %s, which is a disjunction in the target schema; the checker proves a struct literal written at %s against one of its alternatives, and descends into nothing else beneath it", w.subject(prefix), w.subject(prefix))}}
 		}
-		next, _, ok := cuetil.DeclaredChild(w.ctx, cur, sel)
+		next, _, ok := cuetil.DeclaredChild(w.ctx, cur, sels[i])
 		if !ok {
-			l := targetLookup{finding: &Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleTargetUndeclared,
+			return targetLookup{finding: &Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleTargetUndeclared,
 				Detail: "is not declared by the target schema"}}
-			w.targets[key] = l
-			return l
 		}
 		cur = next
 	}
-	l := targetLookup{v: cur, ok: true}
-	w.targets[key] = l
-	return l
+	return targetLookup{v: cur, ok: true}
 }
 
 // sourceLookup is what the source schema has at an input path, refined by the
 // patterns it is read under.
 type sourceLookup struct {
 	// branches are the alternatives the value may be, each non-disjunctive,
-	// as refined by the patterns it is read under.
+	// as refined by the patterns it is read under, and origins each one's
+	// index among the alternatives the source declares at the path, in order
+	// (nested disjunctions flattened).
 	branches []cue.Value
+	origins  []int
 	// whole is the value as declared, one per alternative of its parents,
 	// and refined reports whether a pattern narrowed it (so branches is the
 	// finer account).
@@ -1240,8 +1559,8 @@ func (w *walker) lookupSource(p cue.Path, gs []pattern) sourceLookup {
 	for _, v := range cur {
 		leaves = append(leaves, compat.Branches(v)...)
 	}
-	branches, refined := refine(leaves, p, gs)
-	return sourceLookup{branches: branches, whole: cur, refined: refined, declared: true, present: present, optional: anyOptional, why: why}
+	branches, origins, refined := w.refine(leaves, p, gs)
+	return sourceLookup{branches: branches, origins: origins, whole: cur, refined: refined, declared: true, present: present, optional: anyOptional, why: why}
 }
 
 // presentIn reports whether the child sel, declared by parent with selector
@@ -1272,7 +1591,7 @@ func presentIn(parent cue.Value, sel, csel cue.Selector) (string, bool) {
 func (w *walker) writesAt(q cue.Path) bool {
 	key := q.String()
 	for _, wr := range w.writes {
-		if wr.q.String() == key {
+		if wr.kind != armsW && wr.q.String() == key {
 			return true
 		}
 	}
@@ -1281,31 +1600,59 @@ func (w *walker) writesAt(q cue.Path) bool {
 
 // checkExhaustive checks that every required target field is written on every
 // path through the lens: at the root, and beneath every struct the lens
-// writes, under the patterns it writes it.
+// writes, under the patterns it writes it. A struct literal matched to an
+// alternative of a disjunctive target owes that alternative's required
+// fields; one whose arms each write an alternative owes the path an
+// alternative on every instance.
 func (w *walker) checkExhaustive() {
 	type parent struct {
 		q        cue.Path
 		patterns []pattern
 		pos      token.Pos
 		isCopy   bool
+		tgt      cue.Value
+		arms     bool
 	}
 	parents := []parent{{q: cue.MakePath(), pos: w.resultPos(cue.MakePath(), token.NoPos)}}
 	for _, wr := range w.writes {
 		switch wr.kind {
 		case compositeW:
-			parents = append(parents, parent{q: wr.q, patterns: wr.patterns, pos: wr.pos})
+			parents = append(parents, parent{q: wr.q, patterns: wr.patterns, pos: wr.pos, tgt: wr.tgt})
 		case copyW:
 			parents = append(parents, parent{q: wr.q, patterns: wr.patterns, pos: wr.pos, isCopy: true})
+		case armsW:
+			parents = append(parents, parent{q: wr.q, patterns: wr.patterns, pos: wr.pos, arms: true})
 		}
 	}
 	done := map[string]bool{}
 	for _, p := range parents {
-		key := fmt.Sprintf("%s|%s|%v", p.q, patternsKey(p.patterns), p.isCopy)
+		key := fmt.Sprintf("%s|%s|%v|%v", p.q, patternsKey(p.patterns), p.isCopy, p.arms)
 		if done[key] {
 			continue
 		}
 		done[key] = true
+		if p.arms {
+			if w.requiredByParent(p.q) {
+				// The enclosing struct's check asks the same question of the
+				// same writes.
+				continue
+			}
+			cands, written := w.candidates(p.patterns, p.q)
+			switch {
+			case !written:
+				w.add(Finding{Path: w.subject(p.q), Verdict: NotTotal, Rule: RuleRequiredNotWritten,
+					Detail: "is a disjunction in the target schema, and the lens writes none of its alternatives" + underPatterns(p.patterns), Pos: p.pos})
+			case w.covers(cands):
+			default:
+				w.add(Finding{Path: w.subject(p.q), Verdict: Unknown, Rule: RuleUnknownExhaustive,
+					Detail: fmt.Sprintf("is a disjunction in the target schema, and is given an alternative only under %s, which the checker cannot show cover every instance%s; write an alternative unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field", describePatternSets(cands), underPatterns(p.patterns)), Pos: p.pos})
+			}
+			continue
+		}
 		l := w.lookupTarget(p.q)
+		if p.tgt.Exists() {
+			l = targetLookup{v: p.tgt, ok: true}
+		}
 		if !l.ok || len(compat.Branches(l.v)) > 1 || l.v.IncompleteKind() != cue.StructKind {
 			continue
 		}
@@ -1344,6 +1691,22 @@ func underPatterns(gs []pattern) string {
 	return " under " + patternsString(gs)
 }
 
+// requiredByParent reports whether result path q is a required field of a
+// single struct in the target, so that checkExhaustive demands it of every
+// instance from the struct's side.
+func (w *walker) requiredByParent(q cue.Path) bool {
+	sels := q.Selectors()
+	if len(sels) == 0 {
+		return false
+	}
+	l := w.lookupTarget(cue.MakePath(sels[:len(sels)-1]...))
+	if !l.ok || len(compat.Branches(l.v)) > 1 || l.v.IncompleteKind() != cue.StructKind {
+		return false
+	}
+	child, csel, ok := cuetil.DeclaredChild(w.ctx, l.v, sels[len(sels)-1])
+	return ok && csel.IsString() && compat.FormOf(csel, child) == compat.Required
+}
+
 // candidates returns, for each write that gives result path cq a value where
 // the enclosing write's patterns gs hold, the patterns it still needs beyond gs.
 // A copy at an ancestor of cq whose source declares the rest of the path gives
@@ -1353,6 +1716,8 @@ func (w *walker) candidates(gs []pattern, cq cue.Path) (cands [][]pattern, writt
 	for _, wr := range w.writes {
 		patterns := wr.patterns
 		switch {
+		case wr.kind == armsW:
+			continue
 		case wr.q.String() == cq.String():
 		case wr.kind == copyW && cuetil.PathHasPrefix(cq, wr.q):
 			var ok bool
@@ -1393,16 +1758,22 @@ func (w *walker) copyChildPatterns(cw *write, rel cue.Path) ([]pattern, bool) {
 // whose result is their unification: a copy and a constant, two copies of
 // different paths, a constant and a computed value. Two struct literals merge,
 // and a copy of a struct beside a struct literal is judged by the children
-// they share.
+// they share; but at a disjunctive target, two writes that may produce
+// different alternatives merge into an instance of neither.
 func (w *walker) checkConflicts() {
-	all := append([]*write(nil), w.writes...)
+	var all []*write
+	for _, wr := range w.writes {
+		if wr.kind != armsW {
+			all = append(all, wr)
+		}
+	}
 	// Children a copy gives implicitly, where the lens also writes them.
 	for _, cw := range w.writes {
 		if cw.kind != copyW {
 			continue
 		}
 		for _, ew := range w.writes {
-			if ew.q.String() == cw.q.String() || !cuetil.PathHasPrefix(ew.q, cw.q) {
+			if ew.kind == armsW || ew.q.String() == cw.q.String() || !cuetil.PathHasPrefix(ew.q, cw.q) {
 				continue
 			}
 			rel := cuetil.TrimPathPrefix(ew.q, cw.q)
@@ -1428,12 +1799,18 @@ func (w *walker) checkConflicts() {
 		for i := 0; i < len(ws); i++ {
 			for j := i + 1; j < len(ws); j++ {
 				a, b := ws[i], ws[j]
+				if a.kind == copyW && b.kind == copyW && a.src.String() == b.src.String() {
+					continue
+				}
+				if a.alts != nil && b.alts != nil && !sameAlternative(a.alts, b.alts) && !patternsDisjoint(a.patterns, b.patterns) {
+					w.add(Finding{Path: w.subject(a.q), Verdict: NotTotal, Rule: RuleWriteConflict,
+						Detail: fmt.Sprintf("is written as %s, an instance of alternative %s of the target schema's disjunction, and as %s, an instance of alternative %s, and the two unify into an instance of neither; write the field once per instance", a.text, altList(a.alts), b.text, altList(b.alts)), Pos: b.pos})
+					continue
+				}
 				switch {
 				case a.kind == compositeW && b.kind == compositeW:
 					continue
 				case (a.kind == compositeW && b.kind == copyW) || (a.kind == copyW && b.kind == compositeW):
-					continue
-				case a.kind == copyW && b.kind == copyW && a.src.String() == b.src.String():
 					continue
 				case a.kind == b.kind && a.text == b.text:
 					continue
@@ -1445,6 +1822,20 @@ func (w *walker) checkConflicts() {
 			}
 		}
 	}
+}
+
+// sameAlternative reports whether two writes of a disjunctive target produce
+// one and the same alternative.
+func sameAlternative(a, b []int) bool {
+	return len(a) == 1 && len(b) == 1 && a[0] == b[0]
+}
+
+func altList(alts []int) string {
+	ss := make([]string, 0, len(alts))
+	for _, a := range alts {
+		ss = append(ss, strconv.Itoa(a))
+	}
+	return strings.Join(ss, " or ")
 }
 
 // walkLacunas checks each lacuna the lens declares: its condition is a pattern,

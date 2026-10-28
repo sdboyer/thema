@@ -1,0 +1,10 @@
+# a disjunction conjoined with a struct: each alternative is unified with the
+# rest, and compared on its own
+-- old.cue --
+s: {a: int} | {b: int}
+-- new.cue --
+s: ({a: int} | {b: int} | {c: int}) & {d?: string}
+-- out --
+unknown
+s is now {a: int} | {b: int} | {c: int}, no single alternative of which covers the prior alternative {a: int}; the checker does not combine alternatives (rule unknown-disjunction) @ new.cue:1:1
+s is now {a: int} | {b: int} | {c: int}, no single alternative of which covers the prior alternative {b: int}; the checker does not combine alternatives (rule unknown-disjunction) @ new.cue:1:1

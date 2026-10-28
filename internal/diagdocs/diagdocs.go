@@ -35,6 +35,10 @@ func ErrorPage(p Page) string {
 		b.WriteString(p.Prose)
 		b.WriteString("\n\n")
 	}
+	if p.Info.Internal != "" {
+		fmt.Fprintf(&b, "This condition cannot arise when thema's checker is sound: %s.\n\n", p.Info.Internal)
+		b.WriteString("If thema reports it, the bug is in thema, not in the lineage or the data.\nPlease report it at https://github.com/sdboyer/thema/issues with the lineage\nand, for a translation, the instance.\n")
+	}
 	if len(p.Inputs) > 0 {
 		b.WriteString("## Example\n\n")
 		for _, f := range p.Inputs {

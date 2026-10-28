@@ -1,0 +1,12 @@
+# A struct literal at a disjunctive target that fits several alternatives: its
+# labels are declared by both and it writes no constant telling them apart.
+-- source.cue --
+n: int
+-- target.cue --
+o: {x: int} | {x: string}
+-- lens.cue --
+v0_0: _
+v1_0: {o: {x: v0_0.n}}
+-- out --
+unknown
+v1_0.o is a struct that fits several alternatives of v1_0.o in the target schema ({x: int}, {x: string}), and the checker proves it against one; write a constant field that tells them apart (rule unknown-target-constraint) @ lens.cue:2:8
