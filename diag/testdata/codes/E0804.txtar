@@ -1,0 +1,31 @@
+#op: playground
+#call: register-examples
+A playground deployment registers examples of its own beside thema's, and
+each must be complete and its own: an ID no other example has, a title, a
+category that is not one of thema's, and a kind, when given, that names the
+form its lineage is in. The examples operation lists the IDs and categories
+already taken. The other examples in the request are registered regardless.
+-- request.json --
+{"examples": [{"example": {"id": "exemplar/defaultchange", "title": "pet", "category": "Pets", "summary": "", "kind": "", "binds": true}, "lineage": {"normal": {"path": "lineage.cue", "text": "name: \"pet\"\nschemas: {\n\t\"0\": {\n\t\t\"0\": {\n\t\t\tschema: {\n\t\t\t\tname: string\n\t\t\t}\n\t\t}\n\t}\n}\n"}}}]}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0804",
+      "severity": "error",
+      "headline": "host example \"exemplar/defaultchange\" has the id of another example",
+      "help": [
+        "give every example an id of its own; the examples operation lists the ids already taken"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0804]: host example "exemplar/defaultchange" has the id of another example
+  |
+  = help: give every example an id of its own; the examples operation lists the ids already taken
