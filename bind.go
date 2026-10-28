@@ -52,8 +52,8 @@ type maybeLineage struct {
 	allv []SyntacticVersion
 
 	// programs holds the program built for each lens as checkLensTotality
-	// proves it (internal/lensir); nil where the check was skipped.
-	// programErr says why a total lens has no program.
+	// proves it (internal/lensir). programErr says why a total lens has no
+	// program.
 	programs   lensir.Programs
 	programErr error
 
@@ -163,7 +163,7 @@ func (ml *maybeLineage) checkGoValidity(cfg *bindConfig) error {
 		if err := ml.checkSchemaConstructs(sch.ref.LookupPath(pathSch), schemaAddr(sch.v)); err != nil {
 			return err
 		}
-		if previous != nil && !cfg.skipbuggychecks {
+		if previous != nil {
 			res := compat.Check(ml.rt.Context(), previous.def, sch.def)
 			if sch.v[1] == 0 && res.Compatible() {
 				// Major version change, should be backwards incompatible
@@ -813,9 +813,6 @@ func (ml *maybeLineage) checkReferences() error {
 // by the walk as a by-product of the proof; [LensPrograms] returns them. A
 // lens the IR cannot yet carry binds all the same, and the accessor says why
 // it has no program.
-//
-// SkipBuggyChecks does not skip it: translation relies on every lens being
-// total, so an unproven lens does not bind, whatever the caller asks.
 func (ml *maybeLineage) checkLensTotality() error {
 	byVersion := make(map[SyntacticVersion]*schemaDef, len(ml.schlist))
 	for _, sch := range ml.schlist {
