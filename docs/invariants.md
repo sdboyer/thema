@@ -444,7 +444,11 @@ so arms must be exhaustive *and* agree where they overlap.
 **Lists mapped element by element.** A list may be written as one
 comprehension over a source list, `[for item in v0_0.items {...}]`. The body
 is proven as a lens from the source list's element to the target list's, with
-`item` standing for the element, and every rule above applies to it. The list
+`item` standing for the element, and every rule above applies to it. A body
+that embeds one reference, `[for item in v0_0.users {item.id}]`, copies it as
+the whole element, under the rule for copies: the element must always have it
+(`source-absent` otherwise), and the target's element must accept every value
+of it. The list
 has one element per element of the source, so the target list's length bounds
 must accept the source list's. A comprehension that filters (`if`), nests
 `for` clauses, or sits beside other elements is not proven; a comprehension
