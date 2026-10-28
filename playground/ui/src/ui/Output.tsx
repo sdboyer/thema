@@ -8,7 +8,7 @@ import type {
   ValidateResponse,
 } from "../api/types";
 import { Diagnostics } from "./Diagnostics";
-import { DocLink } from "./docs";
+import { DocLink, lacunaTypeDoc } from "./docs";
 import { Editor } from "./Editor";
 
 export type Outcome =
@@ -133,7 +133,10 @@ function Lacunas({ resp }: { resp: TranslateResponse }) {
               <td>
                 {s.from.join(".")} → {s.to.join(".")}
               </td>
-              <td>{l.type}</td>
+              <td>
+                {l.type}
+                <DocLink doc={lacunaTypeDoc(l.type)} />
+              </td>
               <td>{[...(l.sourceFields ?? []), ...(l.targetFields ?? [])].map((f) => f.path).join(", ")}</td>
               <td>{l.message}</td>
             </tr>

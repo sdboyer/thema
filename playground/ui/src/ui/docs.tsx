@@ -10,10 +10,9 @@ export function themaDoc(path: string): string {
   return docsBase + path;
 }
 
-// goDoc is a package's page on pkg.go.dev. pkg.go.dev resolves versions, not
-// commits, so this is the latest; the Go API it describes changes slowly.
-function goDoc(pkg: string, symbol = ""): string {
-  return `https://pkg.go.dev/github.com/sdboyer/thema${pkg ? "/" + pkg : ""}${symbol ? "#" + symbol : ""}`;
+// ref is the URL of an entry in thema's reference docs, docs/reference/.
+function ref(page: string, anchor = ""): string {
+  return themaDoc(`reference/${page}${anchor ? "#" + anchor : ""}`);
 }
 
 export interface Doc {
@@ -21,19 +20,23 @@ export interface Doc {
   title: string;
 }
 
-// docs are the terms the page links to an explanation of. Operations are
-// keyed by their names.
+// docs are the terms the page links to their reference entries. Operations
+// are keyed by their names.
 export const docs = {
-  bind: { href: themaDoc("invariants.md"), title: "What binding checks of a lineage" },
-  forms: { href: themaDoc("authoring-form.md"), title: "The authoring form, and the normal form it compiles to" },
-  lacunas: { href: themaDoc("authoring-form.md#lacunas"), title: "Lacunas: what a lens reports it could not carry over exactly" },
-  "validate-any": { href: themaDoc("go-usage.md#search-by-validity"), title: "Finding the schemas data is an instance of" },
-  translate: { href: themaDoc("go-usage.md#translate"), title: "Translating an instance to another schema, through the lenses" },
-  hydrate: { href: goDoc("", "Instance.Hydrate"), title: "Hydrate: fill in the schema's defaults" },
-  dehydrate: { href: goDoc("", "Instance.Dehydrate"), title: "Dehydrate: remove values equal to the schema's defaults" },
-  openapi: { href: goDoc("encoding/openapi"), title: "Generating OpenAPI from a schema" },
-  jsonschema: { href: goDoc("encoding/jsonschema"), title: "Generating JSON Schema from a schema" },
-  typescript: { href: goDoc("encoding/typescript"), title: "Generating TypeScript from a schema" },
+  lineage: { href: ref("lineage.md"), title: "Lineages" },
+  versions: { href: ref("lineage.md", "versions"), title: "Versions, minor and major" },
+  forms: { href: ref("lineage.md", "forms"), title: "The normal form and the authoring form" },
+  bind: { href: ref("lineage.md", "binding"), title: "Binding: what thema checks of a lineage" },
+  validate: { href: ref("operations.md", "validate"), title: "validate" },
+  "validate-any": { href: ref("operations.md", "validate-any"), title: "validate-any" },
+  translate: { href: ref("operations.md", "translate"), title: "translate" },
+  hydrate: { href: ref("operations.md", "hydrate"), title: "hydrate" },
+  dehydrate: { href: ref("operations.md", "dehydrate"), title: "dehydrate" },
+  openapi: { href: ref("codegen.md", "openapi"), title: "Generating OpenAPI" },
+  jsonschema: { href: ref("codegen.md", "json-schema"), title: "Generating JSON Schema" },
+  typescript: { href: ref("codegen.md", "typescript"), title: "Generating TypeScript" },
+  lacunas: { href: ref("lacunas.md"), title: "Lacunas" },
+  diagnostics: { href: themaDoc("errors/README.md"), title: "Diagnostic codes" },
 } satisfies Record<string, Doc>;
 
 export type Topic = keyof typeof docs;
@@ -42,11 +45,16 @@ export function hasDoc(name: string): name is Topic {
   return Object.hasOwn(docs, name);
 }
 
-// DocLink is the small ? beside a term, opening its explanation.
-export function DocLink({ topic }: { topic: Topic }) {
-  const d: Doc = docs[topic];
+// lacunaTypeDoc is the reference entry for a lacuna type.
+export function lacunaTypeDoc(type: string): Doc {
+  return { href: ref("lacunas.md", type.toLowerCase()), title: `The ${type} lacuna type` };
+}
+
+// DocLink is the small ? beside a term, opening its reference entry.
+export function DocLink(props: { topic: Topic } | { doc: Doc }) {
+  const d: Doc = "doc" in props ? props.doc : docs[props.topic];
   return (
-    <a class="doc-link" href={d.href} target="_blank" rel="noreferrer" title={d.title} aria-label={`About: ${d.title}`}>
+    <a class="doc-link" href={d.href} target="_blank" rel="noreferrer" title={d.title} aria-label={`Reference: ${d.title}`}>
       ?
     </a>
   );

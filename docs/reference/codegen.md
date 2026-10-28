@@ -1,0 +1,338 @@
+# Code generation
+
+This page is the reference for generating code from a lineage. Each generator except Go reads one schema of the lineage at a time. The Go generator reads the whole lineage, and binds one schema to a Go type only when asked to. The `thema lineage gen` command generates OpenAPI, JSON Schema and Go bindings. The `encoding/*` Go packages generate all four. The browser playground generates OpenAPI, JSON Schema and TypeScript. Every generator accepts a lineage in either the [authoring form](../authoring-form.md) or the normal form, except where its **Limits** say otherwise.
+
+The examples use the `ship` lineage from the playground's tour, with a minor version `1.1` added:
+
+```cue
+// history/0.0.thema
+Schema: {
+	firstfield: string
+}
+
+// history/1.0.thema (lenses omitted)
+Schema: {
+	firstfield:  string
+	secondfield: int
+}
+
+// 1.1.thema
+Schema: {
+	firstfield:  string
+	secondfield: int
+	size:        "small" | "medium" | "large" | *"medium"
+}
+```
+
+## OpenAPI
+
+Generates an OpenAPI 3.0 document whose `components.schemas` holds the schema as one object schema, plus one sibling schema for each definition the schema declares.
+
+**Takes**
+
+- A schema version, written `<major>.<minor>`. The default is the latest version.
+- An output format, `json` or `yaml`. The playground's default is `yaml`. The CLI's help text says its default is `yaml` too, but the CLI currently prints JSON unless `-f yaml` is given.
+
+**Output**
+
+- The top level has four fields: `openapi: "3.0.0"`, `info` (`title` is the lineage's name, `version` is the schema's version), `paths: {}`, and `components.schemas`.
+- The schema is named after the lineage, exactly as the lineage's name is written: lineage `ship` gives `components.schemas.ship`.
+- A definition declared in the schema, `#Point`, becomes its own entry, `components.schemas.Point`. A field whose value is the definition holds `$ref: "#/components/schemas/Point"` instead of the definition's contents.
+- `required` lists every field that is not optional, in declaration order. This includes fields that have a default.
+- An optional field, `name?: T`, appears under `properties` and not under `required`.
+- A default, `*v`, becomes `default: v`.
+- A disjunction of concrete values, `"a" | "b"`, becomes `enum`. The default value is listed first. A single concrete value becomes an `enum` with one entry.
+- A disjunction of types, `string | int`, becomes `oneOf`. A disjunction of definitions, `#A | #B`, becomes `type: object` with a `oneOf` of `$ref`s.
+- `T | null` becomes `T` with `nullable: true`.
+- Closed and open structs are generated the same way: no `additionalProperties`, whether or not the struct has `...`.
+- A pattern constraint, `[string]: T`, becomes `type: object` with `additionalProperties: T`.
+- `[...T]` becomes `type: array` with `items: T`.
+- Bounds become `minimum`, `maximum` and `exclusiveMinimum`/`exclusiveMaximum`. `=~"re"` becomes `pattern`. `int32` and similar types become `type: integer` with a matching `format`. `bytes` becomes `type: string`, `format: binary`. `_` becomes `{}`.
+- A doc comment on a field becomes its `description`.
+
+The `1.1` schema, as YAML:
+
+```yaml
+openapi: 3.0.0
+info:
+  title: ship
+  version: "1.1"
+paths: {}
+components:
+  schemas:
+    ship:
+      type: object
+      required:
+        - firstfield
+        - secondfield
+        - size
+      properties:
+        firstfield:
+          type: string
+        secondfield:
+          type: integer
+        size:
+          type: string
+          enum:
+            - medium
+            - small
+            - large
+          default: medium
+```
+
+**CLI**
+
+```
+thema lineage gen openapi -l <path> [-p <cue-path>] [-v <version>] [-f json|yaml]
+```
+
+- `-l`, `--lineage`: the lineage's directory or `.cue` file. The default is `.`.
+- `-p`, `--path`: the CUE path of the lineage within the file, if it is not the file's root.
+- `-v`, `--version`: the schema version. The default is the latest version.
+- `-f`, `--format`: `json`, `yaml` or `yml`.
+
+The command prints the document to stdout, with no trailing newline. An unrecognized format prints a message to stderr, prints nothing to stdout, and exits 0.
+
+**Go**
+
+- Package `github.com/sdboyer/thema/encoding/openapi`.
+- `openapi.GenerateSchema(sch thema.Schema, cfg *openapi.Config) (*ast.File, error)`. The result is CUE syntax (`cuelang.org/go/cue/ast`). Build it with `rt.Context().BuildFile(f)`, then marshal the value with `MarshalJSON`, or with `yaml.Marshal` from `cuelang.org/go/pkg/encoding/yaml`.
+- `cfg` may be nil. `openapi.Config` embeds CUE's `*openapi.Config` (`cuelang.org/go/encoding/openapi`), whose `NameFunc`, `DescriptionFunc` and `ExpandReferences` apply, and adds:
+  - `RootName`: the name of the schema's entry in `components.schemas`. The default is the lineage's name.
+  - `Subpath`: a path within the schema to generate instead of the whole schema. The entry is named after the path's last element.
+  - `Group`: generate each top-level field of the schema as its own entry, and no entry for the schema itself.
+  - `SplitSchema`: generate the schema and the lineage's join schema as separate entries.
+
+**Limits**
+
+- OpenAPI 3.0 only.
+- A schema that refers to a definition it declares fails to generate, with `Lineage: field not found: schemas`, when the lineage is in the authoring form or in a normal-form file that does not import `github.com/sdboyer/thema`. A normal-form file that imports thema and embeds `thema.Lineage` generates as described above.
+- Closed structs are not marked closed. Generated object schemas accept fields the CUE schema rejects.
+- A fixed-length list, `[A, B]`, becomes `items` holding a list of schemas. OpenAPI 3.0 requires `items` to be a single schema.
+- `null` alone, or `null` in a disjunction of more than one other type, becomes `nullable: true` on a schema that has no `type`. OpenAPI 3.0 ignores `nullable` without `type`.
+- A construct CUE's OpenAPI encoder cannot express fails the generation. The playground reports it as `E0701`.
+
+## JSON Schema
+
+Generates a JSON Schema (draft 4) of the schema, derived from the [OpenAPI](#openapi) output.
+
+**Takes**
+
+- A schema version, written `<major>.<minor>`. The default is the latest version.
+- An output format, `json` or `yaml`. The default is `json` in both the playground and the CLI.
+
+**Output**
+
+The output is currently the OpenAPI document described under [OpenAPI](#openapi), not a bare JSON Schema: `openapi: "3.0.0"`, `info`, `paths: {}`, and the schema under `components.schemas.<name>`. This wrapper is a known defect, and will be removed. Within it, each entry of `components.schemas` is rewritten for JSON Schema:
+
+- `"$schema": "http://json-schema.org/draft-04/schema#"` is added as the last key of each entry, including the entries for definitions.
+- `nullable: true` on a schema with a `type` is removed, and `"null"` is added to its `type`: `type: string, nullable: true` becomes `type: ["string", "null"]`.
+- The OpenAPI-only keywords `deprecated`, `discriminator`, `example`, `externalDocs`, `nullable`, `readOnly`, `writeOnly` and `xml` are removed from every schema that has a `type`.
+- Everything else is as in the OpenAPI output: names, `required`, optional fields, `default`, `enum`, `oneOf`, `$ref`, and the absence of `additionalProperties` on closed structs.
+
+The `1.1` schema, as JSON:
+
+```json
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "ship",
+    "version": "1.1"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "ship": {
+        "type": "object",
+        "required": [
+          "firstfield",
+          "secondfield",
+          "size"
+        ],
+        "properties": {
+          "firstfield": {
+            "type": "string"
+          },
+          "secondfield": {
+            "type": "integer"
+          },
+          "size": {
+            "type": "string",
+            "enum": [
+              "medium",
+              "small",
+              "large"
+            ],
+            "default": "medium"
+          }
+        },
+        "$schema": "http://json-schema.org/draft-04/schema#"
+      }
+    }
+  }
+}
+```
+
+**CLI**
+
+```
+thema lineage gen jsonschema -l <path> [-p <cue-path>] [-v <version>] [-f json|yaml]
+```
+
+- `-l`, `-p` and `-v` are as for [OpenAPI](#openapi).
+- `-f`, `--format`: `json`, `yaml` or `yml`. The default is `json`.
+
+Output, trailing newline and unrecognized formats behave as for OpenAPI.
+
+**Go**
+
+- Package `github.com/sdboyer/thema/encoding/jsonschema`.
+- `jsonschema.GenerateSchema(sch thema.Schema) (*ast.File, error)`. It takes no configuration; it calls `openapi.GenerateSchema` with a nil config. The result is CUE syntax, marshaled as for OpenAPI.
+
+**Limits**
+
+- Draft 4 only.
+- Every limit of the [OpenAPI](#openapi) generator applies.
+- `$ref`s point at `#/components/schemas/<name>`, which resolves only inside the OpenAPI wrapper.
+- A schema with no `type` (a `oneOf` of types, or `null` alone) is not rewritten, and keeps `nullable: true`. Nor are schemas under a `oneOf` or `allOf` of a schema that has a `type`, such as the branches of a disjunction of structs.
+- `#A | null` becomes `type: ["object", "null"]` with `allOf: [{$ref: ...}]`. The `allOf` rejects `null`, so the schema accepts no `null` value.
+
+## TypeScript
+
+Generates a TypeScript interface for the schema, and a constant holding the defaults of its top-level fields.
+
+**Takes**
+
+- A schema version, written `<major>.<minor>`. The default is the latest version.
+- No output format. The playground ignores a format given for TypeScript.
+
+**Output**
+
+- `export interface <Name>`, where `<Name>` is the lineage's name with its first letter in upper case: lineage `ship` gives `Ship`.
+- `export const default<Name>: Partial<<Name>>`, holding the default of each top-level field that has one. It is omitted when no top-level field has a default. A `[...T]` field has the default `[]`. Defaults of nested fields are not included.
+- The interface's fields are sorted by name. Fields of a nested struct are written inline, as an object type, in declaration order.
+- An optional field, `name?: T`, becomes `name?: T`.
+- A disjunction of concrete strings becomes a parenthesized union of string literals, in declaration order. The default is not marked in the type; it appears in `default<Name>`.
+- A disjunction of types becomes a parenthesized union: `string | int` becomes `(string | number)`, and `T | null` becomes `(T | null)`.
+- `int`, `float`, `number` and their sized variants become `number`. `bytes` becomes `string`. `_` becomes `unknown`. `[...T]` becomes `Array<T>`. `[A, B]` becomes `[A, B]`. `[string]: T` becomes `Record<string, T>`.
+- A definition the schema refers to is written inline wherever it is used. It becomes its own exported type only if it carries a `@cuetsy(kind="interface")`, `@cuetsy(kind="type")` or `@cuetsy(kind="enum")` attribute.
+- Closed and open structs are generated the same way; `...` adds nothing.
+- A doc comment on a field becomes a `/** ... */` comment above it.
+
+The `1.1` schema:
+
+```typescript
+export interface Ship {
+  firstfield: string;
+  secondfield: number;
+  size: ('small' | 'medium' | 'large');
+}
+
+export const defaultShip: Partial<Ship> = {
+  size: 'medium',
+};
+```
+
+**CLI**
+
+None. `thema lineage gen` has no TypeScript subcommand.
+
+**Go**
+
+- Package `github.com/sdboyer/thema/encoding/typescript`.
+- `typescript.GenerateTypes(sch thema.Schema, cfg *typescript.TypeConfig) (*ast.File, error)`. The result's type is in thema's internal `cuetsy/ts/ast` package; its `String()` method returns the TypeScript source.
+- `cfg` may be nil. `typescript.TypeConfig` has:
+  - `RootName`: the interface's name. The default is the lineage's name with its first letter in upper case.
+  - `RootAsType`: generate the schema as a type alias, `export type <Name>`, instead of an interface.
+  - `Group`: generate no type for the schema itself, only types for its fields that carry `@cuetsy` attributes.
+  - `CuetsyConfig`: passed to the underlying generator. Its type is in an internal package, so callers outside thema leave it nil.
+
+**Limits**
+
+- No CLI.
+- Bounds, patterns and other constraints are dropped: `int & >=0 & <10` becomes `number`, `=~"^[a-z]+$"` becomes `string`.
+- Defaults of nested fields are dropped.
+- Closed structs are not distinguished from open ones.
+- A construct the generator cannot express fails the generation. The playground reports it as `E0701`.
+
+## Go
+
+Generates Go bindings for the lineage: a Go file with a lineage factory, a function that loads and binds the lineage. It does not generate Go types for schemas.
+
+**Takes**
+
+- The whole lineage.
+- A schema version, only with `--bind-type`: the schema the Go type is bound to. The default is the latest version.
+- No output format.
+
+**Output**
+
+- A Go file in package `<name>`, the lineage's name in lower case, or the name given with `--pkgname`.
+- The CLI writes it to `<name>_bindings_gen.go` beside the lineage, where `<name>` is the lineage's name in lower case, and prints the file's path. With `--stdout` it prints the file instead.
+- The CLI begins the file with a `// THIS FILE IS GENERATED. EDITING IS FUTILE.` header. When it writes the file, the header names the embedded path.
+- `func Lineage(rt *thema.Runtime, opts ...thema.BindOption) (thema.Lineage, error)`, a `thema.LineageFactory`. It loads the lineage's CUE with `loadInstanceFor<Name>()`, looks up the `-p` path, and calls `thema.BindLineage`. `<Name>` is the lineage's name as written.
+- With `--suffix`, the factory is `Lineage<Title>`, where `<Title>` is the lineage's name with its first letter in upper case. With `--private`, it is prefixed with `do`.
+- With `--bind-type T`, `Lineage` returns `thema.ConvergentLineage[T]`: it calls a base factory, `baseLineage`, then `thema.BindType` with the schema chosen by `-v`. `T` itself is not generated.
+- When a `go.mod` or `cue.mod` is found in the lineage's directory or above it, the file also has `var themaFSFor<Name> embed.FS`, embedding the lineage's file (or `*.cue` for a directory); `getThemaFSFor<Name>()`, which wraps it with `load.AsModFS`; and `loadInstanceFor<Name>()`, which calls `load.InstanceWithThema`. Otherwise, and always with `--stdout`, `loadInstanceFor<Name>()` must be written by hand in another file of the package.
+
+Generated from the normal form of `ship` (`internal/examples/ship.cue`, lineage name `Ship`, at path `lin`), inside a Go module, abridged:
+
+```go
+func Lineage(rt *thema.Runtime, opts ...thema.BindOption) (thema.Lineage, error) {
+	var inst *build.Instance
+	var err error
+
+	inst, err = loadInstanceForShip()
+	if err != nil {
+		return nil, err
+	}
+
+	raw := rt.Context().BuildInstance(inst)
+	raw = raw.LookupPath(cue.ParsePath("lin"))
+
+	return thema.BindLineage(raw, rt, opts...)
+}
+
+var _ thema.LineageFactory = Lineage
+
+//go:embed ship.cue
+var themaFSForShip embed.FS
+
+func getThemaFSForShip() fs.FS {
+	return load.AsModFS(themaFSForShip, "example.com/gm")
+}
+
+func loadInstanceForShip() (*build.Instance, error) {
+	return load.InstanceWithThema(getThemaFSForShip(), ".")
+}
+```
+
+**CLI**
+
+```
+thema lineage gen gobindings -l <path> [-p <cue-path>] [--bind-type <T>] [-v <version>]
+    [--pkgname <name>] [--suffix] [--private] [--no-embed] [--no-fs-func] [--stdout] [-q]
+```
+
+- `-l` and `-p` are as for [OpenAPI](#openapi).
+- `--bind-type`: generate a `ConvergentLineage` bound to this Go type.
+- `-v`, `--version`: with `--bind-type`, the schema version to bind. The default is the latest version.
+- `--pkgname`: the Go package name. The default is the lineage's name in lower case.
+- `--suffix`: name the factory `Lineage<Title>` instead of `Lineage`.
+- `--private`: make the factory unexported.
+- `--no-embed`: omit the `embed.FS` variable and `getThemaFSFor<Name>()`. `loadInstanceFor<Name>()` still calls `getThemaFSFor<Name>()`, which must then be written by hand.
+- `--no-fs-func`: omit `getThemaFSFor<Name>()` and `loadInstanceFor<Name>()`.
+- `--stdout`: print the file instead of writing it.
+- `-q`, `--quiet`: do not print the generated file's path.
+
+**Go**
+
+- Package `github.com/sdboyer/thema/encoding/gocode`.
+- `gocode.GenerateLineageBinding(lin thema.Lineage, cfg *gocode.BindingConfig) ([]byte, error)`. The result is the formatted Go source, without the header comment.
+- `gocode.BindingConfig` fields correspond to the CLI's flags: `EmbedPath`, `LoadDir`, `CueModName`, `CuePath`, `FactoryNameSuffix`, `TitleName`, `PrivateFactory`, `Assignee` with `TargetSchemaVersion`, and `PackageName`. `ApplyFuncs` rewrites the generated file before it is formatted. `IgnoreDiscoveredImports` allows `goimports` to add imports the template did not declare; by default that is an error.
+
+**Limits**
+
+- No Go types are generated for schemas.
+- The generated loader reads `.cue` files with `load.InstanceWithThema`. A lineage in the authoring form, a directory of `.thema` files, is not loaded by it: for a directory the embed pattern is `*.cue`, which matches none of its files.
+- With `--stdout`, or with no `go.mod` or `cue.mod` above the lineage, the generated file does not compile until `loadInstanceFor<Name>()` is written.

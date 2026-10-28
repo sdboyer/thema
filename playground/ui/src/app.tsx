@@ -347,6 +347,7 @@ export function App() {
           <Tabs
             label="output"
             names={session.form === "authoring" ? ["diagnostics", "result", "normal form"] : ["diagnostics", "result"]}
+            docs={[undefined, undefined, "forms"]}
             active={["diagnostics", "result", "normal"].indexOf(panel)}
             onSelect={(i) => setPanel((["diagnostics", "result", "normal"] as const)[i]!)}
           />
