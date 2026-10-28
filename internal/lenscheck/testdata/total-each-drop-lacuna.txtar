@@ -18,3 +18,5 @@ lacunas: [{
 }]
 -- out --
 total
+-- ir --
+no program: _d_0 is not an expression the IR carries

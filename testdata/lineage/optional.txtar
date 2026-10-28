@@ -34,3 +34,5 @@ export interface Optional {
 export const defaultOptional: Partial<Optional> = {
   alist: [],
 };
+-- out/lensir --
+no lenses

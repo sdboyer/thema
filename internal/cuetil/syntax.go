@@ -3,6 +3,7 @@ package cuetil
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"cuelang.org/go/cue"
@@ -297,9 +298,13 @@ func (ls *LensSyntax) collectFields(conjs []cueview.Conjunct, b *LensField) (map
 				b.open = true
 				continue
 			}
-			if strings.HasPrefix(name, "#") || strings.HasPrefix(name, "_#") {
+			if isIdent && (strings.HasPrefix(name, "#") || strings.HasPrefix(name, "_#")) {
 				// Definitions are not data.
 				continue
+			}
+			if !isIdent {
+				// A quoted label is data, whatever it starts with.
+				name = dataKey(name)
 			}
 			if _, ok := fields[name]; !ok {
 				order = append(order, name)
@@ -381,6 +386,11 @@ func UndeclaredConditionalFields(ctx *cue.Context, f *LensField, sch cue.Value) 
 				continue
 			}
 			hidden := strings.HasPrefix(name, "_")
+			if unq, err := strconv.Unquote(name); err == nil {
+				// A data field whose name a hidden field or a definition
+				// would otherwise share (see dataKey).
+				name, hidden = unq, false
+			}
 			step := name
 			if !hidden {
 				step = cue.MakePath(cue.Str(name)).String()
@@ -418,6 +428,17 @@ func UndeclaredConditionalFields(ctx *cue.Context, f *LensField, sch cue.Value) 
 	}
 	walk(f, []cue.Value{sch}, nil)
 	return found
+}
+
+// dataKey is the key of the data field name among a LensField's children.
+// A name starting with _ or # is quoted, so that a data field "_id" and a
+// hidden field _id, which have the same name, have different keys; other
+// names are their own key.
+func dataKey(name string) string {
+	if strings.HasPrefix(name, "_") || strings.HasPrefix(name, "#") {
+		return strconv.Quote(name)
+	}
+	return name
 }
 
 // declaredHidden returns the value of the hidden field name that sch declares,

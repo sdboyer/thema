@@ -20,3 +20,18 @@ lacunas: [{
 }]
 -- out --
 total
+-- ir --
+out: {
+  out.name <- in.name
+  if in.count != _|_ {
+    out.count <- in.count
+  }
+  if in.count == _|_ {
+    out.count = 0
+  }
+}
+lacuna AmbiguousMapping {
+  when in.name == "legacy"
+  target count = out.count
+  message "legacy records never recorded a count, so 0 may be real"
+}

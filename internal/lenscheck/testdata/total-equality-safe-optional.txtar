@@ -12,3 +12,13 @@ v1_0: {
 }
 -- out --
 total
+-- ir --
+out: {
+  if (in.o & "a") != _|_ {
+    out.n = 1
+    out.v <- in.o
+  }
+  if (in.o & "a") == _|_ {
+    out.n = 0
+  }
+}

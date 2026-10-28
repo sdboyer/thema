@@ -213,6 +213,22 @@ seams: "lens-result-fields": {
 	]
 }
 
+// The lens IR (internal/lensir) is what every lens compiles to: its node set,
+// what each node carries and how Print renders it are read by every backend
+// (encoding/capnp renders CEL and layout from it) and recorded in the goldens
+// of every corpus lineage (testdata/lineage out/lensir, exemplars/testdata/
+// lensir) and of every proven form (internal/lenscheck/testdata ir sections).
+// A change here changes what each of them sees.
+seams: "lens-ir": {
+	kind:  "shared-kernel"
+	paths: ["internal/lensir/*.go"]
+	consult: [
+		"encoding/capnp, which renders CEL and capnp layout from the IR, and every other backend built on it",
+		"the IR goldens: out/lensir in testdata/lineage, exemplars/testdata/lensir and the ir sections of internal/lenscheck/testdata, which record what each lens and each proven form compiles to",
+		"internal/lenscheck ir.go, which emits every node and must carry what the proof established for each",
+	]
+}
+
 // A version's ID is two digests of canonical forms of its content. IDs are
 // stored (envelopes, a registry of record), so the canonical form is co-owned
 // with every ID ever computed: a change to it, or to where a version's schema and
@@ -227,29 +243,20 @@ seams: "content-hash": {
 	]
 }
 
-// The playground's wire format is a contract with a frontend in another
-// repository (sdboyer/thema-playground), which reads it through types.ts and
-// calls it through thema.wasm's bridge. thresh's published-language kind reads
-// only version tuples, so it is declared as a kernel to fire on touch, as
-// compat-verdicts is (sdboyer/thresh#6).
+// The playground's wire format is a contract between the Go side and the
+// frontend in playground/ui, which reads it through the generated types.ts
+// and calls it through thema.wasm's bridge. Both live in this tree, so a
+// change is complete only when the frontend moves in the same change.
+// thresh's published-language kind reads only version tuples, so it is
+// declared as a kernel to fire on touch, as compat-verdicts is
+// (sdboyer/thresh#6).
 seams: "playground-api": {
 	kind:  "shared-kernel"
-	paths: ["playground/types.go", "playground/types.ts", "playground/session.go", "cmd/thema-wasm/main.go", "cmd/thema-wasm/thema-fs.js"]
+	paths: ["playground/types.go", "playground/ui/src/api/types.ts", "playground/session.go", "cmd/thema-wasm/main.go", "cmd/thema-wasm/thema-fs.js"]
 	consult: [
-		"sdboyer/thema-playground at the release cmd/thema/playground/VERSION pins: a renamed field, operation or bridge function breaks it, and the pin and the frontend move together",
-		"playground/types.ts, regenerated from the Go types (THEMA_UPDATE_GOLDEN=1 go test ./playground), and the response goldens in playground/testdata",
-		"the release assets the static site fetches by tag: thema.wasm, wasm_exec.js, thema-fs.js, types.ts",
-	]
-}
-
-// The frontend release the CLI embeds. Bumping it changes what thema serve
-// playground serves, and must match the wire format this thema speaks.
-seams: "playground-ui-pin": {
-	kind:  "shared-kernel"
-	paths: ["cmd/thema/playground/VERSION"]
-	consult: [
-		"the playground-api seam: the pinned frontend must speak this thema's wire format",
-		"the release workflow, which runs go generate ./cmd/thema/playground and attaches the bundle's wasm assets",
+		"playground/ui, in the same change: a renamed field, operation or bridge function breaks it; its tests run against this tree's thema.wasm (go generate ./cmd/thema/playground, then npm test in playground/ui)",
+		"playground/ui/src/api/types.ts, regenerated from the Go types (THEMA_UPDATE_GOLDEN=1 go test ./playground), and the response goldens in playground/testdata",
+		"the release assets a statically hosted playground fetches by tag: thema.wasm, wasm_exec.js, thema-fs.js, types.ts",
 	]
 }
 
@@ -262,6 +269,20 @@ seams: bindlineage: {
 	paths:  ["*.go"]
 	type:   "baseLineage"
 	onlyIn: ["BindLineage"]
+}
+
+// A lens program (internal/lensir) is the by-product of proving the lens
+// total: lenscheck.Check builds it from what the walk proved, and only where
+// the verdict is Total, so no node exists without its proof. A program built
+// anywhere else would be a claim about a lens nothing has checked. thresh
+// sees a construction by its unqualified type name, so this fires on Program
+// literals inside lensir and lenscheck; the qualified lensir.Program{} in
+// Check is the choke point itself.
+seams: "lensir-programs": {
+	kind:   "choke-point"
+	paths:  ["internal/lensir/*.go", "internal/lenscheck/*.go", "*.go", "encoding/*/*.go"]
+	type:   "Program"
+	onlyIn: ["Check"]
 }
 
 // Configure is the only way thema's CUE module gets served to the loader. Building
@@ -297,7 +318,7 @@ seams: "go-residual-checks": {
 		checkUnknownFields:    "unknown lineage/schema/lens fields, and schemas/lenses keys that aren't versions/edges; CUE rejects them too, but positions the error at its guard in thema's CUE, while Go can point at the author's line. Known fields are read from thema's CUE, not duplicated"
 		checkLensTotality:     "every CUE lens must map every instance of its source schema to an instance of its target: a quantified claim over instances, which CUE can only evaluate one instance at a time. The walk (internal/lenscheck) reads each lens's syntax, judges copies with the compat checker and bounds through Expr(), and treats what it cannot decide as an error"
 		checkSchemaConstructs: "no comprehensions or reference cycles in a schema: CUE evaluates both happily, but no later check (compat, lens results, lacunas) can describe a schema whose fields depend on evaluation or whose paths are unbounded; refused before any of them runs, and reported at the construct"
-		checkReferences:       "a schema refers only to its own body and CUE's builtin packages, a lens only to the instance it takes, its own body and those packages: CUE resolves a reference to anything in lexical scope, so a sibling schema, the lineage's name, a helper beside the lineage or another package all evaluate without complaint, and each can change a published schema's meaning without its text changing. Read from each schema's and lens's syntax, because lets, pending comprehensions and index expressions hide references from the value API"
+		checkReferences:       "a schema refers only to its own body and CUE's builtin packages, a lens only to the instance it takes, its own body and those packages: CUE resolves a reference to anything in lexical scope, so a sibling schema, the lineage's name, a helper beside the lineage or another package all evaluate without complaint, and each can change a published schema's meaning without its text changing. Found in the value: Expr() splits each field into its expression tree, ReferencePath() names the root and path each reference resolves to, and Dereference reaches the value a let is bound to; only a pending comprehension, which declares nothing until an instance decides it, is read from the schema's or lens's syntax (the Raw view)"
 	}
 }
 

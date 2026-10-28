@@ -13,7 +13,7 @@ Schema: {
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		kind: match(v0_0.kind)
+		kind: _match(v0_0.kind)
 	}
 }
 -- out/json --
@@ -22,7 +22,7 @@ ForwardLens: {
     {
       "code": "E0336",
       "severity": "error",
-      "headline": "match takes two arguments: match(v0_0.<path>, {...})",
+      "headline": "_match takes two arguments: _match(v0_0.<path>, {...})",
       "primary": {
         "file": "1.0.thema",
         "line": 8,
@@ -39,9 +39,9 @@ ForwardLens: {
   }
 }
 -- out/text --
-error[E0336]: match takes two arguments: match(v0_0.<path>, {...})
+error[E0336]: _match takes two arguments: _match(v0_0.<path>, {...})
  --> 1.0.thema:8:9
   |
-8 |         kind: match(v0_0.kind)
-  |               ^^^^^
+8 |         kind: _match(v0_0.kind)
+  |               ^^^^^^
   |

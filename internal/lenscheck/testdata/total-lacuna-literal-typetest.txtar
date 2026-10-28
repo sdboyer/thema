@@ -14,3 +14,14 @@ lacunas: [{
 }]
 -- out --
 total
+-- ir --
+out: {
+  if (in.k & "x") != _|_ {
+    out.a = "1"
+  }
+}
+lacuna Placeholder {
+  when in.k == "x"
+  target a = out.a
+  message "set"
+}

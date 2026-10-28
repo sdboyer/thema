@@ -8,3 +8,9 @@ v0_0: _
 v1_0: {o: {init: v0_0.a}}
 -- out --
 total
+-- ir --
+out: {
+  out.o: {
+    out.o.init <- in.a
+  }
+}

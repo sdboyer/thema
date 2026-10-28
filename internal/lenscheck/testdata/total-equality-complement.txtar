@@ -18,3 +18,18 @@ lacunas: [{
 }]
 -- out --
 total
+-- ir --
+out: {
+  if in.aunion == "bar" {
+    out.aunion = "foo"
+  }
+  if in.aunion != "bar" {
+    out.aunion <- in.aunion
+  }
+}
+lacuna ChangedDefault {
+  when in.aunion == "bar"
+  source aunion = in.aunion
+  target aunion = out.aunion
+  message "changed"
+}

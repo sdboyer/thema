@@ -33,7 +33,7 @@ func Decompile(lin cue.Value) (name string, files []File, err error) {
 		// Every reason is a sentence in the normal form's terms about what
 		// the authoring form cannot express; the lineage is the position.
 		return "", nil, diag.New(diag.E0356).AtValue(lin).Headline(err.Error()).
-			Help("the authoring form expresses the lenses Compile produces: mappings that copy, compute, drop, orelse, match and each").
+			Help("the authoring form expresses the lenses Compile produces: mappings that copy and compute, and _drop, _orelse, _match and _each").
 			Err()
 	}
 	return name, files, nil
@@ -540,12 +540,12 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 		switch {
 		case len(arms) > 0 || len(passthrough) > 0 || len(catchAll) > 0:
 			if len(present)+len(absent) > 0 || len(passthrough) > 1 || len(catchAll) > 1 {
-				return fmt.Errorf("lens %s is outside the authoring form: the arms of %s are not a match", key, tpath)
+				return fmt.Errorf("lens %s is outside the authoring form: the arms of %s are not a _match", key, tpath)
 			}
 			en.kind, en.source = kindMatch, source
 			for i, br := range arms {
 				if !isLiteral(br.field.Value) {
-					return fmt.Errorf("lens %s is outside the authoring form: match arm %q of %s is not a constant", key, armKeys[i], tpath)
+					return fmt.Errorf("lens %s is outside the authoring form: _match arm %q of %s is not a constant", key, armKeys[i], tpath)
 				}
 				en.arms = append(en.arms, arm{key: armKeys[i], value: br.field.Value})
 			}
@@ -558,7 +558,7 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 		case len(present) == 1 && len(absent) == 1:
 			root, p, ok := refPathAny(present[0].field.Value)
 			if !ok || root != b.root || p.String() != source.String() {
-				return fmt.Errorf("lens %s is outside the authoring form: the arms of %s are not an orelse", key, tpath)
+				return fmt.Errorf("lens %s is outside the authoring form: the arms of %s are not an _orelse", key, tpath)
 			}
 			fb := absent[0].field.Value
 			if _, _, isRef := refPathAny(fb); !isRef && !isLiteral(fb) {
@@ -641,7 +641,7 @@ func (b *dbody) lacuna(x ast.Expr, lets map[string]ast.Expr, key string, tv them
 				}
 			}
 			if body == nil {
-				return fmt.Errorf("lens %s is outside the authoring form: a lacuna over %s[], which no each maps", key, srcEach)
+				return fmt.Errorf("lens %s is outside the authoring form: a lacuna over %s[], which no _each maps", key, srcEach)
 			}
 			cond = nil // the aggregate's len(_d_n) > 0
 		}
@@ -1097,7 +1097,7 @@ func (n *nesting) at(p cue.Path) *ast.StructLit {
 		if !ok {
 			c = &ast.StructLit{}
 			n.structs[k] = c
-			s.Elts = append(s.Elts, &ast.Field{Label: ast.NewIdent(sels[i].Unquoted()), Value: c})
+			s.Elts = append(s.Elts, &ast.Field{Label: label(sels[i].Unquoted()), Value: c})
 		}
 		s = c
 	}
@@ -1107,7 +1107,7 @@ func (n *nesting) at(p cue.Path) *ast.StructLit {
 // add puts the field p: val in place.
 func (n *nesting) add(p cue.Path, val ast.Expr) *ast.Field {
 	sels := p.Selectors()
-	f := &ast.Field{Label: ast.NewIdent(sels[len(sels)-1].Unquoted()), Value: val}
+	f := &ast.Field{Label: label(sels[len(sels)-1].Unquoted()), Value: val}
 	parent := n.at(cue.MakePath(sels[:len(sels)-1]...))
 	parent.Elts = append(parent.Elts, f)
 	return f

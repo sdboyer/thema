@@ -15,7 +15,7 @@ Schema: {
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		kind: match(v0_0.kind, {
+		kind: _match(v0_0.kind, {
 			"a": v0_0.x
 			"b": 2
 		})
@@ -27,19 +27,19 @@ ForwardLens: {
     {
       "code": "E0338",
       "severity": "error",
-      "headline": "a match arm's value must be a constant",
+      "headline": "a _match arm's value must be a constant",
       "primary": {
         "file": "1.0.thema",
         "line": 9,
         "col": 9,
-        "offset": 92,
+        "offset": 93,
         "origin": "user"
       }
     },
     {
       "code": "E0347",
       "severity": "error",
-      "headline": "0.0 declares x and 1.0 does not, and nothing maps it: write <field>: v0_0.x to move it, or x: drop",
+      "headline": "0.0 declares x and 1.0 does not, and nothing maps it: write <field>: v0_0.x to move it, or x: _drop",
       "primary": {
         "file": "1.0.thema",
         "line": 5,
@@ -56,14 +56,14 @@ ForwardLens: {
   }
 }
 -- out/text --
-error[E0338]: a match arm's value must be a constant
+error[E0338]: a _match arm's value must be a constant
  --> 1.0.thema:9:9
   |
 9 |             "a": v0_0.x
   |                  ^^^^
   |
 
-error[E0347]: 0.0 declares x and 1.0 does not, and nothing maps it: write <field>: v0_0.x to move it, or x: drop
+error[E0347]: 0.0 declares x and 1.0 does not, and nothing maps it: write <field>: v0_0.x to move it, or x: _drop
  --> 1.0.thema:5:1
   |
 5 | ForwardLens: {

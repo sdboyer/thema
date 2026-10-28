@@ -11,3 +11,12 @@ v1_0: {
 }
 -- out --
 total
+-- ir --
+out: {
+  if in.t == 1 {
+    out.u = "a"
+  }
+  if in.t == 2 {
+    out.u = "b"
+  }
+}

@@ -1352,3 +1352,99 @@ export interface BasicMultiversion {
 export const defaultBasicMultiversion: Partial<BasicMultiversion> = {
   withDefault: 'bar',
 };
+-- out/lensir --
+lens 0.1->0.0
+  out: {
+    out.init <- in.init
+  }
+lens 0.2->0.1
+  out: {
+    out.init <- in.init
+    if in.optional != _|_ {
+      out.optional <- in.optional
+    }
+  }
+lens 0.3->0.2
+  out: {
+    out.init <- in.init
+    if in.optional != _|_ {
+      out.optional <- in.optional
+    }
+    if in.withDefault != _|_ {
+      if in.withDefault != "baz" {
+        out.withDefault <- in.withDefault
+      }
+      if in.withDefault == "baz" {
+        out.withDefault = "foo"
+      }
+    }
+  }
+  lacuna LossyFieldMapping {
+    when (in.withDefault & "baz") != _|_
+    source withDefault = in.withDefault
+    target withDefault = out.withDefault
+    message "withDefault was \"baz\", which 0.2 does not have; \"foo\", its default, was substituted"
+  }
+lens 0.3->1.0
+  out: {
+    out.renamed <- in.init
+    if in.optional != _|_ {
+      out.optional <- in.optional
+    }
+    if in.withDefault != _|_ {
+      out.withDefault <- in.withDefault
+    }
+    if in.withDefault == _|_ {
+      out.withDefault = "foo"
+    }
+  }
+lens 1.0->0.3
+  out: {
+    out.init <- in.renamed
+    if in.optional != _|_ {
+      out.optional <- in.optional
+    }
+    if in.withDefault != "bar" {
+      out.withDefault <- in.withDefault
+    }
+    if in.withDefault == "bar" {
+      out.withDefault = "bar"
+    }
+  }
+lens 1.1->1.0
+  out: {
+    out.renamed <- in.renamed
+    if in.optional != _|_ {
+      out.optional <- in.optional
+    }
+    if in.withDefault != "bing" {
+      out.withDefault <- in.withDefault
+    }
+    if in.withDefault == "bing" {
+      out.withDefault = "bar"
+    }
+  }
+  lacuna LossyFieldMapping {
+    when in.withDefault == "bing"
+    source withDefault = in.withDefault
+    target withDefault = out.withDefault
+    message "withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"
+  }
+lens 1.1->2.0
+  out: {
+    out.toObj: {
+      out.toObj.init <- in.renamed
+    }
+    if in.optional != _|_ {
+      out.optional <- in.optional
+    }
+    out.withDefault <- in.withDefault
+  }
+lens 2.0->1.1
+  out: {
+    out.renamed <- in.toObj.init
+    if in.optional != _|_ {
+      out.optional <- in.optional
+    }
+    out.withDefault <- in.withDefault
+  }

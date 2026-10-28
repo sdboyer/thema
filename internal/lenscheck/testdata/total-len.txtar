@@ -8,3 +8,7 @@ v0_0: _
 v1_0: {n: len(v0_0.s)}
 -- out --
 total
+-- ir --
+out: {
+  out.n = len(in.s)
+}

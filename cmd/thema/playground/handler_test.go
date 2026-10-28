@@ -25,7 +25,7 @@ func fakeBundle(t *testing.T) fstest.MapFS {
 		"app.js":        {Data: []byte("console.log('app')")},
 		"thema.wasm":    {Data: []byte("\x00asm-raw")},
 		"thema.wasm.gz": {Data: gz.Bytes()},
-		"MANIFEST.json": {Data: []byte(`{"themaVersion": "v0.1.0", "ui": "placeholder", "wasmSHA256": "abc123"}`)},
+		"MANIFEST.json": {Data: []byte(`{"themaVersion": "v0.1.0", "wasmSHA256": "abc123"}`)},
 	}
 }
 

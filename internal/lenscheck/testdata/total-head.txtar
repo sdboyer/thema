@@ -8,3 +8,11 @@ v0_0: _
 v1_0: {s: [if v0_0.n == "a" {"x"}, "y"][0]}
 -- out --
 total
+-- ir --
+out: {
+  out.s = head if in.n == "a" {
+    out.s = "x"
+  } else {
+    out.s = "y"
+  }
+}

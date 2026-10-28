@@ -10,3 +10,10 @@ v0_0: _
 v1_0: {a: v0_0.a, if v0_0.o != _|_ {o: v0_0.o}}
 -- out --
 total
+-- ir --
+out: {
+  out.a <- in.a
+  if in.o != _|_ {
+    out.o <- in.o
+  }
+}

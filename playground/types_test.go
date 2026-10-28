@@ -4,6 +4,7 @@ package playground
 
 import (
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -11,14 +12,15 @@ import (
 	"github.com/sdboyer/thema/internal/tsapi"
 )
 
-// types.ts is what internal/tsapi generates from the Go types. Regenerate
-// with THEMA_UPDATE_GOLDEN=1 go test ./playground.
+// The frontend's types.ts, in playground/ui, is what internal/tsapi
+// generates from the Go types. Regenerate with THEMA_UPDATE_GOLDEN=1 go test
+// ./playground.
 func TestTypesTSUpToDate(t *testing.T) {
 	got, err := tsapi.Generate()
 	if err != nil {
 		t.Fatal(err)
 	}
-	diagtest.CompareFile(t, "types.ts", got)
+	diagtest.CompareFile(t, filepath.Join("ui", "src", "api", "types.ts"), got)
 }
 
 // The playground generates no Go: Go bindings need an embed directive and a
