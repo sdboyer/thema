@@ -24,5 +24,6 @@ error[E0358]: the ForwardLens in 1.0.thema would copy v0_0.tags into tags, which
   | ^^^^^^^^^^^
   |
   = note: both 0.0 and 1.0 declare tags, so a lens that does not map it copies it
-  = note: tags in 1.0 was (null|list) and is now struct (copying v0_0.tags; compatibility rule value-narrowed)
+  = note: tags in 1.0 was list and is now struct (copying v0_0.tags; compatibility rule value-narrowed)
+  = note: tags in 1.0 was null and is now struct (copying v0_0.tags; compatibility rule value-narrowed)
   = help: map tags in the ForwardLens: a _match, a computed value, or a constant
