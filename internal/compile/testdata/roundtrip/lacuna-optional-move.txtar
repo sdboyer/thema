@@ -42,11 +42,11 @@ ForwardLens: {
 		}]
 	}
 }
--- in/translate/0.0/1.0/absent.json --
+-- data/0.0/absent.json --
 {}
--- in/translate/0.0/1.0/small.json --
+-- data/0.0/small.json --
 {"size": 5, "w": 2, "h": 3, "tag": "t"}
--- in/translate/0.0/1.0/large.json --
+-- data/0.0/large.json --
 {"size": 500, "w": 20, "h": 3}
 -- out/bind --
 ok
@@ -206,21 +206,12 @@ lenses: {
 		}]
 	}
 }
--- out/translate/0.0/1.0/absent --
-0.0: {}
-to 1.0: {}
-lacunas: [{"type":"LossyFieldMapping","message":"labels are truncated downstream"}]
-back to 0.0: {}
-lacunas: []
--- out/translate/0.0/1.0/large --
-0.0: {"size": 500, "w": 20, "h": 3}
-to 1.0: {"dimension":500,"area":60}
-lacunas: [{"sourceFields":[{"path":"size","value":500}],"targetFields":[{"path":"dimension","value":500}],"type":"LossyFieldMapping","message":"large sizes are clamped"},{"sourceFields":[{"path":"w","value":20},{"path":"h","value":3}],"targetFields":[{"path":"area","value":60}],"type":"PrecisionLoss","message":"large areas are rounded"},{"type":"LossyFieldMapping","message":"labels are truncated downstream"}]
-back to 0.0: {"size":500}
-lacunas: [{"sourceFields":[{"path":"area","value":60}],"type":"DroppedField","message":"area has no equivalent in 0.0 and was dropped"}]
--- out/translate/0.0/1.0/small --
-0.0: {"size": 5, "w": 2, "h": 3, "tag": "t"}
-to 1.0: {"dimension":5,"area":6,"label":"t"}
-lacunas: [{"sourceFields":[{"path":"tag","value":"t"}],"targetFields":[{"path":"label","value":"t"}],"type":"LossyFieldMapping","message":"labels are truncated downstream"}]
-back to 0.0: {"size":5,"tag":"t"}
-lacunas: [{"sourceFields":[{"path":"area","value":6}],"type":"DroppedField","message":"area has no equivalent in 0.0 and was dropped"}]
+-- out/translate/0.0/absent->1.0 --
+{}
+[{"type":"LossyFieldMapping","message":"labels are truncated downstream"}]
+-- out/translate/0.0/large->1.0 --
+{"dimension":500,"area":60}
+[{"sourceFields":[{"path":"size","value":500}],"targetFields":[{"path":"dimension","value":500}],"type":"LossyFieldMapping","message":"large sizes are clamped"},{"sourceFields":[{"path":"w","value":20},{"path":"h","value":3}],"targetFields":[{"path":"area","value":60}],"type":"PrecisionLoss","message":"large areas are rounded"},{"type":"LossyFieldMapping","message":"labels are truncated downstream"}]
+-- out/translate/0.0/small->1.0 --
+{"dimension":5,"area":6,"label":"t"}
+[{"sourceFields":[{"path":"tag","value":"t"}],"targetFields":[{"path":"label","value":"t"}],"type":"LossyFieldMapping","message":"labels are truncated downstream"}]
