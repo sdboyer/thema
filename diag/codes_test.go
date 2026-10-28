@@ -67,7 +67,10 @@ func TestCodesLockstep(t *testing.T) {
 		have[c] = true
 	}
 	for _, ci := range diag.Codes {
-		if !have[ci.Code] {
+		switch {
+		case ci.Retired != "" && have[ci.Code]:
+			t.Errorf("code %s is retired but has a reproducer at %s/%s.txtar", ci.Code, codesDir, ci.Code)
+		case ci.Retired == "" && !have[ci.Code]:
 			t.Errorf("code %s has no reproducer at %s/%s.txtar", ci.Code, codesDir, ci.Code)
 		}
 	}
@@ -105,6 +108,10 @@ func TestDocsErrors(t *testing.T) {
 	}
 	var pages []diagdocs.Page
 	for _, ci := range diag.Codes {
+		if ci.Retired != "" {
+			pages = append(pages, diagdocs.Page{Info: ci})
+			continue
+		}
 		a, ok := byCode[ci.Code]
 		if !ok {
 			continue
@@ -129,7 +136,7 @@ func TestDocsErrors(t *testing.T) {
 		if name == "README" {
 			continue
 		}
-		if _, ok := byCode[diag.Code(name)]; !ok {
+		if _, ok := diag.Lookup(diag.Code(name)); !ok {
 			t.Errorf("%s/%s documents a code that does not exist", dir, e.Name())
 		}
 	}

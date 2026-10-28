@@ -19,7 +19,7 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0101](E0101.md) | error | a file in the lineage's directory is not a version file |
 | [E0102](E0102.md) | error | a version file is not CUE syntax |
 | [E0103](E0103.md) | error | a version file has a package clause |
-| [E0104](E0104.md) | error | a version file imports a package |
+| [E0104](E0104.md) | error | retired: a version file imports a package |
 | [E0105](E0105.md) | error | a version file has a field that is not schema, ForwardLens or BackwardLens |
 | [E0106](E0106.md) | error | a version file declares a field twice |
 | [E0107](E0107.md) | error | a lens block is not a struct |
@@ -51,6 +51,7 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0144](E0144.md) | error | a lens refers to a schema of the lineage |
 | [E0145](E0145.md) | error | a lens refers to another lens of the lineage |
 | [E0146](E0146.md) | error | a reference cannot be resolved statically |
+| [E0147](E0147.md) | error | a version file imports a package its Schema does not use |
 | [E0201](E0201.md) | error | the first schema is not version 0.0 |
 | [E0202](E0202.md) | error | a schema's version does not follow its predecessor's |
 | [E0203](E0203.md) | error | a major version declares no schemas |
@@ -86,11 +87,12 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0330](E0330.md) | error | a lens body holds something that is not a mapping |
 | [E0331](E0331.md) | error | a mapping's key is not a plain field name |
 | [E0332](E0332.md) | error | a mapping has an attribute |
+| [E0333](E0333.md) | error | a lens body or its lacunas declare a hidden field or a definition |
 | [E0334](E0334.md) | error | a nested body embeds something other than a path into the source instance |
-| [E0335](E0335.md) | error | an orelse is not orelse(source path, fallback) |
-| [E0336](E0336.md) | error | a match is not match(source path, arms) |
-| [E0337](E0337.md) | error | an each is not each(source list, body) |
-| [E0338](E0338.md) | error | a match's arms are not constant arms with at most one catch-all |
+| [E0335](E0335.md) | error | an _orelse is not _orelse(source path, fallback) |
+| [E0336](E0336.md) | error | a _match is not _match(source path, arms) |
+| [E0337](E0337.md) | error | an _each is not _each(source list, body) |
+| [E0338](E0338.md) | error | a _match's arms are not constant arms with at most one catch-all |
 | [E0340](E0340.md) | error | a lens reads a field its source version does not declare |
 | [E0341](E0341.md) | error | a lens maps a field its target version does not declare |
 | [E0342](E0342.md) | error | a lens drops a field its target version requires |
@@ -99,12 +101,12 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0345](E0345.md) | error | a lens maps a target field twice |
 | [E0346](E0346.md) | error | a lens produces nothing for a field its target version requires |
 | [E0347](E0347.md) | error | a field the source version has and the target lacks is neither mapped nor dropped |
-| [E0348](E0348.md) | error | an orelse reads a field the source version always has |
-| [E0349](E0349.md) | error | an orelse's fallback may itself be absent |
-| [E0350](E0350.md) | error | a match has two arms for one value |
-| [E0351](E0351.md) | error | a match is not exhaustive |
-| [E0352](E0352.md) | error | a match passes values through to a target the lens cannot test them against |
-| [E0353](E0353.md) | error | an each maps something other than an open list to an open list |
+| [E0348](E0348.md) | error | an _orelse reads a field the source version always has |
+| [E0349](E0349.md) | error | an _orelse's fallback may itself be absent |
+| [E0350](E0350.md) | error | a _match has two arms for one value |
+| [E0351](E0351.md) | error | a _match is not exhaustive |
+| [E0352](E0352.md) | error | a _match passes values through to a target the lens cannot test them against |
+| [E0353](E0353.md) | error | an _each maps something other than an open list to an open list |
 | [E0354](E0354.md) | error | the first version has a lens |
 | [E0355](E0355.md) | error | a minor version has a ForwardLens |
 | [E0356](E0356.md) | error | a normal-form lens is outside what the authoring form expresses |
@@ -144,13 +146,13 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0410](E0410.md) | error | a lacunas declaration is not shaped as lacunas |
 | [E0411](E0411.md) | error | a lacuna's type is not a lacuna type |
 | [E0412](E0412.md) | error | a lacunas key names a mapping the lens does not have |
-| [E0413](E0413.md) | error | a lacuna on a mapping inside each |
-| [E0414](E0414.md) | error | a match's catch-all arm has no lacuna |
-| [E0415](E0415.md) | error | a lacuna on each has no when |
-| [E0416](E0416.md) | error | a drop has a lacuna that is not its one DroppedField refinement |
+| [E0413](E0413.md) | error | a lacuna on a mapping inside _each |
+| [E0414](E0414.md) | error | a _match's catch-all arm has no lacuna |
+| [E0415](E0415.md) | error | a lacuna on _each has no when |
+| [E0416](E0416.md) | error | a _drop has a lacuna that is not its one DroppedField refinement |
 | [E0418](E0418.md) | error | a condition refers to a name a lens does not define |
-| [E0420](E0420.md) | error | a lacuna on a match with no catch-all arm has no when |
-| [E0421](E0421.md) | error | a lacuna on a drop inside each has a when |
+| [E0420](E0420.md) | error | a lacuna on a _match with no catch-all arm has no when |
+| [E0421](E0421.md) | error | a lacuna on a _drop inside _each has a when |
 | [E0422](E0422.md) | error | a when names a field that is not a condition |
 | [E0423](E0423.md) | error | a when tests the presence of a field it also reads |
 | [E0501](E0501.md) | error | the data lacks a field the schema requires |

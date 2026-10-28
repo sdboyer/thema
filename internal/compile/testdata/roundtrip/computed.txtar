@@ -26,10 +26,10 @@ ForwardLens: {
 		area:  v0_0.width * v0_0.height
 		wide:  v0_0.width > v0_0.height
 		tag:   strings.TrimSpace(v0_0.tag)
-		total: orelse(v0_0.count * 2, 0)
-		width:  drop
-		height: drop
-		count:  drop
+		total: _orelse(v0_0.count * 2, 0)
+		width:  _drop
+		height: _drop
+		count:  _drop
 	}
 	lacunas: {
 		total: [{
@@ -65,10 +65,10 @@ ForwardLens: {
 		area:   v0_0.width * v0_0.height
 		wide:   v0_0.width > v0_0.height
 		tag:    strings.TrimSpace(v0_0.tag)
-		total:  orelse(v0_0.count * 2, 0)
-		width:  drop
-		height: drop
-		count:  drop
+		total:  _orelse(v0_0.count * 2, 0)
+		width:  _drop
+		height: _drop
+		count:  _drop
 	}
 	lacunas: {
 		total: [{

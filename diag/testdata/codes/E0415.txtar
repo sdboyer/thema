@@ -18,8 +18,8 @@ Schema: {
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		items: each(v0_0.items, {
-			name: item.title
+		items: _each(v0_0.items, {
+			name: _item.title
 		})
 	}
 	lacunas: {
@@ -33,8 +33,8 @@ ForwardLens: {
 BackwardLens: {
 	v1_0: _
 	v0_0: {
-		items: each(v1_0.items, {
-			title: item.name
+		items: _each(v1_0.items, {
+			title: _item.name
 		})
 	}
 }
@@ -44,12 +44,12 @@ BackwardLens: {
     {
       "code": "E0415",
       "severity": "error",
-      "headline": "lacunas.items: a lacuna on each needs when: <condition>",
+      "headline": "lacunas.items: a lacuna on _each needs when: <condition>",
       "primary": {
         "file": "1.0.thema",
         "line": 15,
         "col": 11,
-        "offset": 157,
+        "offset": 159,
         "origin": "user"
       }
     }
@@ -61,7 +61,7 @@ BackwardLens: {
   }
 }
 -- out/text --
-error[E0415]: lacunas.items: a lacuna on each needs when: <condition>
+error[E0415]: lacunas.items: a lacuna on _each needs when: <condition>
   --> 1.0.thema:15:11
    |
 15 |         items: [{

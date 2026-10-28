@@ -80,16 +80,16 @@ const (
 
 // The operations a lens body may call, and the arguments each takes.
 const (
-	opDrop   = "drop"
-	opOrElse = "orelse"
-	opMatch  = "match"
-	opEach   = "each"
+	opDrop   = "_drop"
+	opOrElse = "_orelse"
+	opMatch  = "_match"
+	opEach   = "_each"
 	opArity  = 2
 )
 
 // The roots references start from: input in a lens body, item in an each body.
 const (
-	rootItem = "item"
+	rootItem = "_item"
 )
 
 // The fields of a lens block beside its two versions, and of a lacuna.
@@ -259,7 +259,7 @@ func (e *edge) parseBody(lit *ast.StructLit, tbase, sbase cue.Path, b *body) {
 		case *ast.EmbedDecl:
 			e.errf(diag.E0330, d.Pos(), "a lens body has no embeddings; a nested body may embed %s.<path> to copy from it", e.root)
 		case *ast.Comprehension:
-			e.errf(diag.E0330, d.Pos(), "comprehensions are not allowed in a lens body; a reference to an optional field is copied only when present, and orelse(ref, fallback) decides what to use when it is absent")
+			e.errf(diag.E0330, d.Pos(), "comprehensions are not allowed in a lens body; a reference to an optional field is copied only when present, and _orelse(ref, fallback) decides what to use when it is absent")
 		case *ast.LetClause:
 			e.errf(diag.E0330, d.Pos(), "let is not allowed in a lens body")
 		default:
@@ -269,9 +269,12 @@ func (e *edge) parseBody(lit *ast.StructLit, tbase, sbase cue.Path, b *body) {
 }
 
 func (e *edge) parseField(f *ast.Field, tbase, sbase cue.Path, b *body) {
-	name, _, err := ast.LabelName(f.Label)
+	name, isIdent, err := ast.LabelName(f.Label)
 	if err != nil || f.Constraint != token.ILLEGAL {
 		e.errf(diag.E0331, f.Pos(), "a mapping's key is a plain field name")
+		return
+	}
+	if e.notData(f, name, isIdent) {
 		return
 	}
 	tpath := appendPath(tbase, cue.Str(name))
@@ -345,12 +348,12 @@ func (e *edge) parseField(f *ast.Field, tbase, sbase cue.Path, b *body) {
 // always has.
 func (e *edge) parseOrElse(x *ast.CallExpr, en *entry, b *body) {
 	if len(x.Args) != opArity {
-		e.errf(diag.E0335, x.Pos(), "orelse takes two arguments: orelse(%s.<path>, fallback)", e.root)
+		e.errf(diag.E0335, x.Pos(), "_orelse takes two arguments: _orelse(%s.<path>, fallback)", e.root)
 		return
 	}
 	fb := x.Args[1]
 	if _, ok := e.refPath(fb); !ok && !isLiteral(fb) {
-		e.errf(diag.E0335, fb.Pos(), "orelse's fallback must be a constant or a reference to %s", e.root)
+		e.errf(diag.E0335, fb.Pos(), "_orelse's fallback must be a constant or a reference to %s", e.root)
 		return
 	}
 	if p, ok := e.refPath(x.Args[0]); ok {
@@ -365,7 +368,7 @@ func (e *edge) parseOrElse(x *ast.CallExpr, en *entry, b *body) {
 		return
 	}
 	if len(optional) == 0 {
-		e.errf(diag.E0348, x.Args[0].Pos(), "%s always has every field %s reads, so orelse's fallback could never apply: write %s: %s", e.sv, exprText(x.Args[0]), en.target, exprText(x.Args[0]))
+		e.errf(diag.E0348, x.Args[0].Pos(), "%s always has every field %s reads, so _orelse's fallback could never apply: write %s: %s", e.sv, exprText(x.Args[0]), en.target, exprText(x.Args[0]))
 		return
 	}
 	en.kind, en.computed, en.reads, en.optional, en.fallback = kindOrElse, x.Args[0], reads, optional, fb
@@ -375,17 +378,17 @@ func (e *edge) parseOrElse(x *ast.CallExpr, en *entry, b *body) {
 // parseMatch reads match(ref, {value: constant, ..., [_]: constant}).
 func (e *edge) parseMatch(x *ast.CallExpr, en *entry, b *body) {
 	if len(x.Args) != opArity {
-		e.errf(diag.E0336, x.Pos(), "match takes two arguments: match(%s.<path>, {...})", e.root)
+		e.errf(diag.E0336, x.Pos(), "_match takes two arguments: _match(%s.<path>, {...})", e.root)
 		return
 	}
 	p, ok := e.refPath(x.Args[0])
 	if !ok {
-		e.errf(diag.E0336, x.Args[0].Pos(), "match's first argument must be a reference to %s", e.root)
+		e.errf(diag.E0336, x.Args[0].Pos(), "_match's first argument must be a reference to %s", e.root)
 		return
 	}
 	arms, ok := x.Args[1].(*ast.StructLit)
 	if !ok {
-		e.errf(diag.E0336, x.Args[1].Pos(), "match's arms are a struct of value: value entries, with an optional [_] arm")
+		e.errf(diag.E0336, x.Args[1].Pos(), "_match's arms are a struct of value: value entries, with an optional [_] arm")
 		return
 	}
 	en.kind, en.source = kindMatch, p
@@ -395,11 +398,11 @@ func (e *edge) parseMatch(x *ast.CallExpr, en *entry, b *body) {
 			if _, ok := d.(*ast.CommentGroup); ok {
 				continue
 			}
-			e.errf(diag.E0338, d.Pos(), "match's arms hold only value: value entries")
+			e.errf(diag.E0338, d.Pos(), "_match's arms hold only value: value entries")
 			return
 		}
 		if !isLiteral(f.Value) {
-			e.errf(diag.E0338, f.Value.Pos(), "a match arm's value must be a constant")
+			e.errf(diag.E0338, f.Value.Pos(), "a _match arm's value must be a constant")
 			return
 		}
 		if !e.noAttrs(f) {
@@ -408,7 +411,7 @@ func (e *edge) parseMatch(x *ast.CallExpr, en *entry, b *body) {
 		a := arm{value: f.Value, pos: f.Pos()}
 		if isCatchAll(f.Label) {
 			if en.catchAll != nil {
-				e.errf(diag.E0338, f.Pos(), "a match has at most one [_] arm")
+				e.errf(diag.E0338, f.Pos(), "a _match has at most one [_] arm")
 				return
 			}
 			en.catchAll = &a
@@ -416,7 +419,7 @@ func (e *edge) parseMatch(x *ast.CallExpr, en *entry, b *body) {
 		}
 		key, _, err := ast.LabelName(f.Label)
 		if err != nil {
-			e.errf(diag.E0338, f.Label.Pos(), "a match arm's key is a string")
+			e.errf(diag.E0338, f.Label.Pos(), "a _match arm's key is a string")
 			return
 		}
 		a.key = key
@@ -438,21 +441,41 @@ func isCatchAll(l ast.Label) bool {
 // parseEach reads each(ref, {body}).
 func (e *edge) parseEach(x *ast.CallExpr, en *entry, b *body) {
 	if len(x.Args) != opArity {
-		e.errf(diag.E0337, x.Pos(), "each takes two arguments: each(%s.<list>, {...})", e.root)
+		e.errf(diag.E0337, x.Pos(), "_each takes two arguments: _each(%s.<list>, {...})", e.root)
 		return
 	}
 	p, ok := e.refPath(x.Args[0])
 	if !ok {
-		e.errf(diag.E0337, x.Args[0].Pos(), "each's first argument must be a reference to a list in %s", e.root)
+		e.errf(diag.E0337, x.Args[0].Pos(), "_each's first argument must be a reference to a list in %s", e.root)
 		return
 	}
 	bodyLit, ok := x.Args[1].(*ast.StructLit)
 	if !ok {
-		e.errf(diag.E0337, x.Args[1].Pos(), "each's body must be a struct of mappings over item")
+		e.errf(diag.E0337, x.Args[1].Pos(), "_each's body must be a struct of mappings over _item")
 		return
 	}
 	en.kind, en.source, en.body = kindEach, p, bodyLit
 	b.add(*en)
+}
+
+// notData refuses a hidden field or a definition as a key in a lens body or
+// its lacunas. Neither is data, so a mapping for one means nothing; and with
+// none in a lens, nothing in it can shadow the operations (_drop, _orelse,
+// _match, _each) or _item, which are spelled as hidden identifiers for that
+// reason. A quoted label ("_x") is a regular field, and data.
+func (e *edge) notData(f *ast.Field, name string, isIdent bool) bool {
+	if !isIdent || !strings.HasPrefix(name, "_") && !strings.HasPrefix(name, "#") {
+		return false
+	}
+	kind := "hidden field"
+	if strings.HasPrefix(name, "#") {
+		kind = "definition"
+	}
+	e.errs = cerrors.Append(e.errs, diag.New(diag.E0333).At(f.Pos()).
+		Headlinef("the %s in %s declares %s, a %s, which is not data", e.dir, e.file, name, kind).
+		Note(token.NoPos, "a lens maps data fields, so a key is a field of the target, or of its lacunas, by name").
+		Help("remove it; to map a field whose name starts with _ or #, quote the key: \""+name+"\": ...").Err())
+	return true
 }
 
 // noAttrs rejects attributes on a mapping or an arm: a lacuna is declared in
@@ -478,9 +501,12 @@ func (e *edge) parseLacunas(lit *ast.StructLit, base cue.Path, t *lacunaTable) {
 			e.errf(diag.E0410, d.Pos(), "%s holds only <mapping>: [...] entries, nested like the mappings they describe", fieldLacunas)
 			continue
 		}
-		name, _, err := ast.LabelName(f.Label)
+		name, isIdent, err := ast.LabelName(f.Label)
 		if err != nil || f.Constraint != token.ILLEGAL || len(f.Attrs) > 0 {
 			e.errf(diag.E0410, f.Pos(), "a %s key is a plain field name, the key of the mapping it describes", fieldLacunas)
+			continue
+		}
+		if e.notData(f, name, isIdent) {
 			continue
 		}
 		p := appendPath(base, cue.Str(name))
@@ -942,7 +968,7 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 			}
 			if e.optional(e.S, en.source) {
 				if e.required(e.T, en.target) {
-					e.errf(diag.E0343, en.pos, "%s is optional in %s and %s requires %s: write orelse(%s.%s, <fallback>) to say what to use when it is absent", en.source, e.sv, e.tv, en.target, e.root, en.source)
+					e.errf(diag.E0343, en.pos, "%s is optional in %s and %s requires %s: write _orelse(%s.%s, <fallback>) to say what to use when it is absent", en.source, e.sv, e.tv, en.target, e.root, en.source)
 					continue
 				}
 				root.has(en.target).present = []cue.Path{en.source}
@@ -981,7 +1007,7 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 				if e.required(e.T, en.target) {
 					e.errs = cerrors.Append(e.errs, diag.New(diag.E0343).At(en.pos).
 						Headlinef("%s reads %s, which %s may omit, and %s requires %s", exprText(en.computed), e.inputRefs(en.optional), e.sv, e.tv, en.target).
-						Helpf("write orelse(%s, <fallback>) to say what to use when it is absent", exprText(en.computed)).
+						Helpf("write _orelse(%s, <fallback>) to say what to use when it is absent", exprText(en.computed)).
 						Err())
 					continue
 				}
@@ -1031,7 +1057,7 @@ func (e *edge) declare(b *body, out *compiledLens) {
 		en := b.find(d.path)
 		switch {
 		case en == nil && b.findEach(d.path) != nil:
-			e.errf(diag.E0413, d.pos, "%s.%s: a lacuna on a mapping inside each is not supported yet; a %s lacuna on a drop refines the drop's", fieldLacunas, d.path, lacunaDropped)
+			e.errf(diag.E0413, d.pos, "%s.%s: a lacuna on a mapping inside _each is not supported yet; a %s lacuna on a _drop refines the _drop's", fieldLacunas, d.path, lacunaDropped)
 			continue
 		case en == nil:
 			e.errf(diag.E0412, d.pos, "%s.%s: %s has no mapping keyed %s", fieldLacunas, d.path, e.dir, d.path)
@@ -1055,7 +1081,7 @@ func (e *edge) declare(b *body, out *compiledLens) {
 		case kindMatch:
 			if cond == nil {
 				if en.catchAll == nil {
-					e.errf(diag.E0420, d.pos, "%s.%s: a lacuna on a match applies when its [_] arm does, and this match has none: say when it applies with %s: <condition>", fieldLacunas, d.path, fieldWhen)
+					e.errf(diag.E0420, d.pos, "%s.%s: a lacuna on a _match applies when its [_] arm does, and this _match has none: say when it applies with %s: <condition>", fieldLacunas, d.path, fieldWhen)
 					continue
 				}
 				cond = e.catchAllCondition(en, d.pos)
@@ -1066,7 +1092,7 @@ func (e *edge) declare(b *body, out *compiledLens) {
 			}
 		case kindEach:
 			if cond == nil {
-				e.errf(diag.E0415, d.pos, "%s.%s: a lacuna on each needs %s: <condition>", fieldLacunas, d.path, fieldWhen)
+				e.errf(diag.E0415, d.pos, "%s.%s: a lacuna on _each needs %s: <condition>", fieldLacunas, d.path, fieldWhen)
 				continue
 			}
 		}
@@ -1123,7 +1149,7 @@ func (e *edge) checkOrElse(en *entry) bool {
 			return false
 		}
 		if !e.optional(e.S, en.source) {
-			e.errf(diag.E0348, en.expr.Pos(), "%s always has %s, so orelse's fallback could never apply: write %s: %s.%s", e.sv, en.source, en.target, e.root, en.source)
+			e.errf(diag.E0348, en.expr.Pos(), "%s always has %s, so _orelse's fallback could never apply: write %s: %s.%s", e.sv, en.source, en.target, e.root, en.source)
 			return false
 		}
 	}
@@ -1133,7 +1159,7 @@ func (e *edge) checkOrElse(en *entry) bool {
 			return false
 		}
 		if e.optional(e.S, p) {
-			e.errf(diag.E0349, en.fallback.Pos(), "%s is optional in %s, so it cannot be orelse's fallback: the fallback must always exist", p, e.sv)
+			e.errf(diag.E0349, en.fallback.Pos(), "%s is optional in %s, so it cannot be _orelse's fallback: the fallback must always exist", p, e.sv)
 			return false
 		}
 		return true
@@ -1152,7 +1178,7 @@ func (e *edge) checkMatch(en *entry) bool {
 	seen := make(map[string]bool)
 	for _, a := range en.arms {
 		if seen[a.key] {
-			e.errf(diag.E0350, a.pos, "match has two arms for %q", a.key)
+			e.errf(diag.E0350, a.pos, "_match has two arms for %q", a.key)
 			return false
 		}
 		seen[a.key] = true
@@ -1171,7 +1197,9 @@ func (e *edge) checkMatch(en *entry) bool {
 	alts, finite := literalAlternatives(sv)
 	if !finite {
 		if err := tv.Subsume(sv, cue.Raw()); err != nil {
-			e.errf(diag.E0351, en.expr.Pos(), "match on %s is not exhaustive: %s's %s may hold values no arm matches and %s's %s does not accept; add a [_] arm", en.source, e.sv, en.source, e.tv, en.target)
+			e.errs = cerrors.Append(e.errs, diag.New(diag.E0351).At(en.expr.Pos()).
+				Headlinef("_match on %s is not exhaustive: %s's %s may hold values no arm matches and %s's %s does not accept", en.source, e.sv, en.source, e.tv, en.target).
+				Help("add a [_] arm").Err())
 			return false
 		}
 		return true
@@ -1181,7 +1209,9 @@ func (e *edge) checkMatch(en *entry) bool {
 			continue
 		}
 		if tv.Unify(a).Validate() != nil {
-			e.errf(diag.E0351, en.expr.Pos(), "match on %s is not exhaustive: %s's %s may be %s, which no arm matches and %s's %s does not accept; add an arm for it, or a [_] arm", en.source, e.sv, en.source, fmtv(a), e.tv, en.target)
+			e.errs = cerrors.Append(e.errs, diag.New(diag.E0351).At(en.expr.Pos()).
+				Headlinef("_match on %s is not exhaustive: %s's %s may be %s, which no arm matches and %s's %s does not accept", en.source, e.sv, en.source, fmtv(a), e.tv, en.target).
+				Helpf("add an arm for %s, or a [_] arm", fmtv(a)).Err())
 			return false
 		}
 	}
@@ -1282,16 +1312,16 @@ func (e *edge) compileEach(en *entry, out *compiledLens) bool {
 		return false
 	}
 	if sl.IncompleteKind() != cue.ListKind || tl.IncompleteKind() != cue.ListKind {
-		e.errf(diag.E0353, en.expr.Pos(), "each maps a list to a list; %s's %s and %s's %s must both be lists", e.sv, en.source, e.tv, en.target)
+		e.errf(diag.E0353, en.expr.Pos(), "_each maps a list to a list; %s's %s and %s's %s must both be lists", e.sv, en.source, e.tv, en.target)
 		return false
 	}
 	selem, telem := sl.LookupPath(cue.MakePath(cue.AnyIndex)), tl.LookupPath(cue.MakePath(cue.AnyIndex))
 	if !selem.Exists() || !telem.Exists() {
-		e.errf(diag.E0353, en.expr.Pos(), "each maps the elements of open lists ([...T]); a fixed-length list is not supported")
+		e.errf(diag.E0353, en.expr.Pos(), "_each maps the elements of open lists ([...T]); a fixed-length list is not supported")
 		return false
 	}
 	if e.each != nil {
-		e.errf(diag.E0353, en.expr.Pos(), "each inside each is not supported yet")
+		e.errf(diag.E0353, en.expr.Pos(), "_each inside _each is not supported yet")
 		return false
 	}
 	sub := &edge{ctx: e.ctx, S: selem, T: telem, sv: e.sv, tv: e.tv, dir: e.dir, blockPos: en.pos, root: rootItem,
@@ -1370,7 +1400,7 @@ func (e *edge) fill(n *node, tbase cue.Path, b *body, consumed, dropped map[stri
 				continue
 			}
 			if e.optional(e.S, spath) && e.required(e.T, tpath) {
-				e.errf(diag.E0343, lookup(e.T, tpath).Pos(), "%s is optional in %s and required in %s: write %s: orelse(%s.%s, <fallback>) to say what to use when it is absent", spath, e.sv, e.tv, tpath, e.root, spath)
+				e.errf(diag.E0343, lookup(e.T, tpath).Pos(), "%s is optional in %s and required in %s: write %s: _orelse(%s.%s, <fallback>) to say what to use when it is absent", spath, e.sv, e.tv, tpath, e.root, spath)
 				continue
 			}
 			c := n.child(name)
@@ -1419,10 +1449,10 @@ func (e *edge) copyMisfit(code diag.Code, p token.Pos, spath, tpath cue.Path, fs
 	if code == diag.E0358 {
 		b.Headlinef("the %s in %s would copy %s.%s into %s, which does not accept every value of it", e.dir, e.file, e.root, spath, tpath)
 		b.Notef(token.NoPos, "both %s and %s declare %s, so a lens that does not map it copies it", e.sv, e.tv, tpath)
-		b.Helpf("map %s in the %s: a match, a computed value, or a constant", tpath, e.dir)
+		b.Helpf("map %s in the %s: a _match, a computed value, or a constant", tpath, e.dir)
 	} else {
 		b.Headlinef("the %s in %s moves %s.%s into %s, which does not accept every value of it", e.dir, e.file, e.root, spath, tpath)
-		b.Helpf("map %s from a value it accepts: a match, or a computed value", tpath)
+		b.Helpf("map %s from a value it accepts: a _match, or a computed value", tpath)
 	}
 	r := strings.NewReplacer("the prior schema", e.sv.String(), "the new schema", e.tv.String())
 	for _, f := range fs {
@@ -1460,7 +1490,7 @@ func (e *edge) unmapped(b *body, consumed map[string]bool, out *compiledLens) {
 		}
 		switch e.dir {
 		case forward:
-			e.errf(diag.E0347, e.blockPos, "%s declares %s and %s does not, and nothing maps it: write <field>: %s.%s to move it, or %s: drop", e.sv, spath, e.tv, e.root, spath, spath)
+			e.errf(diag.E0347, e.blockPos, "%s declares %s and %s does not, and nothing maps it: write <field>: %s.%s to move it, or %s: _drop", e.sv, spath, e.tv, e.root, spath, spath)
 		case backward:
 			en := entry{kind: kindDrop, source: spath, target: spath, pos: lookup(e.S, spath).Pos(), derived: true}
 			out.effective = append(out.effective, en)
@@ -1496,7 +1526,7 @@ func (e *edge) emit(n *node, tbase cue.Path) *ast.StructLit {
 	for _, name := range e.order(n, tbase) {
 		c := n.fields[name]
 		if c.leaf == nil {
-			s.Elts = append(s.Elts, at(c.pos, &ast.Field{Label: at(c.pos, ast.NewIdent(name)), Value: e.emit(c, appendPath(tbase, cue.Str(name)))}))
+			s.Elts = append(s.Elts, at(c.pos, &ast.Field{Label: at(c.pos, label(name)), Value: e.emit(c, appendPath(tbase, cue.Str(name)))}))
 			continue
 		}
 		s.Elts = append(s.Elts, e.emitLeaf(name, c)...)
@@ -1509,7 +1539,7 @@ func (e *edge) emit(n *node, tbase cue.Path) *ast.StructLit {
 func (e *edge) emitLeaf(name string, c *node) []ast.Decl {
 	en, p := c.leaf, c.pos
 	field := func(val ast.Expr) *ast.Field {
-		f := at(p, &ast.Field{Label: at(p, ast.NewIdent(name)), Value: val})
+		f := at(p, &ast.Field{Label: at(p, label(name)), Value: val})
 		for _, cg := range en.comments {
 			ast.AddComment(f, cg)
 		}
@@ -1557,7 +1587,7 @@ func (e *edge) emitLeaf(name string, c *node) []ast.Decl {
 			ttype, ok := e.targetType(en)
 			if !ok {
 				e.errs = cerrors.Append(e.errs, diag.New(diag.E0352).At(en.expr.Pos()).
-					Headlinef("match on %s: %s's %s is not a self-contained type", en.source, e.tv, en.target).
+					Headlinef("_match on %s: %s's %s is not a self-contained type", en.source, e.tv, en.target).
 					Note(token.NoPos, "a value no arm matches passes through where the target accepts it, which cannot be tested against a type that refers to other fields").
 					Help("match every value with an arm, or add a [_] arm").
 					Err())
@@ -1660,11 +1690,11 @@ func (e *edge) dropLacuna(out *compiledLens, en *entry) {
 			continue
 		}
 		if decl != nil {
-			e.errf(diag.E0416, d.pos, "%s.%s: a drop has one %s lacuna, which refines the one it derives", fieldLacunas, d.path, lacunaDropped)
+			e.errf(diag.E0416, d.pos, "%s.%s: a _drop has one %s lacuna, which refines the one it derives", fieldLacunas, d.path, lacunaDropped)
 			return
 		}
 		if d.when != nil && e.each != nil {
-			e.errf(diag.E0421, d.when.Pos(), "%s.%s: a drop inside each aggregates over the list, and its lacuna has no %s", fieldLacunas, d.path, fieldWhen)
+			e.errf(diag.E0421, d.when.Pos(), "%s.%s: a _drop inside _each aggregates over the list, and its lacuna has no %s", fieldLacunas, d.path, fieldWhen)
 			return
 		}
 		decl, msg = d, d.msg
@@ -1789,11 +1819,22 @@ func (e *edge) fieldRef(pos token.Pos, p cue.Path, root string) ast.Expr {
 func (e *edge) ref(p cue.Path) ast.Expr { return ref(e.root, p) }
 
 func ref(root string, p cue.Path) ast.Expr {
-	var names []string
+	var x ast.Expr = ast.NewIdent(root)
 	for _, s := range p.Selectors() {
-		names = append(names, s.Unquoted())
+		x = &ast.SelectorExpr{X: x, Sel: label(s.Unquoted())}
 	}
-	return ast.NewSel(ast.NewIdent(root), names...)
+	return x
+}
+
+// label is the label for a data field named name: an identifier where one
+// names it as data, else a quoted string. A name starting with _ or # would
+// be a hidden field or a definition as an identifier, and must be quoted to
+// be data; so must a name that is not an identifier at all.
+func label(name string) ast.Label {
+	if ast.IsValidIdent(name) && !strings.HasPrefix(name, "_") && !strings.HasPrefix(name, "#") {
+		return ast.NewIdent(name)
+	}
+	return ast.NewString(name)
 }
 
 // derive builds the backward body implied by a forward lens: the inverse of

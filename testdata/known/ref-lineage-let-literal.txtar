@@ -1,0 +1,22 @@
+# a schema uses a let declared in the lineage whose expression is a literal.
+# The let is declared outside the schema (rule ref-lineage-meta), but nothing
+# in the value tells: the evaluator substitutes the let, Dereference reaches
+# the literal it is bound to, which refers to nothing, and nothing records
+# where the let was declared. The syntax views inline a let declared outside
+# the exported value. Only the source as written tells, which thema never
+# decides from. Tracked as #130.
+#issue: 130
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "refLineageLetLiteral"
+	let Kind = "k"
+	schemas: {
+		"0": "0": {
+			schema: {a: string, kind: Kind}
+		}
+	}
+}
+-- expect --
+bind fail ref-lineage-meta

@@ -1,0 +1,29 @@
+# a schema uses lets of every shape the value shows through Dereference, all
+# bound to its own body or to literals: a type, a sibling field, a struct, a
+# selection into a struct let, and an expression over a sibling
+#issue: 119
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "refOkSchemaLets"
+	schemas: {
+		"0": "0": {
+			schema: {
+				let T = int
+				let Own = a
+				let S = {x: a, y: 1}
+				let Sum = a + 1
+				a: T
+				b: Own
+				c: S
+				d: S.x
+				e: Sum
+			}
+		}
+	}
+}
+-- expect --
+bind ok
+validate 0.0 ok {a: 1, b: 1, c: {x: 1, y: 1}, d: 1, e: 2}
+validate 0.0 fail {a: 1, b: 2, c: {x: 1, y: 1}, d: 1, e: 2}

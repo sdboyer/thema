@@ -17,7 +17,7 @@ Schema: {
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		items: each(v0_0.items)
+		items: _each(v0_0.items)
 	}
 }
 -- out/json --
@@ -26,7 +26,7 @@ ForwardLens: {
     {
       "code": "E0337",
       "severity": "error",
-      "headline": "each takes two arguments: each(v0_0.<list>, {...})",
+      "headline": "_each takes two arguments: _each(v0_0.<list>, {...})",
       "primary": {
         "file": "1.0.thema",
         "line": 10,
@@ -43,9 +43,9 @@ ForwardLens: {
   }
 }
 -- out/text --
-error[E0337]: each takes two arguments: each(v0_0.<list>, {...})
+error[E0337]: _each takes two arguments: _each(v0_0.<list>, {...})
   --> 1.0.thema:10:10
    |
-10 |         items: each(v0_0.items)
-   |                ^^^^
+10 |         items: _each(v0_0.items)
+   |                ^^^^^
    |

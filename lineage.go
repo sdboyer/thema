@@ -1,12 +1,14 @@
 package thema
 
 import (
+	"errors"
 	"sort"
 
 	"cuelang.org/go/cue"
 
 	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/internal/cuetil"
+	"github.com/sdboyer/thema/internal/lensir"
 )
 
 var (
@@ -39,6 +41,12 @@ type baseLineage struct {
 
 	// vocab renders diagnostics about this lineage in the author's terms
 	vocab diag.Vocabulary
+
+	// programs holds the program of each lens, built when the lens was proven
+	// total; nil where the proofs were skipped (SkipBuggyChecks). programErr
+	// says why a proven lens has no program. LensPrograms reads both.
+	programs   lensir.Programs
+	programErr error
 }
 
 // BindLineage takes a raw [cue.Value], checks that it correctly follows Thema's
@@ -151,20 +159,40 @@ func BindLineage(v cue.Value, rt *Runtime, opts ...BindOption) (Lineage, error) 
 	nam, _ := orig.LookupPath(cue.MakePath(cue.Str("name"))).String()
 
 	lin := &baseLineage{
-		validated: true,
-		rt:        rt,
-		name:      nam,
-		raw:       ml.raw,
-		uni:       ml.uni,
-		allsch:    ml.schlist,
-		allv:      ml.allv,
-		vocab:     ml.vocab(),
+		validated:  true,
+		rt:         rt,
+		name:       nam,
+		raw:        ml.raw,
+		uni:        ml.uni,
+		allsch:     ml.schlist,
+		allv:       ml.allv,
+		vocab:      ml.vocab(),
+		programs:   ml.programs,
+		programErr: ml.programErr,
 	}
 
 	for _, sch := range lin.allsch {
 		sch.lin = lin
 	}
 	return lin, nil
+}
+
+// LensPrograms returns the program of each of lin's lenses, keyed by edge: the
+// target-neutral form of the lens (internal/lensir) that binding built as a
+// by-product of proving the lens total, for backends such as encoding/capnp
+// to render. A lineage bound with [SkipBuggyChecks] skipped the proofs and has
+// no programs; a lens using a construct the IR does not yet carry binds, but
+// has none either. In both cases the error says so.
+func LensPrograms(lin Lineage) (lensir.Programs, error) {
+	isValidLineage(lin)
+	tlin := lin.(*baseLineage)
+	switch {
+	case tlin.programs == nil:
+		return nil, errors.New("lineage was bound with SkipBuggyChecks, so its lenses were not proven total and have no programs")
+	case tlin.programErr != nil:
+		return nil, tlin.programErr
+	}
+	return tlin.programs, nil
 }
 
 func isValidLineage(lin Lineage) {

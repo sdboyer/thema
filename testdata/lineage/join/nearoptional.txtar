@@ -203,3 +203,5 @@ export interface Nearoptional {
 export const defaultNearoptional: Partial<Nearoptional> = {
   alist: [],
 };
+-- out/lensir --
+no lenses

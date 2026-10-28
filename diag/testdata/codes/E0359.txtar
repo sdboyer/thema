@@ -37,7 +37,7 @@ ForwardLens: {
         }
       ],
       "help": [
-        "map total from a value it accepts: a match, or a computed value"
+        "map total from a value it accepts: a _match, or a computed value"
       ]
     }
   ],
@@ -55,4 +55,4 @@ error[E0359]: the ForwardLens in 1.0.thema moves v0_0.count into total, which do
   |                ^^^^
   |
   = note: total in 1.0 is now uint, which does not accept every value of the prior int (moving v0_0.count; compatibility rule value-narrowed)
-  = help: map total from a value it accepts: a match, or a computed value
+  = help: map total from a value it accepts: a _match, or a computed value

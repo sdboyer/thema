@@ -56,6 +56,8 @@ func TestLensResultClassification(t *testing.T) {
 		"alias":                {`result: {x~(X): input.a, y: X}`, `{x=copied y=copied}`},
 		"hidden to input":      {`result: {_h: input.n, x: _h}`, `{_h=copied x=copied}`},
 		"hidden helper":        {`result: {_h: {extra: 1}, x: _h}`, `{_h=constant{extra=constant} x=constant{extra=constant}}`},
+		"quoted underscore":    {`result: {"_id": input.a, _id: 1}`, `{"_id"=copied _id=constant}`},
+		"quoted definition":    {`result: {"#x": input.a}`, `{"#x"=copied}`},
 		"embedded input":       {`result: {input, b: 1}`, `{b=constant}`},
 		"unified with literal": {`result: {n: input.n & {x: 1}}`, `{n{x=constant}}`},
 		"comprehension":        {`result: {a: input.a, if input.a == "boom" {extra: 1}}`, `{a=copied ?extra=constant}`},

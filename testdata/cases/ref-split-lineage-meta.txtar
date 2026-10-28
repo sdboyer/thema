@@ -1,0 +1,17 @@
+# a lineage declared in several fields, which thema unifies itself before
+# binding, with a schema that refers to the lineage's name (rule
+# ref-lineage-meta): the unified value has no position of its own, and the
+# author's root is still told from other packages'
+#issue: 119
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage
+lin: name: "refSplitLineageMeta"
+lin: schemas: {
+	"0": "0": {
+		schema: {a: string, n: lin.name}
+	}
+}
+-- expect --
+bind fail ref-lineage-meta

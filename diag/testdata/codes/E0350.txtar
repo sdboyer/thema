@@ -13,7 +13,7 @@ Schema: {
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		kind: match(v0_0.kind, {
+		kind: _match(v0_0.kind, {
 			"a": 1
 			"a": 2
 			"b": 2
@@ -26,12 +26,12 @@ ForwardLens: {
     {
       "code": "E0350",
       "severity": "error",
-      "headline": "match has two arms for \"a\"",
+      "headline": "_match has two arms for \"a\"",
       "primary": {
         "file": "1.0.thema",
         "line": 10,
         "col": 4,
-        "offset": 99,
+        "offset": 100,
         "origin": "user"
       }
     }
@@ -43,7 +43,7 @@ ForwardLens: {
   }
 }
 -- out/text --
-error[E0350]: match has two arms for "a"
+error[E0350]: _match has two arms for "a"
   --> 1.0.thema:10:4
    |
 10 |             "a": 2

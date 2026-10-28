@@ -1,0 +1,10 @@
+node_modules/
+dist/
+
+# thema's side of the playground, placed by go generate ./cmd/thema/playground
+# from this tree, and never committed.
+public/thema.wasm
+public/wasm_exec.js
+public/thema-fs.js
+
+.DS_Store

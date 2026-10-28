@@ -14,16 +14,24 @@ import (
 	"golang.org/x/tools/txtar"
 
 	"github.com/sdboyer/thema/internal/envvars"
+	"github.com/sdboyer/thema/internal/lensir"
 )
 
-// outFile is the archive section holding the recorded output.
-const outFile = "out"
+// outFile is the archive section holding the recorded output, and irFile the
+// one holding the program built for a total lens (internal/lensir), as
+// lensir.Print renders it.
+const (
+	outFile = "out"
+	irFile  = "ir"
+)
 
 // TestVerdicts runs the corpus in testdata/*.txtar: each archive holds a
 // source.cue and a target.cue, both schemas written as a file's top-level
 // fields, and a lens.cue holding the lens (v0_0, v1_0, lacunas) as a file's
 // top-level fields, and records in out the verdict of [Check] and its findings.
-// The archive comment says what the case exercises and which rule it belongs
+// A total lens's program is recorded in ir: the IR is a by-product of the
+// proof, so each proven form has its program here beside its verdict. The
+// archive comment says what the case exercises and which rule it belongs
 // to.
 //
 // Every verdict here is part of what binding a lineage guarantees: a lens that
@@ -46,8 +54,8 @@ func TestVerdicts(t *testing.T) {
 			}
 			ctx := cuecontext.New()
 			var source, target, lens cue.Value
-			var want string
-			outIdx := -1
+			var want, wantIR string
+			outIdx, irIdx := -1, -1
 			for i, f := range ar.Files {
 				switch f.Name {
 				case "source.cue":
@@ -59,6 +67,9 @@ func TestVerdicts(t *testing.T) {
 				case outFile:
 					want = string(f.Data)
 					outIdx = i
+				case irFile:
+					wantIR = string(f.Data)
+					irIdx = i
 				}
 			}
 			if !source.Exists() || !target.Exists() || !lens.Exists() {
@@ -70,13 +81,22 @@ func TestVerdicts(t *testing.T) {
 				}
 			}
 
-			got := render(Check(ctx, lens, source, target, "v0_0", "v1_0"))
+			res := Check(ctx, lens, source, target, "v0_0", "v1_0")
+			got, gotIR := render(res), renderIR(res)
 			if envvars.UpdateGoldenFiles {
 				f := txtar.File{Name: outFile, Data: []byte(got)}
 				if outIdx >= 0 {
 					ar.Files[outIdx] = f
 				} else {
 					ar.Files = append(ar.Files, f)
+				}
+				switch {
+				case gotIR == "" && irIdx >= 0:
+					ar.Files = append(ar.Files[:irIdx], ar.Files[irIdx+1:]...)
+				case gotIR != "" && irIdx >= 0:
+					ar.Files[irIdx] = txtar.File{Name: irFile, Data: []byte(gotIR)}
+				case gotIR != "":
+					ar.Files = append(ar.Files, txtar.File{Name: irFile, Data: []byte(gotIR)})
 				}
 				if err := os.WriteFile(file, txtar.Format(ar), 0o600); err != nil {
 					t.Fatal(err)
@@ -89,6 +109,9 @@ func TestVerdicts(t *testing.T) {
 			if diff := cmp.Diff(want, got); diff != "" {
 				t.Errorf("verdict changed (-want +got):\n%s", diff)
 			}
+			if diff := cmp.Diff(wantIR, gotIR); diff != "" {
+				t.Errorf("program changed (-want +got):\n%s", diff)
+			}
 		})
 	}
 }
@@ -100,4 +123,16 @@ func render(r Result) string {
 		fmt.Fprintf(&b, "%s @ %s\n", f, f.Pos)
 	}
 	return b.String()
+}
+
+// renderIR renders the program of a total lens, or why a total lens has none;
+// a lens that is not total has no program, and nothing is rendered.
+func renderIR(r Result) string {
+	switch {
+	case r.Program != nil:
+		return lensir.Print(r.Program)
+	case r.ProgramErr != nil:
+		return "no program: " + r.ProgramErr.Error() + "\n"
+	}
+	return ""
 }

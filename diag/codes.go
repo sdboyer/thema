@@ -22,6 +22,10 @@ type CodeInfo struct {
 	// no version files, a lens that is missing. Every other code must find the
 	// author's position, and the reproducer tests enforce it.
 	Positionless bool
+	// Retired, when set, says why the code is no longer reported and what
+	// reports its cases now. A retired code keeps its entry and its docs page,
+	// has no reproducer, and is never reused.
+	Retired string
 }
 
 // Codes declares every code, sorted. The hundreds group them:
@@ -40,7 +44,7 @@ var Codes = []CodeInfo{
 	{Code: E0101, Severity: SeverityError, Title: "a file in the lineage's directory is not a version file", Sentinels: []error{terrors.ErrInvalidLineage}, Positionless: true},
 	{Code: E0102, Severity: SeverityError, Title: "a version file is not CUE syntax", Sentinels: []error{terrors.ErrInvalidLineage}},
 	{Code: E0103, Severity: SeverityError, Title: "a version file has a package clause", Sentinels: []error{terrors.ErrInvalidLineage}},
-	{Code: E0104, Severity: SeverityError, Title: "a version file imports a package", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0104, Severity: SeverityError, Title: "a version file imports a package", Sentinels: []error{terrors.ErrInvalidLineage}, Retired: "A version file may import CUE's builtin packages since #104. An import of any other package is E0143, the rule for schemas and lenses in either form."},
 	{Code: E0105, Severity: SeverityError, Title: "a version file has a field that is not schema, ForwardLens or BackwardLens", Sentinels: []error{terrors.ErrInvalidLineage}},
 	{Code: E0106, Severity: SeverityError, Title: "a version file declares a field twice", Sentinels: []error{terrors.ErrInvalidLineage}},
 	{Code: E0107, Severity: SeverityError, Title: "a lens block is not a struct", Sentinels: []error{terrors.ErrInvalidLineage}},
@@ -72,6 +76,7 @@ var Codes = []CodeInfo{
 	{Code: E0144, Severity: SeverityError, Title: "a lens refers to a schema of the lineage", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0145, Severity: SeverityError, Title: "a lens refers to another lens of the lineage", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0146, Severity: SeverityError, Title: "a reference cannot be resolved statically", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0147, Severity: SeverityError, Title: "a version file imports a package its Schema does not use", Sentinels: []error{terrors.ErrInvalidLineage}},
 	{Code: E0201, Severity: SeverityError, Title: "the first schema is not version 0.0", Sentinels: []error{terrors.ErrNonContiguousVersions}},
 	{Code: E0202, Severity: SeverityError, Title: "a schema's version does not follow its predecessor's", Sentinels: []error{terrors.ErrNonContiguousVersions}},
 	{Code: E0203, Severity: SeverityError, Title: "a major version declares no schemas", Sentinels: []error{terrors.ErrNonContiguousVersions}},
@@ -107,11 +112,12 @@ var Codes = []CodeInfo{
 	{Code: E0330, Severity: SeverityError, Title: "a lens body holds something that is not a mapping", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0331, Severity: SeverityError, Title: "a mapping's key is not a plain field name", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0332, Severity: SeverityError, Title: "a mapping has an attribute", Sentinels: []error{terrors.ErrInvalidLens}},
+	{Code: E0333, Severity: SeverityError, Title: "a lens body or its lacunas declare a hidden field or a definition", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0334, Severity: SeverityError, Title: "a nested body embeds something other than a path into the source instance", Sentinels: []error{terrors.ErrInvalidLens}},
-	{Code: E0335, Severity: SeverityError, Title: "an orelse is not orelse(source path, fallback)", Sentinels: []error{terrors.ErrInvalidLens}},
-	{Code: E0336, Severity: SeverityError, Title: "a match is not match(source path, arms)", Sentinels: []error{terrors.ErrInvalidLens}},
-	{Code: E0337, Severity: SeverityError, Title: "an each is not each(source list, body)", Sentinels: []error{terrors.ErrInvalidLens}},
-	{Code: E0338, Severity: SeverityError, Title: "a match's arms are not constant arms with at most one catch-all", Sentinels: []error{terrors.ErrInvalidLens}},
+	{Code: E0335, Severity: SeverityError, Title: "an _orelse is not _orelse(source path, fallback)", Sentinels: []error{terrors.ErrInvalidLens}},
+	{Code: E0336, Severity: SeverityError, Title: "a _match is not _match(source path, arms)", Sentinels: []error{terrors.ErrInvalidLens}},
+	{Code: E0337, Severity: SeverityError, Title: "an _each is not _each(source list, body)", Sentinels: []error{terrors.ErrInvalidLens}},
+	{Code: E0338, Severity: SeverityError, Title: "a _match's arms are not constant arms with at most one catch-all", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0340, Severity: SeverityError, Title: "a lens reads a field its source version does not declare", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0341, Severity: SeverityError, Title: "a lens maps a field its target version does not declare", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0342, Severity: SeverityError, Title: "a lens drops a field its target version requires", Sentinels: []error{terrors.ErrInvalidLens}},
@@ -120,12 +126,12 @@ var Codes = []CodeInfo{
 	{Code: E0345, Severity: SeverityError, Title: "a lens maps a target field twice", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0346, Severity: SeverityError, Title: "a lens produces nothing for a field its target version requires", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0347, Severity: SeverityError, Title: "a field the source version has and the target lacks is neither mapped nor dropped", Sentinels: []error{terrors.ErrInvalidLens}},
-	{Code: E0348, Severity: SeverityError, Title: "an orelse reads a field the source version always has", Sentinels: []error{terrors.ErrInvalidLens}},
-	{Code: E0349, Severity: SeverityError, Title: "an orelse's fallback may itself be absent", Sentinels: []error{terrors.ErrInvalidLens}},
-	{Code: E0350, Severity: SeverityError, Title: "a match has two arms for one value", Sentinels: []error{terrors.ErrInvalidLens}},
-	{Code: E0351, Severity: SeverityError, Title: "a match is not exhaustive", Sentinels: []error{terrors.ErrInvalidLens}},
-	{Code: E0352, Severity: SeverityError, Title: "a match passes values through to a target the lens cannot test them against", Sentinels: []error{terrors.ErrInvalidLens}},
-	{Code: E0353, Severity: SeverityError, Title: "an each maps something other than an open list to an open list", Sentinels: []error{terrors.ErrInvalidLens}},
+	{Code: E0348, Severity: SeverityError, Title: "an _orelse reads a field the source version always has", Sentinels: []error{terrors.ErrInvalidLens}},
+	{Code: E0349, Severity: SeverityError, Title: "an _orelse's fallback may itself be absent", Sentinels: []error{terrors.ErrInvalidLens}},
+	{Code: E0350, Severity: SeverityError, Title: "a _match has two arms for one value", Sentinels: []error{terrors.ErrInvalidLens}},
+	{Code: E0351, Severity: SeverityError, Title: "a _match is not exhaustive", Sentinels: []error{terrors.ErrInvalidLens}},
+	{Code: E0352, Severity: SeverityError, Title: "a _match passes values through to a target the lens cannot test them against", Sentinels: []error{terrors.ErrInvalidLens}},
+	{Code: E0353, Severity: SeverityError, Title: "an _each maps something other than an open list to an open list", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0354, Severity: SeverityError, Title: "the first version has a lens", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0355, Severity: SeverityError, Title: "a minor version has a ForwardLens", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0356, Severity: SeverityError, Title: "a normal-form lens is outside what the authoring form expresses", Sentinels: []error{terrors.ErrInvalidLens}, Positionless: true},
@@ -165,13 +171,13 @@ var Codes = []CodeInfo{
 	{Code: E0410, Severity: SeverityError, Title: "a lacunas declaration is not shaped as lacunas", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0411, Severity: SeverityError, Title: "a lacuna's type is not a lacuna type", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0412, Severity: SeverityError, Title: "a lacunas key names a mapping the lens does not have", Sentinels: []error{terrors.ErrInvalidLens}},
-	{Code: E0413, Severity: SeverityError, Title: "a lacuna on a mapping inside each", Sentinels: []error{terrors.ErrInvalidLens}},
-	{Code: E0414, Severity: SeverityError, Title: "a match's catch-all arm has no lacuna", Sentinels: []error{terrors.ErrInvalidLens}},
-	{Code: E0415, Severity: SeverityError, Title: "a lacuna on each has no when", Sentinels: []error{terrors.ErrInvalidLens}},
-	{Code: E0416, Severity: SeverityError, Title: "a drop has a lacuna that is not its one DroppedField refinement", Sentinels: []error{terrors.ErrInvalidLens}},
+	{Code: E0413, Severity: SeverityError, Title: "a lacuna on a mapping inside _each", Sentinels: []error{terrors.ErrInvalidLens}},
+	{Code: E0414, Severity: SeverityError, Title: "a _match's catch-all arm has no lacuna", Sentinels: []error{terrors.ErrInvalidLens}},
+	{Code: E0415, Severity: SeverityError, Title: "a lacuna on _each has no when", Sentinels: []error{terrors.ErrInvalidLens}},
+	{Code: E0416, Severity: SeverityError, Title: "a _drop has a lacuna that is not its one DroppedField refinement", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0418, Severity: SeverityError, Title: "a condition refers to a name a lens does not define", Sentinels: []error{terrors.ErrInvalidLens}},
-	{Code: E0420, Severity: SeverityError, Title: "a lacuna on a match with no catch-all arm has no when", Sentinels: []error{terrors.ErrInvalidLens}},
-	{Code: E0421, Severity: SeverityError, Title: "a lacuna on a drop inside each has a when", Sentinels: []error{terrors.ErrInvalidLens}},
+	{Code: E0420, Severity: SeverityError, Title: "a lacuna on a _match with no catch-all arm has no when", Sentinels: []error{terrors.ErrInvalidLens}},
+	{Code: E0421, Severity: SeverityError, Title: "a lacuna on a _drop inside _each has a when", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0422, Severity: SeverityError, Title: "a when names a field that is not a condition", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0423, Severity: SeverityError, Title: "a when tests the presence of a field it also reads", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0501, Severity: SeverityError, Title: "the data lacks a field the schema requires", Sentinels: []error{terrors.ErrInvalidData, terrors.ErrInvalidMissingField}},
@@ -247,6 +253,7 @@ const (
 	E0144 Code = "E0144" // ref-lens-to-schema
 	E0145 Code = "E0145" // ref-lens-to-lens
 	E0146 Code = "E0146" // ref-unresolved
+	E0147 Code = "E0147" // a version file imports a package its Schema does not use
 
 	E0201 Code = "E0201" // first version is not 0.0
 	E0202 Code = "E0202" // a version is neither the next minor nor the next major
@@ -291,6 +298,7 @@ const (
 	E0330 Code = "E0330" // body holds an embedding, comprehension, let or other non-mapping
 	E0331 Code = "E0331" // mapping key is not a plain name
 	E0332 Code = "E0332" // mapping has an attribute
+	E0333 Code = "E0333" // hidden field or definition as a key in a lens body or its lacunas
 	E0334 Code = "E0334" // nested body embeds something other than input.<path>
 	E0335 Code = "E0335" // orelse arguments
 	E0336 Code = "E0336" // match arguments

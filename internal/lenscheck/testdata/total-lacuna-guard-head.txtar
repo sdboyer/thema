@@ -14,3 +14,14 @@ lacunas: [{
 }]
 -- out --
 total
+-- ir --
+out: {
+  if in.n != _|_ {
+    out.n <- in.n
+  }
+}
+lacuna PrecisionLoss {
+  when (if in.n != _|_ then in.n > 5 else false)
+  source if in.n != _|_ { n = in.n }
+  message "big"
+}

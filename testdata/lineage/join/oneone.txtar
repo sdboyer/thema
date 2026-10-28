@@ -110,3 +110,5 @@ export interface Oneone {
   bar: string;
   foo: string;
 }
+-- out/lensir --
+no lenses

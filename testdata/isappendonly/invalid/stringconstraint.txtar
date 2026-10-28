@@ -48,7 +48,7 @@ error[E0243]: schema 0.0 differs from the published one
     |                               ------- also here
     |
     = note: in thema's own CUE
-     --> thema/lineage.cue:177:11
+     --> thema/lineage.cue:178:11
     = detail: invalid value strings.MinRunes(2) (does not satisfy strings.MinRunes(1)): non-concrete value string
               field aString not present in {aString:strings.MinRunes(2),anObject:{aField:int}}
               missing field "aString"
