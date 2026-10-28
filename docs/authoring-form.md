@@ -91,7 +91,7 @@ The operations, `_drop`, `_orelse`, `_match` and `_each`, and `_item` inside an 
 
 ### What is written and what is implied
 
-- **Copies are implicit.** A field both schemas declare, that no mapping mentions, is copied. The copy is made as high as the two schemas agree: a field whose contents the target declares whole is copied whole, and one whose contents differ is descended into.
+- **Copies are implicit.** A field both schemas declare, that no mapping mentions, is copied. The copy is made as high as the two schemas agree: a field whose contents the target declares whole is copied whole, and one whose contents differ is descended into. A copy, like a move, must fit: the target field has to accept every value the source field may hold, or the field must be mapped.
 - **Optional sources are used only when present.** A copy, a move or a computed value that reads a field the source may omit is written only when the instance has it. Where the target requires the field, the author must say what to use when it is absent, with `_orelse`.
 - **Removed fields must be accounted for.** In the forward direction, a field the source declares and the target does not must be moved somewhere or dropped. A forgotten rename is an error, not a silent loss.
 - **Required fields must be produced.** A field the target requires that no mapping and no copy produces is an error, naming the lens and the field.

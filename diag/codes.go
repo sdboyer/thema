@@ -141,6 +141,8 @@ var Codes = []CodeInfo{
 	{Code: E0355, Severity: SeverityError, Title: "a minor version has a ForwardLens", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0356, Severity: SeverityError, Title: "a normal-form lens is outside what the authoring form expresses", Sentinels: []error{terrors.ErrInvalidLens}, Positionless: true},
 	{Code: E0357, Severity: SeverityError, Title: "a mapping calls a function a lens may not call", Sentinels: []error{terrors.ErrInvalidLens}},
+	{Code: E0358, Severity: SeverityError, Title: "a field both versions declare cannot be copied: the target does not accept every source value", Sentinels: []error{terrors.ErrInvalidLens}},
+	{Code: E0359, Severity: SeverityError, Title: "a move reads a source field whose values the target field does not all accept", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0360, Severity: SeverityError, Title: "a lens copies a value its target rejects for some instance", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
 	{Code: E0361, Severity: SeverityError, Title: "a lens reads a field that may be absent", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
 	{Code: E0362, Severity: SeverityError, Title: "a lens reads a field its source schema does not declare", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
@@ -326,6 +328,8 @@ const (
 	E0355 Code = "E0355" // a ForwardLens in a minor version
 	E0356 Code = "E0356" // normal form Decompile cannot express
 	E0357 Code = "E0357" // call to a function outside the lens language
+	E0358 Code = "E0358" // implicit copy whose source the target does not accept
+	E0359 Code = "E0359" // move whose source the target does not accept
 	// E0360 to E0372: one per rule of internal/lenscheck that refutes totality;
 	// E0380 to E0390: one per rule that leaves the verdict Unknown.
 	E0360 Code = "E0360" // copy-narrowed

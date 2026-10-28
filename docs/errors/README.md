@@ -111,6 +111,8 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0355](E0355.md) | error | a minor version has a ForwardLens |
 | [E0356](E0356.md) | error | a normal-form lens is outside what the authoring form expresses |
 | [E0357](E0357.md) | error | a mapping calls a function a lens may not call |
+| [E0358](E0358.md) | error | a field both versions declare cannot be copied: the target does not accept every source value |
+| [E0359](E0359.md) | error | a move reads a source field whose values the target field does not all accept |
 | [E0360](E0360.md) | error | a lens copies a value its target rejects for some instance |
 | [E0361](E0361.md) | error | a lens reads a field that may be absent |
 | [E0362](E0362.md) | error | a lens reads a field its source schema does not declare |

@@ -89,15 +89,15 @@ func TestAuthoringLineageErrorPosition(t *testing.T) {
 // terms: the ForwardLens in its version file, not the normal form's lens edge.
 func TestAuthoringLineageVocabulary(t *testing.T) {
 	narrowing := fstest.MapFS{
-		"ship/history/0.0.thema": {Data: []byte("Schema: {\n\ta: int\n}\n")},
+		"ship/history/0.0.thema": {Data: []byte("Schema: {\n\ta: int32\n}\n")},
 		"ship/1.0.thema": {Data: []byte(`Schema: {
-	a: int & <10
+	a: int32 & >=0
 }
 
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		a: v0_0.a
+		a: v0_0.a * 2
 	}
 }
 
@@ -111,7 +111,7 @@ BackwardLens: {
 	}
 	_, err := AuthoringLineage(narrowing, "ship", thema.NewRuntime(cuecontext.New()))
 	if err == nil {
-		t.Fatal("want an error: the forward lens copies a into a narrower field")
+		t.Fatal("want an error: the forward lens computes a value the target field may reject")
 	}
 	ds := diag.Diagnostics(err)
 	if len(ds) == 0 {
