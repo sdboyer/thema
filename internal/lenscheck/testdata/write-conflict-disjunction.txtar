@@ -1,0 +1,19 @@
+# Two arms at a disjunctive target writing different alternatives under
+# patterns that can hold together: the structs unify into an instance of
+# neither, though they share no field.
+-- source.cue --
+p: bool
+-- target.cue --
+o: {a: int} | {b: int}
+-- lens.cue --
+v0_0: _
+v1_0: {
+	o: {
+		if v0_0.p {a: 1}
+		if !v0_0.p {b: 2}
+		if v0_0.p {b: 2}
+	}
+}
+-- out --
+not total
+v1_0.o is written as {...}, an instance of alternative 0 of the target schema's disjunction, and as {...}, an instance of alternative 1, and the two unify into an instance of neither; write the field once per instance (rule write-conflict) @ lens.cue:6:3

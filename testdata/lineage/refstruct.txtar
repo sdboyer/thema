@@ -378,3 +378,69 @@ export interface Refstruct {
 }
 -- out/lensir --
 no lenses
+-- out/encoding/jsonschema/TestGenerate --
+== 0.0.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Bar": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "one": {
+          "type": "string"
+        },
+        "two": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "one",
+        "two"
+      ]
+    },
+    "Baz": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dat": {
+          "type": "integer",
+          "maximum": 2147483647,
+          "minimum": -2147483648
+        },
+        "run": {
+          "type": "string"
+        },
+        "tell": {
+          "type": "string",
+          "contentEncoding": "base64"
+        }
+      },
+      "required": [
+        "dat",
+        "run"
+      ]
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "aBaz": {
+      "$ref": "#/$defs/Baz"
+    },
+    "disj": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Baz"
+        },
+        {
+          "$ref": "#/$defs/Bar"
+        }
+      ]
+    }
+  },
+  "required": [
+    "aBaz",
+    "disj"
+  ]
+}

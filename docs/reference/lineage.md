@@ -235,7 +235,6 @@ A lineage in the authoring form is checked by the compiler before it is bound: t
 **Options.**
 
 - `thema.WithVocabulary` makes binding's diagnostics describe the lineage in the terms of the form it was written in. `load.AuthoringLineage` passes it.
-- `thema.SkipBuggyChecks` skips the backwards compatibility checks of step 5 and the totality proofs of step 11. A lineage bound with it carries none of the guarantees those checks provide, and has no lens programs. For a lineage in the normal form, the CLI passes it when the environment variable `THEMA_SKIP_BUGGY` is set.
 
 **What it produces.** A bound `thema.Lineage` gives access to the lineage's schemas and to the operations on them:
 

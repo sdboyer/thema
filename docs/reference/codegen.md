@@ -114,7 +114,7 @@ The command prints the document to stdout, with no trailing newline. An unrecogn
 
 ## JSON Schema
 
-Generates a JSON Schema (draft 4) of the schema, derived from the [OpenAPI](#openapi) output.
+Generates a JSON Schema (draft 2020-12) of the schema, unified with the lineage's `joinSchema`. The schema is converted by CUE's JSON Schema generator, [`cuelang.org/go/encoding/jsonschema`](https://pkg.go.dev/cuelang.org/go/encoding/jsonschema#Generate), and thema adds the defaults that generator leaves out.
 
 **Takes**
 
@@ -123,53 +123,45 @@ Generates a JSON Schema (draft 4) of the schema, derived from the [OpenAPI](#ope
 
 **Output**
 
-The output is currently the OpenAPI document described under [OpenAPI](#openapi), not a bare JSON Schema: `openapi: "3.0.0"`, `info`, `paths: {}`, and the schema under `components.schemas.<name>`. This wrapper is a known defect, and will be removed. Within it, each entry of `components.schemas` is rewritten for JSON Schema:
-
-- `"$schema": "http://json-schema.org/draft-04/schema#"` is added as the last key of each entry, including the entries for definitions.
-- `nullable: true` on a schema with a `type` is removed, and `"null"` is added to its `type`: `type: string, nullable: true` becomes `type: ["string", "null"]`.
-- The OpenAPI-only keywords `deprecated`, `discriminator`, `example`, `externalDocs`, `nullable`, `readOnly`, `writeOnly` and `xml` are removed from every schema that has a `type`.
-- Everything else is as in the OpenAPI output: names, `required`, optional fields, `default`, `enum`, `oneOf`, `$ref`, and the absence of `additionalProperties` on closed structs.
+- The document is the schema itself: `"$schema": "https://json-schema.org/draft/2020-12/schema"`, then the schema's keywords at the top level.
+- A definition the schema refers to, `#Point`, is under `$defs`, as `$defs.Point`, and each use of it is `{"$ref": "#/$defs/Point"}`. A hidden field the schema refers to, `_aMap`, is under `$defs` by its own name, `_aMap`.
+- `required` lists every field that is neither optional nor defaulted, sorted by name. A defaulted field may be omitted from an instance, and is listed under `properties` only. In CUE, an open list, `[...T]`, has the default `[]`; a struct whose every field has a default, or that has only pattern constraints, also needs no data, and is not required.
+- A field, list element or pattern value whose CUE value has a concrete default has a `default` keyword: `size: *"medium" | ...` gives `"default": "medium"`, and `[...T]` gives `"default": []`.
+- A disjunction of concrete values, `"a" | "b"`, becomes `enum`, in declaration order, with no `type`. A single concrete value becomes `const`.
+- A disjunction of types, `string | int`, becomes `anyOf`. `T | null` becomes `anyOf` with a `{"type": "null"}` branch.
+- Openness is as `thema data validate` reads it: a struct rejects fields it does not declare, `additionalProperties: false`, unless its author wrote `...` in it, `additionalProperties: true`. This holds for the schema itself, nested structs, list elements, pattern values and definitions alike. The JSON Schema accepts exactly the data validation accepts.
+- A pattern constraint, `[string]: T`, becomes `additionalProperties: T`.
+- `[...T]` becomes `type: array` with `items: T`. A fixed-length list, `[A, B]`, becomes `prefixItems` with `minItems` and `maxItems`.
+- Bounds become `minimum`, `maximum`, `exclusiveMinimum` and `exclusiveMaximum`; `int32` and the other sized types become their bounds. `strings.MinRunes(n)` and similar validators become `minLength` and their counterparts. `bytes` becomes `type: string` with `contentEncoding: base64`. `_` becomes `true`.
+- A doc comment on a field becomes its `description`.
 
 The `1.1` schema, as JSON:
 
 ```json
 {
-  "openapi": "3.0.0",
-  "info": {
-    "title": "ship",
-    "version": "1.1"
-  },
-  "paths": {},
-  "components": {
-    "schemas": {
-      "ship": {
-        "type": "object",
-        "required": [
-          "firstfield",
-          "secondfield",
-          "size"
-        ],
-        "properties": {
-          "firstfield": {
-            "type": "string"
-          },
-          "secondfield": {
-            "type": "integer"
-          },
-          "size": {
-            "type": "string",
-            "enum": [
-              "medium",
-              "small",
-              "large"
-            ],
-            "default": "medium"
-          }
-        },
-        "$schema": "http://json-schema.org/draft-04/schema#"
-      }
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "firstfield": {
+      "type": "string"
+    },
+    "secondfield": {
+      "type": "integer"
+    },
+    "size": {
+      "enum": [
+        "small",
+        "medium",
+        "large"
+      ],
+      "default": "medium"
     }
-  }
+  },
+  "required": [
+    "firstfield",
+    "secondfield"
+  ]
 }
 ```
 
@@ -187,15 +179,14 @@ Output, trailing newline and unrecognized formats behave as for OpenAPI.
 **Go**
 
 - Package `github.com/sdboyer/thema/encoding/jsonschema`.
-- `jsonschema.GenerateSchema(sch thema.Schema) (*ast.File, error)`. It takes no configuration; it calls `openapi.GenerateSchema` with a nil config. The result is CUE syntax, marshaled as for OpenAPI.
+- `jsonschema.GenerateSchema(sch thema.Schema) (*ast.File, error)`. It takes no configuration. The result is CUE syntax, marshaled as for OpenAPI.
 
 **Limits**
 
-- Draft 4 only.
-- Every limit of the [OpenAPI](#openapi) generator applies.
-- `$ref`s point at `#/components/schemas/<name>`, which resolves only inside the OpenAPI wrapper.
-- A schema with no `type` (a `oneOf` of types, or `null` alone) is not rewritten, and keeps `nullable: true`. Nor are schemas under a `oneOf` or `allOf` of a schema that has a `type`, such as the branches of a disjunction of structs.
-- `#A | null` becomes `type: ["object", "null"]` with `allOf: [{$ref: ...}]`. The `allOf` rejects `null`, so the schema accepts no `null` value.
+- Draft 2020-12 only.
+- CUE marks its JSON Schema generator experimental: its output may change when thema upgrades CUE.
+- A struct with a regular-expression pattern constraint, `[=~"^i"]: int`, becomes `{"type": "object"}`: its fields and patterns are dropped, and it accepts any object.
+- A default within a branch of a disjunction, `{a: int | *1} | {b: string}`, has no `default` keyword.
 
 ## TypeScript
 

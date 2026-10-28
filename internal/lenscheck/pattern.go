@@ -313,57 +313,139 @@ func establishes(gs []pattern, p cue.Path) bool {
 	return false
 }
 
-// refine narrows the alternatives of the source at p by the patterns on exactly
-// p: an equality keeps each alternative unified with the literal (none, where
-// no alternative admits it: the arm is dead), a negated one removes a constant
-// alternative, a type test keeps what unifies with the type, a negated one
-// drops the alternatives the type subsumes. An alternative that may be a float
-// is not fixed by an equality (checkPatterns reports it). It reports whether
-// any pattern applied.
-func refine(branches []cue.Value, p cue.Path, gs []pattern) ([]cue.Value, bool) {
+// refine narrows the alternatives of the source at p by the patterns on p and
+// on paths beneath it. On p itself: an equality keeps each alternative unified
+// with the literal (none, where no alternative admits it: the arm is dead), a
+// negated one removes a constant alternative, a type test keeps what unifies
+// with the type, a negated one drops the alternatives the type subsumes. An
+// alternative that may be a float is not fixed by an equality (checkPatterns
+// reports it). On a path beneath p, an alternative is kept where the pattern
+// can hold within it: where it declares the path and the pattern keeps some
+// alternative of the path there (a presence test, where it may be present; a
+// negated one, where it may be absent), or where it does not declare the path
+// and the pattern is negated. It returns the alternatives kept, each one's
+// index among the alternatives given, and whether any pattern applied.
+func (w *walker) refine(branches []cue.Value, p cue.Path, gs []pattern) ([]cue.Value, []int, bool) {
+	idx := make([]int, len(branches))
+	for i := range idx {
+		idx[i] = i
+	}
 	refined := false
 	for _, g := range gs {
-		if g.kind == opaque || g.kind == presence || g.path.String() != p.String() {
+		if g.kind == opaque {
+			continue
+		}
+		var out []cue.Value
+		var oidx []int
+		keep := func(i int, b cue.Value) {
+			out = append(out, b)
+			oidx = append(oidx, idx[i])
+		}
+		switch {
+		case g.path.String() == p.String():
+			if g.kind == presence {
+				continue
+			}
+			for i, b := range branches {
+				switch {
+				case g.kind == equality && !g.neg:
+					if b.IncompleteKind()&cue.FloatKind != 0 {
+						keep(i, b)
+						continue
+					}
+					if u := b.Unify(g.val); u.Validate(cue.Concrete(true)) == nil {
+						keep(i, u)
+					}
+				case g.kind == equality && g.neg:
+					if compat.ConstantTarget(b) && cuetil.Equal(b, g.val) == nil {
+						continue
+					}
+					keep(i, b)
+				case g.kind == typeTest && !g.neg:
+					u := b.Unify(g.val)
+					if u.Validate() == nil {
+						for _, a := range compat.Branches(u) {
+							keep(i, a)
+						}
+					}
+				case g.kind == typeTest && g.neg:
+					if g.val.Subsume(b, cue.Raw()) == nil {
+						continue
+					}
+					keep(i, b)
+				}
+			}
+		case cuetil.PathHasPrefix(g.path, p):
+			rel := cuetil.TrimPathPrefix(g.path, p)
+			for i, b := range branches {
+				alts, declared, present := w.childAlternatives(b, rel)
+				switch {
+				case !declared:
+					// The alternative has no such path: a pattern on it cannot
+					// hold (an equality is an error there, which checkPatterns
+					// reports; the other forms are false), and a negated one
+					// holds.
+					if g.neg {
+						keep(i, b)
+					}
+				case g.kind == presence:
+					if !g.neg || !present {
+						keep(i, b)
+					}
+				default:
+					if kept, _, _ := w.refine(alts, g.path, []pattern{g}); len(kept) > 0 {
+						keep(i, b)
+					}
+				}
+			}
+		default:
 			continue
 		}
 		refined = true
-		var out []cue.Value
-		switch {
-		case g.kind == equality && !g.neg:
-			for _, b := range branches {
-				if b.IncompleteKind()&cue.FloatKind != 0 {
-					out = append(out, b)
+		branches, idx = out, oidx
+	}
+	return branches, idx, refined
+}
+
+// childAlternatives walks rel beneath the source alternative b: the
+// alternatives the path may be within b, whether b declares it (at every
+// step, in some alternative), and whether every instance of b has it.
+func (w *walker) childAlternatives(b cue.Value, rel cue.Path) (alts []cue.Value, declared, present bool) {
+	cur := []cue.Value{b}
+	present = true
+	for _, sel := range rel.Selectors() {
+		var next []cue.Value
+		n := 0
+		for _, v := range cur {
+			for _, alt := range compat.Branches(v) {
+				n++
+				if alt.IncompleteKind() == cue.TopKind {
+					next = append(next, alt)
+					present = false
 					continue
 				}
-				if u := b.Unify(g.val); u.Validate(cue.Concrete(true)) == nil {
-					out = append(out, u)
-				}
-			}
-		case g.kind == equality && g.neg:
-			for _, b := range branches {
-				if compat.ConstantTarget(b) && cuetil.Equal(b, g.val) == nil {
+				child, csel, ok := cuetil.DeclaredChild(w.ctx, alt, sel)
+				if !ok {
 					continue
 				}
-				out = append(out, b)
-			}
-		case g.kind == typeTest && !g.neg:
-			for _, b := range branches {
-				u := b.Unify(g.val)
-				if u.Validate() == nil {
-					out = append(out, compat.Branches(u)...)
+				next = append(next, child)
+				if _, ok := presentIn(alt, sel, csel); !ok {
+					present = false
 				}
-			}
-		case g.kind == typeTest && g.neg:
-			for _, b := range branches {
-				if g.val.Subsume(b, cue.Raw()) == nil {
-					continue
-				}
-				out = append(out, b)
 			}
 		}
-		branches = out
+		if len(next) == 0 {
+			return nil, false, false
+		}
+		if len(next) < n {
+			present = false
+		}
+		cur = next
 	}
-	return branches, refined
+	for _, v := range cur {
+		alts = append(alts, compat.Branches(v)...)
+	}
+	return alts, true, present
 }
 
 // guarded returns the conjuncts of x, read by subj, that are part of its value

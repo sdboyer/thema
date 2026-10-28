@@ -1,0 +1,15 @@
+# A disjunction of structs copied whole into an identical disjunction: each
+# source alternative is accepted by the matching target alternative (#120).
+-- source.cue --
+rootfield: {branch: 1, one: string} | {branch: 2, two: string}
+-- target.cue --
+renamed: {branch: 1, one: string} | {branch: 2, two: string}
+-- lens.cue --
+v0_0: _
+v1_0: {renamed: v0_0.rootfield}
+-- out --
+total
+-- ir --
+out: {
+  out.renamed <- in.rootfield (alt 0 -> 0, 1 -> 1)
+}

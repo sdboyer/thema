@@ -1,0 +1,14 @@
+# A single struct copied into a disjunction that contains it (#120).
+-- source.cue --
+rootfield: {branch: 2, two: string}
+-- target.cue --
+rootfield: {branch: 1, one: string} | {branch: 2, two: string}
+-- lens.cue --
+v0_0: _
+v1_0: {rootfield: v0_0.rootfield}
+-- out --
+total
+-- ir --
+out: {
+  out.rootfield <- in.rootfield (alt 0 -> 1)
+}

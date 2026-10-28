@@ -96,3 +96,23 @@ Schema versions: 0.0
 Lenses count: 0
 -- out/lensir --
 no lenses
+-- out/encoding/jsonschema/TestGenerate --
+== 0.0.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Baz": {
+      "type": "string"
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "aBaz": {
+      "$ref": "#/$defs/Baz"
+    }
+  },
+  "required": [
+    "aBaz"
+  ]
+}

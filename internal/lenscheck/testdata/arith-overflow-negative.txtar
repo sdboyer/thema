@@ -1,0 +1,15 @@
+# A product whose operand's alternatives include a negative literal (#147):
+# {a: -1, b: -9223372036854775808} gives 9223372036854775808, outside int64.
+# The target accepts anything, so only the int64 check can refute it, and it
+# needs the operand's bounds read from the literal.
+-- source.cue --
+a: -1 | 0
+b: int64
+-- target.cue --
+m: _
+-- lens.cue --
+v0_0: _
+v1_0: {m: v0_0.a * v0_0.b}
+-- out --
+not total
+v1_0.m computes v0_0.a * v0_0.b, whose result may be [-9223372036854775807, 9223372036854775808], outside int64; bound the fields it reads so that the result fits (rule arith-overflow) @ lens.cue:2:11

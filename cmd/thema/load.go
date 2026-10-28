@@ -423,9 +423,5 @@ func loadone(rt *thema.Runtime, binst *build.Instance, pkgpath, cuepath string) 
 		}
 	}
 
-	var opts []thema.BindOption
-	if _, set := os.LookupEnv("THEMA_SKIP_BUGGY"); set {
-		opts = append(opts, thema.SkipBuggyChecks())
-	}
-	return thema.BindLineage(v, rt, opts...)
+	return thema.BindLineage(v, rt)
 }

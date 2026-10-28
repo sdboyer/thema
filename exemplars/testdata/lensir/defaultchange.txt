@@ -1,1 +1,30 @@
-no lens programs: lineage was bound with SkipBuggyChecks, so its lenses were not proven total and have no programs
+lens 0.0->1.0
+  out: {
+    if in.aunion == "foo" {
+      out.aunion = "bar"
+    }
+    if in.aunion != "foo" {
+      out.aunion <- in.aunion
+    }
+  }
+  lacuna ChangedDefault {
+    when in.aunion == "foo"
+    source aunion = in.aunion
+    target aunion = out.aunion
+    message "aunion was the source default, \"foo\", and was changed to the target default, \"bar\""
+  }
+lens 1.0->0.0
+  out: {
+    if in.aunion == "bar" {
+      out.aunion = "foo"
+    }
+    if in.aunion != "bar" {
+      out.aunion <- in.aunion
+    }
+  }
+  lacuna ChangedDefault {
+    when in.aunion == "bar"
+    source aunion = in.aunion
+    target aunion = out.aunion
+    message "aunion was the source default, \"bar\", and was changed to the target default, \"foo\""
+  }

@@ -14,6 +14,7 @@ import (
 
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/diag"
+	"github.com/sdboyer/thema/internal/compat"
 	"github.com/sdboyer/thema/internal/cueview"
 	"github.com/sdboyer/thema/internal/lenscheck"
 	"github.com/sdboyer/thema/lacuna"
@@ -959,6 +960,12 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 			if !e.place(root, en) {
 				continue
 			}
+			if fs := e.misfits(en.source, en.target); len(fs) > 0 {
+				// The source is accounted for; only the move is wrong.
+				consumed[en.source.String()] = true
+				e.copyMisfit(diag.E0359, en.expr.Pos(), en.source, en.target, fs)
+				continue
+			}
 			if e.optional(e.S, en.source) {
 				if e.required(e.T, en.target) {
 					e.errf(diag.E0343, en.pos, "%s is optional in %s and %s requires %s: write _orelse(%s.%s, <fallback>) to say what to use when it is absent", en.source, e.sv, e.tv, en.target, e.root, en.source)
@@ -1373,6 +1380,11 @@ func (e *edge) fill(n *node, tbase cue.Path, b *body, consumed, dropped map[stri
 			}
 			continue
 		}
+		if b.claimed[tpath.String()] {
+			// An authored mapping that was refused: its error stands, and an
+			// implicit copy would only add another.
+			continue
+		}
 		spath := appendPath(sbase, cue.Str(name))
 		if sv := lookup(e.S, spath); sv.Exists() && !dropped[spath.String()] {
 			tv := lookup(e.T, tpath)
@@ -1383,6 +1395,10 @@ func (e *edge) fill(n *node, tbase cue.Path, b *body, consumed, dropped map[stri
 				continue
 			}
 			en := entry{kind: kindMove, target: tpath, source: spath, pos: e.blockPos, derived: true}
+			if fs := e.misfits(spath, tpath); len(fs) > 0 {
+				e.copyMisfit(diag.E0358, e.blockPos, spath, tpath, fs)
+				continue
+			}
 			if e.optional(e.S, spath) && e.required(e.T, tpath) {
 				e.errf(diag.E0343, lookup(e.T, tpath).Pos(), "%s is optional in %s and required in %s: write %s: _orelse(%s.%s, <fallback>) to say what to use when it is absent", spath, e.sv, e.tv, tpath, e.root, spath)
 				continue
@@ -1397,10 +1413,62 @@ func (e *edge) fill(n *node, tbase cue.Path, b *body, consumed, dropped map[stri
 			out.effective = append(out.effective, en)
 			continue
 		}
-		if e.required(e.T, tpath) && !b.claimed[tpath.String()] {
+		if e.required(e.T, tpath) {
 			e.unproduced(tpath)
 		}
 	}
+}
+
+// misfits returns why a copy of source path spath into target path tpath
+// would not always produce an instance of the target: the compatibility
+// checker's first clause between the two values (every source value is a
+// target value), with defaults set aside, since a copied value is data. Only
+// definite findings: an Unknown verdict is left to the totality proof at
+// bind, which reports it in full. A required field the target adds beneath
+// the copy is left too, since the lens may write it.
+func (e *edge) misfits(spath, tpath cue.Path) []compat.Finding {
+	sv, tv := lookup(e.S, spath), lookup(e.T, tpath)
+	if !sv.Exists() || !tv.Exists() {
+		return nil
+	}
+	var out []compat.Finding
+	for _, f := range compat.Check(e.ctx, sv, tv).Instances().Findings {
+		if f.Verdict != compat.Incompatible || f.Rule == compat.RuleFieldAddedRequired {
+			continue
+		}
+		out = append(out, f)
+	}
+	return out
+}
+
+// copyMisfit reports a copy or a move (code says which) of spath into tpath
+// that would produce a value the target rejects, with the checker's findings
+// as notes.
+func (e *edge) copyMisfit(code diag.Code, p token.Pos, spath, tpath cue.Path, fs []compat.Finding) {
+	b := diag.New(code).At(p)
+	if code == diag.E0358 {
+		b.Headlinef("the %s in %s would copy %s.%s into %s, which does not accept every value of it", e.dir, e.file, e.root, spath, tpath)
+		b.Notef(token.NoPos, "both %s and %s declare %s, so a lens that does not map it copies it", e.sv, e.tv, tpath)
+		b.Helpf("map %s in the %s: a _match, a computed value, or a constant", tpath, e.dir)
+	} else {
+		b.Headlinef("the %s in %s moves %s.%s into %s, which does not accept every value of it", e.dir, e.file, e.root, spath, tpath)
+		b.Helpf("map %s from a value it accepts: a _match, or a computed value", tpath)
+	}
+	r := strings.NewReplacer("the prior schema", e.sv.String(), "the new schema", e.tv.String())
+	for _, f := range fs {
+		// The checker's sentence describes the target's value, against the
+		// source's ("is now X, which does not accept every value of the prior Y").
+		subject := tpath.String()
+		if sels := f.Path.Selectors(); len(sels) > 0 {
+			subject += "." + f.Path.String()
+		}
+		verb := "moving"
+		if code == diag.E0358 {
+			verb = "copying"
+		}
+		b.Notef(token.NoPos, "%s in %s %s (%s %s.%s; compatibility rule %s)", subject, e.tv, r.Replace(f.Detail), verb, e.root, spath, f.Rule)
+	}
+	e.errs = cerrors.Append(e.errs, b.Err())
 }
 
 // unproduced reports a required target field no mapping produces, at the

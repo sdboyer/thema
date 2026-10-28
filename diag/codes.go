@@ -22,6 +22,11 @@ type CodeInfo struct {
 	// no version files, a lens that is missing. Every other code must find the
 	// author's position, and the reproducer tests enforce it.
 	Positionless bool
+	// Internal, when set, marks a code whose condition cannot arise when
+	// thema's checker is sound, and says which proof rules it out. Such a code
+	// has no reproducer: there is no lineage that shows it. Its page says that
+	// seeing it is a bug in thema and asks for a report.
+	Internal string
 	// Retired, when set, says why the code is no longer reported and what
 	// reports its cases now. A retired code keeps its entry and its docs page,
 	// has no reproducer, and is never reused.
@@ -103,10 +108,10 @@ var Codes = []CodeInfo{
 	{Code: E0301, Severity: SeverityError, Title: "the lineage lacks a lens its versions require", Sentinels: []error{terrors.ErrMissingLenses, terrors.ErrInvalidLineage}, Positionless: true},
 	{Code: E0302, Severity: SeverityError, Title: "the lineage declares a lens its versions do not require", Sentinels: []error{terrors.ErrErroneousLenses, terrors.ErrInvalidLineage}},
 	{Code: E0303, Severity: SeverityError, Title: "a lens does not accept every instance of its source schema", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
-	{Code: E0304, Severity: SeverityError, Title: "what a lens produces is not an instance of its target schema", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0304, Severity: SeverityError, Title: "what a lens produces is not an instance of its target schema", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}, Internal: "every lens is proven total at bind, and the proof names the mapping at fault (E0360 to E0372) before this check runs"},
 	{Code: E0305, Severity: SeverityError, Title: "a lens writes a field its target schema does not declare", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
-	{Code: E0307, Severity: SeverityError, Title: "translating an instance, a lens produced something that is not concrete", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrLensIncomplete}},
-	{Code: E0308, Severity: SeverityError, Title: "translating an instance, a lens failed", Sentinels: []error{terrors.ErrInvalidLens}},
+	{Code: E0307, Severity: SeverityError, Title: "translating an instance, a lens produced something that is not concrete", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrLensIncomplete}, Internal: "every lens is proven total at bind, which rules out a result field left as a constraint for any instance (E0365)"},
+	{Code: E0308, Severity: SeverityError, Title: "translating an instance, a lens failed", Sentinels: []error{terrors.ErrInvalidLens}, Internal: "every lens is proven total at bind, which rules out a result the target schema rejects for any instance (E0360, E0366, E0367)"},
 	{Code: E0310, Severity: SeverityError, Title: "a lens does not declare the instance it takes", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0311, Severity: SeverityError, Title: "a lens does not declare the instance it returns", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0330, Severity: SeverityError, Title: "a lens body holds something that is not a mapping", Sentinels: []error{terrors.ErrInvalidLens}},
@@ -136,6 +141,8 @@ var Codes = []CodeInfo{
 	{Code: E0355, Severity: SeverityError, Title: "a minor version has a ForwardLens", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0356, Severity: SeverityError, Title: "a normal-form lens is outside what the authoring form expresses", Sentinels: []error{terrors.ErrInvalidLens}, Positionless: true},
 	{Code: E0357, Severity: SeverityError, Title: "a mapping calls a function a lens may not call", Sentinels: []error{terrors.ErrInvalidLens}},
+	{Code: E0358, Severity: SeverityError, Title: "a field both versions declare cannot be copied: the target does not accept every source value", Sentinels: []error{terrors.ErrInvalidLens}},
+	{Code: E0359, Severity: SeverityError, Title: "a move reads a source field whose values the target field does not all accept", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0360, Severity: SeverityError, Title: "a lens copies a value its target rejects for some instance", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
 	{Code: E0361, Severity: SeverityError, Title: "a lens reads a field that may be absent", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
 	{Code: E0362, Severity: SeverityError, Title: "a lens reads a field its source schema does not declare", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
@@ -283,11 +290,12 @@ const (
 	E0301 Code = "E0301" // a required lens is missing
 	E0302 Code = "E0302" // a lens no edge requires
 	E0303 Code = "E0303" // input narrower than the source schema
+	// E0304 is the data-independent check of a lens's result, and E0307 and
+	// E0308 arise when translating an instance. Every lens is proven total at
+	// bind, which rules all three out; they remain as the fallbacks that
+	// report a checker bug (Internal in Codes).
 	E0304 Code = "E0304" // result not an instance of the target schema, data-independently
 	E0305 Code = "E0305" // result writes fields the target does not declare
-	// E0307 and E0308 arise when translating an instance, for a lens the
-	// totality checker did not refuse at bind: under SkipBuggyChecks, or for
-	// what the checker cannot yet see. Every one is a lens bug (#57).
 	E0307 Code = "E0307" // the lens's result for this instance is not concrete
 	E0308 Code = "E0308" // the lens failed to evaluate for this instance
 	E0310 Code = "E0310" // lens lacks its parameter field
@@ -320,6 +328,8 @@ const (
 	E0355 Code = "E0355" // a ForwardLens in a minor version
 	E0356 Code = "E0356" // normal form Decompile cannot express
 	E0357 Code = "E0357" // call to a function outside the lens language
+	E0358 Code = "E0358" // implicit copy whose source the target does not accept
+	E0359 Code = "E0359" // move whose source the target does not accept
 	// E0360 to E0372: one per rule of internal/lenscheck that refutes totality;
 	// E0380 to E0390: one per rule that leaves the verdict Unknown.
 	E0360 Code = "E0360" // copy-narrowed

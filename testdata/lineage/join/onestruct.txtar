@@ -140,3 +140,31 @@ export interface Onestruct {
 }
 -- out/lensir --
 no lenses
+-- out/encoding/jsonschema/TestGenerate --
+== 0.0.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "aField": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "defLitField": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "defLitField"
+      ]
+    },
+    "foo": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "aField",
+    "foo"
+  ]
+}

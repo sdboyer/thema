@@ -92,3 +92,18 @@ export interface Repeat {
 }
 -- out/lensir --
 no lenses
+-- out/encoding/jsonschema/TestGenerate --
+== 0.0.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "foo": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "foo"
+  ]
+}

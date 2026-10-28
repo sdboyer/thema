@@ -19,15 +19,15 @@ func TestAuthoringDiagnosticExcerpt(t *testing.T) {
 		t.Fatal(err)
 	}
 	files := map[string]string{
-		"history/0.0.thema": "Schema: {\n\ta: int\n}\n",
+		"history/0.0.thema": "Schema: {\n\ta: int32\n}\n",
 		"1.0.thema": `Schema: {
-	a: int & <10
+	a: int32 & >=0
 }
 
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		a: v0_0.a
+		a: v0_0.a * 2
 	}
 }
 
@@ -55,7 +55,7 @@ BackwardLens: {
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err == nil {
-		t.Fatal("want the lineage to fail to bind: the forward lens copies a into a narrower field")
+		t.Fatal("want the lineage to fail to bind: the forward lens computes a value the target field may reject")
 	}
 	out := stderr.String()
 	for _, want := range []string{"the ForwardLens in 1.0.thema", "a: v0_0.a"} {
