@@ -1,0 +1,46 @@
+#op: cli
+#args: playground examples lineages
+Each lineage a playground deployment offers as an example has an example.cue
+beside its version files, describing it: a category, the group it is listed
+in, and optionally a title and a summary, each a string. Nothing else may be
+in it.
+-- lineages/pets/cat/0.0.thema --
+Schema: {
+	lives: int
+}
+-- lineages/pets/cat/example.cue --
+category: "Pets"
+color:    "grey"
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0621",
+      "severity": "error",
+      "headline": "lineages/pets/cat/example.cue has a field color, which is not category, title or summary",
+      "primary": {
+        "file": "lineages/pets/cat/example.cue",
+        "line": 2,
+        "col": 1,
+        "offset": 17,
+        "origin": "user"
+      },
+      "help": [
+        "remove the field"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0621]: lineages/pets/cat/example.cue has a field color, which is not category, title or summary
+ --> lineages/pets/cat/example.cue:2:1
+  |
+2 | color:    "grey"
+  | ^^^^^
+  |
+  = help: remove the field
