@@ -10,5 +10,5 @@ v1_0: {"_id": v0_0."_id"}
 total
 -- ir --
 out: {
-  out._id <- in._id
+  out."_id" <- in."_id"
 }

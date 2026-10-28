@@ -8,6 +8,7 @@ import type {
   ValidateResponse,
 } from "../api/types";
 import { Diagnostics } from "./Diagnostics";
+import { DocLink } from "./docs";
 import { Editor } from "./Editor";
 
 export type Outcome =
@@ -47,7 +48,7 @@ function Summary({ outcome }: { outcome: Outcome }) {
       return (
         <p class="status ok">
           Translated from {outcome.resp.from} to {outcome.resp.to}
-          {lacunaCount(outcome.resp) ? `, with ${lacunaCount(outcome.resp)} lacunas` : ", with no lacunas"}.
+          {lacunaCount(outcome.resp) === 0 ? ", with no lacunas" : lacunaCount(outcome.resp) === 1 ? ", with 1 lacuna" : `, with ${lacunaCount(outcome.resp)} lacunas`}.
         </p>
       );
     case "hydrate":
@@ -114,6 +115,9 @@ function Lacunas({ resp }: { resp: TranslateResponse }) {
   if (steps.length === 0) return null;
   return (
     <table class="lacunas">
+      <caption>
+        Lacunas <DocLink topic="lacunas" />
+      </caption>
       <thead>
         <tr>
           <th>step</th>

@@ -3,6 +3,7 @@
 // file marks it as information. Positions in thema's own CUE mark nothing;
 // the diagnostics list shows them.
 import type { Diagnostic, Pos } from "../api/types";
+import { themaDoc } from "./docs";
 import { offsetOf, spanAt } from "./positions";
 
 export interface Marker {
@@ -41,9 +42,10 @@ export function markersFor(ds: readonly Diagnostic[], file: string, text: string
   return out;
 }
 
-// docsURL is where a code is explained.
+// docsURL is where a code is explained, in the docs of the thema the page
+// runs.
 export function docsURL(code: string): string {
-  return `https://github.com/sdboyer/thema/blob/main/docs/errors/${encodeURIComponent(code)}.md`;
+  return themaDoc(`errors/${encodeURIComponent(code)}.md`);
 }
 
 // filesOf lists the files diagnostics point into, so a file tab can say it
