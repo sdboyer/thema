@@ -8,3 +8,7 @@ v0_0: _
 v1_0: {"_id": v0_0."_id"}
 -- out --
 total
+-- ir --
+out: {
+  out."_id" <- in."_id"
+}
