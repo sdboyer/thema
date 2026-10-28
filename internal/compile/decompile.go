@@ -492,6 +492,18 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 	for _, g := range groups {
 		tpath := appendPath(tbase, cue.Str(g.name))
 		en := dentry{target: tpath, comments: ast.Comments(g.brs[0].field)}
+		if s, ok := g.brs[0].field.Value.(*ast.StructLit); ok && len(g.brs) == 1 {
+			// A copy of an optional struct, written only where the source
+			// has it.
+			ts, ok := b.tests(g.brs[0].cond)
+			if !ok || len(ts) != 1 || ts[0].operand != nil || !ts[0].present || ts[0].path.String() != tpath.String() {
+				return fmt.Errorf("lens %s is outside the authoring form: %s is written under a condition the authoring form cannot express", key, tpath)
+			}
+			if err := b.walk(s.Elts, tpath, key); err != nil {
+				return err
+			}
+			continue
+		}
 		if len(g.brs) == 1 && b.allPresence(g.brs[0].cond) {
 			if _, _, isRef := refPathAny(g.brs[0].field.Value); !isRef && !isLiteral(g.brs[0].field.Value) {
 				// A computed mapping that reads optional fields, written only

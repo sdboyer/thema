@@ -1,0 +1,29 @@
+A struct the new version removes, that nothing maps or drops, is reported
+once, as a whole: dropping it, rather than its fields one by one, keeps
+whether it was present.
+-- ship/history/0.0.thema --
+Schema: {
+	name: string
+	meta?: {
+		owner?: string
+		team?:  string
+	}
+}
+-- ship/1.0.thema --
+Schema: {
+	name: string
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		name: v0_0.name
+	}
+}
+-- out/error --
+error[E0347]: 0.0 declares meta and 1.0 does not, and nothing maps it: write <field>: v0_0.meta to move it, or meta: _drop
+ --> 1.0.thema:5:1
+  |
+5 | ForwardLens: {
+  | ^^^^^^^^^^^
+  |

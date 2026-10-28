@@ -1,0 +1,172 @@
+Inside an each body, a copy of an optional struct is written only where the
+element has it, and a struct the body drops is dropped whole: the drop's
+derived lacuna names every element that had it, empty or not. q's nested
+body only drops y, and x is copied.
+-- ship/history/0.0.thema --
+Schema: {
+	items: [...{
+		q?: {
+			x?: int
+			y?: int
+		}
+		o?: {
+			e?: bool
+		}
+	}]
+}
+-- ship/1.0.thema --
+Schema: {
+	items: [...{
+		q?: {
+			x?: int
+		}
+	}]
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		items: _each(v0_0.items, {
+			q: {
+				y: _drop
+			}
+			o: _drop
+		})
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		items: _each(v1_0.items, {})
+	}
+}
+-- in/translate/0.0/1.0/items.json --
+{"items": [{}, {"q": {}, "o": {}}, {"q": {"x": 1, "y": 2}, "o": {"e": true}}]}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+Schema: {
+	items: [
+		...{
+			q?: {
+				x?: int
+			}
+		},
+	]
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		items: _each(v0_0.items, {
+			q: {
+				y: _drop
+			}
+			o: _drop
+		})
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		items: _each(v1_0.items, {})
+	}
+}
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	items: [...{
+		q?: {
+			x?: int
+			y?: int
+		}
+		o?: {
+			e?: bool
+		}
+	}]
+}
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				items: [...{
+					q?: {
+						x?: int
+						y?: int
+					}
+					o?: {
+						e?: bool
+					}
+				}]
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				items: [...{
+					q?: {
+						x?: int
+					}
+				}]
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		let _d_0 = [for i, _item in v0_0.items if _item.q.y != _|_ {
+			path:  "items[\(i)].q.y"
+			value: _item.q.y
+		}]
+		let _d_1 = [for i, _item in v0_0.items if _item.o != _|_ {
+			path:  "items[\(i)].o"
+			value: _item.o
+		}]
+		v1_0: {
+			items: [for _item in v0_0.items {
+				if _item.q != _|_ {
+					q: {if _item.q.x != _|_ {
+						x: _item.q.x
+					}}
+				}
+			}]
+		}
+		lacunas: [
+			{
+				@thema(derived)
+				condition:    len(_d_0) > 0
+				sourceFields: _d_0
+				message:      "items[].q.y has no equivalent in 1.0 and was dropped"
+				type:         "DroppedField"
+			},
+			{
+				@thema(derived)
+				condition:    len(_d_1) > 0
+				sourceFields: _d_1
+				message:      "items[].o has no equivalent in 1.0 and was dropped"
+				type:         "DroppedField"
+			}
+		]
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			items: [for _item in v1_0.items {
+				if _item.q != _|_ {
+					q: _item.q
+				}
+			}]
+		}
+	}
+}
+-- out/translate/0.0/1.0/items --
+0.0: {"items": [{}, {"q": {}, "o": {}}, {"q": {"x": 1, "y": 2}, "o": {"e": true}}]}
+to 1.0: {"items":[{},{"q":{}},{"q":{"x":1}}]}
+lacunas: [{"sourceFields":[{"path":"items[2].q.y","value":2}],"type":"DroppedField","message":"items[].q.y has no equivalent in 1.0 and was dropped"},{"sourceFields":[{"path":"items[1].o","value":{}},{"path":"items[2].o","value":{"e":true}}],"type":"DroppedField","message":"items[].o has no equivalent in 1.0 and was dropped"}]
+back to 0.0: {"items":[{},{"q":{}},{"q":{"x":1}}]}
+lacunas: []
