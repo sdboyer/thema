@@ -843,6 +843,10 @@ func (w *walker) listLength(l *ast.ListLit, c *exprCtx) (shape, bool) {
 		case *ast.Comprehension:
 			var fc *ast.ForClause
 			filtered := false
+			// A pattern tested before the for clause guards the iteration:
+			// where it fails, the list is empty, and where it holds, the
+			// source is read under it.
+			gs := c.gs
 			for _, cl := range e.Clauses {
 				switch cc := cl.(type) {
 				case *ast.ForClause:
@@ -853,6 +857,13 @@ func (w *walker) listLength(l *ast.ListLit, c *exprCtx) (shape, bool) {
 					fc = cc
 				case *ast.IfClause:
 					filtered = true
+					if fc != nil {
+						continue
+					}
+					if g, ok := w.parsePattern(cc.Condition); ok {
+						w.checkPatterns(g, gs, c.subj, c.pos)
+						gs = append(gs[:len(gs):len(gs)], g...)
+					}
 				}
 			}
 			if fc == nil {
@@ -865,7 +876,7 @@ func (w *walker) listLength(l *ast.ListLit, c *exprCtx) (shape, bool) {
 				return shape{}, false
 			}
 			c.paths[p.String()]++
-			src := w.lookupSource(p, c.gs)
+			src := w.lookupSource(p, gs)
 			switch {
 			case !src.declared:
 				w.fail(c, NotTotal, RuleSourceUndeclared, fmt.Sprintf("takes the length of a list built over %s, which the source schema does not declare", w.inputRef(p)))
