@@ -29,9 +29,9 @@ import (
 //     form, which must equal the input up to formatting;
 //   - out/error: the compile error, for an archive that must not compile; the
 //     other sections are then absent;
-//   - out/translate/<from>/<to>/<name>: for each in/translate/<from>/<to>/<name>.json,
-//     an instance of <from>: what translating it to <to> gives, and what
-//     translating that back to <from> gives, each with its lacunas.
+//   - out/translate/<version>/<name>-><to>: for each instance data/<version>/<name>
+//     the archive holds, as JSON, the result of translating it to every other
+//     version and the lacunas reported, as JSON on a line each.
 func TestRoundTrip(t *testing.T) {
 	files, err := filepath.Glob("testdata/roundtrip/*.txtar")
 	if err != nil {
@@ -67,7 +67,8 @@ func TestRoundTrip(t *testing.T) {
 			}
 			// Bound with the authoring form's vocabulary, so that what bind
 			// reports names the author's files and lenses.
-			if lin, berr := thema.BindLineage(v, thema.NewRuntime(ctx), thema.WithVocabulary(Vocabulary(c))); berr != nil {
+			lin, berr := thema.BindLineage(v, thema.NewRuntime(ctx), thema.WithVocabulary(Vocabulary(c)))
+			if berr != nil {
 				ds := diag.Diagnostics(berr)
 				if len(ds) == 0 {
 					t.Fatalf("a bind failure is made of diagnostics, got: %v", berr)
@@ -120,55 +121,6 @@ func TestRoundTrip(t *testing.T) {
 	}
 }
 
-// translate runs the archive's translate cases against lin, recording each in
-// got. A case is in/translate/<from>/<to>/<name>.json, an instance of <from>.
-func (a *archive) translate(t *testing.T, ctx *cue.Context, lin thema.Lineage, got map[string]string) {
-	t.Helper()
-	for _, f := range a.ar.Files {
-		rest, ok := strings.CutPrefix(f.Name, "in/translate/")
-		if !ok {
-			continue
-		}
-		name := strings.TrimSuffix(rest, ".json")
-		parts := strings.Split(name, "/")
-		if len(parts) != 3 {
-			t.Fatalf("%s: a translate case is in/translate/<from>/<to>/<name>.json", f.Name)
-		}
-		from, err := thema.ParseSyntacticVersion(parts[0])
-		if err != nil {
-			t.Fatalf("%s: %v", f.Name, err)
-		}
-		to, err := thema.ParseSyntacticVersion(parts[1])
-		if err != nil {
-			t.Fatalf("%s: %v", f.Name, err)
-		}
-		inst, err := thema.SchemaP(lin, from).Validate(ctx.CompileBytes(f.Data))
-		if err != nil {
-			t.Fatalf("%s: %v", f.Name, cerrors.Details(err, nil))
-		}
-		var b strings.Builder
-		fmt.Fprintf(&b, "%s: %s\n", from, bytes.TrimSpace(f.Data))
-		step := func(inst *thema.Instance, to thema.SyntacticVersion, label string) *thema.Instance {
-			out, lac, err := inst.Translate(to)
-			if err != nil {
-				t.Fatalf("%s: translating to %s: %v", f.Name, to, cerrors.Details(err, nil))
-			}
-			data, err := json.Marshal(out.Underlying())
-			if err != nil {
-				t.Fatal(err)
-			}
-			lacs, err := json.Marshal(lac.AsList())
-			if err != nil {
-				t.Fatal(err)
-			}
-			fmt.Fprintf(&b, "%s %s: %s\nlacunas: %s\n", label, to, data, lacs)
-			return out
-		}
-		step(step(inst, to, "to"), from, "back to")
-		got["out/translate/"+name] = b.String()
-	}
-}
-
 // rendered is the diagnostics as the author sees them, with the archive's
 // authoring files as the source of excerpts. Positions name the files by their
 // path under the lineage's directory.
@@ -195,6 +147,54 @@ func formatted(t *testing.T, name string, text []byte) string {
 	return string(b)
 }
 
+// translate translates each instance the archive holds under data/ from its
+// version to every other version of lin, recording the result and lacunas.
+func (a *archive) translate(t *testing.T, ctx *cue.Context, lin thema.Lineage, got map[string]string) {
+	t.Helper()
+	for _, f := range a.ar.Files {
+		rest, ok := strings.CutPrefix(f.Name, "data/")
+		if !ok {
+			continue
+		}
+		vs, name, ok := strings.Cut(rest, "/")
+		if !ok {
+			t.Fatalf("%s: data file %s is not under data/<version>/", a.path, f.Name)
+		}
+		from, err := thema.ParseSyntacticVersion(vs)
+		if err != nil {
+			t.Fatalf("%s: %v", f.Name, err)
+		}
+		sch, err := lin.Schema(from)
+		if err != nil {
+			t.Fatalf("%s: %v", f.Name, err)
+		}
+		inst, err := sch.Validate(ctx.CompileBytes(f.Data, cue.Filename(f.Name)))
+		if err != nil {
+			t.Fatalf("%s is not an instance of %s: %v", f.Name, from, cerrors.Details(err, nil))
+		}
+		for to := lin.First(); to != nil; to = to.Successor() {
+			if to.Version() == from {
+				continue
+			}
+			key := fmt.Sprintf("out/translate/%s/%s->%s", vs, strings.TrimSuffix(name, ".json"), to.Version())
+			out, lac, err := inst.Translate(to.Version())
+			if err != nil {
+				got[key] = "error: " + cerrors.Details(err, nil) + "\n"
+				continue
+			}
+			res, err := json.Marshal(out.Underlying())
+			if err != nil {
+				t.Fatalf("%s: %v", key, err)
+			}
+			lacs, err := json.Marshal(lac.AsList())
+			if err != nil {
+				t.Fatalf("%s: %v", key, err)
+			}
+			got[key] = string(res) + "\n" + string(lacs) + "\n"
+		}
+	}
+}
+
 // lineage returns the archive's authoring files: those under its first
 // directory, which names the lineage.
 func (a *archive) lineage(t *testing.T) (string, []File) {
@@ -202,7 +202,7 @@ func (a *archive) lineage(t *testing.T) (string, []File) {
 	var name string
 	var files []File
 	for _, f := range a.ar.Files {
-		if strings.HasPrefix(f.Name, "out/") || strings.HasPrefix(f.Name, "in/") {
+		if strings.HasPrefix(f.Name, "out/") || strings.HasPrefix(f.Name, "data/") {
 			continue
 		}
 		dir, rest, ok := strings.Cut(f.Name, "/")

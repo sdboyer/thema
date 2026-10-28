@@ -41,8 +41,10 @@ BackwardLens: {
 		items: _each(v1_0.items, {})
 	}
 }
--- in/translate/0.0/1.0/items.json --
+-- data/0.0/items.json --
 {"items": [{}, {"q": {}, "o": {}}, {"q": {"x": 1, "y": 2}, "o": {"e": true}}]}
+-- data/1.0/items.json --
+{"items": [{}, {"q": {}}, {"q": {"x": 1}}]}
 -- out/bind --
 ok
 -- out/decompiled/1.0.thema --
@@ -164,9 +166,9 @@ lenses: {
 		}
 	}
 }
--- out/translate/0.0/1.0/items --
-0.0: {"items": [{}, {"q": {}, "o": {}}, {"q": {"x": 1, "y": 2}, "o": {"e": true}}]}
-to 1.0: {"items":[{},{"q":{}},{"q":{"x":1}}]}
-lacunas: [{"sourceFields":[{"path":"items[2].q.y","value":2}],"type":"DroppedField","message":"items[].q.y has no equivalent in 1.0 and was dropped"},{"sourceFields":[{"path":"items[1].o","value":{}},{"path":"items[2].o","value":{"e":true}}],"type":"DroppedField","message":"items[].o has no equivalent in 1.0 and was dropped"}]
-back to 0.0: {"items":[{},{"q":{}},{"q":{"x":1}}]}
-lacunas: []
+-- out/translate/0.0/items->1.0 --
+{"items":[{},{"q":{}},{"q":{"x":1}}]}
+[{"sourceFields":[{"path":"items[2].q.y","value":2}],"type":"DroppedField","message":"items[].q.y has no equivalent in 1.0 and was dropped"},{"sourceFields":[{"path":"items[1].o","value":{}},{"path":"items[2].o","value":{"e":true}}],"type":"DroppedField","message":"items[].o has no equivalent in 1.0 and was dropped"}]
+-- out/translate/1.0/items->0.0 --
+{"items":[{},{"q":{}},{"q":{"x":1}}]}
+[]
