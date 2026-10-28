@@ -342,6 +342,16 @@ func (w *walker) value(p cue.Path, pred, succ cue.Value) {
 				})
 				continue
 			}
+			// A value of the old alternative that new rejects is a
+			// counterexample too: string against "a" | "b" admits "".
+			if w.rejectsProbe(o, succ, nb) {
+				w.add(Finding{
+					Path: p, Verdict: Incompatible, Rule: RuleValueNarrowed,
+					Detail: fmt.Sprintf("is now %s, which does not accept every value of the prior %s", fmtv(succ), fmtv(o)),
+					Pos:    posOf(succ, pred),
+				})
+				continue
+			}
 			w.add(Finding{
 				Path: p, Verdict: Unknown, Rule: RuleUnknownDisjunction,
 				Detail: fmt.Sprintf("is now %s, no single alternative of which covers the prior alternative %s; the checker does not combine alternatives", fmtv(succ), fmtv(o)),
@@ -349,6 +359,64 @@ func (w *walker) value(p cue.Path, pred, succ cue.Value) {
 			})
 		}
 	}
+}
+
+// rejectsProbe reports whether one of a few probe values is an instance of the
+// predecessor alternative pred that succ rejects: a counterexample. For each
+// scalar kind pred admits, the probe is the first of a fixed sequence of
+// values of that kind ("", "x", "xx", ...; 0, 1, 2, ...; 0.0, 1.0, ...) that
+// equals no concrete alternative of succ (alts), so that string against
+// "a" | "b", or int against 0 | 1, finds one. A probe pred rejects decides
+// nothing: the alternatives may still cover pred together (=~"^(a|b)$"
+// against "a" | "b").
+func (w *walker) rejectsProbe(pred, succ cue.Value, alts []cue.Value) bool {
+	for _, probe := range w.probes(kindOf(pred), alts) {
+		if pred.Unify(probe).Validate(cue.Concrete(true)) == nil && succ.Unify(probe).Validate() != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// probes returns, for each scalar kind in k, a value of that kind that equals
+// no concrete alternative in alts; both booleans for bool, and null for null.
+func (w *walker) probes(k cue.Kind, alts []cue.Value) []cue.Value {
+	taken := map[string]bool{}
+	for _, a := range alts {
+		if a.Validate(cue.Concrete(true)) == nil {
+			taken[fmtv(a)] = true
+		}
+	}
+	// next returns the first of the values gen(0), gen(1), ... that no
+	// alternative takes. alts is finite, so the search ends.
+	next := func(gen func(i int) any) cue.Value {
+		for i := 0; ; i++ {
+			v := w.ctx.Encode(gen(i))
+			if !taken[fmtv(v)] {
+				return v
+			}
+		}
+	}
+	var out []cue.Value
+	if k&cue.NullKind != 0 {
+		out = append(out, w.ctx.CompileString("null"))
+	}
+	if k&cue.BoolKind != 0 {
+		out = append(out, w.ctx.Encode(true), w.ctx.Encode(false))
+	}
+	if k&cue.IntKind != 0 {
+		out = append(out, next(func(i int) any { return i }))
+	}
+	if k&cue.FloatKind != 0 {
+		out = append(out, next(func(i int) any { return float64(i) }))
+	}
+	if k&cue.StringKind != 0 {
+		out = append(out, next(func(i int) any { return strings.Repeat("x", i) }))
+	}
+	if k&cue.BytesKind != 0 {
+		out = append(out, next(func(i int) any { return []byte(strings.Repeat("x", i)) }))
+	}
+	return out
 }
 
 // refPair returns a key for old and new when both are references, so that a

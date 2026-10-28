@@ -94,3 +94,16 @@ func TestHandlerFiles(t *testing.T) {
 		t.Errorf("/missing.js status = %d, want 404", r.StatusCode)
 	}
 }
+
+func TestWithExamples(t *testing.T) {
+	manifest := []byte(`{"examples": []}`)
+	h := WithExamples(Handler(fakeBundle(t)), manifest)
+
+	r := get(t, h, "/examples.json", nil)
+	if r.StatusCode != http.StatusOK || r.Header.Get("Content-Type") != "application/json" || body(t, r) != string(manifest) {
+		t.Fatalf("/examples.json = %d %v", r.StatusCode, r.Header)
+	}
+	if r := get(t, h, "/app.js", nil); body(t, r) != "console.log('app')" {
+		t.Error("WithExamples does not pass other paths to the bundle")
+	}
+}
