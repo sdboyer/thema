@@ -437,9 +437,19 @@ patterns it is written under together cover every instance:
   is a constant, or
 - equalities with `true` and with `false`, for a boolean field.
 
+A field that reads another result field (`v1_0.a`, `self.a`, or through an
+alias) reads it only where it is written. Where `a` is written under patterns,
+they must hold wherever the reading field is written: the reader is written
+under the same patterns, or the patterns `a` is written under cover every
+instance, as above. Otherwise the read finds `a` absent, which is an error.
+A hidden field reading one is exempt, since an absent field leaves it
+incomplete rather than failing.
+
 **One value per path.** No path may be written twice unless the two values
 cannot disagree. Two writes to one path unify, so the second can reject the
-first's value.
+first's value. A hidden field the lens declares is a path like any other: it
+is evaluated, so two values that may disagree fail the lens whether or not a
+result field reads it.
 
 **Lacunas.** A lacuna's condition is a pattern, or a guard: a boolean
 expression that the operations below prove to evaluate for every instance.
@@ -513,7 +523,7 @@ for example
 | `literal-not-instance` | a literal, struct or list is not an instance of the target at its path: a wrong kind, a value outside the target, a list of the wrong length |
 | `computed-narrowed` | a computed value has a possible result the target rejects: a kind the target lacks, a boolean it does not accept, or an integer outside its bounds |
 | `required-not-written` | a field the target requires is never written on some path through the lens |
-| `write-conflict` | a path is written twice with values that may disagree |
+| `write-conflict` | a path, a hidden field's included, is written twice with values that may disagree |
 | `arith-overflow` | an integer operation's result may exceed `int64` |
 | `division-by-zero` | a divisor is zero for some instance |
 | `table-key-missing` | a table is indexed by a value with no entry |
@@ -522,7 +532,7 @@ for example
 |---|---|---|
 | `unknown-copy` | the compatibility rules cannot decide whether the copied value fits the target: a constraint between fields, a pending comprehension, a validator, or a disjunction they cannot match | copy a value whose schemas the compatibility rules decide (see their Unknown table) |
 | `unknown-pattern` | an arm's condition is not a pattern (a presence test, an equality or a type test on an input field, or a conjunction of these); a lacuna's condition is neither a pattern nor a boolean the computed rules prove; or an equality tests a field that may be a float | write the condition as a pattern, testing one input field at a time; test a number's type before comparing it |
-| `unknown-exhaustive` | a required field is written only under patterns that cannot be shown to cover every instance | write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field |
+| `unknown-exhaustive` | a required field is written only under patterns that cannot be shown to cover every instance; or a field reads a result field written only under patterns that cannot be shown to hold wherever the reader is written | write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field; write a reader under the patterns of the field it reads |
 | `unknown-op` | a computation uses an operation outside the proven set: `/`, a float, a builtin not listed above, or `&` or `\|` within an expression; or a call constrains the result | use the listed operations, with `quo` or `div` for integer division; write the result as a struct |
 | `unknown-dynamic` | fields are produced by a `for` clause or a computed label, or list elements by a comprehension that filters, nests `for` clauses, or sits beside other elements | write each field by name; map a list with one comprehension over one source list, every element |
 | `unknown-reference` | the lens reads something that cannot be followed to the input or to a constant: a computed index or label, or a selection into a comprehension's output | select fields by name |

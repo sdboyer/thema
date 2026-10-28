@@ -11,6 +11,7 @@ import (
 
 	"github.com/sdboyer/thema/internal/compat"
 	"github.com/sdboyer/thema/internal/cuetil"
+	"github.com/sdboyer/thema/internal/cueview"
 )
 
 // patternKind is the form of a comprehension's or lacuna's condition.
@@ -363,6 +364,68 @@ func refine(branches []cue.Value, p cue.Path, gs []pattern) ([]cue.Value, bool) 
 		branches = out
 	}
 	return branches, refined
+}
+
+// guarded returns the conjuncts of x, read by subj, that are part of its value
+// where the patterns gs hold. A conjunct reached through arms (a reference
+// into a field written under if) is part of it only where the arms' patterns
+// hold: one whose patterns cannot hold together with gs is dropped (unless
+// every one is, when nothing is), and the rest must together hold wherever gs
+// do, or the read may find the field absent, which is an error. ok is false,
+// with the reason as a finding's detail, where they cannot be shown to. Within
+// a hidden field no coverage is required: an absent field leaves it
+// incomplete, as an absent input path does.
+func (w *walker) guarded(x ast.Expr, subj string, gs []pattern) (conjs []cueview.Conjunct, detail string, ok bool) {
+	var cands, arms [][]pattern
+	all := w.tree.Conjuncts(x)
+	for _, c := range all {
+		if len(c.Arms) == 0 {
+			conjs, cands = append(conjs, c), append(cands, nil)
+			continue
+		}
+		ags := w.clausePatterns(c.Arms)
+		arms = append(arms, ags)
+		if patternsDisjoint(ags, gs) {
+			continue
+		}
+		var rest []pattern
+		for _, g := range ags {
+			if !patternsImplied(gs, []pattern{g}) {
+				rest = append(rest, g)
+			}
+		}
+		conjs, cands = append(conjs, c), append(cands, rest)
+	}
+	if len(conjs) == 0 {
+		conjs = all
+	}
+	if len(arms) == 0 || w.hidden > 0 || w.covers(cands) {
+		return conjs, "", true
+	}
+	return conjs, fmt.Sprintf("reads %s, which is written only under %s, and the checker cannot show that holds wherever %s is written%s; write %s under the same patterns, or %s on every path", text(x), describePatternSets(arms), subj, underPatterns(gs), subj, text(x)), false
+}
+
+// clausePatterns returns the patterns of the clauses of arms, in order: a
+// clause that is not a pattern, or a for clause, is opaque.
+func (w *walker) clausePatterns(arms []*ast.Comprehension) []pattern {
+	var out []pattern
+	for _, a := range arms {
+		for _, cl := range a.Clauses {
+			switch c := cl.(type) {
+			case *ast.IfClause:
+				if g, ok := w.parsePattern(c.Condition); ok {
+					out = append(out, g...)
+					continue
+				}
+				out = append(out, pattern{root: w.from, kind: opaque, text: text(c.Condition)})
+			case *ast.ForClause:
+				out = append(out, pattern{root: w.from, kind: opaque, text: "for over " + text(c.Source)})
+			default:
+				out = append(out, pattern{root: w.from, kind: opaque, text: text(cl)})
+			}
+		}
+	}
+	return out
 }
 
 // patternsHavePrefix reports whether gs begins with prefix.

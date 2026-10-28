@@ -371,10 +371,14 @@ type write struct {
 	src      cue.Path // copyW: the source path copied
 	text     string   // the expression, for messages and conflicts
 	pos      token.Pos
+	// hidden is set for a write within a hidden field, which is not data: only
+	// the one-value-per-path rule applies to it.
+	hidden bool
 }
 
 func (w *walker) record(wr *write) {
-	if w.quiet == 0 && w.hidden == 0 {
+	if w.quiet == 0 {
+		wr.hidden = w.hidden > 0
 		w.writes = append(w.writes, wr)
 	}
 }
@@ -524,12 +528,34 @@ func (w *walker) conjunct(c cueview.Conjunct, q cue.Path, gs []pattern, pos toke
 	}
 }
 
+// valueConjuncts returns the conjuncts of the value x written at q under
+// patterns gs (guarded), reporting there where a read through arms may find
+// the field it reads absent.
+func (w *walker) valueConjuncts(x ast.Expr, q cue.Path, gs []pattern, pos token.Pos) []cueview.Conjunct {
+	conjs, detail, ok := w.guarded(x, w.subject(q), gs)
+	if !ok {
+		w.add(Finding{Path: w.subject(q), Verdict: Unknown, Rule: RuleUnknownExhaustive, Detail: detail, Pos: pos})
+	}
+	return conjs
+}
+
 // hiddenConjunct handles one conjunct of a hidden result field (see hidden): a
 // copy must read a declared path, a struct's fields are walked in turn, and a
 // computed expression must evaluate.
 func (w *walker) hiddenConjunct(c cueview.Conjunct, q cue.Path, gs []pattern, pos token.Pos) {
+	if c.Disjunction != nil {
+		// One of the values the field may be: alternatives may disagree, so
+		// none is a write.
+		w.quiet++
+		defer func() { w.quiet-- }()
+	}
 	if w.syn.FromInput(c) {
-		if p, ok := w.sourcePath(c); ok && !w.lookupSource(p, gs).declared {
+		p, ok := w.sourcePath(c)
+		if !ok {
+			return
+		}
+		w.record(&write{q: q, patterns: gs, kind: copyW, src: p, text: w.inputRef(p), pos: pos})
+		if !w.lookupSource(p, gs).declared {
 			w.add(Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleSourceUndeclared,
 				Detail: fmt.Sprintf("copies %s, which the source schema does not declare", w.inputRef(p)), Pos: pos})
 		}
@@ -537,18 +563,27 @@ func (w *walker) hiddenConjunct(c cueview.Conjunct, q cue.Path, gs []pattern, po
 	}
 	switch e := c.Expr.(type) {
 	case *ast.StructLit:
+		w.record(&write{q: q, patterns: gs, kind: compositeW, text: "{...}", pos: pos})
 		w.decls(e.Elts, q, gs, pos)
 	case *ast.ListLit:
+		w.record(&write{q: q, patterns: gs, kind: compositeW, text: "[...]", pos: pos})
 		for i, x := range e.Elts {
 			switch x.(type) {
 			case *ast.Comprehension, *ast.Ellipsis:
 				return
 			}
-			for _, ec := range w.tree.Conjuncts(x) {
-				w.conjunct(ec, appendPath(q, cue.Index(i)), gs, pos)
+			eq := appendPath(q, cue.Index(i))
+			for _, ec := range w.valueConjuncts(x, eq, gs, pos) {
+				w.conjunct(ec, eq, gs, pos)
 			}
 		}
-	case *ast.BasicLit, *ast.Ident:
+	case *ast.BasicLit:
+		w.record(&write{q: q, patterns: gs, kind: literalW, text: text(e), pos: pos})
+	case *ast.Ident:
+		// A constraint (int, _) is the lens's own business; a literal is a value.
+		if w.predeclared(e) && (isBoolName(e.Name) || e.Name == "null") {
+			w.record(&write{q: q, patterns: gs, kind: literalW, text: e.Name, pos: pos})
+		}
 	case *ast.BottomLit:
 		w.add(Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleNotAValue,
 			Detail: "is _|_, an error", Pos: pos})
@@ -900,7 +935,7 @@ func (w *walker) list(e *ast.ListLit, q cue.Path, gs []pattern, pos token.Pos) {
 	w.ir.push()
 	for i, x := range e.Elts {
 		eq := appendPath(q, cue.Index(i))
-		for _, c := range w.tree.Conjuncts(x) {
+		for _, c := range w.valueConjuncts(x, eq, gs, pos) {
 			w.conjunct(c, eq, gs, pos)
 		}
 	}
@@ -992,7 +1027,7 @@ func (w *walker) each(comp *ast.Comprehension, q cue.Path, gs []pattern, pos tok
 	if s, ok := comp.Value.(*ast.StructLit); ok {
 		w.decls(s.Elts, eq, gs, pos)
 	} else {
-		for _, c := range w.tree.Conjuncts(comp.Value) {
+		for _, c := range w.valueConjuncts(comp.Value, eq, gs, pos) {
 			w.conjunct(c, eq, gs, pos)
 		}
 	}
@@ -1040,14 +1075,15 @@ func (w *walker) decls(decls []ast.Decl, q cue.Path, gs []pattern, pos token.Pos
 				// A hidden field is not data either, but it is evaluated. A
 				// quoted label ("_id") is data.
 				cq = appendPath(q, cue.Hid(name, "_"))
+				cpos = w.resultPos(cq, pos)
 				w.hidden++
-				for _, c := range w.tree.Conjuncts(x.Value) {
+				for _, c := range w.valueConjuncts(x.Value, cq, gs, cpos) {
 					w.conjunct(c, cq, gs, cpos)
 				}
 				w.hidden--
 				continue
 			}
-			for _, c := range w.tree.Conjuncts(x.Value) {
+			for _, c := range w.valueConjuncts(x.Value, cq, gs, cpos) {
 				w.conjunct(c, cq, gs, cpos)
 			}
 		case *ast.Comprehension:
@@ -1081,19 +1117,19 @@ func (w *walker) decls(decls []ast.Decl, q cue.Path, gs []pattern, pos token.Pos
 			if s, ok := x.Value.(*ast.StructLit); ok {
 				w.decls(s.Elts, q, ngs, cpos)
 			} else {
-				for _, c := range w.tree.Conjuncts(x.Value) {
+				for _, c := range w.valueConjuncts(x.Value, q, ngs, cpos) {
 					w.conjunct(c, q, ngs, cpos)
 				}
 			}
 			w.ir.branch(ngs[len(gs):])
 		case *ast.EmbedDecl:
-			for _, c := range w.tree.Conjuncts(x.Expr) {
+			for _, c := range w.valueConjuncts(x.Expr, q, gs, pos) {
 				w.conjunct(c, q, gs, pos)
 			}
 		case ast.Expr:
 			// An embedding beside a comprehension is exported as a bare
 			// expression (cueview, comprehensions golden).
-			for _, c := range w.tree.Conjuncts(x) {
+			for _, c := range w.valueConjuncts(x, q, gs, pos) {
 				w.conjunct(c, q, gs, pos)
 			}
 		}
@@ -1272,7 +1308,7 @@ func presentIn(parent cue.Value, sel, csel cue.Selector) (string, bool) {
 func (w *walker) writesAt(q cue.Path) bool {
 	key := q.String()
 	for _, wr := range w.writes {
-		if wr.q.String() == key {
+		if !wr.hidden && wr.q.String() == key {
 			return true
 		}
 	}
@@ -1291,6 +1327,9 @@ func (w *walker) checkExhaustive() {
 	}
 	parents := []parent{{q: cue.MakePath(), pos: w.resultPos(cue.MakePath(), token.NoPos)}}
 	for _, wr := range w.writes {
+		if wr.hidden {
+			continue
+		}
 		switch wr.kind {
 		case compositeW:
 			parents = append(parents, parent{q: wr.q, patterns: wr.patterns, pos: wr.pos})
@@ -1353,6 +1392,8 @@ func (w *walker) candidates(gs []pattern, cq cue.Path) (cands [][]pattern, writt
 	for _, wr := range w.writes {
 		patterns := wr.patterns
 		switch {
+		case wr.hidden:
+			continue
 		case wr.q.String() == cq.String():
 		case wr.kind == copyW && cuetil.PathHasPrefix(cq, wr.q):
 			var ok bool
@@ -1393,7 +1434,8 @@ func (w *walker) copyChildPatterns(cw *write, rel cue.Path) ([]pattern, bool) {
 // whose result is their unification: a copy and a constant, two copies of
 // different paths, a constant and a computed value. Two struct literals merge,
 // and a copy of a struct beside a struct literal is judged by the children
-// they share.
+// they share. A hidden field the lens declares is a path like any other: it is
+// evaluated, and the fields that read it read one value.
 func (w *walker) checkConflicts() {
 	all := append([]*write(nil), w.writes...)
 	// Children a copy gives implicitly, where the lens also writes them.
@@ -1824,7 +1866,9 @@ func (w *walker) pathOf(x ast.Expr) (cue.Path, bool) {
 	}
 	var p cue.Path
 	for i, c := range conjs {
-		if !w.syn.FromInput(c) {
+		// A read through arms (a field written under if) reads the path only
+		// where they hold.
+		if !w.syn.FromInput(c) || len(c.Arms) > 0 {
 			return cue.Path{}, false
 		}
 		cp, ok := w.sourcePath(c)
