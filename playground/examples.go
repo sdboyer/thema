@@ -5,6 +5,7 @@ import (
 
 	"cuelang.org/go/cue/token"
 
+	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/internal/examples"
 )
@@ -45,7 +46,15 @@ func (s *Session) GetExample(req GetExampleRequest) GetExampleResponse {
 		// The example is declared to bind; a test holds it to that.
 		return resp
 	}
-	for _, sch := range b.lin.All() {
+	resp.Data = schemaExamples(b.lin)
+	return resp
+}
+
+// schemaExamples is a data document for each example lin's schemas declare,
+// named for its version and its name.
+func schemaExamples(lin thema.Lineage) []DataInput {
+	data := []DataInput{}
+	for _, sch := range lin.All() {
 		exs := sch.Examples()
 		names := make([]string, 0, len(exs))
 		for name := range exs {
@@ -57,14 +66,14 @@ func (s *Session) GetExample(req GetExampleRequest) GetExampleResponse {
 			if err != nil {
 				continue
 			}
-			resp.Data = append(resp.Data, DataInput{
+			data = append(data, DataInput{
 				Filename: sch.Version().String() + "-" + name + ".json",
 				Text:     string(out) + "\n",
 				Format:   formatJSON,
 			})
 		}
 	}
-	return resp
+	return data
 }
 
 // The kinds of example: the form its lineage is written in.

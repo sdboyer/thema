@@ -15,7 +15,10 @@
 // playground can offer lineages of its own without rebuilding thema.wasm.
 // The frontend in playground/ui fetches examples.json from beside the page at
 // start-up and, when there is one, registers it: the file is a
-// [RegisterExamplesRequest]. A 404 means the host has none.
+// [RegisterExamplesRequest]. A 404 means the host has none. [WalkExamples]
+// builds one from a directory of lineages in the authoring form, each
+// described by an [ExampleFile]; thema playground examples <dir> prints it,
+// and thema serve playground --examples <dir> serves it.
 package playground
 
 import (

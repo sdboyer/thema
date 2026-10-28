@@ -210,6 +210,8 @@ var Codes = []CodeInfo{
 	{Code: E0617, Severity: SeverityError, Title: "this thema was built without the playground", Positionless: true},
 	{Code: E0618, Severity: SeverityError, Title: "the server cannot listen on the address", Positionless: true},
 	{Code: E0620, Severity: SeverityError, Title: "a flag or argument is not valid", Positionless: true},
+	{Code: E0621, Severity: SeverityError, Title: "an example's example.cue is not valid", Positionless: true},
+	{Code: E0622, Severity: SeverityError, Title: "the examples directory holds no example", Positionless: true},
 	{Code: E0701, Severity: SeverityError, Title: "generating code from the schema failed", Positionless: true},
 	{Code: E0801, Severity: SeverityError, Title: "the playground request is malformed", Positionless: true},
 	{Code: E0802, Severity: SeverityError, Title: "the playground request gives the lineage in neither form, or in both", Positionless: true},
@@ -418,6 +420,8 @@ const (
 	E0617 Code = "E0617" // serve playground in a build without it
 	E0618 Code = "E0618" // serve cannot listen
 	E0620 Code = "E0620" // a CLI flag or argument that is not valid
+	E0621 Code = "E0621" // an example.cue that is not CUE, lacks a category, or has another field
+	E0622 Code = "E0622" // an examples directory with no example in it, or not a directory
 
 	// E07xx: code generation.
 	E0701 Code = "E0701" // a generator failed on the schema
