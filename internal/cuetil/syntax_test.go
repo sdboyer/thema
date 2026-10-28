@@ -141,6 +141,14 @@ func TestLensSyntaxConstructionIndependent(t *testing.T) {
 			if !ls.LacunasConditional() {
 				t.Error("conditional lacunas not detected")
 			}
+			var reads []string
+			for _, p := range ls.InputReads() {
+				reads = append(reads, p.String())
+			}
+			sort.Strings(reads)
+			if got := strings.Join(reads, " "); got != "a a n" {
+				t.Errorf("reads: got %s, want a a n", got)
+			}
 		})
 	}
 }
@@ -162,5 +170,59 @@ func TestLacunasConditional(t *testing.T) {
 		if got := ls.LacunasConditional(); got != want {
 			t.Errorf("%s: got %v, want %v", lacunas, got, want)
 		}
+	}
+}
+
+// Which input paths a lens's result reads, for each way of reading them.
+func TestInputReads(t *testing.T) {
+	ctx := cuecontext.New()
+	for name, c := range map[string]struct {
+		lens string // the lens's body; input: _ is supplied
+		want string
+	}{
+		"direct":         {`result: {a: input.a, n: input.n.x}`, `[a n.x]`},
+		"nothing":        {`result: {a: 1}`, `[]`},
+		"whole input":    {`result: input & {b: 1}`, `[<input>]`},
+		"let":            {`let N = input.n, result: {x: N.x}`, `[n.x]`},
+		"alias":          {`result: {x~(X): input.a, y: X}`, `[a a]`},
+		"hidden helper":  {`result: {_h: input.n, x: _h.p}`, `[n n.p]`},
+		"computed":       {`result: {a: input.a + input.b}`, `[a b]`},
+		"condition":      {`result: {if input.f != _|_ {a: 1}}`, `[f]`},
+		"each":           {`result: {l: [for x in input.items {name: x.title}]}`, `[items.[_].title]`},
+		"each whole":     {`result: {l: [for x in input.items {x}]}`, `[items.[_]]`},
+		"each key":       {`result: {l: [for i, x in input.items {n: i}]}`, `[]`},
+		"computed index": {`result: {a: input.l[input.i].x}`, `[i l]`},
+		"literal index":  {`result: {a: input.l[0].x}`, `[l[0].x]`},
+		"quoted":         {`result: {a: input["a-b"]}`, `["a-b"]`},
+		"builtin":        {`result: {a: strings.ToUpper(input.s)}`, `[s]`},
+		// Lacunas are not the result.
+		"lacuna only": {`result: {}, lacunas: [{sourceFields: [{path: "b", value: input.b}]}]`, `[]`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			src := "lens: {input: _\n" + c.lens + "}"
+			if strings.Contains(c.lens, "strings.") {
+				src = "import \"strings\"\n" + src
+			}
+			v := ctx.CompileString(src).LookupPath(cue.ParsePath("lens"))
+			if err := v.Err(); err != nil {
+				t.Fatal(err)
+			}
+			ls, err := ParseLens(v, "input", "result")
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got []string
+			for _, p := range ls.InputReads() {
+				s := p.String()
+				if s == "" {
+					s = "<input>"
+				}
+				got = append(got, s)
+			}
+			sort.Strings(got)
+			if s := "[" + strings.Join(got, " ") + "]"; s != c.want {
+				t.Errorf("got %s, want %s", s, c.want)
+			}
+		})
 	}
 }
