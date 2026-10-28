@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -255,7 +256,7 @@ PATH unless --no-layout is given.
 `,
 }
 
-func (gc *genCommand) runCapnp(cmd *cobra.Command, args []string) error {
+func (gc *genCommand) runCapnp(cmd *cobra.Command, _ []string) error {
 	var opts []capnp.Option
 	if gc.namespace != "" {
 		opts = append(opts, capnp.Namespace(gc.namespace))
@@ -269,7 +270,8 @@ func (gc *genCommand) runCapnp(cmd *cobra.Command, args []string) error {
 	}
 	switch gc.format {
 	case "schema":
-		fmt.Fprint(cmd.OutOrStdout(), c.Schema)
+		_, err = io.WriteString(cmd.OutOrStdout(), c.Schema)
+		return err
 	case "artifact":
 		b, err := compiled.Encode(c)
 		if err != nil {
@@ -280,7 +282,6 @@ func (gc *genCommand) runCapnp(cmd *cobra.Command, args []string) error {
 	default:
 		return fmt.Errorf(`unrecognized output format %q - must choose "schema" or "artifact"`, gc.format)
 	}
-	return nil
 }
 
 var genGoBindingsLineageCmd = &cobra.Command{
