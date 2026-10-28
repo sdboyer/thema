@@ -223,26 +223,58 @@ type edge struct {
 	errs cerrors.Error
 }
 
-// key is the lacunas key of an entry of e: its target path, under the list's
-// path inside an each body.
+// key is the lacunas key of an entry of e: its target path, under the lists'
+// paths inside an each body.
 func (e *edge) key(en *entry) cue.Path {
 	if e.each == nil {
 		return en.target
 	}
-	return joinPath(e.each.target, en.target)
+	return e.each.key(en.target)
 }
 
 // An eachScope is what an each body's sub-edge knows about its list.
 type eachScope struct {
-	// list is the source list's path, from input.
+	// list is the source list's path: from input, or inside an each body
+	// nested in another, from the enclosing body's item.
 	list cue.Path
-	// target is the target list's path.
+	// target is the target list's path, from the result or the enclosing
+	// body's element.
 	target cue.Path
 	// n numbers the body's generated lets within the lens.
 	n int
 	// optional is set when the source may omit the list, so that what
 	// iterates it outside the result tests its presence first.
 	optional bool
+	// parent is the scope of the each body this one is nested in, if any.
+	parent *eachScope
+}
+
+// key is the full target path, from the result, of p beneath the list's
+// element.
+func (s *eachScope) key(p cue.Path) cue.Path {
+	p = joinPath(s.target, p)
+	if s.parent != nil {
+		return s.parent.key(p)
+	}
+	return p
+}
+
+// chain is the scope's lists, outermost first.
+func (s *eachScope) chain() []*eachScope {
+	if s.parent == nil {
+		return []*eachScope{s}
+	}
+	return append(s.parent.chain(), s)
+}
+
+// name renders the source lists as the author reads an element's path:
+// items[], or items[].tags[] for a list in an element of another.
+func (s *eachScope) name() string {
+	var parts []string
+	for _, c := range s.chain() {
+		parts = append(parts, c.list.String()+"[]")
+	}
+	return strings.Join(parts, ".")
 }
 
 // errf reports a problem with the lens at p, under code. The message is in the
@@ -1334,12 +1366,8 @@ func (e *edge) compileEach(en *entry, out *compiledLens) bool {
 		e.errf(diag.E0353, en.expr.Pos(), "_each maps the elements of open lists ([...T]); a fixed-length list is not supported")
 		return false
 	}
-	if e.each != nil {
-		e.errf(diag.E0353, en.expr.Pos(), "_each inside _each is not supported yet")
-		return false
-	}
 	sub := &edge{ctx: e.ctx, S: selem, T: telem, sv: e.sv, tv: e.tv, dir: e.dir, blockPos: en.pos, root: rootItem,
-		lacunas: e.lacunas, imports: e.imports, each: &eachScope{list: en.source, target: en.target, n: out.nlets, optional: e.optional(e.S, en.source)}}
+		lacunas: e.lacunas, imports: e.imports, each: &eachScope{list: en.source, target: en.target, n: out.nlets, optional: e.optional(e.S, en.source), parent: e.each}}
 	b := &body{}
 	sub.parseBody(en.body, cue.MakePath(), cue.MakePath(), b)
 	subOut := &compiledLens{nlets: out.nlets}
@@ -1722,21 +1750,29 @@ func (e *edge) dropLacuna(out *compiledLens, en *entry) {
 	if e.each != nil {
 		// let _d_<n> = [for i, item in input.<list> if item.<p> != _|_ {path: "<list>[\(i)].<p>", value: item.<p>}],
 		// testing first that the list is present where the source may omit it.
+		// Inside an each nested in another, one for clause per list, outermost
+		// first, each over the enclosing clause's item, and one index per list
+		// in the path: "<list>[\(i)].<inner>[\(i1)].<p>".
 		name := fmt.Sprintf("_d_%d", out.nlets)
 		out.nlets++
+		inner := func(s string) string { q := strconv.Quote(s); return q[1 : len(q)-1] }
 		var clauses []ast.Clause
-		if e.each.optional {
-			clauses = append(clauses, at(p, &ast.IfClause{Condition: at(p, ast.NewBinExpr(token.NEQ, at(p, ref(paramName(e.sv), e.each.list)), at(p, &ast.BottomLit{})))}))
+		var parts []ast.Expr
+		for k, s := range e.each.chain() {
+			root, idx, open := rootItem, fmt.Sprintf("i%d", k), `)].`
+			if k == 0 {
+				root, idx, open = paramName(e.sv), "i", `"`
+			}
+			if s.optional {
+				clauses = append(clauses, at(p, &ast.IfClause{Condition: at(p, ast.NewBinExpr(token.NEQ, at(p, ref(root, s.list)), at(p, &ast.BottomLit{})))}))
+			}
+			clauses = append(clauses, at(p, &ast.ForClause{Key: at(p, ast.NewIdent(idx)), Value: at(p, ast.NewIdent(rootItem)), Source: at(p, ref(root, s.list))}))
+			parts = append(parts, at(p, ast.NewLit(token.STRING, open+inner(s.list.String()+"[")+`\(`)), at(p, ast.NewIdent(idx)))
 		}
-		clauses = append(clauses, at(p, &ast.ForClause{Key: at(p, ast.NewIdent("i")), Value: at(p, ast.NewIdent(rootItem)), Source: at(p, ref(paramName(e.sv), e.each.list))}))
 		if e.optional(e.S, en.source) {
 			clauses = append(clauses, at(p, &ast.IfClause{Condition: e.present(p, en.source)}))
 		}
-		pathLit := at(p, &ast.Interpolation{Elts: []ast.Expr{
-			at(p, ast.NewLit(token.STRING, strconv.Quote(e.each.list.String() + "[")[:len(strconv.Quote(e.each.list.String()+"["))-1]+`\(`)),
-			at(p, ast.NewIdent("i")),
-			at(p, ast.NewLit(token.STRING, `)].`+en.source.String()+`"`)),
-		}})
+		pathLit := at(p, &ast.Interpolation{Elts: append(parts, at(p, ast.NewLit(token.STRING, `)].`+en.source.String()+`"`)))})
 		comp := at(p, &ast.Comprehension{Clauses: clauses, Value: at(p, &ast.StructLit{Elts: []ast.Decl{
 			at(p, &ast.Field{Label: at(p, ast.NewIdent("path")), Value: pathLit}),
 			at(p, &ast.Field{Label: at(p, ast.NewIdent("value")), Value: at(p, e.ref(en.source))}),
@@ -1770,7 +1806,7 @@ func (e *edge) dropLacuna(out *compiledLens, en *entry) {
 // dropMessage is the derived lacuna's default message for dropping p.
 func (e *edge) dropMessage(p cue.Path) string {
 	if e.each != nil {
-		return fmt.Sprintf("%s[].%s has no equivalent in %s and was dropped", e.each.list, p, e.tv)
+		return fmt.Sprintf("%s.%s has no equivalent in %s and was dropped", e.each.name(), p, e.tv)
 	}
 	return fmt.Sprintf("%s has no equivalent in %s and was dropped", p, e.tv)
 }

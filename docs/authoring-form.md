@@ -83,7 +83,7 @@ The body holds the target schema's fields. Each entry is a *mapping*: it names a
 | `legacy: _drop` | **Drop.** The source field named by the key has no place in the target and is dropped. A field the target requires cannot be dropped. |
 | `nick: _orelse(v0_0.nick, v0_0.name)` | **Fallback.** The source field is optional; when the instance lacks it, the fallback is used. The first argument may also be a computed value, `_orelse(v0_0.count * 2, 0)`, and the fallback is used when any field it reads is absent. The fallback is a constant, or a field the source always has. An `_orelse` whose first argument reads only fields the source always has is an error. |
 | `kind: _match(v0_0.kind, {"a": 1, [_]: 0})` | **Match.** The source value is matched against the arms. A value an arm matches becomes that arm's constant. A value no arm matches passes through unchanged where the target accepts it, and otherwise takes the wildcard arm `[_]`, which must declare a lacuna. Without a wildcard arm the arms must be exhaustive: every value the source may hold is matched or accepted. |
-| `items: _each(v0_0.items, {name: _item.title})` | **Each.** A list is mapped element by element. The block is a lens body over `_item`, the element, and every mapping above is available in it. `_each` applies to lists of any length (`[...T]`). |
+| `items: _each(v0_0.items, {name: _item.title})` | **Each.** A list is mapped element by element. The block is a lens body over `_item`, the element, and every mapping above is available in it, `_each` included: in `_each(v0_0.steps, {fields: _each(_item.fields, {...})})`, the inner `_item` is an element of the step's `fields`. `_each` applies to lists of any length (`[...T]`). |
 
 A mapping's key is a plain field name, and its value is one of the forms above. Nothing else attaches to a mapping.
 
@@ -167,13 +167,13 @@ A `when` replaces the implied condition. It is a comparison or combination of so
 
 **Matches.** A wildcard arm must have a lacuna: one on the match's key without a `when`, which applies when the arm does. A lacuna on an arm other than the wildcard is written with a `when` naming the value, `when: v0_0.kind == "a"`. A match without a wildcard arm has no implied condition, so every lacuna on it needs a `when`.
 
-**Inside `_each`.** A lacuna on a mapping in an `_each` body is keyed through the list, `items: {legacy: [...]}`. Only the `DroppedField` refinement of a drop in the body is supported today; it applies to the drop's derived lacuna, which is reported once for the whole list, naming every element that had the field.
+**Inside `_each`.** A lacuna on a mapping in an `_each` body is keyed through the list, `items: {legacy: [...]}`, and through each list in turn for an `_each` inside another, `steps: {fields: {legacy: [...]}}`. Only the `DroppedField` refinement of a drop in the body is supported today; it applies to the drop's derived lacuna, which is reported once for the whole list, naming every element that had the field (`steps[0].fields[1].legacy`).
 
 ## What is not accepted yet
 
 Each of these is refused with an error naming what to write instead, rather than compiled approximately:
 
-- **`each` inside `each`**, and a reference to the whole source instance from inside an `each` body.
+- **A reference to the whole source instance from inside an `_each` body.** The body reads only `_item`, the innermost element.
 - **An `_each` over a list the source may omit, into a list the target requires** (`l!: [...T]`, or a list with elements it must have). `_each` has no fallback for an absent list.
 - **Lacunas inside `each`** other than the `DroppedField` refinement ([#103](https://github.com/sdboyer/thema/issues/103)).
 - **A match passthrough into a target whose type refers to other fields.** The passthrough tests the value against the target's type, which must stand on its own to be restated; match every value with an arm instead.

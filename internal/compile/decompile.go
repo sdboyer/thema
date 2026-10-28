@@ -648,17 +648,23 @@ func (b *dbody) lacuna(x ast.Expr, lets map[string]ast.Expr, key string, tv them
 		}
 		body, p, path := b, srcPaths[0], srcPaths[0]
 		if srcEach != nil {
-			// A drop inside an each body: find the each over that list.
-			body = nil
-			for i := range b.entries {
-				if b.entries[i].kind == kindEach && b.entries[i].source.String() == srcEach.String() {
-					body = b.entries[i].body
-					path = joinPath(b.entries[i].target, p)
+			// A drop inside an each body: find the each over that list, and
+			// for an each nested in another, the one over each list in turn.
+			path = cue.MakePath()
+			for _, list := range srcEach {
+				var next *dbody
+				for i := range body.entries {
+					if body.entries[i].kind == kindEach && body.entries[i].source.String() == list.String() {
+						next = body.entries[i].body
+						path = joinPath(path, body.entries[i].target)
+					}
 				}
+				if next == nil {
+					return fmt.Errorf("lens %s is outside the authoring form: a lacuna over %s[], which no _each maps", key, list)
+				}
+				body = next
 			}
-			if body == nil {
-				return fmt.Errorf("lens %s is outside the authoring form: a lacuna over %s[], which no _each maps", key, srcEach)
-			}
+			path = joinPath(path, p)
 			cond = nil // the aggregate's len(_d_n) > 0
 		}
 		en := dentry{kind: kindDrop, source: p, target: p}
@@ -891,8 +897,9 @@ func stringLit(x ast.Expr) (string, error) {
 // fieldPaths reads the paths of a lacuna's sourceFields or targetFields: a
 // list of {path: "..."} structs, each possibly under a presence test, or a reference to a
 // let holding the list an each body's drop aggregates, in which case the
-// list's path is returned too.
-func fieldPaths(exprs []ast.Expr, lets map[string]ast.Expr) (paths []cue.Path, each *cue.Path, err error) {
+// lists' paths are returned too: the list from input, then, for an each
+// nested in another, each list from the enclosing one's item.
+func fieldPaths(exprs []ast.Expr, lets map[string]ast.Expr) (paths []cue.Path, each []cue.Path, err error) {
 	for _, x := range exprs {
 		if id, ok := x.(*ast.Ident); ok {
 			x = lets[id.Name]
@@ -906,7 +913,8 @@ func fieldPaths(exprs []ast.Expr, lets map[string]ast.Expr) (paths []cue.Path, e
 		}
 		for _, el := range list.Elts {
 			if c, ok := el.(*ast.Comprehension); ok {
-				// The clauses may test the list's presence before iterating it.
+				// One for clause per list, which the clauses may test the
+				// presence of before iterating it.
 				for _, cl := range c.Clauses {
 					fc, ok := cl.(*ast.ForClause)
 					if !ok {
@@ -916,8 +924,7 @@ func fieldPaths(exprs []ast.Expr, lets map[string]ast.Expr) (paths []cue.Path, e
 					if !ok {
 						return nil, nil, fmt.Errorf("a lacuna's fields iterate something other than a list in input")
 					}
-					each = &listPath
-					break
+					each = append(each, listPath)
 				}
 				el = c.Value
 			}
@@ -945,7 +952,8 @@ func fieldPaths(exprs []ast.Expr, lets map[string]ast.Expr) (paths []cue.Path, e
 }
 
 // pathLit reads a path string, or the element path of an each drop's
-// interpolated "<list>[\(i)].<path>".
+// interpolated "<list>[\(i)].<path>", or "<list>[\(i)].<inner>[\(i1)].<path>"
+// for an each nested in another.
 func pathLit(x ast.Expr) (cue.Path, error) {
 	switch x := x.(type) {
 	case *ast.BasicLit:
@@ -955,10 +963,10 @@ func pathLit(x ast.Expr) (cue.Path, error) {
 		}
 		return cue.ParsePath(s), nil
 	case *ast.Interpolation:
-		// "<list>[\(i)].<path>": a string part, the index, a string part.
-		const parts = 3
-		if len(x.Elts) == parts {
-			if tail, ok := x.Elts[2].(*ast.BasicLit); ok && strings.HasPrefix(tail.Value, ")].") {
+		// String parts and one index per list, alternating, the last string
+		// part holding the path within the innermost element.
+		if n := len(x.Elts); n >= 3 && n%2 == 1 {
+			if tail, ok := x.Elts[n-1].(*ast.BasicLit); ok && strings.HasPrefix(tail.Value, ")].") {
 				return cue.ParsePath(strings.TrimSuffix(strings.TrimPrefix(tail.Value, ")]."), `"`)), nil
 			}
 		}
@@ -966,9 +974,13 @@ func pathLit(x ast.Expr) (cue.Path, error) {
 	return cue.Path{}, fmt.Errorf("a lacuna field's path is not a string")
 }
 
-func dropMessageFor(each *cue.Path, p cue.Path, tv thema.SyntacticVersion) string {
-	if each != nil {
-		return fmt.Sprintf("%s[].%s has no equivalent in %s and was dropped", each, p, tv)
+func dropMessageFor(each []cue.Path, p cue.Path, tv thema.SyntacticVersion) string {
+	if len(each) > 0 {
+		var lists []string
+		for _, l := range each {
+			lists = append(lists, l.String()+"[]")
+		}
+		return fmt.Sprintf("%s.%s has no equivalent in %s and was dropped", strings.Join(lists, "."), p, tv)
 	}
 	return fmt.Sprintf("%s has no equivalent in %s and was dropped", p, tv)
 }
@@ -1004,10 +1016,37 @@ func stripDerived(entries, fwd []dentry, lacunas []dlacuna, newer, older cue.Val
 			if !named[en.target.String()] && lookup(newer, en.source).Exists() && !lookup(older, en.source).Exists() {
 				continue
 			}
+		case kindEach:
+			stripDerivedDrops(en.body, en.target, named, elementOf(newer, en.source), elementOf(older, en.target))
 		}
 		out = append(out, en)
 	}
 	return out
+}
+
+// stripDerivedDrops removes from an each body, whose list is at the full
+// target path key, the drops derivation produces: of each field the newer
+// version's element has and the older's lacks, where no lacuna refines it.
+// An each body has no derived moves: _each has no derived inverse.
+func stripDerivedDrops(b *dbody, key cue.Path, named map[string]bool, newer, older cue.Value) {
+	var kept []dentry
+	for _, en := range b.entries {
+		switch en.kind {
+		case kindDrop:
+			if !named[joinPath(key, en.target).String()] && lookup(newer, en.source).Exists() && !lookup(older, en.source).Exists() {
+				continue
+			}
+		case kindEach:
+			stripDerivedDrops(en.body, joinPath(key, en.target), named, elementOf(newer, en.source), elementOf(older, en.target))
+		}
+		kept = append(kept, en)
+	}
+	b.entries = kept
+}
+
+// elementOf is the element of the open list v declares at p.
+func elementOf(v cue.Value, p cue.Path) cue.Value {
+	return lookup(v, p).LookupPath(cue.MakePath(cue.AnyIndex))
 }
 
 // versionText renders a version file; prev is the previous version, whose
