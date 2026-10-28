@@ -133,7 +133,7 @@ Each step's result is closed against its target schema and is the next step's in
 - `to` or `from` is not a version (playground [E0803](../errors/E0803.md), CLI [E0620](../errors/E0620.md)), or not in the lineage ([E0240](../errors/E0240.md)).
 - `from` is given and the data is not an instance of it: that schema's validation diagnostics, as for [validate](#validate).
 - `from` is not given and no schema accepts the data ([E0508](../errors/E0508.md)).
-- A lens fails for this instance. Binding proves every lens total, so these arise only for a lineage bound with `SkipBuggyChecks`:
+- A lens fails for this instance. Binding proves every lens total and checks every field it writes, so these mean a bug in thema, not in the lineage or the data:
   - a mapping produces a value its target rejects ([E0308](../errors/E0308.md));
   - the result is not concrete ([E0307](../errors/E0307.md));
   - a lens writes a field its target schema does not declare ([E0305](../errors/E0305.md)).
