@@ -123,3 +123,45 @@ BackwardLens: {
 		}
 	}
 }
+
+// A required field with a concrete value, carried unchanged across a minor
+// step, binds and translates both ways (#154). The step's BackwardLens copies k,
+// and every instance of 0.1 has k, so the copy is an instance of 0.0.
+func TestAuthoringRequiredConcrete(t *testing.T) {
+	fsys := fstest.MapFS{
+		"ship/history/0.0.thema": {Data: []byte("Schema: {\n\tk!: \"U\"\n}\n")},
+		"ship/0.1.thema":         {Data: []byte("Schema: {\n\tk!: \"U\"\n\te?: string\n}\n")},
+	}
+	ctx := cuecontext.New()
+	lin, err := AuthoringLineage(fsys, "ship", thema.NewRuntime(ctx))
+	if err != nil {
+		t.Fatal(cerrors.Details(err, nil))
+	}
+	for _, step := range []struct {
+		from, to thema.SyntacticVersion
+		data     string
+	}{
+		{thema.SV(0, 0), thema.SV(0, 1), `{k: "U"}`},
+		{thema.SV(0, 1), thema.SV(0, 0), `{k: "U"}`},
+		{thema.SV(0, 1), thema.SV(0, 0), `{k: "U", e: "x"}`},
+	} {
+		sch, err := lin.Schema(step.from)
+		if err != nil {
+			t.Fatal(err)
+		}
+		inst, err := sch.Validate(ctx.CompileString(step.data))
+		if err != nil {
+			t.Fatalf("%s %s: %v", step.from, step.data, err)
+		}
+		out, _, err := inst.Translate(step.to)
+		if err != nil {
+			t.Fatalf("%s->%s %s: %s", step.from, step.to, step.data, cerrors.Details(err, nil))
+		}
+		if k, err := out.Underlying().LookupPath(cue.ParsePath("k")).String(); err != nil || k != "U" {
+			t.Errorf("%s->%s %s: k = %q (%v), want \"U\"", step.from, step.to, step.data, k, err)
+		}
+		if e := out.Underlying().LookupPath(cue.ParsePath("e")); step.to == thema.SV(0, 0) && e.Exists() {
+			t.Errorf("%s->%s %s: e survived into 0.0", step.from, step.to, step.data)
+		}
+	}
+}
