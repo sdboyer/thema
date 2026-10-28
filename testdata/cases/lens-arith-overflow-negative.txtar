@@ -1,0 +1,33 @@
+# lens multiplies an int64 by a field whose alternatives include a negative
+# literal, into a target that accepts anything: {a: -1, b: -9223372036854775808}
+# gives 9223372036854775808, outside the int64 model translation is proven in.
+# Only the int64 check can refute it, and it needs a's bounds read from the
+# literal (#147).
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "lensArithOverflowNegative"
+	schemas: {
+		"0": "0": {
+			schema: {a!: -1 | 0, b!: int64}
+		}
+		"1": "0": {
+			schema: {a!: -1 | 0, b!: int64, m!: _}
+		}
+	}
+	lenses: {
+		"1.0->0.0": {
+			v1_0: _
+			v0_0: {a: v1_0.a, b: v1_0.b}
+		}
+		"0.0->1.0": {
+			v0_0: _
+			v1_0: {a: v0_0.a, b: v0_0.b, m: v0_0.a * v0_0.b}
+		}
+	}
+}
+-- expect --
+bind fail arith-overflow

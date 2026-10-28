@@ -175,6 +175,15 @@ func intervalOfDepth(v cue.Value, depth int) (interval, bool, bool) {
 			return intervalOfDepth(d, depth+1)
 		}
 	}
+	// A constant is read from its value, not its expression: Expr() presents
+	// -1 as a unary minus over 1, and 2 - 3 as the subtraction.
+	if compat.ConstantTarget(v) && v.Kind() == cue.IntKind {
+		n, err := v.Int(nil)
+		if err != nil {
+			return interval{}, false, false
+		}
+		return point(n), true, true
+	}
 	op, args := v.Expr()
 	switch op {
 	case cue.NoOp:
@@ -184,13 +193,6 @@ func intervalOfDepth(v cue.Value, depth int) (interval, bool, bool) {
 		k := v.IncompleteKind()
 		if k&cue.IntKind == 0 {
 			return interval{}, false, false
-		}
-		if v.IsConcrete() && k == cue.IntKind {
-			n, err := v.Int(nil)
-			if err != nil {
-				return interval{}, false, false
-			}
-			return point(n), true, true
 		}
 		if k == cue.IntKind || k == cue.NumberKind {
 			return interval{}, true, true
