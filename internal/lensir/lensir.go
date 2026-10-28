@@ -141,9 +141,10 @@ func (p Path) String() string {
 }
 
 // isIdent reports whether s is a plain identifier: letters, digits and
-// underscores, not starting with a digit.
+// underscores, not starting with a digit. A label starting with _ is not: in
+// CUE, _id names a hidden field, and the data field "_id" must be quoted.
 func isIdent(s string) bool {
-	if s == "" {
+	if s == "" || s[0] == '_' {
 		return false
 	}
 	for i, r := range s {
