@@ -164,6 +164,8 @@ A `when` replaces the implied condition. It is a comparison or combination of so
 - **A field the source may omit, named bare, tests its presence.** `when: v0_0.flag` applies to the instances that have `flag`, whatever its value. To test a bare optional field's value, compare it: `when: v0_0.flag == true`.
 - **A required true-or-false field named bare is its value.** `when: v0_0.deprecated` applies when `deprecated` is true. Any other field named bare is an error: compare it.
 
+**The fields a lacuna reports.** A lacuna reports the source fields its mapping reads and the target field it writes, each only where the translation has it. A move or computed value that reads a field the source may omit writes its target field only where the instance has what it reads, so a lacuna on it reports the target field only there. The lacuna still applies under its condition, which for a move without a `when` is always.
+
 **Drops.** A drop derives a `DroppedField` lacuna by itself. A `DroppedField` lacuna declared on a drop replaces the derived message. A lacuna of another type on a drop is added beside the derived one. A drop of a struct derives one lacuna, about the struct, not one for each field beneath it.
 
 **Matches.** A wildcard arm must have a lacuna: one on the match's key without a `when`, which applies when the arm does. A lacuna on an arm other than the wildcard is written with a `when` naming the value, `when: v0_0.kind == "a"`. A match without a wildcard arm has no implied condition, so every lacuna on it needs a `when`.

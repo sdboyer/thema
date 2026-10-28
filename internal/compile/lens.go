@@ -984,7 +984,7 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 					e.errf(diag.E0343, en.pos, "%s is optional in %s and %s requires %s: write _orelse(%s.%s, <fallback>) to say what to use when it is absent", en.source, e.sv, e.tv, en.target, e.root, en.source)
 					continue
 				}
-				root.has(en.target).present = []cue.Path{en.source}
+				root.has(en.target).present = e.presence(en)
 			}
 			consumed[en.source.String()] = true
 			out.effective = append(out.effective, *en)
@@ -1024,7 +1024,7 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 						Err())
 					continue
 				}
-				root.has(en.target).present = en.optional
+				root.has(en.target).present = e.presence(en)
 			}
 			out.effective = append(out.effective, *en)
 		case kindMatch:
@@ -1866,6 +1866,22 @@ func (e *edge) catchAllCondition(en *entry, p token.Pos) ast.Expr {
 	return and(unkeyed, e.notMatches(p, en.source, at(p, &ast.ParenExpr{X: ttype})))
 }
 
+// presence returns the optional source paths a mapping's target field is
+// written under, none if it is written always: the source of a move, and the
+// optional fields a computed value reads. The result and the lacunas that
+// report the field use the same test.
+func (e *edge) presence(en *entry) []cue.Path {
+	switch en.kind {
+	case kindMove:
+		if e.optional(e.S, en.source) {
+			return []cue.Path{en.source}
+		}
+	case kindComputed:
+		return en.optional
+	}
+	return nil
+}
+
 // lacunaFor builds the lacuna d declares on en, applying under cond (nil for
 // always).
 func (e *edge) lacunaFor(en *entry, d *lacunaDecl, cond ast.Expr) ast.Expr {
@@ -1892,7 +1908,13 @@ func (e *edge) lacunaFor(en *entry, d *lacunaDecl, cond ast.Expr) ast.Expr {
 		if len(srcs) > 0 {
 			elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewList(srcs...))}))
 		}
-		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("targetFields")), Value: at(p, ast.NewList(e.fieldRef(p, en.target, paramName(e.tv))))}))
+		// The target field exists only where the mapping writes it, so it
+		// is reported under the same presence test.
+		tgt := e.fieldRef(p, en.target, paramName(e.tv))
+		if present := e.presence(en); len(present) > 0 {
+			tgt = at(p, &ast.Comprehension{Clauses: []ast.Clause{at(p, &ast.IfClause{Condition: e.presentAll(p, present)})}, Value: tgt})
+		}
+		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("targetFields")), Value: at(p, ast.NewList(tgt))}))
 	}
 	elts = append(elts,
 		at(p, &ast.Field{Label: at(p, ast.NewIdent("message")), Value: at(p, ast.NewString(d.msg))}),
