@@ -32,7 +32,7 @@ lenses: {
     "firstfield": 42
 }
 -- out/validate/TestValidate/firstfieldAsInt32 --
-error[E0503]: firstfield in the data is int, but schema 0.1 declares it as string
+error[E0503]: firstfield in the data is 42, but schema 0.1 declares it as string
   --> in/validate/TestValidate/firstfieldAsInt32.data.json:2:19
    |
  2 |     "firstfield": 42
@@ -45,7 +45,7 @@ error[E0503]: firstfield in the data is int, but schema 0.1 declares it as strin
    |
    = detail: firstfield: conflicting values 42 and string (mismatched types int and string)
 -- out/validate/TestValidate/secondfieldAsString --
-error[E0503]: secondfield in the data is string, but schema 0.1 declares it as int32
+error[E0503]: secondfield in the data is "foo", but schema 0.1 declares it as int32
  --> in/validate/TestValidate/secondfieldAsString.data.json:2:20
   |
 2 |     "secondfield": "foo"
