@@ -9,6 +9,13 @@
 // A session never touches the network or the filesystem: a lineage may import
 // github.com/sdboyer/thema, served from the copy embedded in this program,
 // and nothing else.
+//
+// The examples a session offers are thema's own, compiled in, and any a host
+// registers ([Session.RegisterExamples]), so that a deployment of the
+// playground can offer lineages of its own without rebuilding thema.wasm.
+// The frontend in playground/ui fetches examples.json from beside the page at
+// start-up and, when there is one, registers it: the file is a
+// [RegisterExamplesRequest]. A 404 means the host has none.
 package playground
 
 import (
@@ -36,6 +43,8 @@ type Session struct {
 	rt    *thema.Runtime
 	cache *lineageCache
 	ops   map[string]op
+	// host is the examples a host registered, in its order.
+	host []HostExample
 }
 
 // New creates a session. Loading thema's own CUE cannot fail in a correct
@@ -82,6 +91,9 @@ func operations() map[string]op {
 		"format":       typed(func(s *Session, r FormatRequest) any { return s.Format(r) }),
 		"examples":     noRequest(func(s *Session) any { return s.ListExamples() }),
 		"example":      typed(func(s *Session, r GetExampleRequest) any { return s.GetExample(r) }),
+		"register-examples": typed(func(s *Session, r RegisterExamplesRequest) any {
+			return s.RegisterExamples(r)
+		}),
 	}
 }
 

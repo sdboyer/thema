@@ -214,6 +214,8 @@ var Codes = []CodeInfo{
 	{Code: E0801, Severity: SeverityError, Title: "the playground request is malformed", Positionless: true},
 	{Code: E0802, Severity: SeverityError, Title: "the playground request gives the lineage in neither form, or in both", Positionless: true},
 	{Code: E0803, Severity: SeverityError, Title: "a version in the playground request is not a version", Positionless: true},
+	{Code: E0804, Severity: SeverityError, Title: "a host example in the playground request is incomplete or inconsistent", Positionless: true},
+	{Code: E0805, Severity: SeverityError, Title: "a host example does not bind as its record declares", Positionless: true},
 	{Code: E0901, Severity: SeverityError, Title: "thema failed internally", Positionless: true},
 	{Code: E0902, Severity: SeverityError, Title: "CUE reported an error thema does not recognize", Positionless: true},
 	{Code: E0903, Severity: SeverityError, Title: "thema reported an error that has no code", Positionless: true},
@@ -424,6 +426,8 @@ const (
 	E0801 Code = "E0801" // request JSON malformed, or no such operation
 	E0802 Code = "E0802" // lineage in neither form, or both
 	E0803 Code = "E0803" // a request's version does not parse
+	E0804 Code = "E0804" // a host example: no ID, title or category; a taken ID or category; a kind not its lineage's
+	E0805 Code = "E0805" // a host example binds when declared not to, or the reverse
 
 	// E0901: a panic inside thema, recovered at an operation boundary. The
 	// detail holds the panic value and stack.

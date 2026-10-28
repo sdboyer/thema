@@ -184,6 +184,8 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0801](E0801.md) | error | the playground request is malformed |
 | [E0802](E0802.md) | error | the playground request gives the lineage in neither form, or in both |
 | [E0803](E0803.md) | error | a version in the playground request is not a version |
+| [E0804](E0804.md) | error | a host example in the playground request is incomplete or inconsistent |
+| [E0805](E0805.md) | error | a host example does not bind as its record declares |
 | [E0901](E0901.md) | error | thema failed internally |
 | [E0902](E0902.md) | error | CUE reported an error thema does not recognize |
 | [E0903](E0903.md) | error | thema reported an error that has no code |
