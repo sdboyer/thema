@@ -15,6 +15,7 @@ import (
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/internal/compat"
+	"github.com/sdboyer/thema/internal/cuetil"
 	"github.com/sdboyer/thema/internal/cueview"
 	"github.com/sdboyer/thema/internal/lenscheck"
 	"github.com/sdboyer/thema/lacuna"
@@ -203,6 +204,11 @@ type edge struct {
 	S, T   cue.Value
 	sv, tv thema.SyntacticVersion
 	dir    direction
+	// identity is set for the forward edge of a minor version, which has no
+	// lens: an instance is already an instance of its minor successor. The
+	// edge is assembled only for derivation, so a source field the target
+	// does not declare (one an open target admits) is not refused.
+	identity bool
 	// file is the version file the lens belongs to (the newer version's), and
 	// blockPos the position of its block there, or of the file when the
 	// author wrote none.
@@ -1490,6 +1496,10 @@ func (e *edge) unmapped(b *body, consumed map[string]bool, out *compiledLens) {
 		}
 		switch e.dir {
 		case forward:
+			if e.identity {
+				// No lens: the instance keeps it, and its successor admits it.
+				continue
+			}
 			e.errf(diag.E0347, e.blockPos, "%s declares %s and %s does not, and nothing maps it: write <field>: %s.%s to move it, or %s: _drop", e.sv, spath, e.tv, e.root, spath, spath)
 		case backward:
 			en := entry{kind: kindDrop, source: spath, target: spath, pos: lookup(e.S, spath).Pos(), derived: true}
@@ -1965,7 +1975,16 @@ func (e *edge) required(v cue.Value, p cue.Path) bool {
 // lookup returns the value v declares at p, whatever the form of the fields
 // along it: a plain selector finds only regular fields, an optional one finds
 // regular, optional and required fields (see TestLookupPathFieldForms).
+//
+// A name an open struct admits only through its ... is not declared, though
+// LookupPath finds it (as _): the result does not exist, by the rule bind and
+// the totality check apply (cuetil.DeclaresPath). So a field only one version
+// declares is never copied implicitly, nor treated as present in the other.
 func lookup(v cue.Value, p cue.Path) cue.Value {
+	//nolint:staticcheck // every schema the compiler looks into is built in the one context it was given
+	if !cuetil.DeclaresPath(v.Context(), v, p) {
+		return cue.Value{}
+	}
 	sels := p.Selectors()
 	out := make([]cue.Selector, len(sels))
 	for i, s := range sels {
