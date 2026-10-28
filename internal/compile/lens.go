@@ -57,6 +57,9 @@ type entry struct {
 	catchAll *arm
 	// body is each's element body.
 	body *ast.StructLit
+	// item is the path within the element that each's body copies, where the
+	// body is a copy (_item, _item.<path>) rather than a struct of mappings.
+	item *cue.Path
 }
 
 // An arm is one arm of a match: a value and the constant it maps to.
@@ -473,7 +476,8 @@ func isCatchAll(l ast.Label) bool {
 	return ok && id.Name == "_"
 }
 
-// parseEach reads each(ref, {body}).
+// parseEach reads each(ref, {body}), or each(ref, _item.<path>), whose body
+// copies the element or a path within it.
 func (e *edge) parseEach(x *ast.CallExpr, en *entry, b *body) {
 	if len(x.Args) != opArity {
 		e.errf(diag.E0337, x.Pos(), "_each takes two arguments: _each(%s.<list>, {...})", e.root)
@@ -484,13 +488,21 @@ func (e *edge) parseEach(x *ast.CallExpr, en *entry, b *body) {
 		e.errf(diag.E0337, x.Args[0].Pos(), "_each's first argument must be a reference to a list in %s", e.root)
 		return
 	}
-	bodyLit, ok := x.Args[1].(*ast.StructLit)
-	if !ok {
-		e.errf(diag.E0337, x.Args[1].Pos(), "_each's body must be a struct of mappings over _item")
+	en.kind, en.source = kindEach, p
+	if bodyLit, ok := x.Args[1].(*ast.StructLit); ok {
+		en.body = bodyLit
+		b.add(*en)
 		return
 	}
-	en.kind, en.source, en.body = kindEach, p, bodyLit
-	b.add(*en)
+	if root, ip, ok := refPathAny(x.Args[1]); ok && root == rootItem {
+		en.item = &ip
+		b.add(*en)
+		return
+	}
+	e.errs = cerrors.Append(e.errs, diag.New(diag.E0337).At(x.Args[1].Pos()).
+		Headlinef("_each's body %s is neither a struct of mappings over %s nor a copy of it", exprText(x.Args[1]), rootItem).
+		Helpf("write a struct of mappings, {name: %s.title}, or copy the element or a field of it: %s, %s.<path>", rootItem, rootItem, rootItem).
+		Err())
 }
 
 // notData refuses a hidden field or a definition as a key in a lens body or
@@ -1366,12 +1378,16 @@ func (e *edge) compileEach(en *entry, out *compiledLens) bool {
 		e.errf(diag.E0353, en.expr.Pos(), "_each maps the elements of open lists ([...T]); a fixed-length list is not supported")
 		return false
 	}
-	sub := &edge{ctx: e.ctx, S: selem, T: telem, sv: e.sv, tv: e.tv, dir: e.dir, blockPos: en.pos, root: rootItem,
+	sub := &edge{ctx: e.ctx, S: selem, T: telem, sv: e.sv, tv: e.tv, dir: e.dir, file: e.file, written: e.written, blockPos: en.pos, root: rootItem,
 		lacunas: e.lacunas, imports: e.imports, each: &eachScope{list: en.source, target: en.target, n: out.nlets, optional: e.optional(e.S, en.source), parent: e.each}}
-	b := &body{}
-	sub.parseBody(en.body, cue.MakePath(), cue.MakePath(), b)
 	subOut := &compiledLens{nlets: out.nlets}
-	sub.assembleInto(b, subOut)
+	if en.item != nil {
+		sub.eachCopy(en, subOut)
+	} else {
+		b := &body{}
+		sub.parseBody(en.body, cue.MakePath(), cue.MakePath(), b)
+		sub.assembleInto(b, subOut)
+	}
 	e.errs = cerrors.Append(e.errs, sub.errs)
 	if sub.errs != nil {
 		return false
@@ -1379,8 +1395,79 @@ func (e *edge) compileEach(en *entry, out *compiledLens) bool {
 	out.derived = append(out.derived, subOut.derived...)
 	out.lets = append(out.lets, subOut.lets...)
 	out.nlets = subOut.nlets
+	if en.item != nil {
+		// The element is the copy, embedded: [for _item in l {_item.id}].
+		en.body = at(en.expr.Pos(), &ast.StructLit{Elts: []ast.Decl{&ast.EmbedDecl{Expr: at(en.expr.Pos(), ref(rootItem, *en.item))}}})
+		return true
+	}
 	en.body = subOut.result
 	return true
+}
+
+// eachCopy checks an each body that copies the element, or the path within it
+// en.item names, as a copy into the target's element: the element must have
+// it, every element must have it, since a list has no absent elements, and
+// the target's element must accept every value of it. Every other field of
+// the element is lost: in the forward direction an error, since nothing can
+// account for it, and in the backward direction dropped by derivation.
+func (e *edge) eachCopy(en *entry, out *compiledLens) {
+	p := *en.item
+	// Problems with the copy are the body's: _each's second argument.
+	pos := en.expr.(*ast.CallExpr).Args[1].Pos()
+	elem, item := e.each.name(), rootItem
+	if len(p.Selectors()) > 0 {
+		elem += "." + p.String()
+		item += "." + p.String()
+	}
+	switch {
+	case !lookup(e.S, p).Exists():
+		e.errf(diag.E0340, pos, "%s does not declare %s", e.sv, elem)
+		return
+	case e.optional(e.S, p):
+		e.errs = cerrors.Append(e.errs, diag.New(diag.E0343).At(pos).
+			Headlinef("%s is optional in %s, and each element of %s's %s needs a value", elem, e.sv, e.tv, en.target).
+			Note(token.NoPos, "an _each whose body copies a field writes one element per source element, so the field must be present in every one").
+			Err())
+		return
+	}
+	if fs := e.misfits(p, cue.MakePath()); len(fs) > 0 {
+		b := diag.New(diag.E0359).At(pos).
+			Headlinef("the %s in %s copies %s into the elements of %s, which do not accept every value of it", e.dir, e.file, elem, en.target).
+			Helpf("copy into %s a field whose values its elements accept, or map them with a struct of mappings", en.target)
+		r := strings.NewReplacer("the prior schema", e.sv.String(), "the new schema", e.tv.String())
+		for _, f := range fs {
+			subject := en.target.String() + "[]"
+			if sels := f.Path.Selectors(); len(sels) > 0 {
+				subject += "." + f.Path.String()
+			}
+			b.Notef(token.NoPos, "%s in %s %s (copying %s; compatibility rule %s)", subject, e.tv, r.Replace(f.Detail), item, f.Rule)
+		}
+		e.errs = cerrors.Append(e.errs, b.Err())
+		return
+	}
+	if len(p.Selectors()) == 0 {
+		return
+	}
+	// The copy is the whole target element, so every other field of the
+	// source element is lost, whether or not the target's element declares a
+	// field of the same name.
+	copied := map[string]bool{p.String(): true}
+	for _, spath := range e.leaves(e.S, cue.MakePath()) {
+		if consumedUnder(copied, spath) {
+			continue
+		}
+		switch e.dir {
+		case forward:
+			e.errs = cerrors.Append(e.errs, diag.New(diag.E0347).At(pos).
+				Headlinef("%s declares %s.%s, and the _each copying %s maps nothing else of the element", e.sv, e.each.name(), spath, item).
+				Note(token.NoPos, "an _each whose body is a copy has nowhere to move or drop the rest of the element, and the forward lens must account for every field the source declares").
+				Err())
+		case backward:
+			en := entry{kind: kindDrop, source: spath, target: spath, pos: lookup(e.S, spath).Pos(), derived: true}
+			out.effective = append(out.effective, en)
+			e.dropLacuna(out, &en)
+		}
+	}
 }
 
 // place puts an explicit entry into the result tree, checking the target

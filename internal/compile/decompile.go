@@ -171,6 +171,10 @@ type dbody struct {
 	root    string
 	entries []dentry
 	lacunas []dlacuna
+	// item is the path within the element an each body copies, where the
+	// body is a copy ({_item.id}) rather than a struct of mappings. Such a
+	// body's entries are only the drops derivation produces.
+	item *cue.Path
 }
 
 // A dlacuna is a declared lacuna read back from the normal form.
@@ -355,7 +359,9 @@ type eachSyntax struct {
 	err    error
 }
 
-// eachOf recognizes [for item in <root>.<list> {...}].
+// eachOf recognizes [for item in <root>.<list> {...}], whose body is a struct
+// of mappings, or the copy of the element or a path in it, embedded:
+// {_item.id}.
 func (b *dbody) eachOf(x ast.Expr, key string) (eachSyntax, bool) {
 	list, ok := x.(*ast.ListLit)
 	if !ok || len(list.Elts) != 1 {
@@ -378,6 +384,14 @@ func (b *dbody) eachOf(x ast.Expr, key string) (eachSyntax, bool) {
 		return eachSyntax{}, false
 	}
 	body := &dbody{root: rootItem}
+	if len(s.Elts) == 1 {
+		if em, ok := s.Elts[0].(*ast.EmbedDecl); ok {
+			if r, ip, ok := refPathAny(em.Expr); ok && r == rootItem {
+				body.item = &ip
+				return eachSyntax{source: p, body: body}, true
+			}
+		}
+	}
 	err := body.walk(s.Elts, cue.MakePath(), key)
 	return eachSyntax{source: p, body: body, err: err}, true
 }
@@ -1033,7 +1047,9 @@ func stripDerivedDrops(b *dbody, key cue.Path, named map[string]bool, newer, old
 	for _, en := range b.entries {
 		switch en.kind {
 		case kindDrop:
-			if !named[joinPath(key, en.target).String()] && lookup(newer, en.source).Exists() && !lookup(older, en.source).Exists() {
+			// A copy body's drops are all derived: the copy is the whole
+			// element, and no lacuna refines a derived drop.
+			if b.item != nil || !named[joinPath(key, en.target).String()] && lookup(newer, en.source).Exists() && !lookup(older, en.source).Exists() {
 				continue
 			}
 		case kindEach:
@@ -1211,7 +1227,11 @@ func (b *dbody) syntax() *ast.StructLit {
 			}
 			val = &ast.CallExpr{Fun: ast.NewIdent(opMatch), Args: []ast.Expr{ref(b.root, en.source), arms}}
 		case kindEach:
-			val = &ast.CallExpr{Fun: ast.NewIdent(opEach), Args: []ast.Expr{ref(b.root, en.source), en.body.syntax()}}
+			var body ast.Expr = en.body.syntax()
+			if en.body.item != nil {
+				body = ref(rootItem, *en.body.item)
+			}
+			val = &ast.CallExpr{Fun: ast.NewIdent(opEach), Args: []ast.Expr{ref(b.root, en.source), body}}
 		}
 		f := n.add(en.target, val)
 		for _, cg := range en.comments {

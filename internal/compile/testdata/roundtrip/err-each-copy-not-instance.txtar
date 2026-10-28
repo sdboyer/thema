@@ -1,0 +1,26 @@
+each whose body copies a field of the element into a list whose elements do
+not accept every value of it.
+-- ship/history/0.0.thema --
+Schema: close({
+	u!: [...close({id!: int})]
+})
+-- ship/1.0.thema --
+Schema: close({
+	u!: [...string]
+})
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		u: _each(v0_0.u, _item.id)
+	}
+}
+-- out/error --
+error[E0359]: the ForwardLens in 1.0.thema copies u[].id into the elements of u, which do not accept every value of it
+ --> 1.0.thema:8:20
+  |
+8 |         u: _each(v0_0.u, _item.id)
+  |                          ^^^^^
+  |
+  = note: u[] in 1.0 was int and is now string (copying _item.id; compatibility rule value-narrowed)
+  = help: copy into u a field whose values its elements accept, or map them with a struct of mappings

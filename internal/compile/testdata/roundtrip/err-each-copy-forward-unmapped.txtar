@@ -1,0 +1,34 @@
+each whose body copies a field of the element, in the forward direction,
+where the element has another field: the copy is the whole target element, so
+nothing can move or drop the other field, and the forward lens must account
+for it.
+-- ship/history/0.0.thema --
+Schema: close({
+	u!: [...close({id!: string, is_enabled!: bool})]
+})
+-- ship/1.0.thema --
+Schema: close({
+	u!: [...string]
+})
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		u: _each(v0_0.u, _item.id)
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		u: _each(v1_0.u, {id: _item, is_enabled: true})
+	}
+}
+-- out/error --
+error[E0347]: 0.0 declares u[].is_enabled, and the _each copying _item.id maps nothing else of the element
+ --> 1.0.thema:8:20
+  |
+8 |         u: _each(v0_0.u, _item.id)
+  |                          ^^^^^
+  |
+  = note: an _each whose body is a copy has nowhere to move or drop the rest of the element, and the forward lens must account for every field the source declares
