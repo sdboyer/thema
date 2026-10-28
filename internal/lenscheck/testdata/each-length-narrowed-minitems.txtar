@@ -1,0 +1,12 @@
+# A list mapped element by element into a target list that list.MinItems bounds: the source list may be empty (#163).
+-- source.cue --
+items: [...{title: string}]
+-- target.cue --
+import "list"
+items: [...{name: string}] & list.MinItems(1)
+-- lens.cue --
+v0_0: _
+v1_0: {items: [for item in v0_0.items {name: item.title}]}
+-- out --
+not total
+v1_0.items has one element per element of v0_0.items, whose length may be [0, +inf], where the target list's length must be [1, +inf] (rule copy-narrowed) @ lens.cue:2:8

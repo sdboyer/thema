@@ -906,6 +906,30 @@ func (w *walker) listLen(v cue.Value) cue.Value {
 	return w.ctx.CompileString("[...]").Len()
 }
 
+// A Validator is a validator applied to a value: a builtin call such as
+// list.MaxItems(2), or a builtin validator value such as time.Time. Name is
+// pkg.Name, or the name of a predeclared builtin.
+type Validator struct {
+	Name  string
+	Args  []cue.Value
+	Value cue.Value
+}
+
+// SplitValidators separates v into its plain constraints, unified, and its
+// validators, as the compatibility rules read them. v is one alternative, not
+// a disjunction. The plain part keeps v's kind, and its kind and length are
+// v's own where a validator that needs concrete data (list.MinItems on an open
+// list) leaves v itself incomplete.
+func SplitValidators(ctx *cue.Context, v cue.Value) (cue.Value, []Validator) {
+	w := &walker{ctx: ctx, top: ctx.CompileString("_")}
+	plain, calls := w.splitValidators(v)
+	out := make([]Validator, 0, len(calls))
+	for _, c := range calls {
+		out = append(out, Validator{Name: c.name, Args: c.args, Value: c.v})
+	}
+	return plain, out
+}
+
 // splitValidators separates v into its plain constraints, unified, and its
 // validator calls. The plain part keeps v's kind, so a value that is only a
 // validator (time.Time) still constrains its kind.

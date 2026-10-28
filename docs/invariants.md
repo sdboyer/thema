@@ -446,11 +446,17 @@ comprehension over a source list, `[for item in v0_0.items {...}]`. The body
 is proven as a lens from the source list's element to the target list's, with
 `item` standing for the element, and every rule above applies to it. The list
 has one element per element of the source, so the target list's length bounds
-must accept the source list's. A comprehension that filters (`if`), nests
-`for` clauses, or sits beside other elements is not proven. A list the lens
-builds this way and names through a `let` may be measured with `len`, within
-the source list's bounds, and its elements reported by a lacuna under the
-comprehension's own patterns.
+must accept the source list's. A list's length bounds are those its shape sets
+(`[_, ...T]`) and those `list.MinItems` and `list.MaxItems` set; a list literal
+must fall within the target's the same way. Any other validator on the target
+list (`list.UniqueItems`, `list.IsSorted`, …) constrains it beyond its length,
+which the proof does not compare. Nor does it read any other validator on the
+source list, which may bound its length further: where the bounds it reads do
+not fit the target's, the mapping is Unknown. A comprehension that filters
+(`if`), nests `for` clauses, or sits beside other elements is not proven. A
+list the lens builds this way and names through a `let` may be measured with
+`len`, within the source list's bounds, and its elements reported by a lacuna
+under the comprehension's own patterns.
 
 **Exhaustiveness.** Every field the target requires must be written for every
 instance. That holds when the field is written unconditionally, or when the
@@ -550,7 +556,7 @@ for example
 
 | Rule | Unknown when | What to do |
 |---|---|---|
-| `unknown-copy` | the compatibility rules cannot decide whether the copied value fits the target: a constraint between fields, a pending comprehension, a validator, or a disjunction they cannot match | copy a value whose schemas the compatibility rules decide (see their Unknown table) |
+| `unknown-copy` | the compatibility rules cannot decide whether the copied value fits the target: a constraint between fields, a pending comprehension, a validator, or a disjunction they cannot match; or a list is mapped element by element from a source list whose validator may bound its length where the target's bounds need it | copy a value whose schemas the compatibility rules decide (see their Unknown table) |
 | `unknown-pattern` | an arm's condition is not a pattern (a presence test, an equality or a type test on an input field, or a conjunction of these); a lacuna's condition is neither a pattern nor a boolean the computed rules prove; or an equality tests a field that may be a float | write the condition as a pattern, testing one input field at a time; test a number's type before comparing it |
 | `unknown-exhaustive` | a required field is written only under patterns that cannot be shown to cover every instance | write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field |
 | `unknown-op` | a computation uses an operation outside the proven set: `/`, a float, a builtin not listed above, or `&` or `\|` within an expression; or a call constrains the result | use the listed operations, with `quo` or `div` for integer division; write the result as a struct |
@@ -558,7 +564,7 @@ for example
 | `unknown-reference` | the lens reads something that cannot be followed to the input or to a constant: a computed index or label, or a selection into a comprehension's output | select fields by name |
 | `unknown-bounds` | an integer operand has no finite bounds, so the result cannot be shown to fit `int64` or the target, or an operand occurs more than once. Bounds that contain the target's refute nothing when the result need not take them, as with `len` | bound the fields the computation reads (`int32`, `>=0 & <=100`) |
 | `unknown-divisor` | a divisor's bounds include zero, though zero may not be an instance | bound the divisor away from zero (`>0` or `<0`) |
-| `unknown-target-constraint` | the target constrains a computed value in a way the proof does not compare: a regular expression, a validator, or alternatives with gaps; a struct written to a disjunctive target fits several of its alternatives, or mixes plain fields with arms or embeddings; or a list literal, a mapped list's elements, or a computed value is written beneath a disjunction | express the constraint with `>=`, `<=` or a sized type, or make a string target accept any string; at a disjunctive target write one struct per alternative, its fields unconditional, with a constant field telling the alternatives apart, each in its own arm |
+| `unknown-target-constraint` | the target constrains a computed value in a way the proof does not compare: a regular expression, a validator, or alternatives with gaps; a list literal or a mapped list is written to a target list with a validator other than `list.MinItems` and `list.MaxItems`; a struct written to a disjunctive target fits several of its alternatives, or mixes plain fields with arms or embeddings; or a list literal, a mapped list's elements, or a computed value is written beneath a disjunction | express the constraint with `>=`, `<=` or a sized type, or make a string target accept any string; at a disjunctive target write one struct per alternative, its fields unconditional, with a constant field telling the alternatives apart, each in its own arm |
 | `unknown-table-key` | a table is indexed by a value that is not a finite set of string constants | index by an input field whose alternatives are string constants |
 | `unknown-head` | the first element of a list built by a comprehension is taken with no unconditional fallback, or with one that is itself conditional | add an unconditional fallback element: `[if c {x}, y][0]` |
 
