@@ -1,0 +1,23 @@
+# An operand refined by an equality with a negative literal (#147): the
+# refined alternative is the constant -1, a point.
+-- source.cue --
+n: int32
+-- target.cue --
+m: 0 | 1
+-- lens.cue --
+v0_0: _
+v1_0: {
+	if v0_0.n == -1 {m: v0_0.n + 1}
+	if v0_0.n != -1 {m: 0}
+}
+-- out --
+total
+-- ir --
+out: {
+  if in.n == -1 {
+    out.m = in.n + 1
+  }
+  if in.n != -1 {
+    out.m = 0
+  }
+}

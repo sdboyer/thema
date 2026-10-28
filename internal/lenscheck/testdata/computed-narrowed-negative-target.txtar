@@ -1,0 +1,12 @@
+# A target of negative literals (#147) that a computed value can leave:
+# {a: 2} gives 1, which -1 | 0 rejects.
+-- source.cue --
+a: 0 | 1 | 2
+-- target.cue --
+m: -1 | 0
+-- lens.cue --
+v0_0: _
+v1_0: {m: v0_0.a - 1}
+-- out --
+not total
+v1_0.m is v0_0.a - 1, which may be as high as 1, where the target schema requires <=0 (rule computed-narrowed) @ lens.cue:2:11
