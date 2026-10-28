@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { type Thema, startThema } from "./api/client";
+import { type Thema, fetchHostExamples, startThema } from "./api/client";
 import type { BindResponse, Diagnostic, ExampleInfo, GetExampleResponse } from "./api/types";
 import { argsOf, isCodegen, requestFor } from "./state/requests";
 import {
@@ -39,11 +39,23 @@ export function App() {
   const [panel, setPanel] = useState<"diagnostics" | "result" | "normal">("diagnostics");
   const [touring, setTouring] = useState(false);
 
-  // Start thema, then restore a shared session or load the default example.
+  // Start thema, register the host's examples if it serves any, then restore
+  // a shared session or load the default example.
   useEffect(() => {
+    const hostExamples = fetchHostExamples();
+    hostExamples.catch(() => {});
     startThema(setLoaded)
       .then(async (t) => {
         setThema(t);
+        try {
+          const manifest = await hostExamples;
+          if (manifest) {
+            const r = await t.call("register-examples", manifest);
+            if (!r.ok) setNotice(`Some of this host's examples were left out: ${r.diagnostics.map((d) => d.headline).join("; ")}`);
+          }
+        } catch (e) {
+          setNotice(`This host's examples could not be read: ${(e as Error).message}`);
+        }
         const list = await t.call("examples", {});
         setExamples(list.examples);
         let shared: Session | null = null;
