@@ -1006,8 +1006,14 @@ func (w *walker) splitValidators(v cue.Value) (plain cue.Value, calls []call) {
 }
 
 // scalarKinds returns a value admitting exactly the scalar kinds in k, so that
-// a value that is only a validator (time.Time) still constrains its kind.
+// a value that is only a validator (time.Time) still constrains its kind. A k
+// that admits a struct or a list, as _ does, is not made of scalar kinds, and
+// constrains nothing here: the scalar kinds alone would reject the struct or
+// list (b?: {t!: string} released under ... would be narrowed to scalars).
 func (w *walker) scalarKinds(k cue.Kind) (cue.Value, bool) {
+	if k&(cue.StructKind|cue.ListKind) != 0 {
+		return cue.Value{}, false
+	}
 	var alts []string
 	for _, sk := range []struct {
 		k    cue.Kind
