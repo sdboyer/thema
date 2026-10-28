@@ -40,16 +40,18 @@ ForwardLens: {
 		s: _drop
 	}
 }
--- in/translate/0.0/1.0/absent.json --
+-- data/0.0/absent.json --
 {}
--- in/translate/0.0/1.0/empty.json --
+-- data/0.0/empty.json --
 {"q": {}, "r": {}, "s": {}}
--- in/translate/0.0/1.0/full.json --
+-- data/0.0/full.json --
 {"q": {"x": 1, "y": 2}, "r": {"k": 3}, "s": {"v": 4}}
--- in/translate/1.0/0.0/absent.json --
+-- data/1.0/absent.json --
 {}
--- in/translate/1.0/0.0/empty.json --
+-- data/1.0/empty.json --
 {"q": {}, "r": {}}
+-- data/1.0/constant.json --
+{"r": {"c": "z"}}
 -- out/bind --
 ok
 -- out/decompiled/1.0.thema --
@@ -187,33 +189,21 @@ lenses: {
 		}]
 	}
 }
--- out/translate/0.0/1.0/absent --
-0.0: {}
-to 1.0: {"r":{"c":"z"}}
-lacunas: []
-back to 0.0: {"r":{}}
-lacunas: [{"sourceFields":[{"path":"r.c","value":"z"}],"type":"DroppedField","message":"r.c has no equivalent in 0.0 and was dropped"}]
--- out/translate/0.0/1.0/empty --
-0.0: {"q": {}, "r": {}, "s": {}}
-to 1.0: {"q":{},"r":{"c":"z"}}
-lacunas: [{"sourceFields":[{"path":"s","value":{}}],"type":"DroppedField","message":"s has no equivalent in 1.0 and was dropped"}]
-back to 0.0: {"q":{},"r":{}}
-lacunas: [{"sourceFields":[{"path":"r.c","value":"z"}],"type":"DroppedField","message":"r.c has no equivalent in 0.0 and was dropped"}]
--- out/translate/0.0/1.0/full --
-0.0: {"q": {"x": 1, "y": 2}, "r": {"k": 3}, "s": {"v": 4}}
-to 1.0: {"q":{"x2":1},"r":{"k":3,"c":"z"}}
-lacunas: [{"sourceFields":[{"path":"q.y","value":2}],"type":"DroppedField","message":"q.y has no equivalent in 1.0 and was dropped"},{"sourceFields":[{"path":"s","value":{"v":4}}],"type":"DroppedField","message":"s has no equivalent in 1.0 and was dropped"}]
-back to 0.0: {"q":{"x":1},"r":{"k":3}}
-lacunas: [{"sourceFields":[{"path":"r.c","value":"z"}],"type":"DroppedField","message":"r.c has no equivalent in 0.0 and was dropped"}]
--- out/translate/1.0/0.0/absent --
-1.0: {}
-to 0.0: {}
-lacunas: []
-back to 1.0: {"r":{"c":"z"}}
-lacunas: []
--- out/translate/1.0/0.0/empty --
-1.0: {"q": {}, "r": {}}
-to 0.0: {"q":{},"r":{}}
-lacunas: []
-back to 1.0: {"q":{},"r":{"c":"z"}}
-lacunas: []
+-- out/translate/0.0/absent->1.0 --
+{"r":{"c":"z"}}
+[]
+-- out/translate/0.0/empty->1.0 --
+{"q":{},"r":{"c":"z"}}
+[{"sourceFields":[{"path":"s","value":{}}],"type":"DroppedField","message":"s has no equivalent in 1.0 and was dropped"}]
+-- out/translate/0.0/full->1.0 --
+{"q":{"x2":1},"r":{"k":3,"c":"z"}}
+[{"sourceFields":[{"path":"q.y","value":2}],"type":"DroppedField","message":"q.y has no equivalent in 1.0 and was dropped"},{"sourceFields":[{"path":"s","value":{"v":4}}],"type":"DroppedField","message":"s has no equivalent in 1.0 and was dropped"}]
+-- out/translate/1.0/absent->0.0 --
+{}
+[]
+-- out/translate/1.0/constant->0.0 --
+{"r":{}}
+[{"sourceFields":[{"path":"r.c","value":"z"}],"type":"DroppedField","message":"r.c has no equivalent in 0.0 and was dropped"}]
+-- out/translate/1.0/empty->0.0 --
+{"q":{},"r":{}}
+[]

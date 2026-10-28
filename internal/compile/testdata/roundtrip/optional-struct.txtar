@@ -1,9 +1,10 @@
 A struct's presence is information. 0.1 adds y beneath the optional struct
 q, so the derived backward lens descends into q to drop y; q is still a copy,
 written only when the instance has it: absent stays absent, and present but
-empty stays present. 0.1 also adds the optional struct o, which the backward
-lens drops as a whole: its DroppedField lacuna is about o, reported whenever
-o is present, empty or not.
+empty stays present, so {"a": "x"} translated from 0.0 to 0.1 and back (the
+absent instances) is unchanged. 0.1 also adds the optional struct o, which
+the backward lens drops as a whole: its DroppedField lacuna is about o,
+reported whenever o is present, empty or not.
 -- ship/history/0.0.thema --
 Schema: close({
 	a!: string
@@ -22,15 +23,15 @@ Schema: close({
 		e?: bool
 	})
 })
--- in/translate/0.0/0.1/absent.json --
+-- data/0.0/absent.json --
 {"a": "x"}
--- in/translate/0.0/0.1/empty.json --
+-- data/0.0/empty.json --
 {"a": "x", "q": {}}
--- in/translate/0.1/0.0/absent.json --
+-- data/0.1/absent.json --
 {"a": "x"}
--- in/translate/0.1/0.0/empty.json --
+-- data/0.1/empty.json --
 {"a": "x", "q": {}, "o": {}}
--- in/translate/0.1/0.0/full.json --
+-- data/0.1/full.json --
 {"a": "x", "q": {"x": 1, "y": true}, "o": {"e": true}}
 -- out/bind --
 ok
@@ -107,33 +108,18 @@ lenses:
 			}
 		]
 	}
--- out/translate/0.0/0.1/absent --
-0.0: {"a": "x"}
-to 0.1: {"a":"x"}
-lacunas: []
-back to 0.0: {"a":"x"}
-lacunas: []
--- out/translate/0.0/0.1/empty --
-0.0: {"a": "x", "q": {}}
-to 0.1: {"a":"x","q":{}}
-lacunas: []
-back to 0.0: {"a":"x","q":{}}
-lacunas: []
--- out/translate/0.1/0.0/absent --
-0.1: {"a": "x"}
-to 0.0: {"a":"x"}
-lacunas: []
-back to 0.1: {"a":"x"}
-lacunas: []
--- out/translate/0.1/0.0/empty --
-0.1: {"a": "x", "q": {}, "o": {}}
-to 0.0: {"a":"x","q":{}}
-lacunas: [{"sourceFields":[{"path":"o","value":{}}],"type":"DroppedField","message":"o has no equivalent in 0.0 and was dropped"}]
-back to 0.1: {"a":"x","q":{}}
-lacunas: []
--- out/translate/0.1/0.0/full --
-0.1: {"a": "x", "q": {"x": 1, "y": true}, "o": {"e": true}}
-to 0.0: {"a":"x","q":{"x":1}}
-lacunas: [{"sourceFields":[{"path":"q.y","value":true}],"type":"DroppedField","message":"q.y has no equivalent in 0.0 and was dropped"},{"sourceFields":[{"path":"o","value":{"e":true}}],"type":"DroppedField","message":"o has no equivalent in 0.0 and was dropped"}]
-back to 0.1: {"a":"x","q":{"x":1}}
-lacunas: []
+-- out/translate/0.0/absent->0.1 --
+{"a":"x"}
+[]
+-- out/translate/0.0/empty->0.1 --
+{"a":"x","q":{}}
+[]
+-- out/translate/0.1/absent->0.0 --
+{"a":"x"}
+[]
+-- out/translate/0.1/empty->0.0 --
+{"a":"x","q":{}}
+[{"sourceFields":[{"path":"o","value":{}}],"type":"DroppedField","message":"o has no equivalent in 0.0 and was dropped"}]
+-- out/translate/0.1/full->0.0 --
+{"a":"x","q":{"x":1}}
+[{"sourceFields":[{"path":"q.y","value":true}],"type":"DroppedField","message":"q.y has no equivalent in 0.0 and was dropped"},{"sourceFields":[{"path":"o","value":{"e":true}}],"type":"DroppedField","message":"o has no equivalent in 0.0 and was dropped"}]
