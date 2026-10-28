@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"cuelang.org/go/cue"
+	"cuelang.org/go/cue/cuecontext"
 	cerrors "cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/token"
 )
@@ -119,20 +120,40 @@ func argText(a any) string {
 	return fmt.Sprint(a)
 }
 
-// dataSide says which of a two-value conflict's arguments is the data's,
-// given the error's input positions: the argument whose position is in the
-// data document. CUE lists the input positions in the arguments' order. When
-// no position says, the data is the second value, since thema unifies the
-// schema with the data in that order.
-func dataSide(e cerrors.Error, ctx Context) int {
-	if ctx.IsData != nil {
-		for i, p := range e.InputPositions() {
-			if i < 2 && p.IsValid() && ctx.IsData(p.Filename()) {
-				return i
-			}
-		}
+// dataSide says which of a two-value conflict's arguments is the data's: the
+// one that is the data's value at the error's path. CUE orders the arguments
+// by their positions, so the order says nothing about which is the data: data
+// compiled from a string or built in Go sorts differently from data read from
+// a file. In a conflict of kinds, CUE reports the values' kinds after them,
+// and the data's is the argument of its kind; in a conflict of values of one
+// kind, it is the argument equal to it, compared as values, since CUE's text
+// for a value can differ from the data's. ok is false when the data does not
+// settle it.
+func dataSide(e cerrors.Error, ctx Context) (side int, ok bool) {
+	if ctx.DataValue == nil {
+		return 0, false
 	}
-	return 1
+	dv, ok := ctx.DataValue(ctx.path(e))
+	_, args := e.Msg()
+	if !ok || len(args) < 2 {
+		return 0, false
+	}
+	values, kinds := args[:2], args[2:]
+	is := func(i int) bool {
+		if len(kinds) > i {
+			k, ok := kinds[i].(cue.Kind)
+			return ok && k == dv.IncompleteKind()
+		}
+		v := cuecontext.New().CompileString(argText(values[i]))
+		return v.Err() == nil && v.Equals(dv)
+	}
+	switch first, second := is(0), is(1); {
+	case first && !second:
+		return 0, true
+	case second && !first:
+		return 1, true
+	}
+	return 0, false
 }
 
 // schemaNote adds a note at the author's declaration of path in the schema,

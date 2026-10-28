@@ -91,3 +91,114 @@ func decodeData(rt *Runtime, name, inputJSON string) (cue.Value, error) {
 
 	return ctx.BuildExpr(expr), nil
 }
+
+// TestValidateDataConstruction checks that a validation failure is described
+// the same however the data reached Validate: read from a file, compiled from
+// a string or bytes with no file name, or built in Go with no position at all.
+// CUE orders a conflict's values by position, so a diagnostic that decided
+// which value is the data's from positions swapped them for some of these.
+func TestValidateDataConstruction(t *testing.T) {
+	const lin = `name: "construction"
+schemas: "0": "0": schema: {
+	c?: bool
+	s?: "a"
+	m?: "x"
+	n?: int
+	l?: [...{x: int}]
+}
+`
+	lineages := map[string]func(*cue.Context) cue.Value{
+		"lineage file":   func(ctx *cue.Context) cue.Value { return ctx.CompileString(lin, cue.Filename("lineage.cue")) },
+		"lineage string": func(ctx *cue.Context) cue.Value { return ctx.CompileString(lin) },
+	}
+
+	// Each construction gets the data as text and as a Go value; nil means
+	// the data has no form that construction can build.
+	constructions := map[string]func(t *testing.T, ctx *cue.Context, text string, gov any) cue.Value{
+		"json file": func(t *testing.T, ctx *cue.Context, text string, gov any) cue.Value {
+			if gov == nil {
+				t.Skip("the data is not JSON")
+			}
+			expr, err := cjson.Extract("data.json", []byte(text))
+			require.NoError(t, err)
+			return ctx.BuildExpr(expr)
+		},
+		"CompileString": func(_ *testing.T, ctx *cue.Context, text string, _ any) cue.Value {
+			return ctx.CompileString(text)
+		},
+		"CompileBytes": func(_ *testing.T, ctx *cue.Context, text string, _ any) cue.Value {
+			return ctx.CompileBytes([]byte(text))
+		},
+		"Encode": func(t *testing.T, ctx *cue.Context, _ string, gov any) cue.Value {
+			if gov == nil {
+				t.Skip("the data cannot be built in Go")
+			}
+			return ctx.Encode(gov)
+		},
+	}
+
+	cases := []struct {
+		name     string
+		text     string
+		gov      any
+		code     diag.Code
+		headline string
+	}{
+		{
+			name:     "kind conflict",
+			text:     `{"c": "yes"}`,
+			gov:      map[string]any{"c": "yes"},
+			code:     diag.E0503,
+			headline: "c in the data is string, but schema 0.0 declares it as bool",
+		},
+		{
+			name:     "kind conflict in a list",
+			text:     `{"l": [{"x": "q"}]}`,
+			gov:      map[string]any{"l": []any{map[string]any{"x": "q"}}},
+			code:     diag.E0503,
+			headline: "l.0.x in the data is string, but schema 0.0 declares it as int",
+		},
+		{
+			name:     "value conflict",
+			text:     `{"s": "b"}`,
+			gov:      map[string]any{"s": "b"},
+			code:     diag.E0504,
+			headline: `s in the data is "b", but schema 0.0 requires "a"`,
+		},
+		{
+			// CUE's message writes the value as "a\nb", but formats the
+			// data's value as a multi-line string: the sides must be compared
+			// as values, not as text.
+			name:     "value conflict, multi-line",
+			text:     `{"m": "a\nb"}`,
+			gov:      map[string]any{"m": "a\nb"},
+			code:     diag.E0504,
+			headline: `m in the data is "a\nb", but schema 0.0 requires "x"`,
+		},
+		{
+			name:     "not concrete",
+			text:     `{n: int}`,
+			code:     diag.E0506,
+			headline: "n in the data is not concrete: it is still int",
+		},
+	}
+
+	for lname, mklin := range lineages {
+		for cname, mkdata := range constructions {
+			for _, tc := range cases {
+				t.Run(lname+"/"+cname+"/"+tc.name, func(t *testing.T) {
+					ctx := cuecontext.New()
+					l, err := BindLineage(mklin(ctx), NewRuntime(ctx))
+					require.NoError(t, err)
+
+					_, err = l.Latest().Validate(mkdata(t, ctx, tc.text, tc.gov))
+					require.Error(t, err)
+					ds := diag.Diagnostics(err)
+					require.Len(t, ds, 1, "%v", ds)
+					require.Equal(t, tc.code, ds[0].Code)
+					require.Equal(t, tc.headline, ds[0].Headline)
+				})
+			}
+		}
+	}
+}
