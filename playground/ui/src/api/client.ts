@@ -16,6 +16,8 @@ import type {
   HydrateResponse,
   InitResponse,
   ListExamplesResponse,
+  RegisterExamplesRequest,
+  RegisterExamplesResponse,
   TranslateRequest,
   TranslateResponse,
   ValidateAnyRequest,
@@ -40,6 +42,7 @@ export interface Ops {
   format: [FormatRequest, FormatResponse];
   examples: [Record<string, never>, ListExamplesResponse];
   example: [GetExampleRequest, GetExampleResponse];
+  "register-examples": [RegisterExamplesRequest, RegisterExamplesResponse];
 }
 
 export type Op = keyof Ops;
@@ -108,4 +111,15 @@ export function connect(worker: WorkerLike, onProgress?: (loaded: number) => voi
 // startThema starts the worker beside the page.
 export function startThema(onProgress?: (loaded: number) => void): Promise<Thema> {
   return connect(new Worker(new URL("./thema-worker.js", document.baseURI)), onProgress);
+}
+
+// fetchHostExamples fetches the examples the host serves beside the page, in
+// examples.json, for the register-examples operation. A 404 means the host
+// has none, and gives null; any other failure throws. It asks for JSON so
+// that a dev server does not answer with the page instead.
+export async function fetchHostExamples(url = new URL("examples.json", document.baseURI)): Promise<RegisterExamplesRequest | null> {
+  const resp = await fetch(url, { headers: { Accept: "application/json" } });
+  if (resp.status === 404) return null;
+  if (!resp.ok) throw new Error(`fetching examples.json: ${resp.status} ${resp.statusText}`);
+  return (await resp.json()) as RegisterExamplesRequest;
 }
