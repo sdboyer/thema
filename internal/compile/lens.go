@@ -1408,8 +1408,7 @@ func (e *edge) compileEach(en *entry, out *compiledLens) bool {
 // en.item names, as a copy into the target's element: the element must have
 // it, every element must have it, since a list has no absent elements, and
 // the target's element must accept every value of it. Every other field of
-// the element is lost: in the forward direction an error, since nothing can
-// account for it, and in the backward direction dropped by derivation.
+// the element is lost, and dropped by derivation in either direction.
 func (e *edge) eachCopy(en *entry, out *compiledLens) {
 	p := *en.item
 	// Problems with the copy are the body's: _each's second argument.
@@ -1450,23 +1449,17 @@ func (e *edge) eachCopy(en *entry, out *compiledLens) {
 	}
 	// The copy is the whole target element, so every other field of the
 	// source element is lost, whether or not the target's element declares a
-	// field of the same name.
+	// field of the same name. In either direction it is dropped by
+	// derivation: a copy body has nowhere to write a drop, and the author who
+	// copies one field as the element has said what the element becomes.
 	copied := map[string]bool{p.String(): true}
 	for _, spath := range e.leaves(e.S, cue.MakePath()) {
 		if consumedUnder(copied, spath) {
 			continue
 		}
-		switch e.dir {
-		case forward:
-			e.errs = cerrors.Append(e.errs, diag.New(diag.E0347).At(pos).
-				Headlinef("%s declares %s.%s, and the _each copying %s maps nothing else of the element", e.sv, e.each.name(), spath, item).
-				Note(token.NoPos, "an _each whose body is a copy has nowhere to move or drop the rest of the element, and the forward lens must account for every field the source declares").
-				Err())
-		case backward:
-			en := entry{kind: kindDrop, source: spath, target: spath, pos: lookup(e.S, spath).Pos(), derived: true}
-			out.effective = append(out.effective, en)
-			e.dropLacuna(out, &en)
-		}
+		en := entry{kind: kindDrop, source: spath, target: spath, pos: lookup(e.S, spath).Pos(), derived: true}
+		out.effective = append(out.effective, en)
+		e.dropLacuna(out, &en)
 	}
 }
 
