@@ -376,7 +376,10 @@ A lens from schema *S* to schema *T* is total when, for every instance *i* of
    values.
 
 Instances are what translation sees: *i* unified with *S*, so defaults are
-filled in and optional fields may be absent. The result is closed against *T*,
+filled in and optional fields may be absent. A field *i* holds that *S* does
+not declare, which an open struct's `...` admitted, is not part of what the
+lens sees: translation carries it around the lens (see [fields no lens
+maps](#fields-no-lens-maps)). The result is closed against *T*,
 so a field *T* does not declare is an error. Both schemas are closed for the
 proof, keeping an author's `...`. Hidden fields, definitions and `let`s in a
 lens are not data. A result field that refers to one is judged by what it
@@ -602,3 +605,49 @@ and `len` of a list the lens builds through a `let`. Each corpus lineage's
 programs are recorded beside it (`out/lensir` in `testdata/lineage`,
 `exemplars/testdata/lensir`), and each proven form's in the lens corpus
 (`internal/lenscheck/testdata`, `ir` sections).
+
+## Fields no lens maps
+
+An open struct (`...`) admits fields its schema does not declare, and an
+instance may hold them. A lens reads and writes only declared fields, so data
+of this kind is not the lens's to translate. Translation carries it instead,
+around each step, by one rule in both directions:
+
+- **What is carried.** The fields an instance holds that its schema does not
+  declare (its *extras*), at any depth: nested structs and list elements
+  included. And, in a step with a lens, the fields the source schema declares
+  and the target schema does not, that the lens does not map: its result
+  reads nothing at or beneath them, and no lacuna it lists names them in
+  `sourceFields`. A written `_drop` is such a lacuna, so a dropped field stays
+  dropped.
+- **Carried.** A field is placed at its own path in the step's result, where
+  the target's struct there is open and does not declare it. Nothing is lost,
+  and no lacuna is emitted.
+- **Promoted.** Where the target declares a field of that name, the value is
+  placed in it when it is an instance of what the target declares. It
+  replaces whatever the lens wrote there, which the lens wrote for instances
+  that lacked the field.
+- **Set aside.** An extra that cannot be placed, because the target's struct
+  is closed, the value is not an instance of the field the target declares,
+  or the result has no struct at its parent path, is dropped with a
+  `DroppedField` lacuna: one per struct and cause, naming each field and its
+  value ([lacunas](reference/lacunas.md#set-aside-fields)). A source-declared
+  field the lens does not map, which cannot be placed, is dropped as the lens
+  left it, with no lacuna.
+
+A field is placed only if the result stays an instance of the target schema,
+so carrying never makes a translation fail. Lens checks are unaffected: a lens
+result is still bound to the fields its target declares
+([E0305](errors/E0305.md)), since carrying is not a lens write.
+
+The authoring form follows the same rule. Its derived backward lens leaves a
+field the newer version added to translation, rather than dropping it, where
+the older version's struct is open and nothing the lens maps reads the field.
+Going forward, a field the older version declares and the newer one removes
+must still be moved or dropped, however open the newer version is
+([E0347](errors/E0347.md)): carrying applies only to data no lens touches, and
+a forgotten rename must not ride along under its old name.
+
+Fields are matched by path: a field travels with the struct at the same path
+in the target. A struct the lens moves to another path, or a list whose length
+the lens changes, leaves its extras with no place, and they are set aside.

@@ -93,7 +93,8 @@ The operations, `_drop`, `_orelse`, `_match` and `_each`, and `_item` inside an 
 ### What is written and what is implied
 
 - **Copies are implicit.** A field both schemas declare, that no mapping mentions, is copied. The copy is made as high as the two schemas agree: a field whose contents the target declares whole is copied whole, and one whose contents differ is descended into. A copy, like a move, must fit: the target field has to accept every value the source field may hold, or the field must be mapped.
-- **`...` declares nothing.** An open struct admits names it does not declare, and a lens treats a name it only admits as absent from the schema. A field one version declares and the other only admits is added or removed, exactly as between closed structs: it is never copied implicitly, the derived backward lens drops a field the new version added with a `DroppedField` lacuna, and a major version's forward lens must move or drop a field it removed. A lens reads, drops and writes only fields its schemas declare.
+- **`...` declares nothing.** An open struct admits names it does not declare, and a lens treats a name it only admits as absent from the schema. A field one version declares and the other only admits is added or removed, exactly as between closed structs: it is never copied implicitly, and a major version's forward lens must move or drop a field it removed. A lens reads, drops and writes only fields its schemas declare.
+- **What `...` admits is carried.** Fields an instance holds under an open struct that its schema does not declare are not the lens's to translate: translation carries them around the lens, into the target's struct at the same path where it is open, and promotes one into a field the target declares when the value is an instance of it. One it cannot place is set aside, with a `DroppedField` lacuna. The same goes, in either direction, for a field the source declares that the lens leaves alone, where the target's struct is open and does not declare it ([fields no lens maps](invariants.md#fields-no-lens-maps)).
 - **Optional sources are used only when present.** A copy, a move or a computed value that reads a field the source may omit is written only when the instance has it. Where the target requires the field, the author must say what to use when it is absent, with `_orelse`.
 - **Removed fields must be accounted for.** In the forward direction, a field the source declares and the target does not must be moved somewhere or dropped. A forgotten rename is an error, not a silent loss.
 - **Required fields must be produced.** A field the target requires that no mapping and no copy produces is an error, naming the lens and the field.
@@ -103,10 +104,10 @@ The operations, `_drop`, `_orelse`, `_match` and `_each`, and `_item` inside an 
 The backward lens is derived from the forward lens:
 
 - every move whose source is used once is inverted (`after: v0_0.before` forward derives `before: v1_0.after` backward);
-- every field the new version added is dropped, with a derived `DroppedField` lacuna saying so;
+- every field the new version added is dropped, with a derived `DroppedField` lacuna saying so, unless the old version's struct is open: there the field is left alone, and translation carries it into the old version as a field it does not declare, to be promoted again on the way forward. A field that a backward mapping reads part of is dropped all the same;
 - fields both versions share are copied, as always.
 
-What the author writes in `BackwardLens` overrides the derivation at the same key or beneath it. Writing `x: _drop` for a field the derivation would have moved suppresses the move. `_orelse`, `_match` and `_each` have no derived inverse, so a forward lens that uses them usually needs a written backward lens.
+What the author writes in `BackwardLens` overrides the derivation at the same key or beneath it. Writing `x: _drop` for a field the derivation would have moved suppresses the move, and writing it for a field the derivation would have left to translation drops the field, with its `DroppedField` lacuna. `_orelse`, `_match` and `_each` have no derived inverse, so a forward lens that uses them usually needs a written backward lens.
 
 ## Lacunas
 
