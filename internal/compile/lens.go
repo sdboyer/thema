@@ -1502,11 +1502,59 @@ func (e *edge) unmapped(b *body, consumed map[string]bool, out *compiledLens) {
 			}
 			e.errf(diag.E0347, e.blockPos, "%s declares %s and %s does not, and nothing maps it: write <field>: %s.%s to move it, or %s: _drop", e.sv, spath, e.tv, e.root, spath, spath)
 		case backward:
+			if e.carries(b, consumed, spath) {
+				// Translation carries it as a field the target does not
+				// declare (#193): nothing to drop.
+				continue
+			}
 			en := entry{kind: kindDrop, source: spath, target: spath, pos: lookup(e.S, spath).Pos(), derived: true}
 			out.effective = append(out.effective, en)
 			e.dropLacuna(out, &en)
 		}
 	}
+}
+
+// carries reports whether translation carries spath, a source field the
+// target does not declare that nothing consumed, rather than the derived
+// backward lens dropping it: see carriedField. A field under a rebase, or in
+// an each body whose list the lens moves, has its counterpart elsewhere in the
+// target, where translation does not follow it, so it is dropped.
+func (e *edge) carries(b *body, consumed map[string]bool, spath cue.Path) bool {
+	if e.rebased(b, spath) || e.each != nil && e.each.list.String() != e.each.target.String() {
+		return false
+	}
+	return carriedField(e.ctx, e.T, spath, func(outer cue.Path) bool {
+		for k := range consumed {
+			if pathHasPrefix(cue.ParsePath(k), outer) {
+				return true
+			}
+		}
+		return false
+	})
+}
+
+// carriedField reports whether translation carries the source field spath
+// into target, which does not declare it: the target admits, through an open
+// struct's ..., the outermost field along spath it does not declare, and the
+// lens reads nothing at or beneath that field (read reports whether it does).
+// Translation carries the fields of an instance that no lens maps wherever
+// the target struct is open (#193), so the derived backward lens drops only
+// what translation would not carry. Decompile applies the same rule to
+// recognize the drops derivation makes.
+func carriedField(ctx *cue.Context, target cue.Value, spath cue.Path, read func(outer cue.Path) bool) bool {
+	sels := spath.Selectors()
+	for i := range sels {
+		outer := cue.MakePath(sels[:i+1]...)
+		if lookup(target, outer).Exists() {
+			continue
+		}
+		if read(outer) {
+			return false
+		}
+		parent := lookup(target, cue.MakePath(sels[:i]...))
+		return cuetil.CloseRecursive(ctx, parent).Allows(sels[i])
+	}
+	return false
 }
 
 // rebased reports whether spath lies under a rebase's source, in which case
