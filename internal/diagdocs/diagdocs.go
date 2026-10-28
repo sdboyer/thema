@@ -27,6 +27,10 @@ func ErrorPage(p Page) string {
 	var b strings.Builder
 	b.WriteString(header)
 	fmt.Fprintf(&b, "# %s: %s\n\n", p.Info.Code, p.Info.Title)
+	if p.Info.Retired != "" {
+		fmt.Fprintf(&b, "**Retired.** %s\n", p.Info.Retired)
+		return b.String()
+	}
 	if p.Prose != "" {
 		b.WriteString(p.Prose)
 		b.WriteString("\n\n")
@@ -61,7 +65,11 @@ func Index(pages []Page) string {
 	}
 	b.WriteString("\n| Code | Severity | Title |\n|---|---|---|\n")
 	for _, p := range pages {
-		fmt.Fprintf(&b, "| [%s](%s.md) | %s | %s |\n", p.Info.Code, p.Info.Code, p.Info.Severity, p.Info.Title)
+		title := p.Info.Title
+		if p.Info.Retired != "" {
+			title = "retired: " + title
+		}
+		fmt.Fprintf(&b, "| [%s](%s.md) | %s | %s |\n", p.Info.Code, p.Info.Code, p.Info.Severity, title)
 	}
 	return b.String()
 }
