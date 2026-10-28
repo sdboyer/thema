@@ -204,7 +204,9 @@ itself when it is concrete, any of its values when no *new* alternative shares
 its kind, and, for each scalar kind it admits, the first value of a fixed
 sequence that equals no concrete *new* alternative (`""` for `string` →
 `"a" | "b"`, `2` for `int` → `0 | 1`). Otherwise the `unknown-disjunction` row below applies. A *new* alternative no
-prior alternative needs is a widening. A conjunction with a disjunctive operand,
+prior alternative needs is a widening. A value that is not a disjunction is
+one alternative, so `"a"` → `"a" | "b"` is a widening, at a required or
+optional field as at a regular one. A conjunction with a disjunctive operand,
 `(A | B) & C` or `#Union & {d?: int}`, is the disjunction of that operand's
 alternatives, each unified with the rest.
 
@@ -407,7 +409,8 @@ defaults and no single value. An optional field an instance omits stays
 absent, and copies nothing. Where the target at the field is a disjunction,
 each alternative the source may hold at the path, once the patterns above the
 copy have refined them, must be accepted by one of the target's alternatives
-on its own; the compatibility rules decide which.
+on its own; the compatibility rules decide which. A source that is not a
+disjunction is one alternative, so `{t!: "a"}` copies into `{t!: "a" | "b"}`.
 
 **Literals.** A literal must be an instance of the target at its field. A
 struct or list literal must have the target's kind, and each of its fields or

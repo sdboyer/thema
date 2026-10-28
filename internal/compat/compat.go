@@ -943,7 +943,7 @@ func (w *walker) leaf(p cue.Path, pred, succ, wholeSucc cue.Value) {
 		return
 	}
 	if succ.Validate(cue.Concrete(true)) == nil && pred.Validate(cue.Concrete(true)) == nil {
-		if cuetil.Equal(pred, succ) != nil {
+		if w.equal(pred, succ) != nil {
 			w.add(Finding{
 				Path: p, Verdict: Incompatible, Rule: RuleValueNarrowed,
 				Detail: fmt.Sprintf("was %s and is now %s", fmtv(pred), fmtv(succ)),
@@ -1221,7 +1221,7 @@ func (w *walker) sameExpr(pred, succ cue.Value) bool {
 		case cue.StructKind, cue.ListKind:
 			return w.sameSyntax(pred, succ)
 		}
-		return cuetil.Equal(pred, succ) == nil
+		return w.equal(pred, succ) == nil
 	}
 	for i := range oargs {
 		if !w.sameExpr(oargs[i], nargs[i]) {
@@ -1229,6 +1229,16 @@ func (w *walker) sameExpr(pred, succ cue.Value) bool {
 		}
 	}
 	return true
+}
+
+// equal reports whether pred and succ subsume each other, as values detached
+// from their fields. As of CUE v0.18, Subsume reports the value of an optional
+// or required field as not an instance of a value from anywhere else, such as
+// an operand of a disjunction: t!: "a" against the "a" of t!: "a" | "b".
+// Unifying with top yields the same value, detached. Whether a field is
+// optional or required is compared by classes, not here.
+func (w *walker) equal(pred, succ cue.Value) error {
+	return cuetil.Equal(w.top.Unify(pred), w.top.Unify(succ))
 }
 
 // sameSyntax compares two values by their evaluated syntax: the only view that
