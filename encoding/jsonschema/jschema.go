@@ -1,288 +1,150 @@
 package jsonschema
 
 import (
-	"errors"
-	"fmt"
-	"strconv"
-
+	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/ast"
-	"cuelang.org/go/cue/ast/astutil"
-	"cuelang.org/go/cue/token"
+	cuejson "cuelang.org/go/encoding/json"
+	cuejsonschema "cuelang.org/go/encoding/jsonschema"
 	"github.com/sdboyer/thema"
-	"github.com/sdboyer/thema/encoding/openapi"
+	"github.com/sdboyer/thema/internal/cuetil"
 )
 
-// GenerateSchema generates a JSON Schema (Draft 4) schema representation of the
-// provided Thema schema.
+// GenerateSchema generates a JSON Schema (draft 2020-12) of the provided Thema
+// schema, unified with its lineage's joinSchema. Definitions the schema refers
+// to are under $defs.
+//
+// The schema is closed as [thema.Schema.Validate] closes it, so the JSON Schema
+// accepts what validation accepts: a struct rejects fields it does not declare
+// unless its author wrote ... in it.
+//
+// CUE's generator emits no defaults, so GenerateSchema adds them: a field, list
+// element or pattern value whose CUE value has a default gets a "default"
+// keyword.
 func GenerateSchema(sch thema.Schema) (*ast.File, error) {
-	f, err := openapi.GenerateSchema(sch, nil)
+	v, err := standalone(sch)
+	if err != nil {
+		return nil, err
+	}
+	v = cuetil.CloseRecursive(sch.Lineage().Runtime().Context(), v)
+
+	defs := make(map[string]cue.Value)
+	x, err := cuejsonschema.Generate(v, &cuejsonschema.GenerateConfig{
+		NamesFunc: func(refs []*cuejsonschema.CUERef) {
+			cuejsonschema.DefaultNamesFunc(refs)
+			for _, r := range refs {
+				defs[r.Name] = r.Inst.LookupPath(r.Path)
+			}
+		},
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	of, err := oapiToJSchema(f)
-	if err != nil {
+	root := x.(*ast.StructLit)
+	if err := addDefaults(v, root); err != nil {
 		return nil, err
 	}
-	return of.(*ast.File), nil
-}
-
-type schNode struct {
-	parent     *schNode
-	n          *ast.StructLit
-	typ        string
-	ensureNull bool
-	scanf      scanfunc
-}
-
-type scanfunc func(p *schNode, n *ast.StructLit) error
-
-func oapiToJSchema(f ast.Node) (ast.Node, error) {
-	err := scan(nil, f)
-	return f, err
-}
-
-// Reports if the provided node is an oapi/json schema `"type": <val>` field,
-// and if <val> is the given typeName. Always false if multiple types are
-// allowed in a list.
-func typeIs(n ast.Node, t string) bool {
-	if !isFieldWithLabel(n, "type") {
-		return false
-	}
-
-	switch x := n.(*ast.Field).Value.(type) {
-	case *ast.BasicLit:
-		return strEq(x, t)
-	case *ast.ListLit:
-		return false // todo allow multi in one
-	default:
-		return false
-	}
-}
-
-// Reports if the provided node is an oapi/json schema `"type": <val>` field,
-// and if the given typeName is present in <val>.
-func typeContains(n ast.Node, t string) bool {
-	if !isFieldWithLabel(n, "type") {
-		return false
-	}
-
-	switch x := n.(*ast.Field).Value.(type) {
-	case *ast.BasicLit:
-		return strEq(x, t)
-	case *ast.ListLit:
-		return false // todo allow multi in one
-	default:
-		return false
-	}
-
-	return false
-}
-
-func isFieldWithLabel(n ast.Node, label string) bool {
-	if x, is := n.(*ast.Field); is {
-		if l, is := x.Label.(*ast.BasicLit); is {
-			return strEq(l, label)
-		}
-	}
-	return false
-}
-
-func strEq(lit *ast.BasicLit, str string) bool {
-	if lit.Kind != token.STRING {
-		return false
-	}
-	ls, _ := strconv.Unquote(lit.Value)
-	return str == ls || str == lit.Value
-}
-
-// a schnode represents a single openapi schema node
-type schnode struct {
-	parent *schnode
-	n      ast.Node
-	t      string
-}
-
-func getFieldWithLabel(n *ast.StructLit, label string) *ast.Field {
-	for _, el := range n.Elts {
-		if x, is := el.(*ast.Field); is {
-			if lit, is := x.Label.(*ast.BasicLit); is && strEq(lit, label) {
-				return x
+	if ds, ok := field(root, "$defs").(*ast.StructLit); ok {
+		for _, el := range ds.Elts {
+			f := el.(*ast.Field)
+			name, _, _ := ast.LabelName(f.Label)
+			if d, ok := f.Value.(*ast.StructLit); ok {
+				if err := addDefaults(defs[name], d); err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
-
-	return nil
+	return &ast.File{Decls: []ast.Decl{root}}, nil
 }
 
-func getSchemaType(n *ast.StructLit) (string, error) {
-	if f := getFieldWithLabel(n, "type"); f != nil {
-		if lit, is := f.Value.(*ast.BasicLit); is {
-			ls, _ := strconv.Unquote(lit.Value)
-			if ls != "" {
-				return ls, nil
-			}
-			return lit.Value, nil
-		}
-	}
-	return "", errNotASchema
-}
-
-func isLogicOp(n ast.Node) bool {
-	for _, op := range []string{"oneOf", "allOf", "anyOf", "not"} {
-		if isFieldWithLabel(n, op) {
-			return true
-		}
-	}
-	return false
-}
-
-var errNotASchema = errors.New("not a schema node")
-
-func newSchemaNode(parent schemaNode, in ast.Node) (schemaNode, error) {
-	n, is := in.(*ast.StructLit)
-	if !is {
-		return nil, errNotASchema
-	}
-	inner := &schNode{
-		parent: parent.(*schNode),
-		n:      n,
-	}
-
-	typ, err := getSchemaType(n)
+// standalone returns the schema, unified with the lineage's joinSchema, as a
+// value of its own.
+//
+// CUE's generator resolves a reference by looking its path up from the root
+// the reference reports. Within a bound lineage, that root is thema's Lineage,
+// where the path to a schema's own definitions does not exist. Rebuilding the
+// schema from its syntax makes it its own root.
+func standalone(sch thema.Schema) (cue.Value, error) {
+	ctx := sch.Lineage().Runtime().Context()
+	v, err := rebuild(ctx, sch.Underlying().LookupPath(cue.MakePath(cue.Str("schema"))))
 	if err != nil {
-		return nil, err
+		return v, err
 	}
-	switch typ {
-	case "object":
-		inner.scanf = func(p *schNode, n *ast.StructLit) error {
-			p.ensureNull = checkNull(n)
+	join := sch.Lineage().Underlying().LookupPath(cue.MakePath(cue.Str("joinSchema")))
+	if !join.Exists() || join.IncompleteKind() == cue.TopKind {
+		return v, nil
+	}
+	j, err := rebuild(ctx, join)
+	if err != nil {
+		return j, err
+	}
+	return j.Unify(v), nil
+}
 
-			// Recurse down the properties
-			if pf := getFieldWithLabel(n, "properties"); pf != nil {
-				err = scan(p, pf)
-				if err != nil {
+func rebuild(ctx *cue.Context, v cue.Value) (cue.Value, error) {
+	var b cue.Value
+	switch n := v.Syntax(cue.Definitions(true), cue.Docs(true), cue.Optional(true)).(type) {
+	case *ast.File:
+		b = ctx.BuildFile(n)
+	case ast.Expr:
+		b = ctx.BuildExpr(n)
+	}
+	return b, b.Err()
+}
+
+// addDefaults adds a "default" to n, the JSON Schema generated for v, when v
+// has a concrete default, and does the same for the fields, list elements and
+// pattern values below it. It follows properties, items and
+// additionalProperties; a default within a branch of a disjunction is not
+// placed.
+func addDefaults(v cue.Value, n *ast.StructLit) error {
+	if d, ok := v.Default(); ok && d.Validate(cue.Concrete(true)) == nil {
+		b, err := d.MarshalJSON()
+		if err != nil {
+			return err
+		}
+		x, err := cuejson.Extract("", b)
+		if err != nil {
+			return err
+		}
+		n.Elts = append(n.Elts, &ast.Field{Label: ast.NewString("default"), Value: x})
+	}
+
+	if props, ok := field(n, "properties").(*ast.StructLit); ok {
+		iter, err := v.Fields(cue.Optional(true))
+		if err != nil {
+			return err
+		}
+		for iter.Next() {
+			if p, ok := field(props, iter.Selector().Unquoted()).(*ast.StructLit); ok {
+				if err := addDefaults(iter.Value(), p); err != nil {
 					return err
 				}
 			}
-
-			// And additionalProperties
-			if apf := getFieldWithLabel(n, "additionalProperties"); apf != nil {
-				return scan(p, apf)
-			}
-
-			return nil
-		}
-
-	case "array":
-		inner.scanf = func(p *schNode, n *ast.StructLit) error {
-			p.ensureNull = checkNull(n)
-
-			// Recurse down the items
-			if items := getFieldWithLabel(n, "items"); items != nil {
-				return scan(p, items)
-			}
-
-			return nil
-		}
-	case "integer", "number", "boolean", "string":
-		inner.scanf = func(p *schNode, n *ast.StructLit) error {
-			p.ensureNull = checkNull(n)
-			return nil
-		}
-	default:
-		return nil, fmt.Errorf("unrecognized schema node type %s", typ)
-	}
-
-	return inner, nil
-
-	// Try scanning down to see if we have allOf/oneOf/anyOf/not
-	// if isLogicOp(n) {
-	// 	inner.scanf = func(p *schNode, n *ast.StructLit) error {
-	// 		return scan(p, n.Value)
-	// 	}
-	// 	return inner, nil
-	// }
-
-	// return nil, nil
-}
-
-func checkNull(n *ast.StructLit) bool {
-	if f := getFieldWithLabel(n, "nullable"); f != nil {
-		if x, is := f.Value.(*ast.BasicLit); is {
-			return x.Kind == token.TRUE
 		}
 	}
-	return false
+	if items, ok := field(n, "items").(*ast.StructLit); ok {
+		if err := addDefaults(v.LookupPath(cue.MakePath(cue.AnyIndex)), items); err != nil {
+			return err
+		}
+	}
+	if ap, ok := field(n, "additionalProperties").(*ast.StructLit); ok {
+		if err := addDefaults(v.LookupPath(cue.MakePath(cue.AnyString)), ap); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func (s *schNode) process() {
-	if err := s.scanf(s, s.n); err != nil {
-		panic(err)
-	}
-
-	astutil.Apply(s.n, func(c astutil.Cursor) bool {
-		switch x := c.Node().(type) {
-		case *ast.StructLit:
-			return true
-		case *ast.Field:
-			if l, is := x.Label.(*ast.BasicLit); is {
-				var lval string
-				lval = l.Value
-				if ulv, _ := strconv.Unquote(l.Value); ulv != "" {
-					lval = ulv
-				}
-
-				switch lval {
-				// None of these are allowed in JSON Schema
-				case "deprecated", "discriminator", "example", "externalDocs", "nullable", "readOnly", "writeOnly", "xml":
-					c.Delete()
-				case "type":
-					if s.ensureNull && !typeContains(x, "null") {
-						x.Value = ast.NewList(x.Value, ast.NewString("null"))
-					}
-				}
+// field returns the value of the field of s named name, or nil.
+func field(s *ast.StructLit, name string) ast.Expr {
+	for _, el := range s.Elts {
+		if f, ok := el.(*ast.Field); ok {
+			if l, _, _ := ast.LabelName(f.Label); l == name {
+				return f.Value
 			}
 		}
-		return false
-	}, nil)
-
-	// Add the $schema field to root only
-	if s.parent == nil {
-		s.n.Elts = append(s.n.Elts, &ast.Field{
-			Label: ast.NewString("$schema"),
-			Value: ast.NewString("http://json-schema.org/draft-04/schema#"),
-		})
 	}
-}
-
-func scan(p *schNode, n ast.Node) error {
-	var fatal error
-	ast.Walk(n, func(n ast.Node) bool {
-		if fatal != nil {
-			return false
-		}
-
-		sch, err := newSchemaNode(p, n)
-		if err != nil {
-			if errors.Is(err, errNotASchema) {
-				return true
-			}
-
-			// Unexpected error, abort walk
-			fatal = err
-			return false
-		}
-
-		if sch != nil {
-			sch.process()
-		}
-		return sch == nil
-	}, nil)
-
-	return fatal
-}
-
-type schemaNode interface {
-	process()
+	return nil
 }
