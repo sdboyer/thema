@@ -106,6 +106,7 @@ no lenses
     }
   },
   "type": "object",
+  "additionalProperties": false,
   "properties": {
     "aBaz": {
       "$ref": "#/$defs/Baz"

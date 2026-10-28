@@ -385,9 +385,11 @@ no lenses
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
+  "additionalProperties": false,
   "properties": {
     "kindFloat": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "simpleFloat32": {
           "type": "number",
@@ -433,6 +435,7 @@ no lenses
     },
     "kindInt": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "simpleInt": {
           "type": "integer"
@@ -493,6 +496,7 @@ no lenses
     },
     "kindString": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "simpleString": {
           "type": "string"

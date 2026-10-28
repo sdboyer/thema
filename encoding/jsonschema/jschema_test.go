@@ -228,3 +228,61 @@ func TestCUEEmitsNoDefaults(t *testing.T) {
 		t.Fatalf("CUE's JSON Schema generator now emits defaults:\n%s", b)
 	}
 }
+
+// The cases of #48's closedness table: thema reads a struct as closed unless
+// its author wrote ... in it, and the JSON Schema must accept exactly what
+// validation accepts.
+const closednessLineage = `
+name: "closedness"
+schemas: "0": "0": schema: {
+	open: {a: int}
+	dots: {a: int, ...}
+	shut: close({a: int})
+	def:  #D
+	list: [...{a: int}]
+	byName: [string]: {a: int}
+	#D: {a: int}
+}
+`
+
+func TestMatchesValidate(t *testing.T) {
+	lin, err := thema.BindLineage(rt.Context().CompileString(closednessLineage), rt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sch := lin.Latest()
+	f, err := GenerateSchema(sch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, b := compile(t, f)
+
+	const base = `"open": {"a": 1}, "dots": {"a": 1}, "shut": {"a": 1}, "def": {"a": 1}, "list": [{"a": 1}], "byName": {"k": {"a": 1}}`
+	for name, c := range map[string]struct {
+		data  string
+		valid bool
+	}{
+		"no extras":                {`{` + base + `}`, true},
+		"extra at top level":       {`{` + base + `, "extra": 1}`, false},
+		"extra in a plain struct":  {`{` + strings.Replace(base, `"open": {"a": 1}`, `"open": {"a": 1, "extra": 1}`, 1) + `}`, false},
+		"extra beside ...":         {`{` + strings.Replace(base, `"dots": {"a": 1}`, `"dots": {"a": 1, "extra": 1}`, 1) + `}`, true},
+		"extra in close()":         {`{` + strings.Replace(base, `"shut": {"a": 1}`, `"shut": {"a": 1, "extra": 1}`, 1) + `}`, false},
+		"extra in a definition":    {`{` + strings.Replace(base, `"def": {"a": 1}`, `"def": {"a": 1, "extra": 1}`, 1) + `}`, false},
+		"extra in a list element":  {`{` + strings.Replace(base, `"list": [{"a": 1}]`, `"list": [{"a": 1, "extra": 1}]`, 1) + `}`, false},
+		"extra in a pattern value": {`{` + strings.Replace(base, `"byName": {"k": {"a": 1}}`, `"byName": {"k": {"a": 1, "extra": 1}}`, 1) + `}`, false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, verr := sch.Validate(rt.Context().CompileString(c.data))
+			if (verr == nil) != c.valid {
+				t.Fatalf("thema: valid=%v, want %v: %v", verr == nil, c.valid, verr)
+			}
+			inst, uerr := sjsonschema.UnmarshalJSON(strings.NewReader(c.data))
+			if uerr != nil {
+				t.Fatal(uerr)
+			}
+			if jerr := s.Validate(inst); (jerr == nil) != c.valid {
+				t.Errorf("JSON Schema: valid=%v, thema: valid=%v: %v\n%s", jerr == nil, c.valid, jerr, b)
+			}
+		})
+	}
+}

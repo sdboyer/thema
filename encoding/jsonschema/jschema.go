@@ -6,11 +6,16 @@ import (
 	cuejson "cuelang.org/go/encoding/json"
 	cuejsonschema "cuelang.org/go/encoding/jsonschema"
 	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/internal/cuetil"
 )
 
 // GenerateSchema generates a JSON Schema (draft 2020-12) of the provided Thema
 // schema, unified with its lineage's joinSchema. Definitions the schema refers
 // to are under $defs.
+//
+// The schema is closed as [thema.Schema.Validate] closes it, so the JSON Schema
+// accepts what validation accepts: a struct rejects fields it does not declare
+// unless its author wrote ... in it.
 //
 // CUE's generator emits no defaults, so GenerateSchema adds them: a field, list
 // element or pattern value whose CUE value has a default gets a "default"
@@ -20,6 +25,7 @@ func GenerateSchema(sch thema.Schema) (*ast.File, error) {
 	if err != nil {
 		return nil, err
 	}
+	v = cuetil.CloseRecursive(sch.Lineage().Runtime().Context(), v)
 
 	defs := make(map[string]cue.Value)
 	x, err := cuejsonschema.Generate(v, &cuejsonschema.GenerateConfig{

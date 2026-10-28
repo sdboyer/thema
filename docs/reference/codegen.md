@@ -129,7 +129,7 @@ Generates a JSON Schema (draft 2020-12) of the schema, unified with the lineage'
 - A field, list element or pattern value whose CUE value has a concrete default has a `default` keyword: `size: *"medium" | ...` gives `"default": "medium"`, and `[...T]` gives `"default": []`.
 - A disjunction of concrete values, `"a" | "b"`, becomes `enum`, in declaration order, with no `type`. A single concrete value becomes `const`.
 - A disjunction of types, `string | int`, becomes `anyOf`. `T | null` becomes `anyOf` with a `{"type": "null"}` branch.
-- A definition is closed, and its schema has `additionalProperties: false`. A struct written with `...` has `additionalProperties: true`. Any other struct, including the schema itself, has no `additionalProperties`, and accepts fields it does not declare.
+- Openness is as `thema data validate` reads it: a struct rejects fields it does not declare, `additionalProperties: false`, unless its author wrote `...` in it, `additionalProperties: true`. This holds for the schema itself, nested structs, list elements, pattern values and definitions alike. The JSON Schema accepts exactly the data validation accepts.
 - A pattern constraint, `[string]: T`, becomes `additionalProperties: T`.
 - `[...T]` becomes `type: array` with `items: T`. A fixed-length list, `[A, B]`, becomes `prefixItems` with `minItems` and `maxItems`.
 - Bounds become `minimum`, `maximum`, `exclusiveMinimum` and `exclusiveMaximum`; `int32` and the other sized types become their bounds. `strings.MinRunes(n)` and similar validators become `minLength` and their counterparts. `bytes` becomes `type: string` with `contentEncoding: base64`. `_` becomes `true`.
@@ -141,6 +141,7 @@ The `1.1` schema, as JSON:
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
+  "additionalProperties": false,
   "properties": {
     "firstfield": {
       "type": "string"
@@ -184,7 +185,6 @@ Output, trailing newline and unrecognized formats behave as for OpenAPI.
 
 - Draft 2020-12 only.
 - CUE marks its JSON Schema generator experimental: its output may change when thema upgrades CUE.
-- `thema data validate` closes the schema, and rejects a field the schema does not declare ([E0502](../errors/E0502.md)). The JSON Schema accepts such a field, unless it is inside a definition.
 - A struct with a regular-expression pattern constraint, `[=~"^i"]: int`, becomes `{"type": "object"}`: its fields and patterns are dropped, and it accepts any object.
 - A default within a branch of a disjunction, `{a: int | *1} | {b: string}`, has no `default` keyword.
 

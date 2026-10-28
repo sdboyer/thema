@@ -513,6 +513,7 @@ no lenses
     },
     "_aStruct": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "foo": {
           "type": "string"
@@ -524,6 +525,7 @@ no lenses
     }
   },
   "type": "object",
+  "additionalProperties": false,
   "properties": {
     "aComplexMap": {
       "type": "object"
@@ -548,6 +550,7 @@ no lenses
       "type": "object",
       "additionalProperties": {
         "type": "object",
+        "additionalProperties": false,
         "properties": {
           "foo": {
             "type": "string"
@@ -587,6 +590,7 @@ no lenses
       "type": "object",
       "additionalProperties": {
         "type": "object",
+        "additionalProperties": false,
         "properties": {
           "foo": {
             "type": "string"

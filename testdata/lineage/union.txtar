@@ -665,6 +665,7 @@ no lenses
     }
   },
   "type": "object",
+  "additionalProperties": false,
   "properties": {
     "doubleList": {
       "type": "array",
@@ -771,6 +772,7 @@ no lenses
     },
     "nestedStruct": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "listUnion": {
           "type": "array",
