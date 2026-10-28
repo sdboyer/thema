@@ -27,6 +27,10 @@ type CodeInfo struct {
 	// has no reproducer: there is no lineage that shows it. Its page says that
 	// seeing it is a bug in thema and asks for a report.
 	Internal string
+	// Retired, when set, says why the code is no longer reported and what
+	// reports its cases now. A retired code keeps its entry and its docs page,
+	// has no reproducer, and is never reused.
+	Retired string
 }
 
 // Codes declares every code, sorted. The hundreds group them:
@@ -45,7 +49,7 @@ var Codes = []CodeInfo{
 	{Code: E0101, Severity: SeverityError, Title: "a file in the lineage's directory is not a version file", Sentinels: []error{terrors.ErrInvalidLineage}, Positionless: true},
 	{Code: E0102, Severity: SeverityError, Title: "a version file is not CUE syntax", Sentinels: []error{terrors.ErrInvalidLineage}},
 	{Code: E0103, Severity: SeverityError, Title: "a version file has a package clause", Sentinels: []error{terrors.ErrInvalidLineage}},
-	{Code: E0104, Severity: SeverityError, Title: "a version file imports a package", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0104, Severity: SeverityError, Title: "a version file imports a package", Sentinels: []error{terrors.ErrInvalidLineage}, Retired: "A version file may import CUE's builtin packages since #104. An import of any other package is E0143, the rule for schemas and lenses in either form."},
 	{Code: E0105, Severity: SeverityError, Title: "a version file has a field that is not schema, ForwardLens or BackwardLens", Sentinels: []error{terrors.ErrInvalidLineage}},
 	{Code: E0106, Severity: SeverityError, Title: "a version file declares a field twice", Sentinels: []error{terrors.ErrInvalidLineage}},
 	{Code: E0107, Severity: SeverityError, Title: "a lens block is not a struct", Sentinels: []error{terrors.ErrInvalidLineage}},
@@ -77,6 +81,7 @@ var Codes = []CodeInfo{
 	{Code: E0144, Severity: SeverityError, Title: "a lens refers to a schema of the lineage", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0145, Severity: SeverityError, Title: "a lens refers to another lens of the lineage", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0146, Severity: SeverityError, Title: "a reference cannot be resolved statically", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0147, Severity: SeverityError, Title: "a version file imports a package its Schema does not use", Sentinels: []error{terrors.ErrInvalidLineage}},
 	{Code: E0201, Severity: SeverityError, Title: "the first schema is not version 0.0", Sentinels: []error{terrors.ErrNonContiguousVersions}},
 	{Code: E0202, Severity: SeverityError, Title: "a schema's version does not follow its predecessor's", Sentinels: []error{terrors.ErrNonContiguousVersions}},
 	{Code: E0203, Severity: SeverityError, Title: "a major version declares no schemas", Sentinels: []error{terrors.ErrNonContiguousVersions}},
@@ -251,6 +256,7 @@ const (
 	E0144 Code = "E0144" // ref-lens-to-schema
 	E0145 Code = "E0145" // ref-lens-to-lens
 	E0146 Code = "E0146" // ref-unresolved
+	E0147 Code = "E0147" // a version file imports a package its Schema does not use
 
 	E0201 Code = "E0201" // first version is not 0.0
 	E0202 Code = "E0202" // a version is neither the next minor nor the next major

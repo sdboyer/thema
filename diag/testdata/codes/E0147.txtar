@@ -1,0 +1,54 @@
+#op: compile
+A version file's imports serve its Schema. A lens calls the strings functions
+without an import, so an import the Schema does not use has no purpose.
+-- ship/history/0.0.thema --
+Schema: {
+	name: string
+}
+-- ship/1.0.thema --
+import "strings"
+
+Schema: {
+	name:  string
+	label: string
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		label: strings.ToUpper(v0_0.name)
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0147",
+      "severity": "error",
+      "headline": "1.0.thema imports strings, which its Schema does not use",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 1,
+        "col": 8,
+        "offset": 7,
+        "origin": "user"
+      },
+      "help": [
+        "remove the import: a lens calls the strings functions without one"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0147]: 1.0.thema imports strings, which its Schema does not use
+ --> 1.0.thema:1:8
+  |
+1 | import "strings"
+  |        ^^^^^^^^^
+  |
+  = help: remove the import: a lens calls the strings functions without one
