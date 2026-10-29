@@ -544,7 +544,11 @@ func (w *walker) arith(c *exprCtx, s shape, op string) (shape, bool) {
 // operand reads an input path (or a constant reached by reference) used in an
 // expression.
 func (w *walker) operand(x ast.Expr, c *exprCtx) (shape, bool) {
-	conjs := w.tree.Conjuncts(x)
+	conjs, detail, ok := w.guarded(x, c.subj, c.gs)
+	if !ok {
+		w.fail(c, Unknown, RuleUnknownExhaustive, detail)
+		return shape{}, false
+	}
 	if len(conjs) == 0 {
 		w.fail(c, Unknown, RuleUnknownReference, fmt.Sprintf("reads %s, which the checker cannot follow to the input or to a constant", text(x)))
 		return shape{}, false
@@ -813,7 +817,12 @@ func (w *walker) length(x ast.Expr, c *exprCtx) (shape, bool) {
 		}
 		return shape{kind: cue.IntKind, iv: *out}, true
 	}
-	for _, cj := range w.tree.Conjuncts(x) {
+	conjs, detail, ok := w.guarded(x, c.subj, c.gs)
+	if !ok {
+		w.fail(c, Unknown, RuleUnknownExhaustive, detail)
+		return shape{}, false
+	}
+	for _, cj := range conjs {
 		if l, ok := cj.Expr.(*ast.ListLit); ok {
 			return w.listLength(l, c)
 		}
@@ -1122,7 +1131,7 @@ func (w *walker) head(h head, q cue.Path, gs []pattern, pos token.Pos) {
 		gs []pattern
 	}{{h.then, append(append([]pattern(nil), gs...), g...)}, {h.els, append(append([]pattern(nil), gs...), neg...)}} {
 		w.ir.push()
-		for _, c := range w.tree.Conjuncts(arm.x) {
+		for _, c := range w.valueConjuncts(arm.x, q, arm.gs, pos) {
 			switch c.Expr.(type) {
 			case *ast.StructLit, *ast.ListLit:
 				if !w.syn.FromInput(c) {
@@ -1155,7 +1164,7 @@ func (w *walker) asTable(x ast.Expr) (table, bool) {
 		return table{}, false
 	}
 	conjs := w.tree.Conjuncts(ix.X)
-	if len(conjs) != 1 || w.syn.FromInput(conjs[0]) {
+	if len(conjs) != 1 || w.syn.FromInput(conjs[0]) || len(conjs[0].Arms) > 0 {
 		return table{}, false
 	}
 	lit, ok := conjs[0].Expr.(*ast.StructLit)
@@ -1220,8 +1229,9 @@ func (w *walker) table(t table, q cue.Path, gs []pattern, pos token.Pos) {
 	for _, k := range keys {
 		g := pattern{root: w.from, kind: equality, path: p, lit: fmt.Sprintf("%q", k), val: w.ctx.CompileString(fmt.Sprintf("%q", k))}
 		w.ir.push()
-		for _, c := range w.tree.Conjuncts(entries[k].Value) {
-			w.conjunct(c, q, append(append([]pattern(nil), gs...), g), pos)
+		egs := append(append([]pattern(nil), gs...), g)
+		for _, c := range w.valueConjuncts(entries[k].Value, q, egs, pos) {
+			w.conjunct(c, q, egs, pos)
 		}
 		tb.Entries = append(tb.Entries, lensir.Entry{Key: k, Value: w.ir.pop()})
 	}

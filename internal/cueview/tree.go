@@ -76,6 +76,10 @@ type Conjunct struct {
 	// the references passed through one: Expr is then one of the values the
 	// field may be, not the value it is.
 	Disjunction ast.Expr
+	// Arms are the comprehensions whose bodies a selection passed into to
+	// reach Expr, outermost first (x.a, where a is declared under if c in x):
+	// Expr is part of the value only where their clauses hold.
+	Arms []*ast.Comprehension
 }
 
 // Root returns the conjuncts of the whole exported value.
@@ -196,42 +200,52 @@ func (t *Tree) selectElem(s ast.Expr, i int, seen map[ast.Node]bool) []Conjunct 
 }
 
 // selectAll applies sel to each conjunct of a selection's base. Where sel finds
-// nothing, the selection x is kept, as part of the base conjunct's field.
+// nothing, the selection x is kept, as part of the base conjunct's field. What
+// sel finds is reached through the base's arms, then its own.
 func (t *Tree) selectAll(base []Conjunct, x ast.Expr, sel func(ast.Expr) []Conjunct) []Conjunct {
 	var out []Conjunct
 	for _, b := range base {
 		found := sel(b.Expr)
 		if len(found) == 0 {
-			out = append(out, Conjunct{Expr: x, Via: b.Via})
+			out = append(out, Conjunct{Expr: x, Via: b.Via, Arms: b.Arms})
 			continue
 		}
 		for _, f := range found {
 			if f.Via == nil {
 				f.Via = b.Via
 			}
+			f.Arms = joinArms(b.Arms, f.Arms)
 			out = append(out, f)
 		}
 	}
 	return out
 }
 
+// joinArms is the arms a, then b, sharing neither's backing array.
+func joinArms(a, b []*ast.Comprehension) []*ast.Comprehension {
+	if len(a) == 0 {
+		return b
+	}
+	return append(append([]*ast.Comprehension(nil), a...), b...)
+}
+
 // selectField returns the conjuncts of the field name declared in the struct
-// literal s, including in its embeddings and comprehensions.
+// literal s, including in its embeddings and comprehensions, each under the
+// arms its declaration is in.
 func (t *Tree) selectField(s ast.Expr, name string, seen map[ast.Node]bool) []Conjunct {
 	lit, ok := s.(*ast.StructLit)
 	if !ok {
 		return nil
 	}
 	var out []Conjunct
-	for _, f := range FieldDecls(lit.Elts, func(x ast.Expr) []ast.Expr {
-		var exprs []ast.Expr
-		for _, c := range t.conjuncts(x, nil, seen) {
-			exprs = append(exprs, c.Expr)
-		}
-		return exprs
+	for _, f := range fieldDecls(lit.Elts, func(x ast.Expr) []Conjunct {
+		return t.conjuncts(x, nil, seen)
 	}) {
 		if n, _, err := ast.LabelName(f.Field.Label); err == nil && n == name {
-			out = append(out, t.conjuncts(f.Field.Value, f.Field, seen)...)
+			for _, c := range t.conjuncts(f.Field.Value, f.Field, seen) {
+				c.Arms = joinArms(f.Arms, c.Arms)
+				out = append(out, c)
+			}
 		}
 	}
 	return out
@@ -256,7 +270,7 @@ func (t *Tree) ident(id *ast.Ident, via *ast.Field, seen map[ast.Node]bool) []Co
 			}
 			var out []Conjunct
 			for _, c := range t.conjuncts(fc.Source, via, seen) {
-				out = append(out, Conjunct{Expr: id, Via: c.Via})
+				out = append(out, Conjunct{Expr: id, Via: c.Via, Arms: c.Arms})
 			}
 			return out
 		}
@@ -347,42 +361,56 @@ type FieldDecl struct {
 	Field *ast.Field
 	// Conditional is true if the declaration is inside a comprehension.
 	Conditional bool
+	// Arms are the comprehensions the declaration is inside, outermost first.
+	Arms []*ast.Comprehension
 }
 
 // FieldDecls returns the fields declared by decls: directly, within
 // comprehensions, and within embedded expressions, whose conjuncts embedded
 // returns (e.g. Tree.Conjuncts, mapped to their Expr).
 func FieldDecls(decls []ast.Decl, embedded func(ast.Expr) []ast.Expr) []FieldDecl {
+	return fieldDecls(decls, func(x ast.Expr) []Conjunct {
+		var out []Conjunct
+		for _, e := range embedded(x) {
+			out = append(out, Conjunct{Expr: e})
+		}
+		return out
+	})
+}
+
+// fieldDecls is FieldDecls, given an embedded expression's conjuncts with the
+// arms each was reached through, which its fields are inside too.
+func fieldDecls(decls []ast.Decl, embedded func(ast.Expr) []Conjunct) []FieldDecl {
 	var out []FieldDecl
-	var walk func(decls []ast.Decl, cond bool)
-	var embed func(x ast.Expr, cond bool)
-	walk = func(decls []ast.Decl, cond bool) {
+	var walk func(decls []ast.Decl, arms []*ast.Comprehension)
+	var embed func(x ast.Expr, arms []*ast.Comprehension)
+	walk = func(decls []ast.Decl, arms []*ast.Comprehension) {
 		for _, d := range decls {
 			switch x := d.(type) {
 			case *ast.Field:
-				out = append(out, FieldDecl{Field: x, Conditional: cond})
+				out = append(out, FieldDecl{Field: x, Conditional: len(arms) > 0, Arms: arms})
 			case *ast.Comprehension:
 				if s, ok := x.Value.(*ast.StructLit); ok {
-					walk(s.Elts, true)
+					walk(s.Elts, joinArms(arms, []*ast.Comprehension{x}))
 				}
 			case *ast.EmbedDecl:
-				embed(x.Expr, cond)
+				embed(x.Expr, arms)
 			case ast.Expr:
 				// The exporter writes an embedding beside a comprehension as a bare
 				// expression declaration rather than an *ast.EmbedDecl (see the
 				// comprehensions golden, embedBesideComprehension).
-				embed(x, cond)
+				embed(x, arms)
 			}
 		}
 	}
-	embed = func(x ast.Expr, cond bool) {
-		for _, e := range embedded(x) {
-			if s, ok := e.(*ast.StructLit); ok {
-				walk(s.Elts, cond)
+	embed = func(x ast.Expr, arms []*ast.Comprehension) {
+		for _, c := range embedded(x) {
+			if s, ok := c.Expr.(*ast.StructLit); ok {
+				walk(s.Elts, joinArms(arms, c.Arms))
 			}
 		}
 	}
-	walk(decls, false)
+	walk(decls, nil)
 	return out
 }
 
