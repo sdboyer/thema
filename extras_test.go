@@ -334,6 +334,129 @@ func TestTranslateFieldFates(t *testing.T) {
 	}
 }
 
+// lostLineage moves b, and tags, out of the optional struct q in 1.0. Its
+// hand-written backward lens writes q, with b and tags, only when the instance
+// has a q, and lists no lacuna for the b it then reads but leaves unwritten.
+// root is 0.0's root struct beyond q (such as "..." to leave it open), and
+// lacunas the backward lens's lacunas.
+func lostLineage(root, lacunas string) string {
+	return `lin: thema.Lineage & {
+	name: "lost"
+	schemas: {
+		"0": "0": schema: {
+			q?: {a!: int, b?: int, tags?: [...string]}
+			` + root + `
+		}
+		"1": "0": schema: {
+			q?: {a!: int}
+			b?: int
+			tags?: [...string]
+		}
+	}
+	lenses: {
+		"0.0->1.0": {
+			v0_0: _
+			v1_0: {
+				if v0_0.q != _|_ {
+					q: a: v0_0.q.a
+					if v0_0.q.b != _|_ {b: v0_0.q.b}
+					if v0_0.q.tags != _|_ {tags: v0_0.q.tags}
+				}
+			}
+		}
+		"1.0->0.0": {
+			v1_0: _
+			v0_0: {
+				if v1_0.q != _|_ {
+					q: {
+						a: v1_0.q.a
+						if v1_0.b != _|_ {b: v1_0.b}
+						if v1_0.tags != _|_ {tags: v1_0.tags}
+					}
+				}
+			}
+			lacunas: [` + lacunas + `]
+		}
+	}
+}`
+}
+
+// A value the lens reads, where no result field that reads it was written for
+// the instance, is lost: translation sets it aside with a DroppedField, unless
+// the lens lists its own lacuna for it, or it can be carried.
+func TestTranslateLostReads(t *testing.T) {
+	ref := func(path string, v interface{}) lacuna.FieldRef { return lacuna.FieldRef{Path: path, Value: v} }
+	dropped := func(msg string, refs ...lacuna.FieldRef) lacuna.Lacuna {
+		return lacuna.Lacuna{SourceFields: refs, Type: lacuna.DroppedField, Message: msg}
+	}
+	const bOnly = `{b: 2}`
+	const lost = "b set aside: the lens from 1.0 to 0.0 reads it, but wrote nothing that carries it for this instance"
+	const ownLacuna = `{
+		type:      "DroppedField"
+		message:   "b has no q to go in"
+		condition: v1_0.q == _|_ && v1_0.b != _|_
+		sourceFields: [if v1_0.b != _|_ {{path: "b", value: v1_0.b}}]
+	}`
+
+	for name, c := range map[string]struct {
+		root, lacunas string
+		data          string
+		want          string
+		lacunasWant   []lacuna.Lacuna
+	}{
+		"b without q": {
+			data: bOnly, want: `{}`,
+			lacunasWant: []lacuna.Lacuna{dropped(lost, ref("b", int64(2)))},
+		},
+		"b with q": {
+			data: `{q: {a: 1}, b: 2}`, want: `{"q":{"a":1,"b":2}}`,
+		},
+		"q alone": {data: `{q: {a: 1}}`, want: `{"q":{"a":1}}`},
+		"nothing": {data: `{}`, want: `{}`},
+		// tags is read and lost alike, but it is empty: nothing is lost.
+		"empty tags": {
+			data: `{b: 2, tags: []}`, want: `{}`,
+			lacunasWant: []lacuna.Lacuna{dropped(lost, ref("b", int64(2)))},
+		},
+		"the lens's own lacuna stands alone": {
+			lacunas: ownLacuna,
+			data:    `{b: 2}`, want: `{}`,
+			lacunasWant: []lacuna.Lacuna{dropped("b has no q to go in", ref("b", int64(2)))},
+		},
+		// Into an open 0.0, b is carried as a field 0.0 does not declare.
+		"carried": {
+			root: "...",
+			data: bOnly, want: `{"b":2}`,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			ctx := cuecontext.New()
+			lin, err := bindString(t, NewRuntime(ctx), lostLineage(c.root, c.lacunas))
+			if err != nil {
+				t.Fatal(err)
+			}
+			in, err := lin.Latest().Validate(ctx.CompileString(c.data))
+			if err != nil {
+				t.Fatal(err)
+			}
+			out, lac, err := in.Translate(SV(0, 0))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := mustJSON(t, out.Underlying()); got != c.want {
+				t.Errorf("got %s\nwant %s", got, c.want)
+			}
+			if c.lacunasWant == nil {
+				c.lacunasWant = []lacuna.Lacuna{}
+			}
+			want := lacuna.TranslationLacunas{{From: lacuna.SyntacticVersion(SV(1, 0)), To: lacuna.SyntacticVersion(SV(0, 0)), Lacunas: c.lacunasWant}}
+			if g, w := mustJSON(t, lac), mustJSON(t, want); g != w {
+				t.Errorf("lacunas: got %s\nwant %s", g, w)
+			}
+		})
+	}
+}
+
 // A minor step taken alone, by AsSuccessor, carries extras as Translate does,
 // and AsPredecessor carries them back.
 func TestAsSuccessorCarriesExtras(t *testing.T) {

@@ -329,7 +329,7 @@ func (i *Instance) translateStep(data cue.Value, from, to *schemaDef) (cue.Value
 }
 
 // stepLens reads the lens of the edge from->to, as the step whose kernel
-// output is out evaluated it. What the lens maps and copies is read from the
+// output is out evaluated it. What the lens reads and copies is read from the
 // lineage's lens, so it depends only on what the lens is; what it wrote, from
 // the step.
 func (i *Instance) stepLens(out cue.Value, from, to SyntacticVersion) (*stepLens, error) {
@@ -340,9 +340,10 @@ func (i *Instance) stepLens(out cue.Value, from, to SyntacticVersion) (*stepLens
 		return nil, err
 	}
 	sl := &stepLens{
-		result: lens.LookupPath(cue.MakePath(cue.Str(lensParam(to)))),
-		maps:   syn.InputReads(),
-		copies: syn.Copies(),
+		result:  lens.LookupPath(cue.MakePath(cue.Str(lensParam(to)))),
+		reads:   syn.InputReads(),
+		readers: syn.Readers(),
+		copies:  syn.Copies(),
 	}
 	lacs, err := lens.LookupPath(cue.MakePath(cue.Str("lacunas"))).List()
 	if err != nil {
@@ -359,7 +360,7 @@ func (i *Instance) stepLens(out cue.Value, from, to SyntacticVersion) (*stepLens
 				continue
 			}
 			if p := cue.ParsePath(s); p.Err() == nil {
-				sl.maps = append(sl.maps, p)
+				sl.named = append(sl.named, p)
 			}
 		}
 	}

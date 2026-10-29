@@ -112,7 +112,7 @@ Each step's result is closed against its target schema and is the next step's in
 
 - the lens runs on the instance without the fields its source schema does not declare;
 - each such field follows its struct: to the struct whose contents the lens takes from it as a whole (a move, an embedding, or either with mappings beneath it), or otherwise to its own path, element `i` of a list to element `i`. It is **carried** there where the target's struct is open, and **promoted** into a field the target declares where the value is an instance of it and the lens does not write that field; a value that is not an instance emits a `LossyFieldMapping`;
-- a field the source schema declares and the lens leaves alone is carried at its own path where the target does not declare it, and set aside where the target declares it;
+- a field the source schema declares and the lens leaves alone, or reads where no result field that reads it was written for the instance, is carried at its own path where the target does not declare it, and set aside where the target declares it;
 - any field not placed is **set aside**: dropped, with a `DroppedField` lacuna per struct and cause ([set-aside fields](lacunas.md#set-aside-fields)), unless the lens lists a lacuna for it or it is an empty struct or list.
 
 For example, with `0.0` as `{a!: string, ...}` and `1.0` as `{a!: string, b?: bool, ...}`, translating `{a: "x", b: true, z: 1}` to `1.0` promotes `b` and carries `z`; translating `{a: "x", b: "s"}` emits a `LossyFieldMapping` for `b`. Back from `1.0`, a `b` the backward lens does not map is carried into `0.0`. Were `1.0`'s `b` written by its forward lens, the lens's `b` would stand, and a `b` the instance held would be set aside. Fields never make a translation fail.
