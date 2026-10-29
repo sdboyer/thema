@@ -1,0 +1,171 @@
+each whose body copies a field of the element, in the backward direction,
+where the element has other fields: the copy is the whole older element, so
+every other field is dropped, with the derived DroppedField lacuna naming each
+element that had it. enabled is required in the newer version, so the lacuna
+is reported for every non-empty list. The same holds for a copy body in an
+each nested in another, whose lacuna names both indices.
+-- ship/history/0.0.thema --
+Schema: close({
+	u!: [...string]
+	s!: [...close({f!: [...string]})]
+})
+-- ship/1.0.thema --
+Schema: close({
+	u!: [...close({id!: string, enabled!: bool, note?: string})]
+	s!: [...close({f!: [...close({id!: string, note?: string})]})]
+})
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		u: _each(v0_0.u, {id: _item, enabled: true})
+		s: _each(v0_0.s, {f: _each(_item.f, {id: _item})})
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		u: _each(v1_0.u, _item.id)
+		s: _each(v1_0.s, {f: _each(_item.f, _item.id)})
+	}
+}
+-- data/0.0/two.json --
+{"u": ["a", "b"], "s": [{"f": ["c"]}]}
+-- data/1.0/empty.json --
+{"u": [], "s": []}
+-- data/1.0/two.json --
+{"u": [{"id": "a", "enabled": true}, {"id": "b", "enabled": false, "note": "x"}], "s": [{"f": []}, {"f": [{"id": "c"}, {"id": "d", "note": "y"}]}]}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+Schema: close({
+	u!: [...close({
+		id!:      string
+		enabled!: bool
+		note?:    string
+	})]
+	s!: [...close({
+		f!: [...close({
+			id!:   string
+			note?: string
+		})]
+	})]
+})
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		u: _each(v0_0.u, {
+			id:      _item
+			enabled: true
+		})
+		s: _each(v0_0.s, {f: _each(_item.f, {id: _item})})
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		u: _each(v1_0.u, _item.id)
+		s: _each(v1_0.s, {f: _each(_item.f, _item.id)})
+	}
+}
+-- out/decompiled/history/0.0.thema --
+Schema: close({
+	u!: [...string]
+	s!: [...close({f!: [...string]})]
+})
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: close({
+				u!: [...string]
+				s!: [...close({f!: [...string]})]
+			})
+		}
+	}
+	"1": {
+		"0": {
+			schema: close({
+				u!: [...close({id!: string, enabled!: bool, note?: string})]
+				s!: [...close({f!: [...close({id!: string, note?: string})]})]
+			})
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			u: [for _item in v0_0.u {
+				id:      _item
+				enabled: true
+			}]
+			s: [for _item in v0_0.s {
+				f: [for _item in _item.f {
+					id: _item
+				}]
+			}]
+		}
+	}
+	"1.0->0.0": {
+		v1_0: _
+		let _d_0 = [for i, _item in v1_0.u {
+			path:  "u[\(i)].enabled"
+			value: _item.enabled
+		}]
+		let _d_1 = [for i, _item in v1_0.u if _item.note != _|_ {
+			path:  "u[\(i)].note"
+			value: _item.note
+		}]
+		let _d_2 = [for i, _item in v1_0.s for i1, _item in _item.f if _item.note != _|_ {
+			path:  "s[\(i)].f[\(i1)].note"
+			value: _item.note
+		}]
+		v0_0: {
+			u: [for _item in v1_0.u {
+				_item.id
+			}]
+			s: [for _item in v1_0.s {
+				f: [for _item in _item.f {
+					_item.id
+				}]
+			}]
+		}
+		lacunas: [
+			{
+				@thema(derived)
+				condition:    len(_d_0) > 0
+				sourceFields: _d_0
+				message:      "u[].enabled has no equivalent in 0.0 and was dropped"
+				type:         "DroppedField"
+			},
+			{
+				@thema(derived)
+				condition:    len(_d_1) > 0
+				sourceFields: _d_1
+				message:      "u[].note has no equivalent in 0.0 and was dropped"
+				type:         "DroppedField"
+			},
+			{
+				@thema(derived)
+				condition:    len(_d_2) > 0
+				sourceFields: _d_2
+				message:      "s[].f[].note has no equivalent in 0.0 and was dropped"
+				type:         "DroppedField"
+			}
+		]
+	}
+}
+-- out/translate/0.0/two->1.0 --
+{"u":[{"id":"a","enabled":true},{"id":"b","enabled":true}],"s":[{"f":[{"id":"c"}]}]}
+[]
+-- out/translate/1.0/empty->0.0 --
+{"u":[],"s":[]}
+[]
+-- out/translate/1.0/two->0.0 --
+{"u":["a","b"],"s":[{"f":[]},{"f":["c","d"]}]}
+[{"sourceFields":[{"path":"u[0].enabled","value":true},{"path":"u[1].enabled","value":false}],"type":"DroppedField","message":"u[].enabled has no equivalent in 0.0 and was dropped"},{"sourceFields":[{"path":"u[1].note","value":"x"}],"type":"DroppedField","message":"u[].note has no equivalent in 0.0 and was dropped"},{"sourceFields":[{"path":"s[1].f[1].note","value":"y"}],"type":"DroppedField","message":"s[].f[].note has no equivalent in 0.0 and was dropped"}]

@@ -1,0 +1,29 @@
+# lens computes a required field from a result field written under an if:
+# for {k: "y"}, v1_0.a is absent and v1_0.b an error (undefined field: a).
+# The reference carries the arm's pattern (#125).
+#issue: 125
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "lensResultRefArm"
+	schemas: {
+		"0": "0": {schema: {k!: "x" | "y"}}
+		"1": "0": {schema: {a?: int32, b!: int64}}
+	}
+	lenses: {
+		"0.0->1.0": {
+			v0_0: _
+			v1_0: {
+				if v0_0.k == "x" {a: 1}
+				b: v1_0.a + 1
+			}
+		}
+		"1.0->0.0": {
+			v1_0: _
+			v0_0: {k: "x"}
+		}
+	}
+}
+-- expect --
+bind fail unknown-exhaustive

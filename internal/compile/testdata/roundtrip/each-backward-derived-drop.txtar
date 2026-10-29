@@ -1,0 +1,119 @@
+each whose target element lacks a field the source element has, in the
+backward lens: the field the newer version added to the elements is dropped
+by derivation, with a derived DroppedField lacuna aggregated over the list,
+and decompiling leaves the derived drop implied, as it does outside _each.
+-- ship/history/0.0.thema --
+Schema: {
+	items: [...{
+		title: string
+	}]
+}
+-- ship/1.0.thema --
+Schema: {
+	items: [...{
+		name:  string
+		hint?: string
+	}]
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		items: _each(v0_0.items, {
+			name: _item.title
+		})
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		items: _each(v1_0.items, {
+			title: _item.name
+		})
+	}
+}
+-- data/1.0/hinted.json --
+{"items": [{"name": "a", "hint": "h"}, {"name": "b"}]}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+Schema: {
+	items: [...{
+		name:  string
+		hint?: string
+	}]
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		items: _each(v0_0.items, {name: _item.title})
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		items: _each(v1_0.items, {title: _item.name})
+	}
+}
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	items: [...{title: string}]
+}
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				items: [...{
+					title: string
+				}]
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				items: [...{
+					name:  string
+					hint?: string
+				}]
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			items: [for _item in v0_0.items {
+				name: _item.title
+			}]
+		}
+	}
+	"1.0->0.0": {
+		v1_0: _
+		let _d_0 = [for i, _item in v1_0.items if _item.hint != _|_ {
+			path:  "items[\(i)].hint"
+			value: _item.hint
+		}]
+		v0_0: {
+			items: [for _item in v1_0.items {
+				title: _item.name
+			}]
+		}
+		lacunas: [{
+			@thema(derived)
+			condition:    len(_d_0) > 0
+			sourceFields: _d_0
+			message:      "items[].hint has no equivalent in 0.0 and was dropped"
+			type:         "DroppedField"
+		}]
+	}
+}
+-- out/translate/1.0/hinted->0.0 --
+{"items":[{"title":"a"},{"title":"b"}]}
+[{"sourceFields":[{"path":"items[0].hint","value":"h"}],"type":"DroppedField","message":"items[].hint has no equivalent in 0.0 and was dropped"}]

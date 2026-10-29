@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"cuelang.org/go/cue"
 	cerrors "cuelang.org/go/cue/errors"
 )
 
@@ -48,16 +49,14 @@ func validateIncomplete(e cerrors.Error, ctx Context) *B {
 			Headlinef("the data is not concrete: it is still %s", oneLine(typ)).
 			Addr(dataAddr(ctx, nil))
 	}
-	// A position in the data means the field is there but not concrete.
-	if ctx.IsData != nil {
-		for _, p := range positionsOf(e) {
-			if ctx.IsData(p.Filename()) {
-				b := New(E0506).
-					Headlinef("%s is not concrete: it is still %s", dataTerm(ctx, path), oneLine(typ)).
-					Addr(dataAddr(ctx, path))
-				schemaNote(b, ctx, path, "declared here")
-				return b
-			}
+	// A field the data has is there but not concrete.
+	if ctx.DataValue != nil {
+		if _, ok := ctx.DataValue(path); ok {
+			b := New(E0506).
+				Headlinef("%s is not concrete: it is still %s", dataTerm(ctx, path), oneLine(typ)).
+				Addr(dataAddr(ctx, path))
+			schemaNote(b, ctx, path, "declared here")
+			return b
 		}
 	}
 	b := New(E0501).
@@ -92,15 +91,16 @@ func validateNotAllowed(e cerrors.Error, ctx Context) *B {
 }
 
 // validateKind: "conflicting values %s and %s (mismatched types %s and %s)".
-// The data's value is of a kind the schema does not accept.
+// The data's value is of a kind the schema does not accept. The headline
+// names the data's value, as dataValueText writes it.
 func validateKind(e cerrors.Error, ctx Context) *B {
 	path := ctx.path(e)
 	_, args := e.Msg()
-	d := dataSide(e, ctx)
+	d, ok := dataSide(e, ctx)
 	s := 1 - d
 	b := New(E0503).Addr(dataAddr(ctx, path))
-	if len(args) == 4 {
-		b.Headlinef("%s is %s, but %s declares it as %s", dataTerm(ctx, path), argText(args[2+d]), schemaName(ctx), typeName(argText(args[s])))
+	if len(args) == 4 && ok {
+		b.Headlinef("%s is %s, but %s declares it as %s", dataTerm(ctx, path), dataValueText(args[d], args[2+d]), schemaName(ctx), typeName(argText(args[s])))
 	} else {
 		b.Headlinef("%s is of a kind %s does not accept", dataTerm(ctx, path), schemaName(ctx))
 	}
@@ -108,14 +108,27 @@ func validateKind(e cerrors.Error, ctx Context) *B {
 	return b
 }
 
+// dataValueText writes the data's value for a headline: a scalar as CUE
+// writes it, shortened to one line; a struct or a list by its kind, since
+// its contents rarely fit and the conflict is with its kind.
+func dataValueText(value, kind any) string {
+	switch k, _ := kind.(cue.Kind); k {
+	case cue.StructKind:
+		return "a struct"
+	case cue.ListKind:
+		return "a list"
+	}
+	return oneLine(argText(value))
+}
+
 // validateConflict: "conflicting values %s and %s", of the same kind. The
 // schema fixes a value and the data has another.
 func validateConflict(e cerrors.Error, ctx Context) *B {
 	path := ctx.path(e)
 	_, args := e.Msg()
-	d := dataSide(e, ctx)
+	d, ok := dataSide(e, ctx)
 	b := New(E0504).Addr(dataAddr(ctx, path))
-	if len(args) == 2 {
+	if len(args) == 2 && ok {
 		b.Headlinef("%s is %s, but %s requires %s", dataTerm(ctx, path), oneLine(argText(args[d])), schemaName(ctx), oneLine(typeName(argText(args[1-d]))))
 	} else {
 		b.Headlinef("%s has a value %s does not accept", dataTerm(ctx, path), schemaName(ctx))

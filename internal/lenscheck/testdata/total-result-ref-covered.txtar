@@ -1,0 +1,26 @@
+# A result field written under a pattern and its negation, read
+# unconditionally: its arms cover every instance, so it is always present.
+-- source.cue --
+k: "x" | "y"
+-- target.cue --
+a?: int32
+b!: int64
+-- lens.cue --
+v0_0: _
+v1_0: {
+	if v0_0.k == "x" {a: 1}
+	if v0_0.k != "x" {a: 2}
+	b: v1_0.a + 1
+}
+-- out --
+total
+-- ir --
+out: {
+  if in.k == "x" {
+    out.a = 1
+  }
+  if in.k != "x" {
+    out.a = 2
+  }
+  out.b = out.a + 1
+}

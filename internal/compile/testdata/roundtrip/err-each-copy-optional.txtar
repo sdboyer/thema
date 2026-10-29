@@ -1,0 +1,25 @@
+each whose body copies a field the element may omit: each element of the
+target list needs a value, and a copy body has no fallback.
+-- ship/history/0.0.thema --
+Schema: close({
+	u!: [...close({id?: string})]
+})
+-- ship/1.0.thema --
+Schema: close({
+	u!: [...string]
+})
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		u: _each(v0_0.u, _item.id)
+	}
+}
+-- out/error --
+error[E0343]: u[].id is optional in 0.0, and each element of 1.0's u needs a value
+ --> 1.0.thema:8:20
+  |
+8 |         u: _each(v0_0.u, _item.id)
+  |                          ^^^^^
+  |
+  = note: an _each whose body copies a field writes one element per source element, so the field must be present in every one
