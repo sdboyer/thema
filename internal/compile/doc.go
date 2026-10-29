@@ -31,10 +31,11 @@
 //
 // A field both schemas declare, that no entry mentions, is copied. A reference
 // to an optional source field is copied only when present; where the target
-// requires the field, _orelse says what to use instead. A struct the target
-// may omit is written where there is enough data for it: where any of its
-// content is (the source struct it copies counts, so absent stays absent and
-// empty stays empty), and every field it requires is satisfied. Where its content is present and a required
+// requires the field, _orelse says what to use instead (for a struct, a struct
+// of constants). A struct the target may omit is written where there is
+// enough data for it: where any of its content is (the source struct it
+// copies counts, so absent stays absent and empty stays empty), and every
+// field it requires is satisfied. Where its content is present and a required
 // field is not, each value it would have held is set aside with a derived
 // DroppedField lacuna. A struct the target requires is written always, as {}
 // where the source lacks it. A match's arms map

@@ -340,7 +340,7 @@ func (b *dbody) field(f *ast.Field, tbase cue.Path, key string) error {
 	} else if h, ok := asHeadSyntax(f.Value); ok && b.allPresence(h.cond) {
 		// orelse over a computed primary: the expression where the optional
 		// fields it reads are present, the fallback otherwise.
-		if _, _, isRef := refPathAny(h.els); !isRef && !isLiteral(h.els) {
+		if _, _, isRef := refPathAny(h.els); !isRef && !isConstant(h.els) {
 			return fmt.Errorf("lens %s is outside the authoring form: the fallback of %s is computed", key, tpath)
 		}
 		en.kind, en.computed, en.fallback = kindOrElse, h.then, h.els
@@ -589,7 +589,7 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 				return fmt.Errorf("lens %s is outside the authoring form: the arms of %s are not an _orelse", key, tpath)
 			}
 			fb := absent[0].field.Value
-			if _, _, isRef := refPathAny(fb); !isRef && !isLiteral(fb) {
+			if _, _, isRef := refPathAny(fb); !isRef && !isConstant(fb) {
 				return fmt.Errorf("lens %s is outside the authoring form: the fallback of %s is computed", key, tpath)
 			}
 			en.kind, en.source, en.fallback = kindOrElse, source, fb

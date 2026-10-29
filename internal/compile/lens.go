@@ -356,15 +356,15 @@ func (e *edge) parseField(f *ast.Field, tbase, sbase cue.Path, b *body) {
 }
 
 // parseOrElse reads orelse(ref, fallback): ref must refer to an optional
-// source field, and fallback must be a constant or a reference the source
-// always has.
+// source field, and fallback must be a constant (a struct of constants, for a
+// struct) or a reference the source always has.
 func (e *edge) parseOrElse(x *ast.CallExpr, en *entry, b *body) {
 	if len(x.Args) != opArity {
 		e.errf(diag.E0335, x.Pos(), "_orelse takes two arguments: _orelse(%s.<path>, fallback)", e.root)
 		return
 	}
 	fb := x.Args[1]
-	if _, ok := e.refPath(fb); !ok && !isLiteral(fb) {
+	if _, ok := e.refPath(fb); !ok && !isConstant(fb) {
 		e.errf(diag.E0335, fb.Pos(), "_orelse's fallback must be a constant or a reference to %s", e.root)
 		return
 	}
@@ -852,6 +852,25 @@ func refPathAny(x ast.Expr) (string, cue.Path, bool) {
 			return "", cue.Path{}, false
 		}
 	}
+}
+
+// isConstant reports whether x is a literal, or a struct literal of regular
+// fields whose values are constants: what _orelse's fallback may be.
+func isConstant(x ast.Expr) bool {
+	s, ok := x.(*ast.StructLit)
+	if !ok {
+		return isLiteral(x)
+	}
+	for _, d := range s.Elts {
+		f, ok := d.(*ast.Field)
+		if !ok || f.Constraint != token.ILLEGAL || len(f.Attrs) > 0 || !isConstant(f.Value) {
+			return false
+		}
+		if name, isID, err := ast.LabelName(f.Label); err != nil || isID && (strings.HasPrefix(name, "_") || strings.HasPrefix(name, "#")) {
+			return false
+		}
+	}
+	return true
 }
 
 // isLiteral reports whether x is a constant: a basic literal, a signed
