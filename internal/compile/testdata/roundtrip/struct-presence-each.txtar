@@ -1,0 +1,162 @@
+Inside an _each body, a struct filled from inside and outside an optional
+struct of the element is written only where every field it requires is
+satisfied, and a value it would have held is set aside, per element.
+-- ship/history/0.0.thema --
+Schema: {
+	items: [...{
+		q?: {
+			a!: int
+			b?: int
+		}
+	}]
+}
+-- ship/1.0.thema --
+Schema: {
+	items: [...{
+		q?: {
+			a!: int
+		}
+		b?: int
+	}]
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		items: _each(v0_0.items, {
+			b: _item.q.b
+		})
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		items: _each(v1_0.items, {
+			q: {
+				b: _item.b
+			}
+		})
+	}
+}
+-- data/1.0/mixed.json --
+{"items": [{"b": 2}, {"q": {"a": 1}, "b": 3}, {}]}
+-- data/0.0/mixed.json --
+{"items": [{"q": {"a": 1, "b": 2}}, {}]}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+Schema: {
+	items: [...{
+		q?: {
+			a!: int
+		}
+		b?: int
+	}]
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		items: _each(v0_0.items, {b: _item.q.b})
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		items: _each(
+			v1_0.items,
+			{
+				q: {
+					b: _item.b
+				}
+			},
+		)
+	}
+}
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	items: [...{
+		q?: {
+			a!: int
+			b?: int
+		}
+	}]
+}
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				items: [...{
+					q?: {
+						a!: int
+						b?: int
+					}
+				}]
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				items: [...{
+					q?: {
+						a!: int
+					}
+					b?: int
+				}]
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			items: [for _item in v0_0.items {
+				if _item.q != _|_ {
+					q:
+						a: _item.q.a
+				}
+				if _item.q.b != _|_ {
+					b: _item.q.b
+				}
+			}]
+		}
+	}
+	"1.0->0.0": {
+		v1_0: _
+		let _d_0 = [for i, _item in v1_0.items if _item.b != _|_ && _item.q == _|_ {
+			path:  "items[\(i)].b"
+			value: _item.b
+		}]
+		v0_0: {
+			items: [for _item in v1_0.items {
+				if _item.q != _|_ {
+					q: {
+						a: _item.q.a
+						if _item.b != _|_ {
+							b: _item.b
+						}
+					}
+				}
+			}]
+		}
+		lacunas: [{
+			@thema(setaside)
+			condition:    len(_d_0) > 0
+			sourceFields: _d_0
+			message:      "items[].b was dropped: items[].q in 0.0 is written only with items[].q.a"
+			type:         "DroppedField"
+		}]
+	}
+}
+-- out/translate/0.0/mixed->1.0 --
+{"items":[{"q":{"a":1},"b":2},{}]}
+[]
+-- out/translate/1.0/mixed->0.0 --
+{"items":[{},{"q":{"a":1,"b":3}},{}]}
+[{"sourceFields":[{"path":"items[0].b","value":2}],"type":"DroppedField","message":"items[].b was dropped: items[].q in 0.0 is written only with items[].q.a"}]

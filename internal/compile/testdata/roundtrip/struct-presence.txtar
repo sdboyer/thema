@@ -1,0 +1,143 @@
+A target struct filled from inside and outside an optional source struct is
+written where any of its content is, and only where every field it requires
+is satisfied. 1.0 moves b out of q. Backward, q is written where 1.0 has q,
+and a 1.0 instance with b but no q has nothing for q's required a: q is not
+written, and b is set aside with a DroppedField.
+-- ship/history/0.0.thema --
+Schema: {
+	q?: {
+		a!: int
+		b?: int
+	}
+}
+-- ship/1.0.thema --
+Schema: {
+	q?: {
+		a!: int
+	}
+	b?: int
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		b: v0_0.q.b
+	}
+}
+-- data/0.0/absent.json --
+{}
+-- data/0.0/a.json --
+{"q": {"a": 1}}
+-- data/0.0/ab.json --
+{"q": {"a": 1, "b": 2}}
+-- data/1.0/absent.json --
+{}
+-- data/1.0/b.json --
+{"b": 2}
+-- data/1.0/qb.json --
+{"q": {"a": 1}, "b": 2}
+-- data/1.0/q.json --
+{"q": {"a": 1}}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+Schema: {
+	q?: {
+		a!: int
+	}
+	b?: int
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		b: v0_0.q.b
+	}
+}
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	q?: {
+		a!: int
+		b?: int
+	}
+}
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				q?: {
+					a!: int
+					b?: int
+				}
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				q?: {
+					a!: int
+				}
+				b?: int
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			if v0_0.q != _|_ {
+				q:
+					a: v0_0.q.a
+			}
+			if v0_0.q.b != _|_ {
+				b: v0_0.q.b
+			}
+		}
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {if v1_0.q != _|_ {
+			q: {
+				a: v1_0.q.a
+				if v1_0.b != _|_ {
+					b: v1_0.b
+				}
+			}
+		}}
+		lacunas: [{
+			@thema(setaside)
+			condition: v1_0.b != _|_ && v1_0.q == _|_
+			sourceFields: [if v1_0.b != _|_ {
+				path:  "b"
+				value: v1_0.b
+			}]
+			message: "b was dropped: q in 0.0 is written only with q.a"
+			type:    "DroppedField"
+		}]
+	}
+}
+-- out/translate/0.0/a->1.0 --
+{"q":{"a":1}}
+[]
+-- out/translate/0.0/ab->1.0 --
+{"q":{"a":1},"b":2}
+[]
+-- out/translate/0.0/absent->1.0 --
+{}
+[]
+-- out/translate/1.0/absent->0.0 --
+{}
+[]
+-- out/translate/1.0/b->0.0 --
+{}
+[{"sourceFields":[{"path":"b","value":2}],"type":"DroppedField","message":"b was dropped: q in 0.0 is written only with q.a"}]
+-- out/translate/1.0/q->0.0 --
+{"q":{"a":1}}
+[]
+-- out/translate/1.0/qb->0.0 --
+{"q":{"a":1,"b":2}}
+[]

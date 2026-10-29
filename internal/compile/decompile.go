@@ -1,6 +1,7 @@
 package compile
 
 import (
+	"bytes"
 	"fmt"
 	"sort"
 	"strconv"
@@ -495,11 +496,19 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 	for _, g := range groups {
 		tpath := appendPath(tbase, cue.Str(g.name))
 		en := dentry{target: tpath, comments: ast.Comments(g.brs[0].field)}
+		if s, ok := b.sameStruct(g.brs); ok && len(g.brs) > 1 {
+			// A struct written under a condition of several terms, as
+			// disjoint arms that each write it.
+			if err := b.walk(s.Elts, tpath, key); err != nil {
+				return err
+			}
+			continue
+		}
 		if s, ok := g.brs[0].field.Value.(*ast.StructLit); ok && len(g.brs) == 1 {
-			// A copy of an optional struct, written only where the source
-			// has it.
-			ts, ok := b.tests(g.brs[0].cond)
-			if !ok || len(ts) != 1 || ts[0].operand != nil || !ts[0].present || ts[0].path.String() != tpath.String() {
+			// A struct the target may omit, written where there is enough
+			// data for it: a condition on what the source has, which Compile
+			// derives again from what the struct holds.
+			if !b.allPresence(g.brs[0].cond) {
 				return fmt.Errorf("lens %s is outside the authoring form: %s is written under a condition the authoring form cannot express", key, tpath)
 			}
 			if err := b.walk(s.Elts, tpath, key); err != nil {
@@ -607,15 +616,16 @@ func (b *dbody) lacuna(x ast.Expr, lets map[string]ast.Expr, key string, tv them
 	if !ok {
 		return fmt.Errorf("lens %s is outside the authoring form: a lacuna that is not a struct literal", key)
 	}
-	var derived bool
+	var derived, setAside bool
 	var typ, msg string
 	var cond ast.Expr
 	var sources, targets []ast.Expr
 	for _, d := range s.Elts {
 		switch d := d.(type) {
 		case *ast.Attribute:
-			if k, body := d.Split(); k == "thema" && strings.TrimSpace(body) == "derived" {
-				derived = true
+			if k, body := d.Split(); k == "thema" {
+				derived = derived || strings.TrimSpace(body) == "derived"
+				setAside = setAside || strings.TrimSpace(body) == "setaside"
 			}
 		case *ast.Field:
 			name, _, _ := ast.LabelName(d.Label)
@@ -646,6 +656,14 @@ func (b *dbody) lacuna(x ast.Expr, lets map[string]ast.Expr, key string, tv them
 		return fmt.Errorf("lens %s: %w", key, err)
 	}
 
+	if setAside {
+		// Values set aside where the struct they go into is not written:
+		// Compile derives the lacuna again from the mappings.
+		if typ != lacunaDropped || len(tgtPaths) != 0 {
+			return fmt.Errorf("lens %s is outside the authoring form: a set-aside lacuna of type %s", key, typ)
+		}
+		return nil
+	}
 	if derived {
 		if typ != lacunaDropped || len(srcPaths) != 1 || len(tgtPaths) != 0 {
 			return fmt.Errorf("lens %s is outside the authoring form: a derived lacuna of type %s", key, typ)
@@ -690,6 +708,40 @@ func (b *dbody) lacuna(x ast.Expr, lets map[string]ast.Expr, key string, tv them
 	when, _ := b.when(en, cond)
 	b.lacunas = append(b.lacunas, dlacuna{path: en.target, typ: typ, msg: msg, when: when})
 	return nil
+}
+
+// sameStruct returns the struct each of brs writes, if every one writes the
+// same struct literal under presence and absence tests.
+func (b *dbody) sameStruct(brs []branch) (*ast.StructLit, bool) {
+	var first *ast.StructLit
+	var text []byte
+	for _, br := range brs {
+		s, ok := br.field.Value.(*ast.StructLit)
+		if !ok {
+			return nil, false
+		}
+		ts, ok := b.tests(br.cond)
+		if !ok {
+			return nil, false
+		}
+		for _, t := range ts {
+			if t.operand != nil {
+				return nil, false
+			}
+		}
+		out, err := format.Node(s)
+		if err != nil {
+			return nil, false
+		}
+		if first == nil {
+			first, text = s, out
+			continue
+		}
+		if !bytes.Equal(out, text) {
+			return nil, false
+		}
+	}
+	return first, first != nil
 }
 
 // find returns the entry keyed p: a drop of p, or the mapping producing p.

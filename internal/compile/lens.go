@@ -880,11 +880,18 @@ type node struct {
 	fields map[string]*node
 	// For a leaf: the entry producing it.
 	leaf *entry
-	// present, if non-empty, are the optional source paths the field is
-	// written under: if <root>.<p> != _|_ && ... {...}. A struct is written
-	// under one when it copies an optional struct (see guardStruct).
+	// For a leaf: present, if non-empty, are the optional source paths the
+	// field is written under: if <root>.<p> != _|_ && ... {...}.
 	present []cue.Path
-	pos     token.Pos
+	// For a struct the target may omit: guarded is set, and guard is the
+	// condition it is written under (see settle). needs are the fields it
+	// requires, each with the condition it is satisfied under, and satisfied
+	// the condition all of them are.
+	guarded   bool
+	guard     dnf
+	needs     []need
+	satisfied dnf
+	pos       token.Pos
 }
 
 func (n *node) child(name string) *node {
@@ -1044,14 +1051,16 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 	}
 
 	e.fill(root, cue.MakePath(), b, consumed, dropped, out)
+	e.settle(root, cue.MakePath(), b)
 	e.unmapped(b, consumed, out)
+	e.setAside(root, cue.MakePath(), always, nil, out)
 	if e.each == nil {
 		e.declare(b, out)
 		out.lacunas = append(out.lacunas, out.derived...)
 		out.derived = nil
 	}
 
-	out.result = e.emit(root, cue.MakePath())
+	out.result = e.emit(root, cue.MakePath(), always)
 }
 
 // declare emits the lacunas the lens declares, in declared order, each under
@@ -1397,7 +1406,6 @@ func (e *edge) fill(n *node, tbase cue.Path, b *body, consumed, dropped map[stri
 		if c, ok := n.fields[name]; ok {
 			if c.leaf == nil {
 				e.fill(c, tpath, b, consumed, dropped, out)
-				e.guardStruct(c, tpath)
 			}
 			continue
 		}
@@ -1413,7 +1421,6 @@ func (e *edge) fill(n *node, tbase cue.Path, b *body, consumed, dropped map[stri
 				c := n.child(name)
 				c.pos = e.blockPos
 				e.fill(c, tpath, b, consumed, dropped, out)
-				e.guardStruct(c, tpath)
 				continue
 			}
 			en := entry{kind: kindMove, target: tpath, source: spath, pos: e.blockPos, derived: true}
@@ -1439,47 +1446,6 @@ func (e *edge) fill(n *node, tbase cue.Path, b *body, consumed, dropped map[stri
 			e.unproduced(tpath)
 		}
 	}
-}
-
-// guardStruct writes c, the struct the lens builds at tpath, only where the
-// source has it, when c is a copy of an optional struct of the source: a
-// struct's presence is information, so an absent struct stays absent, and a
-// present but empty one stays present. c is such a copy when everything it
-// produces reads only from beneath the same path in the source (see
-// readsFrom), whether the author wrote it as a nested body or not. A struct
-// that holds anything else, such as a constant, is written always, and so is
-// one the target requires.
-func (e *edge) guardStruct(c *node, tpath cue.Path) {
-	if !e.optionalAt(e.S, tpath) || e.required(e.T, tpath) || !c.readsFrom(tpath) {
-		return
-	}
-	c.present = []cue.Path{tpath}
-}
-
-// readsFrom reports whether every field n produces is a move from beneath the
-// source path p, or a computed value that reads only from beneath it, so that
-// none of them is written where the source lacks p.
-func (n *node) readsFrom(p cue.Path) bool {
-	if en := n.leaf; en != nil {
-		switch en.kind {
-		case kindMove:
-			return pathHasPrefix(en.source, p)
-		case kindComputed:
-			for _, r := range en.reads {
-				if !pathHasPrefix(r, p) {
-					return false
-				}
-			}
-			return len(en.reads) > 0
-		}
-		return false
-	}
-	for _, c := range n.fields {
-		if !c.readsFrom(p) {
-			return false
-		}
-	}
-	return true
 }
 
 // misfits returns why a copy of source path spath into target path tpath
@@ -1614,30 +1580,45 @@ func consumedBeneath(consumed map[string]bool, p cue.Path) bool {
 }
 
 // emit builds the result struct from the tree, in the target's field order.
-func (e *edge) emit(n *node, tbase cue.Path) *ast.StructLit {
+// enc is the condition the enclosing structs are written under, which the
+// tests beneath them need not repeat.
+func (e *edge) emit(n *node, tbase cue.Path, enc dnf) *ast.StructLit {
 	s := &ast.StructLit{}
 	for _, name := range e.order(n, tbase) {
 		c := n.fields[name]
 		if c.leaf == nil {
-			f := at(c.pos, &ast.Field{Label: at(c.pos, label(name)), Value: e.emit(c, appendPath(tbase, cue.Str(name)))})
-			if len(c.present) == 0 {
+			if c.guarded && len(c.guard) == 0 {
+				continue // never written: settle has reported why
+			}
+			var cond dnf
+			inner := enc
+			if c.guarded && !e.implies(enc, c.guard) {
+				cond, inner = e.beneath(c.guard, enc), e.and(enc, c.guard)
+			}
+			f := at(c.pos, &ast.Field{Label: at(c.pos, label(name)), Value: e.emit(c, appendPath(tbase, cue.Str(name)), inner)})
+			if cond == nil {
 				s.Elts = append(s.Elts, f)
 				continue
 			}
-			s.Elts = append(s.Elts, at(c.pos, &ast.Comprehension{
-				Clauses: []ast.Clause{at(c.pos, &ast.IfClause{Condition: e.presentAll(c.pos, c.present)})},
-				Value:   at(c.pos, &ast.StructLit{Elts: []ast.Decl{f}}),
-			}))
+			// The totality proof follows conjunctions, so a condition with
+			// several terms is written as disjoint conjunctions, each arm
+			// writing the same struct.
+			for _, cb := range e.disjoint(cond) {
+				s.Elts = append(s.Elts, at(c.pos, &ast.Comprehension{
+					Clauses: []ast.Clause{at(c.pos, &ast.IfClause{Condition: e.cubeExpr(c.pos, cb)})},
+					Value:   at(c.pos, &ast.StructLit{Elts: []ast.Decl{f}}),
+				}))
+			}
 			continue
 		}
-		s.Elts = append(s.Elts, e.emitLeaf(name, c)...)
+		s.Elts = append(s.Elts, e.emitLeaf(name, c, e.beneathTerm(c.present, enc))...)
 	}
 	return s
 }
 
 // emitLeaf renders one produced field: a plain field, a field under a
-// presence test, or the arms of an orelse or match.
-func (e *edge) emitLeaf(name string, c *node) []ast.Decl {
+// presence test of the paths in present, or the arms of an orelse or match.
+func (e *edge) emitLeaf(name string, c *node, present []cue.Path) []ast.Decl {
 	en, p := c.leaf, c.pos
 	field := func(val ast.Expr) *ast.Field {
 		f := at(p, &ast.Field{Label: at(p, label(name)), Value: val})
@@ -1668,8 +1649,8 @@ func (e *edge) emitLeaf(name string, c *node) []ast.Decl {
 			branch(e.absent(p, en.source), fallback),
 		}
 	case kindComputed:
-		if len(c.present) > 0 {
-			return []ast.Decl{branch(e.presentAll(p, c.present), en.computed)}
+		if len(present) > 0 {
+			return []ast.Decl{branch(e.presentAll(p, present), en.computed)}
 		}
 		return []ast.Decl{field(en.computed)}
 	case kindMatch:
@@ -1722,8 +1703,8 @@ func (e *edge) emitLeaf(name string, c *node) []ast.Decl {
 	default:
 		val = at(p, e.ref(en.source))
 	}
-	if len(c.present) > 0 {
-		return []ast.Decl{branch(e.presentAll(p, c.present), val)}
+	if len(present) > 0 {
+		return []ast.Decl{branch(e.presentAll(p, present), val)}
 	}
 	return []ast.Decl{field(val)}
 }
@@ -1804,28 +1785,16 @@ func (e *edge) dropLacuna(out *compiledLens, en *entry) {
 	p := en.pos
 	elts := []ast.Decl{at(p, &ast.Attribute{Text: "@thema(derived)"})}
 	if e.each != nil {
-		// let _d_<n> = [for i, item in input.<list> if item.<p> != _|_ {path: "<list>[\(i)].<p>", value: item.<p>}]
-		name := fmt.Sprintf("_d_%d", out.nlets)
-		out.nlets++
-		clauses := []ast.Clause{at(p, &ast.ForClause{Key: at(p, ast.NewIdent("i")), Value: at(p, ast.NewIdent(rootItem)), Source: at(p, ref(paramName(e.sv), e.each.list))})}
+		var conds []ast.Expr
 		if e.optional(e.S, en.source) {
-			clauses = append(clauses, at(p, &ast.IfClause{Condition: e.present(p, en.source)}))
+			conds = append(conds, e.present(p, en.source))
 		}
 		if e.container(en.source) {
-			clauses = append(clauses, at(p, &ast.IfClause{Condition: e.nonEmpty(p, en.source)}))
+			conds = append(conds, e.nonEmpty(p, en.source))
 		}
-		pathLit := at(p, &ast.Interpolation{Elts: []ast.Expr{
-			at(p, ast.NewLit(token.STRING, strconv.Quote(e.each.list.String() + "[")[:len(strconv.Quote(e.each.list.String()+"["))-1]+`\(`)),
-			at(p, ast.NewIdent("i")),
-			at(p, ast.NewLit(token.STRING, `)].`+en.source.String()+`"`)),
-		}})
-		comp := at(p, &ast.Comprehension{Clauses: clauses, Value: at(p, &ast.StructLit{Elts: []ast.Decl{
-			at(p, &ast.Field{Label: at(p, ast.NewIdent("path")), Value: pathLit}),
-			at(p, &ast.Field{Label: at(p, ast.NewIdent("value")), Value: at(p, e.ref(en.source))}),
-		}})})
-		out.lets = append(out.lets, at(p, &ast.LetClause{Ident: at(p, ast.NewIdent(name)), Expr: at(p, &ast.ListLit{Elts: []ast.Expr{comp}})}))
+		name := e.aggregate(out, p, conds, en.source)
 		elts = append(elts,
-			at(p, &ast.Field{Label: at(p, ast.NewIdent("condition")), Value: at(p, ast.NewBinExpr(token.GTR, at(p, &ast.CallExpr{Fun: at(p, ast.NewIdent("len")), Args: []ast.Expr{at(p, ast.NewIdent(name))}}), at(p, ast.NewLit(token.INT, "0"))))}),
+			at(p, &ast.Field{Label: at(p, ast.NewIdent("condition")), Value: e.nonEmptyLet(p, name)}),
 			at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewIdent(name))}),
 		)
 	} else {
@@ -1847,6 +1816,35 @@ func (e *edge) dropLacuna(out *compiledLens, en *entry) {
 		return
 	}
 	out.derived = append(out.derived, lac)
+}
+
+// aggregate declares the let a lacuna inside an each body reports through,
+// listing path in every element where conds hold, and returns its name:
+//
+//	let _d_<n> = [for i, item in input.<list> if <cond> ... {path: "<list>[\(i)].<path>", value: item.<path>}]
+func (e *edge) aggregate(out *compiledLens, p token.Pos, conds []ast.Expr, path cue.Path) string {
+	name := fmt.Sprintf("_d_%d", out.nlets)
+	out.nlets++
+	clauses := []ast.Clause{at(p, &ast.ForClause{Key: at(p, ast.NewIdent("i")), Value: at(p, ast.NewIdent(rootItem)), Source: at(p, ref(paramName(e.sv), e.each.list))})}
+	for _, c := range conds {
+		clauses = append(clauses, at(p, &ast.IfClause{Condition: c}))
+	}
+	pathLit := at(p, &ast.Interpolation{Elts: []ast.Expr{
+		at(p, ast.NewLit(token.STRING, strconv.Quote(e.each.list.String() + "[")[:len(strconv.Quote(e.each.list.String()+"["))-1]+`\(`)),
+		at(p, ast.NewIdent("i")),
+		at(p, ast.NewLit(token.STRING, `)].`+path.String()+`"`)),
+	}})
+	comp := at(p, &ast.Comprehension{Clauses: clauses, Value: at(p, &ast.StructLit{Elts: []ast.Decl{
+		at(p, &ast.Field{Label: at(p, ast.NewIdent("path")), Value: pathLit}),
+		at(p, &ast.Field{Label: at(p, ast.NewIdent("value")), Value: at(p, e.ref(path))}),
+	}})})
+	out.lets = append(out.lets, at(p, &ast.LetClause{Ident: at(p, ast.NewIdent(name)), Expr: at(p, &ast.ListLit{Elts: []ast.Expr{comp}})}))
+	return name
+}
+
+// nonEmptyLet is len(<name>) > 0, an aggregate's condition.
+func (e *edge) nonEmptyLet(p token.Pos, name string) ast.Expr {
+	return at(p, ast.NewBinExpr(token.GTR, at(p, &ast.CallExpr{Fun: at(p, ast.NewIdent("len")), Args: []ast.Expr{at(p, ast.NewIdent(name))}}), at(p, ast.NewLit(token.INT, "0"))))
 }
 
 // dropCondition is the condition a drop of path implies, nil for always: that
@@ -2198,4 +2196,438 @@ func at[T ast.Node](p token.Pos, n T) T {
 	}
 	ast.SetPos(n, p)
 	return n
+}
+
+// Presence. A struct the target may omit exists when there is enough data for
+// it to exist: settle decides the condition each one is written under, emit
+// writes it, and setAside reports what an unwritten struct would have held.
+
+// A dnf is a condition on what the source has, in disjunctive normal form:
+// each term is a conjunction of source paths that are present. A term with
+// no paths always holds; a dnf with no terms never does.
+type dnf [][]cue.Path
+
+var always = dnf{nil}
+
+// A need is a field a target struct requires, and the condition it is
+// satisfied under.
+type need struct {
+	path cue.Path
+	cond dnf
+}
+
+// settle decides the condition each struct beneath n is written under, and
+// returns what n writes: the condition any of its content is written under. A
+// struct the target may omit is written where any of its content is and
+// every field it requires is satisfied, written by the lens or filled by the
+// target's default; the presence of the source struct it copies is content of
+// its own, so that an empty struct stays empty and an absent one absent. A
+// struct the target requires is written wherever its parent is; where a
+// field it requires is not written, the lens is not total, which bind
+// reports.
+func (e *edge) settle(n *node, tbase cue.Path, b *body) (content dnf) {
+	needs := always
+	if s := b.sourceBase(tbase); isStruct(lookup(e.S, s)) {
+		content = e.term(s)
+	}
+	for _, name := range e.order(n, tbase) {
+		c, tpath := n.fields[name], appendPath(tbase, cue.Str(name))
+		var w dnf
+		if c.leaf != nil {
+			w = e.writes(c)
+			if e.requiredAt(e.T, tpath) {
+				needs = e.and(needs, w)
+				n.needs = append(n.needs, need{tpath, w})
+			}
+		} else {
+			w = e.settle(c, tpath, b)
+			if e.optionalAt(e.T, tpath) {
+				c.guarded, c.guard = true, e.and(w, c.satisfied)
+				w = c.guard
+			}
+		}
+		content = e.or(content, w)
+	}
+	for _, name := range e.fields(e.T, tbase) {
+		tpath := appendPath(tbase, cue.Str(name))
+		if _, ok := n.fields[name]; ok || !e.requiredAt(e.T, tpath) {
+			continue
+		}
+		// Nothing produces a field n requires, so n is never written. Where
+		// n is required all the way up, or the source has the field (a copy
+		// that was refused), fill has reported it.
+		if !e.required(e.T, tpath) && !b.claimed[tpath.String()] && !lookup(e.S, appendPath(b.sourceBase(tbase), cue.Str(name))).Exists() {
+			e.unproduced(tpath)
+		}
+		needs = nil
+		n.needs = append(n.needs, need{tpath, nil})
+	}
+	n.satisfied = needs
+	return content
+}
+
+// writes is the condition a leaf is written under.
+func (e *edge) writes(c *node) dnf {
+	switch en := c.leaf; en.kind {
+	case kindMatch, kindEach:
+		return e.term(en.source)
+	}
+	return e.term(c.present...)
+}
+
+// requiredAt reports whether the struct holding p must supply it: the field
+// is not optional there, and its value is not complete without data.
+func (e *edge) requiredAt(v cue.Value, p cue.Path) bool {
+	return !e.optionalAt(v, p) && lookup(v, p).Validate(cue.Concrete(true)) != nil
+}
+
+// An enclosing struct is one a leaf is written beneath, under its guard.
+type enclosing struct {
+	path cue.Path
+	n    *node
+}
+
+// setAside derives a DroppedField lacuna for every value the lens has but
+// does not write because a struct it goes into is not written: where the
+// value's sources are present and the structs it goes into are not all
+// written. enc is the condition the structs above n are written under, and
+// chain the guarded ones among them.
+func (e *edge) setAside(n *node, tbase cue.Path, enc dnf, chain []enclosing, out *compiledLens) {
+	if len(enc) == 0 {
+		return // never written: settle has reported why
+	}
+	for _, name := range e.order(n, tbase) {
+		c, tpath := n.fields[name], appendPath(tbase, cue.Str(name))
+		if c.leaf == nil {
+			inner, ch := enc, chain
+			if c.guarded {
+				inner = e.and(enc, c.guard)
+				ch = append(slices.Clone(chain), enclosing{tpath, c})
+			}
+			e.setAside(c, tpath, inner, ch, out)
+			continue
+		}
+		srcs := e.reads(c.leaf)
+		if len(srcs) == 0 {
+			continue
+		}
+		has := c.present
+		if k := c.leaf.kind; k != kindMove && k != kindComputed {
+			has = nil
+			for _, sp := range srcs {
+				if e.optional(e.S, sp) {
+					has = append(has, sp)
+				}
+			}
+		}
+		lost := e.beneath(enc, e.term(has...))
+		if lost == nil {
+			continue
+		}
+		e.setAsideLacuna(out, c.pos, has, srcs, lost, e.setAsideMessage(srcs, has, chain))
+	}
+}
+
+// reads returns the source paths whose values a leaf writes.
+func (e *edge) reads(en *entry) []cue.Path {
+	switch en.kind {
+	case kindMove, kindMatch, kindEach:
+		return []cue.Path{en.source}
+	case kindComputed:
+		return en.reads
+	case kindOrElse:
+		if en.computed != nil {
+			return en.reads
+		}
+		return []cue.Path{en.source}
+	}
+	return nil
+}
+
+// setAsideLacuna builds the lacuna for the values at srcs: where every path
+// in has is present and written, the condition the structs they go into are
+// written under, does not hold.
+func (e *edge) setAsideLacuna(out *compiledLens, p token.Pos, has, srcs []cue.Path, written dnf, msg string) {
+	var cond ast.Expr
+	if len(has) > 0 {
+		cond = e.presentAll(p, has)
+	}
+	cond = at(p, and(cond, e.notExpr(p, written)))
+	if e.each != nil {
+		for _, sp := range srcs {
+			name := e.aggregate(out, p, []ast.Expr{cond}, sp)
+			out.derived = append(out.derived, at(p, &ast.StructLit{Elts: []ast.Decl{
+				at(p, &ast.Attribute{Text: "@thema(setaside)"}),
+				at(p, &ast.Field{Label: at(p, ast.NewIdent("condition")), Value: e.nonEmptyLet(p, name)}),
+				at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewIdent(name))}),
+				at(p, &ast.Field{Label: at(p, ast.NewIdent("message")), Value: at(p, ast.NewString(msg))}),
+				at(p, &ast.Field{Label: at(p, ast.NewIdent("type")), Value: at(p, ast.NewString(lacunaDropped))}),
+			}}))
+		}
+		return
+	}
+	var fields []ast.Expr
+	for _, sp := range srcs {
+		src := e.fieldRef(p, sp, e.root)
+		if e.optional(e.S, sp) {
+			src = at(p, &ast.Comprehension{Clauses: []ast.Clause{at(p, &ast.IfClause{Condition: e.present(p, sp)})}, Value: src})
+		}
+		fields = append(fields, src)
+	}
+	out.derived = append(out.derived, at(p, &ast.StructLit{Elts: []ast.Decl{
+		at(p, &ast.Attribute{Text: "@thema(setaside)"}),
+		at(p, &ast.Field{Label: at(p, ast.NewIdent("condition")), Value: cond}),
+		at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewList(fields...))}),
+		at(p, &ast.Field{Label: at(p, ast.NewIdent("message")), Value: at(p, ast.NewString(msg))}),
+		at(p, &ast.Field{Label: at(p, ast.NewIdent("type")), Value: at(p, ast.NewString(lacunaDropped))}),
+	}}))
+}
+
+// setAsideMessage names the values at srcs, and the innermost struct they go
+// into that is not written, with the fields it requires that the instance
+// does not satisfy.
+func (e *edge) setAsideMessage(srcs, has []cue.Path, chain []enclosing) string {
+	var names []string
+	for _, sp := range srcs {
+		if e.each != nil {
+			names = append(names, fmt.Sprintf("%s[].%s", e.each.list, sp))
+			continue
+		}
+		names = append(names, sp.String())
+	}
+	target := func(p cue.Path) string {
+		if e.each != nil {
+			return fmt.Sprintf("%s[].%s", e.each.target, p)
+		}
+		return p.String()
+	}
+	what, verb := strings.Join(names, " and "), "was"
+	if len(names) > 1 {
+		verb = "were"
+	}
+	t := e.term(has...)
+	for i := len(chain) - 1; i >= 0; i-- {
+		s := chain[i]
+		var missing []string
+		for _, nd := range s.n.needs {
+			if !e.implies(t, nd.cond) {
+				missing = append(missing, target(nd.path))
+			}
+		}
+		if len(missing) > 0 {
+			return fmt.Sprintf("%s %s dropped: %s in %s is written only with %s", what, verb, target(s.path), e.tv, strings.Join(missing, " and "))
+		}
+	}
+	return fmt.Sprintf("%s %s dropped: the struct it goes into in %s is not written", what, verb, e.tv)
+}
+
+// atom is the path whose presence p's stands for: its deepest optional
+// prefix, since a valid instance that has a struct has every field the struct
+// requires. Empty where nothing along p is optional.
+func (e *edge) atom(p cue.Path) cue.Path {
+	sels := p.Selectors()
+	for i := len(sels); i > 0; i-- {
+		if q := cue.MakePath(sels[:i]...); e.optionalAt(e.S, q) {
+			return q
+		}
+	}
+	return cue.MakePath()
+}
+
+// impliesPath reports whether the presence of every path in t implies q's.
+func (e *edge) impliesPath(t []cue.Path, q cue.Path) bool {
+	qa := e.atom(q)
+	if len(qa.Selectors()) == 0 {
+		return true
+	}
+	for _, x := range t {
+		if pathHasPrefix(e.atom(x), qa) {
+			return true
+		}
+	}
+	return false
+}
+
+func (e *edge) impliesTerm(t, u []cue.Path) bool {
+	for _, q := range u {
+		if !e.impliesPath(t, q) {
+			return false
+		}
+	}
+	return true
+}
+
+// implies reports whether x implies y: every term of x implies a term of y.
+func (e *edge) implies(x, y dnf) bool {
+	for _, t := range x {
+		if !slices.ContainsFunc(y, func(u []cue.Path) bool { return e.impliesTerm(t, u) }) {
+			return false
+		}
+	}
+	return true
+}
+
+// term is the conjunction of the presence of paths, leaving out each path
+// another implies.
+func (e *edge) term(paths ...cue.Path) dnf {
+	var t []cue.Path
+	for _, q := range paths {
+		if e.impliesPath(t, q) {
+			continue
+		}
+		t = slices.DeleteFunc(t, func(k cue.Path) bool { return e.impliesPath([]cue.Path{q}, k) })
+		t = append(t, q)
+	}
+	return dnf{t}
+}
+
+// absorb leaves out each term that implies another.
+func (e *edge) absorb(d dnf) dnf {
+	var out dnf
+	for _, t := range d {
+		if slices.ContainsFunc(out, func(u []cue.Path) bool { return e.impliesTerm(t, u) }) {
+			continue
+		}
+		out = slices.DeleteFunc(out, func(u []cue.Path) bool { return e.impliesTerm(u, t) })
+		out = append(out, t)
+	}
+	return out
+}
+
+func (e *edge) or(x, y dnf) dnf { return e.absorb(append(slices.Clone(x), y...)) }
+
+func (e *edge) and(x, y dnf) dnf {
+	var out dnf
+	for _, t := range x {
+		for _, u := range y {
+			out = append(out, e.term(append(slices.Clone(t), u...)...)[0])
+		}
+	}
+	return e.absorb(out)
+}
+
+// beneath is d where has holds: each term without the paths has implies. Nil
+// if d holds there always.
+func (e *edge) beneath(d, has dnf) dnf {
+	var out dnf
+	for _, t := range d {
+		var kept []cue.Path
+		for _, q := range t {
+			if !e.implies(has, dnf{{q}}) {
+				kept = append(kept, q)
+			}
+		}
+		if len(kept) == 0 {
+			return nil
+		}
+		out = append(out, kept)
+	}
+	return out
+}
+
+// beneathTerm is the presence tests a leaf written under present needs
+// inside structs written under enc.
+func (e *edge) beneathTerm(present []cue.Path, enc dnf) []cue.Path {
+	var out []cue.Path
+	for _, q := range present {
+		if !e.implies(enc, dnf{{q}}) {
+			out = append(out, q)
+		}
+	}
+	return out
+}
+
+// A presenceTest is a presence test, or with present unset an absence test, and
+// a cube the conjunction of them.
+type presenceTest struct {
+	path    cue.Path
+	present bool
+}
+
+type cube []presenceTest
+
+// disjoint splits d into cubes that hold for the same instances and never
+// two for one: each term, less the terms before it.
+func (e *edge) disjoint(d dnf) []cube {
+	var out []cube
+	for i, t := range d {
+		var c cube
+		for _, q := range t {
+			c = append(c, presenceTest{q, true})
+		}
+		cubes := []cube{c}
+		for _, u := range d[:i] {
+			var next []cube
+			for _, c := range cubes {
+				next = append(next, e.subtract(c, u)...)
+			}
+			cubes = next
+		}
+		out = append(out, cubes...)
+	}
+	return out
+}
+
+// subtract returns the cubes that cover what c covers outside the term u.
+func (e *edge) subtract(c cube, u []cue.Path) []cube {
+	var pos []cue.Path
+	for _, l := range c {
+		if l.present {
+			pos = append(pos, l.path)
+			continue
+		}
+		for _, x := range u {
+			if e.impliesPath([]cue.Path{x}, l.path) {
+				return []cube{c} // c has a path absent that u needs
+			}
+		}
+	}
+	var out []cube
+	cur := slices.Clone(c)
+	for _, x := range u {
+		if e.impliesPath(pos, x) {
+			continue
+		}
+		out = append(out, append(slices.Clone(cur), presenceTest{x, false}))
+		cur = append(cur, presenceTest{x, true})
+		pos = append(pos, x)
+	}
+	return out
+}
+
+// cubeExpr is c as a CUE condition.
+func (e *edge) cubeExpr(p token.Pos, c cube) ast.Expr {
+	var x ast.Expr
+	for _, l := range c {
+		y := e.absent(p, l.path)
+		if l.present {
+			y = e.present(p, l.path)
+		}
+		if x == nil {
+			x = y
+			continue
+		}
+		x = at(p, ast.NewBinExpr(token.LAND, x, y))
+	}
+	return x
+}
+
+// notExpr is the negation of d: in every term, some path is absent.
+func (e *edge) notExpr(p token.Pos, d dnf) ast.Expr {
+	var x ast.Expr
+	for _, t := range d {
+		var y ast.Expr
+		for _, q := range t {
+			if y == nil {
+				y = e.absent(p, q)
+				continue
+			}
+			y = at(p, ast.NewBinExpr(token.LOR, y, e.absent(p, q)))
+		}
+		if len(t) > 1 && len(d) > 1 {
+			y = at(p, &ast.ParenExpr{X: y})
+		}
+		x = and(x, y)
+	}
+	return x
 }
