@@ -488,6 +488,121 @@ func (ls *LensSyntax) InputReads() []cue.Path {
 	return r.out
 }
 
+// A Copy is a field of a lens's result whose contents come from one value of
+// the lens's input as a whole: the field at Result holds the input's value at
+// Input, with anything the lens writes beneath it.
+type Copy struct {
+	Result, Input cue.Path
+}
+
+// Copies returns the fields of the lens's result whose contents come from one
+// value of its input as a whole: a move (info: v0_0.meta), an embedding
+// (info: {v0_0.meta, x: 1}), or either with mappings beneath it (info:
+// v0_0.meta & {x: v0_0.y}). The value is a reference into the input, however
+// indirect (lets, aliases, other fields), and struct literals: every
+// reference, in every declaration of the field, refers to the same input
+// path. A field assembled from parts of several input values, or computed, is
+// not a copy. Fields are followed through struct literals, beneath copies
+// too; lists, and the values a comprehension over a list yields, are not
+// followed.
+//
+// Like [LensSyntax.InputReads], the answer depends only on what the lens is.
+func (ls *LensSyntax) Copies() []Copy {
+	var out []Copy
+	var walk func(values []ast.Expr, at cue.Path, root bool)
+	walk = func(values []ast.Expr, at cue.Path, root bool) {
+		var refs []cue.Path
+		other := false
+		fields := map[string][]ast.Expr{}
+		var order []string
+		var visit func(x ast.Expr)
+		var decls func(elts []ast.Decl)
+		visit = func(x ast.Expr) {
+			switch e := x.(type) {
+			case *ast.BinaryExpr:
+				if e.Op == token.AND {
+					visit(e.X)
+					visit(e.Y)
+					return
+				}
+			case *ast.ParenExpr:
+				visit(e.X)
+				return
+			}
+			r := &inputReads{ls: ls, walked: map[ast.Node]bool{}, visiting: map[ast.Node]bool{}}
+			if p, ok, exact := r.resolve(x); ok {
+				if exact {
+					refs = append(refs, p)
+				} else {
+					other = true
+				}
+				return
+			}
+			for _, c := range ls.t.Conjuncts(x) {
+				if ls.fromInput(c) {
+					other = true
+					continue
+				}
+				switch e := c.Expr.(type) {
+				case *ast.StructLit:
+					decls(e.Elts)
+				case *ast.Ident:
+					// _, or a type, which adds no data of its own.
+					other = other || !isLiteral(e)
+				default:
+					other = true
+				}
+			}
+		}
+		decls = func(elts []ast.Decl) {
+			for _, d := range elts {
+				switch e := d.(type) {
+				case *ast.Field:
+					name, isIdent, err := ast.LabelName(e.Label)
+					if err != nil || (isIdent && strings.HasPrefix(name, "_")) || (isIdent && strings.HasPrefix(name, "#")) {
+						// Not data: a dynamic label, or a hidden field or definition.
+						continue
+					}
+					if _, ok := fields[name]; !ok {
+						order = append(order, name)
+					}
+					fields[name] = append(fields[name], e.Value)
+				case *ast.Comprehension:
+					if s, ok := e.Value.(*ast.StructLit); ok {
+						decls(s.Elts)
+					}
+				case *ast.EmbedDecl:
+					visit(e.Expr)
+				case ast.Expr:
+					// An embedding beside a comprehension (see FieldDecls).
+					visit(e)
+				}
+			}
+		}
+		for _, v := range values {
+			visit(v)
+		}
+		if !root && !other && len(refs) > 0 {
+			same := true
+			for _, r := range refs[1:] {
+				same = same && r.String() == refs[0].String()
+			}
+			if same {
+				out = append(out, Copy{Result: at, Input: refs[0]})
+			}
+		}
+		for _, name := range order {
+			walk(fields[name], appendPath(at, cue.Str(name)), false)
+		}
+	}
+	var roots []ast.Expr
+	for _, f := range ls.resultFields {
+		roots = append(roots, f.Value)
+	}
+	walk(roots, cue.MakePath(), true)
+	return out
+}
+
 type inputReads struct {
 	ls       *LensSyntax
 	walked   map[ast.Node]bool
