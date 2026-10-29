@@ -1,0 +1,132 @@
+each over a list the source may omit (#155): like a move or a copy, the
+mapped list is written only where the instance has the source list. The drop
+inside the body aggregates its lacuna over the elements, testing the list's
+presence before iterating it.
+-- ship/history/0.0.thema --
+Schema: {
+	l?: [...{
+		t!:      string
+		legacy?: string
+	}]
+}
+-- ship/1.0.thema --
+Schema: {
+	l?: [...{u!: string}]
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		l: _each(v0_0.l, {
+			u:      _item.t
+			legacy: _drop
+		})
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		l: _each(v1_0.l, {t: _item.u})
+	}
+}
+-- data/0.0/present.json --
+{"l": [{"t": "a", "legacy": "x"}, {"t": "b"}]}
+-- data/0.0/absent.json --
+{}
+-- data/1.0/present.json --
+{"l": [{"u": "a"}]}
+-- data/1.0/absent.json --
+{}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+Schema: {
+	l?: [...{u!: string}]
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		l: _each(v0_0.l, {
+			u:      _item.t
+			legacy: _drop
+		})
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		l: _each(v1_0.l, {t: _item.u})
+	}
+}
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	l?: [...{
+		t!:      string
+		legacy?: string
+	}]
+}
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				l?: [...{
+					t!:      string
+					legacy?: string
+				}]
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				l?: [...{u!: string}]
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		let _d_0 = [if v0_0.l != _|_ for i, _item in v0_0.l if _item.legacy != _|_ {
+			path:  "l[\(i)].legacy"
+			value: _item.legacy
+		}]
+		v1_0: {if v0_0.l != _|_ {
+			l: [for _item in v0_0.l {
+				u: _item.t
+			}]
+		}}
+		lacunas: [{
+			@thema(derived)
+			condition:    len(_d_0) > 0
+			sourceFields: _d_0
+			message:      "l[].legacy has no equivalent in 1.0 and was dropped"
+			type:         "DroppedField"
+		}]
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {if v1_0.l != _|_ {
+			l: [for _item in v1_0.l {
+				t: _item.u
+			}]
+		}}
+	}
+}
+-- out/translate/0.0/absent->1.0 --
+{}
+[]
+-- out/translate/0.0/present->1.0 --
+{"l":[{"u":"a"},{"u":"b"}]}
+[{"sourceFields":[{"path":"l[0].legacy","value":"x"}],"type":"DroppedField","message":"l[].legacy has no equivalent in 1.0 and was dropped"}]
+-- out/translate/1.0/absent->0.0 --
+{}
+[]
+-- out/translate/1.0/present->0.0 --
+{"l":[{"t":"a"}]}
+[]

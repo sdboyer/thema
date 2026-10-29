@@ -61,13 +61,20 @@ func TestCodesLockstep(t *testing.T) {
 	have := map[diag.Code]bool{}
 	for _, a := range archives {
 		c := diag.Code(a.Name())
-		if _, ok := diag.Lookup(c); !ok {
+		ci, ok := diag.Lookup(c)
+		if !ok {
 			t.Errorf("%s: no such code in diag.Codes", a.Path)
+		}
+		if ci.Internal != "" {
+			t.Errorf("%s: %s is declared Internal, a condition no lineage can show; its page is generated from the declaration", a.Path, c)
 		}
 		have[c] = true
 	}
 	for _, ci := range diag.Codes {
-		if !have[ci.Code] {
+		switch {
+		case ci.Retired != "" && have[ci.Code]:
+			t.Errorf("code %s is retired but has a reproducer at %s/%s.txtar", ci.Code, codesDir, ci.Code)
+		case ci.Retired == "" && ci.Internal == "" && !have[ci.Code]:
 			t.Errorf("code %s has no reproducer at %s/%s.txtar", ci.Code, codesDir, ci.Code)
 		}
 	}
@@ -105,8 +112,15 @@ func TestDocsErrors(t *testing.T) {
 	}
 	var pages []diagdocs.Page
 	for _, ci := range diag.Codes {
+		if ci.Retired != "" {
+			pages = append(pages, diagdocs.Page{Info: ci})
+			continue
+		}
 		a, ok := byCode[ci.Code]
 		if !ok {
+			if ci.Internal != "" {
+				pages = append(pages, diagdocs.Page{Info: ci})
+			}
 			continue
 		}
 		_, prose := a.Directives()
@@ -129,7 +143,7 @@ func TestDocsErrors(t *testing.T) {
 		if name == "README" {
 			continue
 		}
-		if _, ok := byCode[diag.Code(name)]; !ok {
+		if _, ok := diag.Lookup(diag.Code(name)); !ok {
 			t.Errorf("%s/%s documents a code that does not exist", dir, e.Name())
 		}
 	}
@@ -232,19 +246,14 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 		if p, ok := dirs["path"]; ok {
 			v = v.LookupPath(cue.ParsePath(p))
 		}
-		var opts []thema.BindOption
-		if dirs["skip-buggy-checks"] == "true" {
-			opts = append(opts, thema.SkipBuggyChecks())
-		}
-		_, err := thema.BindLineage(v, rt, opts...)
+		_, err := thema.BindLineage(v, rt)
 		if err == nil {
 			t.Fatal("the lineage bound")
 		}
 		return diag.Diagnostics(err)
 	},
-	// translate: bind lineage.cue (with #skip-buggy-checks, when the totality
-	// checker would refuse the lens at bind), validate data.json against
-	// #from, and translate it to #to.
+	// translate: bind lineage.cue, validate data.json against #from, and
+	// translate it to #to.
 	"translate": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {
 		dirs, _ := a.Directives()
 		ctx := cuecontext.New()
@@ -253,11 +262,7 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 		if !ok {
 			t.Fatal("translate needs lineage.cue")
 		}
-		var opts []thema.BindOption
-		if dirs["skip-buggy-checks"] == "true" {
-			opts = append(opts, thema.SkipBuggyChecks())
-		}
-		lin, err := thema.BindLineage(ctx.CompileString(src, cue.Filename("lineage.cue")), rt, opts...)
+		lin, err := thema.BindLineage(ctx.CompileString(src, cue.Filename("lineage.cue")), rt)
 		if err != nil {
 			t.Fatalf("lineage.cue does not bind: %v", err)
 		}

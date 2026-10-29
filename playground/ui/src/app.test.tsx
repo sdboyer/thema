@@ -1,17 +1,30 @@
 import { EditorView } from "@codemirror/view";
 import { render } from "preact";
 import { act } from "preact/test-utils";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Thema } from "./api/client";
+import type { HostExample, RegisterExamplesRequest, RegisterExamplesResponse } from "./api/types";
+import { docsBase } from "./ui/docs";
 
 // A thema that answers like the real one for what the page asks at start
-// and on edits.
+// and on edits. calls records the operations asked of it; registered is what
+// register-examples answers, and what examples lists.
+const calls: string[] = [];
+let registered: RegisterExamplesResponse = { ok: true, diagnostics: [], registered: [] };
 const fakeThema: Thema = {
   init: { ok: true, diagnostics: [], themaVersion: "v0.1.0", cueVersion: "v0.18.0", ops: [] },
-  call: (async (op: string) => {
+  call: (async (op: string, req: unknown) => {
+    calls.push(op);
     switch (op) {
+      case "register-examples":
+        hostManifestSent = req as RegisterExamplesRequest;
+        return registered;
       case "examples":
-        return { ok: true, diagnostics: [], examples: [] };
+        return {
+          ok: true,
+          diagnostics: [],
+          examples: (hostManifestSent?.examples ?? []).filter((h) => registered.registered.includes(h.example.id)).map((h) => h.example),
+        };
       case "example":
         return {
           ok: true,
@@ -28,7 +41,18 @@ const fakeThema: Thema = {
   }) as Thema["call"],
 };
 
-vi.mock("./api/client", () => ({ startThema: () => Promise.resolve(fakeThema) }));
+// hostManifest is what fetchHostExamples finds: the host's examples.json, or
+// null for none. hostManifestSent is what the page registered.
+let hostManifest: RegisterExamplesRequest | Error | null = null;
+let hostManifestSent: RegisterExamplesRequest | null = null;
+
+vi.mock("./api/client", () => ({
+  startThema: () => Promise.resolve(fakeThema),
+  fetchHostExamples: async () => {
+    if (hostManifest instanceof Error) throw hostManifest;
+    return hostManifest;
+  },
+}));
 
 const { App } = await import("./app");
 
@@ -40,14 +64,26 @@ async function settle() {
   }
 }
 
+async function mount(): Promise<HTMLElement> {
+  calls.length = 0;
+  const root = document.createElement("div");
+  document.body.append(root);
+  await act(async () => {
+    render(<App />, root);
+  });
+  await settle();
+  return root;
+}
+
+function opButton(root: HTMLElement, op: string): HTMLButtonElement {
+  const b = [...root.querySelectorAll<HTMLButtonElement>(".op button")].find((x) => x.textContent === op);
+  if (!b) throw new Error(`no button for ${op}`);
+  return b;
+}
+
 describe("App", () => {
   it("survives an edit to the lineage", async () => {
-    const root = document.createElement("div");
-    document.body.append(root);
-    await act(async () => {
-      render(<App />, root);
-    });
-    await settle();
+    const root = await mount();
     const dom = root.querySelector<HTMLElement>(".lineage .cm-editor");
     expect(dom).not.toBeNull();
     const view = EditorView.findFromDOM(dom!)!;
@@ -57,4 +93,113 @@ describe("App", () => {
     await settle();
     expect(view.state.doc.toString()).toContain("x: 1");
   }, 10000);
+
+  it("leads the work column with a button for every operation", async () => {
+    const root = await mount();
+    const work = root.querySelector(".work")!;
+    expect(work.firstElementChild!.classList.contains("ops")).toBe(true);
+    const ops = [...work.querySelectorAll(".op button")].map((b) => b.textContent);
+    expect(ops).toEqual(["validate", "validate-any", "translate", "hydrate", "dehydrate", "openapi", "jsonschema", "typescript"]);
+    expect(opButton(root, "validate").getAttribute("aria-pressed")).toBe("true");
+    render(null, root);
+  });
+
+  it("shows the data only for operations that take it", async () => {
+    const root = await mount();
+    const dataEditor = () => root.querySelector(".work .data-editor");
+    expect(dataEditor()).not.toBeNull();
+    await act(async () => opButton(root, "typescript").click());
+    expect(opButton(root, "typescript").getAttribute("aria-pressed")).toBe("true");
+    expect(opButton(root, "validate").getAttribute("aria-pressed")).toBe("false");
+    expect(dataEditor()).toBeNull();
+    expect(root.querySelector(".work .panel")).not.toBeNull();
+    await act(async () => opButton(root, "translate").click());
+    expect(dataEditor()).not.toBeNull();
+    render(null, root);
+  });
+
+  it("links every operation to its reference entry", async () => {
+    const root = await mount();
+    const link = (op: string) => opButton(root, op).parentElement!.querySelector<HTMLAnchorElement>("a.doc-link");
+    for (const op of ["validate", "validate-any", "translate", "hydrate", "dehydrate"]) {
+      expect(link(op)!.href, op).toBe(`${docsBase}reference/operations.md#${op}`);
+    }
+    expect(link("jsonschema")!.href).toBe(`${docsBase}reference/codegen.md#json-schema`);
+    expect(link("translate")!.target).toBe("_blank");
+    render(null, root);
+  });
+
+  it("links the normal form tab, and no other output tab", async () => {
+    const root = await mount();
+    const tabs = [...root.querySelectorAll('[aria-label="output"] .tab')];
+    expect(tabs.map((t) => t.querySelector("a.doc-link")?.getAttribute("href") ?? null)).toEqual([null, null, `${docsBase}reference/lineage.md#forms`]);
+    render(null, root);
+  });
+
+  it("opens the tour beside the work, and closes it", async () => {
+    const root = await mount();
+    const tourButton = [...root.querySelectorAll<HTMLButtonElement>("header button")].find((b) => b.textContent === "Tour")!;
+    expect(root.querySelector(".tour")).toBeNull();
+    await act(async () => tourButton.click());
+    expect(root.querySelector("main > .tour")).not.toBeNull();
+    expect(root.querySelector("main")!.classList.contains("touring")).toBe(true);
+    await act(async () => root.querySelector<HTMLButtonElement>(".tour .close")!.click());
+    expect(root.querySelector(".tour")).toBeNull();
+    render(null, root);
+  });
+
+  describe("with a host's examples", () => {
+    const pet: HostExample = {
+      example: { id: "pets/pet", title: "pet", category: "Pets", summary: "A pet.", kind: "normal", binds: true },
+      lineage: { normal: { path: "lineage.cue", text: 'name: "pet"\n' } },
+    };
+    const empty: HostExample = { ...pet, example: { ...pet.example, id: "pets/empty", title: "empty" } };
+    afterEach(() => {
+      hostManifest = null;
+      hostManifestSent = null;
+      registered = { ok: true, diagnostics: [], registered: [] };
+    });
+
+    it("registers them before listing the examples, and offers them under their category", async () => {
+      hostManifest = { examples: [pet] };
+      registered = { ok: true, diagnostics: [], registered: ["pets/pet"] };
+      const root = await mount();
+      expect(hostManifestSent).toEqual(hostManifest);
+      expect(calls.indexOf("register-examples")).toBeLessThan(calls.indexOf("examples"));
+      const group = root.querySelector<HTMLOptGroupElement>('header select optgroup[label="Pets"]');
+      expect([...group!.querySelectorAll("option")].map((o) => o.value)).toEqual(["pets/pet"]);
+      expect(root.querySelector(".notice")).toBeNull();
+      render(null, root);
+    });
+
+    it("says which were left out", async () => {
+      hostManifest = { examples: [pet, empty] };
+      registered = {
+        ok: false,
+        diagnostics: [{ code: "E0805", severity: "error", headline: 'host example "pets/empty" is declared to bind, but does not' }],
+        registered: ["pets/pet"],
+      };
+      const root = await mount();
+      expect(root.querySelector(".notice")!.textContent).toContain('host example "pets/empty" is declared to bind, but does not');
+      expect(root.querySelector('header select option[value="pets/pet"]')).not.toBeNull();
+      render(null, root);
+    });
+
+    it("says when they cannot be read, and goes on without them", async () => {
+      hostManifest = new Error("fetching examples.json: 500 Internal Server Error");
+      const root = await mount();
+      expect(calls).not.toContain("register-examples");
+      expect(root.querySelector(".notice")!.textContent).toContain("500");
+      expect(root.querySelector(".lineage .cm-editor")).not.toBeNull();
+      render(null, root);
+    });
+
+    it("registers nothing when the host serves none", async () => {
+      const root = await mount();
+      expect(calls).not.toContain("register-examples");
+      expect(calls).toContain("examples");
+      expect(root.querySelector(".notice")).toBeNull();
+      render(null, root);
+    });
+  });
 });

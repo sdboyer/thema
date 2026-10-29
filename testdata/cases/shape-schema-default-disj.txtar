@@ -1,4 +1,9 @@
-# schema is a struct disjunction with a default: instances of the non-default branch validate, but Translate reports their fields as undeclared
+# schema is a struct disjunction with a default: instances of the non-default
+# branch validate, and translate without their fields being reported as
+# undeclared. The minor step adds an alternative, so the lens back maps it to
+# a constant struct of the first alternative and copies the rest through: a
+# whole copy alone would carry the new alternative into a schema that lacks
+# it, and is refused (#120).
 #issue: 25
 -- in.cue --
 import (
@@ -12,16 +17,22 @@ lin: thema.Lineage & {
 			schema: *{a: int} | {b: string}
 		}
 		"0": "1": {
-			schema: *{a: int} | {b: string} | {c?: bool}
+			schema: *{a: int} | {b: string} | {c: bool}
 		}
 	}
 	lenses: {
 		"0.1->0.0": {
 			v0_1: _
-			v0_0: v0_1
+			v0_0: {
+				if v0_1.c != _|_ {a: 0}
+				if v0_1.c == _|_ {v0_1}
+			}
 		}
 	}
 }
 -- expect --
+bind ok
 validate 0.0 ok {b: "x"}
 translate 0.0 0.1 ok {b: "x"}
+translate 0.1 0.0 ok {b: "x"}
+translate 0.1 0.0 ok {c: true}

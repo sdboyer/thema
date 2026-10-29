@@ -1,0 +1,58 @@
+# a lens copying a disjunction of structs whole into an identical disjunction:
+# total, since every instance of the source is an instance of the target. The
+# checker judges a copy alternative by alternative, and the compatibility
+# rules, given one struct alternative and the target disjunction as bare
+# values, match it to the target alternative that accepts it, at the top of a
+# value as beneath a field (#120).
+#issue: 120
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "lensCopyDisjunctionIdentical"
+	schemas: {
+		"0": "0": {
+			schema: {
+				rootfield: {
+					branch:    1
+					branchone: string
+				} | {
+					branch:    2
+					branchtwo: string
+				}
+			}
+		}
+		"1": "0": {
+			schema: {
+				renamed: {
+					branch:    1
+					branchone: string
+				} | {
+					branch:    2
+					branchtwo: string
+				}
+			}
+		}
+	}
+
+	lenses: {
+		"1.0->0.0": {
+			v1_0: _
+			v0_0: {
+				rootfield: v1_0.renamed
+			}
+		}
+		"0.0->1.0": {
+			v0_0: _
+			v1_0: {
+				renamed: v0_0.rootfield
+			}
+		}
+	}
+}
+-- expect --
+bind ok
+translate 0.0 1.0 ok {rootfield: {branch: 1, branchone: "a"}}
+translate 0.0 1.0 ok {rootfield: {branch: 2, branchtwo: "b"}}
+translate 1.0 0.0 ok {renamed: {branch: 1, branchone: "a"}}
+translate 1.0 0.0 ok {renamed: {branch: 2, branchtwo: "b"}}

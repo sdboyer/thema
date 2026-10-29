@@ -25,6 +25,7 @@ func main() {
 	setupDataCommand(rootCmd)
 	setupLineageCommand(rootCmd)
 	setupServeCommand(rootCmd)
+	setupPlaygroundCommand(rootCmd)
 
 	rootCmd.PersistentFlags().StringVar(&diagFormat, "diag-format", "text", `how diagnostics are reported: "text" on stderr, or "json" on stdout`)
 
@@ -142,6 +143,8 @@ var allCmds = []*cobra.Command{
 	genJschLineageCmd,
 	serveCmd,
 	servePlaygroundCmd,
+	playgroundCmd,
+	playgroundExamplesCmd,
 }
 
 var rootCmd = &cobra.Command{
@@ -154,7 +157,9 @@ This program offers several kinds of behavior for working with Thema:
 * Validating and inspecting of written lineages.
 * Given a valid lineage, provides basic Thema operations (validate, translate,
   [de]hydrate) on some input data.
-* Serve the thema playground locally (thema serve playground).
+* Serve the thema playground locally (thema serve playground), and prepare
+  a directory of lineages as examples for a deployment of it (thema
+  playground examples).
 * Provides scaffolding for writing lineages, lenses, and schema. (TODO)
 
 Every failure is reported as a diagnostic with a code; docs/errors in thema's

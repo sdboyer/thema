@@ -1,0 +1,18 @@
+# A list literal as long as list.MinItems requires at the target; its elements are declared by the list the validator constrains (#163).
+-- source.cue --
+a: int
+-- target.cue --
+import "list"
+items: [...int] & list.MinItems(2)
+-- lens.cue --
+v0_0: _
+v1_0: {items: [v0_0.a, v0_0.a]}
+-- out --
+total
+-- ir --
+out: {
+  out.items: [2] {
+    out.items[0] <- in.a
+    out.items[1] <- in.a
+  }
+}

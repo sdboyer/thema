@@ -1,0 +1,12 @@
+# A struct literal at a disjunctive target that no alternative accepts: its
+# constant selects neither, and its label belongs to one.
+-- source.cue --
+a: string
+-- target.cue --
+rootfield: {branch: 1, one: string} | {branch: 2, two: string}
+-- lens.cue --
+v0_0: _
+v1_0: {rootfield: {branch: 3, one: v0_0.a}}
+-- out --
+not total
+v1_0.rootfield is a struct that no alternative of v1_0.rootfield in the target schema accepts: { branch: 1 one: string } rejects it: conflicting values 3 and 1; { branch: 2 two: string } does not declare one (rule literal-not-instance) @ lens.cue:2:8

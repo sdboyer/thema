@@ -1,0 +1,58 @@
+#op: compile
+A move takes a source field's value as it is, so the target field must
+accept every value the source field may hold. Here count may be any integer,
+and total accepts only non-negative ones.
+-- ship/history/0.0.thema --
+Schema: {
+	count: int
+}
+-- ship/1.0.thema --
+Schema: {
+	total: int & >=0
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		total: v0_0.count
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0359",
+      "severity": "error",
+      "headline": "the ForwardLens in 1.0.thema moves v0_0.count into total, which does not accept every value of it",
+      "primary": {
+        "file": "1.0.thema",
+        "line": 8,
+        "col": 10,
+        "offset": 73,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "total in 1.0 is now uint, which does not accept every value of the prior int (moving v0_0.count; compatibility rule value-narrowed)"
+        }
+      ],
+      "help": [
+        "map total from a value it accepts: a _match, or a computed value"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0359]: the ForwardLens in 1.0.thema moves v0_0.count into total, which does not accept every value of it
+ --> 1.0.thema:8:10
+  |
+8 |         total: v0_0.count
+  |                ^^^^
+  |
+  = note: total in 1.0 is now uint, which does not accept every value of the prior int (moving v0_0.count; compatibility rule value-narrowed)
+  = help: map total from a value it accepts: a _match, or a computed value

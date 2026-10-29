@@ -1,11 +1,13 @@
 package playground
 
 import (
+	"bytes"
 	"encoding/json"
 	"io/fs"
 	"net/http"
 	"path"
 	"strings"
+	"time"
 )
 
 // Handler serves a bundle. thema.wasm goes out compressed when the client
@@ -32,6 +34,19 @@ func Handler(bundle fs.FS) http.Handler {
 			}
 		}
 		files.ServeHTTP(w, r)
+	})
+}
+
+// WithExamples serves manifest at /examples.json, where the frontend looks
+// for a host's examples to register, and everything else from h.
+func WithExamples(h http.Handler, manifest []byte) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if path.Clean(r.URL.Path) != "/examples.json" {
+			h.ServeHTTP(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		http.ServeContent(w, r, "examples.json", time.Time{}, bytes.NewReader(manifest))
 	})
 }
 

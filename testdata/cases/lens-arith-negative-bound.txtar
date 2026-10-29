@@ -1,0 +1,31 @@
+# lens computes into a target bounded below by a negative literal: {a: 0}
+# gives n: -6, which the target's >=-5 rejects. The checker reads the bound
+# (#147), so the lens does not bind.
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "lensArithNegativeBound"
+	schemas: {
+		"0": "0": {
+			schema: {a!: int & >=0 & <=10}
+		}
+		"1": "0": {
+			schema: {n!: int & >=-5 & <=5}
+		}
+	}
+	lenses: {
+		"1.0->0.0": {
+			v1_0: _
+			v0_0: {a: v1_0.n + 5}
+		}
+		"0.0->1.0": {
+			v0_0: _
+			v1_0: {n: v0_0.a - 6}
+		}
+	}
+}
+-- expect --
+bind fail computed-narrowed

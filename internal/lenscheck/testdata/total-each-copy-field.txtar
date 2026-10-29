@@ -1,0 +1,16 @@
+# A list of structs mapped to a list of scalars, each element copying a field of the source element (#165): the body embeds the copy, [for item in v0_0.u {item.id}].
+-- source.cue --
+u: [...{id: string}]
+-- target.cue --
+u: [...string]
+-- lens.cue --
+v0_0: _
+v1_0: {u: [for item in v0_0.u {item.id}]}
+-- out --
+total
+-- ir --
+out: {
+  out.u = each in.u {
+    out.u[_] <- in.u[_].id
+  }
+}

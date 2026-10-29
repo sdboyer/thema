@@ -52,7 +52,7 @@ error[E0506]: disj in the data is not concrete: it is still {run:string,tell?:by
   |
   = detail: disj: incomplete value {run:string,tell?:bytes,dat:int32} | {one:string,two:string}
 -- out/validate/TestValidate/aBazRunWithInt --
-error[E0503]: aBaz.run in the data is int, but schema 0.0 declares it as string
+error[E0503]: aBaz.run in the data is 42, but schema 0.0 declares it as string
   --> in/validate/TestValidate/aBazRunWithInt.data.json:3:16
    |
  3 |         "run": 42
@@ -378,6 +378,72 @@ export interface Refstruct {
 }
 -- out/lensir --
 no lenses
+-- out/encoding/jsonschema/TestGenerate --
+== 0.0.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Bar": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "one": {
+          "type": "string"
+        },
+        "two": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "one",
+        "two"
+      ]
+    },
+    "Baz": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dat": {
+          "type": "integer",
+          "maximum": 2147483647,
+          "minimum": -2147483648
+        },
+        "run": {
+          "type": "string"
+        },
+        "tell": {
+          "type": "string",
+          "contentEncoding": "base64"
+        }
+      },
+      "required": [
+        "dat",
+        "run"
+      ]
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "aBaz": {
+      "$ref": "#/$defs/Baz"
+    },
+    "disj": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Baz"
+        },
+        {
+          "$ref": "#/$defs/Bar"
+        }
+      ]
+    }
+  },
+  "required": [
+    "aBaz",
+    "disj"
+  ]
+}
 -- out/encoding/capnp --
 rejected
 schema 0.0: disj is { run: string dat: int32 } | { one: string two: string }, whose struct alternatives share no label holding a distinct constant in each; no discriminant can be derived from a value (rule disjunction-undiscriminated) @ /in.cue:9:4

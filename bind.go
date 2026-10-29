@@ -52,8 +52,8 @@ type maybeLineage struct {
 	allv []SyntacticVersion
 
 	// programs holds the program built for each lens as checkLensTotality
-	// proves it (internal/lensir); nil where the check was skipped.
-	// programErr says why a total lens has no program.
+	// proves it (internal/lensir). programErr says why a total lens has no
+	// program.
 	programs   lensir.Programs
 	programErr error
 
@@ -163,7 +163,7 @@ func (ml *maybeLineage) checkGoValidity(cfg *bindConfig) error {
 		if err := ml.checkSchemaConstructs(sch.ref.LookupPath(pathSch), schemaAddr(sch.v)); err != nil {
 			return err
 		}
-		if previous != nil && !cfg.skipbuggychecks {
+		if previous != nil {
 			res := compat.Check(ml.rt.Context(), previous.def, sch.def)
 			if sch.v[1] == 0 && res.Compatible() {
 				// Major version change, should be backwards incompatible
@@ -813,13 +813,7 @@ func (ml *maybeLineage) checkReferences() error {
 // by the walk as a by-product of the proof; [LensPrograms] returns them. A
 // lens the IR cannot yet carry binds all the same, and the accessor says why
 // it has no program.
-//
-// SkipBuggyChecks skips it: the corpus has lenses the check correctly refuses
-// (exemplars/expand, 0.3->0.2, drops "baz"), which #87 migrates.
-func (ml *maybeLineage) checkLensTotality(cfg *bindConfig) error {
-	if cfg.skipbuggychecks {
-		return nil
-	}
+func (ml *maybeLineage) checkLensTotality() error {
 	byVersion := make(map[SyntacticVersion]*schemaDef, len(ml.schlist))
 	for _, sch := range ml.schlist {
 		byVersion[sch.v] = sch
@@ -851,12 +845,8 @@ func (ml *maybeLineage) checkLensTotality(cfg *bindConfig) error {
 }
 
 // totalityFindings runs the totality checker over one lens and returns its
-// result, with a diagnostic per finding that is not Total. Under
-// SkipBuggyChecks there are none.
+// result, with a diagnostic per finding that is not Total.
 func (ml *maybeLineage) totalityFindings(lens cue.Value, fsch, tsch *schemaDef) (lenscheck.Result, []error) {
-	if ml.cfg.skipbuggychecks {
-		return lenscheck.Result{}, nil
-	}
 	var errs []error
 	res := lenscheck.Check(ml.rt.Context(), lens, fsch.def, tsch.def, lensParam(fsch.v), lensParam(tsch.v))
 	for _, f := range res.Findings {

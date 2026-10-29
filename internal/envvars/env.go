@@ -5,10 +5,6 @@ import "os"
 // VarUpdateGolden is the name of the env var to trigger updating golden test files.
 const VarUpdateGolden = "THEMA_UPDATE_GOLDEN"
 
-// ForceVerify indicates that all verifications should be performed, even if
-// e.g. SkipBuggyChecks() says otherwise.
-var ForceVerify = os.Getenv("THEMA_FORCEVERIFY") != ""
-
 // ReverseTranslate indicates whether reverse translation is supported.
 //
 // Used primarily as a single point of control for testing.

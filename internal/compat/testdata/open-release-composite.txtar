@@ -1,0 +1,13 @@
+# an optional struct- or list-valued field removed from an open struct (#166):
+# the ... accepts the label with any value, so every prior value of the field
+# is still accepted. The converse of open-claim-struct.
+-- old.cue --
+a!: string
+b?: {t!: string}
+c?: [...string]
+...
+-- new.cue --
+a!: string
+...
+-- out --
+compatible

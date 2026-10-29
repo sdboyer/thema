@@ -22,6 +22,15 @@ type CodeInfo struct {
 	// no version files, a lens that is missing. Every other code must find the
 	// author's position, and the reproducer tests enforce it.
 	Positionless bool
+	// Internal, when set, marks a code whose condition cannot arise when
+	// thema's checker is sound, and says which proof rules it out. Such a code
+	// has no reproducer: there is no lineage that shows it. Its page says that
+	// seeing it is a bug in thema and asks for a report.
+	Internal string
+	// Retired, when set, says why the code is no longer reported and what
+	// reports its cases now. A retired code keeps its entry and its docs page,
+	// has no reproducer, and is never reused.
+	Retired string
 }
 
 // Codes declares every code, sorted. The hundreds group them:
@@ -40,7 +49,7 @@ var Codes = []CodeInfo{
 	{Code: E0101, Severity: SeverityError, Title: "a file in the lineage's directory is not a version file", Sentinels: []error{terrors.ErrInvalidLineage}, Positionless: true},
 	{Code: E0102, Severity: SeverityError, Title: "a version file is not CUE syntax", Sentinels: []error{terrors.ErrInvalidLineage}},
 	{Code: E0103, Severity: SeverityError, Title: "a version file has a package clause", Sentinels: []error{terrors.ErrInvalidLineage}},
-	{Code: E0104, Severity: SeverityError, Title: "a version file imports a package", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0104, Severity: SeverityError, Title: "a version file imports a package", Sentinels: []error{terrors.ErrInvalidLineage}, Retired: "A version file may import CUE's builtin packages since #104. An import of any other package is E0143, the rule for schemas and lenses in either form."},
 	{Code: E0105, Severity: SeverityError, Title: "a version file has a field that is not schema, ForwardLens or BackwardLens", Sentinels: []error{terrors.ErrInvalidLineage}},
 	{Code: E0106, Severity: SeverityError, Title: "a version file declares a field twice", Sentinels: []error{terrors.ErrInvalidLineage}},
 	{Code: E0107, Severity: SeverityError, Title: "a lens block is not a struct", Sentinels: []error{terrors.ErrInvalidLineage}},
@@ -72,6 +81,7 @@ var Codes = []CodeInfo{
 	{Code: E0144, Severity: SeverityError, Title: "a lens refers to a schema of the lineage", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0145, Severity: SeverityError, Title: "a lens refers to another lens of the lineage", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0146, Severity: SeverityError, Title: "a reference cannot be resolved statically", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0147, Severity: SeverityError, Title: "a version file imports a package its Schema does not use", Sentinels: []error{terrors.ErrInvalidLineage}},
 	{Code: E0201, Severity: SeverityError, Title: "the first schema is not version 0.0", Sentinels: []error{terrors.ErrNonContiguousVersions}},
 	{Code: E0202, Severity: SeverityError, Title: "a schema's version does not follow its predecessor's", Sentinels: []error{terrors.ErrNonContiguousVersions}},
 	{Code: E0203, Severity: SeverityError, Title: "a major version declares no schemas", Sentinels: []error{terrors.ErrNonContiguousVersions}},
@@ -98,10 +108,10 @@ var Codes = []CodeInfo{
 	{Code: E0301, Severity: SeverityError, Title: "the lineage lacks a lens its versions require", Sentinels: []error{terrors.ErrMissingLenses, terrors.ErrInvalidLineage}, Positionless: true},
 	{Code: E0302, Severity: SeverityError, Title: "the lineage declares a lens its versions do not require", Sentinels: []error{terrors.ErrErroneousLenses, terrors.ErrInvalidLineage}},
 	{Code: E0303, Severity: SeverityError, Title: "a lens does not accept every instance of its source schema", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
-	{Code: E0304, Severity: SeverityError, Title: "what a lens produces is not an instance of its target schema", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
+	{Code: E0304, Severity: SeverityError, Title: "what a lens produces is not an instance of its target schema", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}, Internal: "every lens is proven total at bind, and the proof names the mapping at fault (E0360 to E0372) before this check runs"},
 	{Code: E0305, Severity: SeverityError, Title: "a lens writes a field its target schema does not declare", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
-	{Code: E0307, Severity: SeverityError, Title: "translating an instance, a lens produced something that is not concrete", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrLensIncomplete}},
-	{Code: E0308, Severity: SeverityError, Title: "translating an instance, a lens failed", Sentinels: []error{terrors.ErrInvalidLens}},
+	{Code: E0307, Severity: SeverityError, Title: "translating an instance, a lens produced something that is not concrete", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrLensIncomplete}, Internal: "every lens is proven total at bind, which rules out a result field left as a constraint for any instance (E0365)"},
+	{Code: E0308, Severity: SeverityError, Title: "translating an instance, a lens failed", Sentinels: []error{terrors.ErrInvalidLens}, Internal: "every lens is proven total at bind, which rules out a result the target schema rejects for any instance (E0360, E0366, E0367)"},
 	{Code: E0310, Severity: SeverityError, Title: "a lens does not declare the instance it takes", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0311, Severity: SeverityError, Title: "a lens does not declare the instance it returns", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0330, Severity: SeverityError, Title: "a lens body holds something that is not a mapping", Sentinels: []error{terrors.ErrInvalidLens}},
@@ -131,6 +141,8 @@ var Codes = []CodeInfo{
 	{Code: E0355, Severity: SeverityError, Title: "a minor version has a ForwardLens", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0356, Severity: SeverityError, Title: "a normal-form lens is outside what the authoring form expresses", Sentinels: []error{terrors.ErrInvalidLens}, Positionless: true},
 	{Code: E0357, Severity: SeverityError, Title: "a mapping calls a function a lens may not call", Sentinels: []error{terrors.ErrInvalidLens}},
+	{Code: E0358, Severity: SeverityError, Title: "a field both versions declare cannot be copied: the target does not accept every source value", Sentinels: []error{terrors.ErrInvalidLens}},
+	{Code: E0359, Severity: SeverityError, Title: "a move reads a source field whose values the target field does not all accept", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0360, Severity: SeverityError, Title: "a lens copies a value its target rejects for some instance", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
 	{Code: E0361, Severity: SeverityError, Title: "a lens reads a field that may be absent", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
 	{Code: E0362, Severity: SeverityError, Title: "a lens reads a field its source schema does not declare", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
@@ -198,10 +210,14 @@ var Codes = []CodeInfo{
 	{Code: E0617, Severity: SeverityError, Title: "this thema was built without the playground", Positionless: true},
 	{Code: E0618, Severity: SeverityError, Title: "the server cannot listen on the address", Positionless: true},
 	{Code: E0620, Severity: SeverityError, Title: "a flag or argument is not valid", Positionless: true},
+	{Code: E0621, Severity: SeverityError, Title: "an example's example.cue is not valid", Positionless: true},
+	{Code: E0622, Severity: SeverityError, Title: "the examples directory holds no example", Positionless: true},
 	{Code: E0701, Severity: SeverityError, Title: "generating code from the schema failed", Positionless: true},
 	{Code: E0801, Severity: SeverityError, Title: "the playground request is malformed", Positionless: true},
 	{Code: E0802, Severity: SeverityError, Title: "the playground request gives the lineage in neither form, or in both", Positionless: true},
 	{Code: E0803, Severity: SeverityError, Title: "a version in the playground request is not a version", Positionless: true},
+	{Code: E0804, Severity: SeverityError, Title: "a host example in the playground request is incomplete or inconsistent", Positionless: true},
+	{Code: E0805, Severity: SeverityError, Title: "a host example does not bind as its record declares", Positionless: true},
 	{Code: E0901, Severity: SeverityError, Title: "thema failed internally", Positionless: true},
 	{Code: E0902, Severity: SeverityError, Title: "CUE reported an error thema does not recognize", Positionless: true},
 	{Code: E0903, Severity: SeverityError, Title: "thema reported an error that has no code", Positionless: true},
@@ -246,6 +262,7 @@ const (
 	E0144 Code = "E0144" // ref-lens-to-schema
 	E0145 Code = "E0145" // ref-lens-to-lens
 	E0146 Code = "E0146" // ref-unresolved
+	E0147 Code = "E0147" // a version file imports a package its Schema does not use
 
 	E0201 Code = "E0201" // first version is not 0.0
 	E0202 Code = "E0202" // a version is neither the next minor nor the next major
@@ -277,11 +294,12 @@ const (
 	E0301 Code = "E0301" // a required lens is missing
 	E0302 Code = "E0302" // a lens no edge requires
 	E0303 Code = "E0303" // input narrower than the source schema
+	// E0304 is the data-independent check of a lens's result, and E0307 and
+	// E0308 arise when translating an instance. Every lens is proven total at
+	// bind, which rules all three out; they remain as the fallbacks that
+	// report a checker bug (Internal in Codes).
 	E0304 Code = "E0304" // result not an instance of the target schema, data-independently
 	E0305 Code = "E0305" // result writes fields the target does not declare
-	// E0307 and E0308 arise when translating an instance, for a lens the
-	// totality checker did not refuse at bind: under SkipBuggyChecks, or for
-	// what the checker cannot yet see. Every one is a lens bug (#57).
 	E0307 Code = "E0307" // the lens's result for this instance is not concrete
 	E0308 Code = "E0308" // the lens failed to evaluate for this instance
 	E0310 Code = "E0310" // lens lacks its parameter field
@@ -314,6 +332,8 @@ const (
 	E0355 Code = "E0355" // a ForwardLens in a minor version
 	E0356 Code = "E0356" // normal form Decompile cannot express
 	E0357 Code = "E0357" // call to a function outside the lens language
+	E0358 Code = "E0358" // implicit copy whose source the target does not accept
+	E0359 Code = "E0359" // move whose source the target does not accept
 	// E0360 to E0372: one per rule of internal/lenscheck that refutes totality;
 	// E0380 to E0390: one per rule that leaves the verdict Unknown.
 	E0360 Code = "E0360" // copy-narrowed
@@ -400,6 +420,8 @@ const (
 	E0617 Code = "E0617" // serve playground in a build without it
 	E0618 Code = "E0618" // serve cannot listen
 	E0620 Code = "E0620" // a CLI flag or argument that is not valid
+	E0621 Code = "E0621" // an example.cue that is not CUE, lacks a category, or has another field
+	E0622 Code = "E0622" // an examples directory with no example in it, or not a directory
 
 	// E07xx: code generation.
 	E0701 Code = "E0701" // a generator failed on the schema
@@ -408,6 +430,8 @@ const (
 	E0801 Code = "E0801" // request JSON malformed, or no such operation
 	E0802 Code = "E0802" // lineage in neither form, or both
 	E0803 Code = "E0803" // a request's version does not parse
+	E0804 Code = "E0804" // a host example: no ID, title or category; a taken ID or category; a kind not its lineage's
+	E0805 Code = "E0805" // a host example binds when declared not to, or the reverse
 
 	// E0901: a panic inside thema, recovered at an operation boundary. The
 	// detail holds the panic value and stack.

@@ -1,4 +1,5 @@
-# lineage name contains an underscore, which some codegen targets (Cap'n Proto) forbid
+# lineage name contains an underscore: allowed. Cap'n Proto, which forbids
+# underscores in names, drops them predictably (ship_v2 becomes shipv2).
 -- in.cue --
 import (
 	"github.com/sdboyer/thema"
@@ -11,4 +12,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail is not an identifier
+bind ok

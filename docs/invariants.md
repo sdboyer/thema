@@ -195,6 +195,21 @@ compatible unless the change reaches data through a reference; a reference
 means the value it refers to. Both schemas are closed before comparison, so an
 undeclared field is rejected unless the author wrote `...`.
 
+A disjunction is compared alternative by alternative wherever it stands,
+beneath a field or as the whole of a schema. Each *prior* alternative must be
+accepted by one *new* alternative on its own. Where none does, a value of the
+*prior* alternative that *new* rejects is a counterexample, and the step is
+incompatible. The checker looks for one in three places: the alternative
+itself when it is concrete, any of its values when no *new* alternative shares
+its kind, and, for each scalar kind it admits, the first value of a fixed
+sequence that equals no concrete *new* alternative (`""` for `string` →
+`"a" | "b"`, `2` for `int` → `0 | 1`). Otherwise the `unknown-disjunction` row below applies. A *new* alternative no
+prior alternative needs is a widening. A value that is not a disjunction is
+one alternative, so `"a"` → `"a" | "b"` is a widening, at a required or
+optional field as at a regular one. A conjunction with a disjunctive operand,
+`(A | B) & C` or `#Union & {d?: int}`, is the disjunction of that operand's
+alternatives, each unified with the rest.
+
 ### Field forms
 
 Most verdicts come from fields, and what matters about a field is what an
@@ -278,7 +293,11 @@ for example
 Compatible changes include adding an optional or defaulted field, making a
 required field optional or defaulted, making an optional field defaulted,
 widening a value, dropping a validator, and adding hidden fields, definitions or
-`let`s.
+`let`s. Removing an optional field from a struct whose `...` still accepts it
+is compatible too, whatever its value, a struct or list included: `...` accepts
+the label with any value. The converse, declaring a type narrower than `_` for
+a label `...` accepted, narrows what *prior* admitted there, even as an
+optional field.
 
 | Rule | Unknown when | What to do |
 |---|---|---|
@@ -347,7 +366,10 @@ thema proves this when it binds a lineage, and a lineage with a lens it cannot
 prove total does not bind. Binding is how thema loads a lineage and checks every
 invariant in this document, and nothing in thema uses a lineage that has not
 bound. Because every lens is total, translating an instance from one version to
-another cannot fail.
+another cannot fail. What a step does with each field of an instance, including
+fields no lens maps and the fields an open struct admits without declaring,
+and which lacunas it raises, is defined in [translation](translation.md); this
+section is about the lens.
 
 This section defines totality, states the rules a lens must satisfy for thema
 to prove it, and says what the verdicts are worth across thema releases.
@@ -391,11 +413,25 @@ two paths, defaults included: an instance that omits a field with a default
 is not filled with the default alone but with the whole defaulted field
 (`*1 | int`), so copying it into a field with another default gives two
 defaults and no single value. An optional field an instance omits stays
-absent, and copies nothing.
+absent, and copies nothing. Where the target at the field is a disjunction,
+each alternative the source may hold at the path, once the patterns above the
+copy have refined them, must be accepted by one of the target's alternatives
+on its own; the compatibility rules decide which. A source that is not a
+disjunction is one alternative, so `{t!: "a"}` copies into `{t!: "a" | "b"}`.
 
 **Literals.** A literal must be an instance of the target at its field. A
 struct or list literal must have the target's kind, and each of its fields or
-elements is proven in turn at its own path.
+elements is proven in turn at its own path. A struct literal written where the
+target is a disjunction must be an instance of one alternative, and is proven
+against that alternative alone, closed as translation closes the result. The
+alternative is the one that declares every label the literal writes and
+accepts every scalar literal it writes directly; a literal that fits no
+alternative is not total, and one that fits several is not proven. A struct
+literal made only of arms (`if`) at such a target is proven arm by arm, each
+arm's struct against its own alternative; the arms must give the field an
+alternative on every instance, and may not write two alternatives for one
+instance. A struct literal mixing plain fields with arms or embeddings, and a
+list literal beneath a disjunction, are not proven.
 
 **Computed values.** A computed field uses only the operations listed below,
 and every value it can take must fit the target at the field.
@@ -406,7 +442,11 @@ input paths: a presence test (`p != _|_`), an equality with a literal
 (`p == c`), a type test (`(p & T) != _|_`), the negation of one of them, or a
 conjunction (`&&`) of them. A boolean field on its own, `p`, is the equality
 `p == true`. Within an arm, the proof knows what its pattern establishes: that
-`p` is present, holds `c`, or is a `T`. A type test against a literal,
+`p` is present, holds `c`, or is a `T`. A pattern on a path beneath a
+disjunction also narrows every path above it to the alternatives in which the
+pattern can hold: under `v0_1.rootfield.branch == 1`, where `rootfield` is a
+disjunction of structs each with a constant `branch`, a copy of `rootfield`
+carries only the alternative whose `branch` is `1`. A type test against a literal,
 `(p & c) != _|_`, is the equality `p == c`, since input is data; unlike
 `p == c` it is `false` rather than an error where `p` is absent, so it may
 test an optional field, and where it holds `p` is present. An equality on a
@@ -419,13 +459,30 @@ so arms must be exhaustive *and* agree where they overlap.
 **Lists mapped element by element.** A list may be written as one
 comprehension over a source list, `[for item in v0_0.items {...}]`. The body
 is proven as a lens from the source list's element to the target list's, with
-`item` standing for the element, and every rule above applies to it. The list
+`item` standing for the element, and every rule above applies to it. A body
+that embeds one reference, `[for item in v0_0.users {item.id}]`, copies it as
+the whole element, under the rule for copies: the element must always have it
+(`source-absent` otherwise), and the target's element must accept every value
+of it. The list
 has one element per element of the source, so the target list's length bounds
-must accept the source list's. A comprehension that filters (`if`), nests
-`for` clauses, or sits beside other elements is not proven. A list the lens
-builds this way and names through a `let` may be measured with `len`, within
-the source list's bounds, and its elements reported by a lacuna under the
-comprehension's own patterns.
+must accept the source list's. A list's length bounds are those its shape sets
+(`[_, ...T]`) and those `list.MinItems` and `list.MaxItems` set; a list literal
+must fall within the target's the same way. Any other validator on the target
+list (`list.UniqueItems`, `list.IsSorted`, …) constrains it beyond its length,
+which the proof does not compare. Nor does it read any other validator on the
+source list, which may bound its length further: where the bounds it reads do
+not fit the target's, the mapping is Unknown. A comprehension that filters
+(`if`), nests `for` clauses, or sits beside other elements is not proven; a
+comprehension written in the body of another, mapping a list within the
+element, is proven as any list in the body is. A list the lens builds this way
+and names through a `let` may be measured with `len`, within the source list's
+bounds, and its elements reported by a lacuna under the comprehension's own
+patterns. Such a list may also be built by nested `for` clauses (`[for s in
+v0_0.steps for f in s.fields {...}]`), and measures up to the product of the
+lengths of the lists they iterate. A pattern tested before a `for` clause guards
+the iteration (`[if v0_0.items != _|_ for item in v0_0.items {...}]`): where it
+fails the list is empty, and the source list is read under it, so that a list
+the source may omit can be measured.
 
 **Exhaustiveness.** Every field the target requires must be written for every
 instance. That holds when the field is written unconditionally, or when the
@@ -437,9 +494,24 @@ patterns it is written under together cover every instance:
   is a constant, or
 - equalities with `true` and with `false`, for a boolean field.
 
+A field written as arms at a disjunctive target must be given an alternative
+the same way.
+
+A field that reads another result field (`v1_0.a`, `self.a`, or through an
+alias) reads it only where it is written. Where `a` is written under patterns,
+they must hold wherever the reading field is written: the reader is written
+under the same patterns, or the patterns `a` is written under cover every
+instance, as above. Otherwise the read finds `a` absent, which is an error.
+A hidden field reading one is exempt, since an absent field leaves it
+incomplete rather than failing.
+
 **One value per path.** No path may be written twice unless the two values
 cannot disagree. Two writes to one path unify, so the second can reject the
-first's value.
+first's value. At a disjunctive target, two writes that may produce different
+alternatives for one instance conflict even where they share no field: the
+structs unify into an instance of neither. A hidden field the lens declares is
+a path like any other: it is evaluated, so two values that may disagree fail
+the lens whether or not a result field reads it.
 
 **Lacunas.** A lacuna's condition is a pattern, or a guard: a boolean
 expression that the operations below prove to evaluate for every instance.
@@ -510,25 +582,25 @@ for example
 | `target-undeclared` | the lens writes a path the target schema does not declare |
 | `pattern-absent` | an equality tests a path that may be absent. CUE makes comparing an absent field an error, not `false` |
 | `not-a-value` | a result field is a constraint (`int`, `_`), an error (`_\|_`), or a disjunction, where an instance needs one concrete value; or a lacuna's type is not a literal |
-| `literal-not-instance` | a literal, struct or list is not an instance of the target at its path: a wrong kind, a value outside the target, a list of the wrong length |
+| `literal-not-instance` | a literal, struct or list is not an instance of the target at its path: a wrong kind, a value outside the target, a list of the wrong length, a struct no alternative of a disjunctive target accepts |
 | `computed-narrowed` | a computed value has a possible result the target rejects: a kind the target lacks, a boolean it does not accept, or an integer outside its bounds |
 | `required-not-written` | a field the target requires is never written on some path through the lens |
-| `write-conflict` | a path is written twice with values that may disagree |
+| `write-conflict` | a path, a hidden field's included, is written twice with values that may disagree, or as instances of two alternatives of a disjunctive target |
 | `arith-overflow` | an integer operation's result may exceed `int64` |
 | `division-by-zero` | a divisor is zero for some instance |
 | `table-key-missing` | a table is indexed by a value with no entry |
 
 | Rule | Unknown when | What to do |
 |---|---|---|
-| `unknown-copy` | the compatibility rules cannot decide whether the copied value fits the target: a constraint between fields, a pending comprehension, a validator, or a disjunction they cannot match | copy a value whose schemas the compatibility rules decide (see their Unknown table) |
+| `unknown-copy` | the compatibility rules cannot decide whether the copied value fits the target: a constraint between fields, a pending comprehension, a validator, or a disjunction they cannot match; or a list is mapped element by element from a source list whose validator may bound its length where the target's bounds need it | copy a value whose schemas the compatibility rules decide (see their Unknown table) |
 | `unknown-pattern` | an arm's condition is not a pattern (a presence test, an equality or a type test on an input field, or a conjunction of these); a lacuna's condition is neither a pattern nor a boolean the computed rules prove; or an equality tests a field that may be a float | write the condition as a pattern, testing one input field at a time; test a number's type before comparing it |
-| `unknown-exhaustive` | a required field is written only under patterns that cannot be shown to cover every instance | write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field |
+| `unknown-exhaustive` | a required field is written only under patterns that cannot be shown to cover every instance; or a field reads a result field written only under patterns that cannot be shown to hold wherever the reader is written | write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field; write a reader under the patterns of the field it reads |
 | `unknown-op` | a computation uses an operation outside the proven set: `/`, a float, a builtin not listed above, or `&` or `\|` within an expression; or a call constrains the result | use the listed operations, with `quo` or `div` for integer division; write the result as a struct |
 | `unknown-dynamic` | fields are produced by a `for` clause or a computed label, or list elements by a comprehension that filters, nests `for` clauses, or sits beside other elements | write each field by name; map a list with one comprehension over one source list, every element |
 | `unknown-reference` | the lens reads something that cannot be followed to the input or to a constant: a computed index or label, or a selection into a comprehension's output | select fields by name |
 | `unknown-bounds` | an integer operand has no finite bounds, so the result cannot be shown to fit `int64` or the target, or an operand occurs more than once. Bounds that contain the target's refute nothing when the result need not take them, as with `len` | bound the fields the computation reads (`int32`, `>=0 & <=100`) |
 | `unknown-divisor` | a divisor's bounds include zero, though zero may not be an instance | bound the divisor away from zero (`>0` or `<0`) |
-| `unknown-target-constraint` | the target constrains a computed value in a way the proof does not compare: a regular expression, a validator, alternatives with gaps, or a disjunction above the written path | express the constraint with `>=`, `<=` or a sized type, make a string target accept any string, or write a disjunctive target as one value |
+| `unknown-target-constraint` | the target constrains a computed value in a way the proof does not compare: a regular expression, a validator, or alternatives with gaps; a list literal or a mapped list is written to a target list with a validator other than `list.MinItems` and `list.MaxItems`; a struct written to a disjunctive target fits several of its alternatives, or mixes plain fields with arms or embeddings; or a list literal, a mapped list's elements, or a computed value is written beneath a disjunction | express the constraint with `>=`, `<=` or a sized type, or make a string target accept any string; at a disjunctive target write one struct per alternative, its fields unconditional, with a constant field telling the alternatives apart, each in its own arm |
 | `unknown-table-key` | a table is indexed by a value that is not a finite set of string constants | index by an input field whose alternatives are string constants |
 | `unknown-head` | the first element of a list built by a comprehension is taken with no unconditional fallback, or with one that is itself conditional | add an unconditional fallback element: `[if c {x}, y][0]` |
 
@@ -550,17 +622,22 @@ compatibility verdict, and moves with it.
 The proof of a lens leaves behind the lens's program (`internal/lensir`): a
 target-neutral account of what the lens writes into its result and from what,
 built node by node at the places in the walk that proved them, so that no
-node exists without its proof. A lens that is not proven total has no program,
-and a lineage bound with `SkipBuggyChecks`, whose lenses were not proven, has
-none; `thema.LensPrograms` returns a lineage's programs or says why there are
-none. Backends such as `encoding/capnp` render the programs; they never consult
+node exists without its proof. A lens that is not proven total has no program;
+`thema.LensPrograms` returns a lineage's programs or says why there are none.
+Backends such as `encoding/capnp` render the programs; they never consult
 the lens's CUE. The nodes are the proven forms: copies, constants, struct and
 list literals, lists mapped element by element (`each`), branches on patterns,
 heads, tables, computed expressions over the operations above, and the
 declared lacunas, with an entry reported under its own presence test carrying
-that test. Two proven forms are not yet carried, and a lens using them binds
+that test. Where a copy's target is a disjunction of structs or lists, the
+copy names, for each alternative of the source it may carry, the target
+alternative that accepts it, and a struct literal proven against an
+alternative names it; a backend lowering the disjunction to a tagged union
+reads the member from these. Three proven forms are not yet carried, and a lens using them binds
 without a program: a lacuna reporting one entry per element of a source list,
-and `len` of a list the lens builds through a `let`. Each corpus lineage's
+`len` of a list the lens builds through a `let`, and a list mapped element by
+element inside the body of another over a list outside that one's element,
+where a path into an open element would not say which item it reads. Each corpus lineage's
 programs are recorded beside it (`out/lensir` in `testdata/lineage`,
 `exemplars/testdata/lensir`), and each proven form's in the lens corpus
 (`internal/lenscheck/testdata`, `ir` sections).

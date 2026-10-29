@@ -1,0 +1,20 @@
+# A struct literal beneath a disjunction of structs in the target, copying a
+# source field into one of its fields: proven against the one alternative that
+# declares its labels and accepts its constant (#121; recorded as
+# unknown-target-constraint before the checker matched literals to alternatives).
+-- source.cue --
+a: string
+-- target.cue --
+rootfield: {branch: 1, one: string} | {branch: 2, two: string}
+-- lens.cue --
+v0_0: _
+v1_0: {rootfield: {branch: 1, one: v0_0.a}}
+-- out --
+total
+-- ir --
+out: {
+  out.rootfield: alt 0 {
+    out.rootfield.branch = 1
+    out.rootfield.one <- in.a
+  }
+}

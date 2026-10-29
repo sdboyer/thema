@@ -1,0 +1,33 @@
+# lens maps a list element by element into a target list that list.MaxItems
+# bounds, so the valid input {l: [1, 2, 3]} has no translation; the checker
+# read only the list's element type and took the mapping as total (#163)
+#issue: 163
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+	"list"
+)
+
+lin: thema.Lineage & {
+	name: "lensEachMaxitems"
+	schemas: {
+		"0": "0": {
+			schema: {l!: [...int]}
+		}
+		"1": "0": {
+			schema: {l!: [...int] & list.MaxItems(2)}
+		}
+	}
+	lenses: {
+		"1.0->0.0": {
+			v1_0: _
+			v0_0: {l: [for x in v1_0.l {x}]}
+		}
+		"0.0->1.0": {
+			v0_0: _
+			v1_0: {l: [for x in v0_0.l {x}]}
+		}
+	}
+}
+-- expect --
+bind fail copy-narrowed

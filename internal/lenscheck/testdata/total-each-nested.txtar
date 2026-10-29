@@ -1,0 +1,19 @@
+# A list mapped element by element inside the body of another (#167): the inner comprehension iterates a list in the outer one's item, and its own item shadows the outer one's. The inner list's paths extend the outer's open element, so each open element in a path is the item of the comprehension whose list it extends.
+-- source.cue --
+s: [...{f: [...{n: string}], k: int}]
+-- target.cue --
+s: [...{f: [...{m: string}], k: int}]
+-- lens.cue --
+v0_0: _
+v1_0: {s: [for _item in v0_0.s {k: _item.k, f: [for _item in _item.f {m: _item.n}]}]}
+-- out --
+total
+-- ir --
+out: {
+  out.s = each in.s {
+    out.s[_].k <- in.s[_].k
+    out.s[_].f = each in.s[_].f {
+      out.s[_].f[_].m <- in.s[_].f[_].n
+    }
+  }
+}

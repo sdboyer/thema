@@ -1,0 +1,28 @@
+# A schema that is a disjunction of structs at its top, with an alternative
+# the target lacks: the result's arms write a constant struct where that
+# alternative's field is present, proven against the target's first
+# alternative, and copy the input whole where it is absent, which leaves the
+# other two alternatives to the copy.
+-- source.cue --
+*{a: int} | {b: string} | {c: bool}
+-- target.cue --
+*{a: int} | {b: string}
+-- lens.cue --
+v0_0: _
+v1_0: {
+	if v0_0.c != _|_ {a: 0}
+	if v0_0.c == _|_ {v0_0}
+}
+-- out --
+total
+-- ir --
+out: {
+  if in.c != _|_ {
+    out: alt 0 {
+      out.a = 0
+    }
+  }
+  if in.c == _|_ {
+    out <- in (alt 0 -> 0, 1 -> 1)
+  }
+}

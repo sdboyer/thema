@@ -1,0 +1,16 @@
+# A result field written under an if, read through self (#125): the arm's
+# pattern is carried however the field is reached.
+-- source.cue --
+k: "x" | "y"
+-- target.cue --
+a?: int32
+b!: int64
+-- lens.cue --
+v0_0: _
+v1_0: {
+	if v0_0.k == "x" {a: 1}
+	b: self.a + 1
+}
+-- out --
+unknown
+v1_0.b reads self.a, which is written only under v0_0.k == "x", and the checker cannot show that holds wherever v1_0.b is written; write v1_0.b under the same patterns, or self.a on every path (rule unknown-exhaustive) @ lens.cue:4:5

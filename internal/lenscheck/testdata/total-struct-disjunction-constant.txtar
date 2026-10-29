@@ -1,0 +1,19 @@
+# A constant struct written to a disjunction of structs in the target: an
+# instance of the alternative its constant field selects (the disjunct
+# exemplar's branch-3 fallback, #121).
+-- source.cue --
+a: string
+-- target.cue --
+rootfield: {branch: 1, one: string} | {branch: 2, two: string}
+-- lens.cue --
+v0_0: _
+v1_0: {rootfield: {branch: 2, two: "wasthree"}}
+-- out --
+total
+-- ir --
+out: {
+  out.rootfield: alt 1 {
+    out.rootfield.branch = 2
+    out.rootfield.two = "wasthree"
+  }
+}

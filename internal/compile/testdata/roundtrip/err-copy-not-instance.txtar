@@ -1,0 +1,29 @@
+The example from #102 and #105: tags changes from a list to a map and no lens
+maps it, so the implicit copy would put a list where 1.0 wants a map. Refused
+at compile, in the authoring form's terms, rather than at bind.
+-- ship/history/0.0.thema --
+Schema: {
+	tags: [...string] | null
+}
+-- ship/1.0.thema --
+Schema: {
+	tags: {
+		[string]: string
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {}
+}
+-- out/error --
+error[E0358]: the ForwardLens in 1.0.thema would copy v0_0.tags into tags, which does not accept every value of it
+ --> 1.0.thema:7:1
+  |
+7 | ForwardLens: {
+  | ^^^^^^^^^^^
+  |
+  = note: both 0.0 and 1.0 declare tags, so a lens that does not map it copies it
+  = note: tags in 1.0 was list and is now struct (copying v0_0.tags; compatibility rule value-narrowed)
+  = note: tags in 1.0 was null and is now struct (copying v0_0.tags; compatibility rule value-narrowed)
+  = help: map tags in the ForwardLens: a _match, a computed value, or a constant

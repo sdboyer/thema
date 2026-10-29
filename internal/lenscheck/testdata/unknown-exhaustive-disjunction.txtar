@@ -1,0 +1,16 @@
+# Arms at a disjunctive target that do not cover every instance: where none
+# holds the field is an empty struct, an instance of no alternative.
+-- source.cue --
+p: bool
+-- target.cue --
+o?: {a: int} | {b: int}
+-- lens.cue --
+v0_0: _
+v1_0: {
+	o: {
+		if v0_0.p {a: 1}
+	}
+}
+-- out --
+unknown
+v1_0.o is a disjunction in the target schema, and is given an alternative only under v0_0.p == true, which the checker cannot show cover every instance; write an alternative unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field (rule unknown-exhaustive) @ lens.cue:3:2

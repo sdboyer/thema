@@ -1,0 +1,14 @@
+# A source field bounded on both sides by negative literals (#147).
+-- source.cue --
+a: int & >=-5 & <=-1
+-- target.cue --
+m: int & >=-4 & <=0
+-- lens.cue --
+v0_0: _
+v1_0: {m: v0_0.a + 1}
+-- out --
+total
+-- ir --
+out: {
+  out.m = in.a + 1
+}

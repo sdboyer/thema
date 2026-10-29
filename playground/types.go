@@ -231,3 +231,30 @@ type GetExampleResponse struct {
 	Lineage LineageInput `json:"lineage"`
 	Data    []DataInput  `json:"data"`
 }
+
+// RegisterExamplesRequest adds a host's own examples to thema's, for a
+// deployment of the playground that offers lineages of its own. The examples
+// and example operations then serve both, thema's first. It replaces the
+// examples any earlier request registered.
+type RegisterExamplesRequest struct {
+	Examples []HostExample `json:"examples"`
+}
+
+// HostExample is one example a host supplies, in the shape the example
+// operation returns it. Its ID must be unique among all the examples, and its
+// category must not be one of thema's own. An empty Kind is taken from the
+// lineage's form; a Kind given must name that form. Binds is checked by
+// binding the lineage. Data is offered with the example as it is given.
+type HostExample struct {
+	Example ExampleInfo  `json:"example"`
+	Lineage LineageInput `json:"lineage"`
+	Data    []DataInput  `json:"data,omitempty"`
+}
+
+// RegisterExamplesResponse lists the IDs of the examples registered, in the
+// request's order. Each example refused has an error diagnostic saying why;
+// the others are registered regardless.
+type RegisterExamplesResponse struct {
+	Result     `tstype:",extends"`
+	Registered []string `json:"registered"`
+}
