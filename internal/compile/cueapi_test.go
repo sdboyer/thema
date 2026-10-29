@@ -57,3 +57,23 @@ required selector, nested.optional: exists=true
 		t.Errorf("LookupPath:\n%s\nwant:\n%s", got, want)
 	}
 }
+
+// TestLookupOpenStruct pins that LookupPath finds any name in an open struct,
+// as _, while lookup finds only the names the struct declares: a name its ...
+// merely admits is not declared (#158, #159).
+func TestLookupOpenStruct(t *testing.T) {
+	v := cuecontext.New().CompileString(`{
+	declared?: int
+	...
+}`)
+	admitted := cue.MakePath(cue.Str("admitted").Optional())
+	if got := v.LookupPath(admitted); !got.Exists() || got.IncompleteKind() != cue.TopKind {
+		t.Errorf("LookupPath of a name only ... admits: exists=%v kind=%v, want an existing _", got.Exists(), got.IncompleteKind())
+	}
+	if lookup(v, cue.ParsePath("admitted")).Exists() {
+		t.Error("lookup found a name only ... admits")
+	}
+	if !lookup(v, cue.ParsePath("declared")).Exists() {
+		t.Error("lookup did not find a declared optional field")
+	}
+}

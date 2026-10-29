@@ -1,0 +1,17 @@
+# A list mapped element by element into a target list that list.MinItems bounds, from a source list that has at least as many elements. The elements are declared by the list list.MinItems constrains, though the validator leaves the open list incomplete (#163).
+-- source.cue --
+items: [{title: string}, ...{title: string}]
+-- target.cue --
+import "list"
+items: [...{name: string}] & list.MinItems(1)
+-- lens.cue --
+v0_0: _
+v1_0: {items: [for item in v0_0.items {name: item.title}]}
+-- out --
+total
+-- ir --
+out: {
+  out.items = each in.items {
+    out.items[_].name <- in.items[_].title
+  }
+}

@@ -1,0 +1,82 @@
+A minor version widens a required field from a single value to a disjunction
+containing it (#153): every 0.0 instance is a 0.1 instance. Going backward the
+new alternative has no equivalent, so the BackwardLens writes the one value
+0.0 accepts, with a lacuna where 0.1 held the other; a derived copy would not
+be total.
+-- ship/history/0.0.thema --
+Schema: {
+	t!: "a"
+}
+-- ship/0.1.thema --
+Schema: {
+	t!: "a" | "b"
+}
+
+BackwardLens: {
+	v0_1: _
+	v0_0: {
+		t: "a"
+	}
+	lacunas: {
+		t: [{
+			type:    LossyFieldMapping
+			message: "0.0 has no \"b\"; it becomes \"a\""
+			when:    v0_1.t == "b"
+		}]
+	}
+}
+-- out/bind --
+ok
+-- out/decompiled/0.1.thema --
+Schema: {
+	t!: "a" | "b"
+}
+
+BackwardLens: {
+	v0_1: _
+	v0_0: {
+		t: "a"
+	}
+	lacunas: {
+		t: [{
+			type:    LossyFieldMapping
+			message: "0.0 has no \"b\"; it becomes \"a\""
+			when:    v0_1.t == "b"
+		}]
+	}
+}
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	t!: "a"
+}
+-- out/normal.cue --
+name: "ship"
+schemas:
+	"0": {
+		"0": {
+			schema: {
+				t!: "a"
+			}
+		}
+		"1": {
+			schema: {
+				t!: "a" | "b"
+			}
+		}
+	}
+lenses:
+	"0.1->0.0": {
+		v0_1: _
+		v0_0: {
+			t: "a"
+		}
+		lacunas: [{
+			condition: v0_1.t == "b"
+			targetFields: [{
+				path:  "t"
+				value: v0_0.t
+			}]
+			message: "0.0 has no \"b\"; it becomes \"a\""
+			type:    "LossyFieldMapping"
+		}]
+	}

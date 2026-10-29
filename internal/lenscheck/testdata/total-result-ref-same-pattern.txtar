@@ -1,0 +1,24 @@
+# A result field read under the pattern it is written under, declared later:
+# where the reader is evaluated, the field is present.
+-- source.cue --
+k: "x" | "y"
+-- target.cue --
+a?: int32
+b?: int64
+-- lens.cue --
+v0_0: _
+v1_0: {
+	if v0_0.k == "x" {b: v1_0.a + 1}
+	if v0_0.k == "x" {a: 1}
+}
+-- out --
+total
+-- ir --
+out: {
+  if in.k == "x" {
+    out.b = out.a + 1
+  }
+  if in.k == "x" {
+    out.a = 1
+  }
+}

@@ -1,0 +1,28 @@
+A drop of a field the source admits through its ... but does not declare.
+A lens reads and drops only what its source declares; the forward lens of
+open-source-added-optional already produces no b (#159).
+-- ship/history/0.0.thema --
+Schema: {
+	a!: string
+	...
+}
+-- ship/1.0.thema --
+Schema: {
+	a!: string
+	b?: bool
+	...
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		b: _drop
+	}
+}
+-- out/error --
+error[E0340]: 0.0 does not declare b, so there is nothing to drop
+  --> 1.0.thema:10:3
+   |
+10 |         b: _drop
+   |         ^
+   |

@@ -1,0 +1,17 @@
+# A hidden helper declared twice with values that may disagree (#125): {x: 2}
+# makes v1_0._h 2 & 1, an error. It is evaluated, and v1_0.b reads it, so the
+# one-value-per-path rule covers it as it does a data field.
+-- source.cue --
+x: int32
+-- target.cue --
+b!: int64
+-- lens.cue --
+v0_0: _
+v1_0: {
+	_h: v0_0.x
+	_h: 1
+	b:  _h + 1
+}
+-- out --
+not total
+v1_0._h is written as v0_0.x and as 1, and the two unify, so one may reject the other's value; write the field once (rule write-conflict) @ lens.cue:3:2
