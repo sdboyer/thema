@@ -1,0 +1,12 @@
+# A list literal at a target list that list.UniqueItems constrains: [a, a] is not unique, and the checker reads only length validators on a list (#163).
+-- source.cue --
+a: int
+-- target.cue --
+import "list"
+items: [...int] & list.UniqueItems()
+-- lens.cue --
+v0_0: _
+v1_0: {items: [v0_0.a, v0_0.a]}
+-- out --
+unknown
+v1_0.items is a list literal, and the target list must satisfy list.UniqueItems, which constrains the list beyond its length; the checker reads list.MinItems and list.MaxItems on a list, and nothing else (rule unknown-target-constraint) @ lens.cue:2:8

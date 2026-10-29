@@ -31,6 +31,7 @@ package lenscheck
 
 import (
 	"fmt"
+	"math/big"
 	"sort"
 	"strconv"
 	"strings"
@@ -1209,17 +1210,29 @@ func (w *walker) list(e *ast.ListLit, q cue.Path, gs []pattern, pos token.Pos) {
 			return
 		}
 	}
-	if tgt, ok := w.targetAt(q, pos); ok && tgt.IncompleteKind() != cue.TopKind {
-		if tgt.IncompleteKind()&cue.ListKind == 0 {
-			w.add(Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleLiteralNotInstance,
-				Detail: fmt.Sprintf("is a list, where the target schema wants %s", tgt.IncompleteKind()), Pos: pos})
-			return
-		}
-		shape := w.ctx.CompileString("[" + strings.Repeat("_,", len(e.Elts)) + "]")
-		if err := tgt.Unify(shape).Validate(); err != nil {
-			w.add(Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleLiteralNotInstance,
-				Detail: fmt.Sprintf("is a list of %d elements, which the target schema does not accept: %s", len(e.Elts), errMsg(err)), Pos: pos})
-			return
+	if tgt, ok := w.targetAt(q, pos); ok {
+		if want := w.listBoundsOf(tgt); want.kind != cue.TopKind {
+			if want.kind&cue.ListKind == 0 {
+				w.add(Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleLiteralNotInstance,
+					Detail: fmt.Sprintf("is a list, where the target schema wants %s", want.kind), Pos: pos})
+				return
+			}
+			shape := w.ctx.CompileString("[" + strings.Repeat("_,", len(e.Elts)) + "]")
+			if err := want.plain.Unify(shape).Validate(); err != nil {
+				w.add(Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleLiteralNotInstance,
+					Detail: fmt.Sprintf("is a list of %d elements, which the target schema does not accept: %s", len(e.Elts), errMsg(err)), Pos: pos})
+				return
+			}
+			if !want.iv.contains(big.NewInt(int64(len(e.Elts)))) {
+				w.add(Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleLiteralNotInstance,
+					Detail: fmt.Sprintf("is a list of %d elements, where the target list's length must be %s", len(e.Elts), want.iv), Pos: pos})
+				return
+			}
+			if len(want.other) > 0 {
+				w.add(Finding{Path: w.subject(q), Verdict: Unknown, Rule: RuleUnknownTargetConstraint,
+					Detail: fmt.Sprintf("is a list literal, and the target list must satisfy %s, which constrains the list beyond its length; the checker reads list.MinItems and list.MaxItems on a list, and nothing else", strings.Join(want.other, ", ")), Pos: pos})
+				return
+			}
 		}
 	}
 	w.ir.push()
@@ -1283,32 +1296,43 @@ func (w *walker) each(comp *ast.Comprehension, q cue.Path, gs []pattern, pos tok
 			Detail: fmt.Sprintf("maps the elements of %s, which may be absent: %s; write the field under if %s != _|_", w.inputRef(p), src.why, w.inputRef(p)), Pos: pos})
 		return
 	}
+	srcLens := make([]listBounds, 0, len(src.branches))
 	for _, b := range src.branches {
 		if b.IncompleteKind() != cue.ListKind {
 			w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownDynamic,
 				Detail: fmt.Sprintf("maps the elements of %s, which may be %s rather than a list", w.inputRef(p), b.IncompleteKind()), Pos: pos})
 			return
 		}
+		srcLens = append(srcLens, w.listBoundsOf(b))
 	}
 	tgt, ok := w.targetAt(q, pos)
 	if !ok {
 		return
 	}
-	if tgt.IncompleteKind() != cue.TopKind {
-		if tgt.IncompleteKind()&cue.ListKind == 0 {
+	if want := w.listBoundsOf(tgt); want.kind != cue.TopKind {
+		if want.kind&cue.ListKind == 0 {
 			w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleLiteralNotInstance,
-				Detail: fmt.Sprintf("is a list, where the target schema wants %s", tgt.IncompleteKind()), Pos: pos})
+				Detail: fmt.Sprintf("is a list, where the target schema wants %s", want.kind), Pos: pos})
+			return
+		}
+		if len(want.other) > 0 {
+			w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownTargetConstraint,
+				Detail: fmt.Sprintf("has one element per element of %s, and the target list must satisfy %s, which constrains the list beyond its length; the checker reads list.MinItems and list.MaxItems on a mapped list, and nothing else", w.inputRef(p), strings.Join(want.other, ", ")), Pos: pos})
 			return
 		}
 		// As many elements as the source list has.
-		if want, _, ok := intervalOf(tgt.Len()); ok {
-			for _, b := range src.branches {
-				if have, _, ok := intervalOf(b.Len()); ok && !have.within(want) {
-					w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleCopyNarrowed,
-						Detail: fmt.Sprintf("has one element per element of %s, whose length may be %s, where the target list's length must be %s", w.inputRef(p), have, want), Pos: pos})
-					return
-				}
+		for _, have := range srcLens {
+			if have.iv.within(want.iv) {
+				continue
 			}
+			if len(have.other) > 0 {
+				w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownCopy,
+					Detail: fmt.Sprintf("has one element per element of %s, whose length is within %s, where the target list's length must be %s; %s may narrow the source's lengths further, which the checker does not read", w.inputRef(p), have.iv, want.iv, strings.Join(have.other, ", ")), Pos: pos})
+				return
+			}
+			w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleCopyNarrowed,
+				Detail: fmt.Sprintf("has one element per element of %s, whose length may be %s, where the target list's length must be %s", w.inputRef(p), have.iv, want.iv), Pos: pos})
+			return
 		}
 	}
 	eq := appendPath(q, cue.AnyIndex)
@@ -1322,6 +1346,53 @@ func (w *walker) each(comp *ast.Comprehension, q cue.Path, gs []pattern, pos tok
 		}
 	}
 	w.ir.emit(&lensir.Each{To: w.ir.path(q), Source: w.ir.path(p), Body: w.ir.pop()})
+}
+
+// listBounds is what a list value says about its length: its plain part and
+// its kind, read from the plain part, since a validator that needs concrete
+// data (list.MinItems on an open list) leaves the value itself incomplete; the
+// lengths it admits, its own length within the bounds list.MinItems and
+// list.MaxItems set; and any other validator on the list itself, which
+// constrains it beyond its length.
+type listBounds struct {
+	plain cue.Value
+	kind  cue.Kind
+	iv    interval
+	other []string
+}
+
+func (w *walker) listBoundsOf(v cue.Value) listBounds {
+	if len(compat.Branches(v)) > 1 {
+		// Each alternative has its own bounds; a disjunction's elements are
+		// not descended into (descendTarget).
+		return listBounds{plain: v, kind: v.IncompleteKind()}
+	}
+	plain, vals := compat.SplitValidators(w.ctx, v)
+	lb := listBounds{plain: plain, kind: plain.IncompleteKind()}
+	if lb.kind != cue.ListKind {
+		return lb
+	}
+	lb.iv, _, _ = intervalOf(plain.Len())
+	for _, vl := range vals {
+		n, err := int64Arg(vl)
+		switch {
+		case vl.Name == "list.MinItems" && err == nil:
+			lb.iv = lb.iv.meet(interval{lo: big.NewInt(n)})
+		case vl.Name == "list.MaxItems" && err == nil:
+			lb.iv = lb.iv.meet(interval{hi: big.NewInt(n)})
+		default:
+			lb.other = append(lb.other, vl.Name)
+		}
+	}
+	return lb
+}
+
+// int64Arg is the single integer argument of the validator vl.
+func int64Arg(vl compat.Validator) (int64, error) {
+	if len(vl.Args) != 1 {
+		return 0, fmt.Errorf("%s takes %d arguments", vl.Name, len(vl.Args))
+	}
+	return vl.Args[0].Int64()
 }
 
 // literal proves the scalar literal x written at q.
@@ -1508,6 +1579,13 @@ func (w *walker) descendTarget(root cue.Value, q cue.Path, from int) targetLooku
 			prefix := cue.MakePath(sels[:i]...)
 			return targetLookup{finding: &Finding{Path: w.subject(q), Verdict: Unknown, Rule: RuleUnknownTargetConstraint,
 				Detail: fmt.Sprintf("is written beneath %s, which is a disjunction in the target schema; the checker proves a struct literal written at %s against one of its alternatives, and descends into nothing else beneath it", w.subject(prefix), w.subject(prefix))}}
+		}
+		if cur.IncompleteKind() == cue.BottomKind {
+			// list.MinItems leaves an open list incomplete; its elements are
+			// declared by the list it constrains.
+			if lb := w.listBoundsOf(cur); lb.kind == cue.ListKind {
+				cur = lb.plain
+			}
 		}
 		next, _, ok := cuetil.DeclaredChild(w.ctx, cur, sels[i])
 		if !ok {
