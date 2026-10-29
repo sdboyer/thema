@@ -1,0 +1,74 @@
+0.0 is open, and 1.0 adds an optional b. 0.0
+admits a b through its ... but does not declare one, so the forward lens
+copies nothing into b: an instance of 0.0 translates without one. (The pair is
+a major version because 0.0 admits a b of any type, and 1.0's bool narrows
+it.) The backward lens drops b, as for any field the new version added (#159).
+-- ship/history/0.0.thema --
+Schema: {
+	a!: string
+	...
+}
+-- ship/1.0.thema --
+Schema: {
+	a!: string
+	b?: bool
+	...
+}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+Schema: {
+	a!: string
+	b?: bool
+	...
+}
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	a!: string
+	...
+}
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a!: string
+				...
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				a!: string
+				b?: bool
+				...
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			a: v0_0.a
+		}
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			a: v1_0.a
+		}
+		lacunas: [{
+			@thema(derived)
+			condition: v1_0.b != _|_
+			sourceFields: [{
+				path:  "b"
+				value: v1_0.b
+			}]
+			message: "b has no equivalent in 0.0 and was dropped"
+			type:    "DroppedField"
+		}]
+	}
+}
