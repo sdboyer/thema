@@ -1,10 +1,12 @@
-A struct's presence is information. 0.1 adds y beneath the optional struct
-q, so the derived backward lens descends into q to drop y; q is still a copy,
-written only when the instance has it: absent stays absent, and present but
-empty stays present, so {"a": "x"} translated from 0.0 to 0.1 and back (the
-absent instances) is unchanged. 0.1 also adds the optional struct o, which
-the backward lens drops as a whole: its DroppedField lacuna is about o,
-reported whenever o is present, empty or not.
+Translation keeps the form of a struct the input had. 0.1 adds y beneath the
+optional struct q, so the derived backward lens descends into q to drop y; q
+is still a copy, written only when the instance has it: absent stays absent,
+and empty stays empty, so {"a": "x"} translated from 0.0 to 0.1 and back (the
+absent instances) is unchanged. 0.1 also adds the optional struct o and the
+optional list l, which the backward lens drops whole: each drop's
+DroppedField lacuna is about the field, reported where it is present and not
+empty. An empty container carries no information, so dropping one raises no
+lacuna.
 -- ship/history/0.0.thema --
 Schema: close({
 	a!: string
@@ -22,6 +24,7 @@ Schema: close({
 	o?: close({
 		e?: bool
 	})
+	l?: [...int]
 })
 -- data/0.0/absent.json --
 {"a": "x"}
@@ -30,9 +33,9 @@ Schema: close({
 -- data/0.1/absent.json --
 {"a": "x"}
 -- data/0.1/empty.json --
-{"a": "x", "q": {}, "o": {}}
+{"a": "x", "q": {}, "o": {}, "l": []}
 -- data/0.1/full.json --
-{"a": "x", "q": {"x": 1, "y": true}, "o": {"e": true}}
+{"a": "x", "q": {"x": 1, "y": true}, "o": {"e": true}, "l": [1]}
 -- out/bind --
 ok
 -- out/decompiled/0.1.thema --
@@ -43,6 +46,7 @@ Schema: close({
 		y?: bool
 	})
 	o?: close({e?: bool})
+	l?: [...int]
 })
 -- out/decompiled/history/0.0.thema --
 Schema: close({
@@ -71,6 +75,7 @@ schemas:
 				o?: close({
 					e?: bool
 				})
+				l?: [...int]
 			})
 		}
 	}
@@ -98,12 +103,34 @@ lenses:
 			},
 			{
 				@thema(derived)
-				condition: v0_1.o != _|_
-				sourceFields: [{
+				condition: [
+					if v0_1.o != _|_ {
+						len(v0_1.o) > 0
+					},
+					false
+				][
+					0]
+				sourceFields: [if v0_1.o != _|_ {
 					path:  "o"
 					value: v0_1.o
 				}]
 				message: "o has no equivalent in 0.0 and was dropped"
+				type:    "DroppedField"
+			},
+			{
+				@thema(derived)
+				condition: [
+					if v0_1.l != _|_ {
+						len(v0_1.l) > 0
+					},
+					false
+				][
+					0]
+				sourceFields: [if v0_1.l != _|_ {
+					path:  "l"
+					value: v0_1.l
+				}]
+				message: "l has no equivalent in 0.0 and was dropped"
 				type:    "DroppedField"
 			}
 		]
@@ -119,7 +146,7 @@ lenses:
 []
 -- out/translate/0.1/empty->0.0 --
 {"a":"x","q":{}}
-[{"sourceFields":[{"path":"o","value":{}}],"type":"DroppedField","message":"o has no equivalent in 0.0 and was dropped"}]
+[]
 -- out/translate/0.1/full->0.0 --
 {"a":"x","q":{"x":1}}
-[{"sourceFields":[{"path":"q.y","value":true}],"type":"DroppedField","message":"q.y has no equivalent in 0.0 and was dropped"},{"sourceFields":[{"path":"o","value":{"e":true}}],"type":"DroppedField","message":"o has no equivalent in 0.0 and was dropped"}]
+[{"sourceFields":[{"path":"q.y","value":true}],"type":"DroppedField","message":"q.y has no equivalent in 0.0 and was dropped"},{"sourceFields":[{"path":"o","value":{"e":true}}],"type":"DroppedField","message":"o has no equivalent in 0.0 and was dropped"},{"sourceFields":[{"path":"l","value":[1]}],"type":"DroppedField","message":"l has no equivalent in 0.0 and was dropped"}]
