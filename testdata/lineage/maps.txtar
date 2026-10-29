@@ -41,7 +41,7 @@ lenses: {}
     }
 }
 -- out/validate/TestValidate/missingFields --
-error[E0503]: aComplexMap.foo in the data is int, but schema 0.0 declares it as string
+error[E0503]: aComplexMap.foo in the data is 42, but schema 0.0 declares it as string
   --> in/validate/TestValidate/missingFields.data.json:3:16
    |
  3 |         "foo": 42,
@@ -54,7 +54,7 @@ error[E0503]: aComplexMap.foo in the data is int, but schema 0.0 declares it as 
    |
    = detail: aComplexMap.foo: conflicting values 42 and string (mismatched types int and string)
 
-error[E0503]: aComplexMap.iShouldBeAnInt in the data is string, but schema 0.0 declares it as int
+error[E0503]: aComplexMap.iShouldBeAnInt in the data is "but I am not", but schema 0.0 declares it as int
   --> in/validate/TestValidate/missingFields.data.json:4:27
    |
  4 |         "iShouldBeAnInt": "but I am not",
@@ -67,7 +67,7 @@ error[E0503]: aComplexMap.iShouldBeAnInt in the data is string, but schema 0.0 d
    |
    = detail: aComplexMap.iShouldBeAnInt: conflicting values "but I am not" and int (mismatched types string and int)
 
-error[E0503]: aComplexMap.bShouldBeABool in the data is string, but schema 0.0 declares it as bool
+error[E0503]: aComplexMap.bShouldBeABool in the data is "but I am a string", but schema 0.0 declares it as bool
   --> in/validate/TestValidate/missingFields.data.json:5:27
    |
  5 |         "bShouldBeABool": "but I am a string",
@@ -80,7 +80,7 @@ error[E0503]: aComplexMap.bShouldBeABool in the data is string, but schema 0.0 d
    |
    = detail: aComplexMap.bShouldBeABool: conflicting values "but I am a string" and bool (mismatched types string and bool)
 
-error[E0503]: aComplexMap.cShouldBeAString in the data is int, but schema 0.0 declares it as string
+error[E0503]: aComplexMap.cShouldBeAString in the data is 1, but schema 0.0 declares it as string
   --> in/validate/TestValidate/missingFields.data.json:6:29
    |
  6 |         "cShouldBeAString": 1
