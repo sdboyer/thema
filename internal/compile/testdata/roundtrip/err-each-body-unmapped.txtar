@@ -1,0 +1,26 @@
+each whose body is a struct of mappings, in the forward direction, that
+neither maps nor drops a field the element has and the target's element
+lacks: still an error. Only a copy body drops the rest of the element by
+derivation, since it has nowhere to write a drop; a struct body does.
+-- ship/history/0.0.thema --
+Schema: close({
+	u!: [...close({id!: string, is_enabled!: bool})]
+})
+-- ship/1.0.thema --
+Schema: close({
+	u!: [...close({key!: string})]
+})
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		u: _each(v0_0.u, {key: _item.id})
+	}
+}
+-- out/error --
+error[E0347]: 0.0 declares is_enabled and 1.0 does not, and nothing maps it: write <field>: _item.is_enabled to move it, or is_enabled: _drop
+ --> 1.0.thema:8:3
+  |
+8 |         u: _each(v0_0.u, {key: _item.id})
+  |         ^
+  |

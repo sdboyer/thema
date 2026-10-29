@@ -943,7 +943,7 @@ func (w *walker) leaf(p cue.Path, pred, succ, wholeSucc cue.Value) {
 		return
 	}
 	if succ.Validate(cue.Concrete(true)) == nil && pred.Validate(cue.Concrete(true)) == nil {
-		if cuetil.Equal(pred, succ) != nil {
+		if w.equal(pred, succ) != nil {
 			w.add(Finding{
 				Path: p, Verdict: Incompatible, Rule: RuleValueNarrowed,
 				Detail: fmt.Sprintf("was %s and is now %s", fmtv(pred), fmtv(succ)),
@@ -972,6 +972,30 @@ func (w *walker) listLen(v cue.Value) cue.Value {
 		return n
 	}
 	return w.ctx.CompileString("[...]").Len()
+}
+
+// A Validator is a validator applied to a value: a builtin call such as
+// list.MaxItems(2), or a builtin validator value such as time.Time. Name is
+// pkg.Name, or the name of a predeclared builtin.
+type Validator struct {
+	Name  string
+	Args  []cue.Value
+	Value cue.Value
+}
+
+// SplitValidators separates v into its plain constraints, unified, and its
+// validators, as the compatibility rules read them. v is one alternative, not
+// a disjunction. The plain part keeps v's kind, and its kind and length are
+// v's own where a validator that needs concrete data (list.MinItems on an open
+// list) leaves v itself incomplete.
+func SplitValidators(ctx *cue.Context, v cue.Value) (cue.Value, []Validator) {
+	w := &walker{ctx: ctx, top: ctx.CompileString("_")}
+	plain, calls := w.splitValidators(v)
+	out := make([]Validator, 0, len(calls))
+	for _, c := range calls {
+		out = append(out, Validator{Name: c.name, Args: c.args, Value: c.v})
+	}
+	return plain, out
 }
 
 // splitValidators separates v into its plain constraints, unified, and its
@@ -1006,8 +1030,14 @@ func (w *walker) splitValidators(v cue.Value) (plain cue.Value, calls []call) {
 }
 
 // scalarKinds returns a value admitting exactly the scalar kinds in k, so that
-// a value that is only a validator (time.Time) still constrains its kind.
+// a value that is only a validator (time.Time) still constrains its kind. A k
+// that admits a struct or a list, as _ does, is not made of scalar kinds, and
+// constrains nothing here: the scalar kinds alone would reject the struct or
+// list (b?: {t!: string} released under ... would be narrowed to scalars).
 func (w *walker) scalarKinds(k cue.Kind) (cue.Value, bool) {
+	if k&(cue.StructKind|cue.ListKind) != 0 {
+		return cue.Value{}, false
+	}
 	var alts []string
 	for _, sk := range []struct {
 		k    cue.Kind
@@ -1221,7 +1251,7 @@ func (w *walker) sameExpr(pred, succ cue.Value) bool {
 		case cue.StructKind, cue.ListKind:
 			return w.sameSyntax(pred, succ)
 		}
-		return cuetil.Equal(pred, succ) == nil
+		return w.equal(pred, succ) == nil
 	}
 	for i := range oargs {
 		if !w.sameExpr(oargs[i], nargs[i]) {
@@ -1229,6 +1259,16 @@ func (w *walker) sameExpr(pred, succ cue.Value) bool {
 		}
 	}
 	return true
+}
+
+// equal reports whether pred and succ subsume each other, as values detached
+// from their fields. As of CUE v0.18, Subsume reports the value of an optional
+// or required field as not an instance of a value from anywhere else, such as
+// an operand of a disjunction: t!: "a" against the "a" of t!: "a" | "b".
+// Unifying with top yields the same value, detached. Whether a field is
+// optional or required is compared by classes, not here.
+func (w *walker) equal(pred, succ cue.Value) error {
+	return cuetil.Equal(w.top.Unify(pred), w.top.Unify(succ))
 }
 
 // sameSyntax compares two values by their evaluated syntax: the only view that

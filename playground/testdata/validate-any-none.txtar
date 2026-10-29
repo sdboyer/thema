@@ -133,7 +133,7 @@ lenses: {
         {
           "code": "E0503",
           "severity": "error",
-          "headline": "name in the data is int, but schema 0.0 declares it as string",
+          "headline": "name in the data is 7, but schema 0.0 declares it as string",
           "path": [
             "name"
           ],

@@ -1,0 +1,29 @@
+A field the new version removes, that nothing maps or drops, where the new
+version is open. 1.0 admits a before through its ... but does not declare
+one, so before is removed all the same, and must be accounted for.
+-- ship/history/0.0.thema --
+Schema: {
+	before:    string
+	unchanged: string
+	...
+}
+-- ship/1.0.thema --
+Schema: {
+	after:     string
+	unchanged: string
+	...
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		after: "x"
+	}
+}
+-- out/error --
+error[E0347]: 0.0 declares before and 1.0 does not, and nothing maps it: write <field>: v0_0.before to move it, or before: _drop
+ --> 1.0.thema:7:1
+  |
+7 | ForwardLens: {
+  | ^^^^^^^^^^^
+  |

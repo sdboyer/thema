@@ -18,6 +18,7 @@ ship/
 
 - A version file is named `<major>.<minor>.thema`. The current version sits at the top of the directory; every earlier version sits under `history/`.
 - Versions are contiguous from `0.0`: each file is either the next minor version of the one before it, or the next major version with minor `0`.
+- Only files ending in `.thema` are read; anything else in the directory is left alone. The playground uses this to keep an `example.cue` beside a lineage that it offers as an example (see `thema playground examples --help`).
 - Whether a version is minor or major is not the author's call. thema checks each version against the one before it under the [backwards compatibility](invariants.md#backwards-compatibility) rules. A file named as a minor version must be compatible with its predecessor, and a file named as a major version must not be. A file named the wrong way is an error that says which version number it should have.
 
 A version file holds at most three fields. A field is a name, a colon and a value; a block is a value written in braces, holding fields of its own.
@@ -83,7 +84,7 @@ The body holds the target schema's fields. Each entry is a *mapping*: it names a
 | `legacy: _drop` | **Drop.** The source field named by the key has no place in the target and is dropped. A field the target requires cannot be dropped. |
 | `nick: _orelse(v0_0.nick, v0_0.name)` | **Fallback.** The source field is optional; when the instance lacks it, the fallback is used. The first argument may also be a computed value, `_orelse(v0_0.count * 2, 0)`, and the fallback is used when any field it reads is absent. The fallback is a constant, or a field the source always has. An `_orelse` whose first argument reads only fields the source always has is an error. |
 | `kind: _match(v0_0.kind, {"a": 1, [_]: 0})` | **Match.** The source value is matched against the arms. A value an arm matches becomes that arm's constant. A value no arm matches passes through unchanged where the target accepts it, and otherwise takes the wildcard arm `[_]`, which must declare a lacuna. Without a wildcard arm the arms must be exhaustive: every value the source may hold is matched or accepted. |
-| `items: _each(v0_0.items, {name: _item.title})` | **Each.** A list is mapped element by element. The block is a lens body over `_item`, the element, and every mapping above is available in it. `_each` applies to lists of any length (`[...T]`). |
+| `items: _each(v0_0.items, {name: _item.title})` | **Each.** A list is mapped element by element. The block is a lens body over `_item`, the element, and every mapping above is available in it, `_each` included: in `_each(v0_0.steps, {fields: _each(_item.fields, {...})})`, the inner `_item` is an element of the step's `fields`. Instead of a block, the body may copy the element, `_each(v0_0.tags, _item)`, or a field of it, `ids: _each(v0_0.users, _item.id)`; the copy is the whole target element, so the field must be one every element has, and the target's element must accept every value of it, as for any copy. Since the copy is the whole element, the rest of the element is lost: in either direction every other field is dropped, with a derived `DroppedField` lacuna naming each element that had it. `_each` applies to lists of any length (`[...T]`). |
 
 A mapping's key is a plain field name, and its value is one of the forms above. Nothing else attaches to a mapping.
 
@@ -92,9 +93,10 @@ The operations, `_drop`, `_orelse`, `_match` and `_each`, and `_item` inside an 
 ### What is written and what is implied
 
 - **Copies are implicit.** A field both schemas declare, that no mapping mentions, is copied. The copy is made as high as the two schemas agree: a field whose contents the target declares whole is copied whole, and one whose contents differ is descended into. A copy, like a move, must fit: the target field has to accept every value the source field may hold, or the field must be mapped.
-- **Optional sources are used only when present.** A copy, a move or a computed value that reads a field the source may omit is written only when the instance has it. Where the target requires the field, the author must say what to use when it is absent, with `_orelse`.
+- **`...` declares nothing.** An open struct admits names it does not declare, and a lens treats a name it only admits as absent from the schema. A field one version declares and the other only admits is added or removed, exactly as between closed structs: it is never copied implicitly, the derived backward lens drops a field the new version added with a `DroppedField` lacuna, and a major version's forward lens must move or drop a field it removed. A lens reads, drops and writes only fields its schemas declare.
+- **Optional sources are used only when present.** A copy, a move, a computed value or an `_each` that reads a field the source may omit is written only when the instance has it. Where the target requires the field, the author must say what to use when it is absent, with `_orelse`; an `_each` has no fallback yet, so it maps an optional list only into a list the target does not require.
 - **Translation keeps the form a struct had.** A struct the lens copies from an optional struct of the source is written only when the instance has it: absent stays absent, and empty stays empty. That holds for a struct copied whole, one the copy descends into, and a nested body whose every mapping reads from beneath the source's struct of the same name (`q: {b: v0_0.q.a}`, or `q: {y: _drop}`). A nested body that writes anything else, such as a constant, is written always, and so is a struct the target requires.
-- **Removed fields must be accounted for.** In the forward direction, a field the source declares and the target does not must be moved somewhere or dropped. A forgotten rename is an error, not a silent loss. A struct the target lacks is one field: it is accounted for as a whole, unless a mapping reads something beneath it, in which case each of its other fields is.
+- **Removed fields must be accounted for.** In the forward direction, a field the source declares and the target does not must be moved somewhere or dropped. A forgotten rename is an error, not a silent loss. A struct the target lacks is one field: it is accounted for as a whole, unless a mapping reads something beneath it, in which case each of its other fields is. The one exception is an `_each` whose body copies a field of the element, `_each(v0_0.users, _item.id)`: the copy says what the element becomes, and the body has nowhere to write a drop, so the element's other fields are dropped by derivation, each with its `DroppedField` lacuna. An `_each` whose body is a block must account for them as any body does.
 - **Required fields must be produced.** A field the target requires that no mapping and no copy produces is an error, naming the lens and the field.
 
 ### The backward lens
@@ -168,13 +170,15 @@ A `when` replaces the implied condition. It is a comparison or combination of so
 
 **Matches.** A wildcard arm must have a lacuna: one on the match's key without a `when`, which applies when the arm does. A lacuna on an arm other than the wildcard is written with a `when` naming the value, `when: v0_0.kind == "a"`. A match without a wildcard arm has no implied condition, so every lacuna on it needs a `when`.
 
-**Inside `_each`.** A lacuna on a mapping in an `_each` body is keyed through the list, `items: {legacy: [...]}`. Only the `DroppedField` refinement of a drop in the body is supported today; it applies to the drop's derived lacuna, which is reported once for the whole list, naming every element that had the field.
+**Inside `_each`.** A lacuna on a mapping in an `_each` body is keyed through the list, `items: {legacy: [...]}`, and through each list in turn for an `_each` inside another, `steps: {fields: {legacy: [...]}}`. Only the `DroppedField` refinement of a drop in the body is supported today; it applies to the drop's derived lacuna, which is reported once for the whole list, naming every element that had the field (`steps[0].fields[1].legacy`).
 
 ## What is not accepted yet
 
 Each of these is refused with an error naming what to write instead, rather than compiled approximately:
 
-- **`each` inside `each`**, and a reference to the whole source instance from inside an `each` body.
+- **A reference to the whole source instance from inside an `_each` body.** The body reads only `_item`, the innermost element.
+- **An `_each` over a list the source may omit, into a list the target requires** (`l!: [...T]`, or a list with elements it must have). `_each` has no fallback for an absent list.
+- **An `_each` body other than a block or a copy** of the element or a field of it: a computed value, `_match`, `_orelse` or a constant ([#168](https://github.com/sdboyer/thema/issues/168)).
 - **Lacunas inside `each`** other than the `DroppedField` refinement ([#103](https://github.com/sdboyer/thema/issues/103)).
 - **A match passthrough into a target whose type refers to other fields.** The passthrough tests the value against the target's type, which must stand on its own to be restated; match every value with an arm instead.
 - **List-to-map and map-to-list mappings** ([#102](https://github.com/sdboyer/thema/issues/102)).

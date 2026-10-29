@@ -1,0 +1,21 @@
+# The aggregate of a drop inside each over a list the source may omit, without the presence test before the for clause: the let is an error where the list is absent, and so is its length (#155).
+-- source.cue --
+l?: [...{t: string, legacy?: string}]
+-- target.cue --
+l?: [...{u: string}]
+-- lens.cue --
+v0_0: _
+let _d_0 = [for i, item in v0_0.l if item.legacy != _|_ {
+	path:  "l[\(i)].legacy"
+	value: item.legacy
+}]
+v1_0: {if v0_0.l != _|_ {l: [for item in v0_0.l {u: item.t}]}}
+lacunas: [{
+	condition:    len(_d_0) > 0
+	sourceFields: _d_0
+	message:      "legacy dropped"
+	type:         "DroppedField"
+}]
+-- out --
+not total
+lacunas[0].condition takes the length of a list built over v0_0.l, which may be absent: v0_0.l is optional in the source schema (rule source-absent) @ lens.cue:8:16

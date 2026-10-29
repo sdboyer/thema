@@ -110,7 +110,7 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 		}
 
 		// Forward: previous version to this one. Only a major version has one.
-		fe := &edge{ctx: ctx, S: vals[i-1], T: vals[i], sv: prev.v, tv: v.v, dir: forward, file: v.path, blockPos: v.header(), root: paramName(prev.v), lacunas: &lacunaTable{}, imports: imports}
+		fe := &edge{ctx: ctx, S: vals[i-1], T: vals[i], sv: prev.v, tv: v.v, dir: forward, identity: minor, file: v.path, blockPos: v.header(), root: paramName(prev.v), lacunas: &lacunaTable{}, imports: imports}
 		fb := &body{}
 		if v.forward != nil {
 			fe.written, fe.blockPos = true, v.forward.Pos()

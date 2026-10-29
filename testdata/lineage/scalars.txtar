@@ -1019,7 +1019,7 @@ error[E0501]: the data lacks stringWithLength, which schema 0.0 declares as stri
    |
    = detail: stringWithLength: incomplete value strings.MinRunes(10)
 -- out/validate/TestValidate/someInt32 --
-error[E0503]: someInt32 in the data is string, but schema 0.0 declares it as int32
+error[E0503]: someInt32 in the data is "not an int", but schema 0.0 declares it as int32
   --> in/validate/TestValidate/someInt32.data.json:2:18
    |
  2 |     "someInt32": "not an int"
@@ -1188,7 +1188,7 @@ error[E0501]: the data lacks stringWithLength, which schema 0.0 declares as stri
    |
    = detail: stringWithLength: incomplete value strings.MinRunes(10)
 -- out/validate/TestValidate/someInt64 --
-error[E0503]: someInt64 in the data is string, but schema 0.0 declares it as int64
+error[E0503]: someInt64 in the data is "not an int64", but schema 0.0 declares it as int64
   --> in/validate/someInt64.data.json:2:18
    |
  2 |     "someInt64": "not an int64"
@@ -1357,7 +1357,7 @@ error[E0501]: the data lacks stringWithLength, which schema 0.0 declares as stri
    |
    = detail: stringWithLength: incomplete value strings.MinRunes(10)
 -- out/validate/TestValidate/someFloat32 --
-error[E0503]: someFloat32 in the data is string, but schema 0.0 declares it as float32
+error[E0503]: someFloat32 in the data is "I am a string", but schema 0.0 declares it as float32
   --> in/validate/TestValidate/someFloat32.data.json:2:20
    |
  2 |     "someFloat32": "I am a string"
@@ -1526,7 +1526,7 @@ error[E0501]: the data lacks stringWithLength, which schema 0.0 declares as stri
    |
    = detail: stringWithLength: incomplete value strings.MinRunes(10)
 -- out/validate/TestValidate/someFloat64 --
-error[E0503]: someFloat64 in the data is string, but schema 0.0 declares it as float64
+error[E0503]: someFloat64 in the data is "I am a string", but schema 0.0 declares it as float64
   --> in/validate/TestValidate/someFloat64.data.json:2:20
    |
  2 |     "someFloat64": "I am a string"
