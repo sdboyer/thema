@@ -1,0 +1,112 @@
+The written form of open-target-added's backward lens, with the drop's
+DroppedField lacuna refined. 0.0 admits a b through its ... but does not
+declare one, so the drop leaves nothing absent that 0.0 requires (#158).
+-- ship/history/0.0.thema --
+Schema: {
+	a!: string
+	...
+}
+-- ship/1.0.thema --
+Schema: {
+	a!: string
+	b!: bool
+	...
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		b: true
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		b: _drop
+	}
+	lacunas: {
+		b: [{
+			type:    DroppedField
+			message: "0.0 has no b, so whether it was true or false is lost"
+		}]
+	}
+}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+Schema: {
+	a!: string
+	b!: bool
+	...
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		b: true
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		b: _drop
+	}
+	lacunas: {
+		b: [{
+			type:    DroppedField
+			message: "0.0 has no b, so whether it was true or false is lost"
+		}]
+	}
+}
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	a!: string
+	...
+}
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a!: string
+				...
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				a!: string
+				b!: bool
+				...
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			a: v0_0.a
+			b: true
+		}
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			a: v1_0.a
+		}
+		lacunas: [{
+			@thema(derived)
+			sourceFields: [{
+				path:  "b"
+				value: v1_0.b
+			}]
+			message: "0.0 has no b, so whether it was true or false is lost"
+			type:    "DroppedField"
+		}]
+	}
+}

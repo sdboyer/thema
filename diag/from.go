@@ -45,6 +45,12 @@ type Context struct {
 	// IsData reports whether a filename is the data document being validated
 	// or translated. Its positions come before the schema's.
 	IsData func(file string) bool
+	// DataValue returns the data's value at an error path. Shapes ask it what
+	// the data holds, such as which side of a conflict is the data's, rather
+	// than deciding from positions: data compiled from a string has no file,
+	// and data built in Go has no position at all. The path's segments are
+	// unquoted.
+	DataValue func(path []string) (cue.Value, bool)
 	// DataPos is the position of the data document itself. It is the primary
 	// when the data has no position for the field at fault, as when the field
 	// is absent.

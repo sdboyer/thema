@@ -1,0 +1,12 @@
+# The converse of total-copy-single-into-union: a struct whose field is a
+# disjunction, copied into one where it is a single alternative.
+-- source.cue --
+s: {t!: "a" | "b"}
+-- target.cue --
+s: {t!: "a"}
+-- lens.cue --
+v0_0: _
+v1_0: {s: v0_0.s}
+-- out --
+not total
+v1_0.s copies v0_0.s, whose t was "b" and is now "a" (compat rule value-narrowed) (rule copy-narrowed) @ lens.cue:2:11

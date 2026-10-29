@@ -1,0 +1,13 @@
+# a single value widened to a disjunction that contains it (#153): each prior
+# value is an alternative of the new one, whether the field is required,
+# optional or regular
+-- old.cue --
+t!: "a"
+u?: 1
+n!: null
+-- new.cue --
+t!: "a" | "b"
+u?: 1 | 2
+n!: null | string
+-- out --
+compatible

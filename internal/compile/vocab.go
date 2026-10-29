@@ -113,11 +113,18 @@ func (v vocab) Term(a diag.Address) string {
 // Rewrite renders a checker's sentence about a lens in the author's terms:
 // the normal form's input is the parameter the author named after the
 // source version, v0_0, and "the target schema" is the target version's file.
+// A closing remedy written in the normal form's syntax, such as a presence
+// test to write a field under, is dropped: the authoring form has no way to
+// write one, and tests presence itself wherever a mapping or a when reads a
+// field the source may omit.
 func (v vocab) Rewrite(a diag.Address, sentence string) string {
 	switch a.Kind {
 	case diag.AddrLens, diag.AddrLensInput, diag.AddrLensResult, diag.AddrLensResultField, diag.AddrLacuna, diag.AddrLacunaField, diag.AddrStep:
 	default:
 		return sentence
+	}
+	if i := strings.LastIndex(sentence, "; "); i >= 0 && strings.Contains(sentence[i:], "_|_") {
+		sentence = sentence[:i]
 	}
 	param := paramName(thema.SyntacticVersion(a.From))
 	r := strings.NewReplacer(

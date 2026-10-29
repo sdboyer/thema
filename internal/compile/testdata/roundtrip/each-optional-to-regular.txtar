@@ -1,0 +1,95 @@
+each over a list the source may omit, into a list the target declares as a
+regular field. The mapped list is written only where the instance has the
+source list; where it lacks it, the target's own [...] gives the empty list.
+-- ship/history/0.0.thema --
+Schema: {
+	l?: [...{t!: string}]
+}
+-- ship/1.0.thema --
+Schema: {
+	l: [...{u!: string}]
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		l: _each(v0_0.l, {u: _item.t})
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		l: _each(v1_0.l, {t: _item.u})
+	}
+}
+-- data/0.0/absent.json --
+{}
+-- data/0.0/present.json --
+{"l": [{"t": "a"}]}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+Schema: {
+	l: [...{u!: string}]
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		l: _each(v0_0.l, {u: _item.t})
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		l: _each(v1_0.l, {t: _item.u})
+	}
+}
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	l?: [...{t!: string}]
+}
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				l?: [...{t!: string}]
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				l: [...{u!: string}]
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {if v0_0.l != _|_ {
+			l: [for _item in v0_0.l {
+				u: _item.t
+			}]
+		}}
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			l: [for _item in v1_0.l {
+				t: _item.u
+			}]
+		}
+	}
+}
+-- out/translate/0.0/absent->1.0 --
+{"l":[]}
+[]
+-- out/translate/0.0/present->1.0 --
+{"l":[{"u":"a"}]}
+[]

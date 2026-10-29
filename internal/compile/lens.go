@@ -15,6 +15,7 @@ import (
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/internal/compat"
+	"github.com/sdboyer/thema/internal/cuetil"
 	"github.com/sdboyer/thema/internal/cueview"
 	"github.com/sdboyer/thema/internal/lenscheck"
 	"github.com/sdboyer/thema/lacuna"
@@ -57,6 +58,9 @@ type entry struct {
 	catchAll *arm
 	// body is each's element body.
 	body *ast.StructLit
+	// item is the path within the element that each's body copies, where the
+	// body is a copy (_item, _item.<path>) rather than a struct of mappings.
+	item *cue.Path
 }
 
 // An arm is one arm of a match: a value and the constant it maps to.
@@ -203,6 +207,11 @@ type edge struct {
 	S, T   cue.Value
 	sv, tv thema.SyntacticVersion
 	dir    direction
+	// identity is set for the forward edge of a minor version, which has no
+	// lens: an instance is already an instance of its minor successor. The
+	// edge is assembled only for derivation, so a source field the target
+	// does not declare (one an open target admits) is not refused.
+	identity bool
 	// file is the version file the lens belongs to (the newer version's), and
 	// blockPos the position of its block there, or of the file when the
 	// author wrote none.
@@ -223,23 +232,58 @@ type edge struct {
 	errs cerrors.Error
 }
 
-// key is the lacunas key of an entry of e: its target path, under the list's
-// path inside an each body.
+// key is the lacunas key of an entry of e: its target path, under the lists'
+// paths inside an each body.
 func (e *edge) key(en *entry) cue.Path {
 	if e.each == nil {
 		return en.target
 	}
-	return joinPath(e.each.target, en.target)
+	return e.each.key(en.target)
 }
 
 // An eachScope is what an each body's sub-edge knows about its list.
 type eachScope struct {
-	// list is the source list's path, from input.
+	// list is the source list's path: from input, or inside an each body
+	// nested in another, from the enclosing body's item.
 	list cue.Path
-	// target is the target list's path.
+	// target is the target list's path, from the result or the enclosing
+	// body's element.
 	target cue.Path
 	// n numbers the body's generated lets within the lens.
 	n int
+	// optional is set when the source may omit the list, so that what
+	// iterates it outside the result tests its presence first.
+	optional bool
+	// parent is the scope of the each body this one is nested in, if any.
+	parent *eachScope
+}
+
+// key is the full target path, from the result, of p beneath the list's
+// element.
+func (s *eachScope) key(p cue.Path) cue.Path {
+	p = joinPath(s.target, p)
+	if s.parent != nil {
+		return s.parent.key(p)
+	}
+	return p
+}
+
+// chain is the scope's lists, outermost first.
+func (s *eachScope) chain() []*eachScope {
+	if s.parent == nil {
+		return []*eachScope{s}
+	}
+	return append(s.parent.chain(), s)
+}
+
+// name renders the source lists as the author reads an element's path:
+// items[], or items[].tags[] for a list in an element of another.
+func (s *eachScope) name() string {
+	var parts []string
+	for _, c := range s.chain() {
+		parts = append(parts, c.list.String()+"[]")
+	}
+	return strings.Join(parts, ".")
 }
 
 // errf reports a problem with the lens at p, under code. The message is in the
@@ -438,7 +482,8 @@ func isCatchAll(l ast.Label) bool {
 	return ok && id.Name == "_"
 }
 
-// parseEach reads each(ref, {body}).
+// parseEach reads each(ref, {body}), or each(ref, _item.<path>), whose body
+// copies the element or a path within it.
 func (e *edge) parseEach(x *ast.CallExpr, en *entry, b *body) {
 	if len(x.Args) != opArity {
 		e.errf(diag.E0337, x.Pos(), "_each takes two arguments: _each(%s.<list>, {...})", e.root)
@@ -449,13 +494,21 @@ func (e *edge) parseEach(x *ast.CallExpr, en *entry, b *body) {
 		e.errf(diag.E0337, x.Args[0].Pos(), "_each's first argument must be a reference to a list in %s", e.root)
 		return
 	}
-	bodyLit, ok := x.Args[1].(*ast.StructLit)
-	if !ok {
-		e.errf(diag.E0337, x.Args[1].Pos(), "_each's body must be a struct of mappings over _item")
+	en.kind, en.source = kindEach, p
+	if bodyLit, ok := x.Args[1].(*ast.StructLit); ok {
+		en.body = bodyLit
+		b.add(*en)
 		return
 	}
-	en.kind, en.source, en.body = kindEach, p, bodyLit
-	b.add(*en)
+	if root, ip, ok := refPathAny(x.Args[1]); ok && root == rootItem {
+		en.item = &ip
+		b.add(*en)
+		return
+	}
+	e.errs = cerrors.Append(e.errs, diag.New(diag.E0337).At(x.Args[1].Pos()).
+		Headlinef("_each's body %s is neither a struct of mappings over %s nor a copy of it", exprText(x.Args[1]), rootItem).
+		Helpf("write a struct of mappings, {name: %s.title}, or copy the element or a field of it: %s, %s.<path>", rootItem, rootItem, rootItem).
+		Err())
 }
 
 // notData refuses a hidden field or a definition as a key in a lens body or
@@ -1022,8 +1075,19 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 			out.effective = append(out.effective, *en)
 		case kindEach:
 			consumed[en.source.String()] = true
+			optional := e.optional(e.S, en.source)
+			if optional && e.required(e.T, en.target) {
+				e.errs = cerrors.Append(e.errs, diag.New(diag.E0343).At(en.pos).
+					Headlinef("%s is optional in %s and %s requires %s, which _each cannot produce where it is absent", en.source, e.sv, e.tv, en.target).
+					Note(token.NoPos, "an _each over a list the source may omit is written only where the list is present, and _each has no fallback").
+					Err())
+				continue
+			}
 			if !e.place(root, en) || !e.compileEach(en, out) {
 				continue
+			}
+			if optional {
+				root.has(en.target).present = []cue.Path{en.source}
 			}
 			out.effective = append(out.effective, *en)
 		}
@@ -1320,16 +1384,16 @@ func (e *edge) compileEach(en *entry, out *compiledLens) bool {
 		e.errf(diag.E0353, en.expr.Pos(), "_each maps the elements of open lists ([...T]); a fixed-length list is not supported")
 		return false
 	}
-	if e.each != nil {
-		e.errf(diag.E0353, en.expr.Pos(), "_each inside _each is not supported yet")
-		return false
-	}
-	sub := &edge{ctx: e.ctx, S: selem, T: telem, sv: e.sv, tv: e.tv, dir: e.dir, blockPos: en.pos, root: rootItem,
-		lacunas: e.lacunas, imports: e.imports, each: &eachScope{list: en.source, target: en.target, n: out.nlets}}
-	b := &body{}
-	sub.parseBody(en.body, cue.MakePath(), cue.MakePath(), b)
+	sub := &edge{ctx: e.ctx, S: selem, T: telem, sv: e.sv, tv: e.tv, dir: e.dir, file: e.file, written: e.written, blockPos: en.pos, root: rootItem,
+		lacunas: e.lacunas, imports: e.imports, each: &eachScope{list: en.source, target: en.target, n: out.nlets, optional: e.optional(e.S, en.source), parent: e.each}}
 	subOut := &compiledLens{nlets: out.nlets}
-	sub.assembleInto(b, subOut)
+	if en.item != nil {
+		sub.eachCopy(en, subOut)
+	} else {
+		b := &body{}
+		sub.parseBody(en.body, cue.MakePath(), cue.MakePath(), b)
+		sub.assembleInto(b, subOut)
+	}
 	e.errs = cerrors.Append(e.errs, sub.errs)
 	if sub.errs != nil {
 		return false
@@ -1337,8 +1401,72 @@ func (e *edge) compileEach(en *entry, out *compiledLens) bool {
 	out.derived = append(out.derived, subOut.derived...)
 	out.lets = append(out.lets, subOut.lets...)
 	out.nlets = subOut.nlets
+	if en.item != nil {
+		// The element is the copy, embedded: [for _item in l {_item.id}].
+		en.body = at(en.expr.Pos(), &ast.StructLit{Elts: []ast.Decl{&ast.EmbedDecl{Expr: at(en.expr.Pos(), ref(rootItem, *en.item))}}})
+		return true
+	}
 	en.body = subOut.result
 	return true
+}
+
+// eachCopy checks an each body that copies the element, or the path within it
+// en.item names, as a copy into the target's element: the element must have
+// it, every element must have it, since a list has no absent elements, and
+// the target's element must accept every value of it. Every other field of
+// the element is lost, and dropped by derivation in either direction.
+func (e *edge) eachCopy(en *entry, out *compiledLens) {
+	p := *en.item
+	// Problems with the copy are the body's: _each's second argument.
+	pos := en.expr.(*ast.CallExpr).Args[1].Pos()
+	elem, item := e.each.name(), rootItem
+	if len(p.Selectors()) > 0 {
+		elem += "." + p.String()
+		item += "." + p.String()
+	}
+	switch {
+	case !lookup(e.S, p).Exists():
+		e.errf(diag.E0340, pos, "%s does not declare %s", e.sv, elem)
+		return
+	case e.optional(e.S, p):
+		e.errs = cerrors.Append(e.errs, diag.New(diag.E0343).At(pos).
+			Headlinef("%s is optional in %s, and each element of %s's %s needs a value", elem, e.sv, e.tv, en.target).
+			Note(token.NoPos, "an _each whose body copies a field writes one element per source element, so the field must be present in every one").
+			Err())
+		return
+	}
+	if fs := e.misfits(p, cue.MakePath()); len(fs) > 0 {
+		b := diag.New(diag.E0359).At(pos).
+			Headlinef("the %s in %s copies %s into the elements of %s, which do not accept every value of it", e.dir, e.file, elem, en.target).
+			Helpf("copy into %s a field whose values its elements accept, or map them with a struct of mappings", en.target)
+		r := strings.NewReplacer("the prior schema", e.sv.String(), "the new schema", e.tv.String())
+		for _, f := range fs {
+			subject := en.target.String() + "[]"
+			if sels := f.Path.Selectors(); len(sels) > 0 {
+				subject += "." + f.Path.String()
+			}
+			b.Notef(token.NoPos, "%s in %s %s (copying %s; compatibility rule %s)", subject, e.tv, r.Replace(f.Detail), item, f.Rule)
+		}
+		e.errs = cerrors.Append(e.errs, b.Err())
+		return
+	}
+	if len(p.Selectors()) == 0 {
+		return
+	}
+	// The copy is the whole target element, so every other field of the
+	// source element is lost, whether or not the target's element declares a
+	// field of the same name. In either direction it is dropped by
+	// derivation: a copy body has nowhere to write a drop, and the author who
+	// copies one field as the element has said what the element becomes.
+	copied := map[string]bool{p.String(): true}
+	for _, spath := range e.leaves(e.S, cue.MakePath()) {
+		if consumedUnder(copied, spath) {
+			continue
+		}
+		en := entry{kind: kindDrop, source: spath, target: spath, pos: lookup(e.S, spath).Pos(), derived: true}
+		out.effective = append(out.effective, en)
+		e.dropLacuna(out, &en)
+	}
 }
 
 // place puts an explicit entry into the result tree, checking the target
@@ -1490,6 +1618,10 @@ func (e *edge) unmapped(b *body, consumed map[string]bool, out *compiledLens) {
 		}
 		switch e.dir {
 		case forward:
+			if e.identity {
+				// No lens: the instance keeps it, and its successor admits it.
+				continue
+			}
 			e.errf(diag.E0347, e.blockPos, "%s declares %s and %s does not, and nothing maps it: write <field>: %s.%s to move it, or %s: _drop", e.sv, spath, e.tv, e.root, spath, spath)
 		case backward:
 			en := entry{kind: kindDrop, source: spath, target: spath, pos: lookup(e.S, spath).Pos(), derived: true}
@@ -1608,6 +1740,9 @@ func (e *edge) emitLeaf(name string, c *node) []ast.Decl {
 			Clauses: []ast.Clause{at(p, &ast.ForClause{Value: at(p, ast.NewIdent(rootItem)), Source: at(p, e.ref(en.source))})},
 			Value:   en.body,
 		})}})
+		if len(c.present) > 0 {
+			return []ast.Decl{branch(e.presentAll(p, c.present), list)}
+		}
 		return []ast.Decl{field(list)}
 	}
 	var val ast.Expr
@@ -1703,18 +1838,31 @@ func (e *edge) dropLacuna(out *compiledLens, en *entry) {
 	p := en.pos
 	elts := []ast.Decl{at(p, &ast.Attribute{Text: "@thema(derived)"})}
 	if e.each != nil {
-		// let _d_<n> = [for i, item in input.<list> if item.<p> != _|_ {path: "<list>[\(i)].<p>", value: item.<p>}]
+		// let _d_<n> = [for i, item in input.<list> if item.<p> != _|_ {path: "<list>[\(i)].<p>", value: item.<p>}],
+		// testing first that the list is present where the source may omit it.
+		// Inside an each nested in another, one for clause per list, outermost
+		// first, each over the enclosing clause's item, and one index per list
+		// in the path: "<list>[\(i)].<inner>[\(i1)].<p>".
 		name := fmt.Sprintf("_d_%d", out.nlets)
 		out.nlets++
-		clauses := []ast.Clause{at(p, &ast.ForClause{Key: at(p, ast.NewIdent("i")), Value: at(p, ast.NewIdent(rootItem)), Source: at(p, ref(paramName(e.sv), e.each.list))})}
+		inner := func(s string) string { q := strconv.Quote(s); return q[1 : len(q)-1] }
+		var clauses []ast.Clause
+		var parts []ast.Expr
+		for k, s := range e.each.chain() {
+			root, idx, open := rootItem, fmt.Sprintf("i%d", k), `)].`
+			if k == 0 {
+				root, idx, open = paramName(e.sv), "i", `"`
+			}
+			if s.optional {
+				clauses = append(clauses, at(p, &ast.IfClause{Condition: at(p, ast.NewBinExpr(token.NEQ, at(p, ref(root, s.list)), at(p, &ast.BottomLit{})))}))
+			}
+			clauses = append(clauses, at(p, &ast.ForClause{Key: at(p, ast.NewIdent(idx)), Value: at(p, ast.NewIdent(rootItem)), Source: at(p, ref(root, s.list))}))
+			parts = append(parts, at(p, ast.NewLit(token.STRING, open+inner(s.list.String()+"[")+`\(`)), at(p, ast.NewIdent(idx)))
+		}
 		if e.optional(e.S, en.source) {
 			clauses = append(clauses, at(p, &ast.IfClause{Condition: e.present(p, en.source)}))
 		}
-		pathLit := at(p, &ast.Interpolation{Elts: []ast.Expr{
-			at(p, ast.NewLit(token.STRING, strconv.Quote(e.each.list.String() + "[")[:len(strconv.Quote(e.each.list.String()+"["))-1]+`\(`)),
-			at(p, ast.NewIdent("i")),
-			at(p, ast.NewLit(token.STRING, `)].`+en.source.String()+`"`)),
-		}})
+		pathLit := at(p, &ast.Interpolation{Elts: append(parts, at(p, ast.NewLit(token.STRING, `)].`+en.source.String()+`"`)))})
 		comp := at(p, &ast.Comprehension{Clauses: clauses, Value: at(p, &ast.StructLit{Elts: []ast.Decl{
 			at(p, &ast.Field{Label: at(p, ast.NewIdent("path")), Value: pathLit}),
 			at(p, &ast.Field{Label: at(p, ast.NewIdent("value")), Value: at(p, e.ref(en.source))}),
@@ -1748,7 +1896,7 @@ func (e *edge) dropLacuna(out *compiledLens, en *entry) {
 // dropMessage is the derived lacuna's default message for dropping p.
 func (e *edge) dropMessage(p cue.Path) string {
 	if e.each != nil {
-		return fmt.Sprintf("%s[].%s has no equivalent in %s and was dropped", e.each.list, p, e.tv)
+		return fmt.Sprintf("%s.%s has no equivalent in %s and was dropped", e.each.name(), p, e.tv)
 	}
 	return fmt.Sprintf("%s has no equivalent in %s and was dropped", p, e.tv)
 }
@@ -1953,19 +2101,51 @@ func (e *edge) optional(v cue.Value, p cue.Path) bool {
 }
 
 // required reports whether an instance of v must supply p: it is not optional,
-// and the value there is not complete without data (a default, a constant or a
-// struct whose fields all fill count as complete).
+// and it is marked required (p!), or the value there is not complete without
+// data (a default, a constant or a struct whose fields all fill count as
+// complete). An open list is complete, as the empty list, unless marked.
 func (e *edge) required(v cue.Value, p cue.Path) bool {
 	if e.optional(v, p) {
 		return false
 	}
+	if e.marked(v, p) {
+		return true
+	}
 	return lookup(v, p).Validate(cue.Concrete(true)) != nil
+}
+
+// marked reports whether the last field along p is a required field (p!).
+func (e *edge) marked(v cue.Value, p cue.Path) bool {
+	sels := p.Selectors()
+	if len(sels) == 0 {
+		return false
+	}
+	iter, err := lookup(v, cue.MakePath(sels[:len(sels)-1]...)).Fields(cue.Optional(true))
+	if err != nil {
+		return false
+	}
+	last := sels[len(sels)-1]
+	for iter.Next() {
+		if sel := iter.Selector(); sel.IsString() && sel.Unquoted() == last.Unquoted() {
+			return sel.ConstraintType() == cue.RequiredConstraint
+		}
+	}
+	return false
 }
 
 // lookup returns the value v declares at p, whatever the form of the fields
 // along it: a plain selector finds only regular fields, an optional one finds
 // regular, optional and required fields (see TestLookupPathFieldForms).
+//
+// A name an open struct admits only through its ... is not declared, though
+// LookupPath finds it (as _): the result does not exist, by the rule bind and
+// the totality check apply (cuetil.DeclaresPath). So a field only one version
+// declares is never copied implicitly, nor treated as present in the other.
 func lookup(v cue.Value, p cue.Path) cue.Value {
+	//nolint:staticcheck // every schema the compiler looks into is built in the one context it was given
+	if !cuetil.DeclaresPath(v.Context(), v, p) {
+		return cue.Value{}
+	}
 	sels := p.Selectors()
 	out := make([]cue.Selector, len(sels))
 	for i, s := range sels {

@@ -1,0 +1,114 @@
+each whose body copies the whole element, into a list whose elements accept
+every value of it, and an each nested in another whose body is a copy.
+-- ship/history/0.0.thema --
+Schema: close({
+	tags!: [...string]
+	s!: [...close({f!: [...close({id!: string})]})]
+})
+-- ship/1.0.thema --
+Schema: close({
+	labels!: [...string]
+	s!: [...close({g!: [...string]})]
+})
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		labels: _each(v0_0.tags, _item)
+		s: _each(v0_0.s, {g: _each(_item.f, _item.id)})
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		tags: _each(v1_0.labels, _item)
+		s: _each(v1_0.s, {f: _each(_item.g, {id: _item})})
+	}
+}
+-- data/0.0/some.json --
+{"tags": ["x"], "s": [{"f": [{"id": "a"}, {"id": "b"}]}, {"f": []}]}
+-- data/1.0/some.json --
+{"labels": ["x"], "s": [{"g": ["a", "b"]}, {"g": []}]}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+Schema: close({
+	labels!: [...string]
+	s!:      [...close({g!: [...string]})]
+})
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		labels: _each(v0_0.tags, _item)
+		s:      _each(v0_0.s, {g: _each(_item.f, _item.id)})
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		tags: _each(v1_0.labels, _item)
+		s:    _each(v1_0.s, {f: _each(_item.g, {id: _item})})
+	}
+}
+-- out/decompiled/history/0.0.thema --
+Schema: close({
+	tags!: [...string]
+	s!:    [...close({f!: [...close({id!: string})]})]
+})
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: close({
+				tags!: [...string]
+				s!:    [...close({f!: [...close({id!: string})]})]
+			})
+		}
+	}
+	"1": {
+		"0": {
+			schema: close({
+				labels!: [...string]
+				s!:      [...close({g!: [...string]})]
+			})
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			labels: [for _item in v0_0.tags {
+				_item
+			}]
+			s: [for _item in v0_0.s {
+				g: [for _item in _item.f {
+					_item.id
+				}]
+			}]
+		}
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			tags: [for _item in v1_0.labels {
+				_item
+			}]
+			s: [for _item in v1_0.s {
+				f: [for _item in _item.g {
+					id: _item
+				}]
+			}]
+		}
+	}
+}
+-- out/translate/0.0/some->1.0 --
+{"labels":["x"],"s":[{"g":["a","b"]},{"g":[]}]}
+[]
+-- out/translate/1.0/some->0.0 --
+{"tags":["x"],"s":[{"f":[{"id":"a"},{"id":"b"}]},{"f":[]}]}
+[]

@@ -1,0 +1,22 @@
+# A list the source may omit, mapped element by element with a field dropped in the body. The drop's lacuna is aggregated through a let that tests the list's presence before iterating it, so that the let evaluates, empty, where the list is absent; its length is measured under that test (#155).
+-- source.cue --
+l?: [...{t: string, legacy?: string}]
+-- target.cue --
+l?: [...{u: string}]
+-- lens.cue --
+v0_0: _
+let _d_0 = [if v0_0.l != _|_ for i, item in v0_0.l if item.legacy != _|_ {
+	path:  "l[\(i)].legacy"
+	value: item.legacy
+}]
+v1_0: {if v0_0.l != _|_ {l: [for item in v0_0.l {u: item.t}]}}
+lacunas: [{
+	condition:    len(_d_0) > 0
+	sourceFields: _d_0
+	message:      "legacy dropped"
+	type:         "DroppedField"
+}]
+-- out --
+total
+-- ir --
+no program: _d_0 is not an expression the IR carries
