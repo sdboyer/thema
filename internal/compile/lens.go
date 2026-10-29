@@ -29,7 +29,7 @@ type entry struct {
 	// path the dropped field would have had in the target, used only to
 	// check that the target does not require it.
 	target cue.Path
-	// source is the source path a move, orelse, match or each reads, or the
+	// source is the source path a move, coalesce, match or each reads, or the
 	// path a drop drops.
 	source cue.Path
 	// expr is the author's expression: the reference of a move, the literal
@@ -46,10 +46,10 @@ type entry struct {
 	// ok is set once the entry has passed its checks and been placed.
 	ok bool
 
-	// fallback is orelse's second argument: a constant, or a reference.
+	// fallback is coalesce's second argument: a constant, or a reference.
 	fallback ast.Expr
 	// computed is a computed expression: the value of a computed mapping, or
-	// orelse's primary when that is computed. reads are the source paths it
+	// coalesce's primary when that is computed. reads are the source paths it
 	// reads, and optional those of them the source may omit.
 	computed        ast.Expr
 	reads, optional []cue.Path
@@ -76,7 +76,7 @@ const (
 	kindMove entryKind = iota
 	kindConst
 	kindDrop
-	kindOrElse
+	kindCoalesce
 	kindMatch
 	kindEach
 	kindComputed
@@ -85,7 +85,7 @@ const (
 // The operations a lens body may call, and the arguments each takes.
 const (
 	opDrop   = "_drop"
-	opOrElse = "_orelse"
+	opCoalesce = "_coalesce"
 	opMatch  = "_match"
 	opEach   = "_each"
 	opArity  = 2
@@ -303,7 +303,7 @@ func (e *edge) parseBody(lit *ast.StructLit, tbase, sbase cue.Path, b *body) {
 		case *ast.EmbedDecl:
 			e.errf(diag.E0330, d.Pos(), "a lens body has no embeddings; a nested body may embed %s.<path> to copy from it", e.root)
 		case *ast.Comprehension:
-			e.errf(diag.E0330, d.Pos(), "comprehensions are not allowed in a lens body; a reference to an optional field is copied only when present, and _orelse(ref, fallback) decides what to use when it is absent")
+			e.errf(diag.E0330, d.Pos(), "comprehensions are not allowed in a lens body; a reference to an optional field is copied only when present, and _coalesce(ref, fallback) decides what to use when it is absent")
 		case *ast.LetClause:
 			e.errf(diag.E0330, d.Pos(), "let is not allowed in a lens body")
 		default:
@@ -357,8 +357,8 @@ func (e *edge) parseField(f *ast.Field, tbase, sbase cue.Path, b *body) {
 	case *ast.CallExpr:
 		if fn, ok := x.Fun.(*ast.Ident); ok {
 			switch fn.Name {
-			case opOrElse:
-				e.parseOrElse(x, &en, b)
+			case opCoalesce:
+				e.parseCoalesce(x, &en, b)
 				return
 			case opMatch:
 				e.parseMatch(x, &en, b)
@@ -387,21 +387,21 @@ func (e *edge) parseField(f *ast.Field, tbase, sbase cue.Path, b *body) {
 	b.add(en)
 }
 
-// parseOrElse reads orelse(ref, fallback): ref must refer to an optional
+// parseCoalesce reads coalesce(ref, fallback): ref must refer to an optional
 // source field, and fallback must be a constant or a reference the source
 // always has.
-func (e *edge) parseOrElse(x *ast.CallExpr, en *entry, b *body) {
+func (e *edge) parseCoalesce(x *ast.CallExpr, en *entry, b *body) {
 	if len(x.Args) != opArity {
-		e.errf(diag.E0335, x.Pos(), "_orelse takes two arguments: _orelse(%s.<path>, fallback)", e.root)
+		e.errf(diag.E0335, x.Pos(), "_coalesce takes two arguments: _coalesce(%s.<path>, fallback)", e.root)
 		return
 	}
 	fb := x.Args[1]
 	if _, ok := e.refPath(fb); !ok && !isLiteral(fb) {
-		e.errf(diag.E0335, fb.Pos(), "_orelse's fallback must be a constant or a reference to %s", e.root)
+		e.errf(diag.E0335, fb.Pos(), "_coalesce's fallback must be a constant or a reference to %s", e.root)
 		return
 	}
 	if p, ok := e.refPath(x.Args[0]); ok {
-		en.kind, en.source, en.fallback = kindOrElse, p, fb
+		en.kind, en.source, en.fallback = kindCoalesce, p, fb
 		b.add(*en)
 		return
 	}
@@ -412,10 +412,10 @@ func (e *edge) parseOrElse(x *ast.CallExpr, en *entry, b *body) {
 		return
 	}
 	if len(optional) == 0 {
-		e.errf(diag.E0348, x.Args[0].Pos(), "%s always has every field %s reads, so _orelse's fallback could never apply: write %s: %s", e.sv, exprText(x.Args[0]), en.target, exprText(x.Args[0]))
+		e.errf(diag.E0348, x.Args[0].Pos(), "%s always has every field %s reads, so _coalesce's fallback could never apply: write %s: %s", e.sv, exprText(x.Args[0]), en.target, exprText(x.Args[0]))
 		return
 	}
-	en.kind, en.computed, en.reads, en.optional, en.fallback = kindOrElse, x.Args[0], reads, optional, fb
+	en.kind, en.computed, en.reads, en.optional, en.fallback = kindCoalesce, x.Args[0], reads, optional, fb
 	b.add(*en)
 }
 
@@ -513,7 +513,7 @@ func (e *edge) parseEach(x *ast.CallExpr, en *entry, b *body) {
 
 // notData refuses a hidden field or a definition as a key in a lens body or
 // its lacunas. Neither is data, so a mapping for one means nothing; and with
-// none in a lens, nothing in it can shadow the operations (_drop, _orelse,
+// none in a lens, nothing in it can shadow the operations (_drop, _coalesce,
 // _match, _each) or _item, which are spelled as hidden identifiers for that
 // reason. A quoted label ("_x") is a regular field, and data.
 func (e *edge) notData(f *ast.Field, name string, isIdent bool) bool {
@@ -1021,7 +1021,7 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 			}
 			if e.optional(e.S, en.source) {
 				if e.required(e.T, en.target) {
-					e.errf(diag.E0343, en.pos, "%s is optional in %s and %s requires %s: write _orelse(%s.%s, <fallback>) to say what to use when it is absent", en.source, e.sv, e.tv, en.target, e.root, en.source)
+					e.errf(diag.E0343, en.pos, "%s is optional in %s and %s requires %s: write _coalesce(%s.%s, <fallback>) to say what to use when it is absent", en.source, e.sv, e.tv, en.target, e.root, en.source)
 					continue
 				}
 				root.has(en.target).present = []cue.Path{en.source}
@@ -1035,7 +1035,7 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 			if !e.instance(en.expr, en.target) {
 				continue
 			}
-		case kindOrElse:
+		case kindCoalesce:
 			if en.computed == nil {
 				consumed[en.source.String()] = true
 			}
@@ -1045,7 +1045,7 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 			if p, ok := e.refPath(en.fallback); ok {
 				consumed[p.String()] = true
 			}
-			if !e.checkOrElse(en) || !e.place(root, en) {
+			if !e.checkCoalesce(en) || !e.place(root, en) {
 				continue
 			}
 			out.effective = append(out.effective, *en)
@@ -1060,7 +1060,7 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 				if e.required(e.T, en.target) {
 					e.errs = cerrors.Append(e.errs, diag.New(diag.E0343).At(en.pos).
 						Headlinef("%s reads %s, which %s may omit, and %s requires %s", exprText(en.computed), e.inputRefs(en.optional), e.sv, e.tv, en.target).
-						Helpf("write _orelse(%s, <fallback>) to say what to use when it is absent", exprText(en.computed)).
+						Helpf("write _coalesce(%s, <fallback>) to say what to use when it is absent", exprText(en.computed)).
 						Err())
 					continue
 				}
@@ -1106,7 +1106,7 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 }
 
 // declare emits the lacunas the lens declares, in declared order, each under
-// its when or the condition its mapping implies: for an orelse, that the
+// its when or the condition its mapping implies: for a coalesce, that the
 // fallback was used; for a match, that the [_] arm was; for a drop, that the
 // field was present. A [_] arm must have a lacuna under its condition.
 func (e *edge) declare(b *body, out *compiledLens) {
@@ -1135,7 +1135,7 @@ func (e *edge) declare(b *body, out *compiledLens) {
 			if cond == nil && e.optional(e.S, en.source) {
 				cond = e.present(d.pos, en.source)
 			}
-		case kindOrElse:
+		case kindCoalesce:
 			if cond == nil && en.computed != nil {
 				// The fallback was used: not every optional field read was present.
 				cond = e.head(d.pos, e.presentAll(d.pos, en.optional), at(d.pos, ast.NewBool(false)), at(d.pos, ast.NewBool(true)))
@@ -1204,16 +1204,16 @@ func (e *edge) instance(x ast.Expr, tpath cue.Path) bool {
 	return true
 }
 
-// checkOrElse checks an orelse entry: its reference is to an optional source
+// checkCoalesce checks a coalesce entry: its reference is to an optional source
 // field, and its fallback is total for the target.
-func (e *edge) checkOrElse(en *entry) bool {
+func (e *edge) checkCoalesce(en *entry) bool {
 	if en.computed == nil {
 		if !lookup(e.S, en.source).Exists() {
 			e.errf(diag.E0340, en.expr.Pos(), "%s does not declare %s", e.sv, en.source)
 			return false
 		}
 		if !e.optional(e.S, en.source) {
-			e.errf(diag.E0348, en.expr.Pos(), "%s always has %s, so _orelse's fallback could never apply: write %s: %s.%s", e.sv, en.source, en.target, e.root, en.source)
+			e.errf(diag.E0348, en.expr.Pos(), "%s always has %s, so _coalesce's fallback could never apply: write %s: %s.%s", e.sv, en.source, en.target, e.root, en.source)
 			return false
 		}
 	}
@@ -1223,7 +1223,7 @@ func (e *edge) checkOrElse(en *entry) bool {
 			return false
 		}
 		if e.optional(e.S, p) {
-			e.errf(diag.E0349, en.fallback.Pos(), "%s is optional in %s, so it cannot be _orelse's fallback: the fallback must always exist", p, e.sv)
+			e.errf(diag.E0349, en.fallback.Pos(), "%s is optional in %s, so it cannot be _coalesce's fallback: the fallback must always exist", p, e.sv)
 			return false
 		}
 		return true
@@ -1528,7 +1528,7 @@ func (e *edge) fill(n *node, tbase cue.Path, b *body, consumed, dropped map[stri
 				continue
 			}
 			if e.optional(e.S, spath) && e.required(e.T, tpath) {
-				e.errf(diag.E0343, lookup(e.T, tpath).Pos(), "%s is optional in %s and required in %s: write %s: _orelse(%s.%s, <fallback>) to say what to use when it is absent", spath, e.sv, e.tv, tpath, e.root, spath)
+				e.errf(diag.E0343, lookup(e.T, tpath).Pos(), "%s is optional in %s and required in %s: write %s: _coalesce(%s.%s, <fallback>) to say what to use when it is absent", spath, e.sv, e.tv, tpath, e.root, spath)
 				continue
 			}
 			c := n.child(name)
@@ -1667,7 +1667,7 @@ func (e *edge) emit(n *node, tbase cue.Path) *ast.StructLit {
 }
 
 // emitLeaf renders one produced field: a plain field, a field under a
-// presence test, or the arms of an orelse or match.
+// presence test, or the arms of a coalesce or match.
 func (e *edge) emitLeaf(name string, c *node) []ast.Decl {
 	en, p := c.leaf, c.pos
 	field := func(val ast.Expr) *ast.Field {
@@ -1684,7 +1684,7 @@ func (e *edge) emitLeaf(name string, c *node) []ast.Decl {
 		})
 	}
 	switch en.kind {
-	case kindOrElse:
+	case kindCoalesce:
 		fallback := en.fallback
 		if fp, ok := e.refPath(en.fallback); ok {
 			fallback = at(en.fallback.Pos(), e.ref(fp))

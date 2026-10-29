@@ -1,6 +1,6 @@
 lacunas: several lacunas on one mapping, a lacuna with its own when, and a
 key nested like the mapping it describes. count's first lacuna applies when
-the orelse fallback does, its second under the author's condition; name's
+the coalesce fallback does, its second under the author's condition; name's
 applies under a condition over a field 0.0 always has, a guard the totality
 proof accepts as a boolean it can evaluate. The backward lens is wholly
 derived.
@@ -29,7 +29,7 @@ ForwardLens: {
 		meta: {
 			team: "unassigned"
 		}
-		count: _orelse(v0_0.count, 0)
+		count: _coalesce(v0_0.count, 0)
 	}
 	lacunas: {
 		name: [{
@@ -72,7 +72,7 @@ ForwardLens: {
 		meta: {
 			team: "unassigned"
 		}
-		count: _orelse(v0_0.count, 0)
+		count: _coalesce(v0_0.count, 0)
 	}
 	lacunas: {
 		name: [{

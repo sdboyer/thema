@@ -1,5 +1,5 @@
 A computed mapping reading an optional field into a field the target
-requires: orelse says what to use when it is absent.
+requires: coalesce says what to use when it is absent.
 -- ship/history/0.0.thema --
 Schema: {
 	count?: int32
@@ -23,4 +23,4 @@ error[E0343]: v0_0.count * 2 reads v0_0.count, which 0.0 may omit, and 1.0 requi
 8 |         total: v0_0.count * 2
   |         ^^^^^
   |
-  = help: write _orelse(v0_0.count * 2, <fallback>) to say what to use when it is absent
+  = help: write _coalesce(v0_0.count * 2, <fallback>) to say what to use when it is absent
