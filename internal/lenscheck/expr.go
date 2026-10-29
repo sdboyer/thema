@@ -795,10 +795,11 @@ func (w *walker) length(x ast.Expr, c *exprCtx) (shape, bool) {
 			case cue.ListKind:
 				iv, _, _ = intervalOf(b.Len())
 				iv = iv.meet(lengthRange)
-			case cue.StringKind, cue.BytesKind:
+			case cue.StringKind, cue.BytesKind, cue.StructKind:
+				// A struct's length is its number of data fields.
 				iv = lengthRange
 			default:
-				w.fail(c, Unknown, RuleUnknownOp, fmt.Sprintf("takes the length of %s, which may be %s; len is provable over strings and lists", w.inputRef(p), b.IncompleteKind()))
+				w.fail(c, Unknown, RuleUnknownOp, fmt.Sprintf("takes the length of %s, which may be %s; len is provable over strings, lists and structs", w.inputRef(p), b.IncompleteKind()))
 				return shape{}, false
 			}
 			if out == nil {
