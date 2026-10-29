@@ -52,7 +52,7 @@ error[E0501]: the data lacks structVal.inner, which schema 0.0 declares as strin
    |
    = detail: structVal.inner: incomplete value string | int
 -- out/validate/TestValidate/emptyMapAsString --
-error[E0503]: emptyMap in the data is string, but schema 0.0 declares it as {...}
+error[E0503]: emptyMap in the data is "definitely not a map", but schema 0.0 declares it as {...}
   --> in/validate/TestValidate/emptyMapAsString.data.json:2:17
    |
  2 |     "emptyMap": "definitely not a map"

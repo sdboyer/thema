@@ -1,0 +1,18 @@
+# A list the source may omit, mapped element by element under its presence test, as the authoring form's each over an optional list compiles (#155).
+-- source.cue --
+l?: [...{t: string}]
+-- target.cue --
+l?: [...{u: string}]
+-- lens.cue --
+v0_0: _
+v1_0: {if v0_0.l != _|_ {l: [for item in v0_0.l {u: item.t}]}}
+-- out --
+total
+-- ir --
+out: {
+  if in.l != _|_ {
+    out.l = each in.l {
+      out.l[_].u <- in.l[_].t
+    }
+  }
+}

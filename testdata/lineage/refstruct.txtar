@@ -52,7 +52,7 @@ error[E0506]: disj in the data is not concrete: it is still {run:string,tell?:by
   |
   = detail: disj: incomplete value {run:string,tell?:bytes,dat:int32} | {one:string,two:string}
 -- out/validate/TestValidate/aBazRunWithInt --
-error[E0503]: aBaz.run in the data is int, but schema 0.0 declares it as string
+error[E0503]: aBaz.run in the data is 42, but schema 0.0 declares it as string
   --> in/validate/TestValidate/aBazRunWithInt.data.json:3:16
    |
  3 |         "run": 42

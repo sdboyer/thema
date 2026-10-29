@@ -544,7 +544,11 @@ func (w *walker) arith(c *exprCtx, s shape, op string) (shape, bool) {
 // operand reads an input path (or a constant reached by reference) used in an
 // expression.
 func (w *walker) operand(x ast.Expr, c *exprCtx) (shape, bool) {
-	conjs := w.tree.Conjuncts(x)
+	conjs, detail, ok := w.guarded(x, c.subj, c.gs)
+	if !ok {
+		w.fail(c, Unknown, RuleUnknownExhaustive, detail)
+		return shape{}, false
+	}
 	if len(conjs) == 0 {
 		w.fail(c, Unknown, RuleUnknownReference, fmt.Sprintf("reads %s, which the checker cannot follow to the input or to a constant", text(x)))
 		return shape{}, false
@@ -814,7 +818,12 @@ func (w *walker) length(x ast.Expr, c *exprCtx) (shape, bool) {
 		}
 		return shape{kind: cue.IntKind, iv: *out}, true
 	}
-	for _, cj := range w.tree.Conjuncts(x) {
+	conjs, detail, ok := w.guarded(x, c.subj, c.gs)
+	if !ok {
+		w.fail(c, Unknown, RuleUnknownExhaustive, detail)
+		return shape{}, false
+	}
+	for _, cj := range conjs {
 		if l, ok := cj.Expr.(*ast.ListLit); ok {
 			return w.listLength(l, c)
 		}
@@ -842,60 +851,57 @@ func (w *walker) listLength(l *ast.ListLit, c *exprCtx) (shape, bool) {
 			w.fail(c, Unknown, RuleUnknownOp, "takes the length of an open list ([...]), which is a constraint rather than a value")
 			return shape{}, false
 		case *ast.Comprehension:
-			var fc *ast.ForClause
-			filtered := false
-			for _, cl := range e.Clauses {
-				switch cc := cl.(type) {
-				case *ast.ForClause:
-					if fc != nil {
-						w.fail(c, Unknown, RuleUnknownOp, "takes the length of a list built by nested for clauses")
-						return shape{}, false
-					}
-					fc = cc
-				case *ast.IfClause:
-					filtered = true
+			// Each for clause iterates a source list, the first from the
+			// input and each later one, nested, typically from the item of
+			// the one before: the list has up to the product of their
+			// lengths, exactly it when nothing filters. A pattern tested
+			// before a for clause guards the iteration: where it fails, the
+			// list is empty, and where it holds, the source is read under it.
+			last := -1
+			for i, cl := range e.Clauses {
+				if _, ok := cl.(*ast.ForClause); ok {
+					last = i
 				}
 			}
-			if fc == nil {
+			if last < 0 {
 				w.fail(c, Unknown, RuleUnknownOp, "takes the length of a list built by a comprehension with no for clause")
 				return shape{}, false
 			}
-			p, ok := w.pathOf(fc.Source)
-			if !ok {
-				w.fail(c, Unknown, RuleUnknownReference, fmt.Sprintf("takes the length of a list built over %s, which the checker cannot follow to a list in the input", text(fc.Source)))
-				return shape{}, false
-			}
-			c.paths[p.String()]++
-			src := w.lookupSource(p, c.gs)
-			switch {
-			case !src.declared:
-				w.fail(c, NotTotal, RuleSourceUndeclared, fmt.Sprintf("takes the length of a list built over %s, which the source schema does not declare", w.inputRef(p)))
-				return shape{}, false
-			case !src.present:
-				w.fail(c, NotTotal, RuleSourceAbsent, fmt.Sprintf("takes the length of a list built over %s, which may be absent: %s", w.inputRef(p), src.why))
-				return shape{}, false
-			}
-			var n *interval
-			for _, b := range src.branches {
-				if b.IncompleteKind() != cue.ListKind {
-					w.fail(c, Unknown, RuleUnknownOp, fmt.Sprintf("takes the length of a list built over %s, which may be %s rather than a list", w.inputRef(p), b.IncompleteKind()))
-					return shape{}, false
-				}
-				iv, _, _ := intervalOf(b.Len())
-				iv = iv.meet(lengthRange)
-				if filtered {
-					iv.lo = big.NewInt(0)
-				}
-				if n == nil {
-					n = &iv
-				} else {
-					h := n.hull(iv)
-					n = &h
+			filtered := false
+			gs := c.gs
+			n := point(big.NewInt(1))
+			dead := false
+			for i, cl := range e.Clauses {
+				switch cc := cl.(type) {
+				case *ast.IfClause:
+					filtered = true
+					if i > last {
+						continue
+					}
+					if g, ok := w.parsePattern(cc.Condition); ok {
+						w.checkPatterns(g, gs, c.subj, c.pos)
+						gs = append(gs[:len(gs):len(gs)], g...)
+					}
+				case *ast.ForClause:
+					iv, ok := w.forLength(cc, gs, c)
+					if !ok {
+						return shape{}, false
+					}
+					if iv == nil {
+						dead = true
+						continue
+					}
+					n = n.mul(*iv)
 				}
 			}
-			if n != nil {
-				total = total.add(*n)
+			if dead {
+				continue
 			}
+			n = n.meet(lengthRange)
+			if filtered {
+				n.lo = big.NewInt(0)
+			}
+			total = total.add(n)
 		default:
 			total = total.add(point(big.NewInt(1)))
 		}
@@ -905,6 +911,43 @@ func (w *walker) listLength(l *ast.ListLit, c *exprCtx) (shape, bool) {
 
 // lengthRange is the range of a length: a Go int, so within int64.
 var lengthRange = interval{lo: big.NewInt(0), hi: big.NewInt(math.MaxInt64)}
+
+// forLength bounds the length of the source list the for clause fc iterates,
+// read under the patterns gs. Nil where no alternative of the source can hold
+// (a dead arm): the clause produces nothing.
+func (w *walker) forLength(fc *ast.ForClause, gs []pattern, c *exprCtx) (*interval, bool) {
+	p, ok := w.pathOf(fc.Source)
+	if !ok {
+		w.fail(c, Unknown, RuleUnknownReference, fmt.Sprintf("takes the length of a list built over %s, which the checker cannot follow to a list in the input", text(fc.Source)))
+		return nil, false
+	}
+	c.paths[p.String()]++
+	src := w.lookupSource(p, gs)
+	switch {
+	case !src.declared:
+		w.fail(c, NotTotal, RuleSourceUndeclared, fmt.Sprintf("takes the length of a list built over %s, which the source schema does not declare", w.inputRef(p)))
+		return nil, false
+	case !src.present:
+		w.fail(c, NotTotal, RuleSourceAbsent, fmt.Sprintf("takes the length of a list built over %s, which may be absent: %s", w.inputRef(p), src.why))
+		return nil, false
+	}
+	var n *interval
+	for _, b := range src.branches {
+		if b.IncompleteKind() != cue.ListKind {
+			w.fail(c, Unknown, RuleUnknownOp, fmt.Sprintf("takes the length of a list built over %s, which may be %s rather than a list", w.inputRef(p), b.IncompleteKind()))
+			return nil, false
+		}
+		iv, _, _ := intervalOf(b.Len())
+		iv = iv.meet(lengthRange)
+		if n == nil {
+			n = &iv
+		} else {
+			h := n.hull(iv)
+			n = &h
+		}
+	}
+	return n, true
+}
 
 // division analyzes quo, rem, div or mod: the divisor must exclude zero, and
 // the result's magnitude is bounded by the dividend's (quo, div) or the
@@ -1123,7 +1166,7 @@ func (w *walker) head(h head, q cue.Path, gs []pattern, pos token.Pos) {
 		gs []pattern
 	}{{h.then, append(append([]pattern(nil), gs...), g...)}, {h.els, append(append([]pattern(nil), gs...), neg...)}} {
 		w.ir.push()
-		for _, c := range w.tree.Conjuncts(arm.x) {
+		for _, c := range w.valueConjuncts(arm.x, q, arm.gs, pos) {
 			switch c.Expr.(type) {
 			case *ast.StructLit, *ast.ListLit:
 				if !w.syn.FromInput(c) {
@@ -1156,7 +1199,7 @@ func (w *walker) asTable(x ast.Expr) (table, bool) {
 		return table{}, false
 	}
 	conjs := w.tree.Conjuncts(ix.X)
-	if len(conjs) != 1 || w.syn.FromInput(conjs[0]) {
+	if len(conjs) != 1 || w.syn.FromInput(conjs[0]) || len(conjs[0].Arms) > 0 {
 		return table{}, false
 	}
 	lit, ok := conjs[0].Expr.(*ast.StructLit)
@@ -1221,8 +1264,9 @@ func (w *walker) table(t table, q cue.Path, gs []pattern, pos token.Pos) {
 	for _, k := range keys {
 		g := pattern{root: w.from, kind: equality, path: p, lit: fmt.Sprintf("%q", k), val: w.ctx.CompileString(fmt.Sprintf("%q", k))}
 		w.ir.push()
-		for _, c := range w.tree.Conjuncts(entries[k].Value) {
-			w.conjunct(c, q, append(append([]pattern(nil), gs...), g), pos)
+		egs := append(append([]pattern(nil), gs...), g)
+		for _, c := range w.valueConjuncts(entries[k].Value, q, egs, pos) {
+			w.conjunct(c, q, egs, pos)
 		}
 		tb.Entries = append(tb.Entries, lensir.Entry{Key: k, Value: w.ir.pop()})
 	}

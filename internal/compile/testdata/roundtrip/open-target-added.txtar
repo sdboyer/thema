@@ -1,0 +1,86 @@
+Both schemas are open (...), and 1.0 adds b. 0.0 admits a
+b through its ... but does not declare one, so the derived backward lens drops
+b with a DroppedField lacuna, as it would were 0.0 closed (#158).
+-- ship/history/0.0.thema --
+Schema: {
+	a!: string
+	...
+}
+-- ship/1.0.thema --
+Schema: {
+	a!: string
+	b!: bool
+	...
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		b: true
+	}
+}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+Schema: {
+	a!: string
+	b!: bool
+	...
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		b: true
+	}
+}
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	a!: string
+	...
+}
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a!: string
+				...
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				a!: string
+				b!: bool
+				...
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			a: v0_0.a
+			b: true
+		}
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			a: v1_0.a
+		}
+		lacunas: [{
+			@thema(derived)
+			sourceFields: [{
+				path:  "b"
+				value: v1_0.b
+			}]
+			message: "b has no equivalent in 0.0 and was dropped"
+			type:    "DroppedField"
+		}]
+	}
+}

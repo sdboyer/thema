@@ -1,0 +1,35 @@
+# Hidden helpers that cannot disagree: a table declared twice with the same
+# entry, a disjunction whose alternatives are not writes, and a constraint
+# beside a copy.
+-- source.cue --
+x: int32
+k: "a" | "b"
+-- target.cue --
+b!: int64
+c!: int64
+-- lens.cue --
+v0_0: _
+v1_0: {
+	_h: v0_0.x
+	_d: {a: 1} | {a: 2}
+	_t: {a: 1, b: 2}
+	_t: {a: 1}
+	_c: v0_0.x
+	_c: int
+	b:  _h + 1
+	c:  _t[v0_0.k]
+}
+-- out --
+total
+-- ir --
+out: {
+  out.b = in.x + 1
+  out.c = table in.k {
+    "a" {
+      out.c = 1
+    }
+    "b" {
+      out.c = 2
+    }
+  }
+}

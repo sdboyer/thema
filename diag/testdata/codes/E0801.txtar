@@ -13,7 +13,7 @@ request; the help lists the operations.
       "severity": "error",
       "headline": "\"translate-all\" is not an operation of the playground",
       "help": [
-        "the operations are bind, compile, decompile, dehydrate, example, examples, format, hydrate, init, jsonschema, openapi, translate, typescript, validate and validate-any"
+        "the operations are bind, compile, decompile, dehydrate, example, examples, format, hydrate, init, jsonschema, openapi, register-examples, translate, typescript, validate and validate-any"
       ]
     }
   ],
@@ -26,4 +26,4 @@ request; the help lists the operations.
 -- out/text --
 error[E0801]: "translate-all" is not an operation of the playground
   |
-  = help: the operations are bind, compile, decompile, dehydrate, example, examples, format, hydrate, init, jsonschema, openapi, translate, typescript, validate and validate-any
+  = help: the operations are bind, compile, decompile, dehydrate, example, examples, format, hydrate, init, jsonschema, openapi, register-examples, translate, typescript, validate and validate-any
