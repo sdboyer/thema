@@ -2,7 +2,8 @@ A struct whose every field reads from beneath the source's optional struct of
 the same name is a copy of it, written only where the instance has it, whether
 the author wrote it as a nested body or not. q's nested body renames x and
 drops y, so q is a copy of q in both directions. r's nested body adds a
-constant, which is written always, and so is r with it. s is dropped whole.
+constant, which is written always, and so is r with it. s is dropped whole,
+with a lacuna where it is not empty.
 -- ship/history/0.0.thema --
 Schema: {
 	q?: {
@@ -153,8 +154,14 @@ lenses: {
 			},
 			{
 				@thema(derived)
-				condition: v0_0.s != _|_
-				sourceFields: [{
+				condition: [
+					if v0_0.s != _|_ {
+						len(v0_0.s) > 0
+					},
+					false
+				][
+					0]
+				sourceFields: [if v0_0.s != _|_ {
 					path:  "s"
 					value: v0_0.s
 				}]
@@ -194,7 +201,7 @@ lenses: {
 []
 -- out/translate/0.0/empty->1.0 --
 {"q":{},"r":{"c":"z"}}
-[{"sourceFields":[{"path":"s","value":{}}],"type":"DroppedField","message":"s has no equivalent in 1.0 and was dropped"}]
+[]
 -- out/translate/0.0/full->1.0 --
 {"q":{"x2":1},"r":{"k":3,"c":"z"}}
 [{"sourceFields":[{"path":"q.y","value":2}],"type":"DroppedField","message":"q.y has no equivalent in 1.0 and was dropped"},{"sourceFields":[{"path":"s","value":{"v":4}}],"type":"DroppedField","message":"s has no equivalent in 1.0 and was dropped"}]

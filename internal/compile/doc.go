@@ -57,8 +57,8 @@
 //
 // Without a when, a lacuna applies under the condition its mapping implies:
 // always, for a move or a constant; when the fallback is used, for an _orelse;
-// when the [_] arm applies, for a match; when the field is present, for a
-// drop. A DroppedField lacuna on a drop refines the derived one's message. A
+// when the [_] arm applies, for a match; when the field is present (and for a
+// struct or a list, not empty), for a drop. A DroppedField lacuna on a drop refines the derived one's message. A
 // when replaces the implied condition. It compares and combines source
 // fields with CUE's operators, len and the integer divisions (quo, rem, div,
 // mod): what the totality proof proves a boolean. A when that reads an

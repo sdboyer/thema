@@ -93,7 +93,7 @@ The operations, `_drop`, `_orelse`, `_match` and `_each`, and `_item` inside an 
 
 - **Copies are implicit.** A field both schemas declare, that no mapping mentions, is copied. The copy is made as high as the two schemas agree: a field whose contents the target declares whole is copied whole, and one whose contents differ is descended into. A copy, like a move, must fit: the target field has to accept every value the source field may hold, or the field must be mapped.
 - **Optional sources are used only when present.** A copy, a move or a computed value that reads a field the source may omit is written only when the instance has it. Where the target requires the field, the author must say what to use when it is absent, with `_orelse`.
-- **A struct's presence is information.** A struct the lens copies from an optional struct of the source is written only when the instance has it: absent stays absent, and present but empty stays present. That holds for a struct copied whole, one the copy descends into, and a nested body whose every mapping reads from beneath the source's struct of the same name (`q: {b: v0_0.q.a}`, or `q: {y: _drop}`). A nested body that writes anything else, such as a constant, is written always, and so is a struct the target requires.
+- **Translation keeps the form a struct had.** A struct the lens copies from an optional struct of the source is written only when the instance has it: absent stays absent, and empty stays empty. That holds for a struct copied whole, one the copy descends into, and a nested body whose every mapping reads from beneath the source's struct of the same name (`q: {b: v0_0.q.a}`, or `q: {y: _drop}`). A nested body that writes anything else, such as a constant, is written always, and so is a struct the target requires.
 - **Removed fields must be accounted for.** In the forward direction, a field the source declares and the target does not must be moved somewhere or dropped. A forgotten rename is an error, not a silent loss. A struct the target lacks is one field: it is accounted for as a whole, unless a mapping reads something beneath it, in which case each of its other fields is.
 - **Required fields must be produced.** A field the target requires that no mapping and no copy produces is an error, naming the lens and the field.
 
@@ -102,7 +102,7 @@ The operations, `_drop`, `_orelse`, `_match` and `_each`, and `_item` inside an 
 The backward lens is derived from the forward lens:
 
 - every move whose source is used once is inverted (`after: v0_0.before` forward derives `before: v1_0.after` backward);
-- every field the new version added is dropped, with a derived `DroppedField` lacuna saying so; a struct the new version added is dropped whole, with one lacuna about the struct, reported whenever it is present, empty or not, whose value holds the fields beneath it;
+- every field the new version added is dropped, with a derived `DroppedField` lacuna saying so; a struct the new version added is dropped whole, with one lacuna about the struct, reported where it is present and not empty, whose value holds the fields beneath it;
 - fields both versions share are copied, as always.
 
 What the author writes in `BackwardLens` overrides the derivation at the same key or beneath it. Writing `x: _drop` for a field the derivation would have moved suppresses the move. `_orelse`, `_match` and `_each` have no derived inverse, so a forward lens that uses them usually needs a written backward lens.
@@ -156,7 +156,7 @@ A key must name a mapping the author wrote. A copy the author wants a lacuna on 
 | move, constant | always |
 | `_orelse` | the fallback was used |
 | `_match` | the wildcard arm applied |
-| `_drop` | the dropped field was present |
+| `_drop` | the dropped field was present, and for a struct or a list, not empty |
 
 A `when` replaces the implied condition. It is a comparison or combination of source fields, built from the usual operators (`==`, `!=`, `<`, `>`, `<=`, `>=`, `&&`, `||`, `!`, `+`, `-`, `*`), `len` for the length of a string or list, and whole-number division (`quo`, `rem`, `div`, `mod`). Three rules govern the fields it reads:
 
@@ -164,7 +164,7 @@ A `when` replaces the implied condition. It is a comparison or combination of so
 - **A field the source may omit, named bare, tests its presence.** `when: v0_0.flag` applies to the instances that have `flag`, whatever its value. To test a bare optional field's value, compare it: `when: v0_0.flag == true`.
 - **A required true-or-false field named bare is its value.** `when: v0_0.deprecated` applies when `deprecated` is true. Any other field named bare is an error: compare it.
 
-**Drops.** A drop derives a `DroppedField` lacuna by itself. A `DroppedField` lacuna declared on a drop replaces the derived message. A lacuna of another type on a drop is added beside the derived one. A drop of a struct derives one lacuna, about the struct, not one for each field beneath it.
+**Drops.** A drop derives a `DroppedField` lacuna by itself. A `DroppedField` lacuna declared on a drop replaces the derived message. A lacuna of another type on a drop is added beside the derived one. A drop of a struct derives one lacuna, about the struct, not one for each field beneath it. An empty struct or list carries no information: an empty container and an absent one are not told apart as data, so dropping an empty one raises no lacuna.
 
 **Matches.** A wildcard arm must have a lacuna: one on the match's key without a `when`, which applies when the arm does. A lacuna on an arm other than the wildcard is written with a `when` naming the value, `when: v0_0.kind == "a"`. A match without a wildcard arm has no implied condition, so every lacuna on it needs a `when`.
 

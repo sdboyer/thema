@@ -1081,8 +1081,8 @@ func (e *edge) declare(b *body, out *compiledLens) {
 		cond := d.when
 		switch en.kind {
 		case kindDrop:
-			if cond == nil && e.optional(e.S, en.source) {
-				cond = e.present(d.pos, en.source)
+			if cond == nil {
+				cond = e.dropCondition(d.pos, en.source)
 			}
 		case kindOrElse:
 			if cond == nil && en.computed != nil {
@@ -1804,6 +1804,9 @@ func (e *edge) dropLacuna(out *compiledLens, en *entry) {
 		if e.optional(e.S, en.source) {
 			clauses = append(clauses, at(p, &ast.IfClause{Condition: e.present(p, en.source)}))
 		}
+		if e.container(en.source) {
+			clauses = append(clauses, at(p, &ast.IfClause{Condition: e.nonEmpty(p, en.source)}))
+		}
 		pathLit := at(p, &ast.Interpolation{Elts: []ast.Expr{
 			at(p, ast.NewLit(token.STRING, strconv.Quote(e.each.list.String() + "[")[:len(strconv.Quote(e.each.list.String()+"["))-1]+`\(`)),
 			at(p, ast.NewIdent("i")),
@@ -1822,10 +1825,10 @@ func (e *edge) dropLacuna(out *compiledLens, en *entry) {
 		switch {
 		case decl != nil && decl.when != nil:
 			elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("condition")), Value: decl.when}))
-		case e.optional(e.S, en.source):
-			elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("condition")), Value: e.present(p, en.source)}))
+		case e.dropCondition(p, en.source) != nil:
+			elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("condition")), Value: e.dropCondition(p, en.source)}))
 		}
-		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewList(e.fieldRef(p, en.source, e.root)))}))
+		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewList(e.dropSource(p, en.source)))}))
 	}
 	elts = append(elts,
 		at(p, &ast.Field{Label: at(p, ast.NewIdent("message")), Value: at(p, ast.NewString(msg))}),
@@ -1837,6 +1840,46 @@ func (e *edge) dropLacuna(out *compiledLens, en *entry) {
 		return
 	}
 	out.derived = append(out.derived, lac)
+}
+
+// dropCondition is the condition a drop of path implies, nil for always: that
+// the field was present, and for a struct or a list, that it was not empty.
+// An empty container carries no information, so dropping one loses nothing.
+func (e *edge) dropCondition(p token.Pos, path cue.Path) ast.Expr {
+	optional, container := e.optional(e.S, path), e.container(path)
+	switch {
+	case optional && container:
+		// len of an absent field is not false but an error, so the length is
+		// read only where the field is present.
+		return e.head(p, e.present(p, path), e.nonEmpty(p, path), at(p, ast.NewBool(false)))
+	case optional:
+		return e.present(p, path)
+	case container:
+		return e.nonEmpty(p, path)
+	}
+	return nil
+}
+
+// dropSource is the field a drop's lacuna reports. Where its condition reads
+// an optional container's length under a presence test, the field is read
+// under the same test.
+func (e *edge) dropSource(p token.Pos, path cue.Path) ast.Expr {
+	ref := e.fieldRef(p, path, e.root)
+	if e.optional(e.S, path) && e.container(path) {
+		return at(p, &ast.Comprehension{Clauses: []ast.Clause{at(p, &ast.IfClause{Condition: e.present(p, path)})}, Value: ref})
+	}
+	return ref
+}
+
+// container reports whether the source's field at p is a struct or a list.
+func (e *edge) container(p cue.Path) bool {
+	k := lookup(e.S, p).IncompleteKind()
+	return k == cue.StructKind || k == cue.ListKind
+}
+
+// nonEmpty is len(<root>.<path>) > 0, positioned at p.
+func (e *edge) nonEmpty(p token.Pos, path cue.Path) ast.Expr {
+	return at(p, ast.NewBinExpr(token.GTR, at(p, &ast.CallExpr{Fun: at(p, ast.NewIdent("len")), Args: []ast.Expr{at(p, e.ref(path))}}), at(p, ast.NewLit(token.INT, "0"))))
 }
 
 // dropMessage is the derived lacuna's default message for dropping p.
@@ -1875,7 +1918,7 @@ func (e *edge) lacunaFor(en *entry, d *lacunaDecl, cond ast.Expr) ast.Expr {
 		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("condition")), Value: cond}))
 	}
 	if en.kind == kindDrop {
-		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewList(e.fieldRef(p, en.source, e.root)))}))
+		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewList(e.dropSource(p, en.source)))}))
 	} else {
 		var srcs []ast.Expr
 		paths := en.reads

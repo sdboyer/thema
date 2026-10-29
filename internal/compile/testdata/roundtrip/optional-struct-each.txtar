@@ -1,6 +1,6 @@
 Inside an each body, a copy of an optional struct is written only where the
 element has it, and a struct the body drops is dropped whole: the drop's
-derived lacuna names every element that had it, empty or not. q's nested
+derived lacuna names every element that had it not empty. q's nested
 body only drops y, and x is copied.
 -- ship/history/0.0.thema --
 Schema: {
@@ -125,7 +125,7 @@ lenses: {
 			path:  "items[\(i)].q.y"
 			value: _item.q.y
 		}]
-		let _d_1 = [for i, _item in v0_0.items if _item.o != _|_ {
+		let _d_1 = [for i, _item in v0_0.items if _item.o != _|_ if len(_item.o) > 0 {
 			path:  "items[\(i)].o"
 			value: _item.o
 		}]
@@ -168,7 +168,7 @@ lenses: {
 }
 -- out/translate/0.0/items->1.0 --
 {"items":[{},{"q":{}},{"q":{"x":1}}]}
-[{"sourceFields":[{"path":"items[2].q.y","value":2}],"type":"DroppedField","message":"items[].q.y has no equivalent in 1.0 and was dropped"},{"sourceFields":[{"path":"items[1].o","value":{}},{"path":"items[2].o","value":{"e":true}}],"type":"DroppedField","message":"items[].o has no equivalent in 1.0 and was dropped"}]
+[{"sourceFields":[{"path":"items[2].q.y","value":2}],"type":"DroppedField","message":"items[].q.y has no equivalent in 1.0 and was dropped"},{"sourceFields":[{"path":"items[2].o","value":{"e":true}}],"type":"DroppedField","message":"items[].o has no equivalent in 1.0 and was dropped"}]
 -- out/translate/1.0/items->0.0 --
 {"items":[{},{"q":{}},{"q":{"x":1}}]}
 []
