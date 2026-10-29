@@ -63,7 +63,7 @@ struct CollectionsV0 @0x8897a4e818553256 {
   withSpace @17 :Text;
   kebabCase @18 :Text;
   v1starts @19 :Text;
-  snakeCase @20 :Text;
+  snakecase @20 :Text;
   extras2 @21 :Text;
   struct StructsItem @0xdbf66abcab6e8547 {
     extras @0 :Data;
@@ -125,7 +125,7 @@ struct CollectionsV0 @0x8897a4e818553256 {
   }
 }
 -- out/capnp/artifact --
-sha256 e11d2301c923e13a8f3ad73b2307d5fb3637070b156f4c17958931152379d54d
+sha256 64da46edbc860381a5f8d8285221464e4926e951267507bb19da6a678009f775
 8856 bytes
 -- out/capnp/layout --
 struct CollectionsV0 @0x8897a4e818553256: data=0 ptrs=22
@@ -149,7 +149,7 @@ struct CollectionsV0 @0x8897a4e818553256: data=0 ptrs=22
   withSpace @17: text off=17
   kebabCase @18: text off=18
   v1starts @19: text off=19
-  snakeCase @20: text off=20
+  snakecase @20: text off=20
   extras2 @21: text off=21
 struct CollectionsV0.Empty @0xe4a1379d75fd6ffc: data=0 ptrs=1
   extras @0: data off=0

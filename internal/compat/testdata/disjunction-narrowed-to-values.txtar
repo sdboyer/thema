@@ -1,0 +1,16 @@
+# a type narrowed to a disjunction of some of its values: no single new
+# alternative covers the prior one, and a value of it that new rejects is a
+# counterexample ("" for string, "x" where "" is taken, 2 for int)
+-- old.cue --
+kind: string
+e!:   string
+i?:   int
+-- new.cue --
+kind: "a" | "b"
+e!:   "" | "a"
+i?:   0 | 1
+-- out --
+incompatible
+e is now "" | "a", which does not accept every value of the prior string (rule value-narrowed) @ new.cue:2:1
+i is now 0 | 1, which does not accept every value of the prior int (rule value-narrowed) @ new.cue:3:1
+kind is now "a" | "b", which does not accept every value of the prior string (rule value-narrowed) @ new.cue:1:1

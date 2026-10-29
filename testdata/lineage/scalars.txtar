@@ -1019,7 +1019,7 @@ error[E0501]: the data lacks stringWithLength, which schema 0.0 declares as stri
    |
    = detail: stringWithLength: incomplete value strings.MinRunes(10)
 -- out/validate/TestValidate/someInt32 --
-error[E0503]: someInt32 in the data is string, but schema 0.0 declares it as int32
+error[E0503]: someInt32 in the data is "not an int", but schema 0.0 declares it as int32
   --> in/validate/TestValidate/someInt32.data.json:2:18
    |
  2 |     "someInt32": "not an int"
@@ -1188,7 +1188,7 @@ error[E0501]: the data lacks stringWithLength, which schema 0.0 declares as stri
    |
    = detail: stringWithLength: incomplete value strings.MinRunes(10)
 -- out/validate/TestValidate/someInt64 --
-error[E0503]: someInt64 in the data is string, but schema 0.0 declares it as int64
+error[E0503]: someInt64 in the data is "not an int64", but schema 0.0 declares it as int64
   --> in/validate/someInt64.data.json:2:18
    |
  2 |     "someInt64": "not an int64"
@@ -1357,7 +1357,7 @@ error[E0501]: the data lacks stringWithLength, which schema 0.0 declares as stri
    |
    = detail: stringWithLength: incomplete value strings.MinRunes(10)
 -- out/validate/TestValidate/someFloat32 --
-error[E0503]: someFloat32 in the data is string, but schema 0.0 declares it as float32
+error[E0503]: someFloat32 in the data is "I am a string", but schema 0.0 declares it as float32
   --> in/validate/TestValidate/someFloat32.data.json:2:20
    |
  2 |     "someFloat32": "I am a string"
@@ -1526,7 +1526,7 @@ error[E0501]: the data lacks stringWithLength, which schema 0.0 declares as stri
    |
    = detail: stringWithLength: incomplete value strings.MinRunes(10)
 -- out/validate/TestValidate/someFloat64 --
-error[E0503]: someFloat64 in the data is string, but schema 0.0 declares it as float64
+error[E0503]: someFloat64 in the data is "I am a string", but schema 0.0 declares it as float64
   --> in/validate/TestValidate/someFloat64.data.json:2:20
    |
  2 |     "someFloat64": "I am a string"
@@ -2028,6 +2028,110 @@ export const defaultScalarFields: Partial<ScalarFields> = {
 };
 -- out/lensir --
 no lenses
+-- out/encoding/jsonschema/TestGenerate --
+== 0.0.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "intWithBounds": {
+      "type": "integer",
+      "exclusiveMaximum": 10,
+      "minimum": 0
+    },
+    "nullableIntWithDefault": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": 10
+    },
+    "nullableIntWithNoDefault": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "someFloat32": {
+      "type": "number",
+      "maximum": 340282346638528859811704183484516925440,
+      "minimum": -340282346638528859811704183484516925440
+    },
+    "someFloat64": {
+      "type": "number",
+      "maximum": 1.797693134862315708145274237317043567981E+308,
+      "minimum": -1.797693134862315708145274237317043567981E+308
+    },
+    "someInt16": {
+      "type": "integer",
+      "maximum": 32767,
+      "minimum": -32768
+    },
+    "someInt32": {
+      "type": "integer",
+      "maximum": 2147483647,
+      "minimum": -2147483648
+    },
+    "someInt64": {
+      "type": "integer",
+      "maximum": 9223372036854775807,
+      "minimum": -9223372036854775808
+    },
+    "someInt8": {
+      "type": "integer",
+      "maximum": 127,
+      "minimum": -128
+    },
+    "someUInt16": {
+      "type": "integer",
+      "maximum": 65535,
+      "minimum": 0
+    },
+    "someUInt32": {
+      "type": "integer",
+      "maximum": 4294967295,
+      "minimum": 0
+    },
+    "someUInt64": {
+      "type": "integer",
+      "maximum": 18446744073709551615,
+      "minimum": 0
+    },
+    "someUInt8": {
+      "type": "integer",
+      "maximum": 255,
+      "minimum": 0
+    },
+    "stringWithLength": {
+      "type": "string",
+      "minLength": 10
+    }
+  },
+  "required": [
+    "intWithBounds",
+    "nullableIntWithNoDefault",
+    "someFloat32",
+    "someFloat64",
+    "someInt16",
+    "someInt32",
+    "someInt64",
+    "someInt8",
+    "someUInt16",
+    "someUInt32",
+    "someUInt64",
+    "someUInt8",
+    "stringWithLength"
+  ]
+}
 -- out/encoding/capnp --
 rejected
 schema 0.0: nullableIntWithDefault is int, an integer with no finite bounds; capnp integers are sized (int32, uint8, >=0 & <=100) (rule int-unbounded) @ /in.cue:25:34

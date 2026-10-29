@@ -1,0 +1,15 @@
+A version file importing a package that is not one of CUE's builtins.
+-- ship/history/0.0.thema --
+import "example.com/common"
+
+Schema: {
+	name: common.Name
+}
+-- out/error --
+error[E0143]: history/0.0.thema imports example.com/common, which is not one of CUE's builtin packages
+ --> history/0.0.thema:1:8
+  |
+1 | import "example.com/common"
+  |        ^^^^^^^^^^^^^^^^^^^^
+  |
+  = help: a version file imports only CUE's builtin packages, such as strings, list or time

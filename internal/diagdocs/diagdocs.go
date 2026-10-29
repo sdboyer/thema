@@ -27,9 +27,17 @@ func ErrorPage(p Page) string {
 	var b strings.Builder
 	b.WriteString(header)
 	fmt.Fprintf(&b, "# %s: %s\n\n", p.Info.Code, p.Info.Title)
+	if p.Info.Retired != "" {
+		fmt.Fprintf(&b, "**Retired.** %s\n", p.Info.Retired)
+		return b.String()
+	}
 	if p.Prose != "" {
 		b.WriteString(p.Prose)
 		b.WriteString("\n\n")
+	}
+	if p.Info.Internal != "" {
+		fmt.Fprintf(&b, "This condition cannot arise when thema's checker is sound: %s.\n\n", p.Info.Internal)
+		b.WriteString("If thema reports it, the bug is in thema, not in the lineage or the data.\nPlease report it at https://github.com/sdboyer/thema/issues with the lineage\nand, for a translation, the instance.\n")
 	}
 	if len(p.Inputs) > 0 {
 		b.WriteString("## Example\n\n")
@@ -57,7 +65,11 @@ func Index(pages []Page) string {
 	}
 	b.WriteString("\n| Code | Severity | Title |\n|---|---|---|\n")
 	for _, p := range pages {
-		fmt.Fprintf(&b, "| [%s](%s.md) | %s | %s |\n", p.Info.Code, p.Info.Code, p.Info.Severity, p.Info.Title)
+		title := p.Info.Title
+		if p.Info.Retired != "" {
+			title = "retired: " + title
+		}
+		fmt.Fprintf(&b, "| [%s](%s.md) | %s | %s |\n", p.Info.Code, p.Info.Code, p.Info.Severity, title)
 	}
 	return b.String()
 }

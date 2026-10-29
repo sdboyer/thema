@@ -1,0 +1,19 @@
+# A hidden field reading a result field written under an if: where the
+# pattern fails, the read leaves the hidden field incomplete, which is not an
+# error for a field that is not data.
+-- source.cue --
+k: "x" | "y"
+-- target.cue --
+a?: int32
+b!: int64
+-- lens.cue --
+v0_0: _
+v1_0: {
+	if v0_0.k == "x" {a: 1}
+	_h: v1_0.a + 1
+	b:  5
+}
+-- out --
+total
+-- ir --
+no program: path _h has a selector the IR does not carry: _h

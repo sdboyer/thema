@@ -342,6 +342,16 @@ func (w *walker) value(p cue.Path, pred, succ cue.Value) {
 				})
 				continue
 			}
+			// A value of the old alternative that new rejects is a
+			// counterexample too: string against "a" | "b" admits "".
+			if w.rejectsProbe(o, succ, nb) {
+				w.add(Finding{
+					Path: p, Verdict: Incompatible, Rule: RuleValueNarrowed,
+					Detail: fmt.Sprintf("is now %s, which does not accept every value of the prior %s", fmtv(succ), fmtv(o)),
+					Pos:    posOf(succ, pred),
+				})
+				continue
+			}
 			w.add(Finding{
 				Path: p, Verdict: Unknown, Rule: RuleUnknownDisjunction,
 				Detail: fmt.Sprintf("is now %s, no single alternative of which covers the prior alternative %s; the checker does not combine alternatives", fmtv(succ), fmtv(o)),
@@ -349,6 +359,64 @@ func (w *walker) value(p cue.Path, pred, succ cue.Value) {
 			})
 		}
 	}
+}
+
+// rejectsProbe reports whether one of a few probe values is an instance of the
+// predecessor alternative pred that succ rejects: a counterexample. For each
+// scalar kind pred admits, the probe is the first of a fixed sequence of
+// values of that kind ("", "x", "xx", ...; 0, 1, 2, ...; 0.0, 1.0, ...) that
+// equals no concrete alternative of succ (alts), so that string against
+// "a" | "b", or int against 0 | 1, finds one. A probe pred rejects decides
+// nothing: the alternatives may still cover pred together (=~"^(a|b)$"
+// against "a" | "b").
+func (w *walker) rejectsProbe(pred, succ cue.Value, alts []cue.Value) bool {
+	for _, probe := range w.probes(kindOf(pred), alts) {
+		if pred.Unify(probe).Validate(cue.Concrete(true)) == nil && succ.Unify(probe).Validate() != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// probes returns, for each scalar kind in k, a value of that kind that equals
+// no concrete alternative in alts; both booleans for bool, and null for null.
+func (w *walker) probes(k cue.Kind, alts []cue.Value) []cue.Value {
+	taken := map[string]bool{}
+	for _, a := range alts {
+		if a.Validate(cue.Concrete(true)) == nil {
+			taken[fmtv(a)] = true
+		}
+	}
+	// next returns the first of the values gen(0), gen(1), ... that no
+	// alternative takes. alts is finite, so the search ends.
+	next := func(gen func(i int) any) cue.Value {
+		for i := 0; ; i++ {
+			v := w.ctx.Encode(gen(i))
+			if !taken[fmtv(v)] {
+				return v
+			}
+		}
+	}
+	var out []cue.Value
+	if k&cue.NullKind != 0 {
+		out = append(out, w.ctx.CompileString("null"))
+	}
+	if k&cue.BoolKind != 0 {
+		out = append(out, w.ctx.Encode(true), w.ctx.Encode(false))
+	}
+	if k&cue.IntKind != 0 {
+		out = append(out, next(func(i int) any { return i }))
+	}
+	if k&cue.FloatKind != 0 {
+		out = append(out, next(func(i int) any { return float64(i) }))
+	}
+	if k&cue.StringKind != 0 {
+		out = append(out, next(func(i int) any { return strings.Repeat("x", i) }))
+	}
+	if k&cue.BytesKind != 0 {
+		out = append(out, next(func(i int) any { return []byte(strings.Repeat("x", i)) }))
+	}
+	return out
 }
 
 // refPair returns a key for old and new when both are references, so that a
@@ -367,12 +435,27 @@ func (w *walker) refPair(pred, succ cue.Value) (string, bool) {
 // "a" and "b". Defaults are compared separately, by the field that holds them.
 // A reference is split as the value it refers to, since Expr would report
 // only the reference; a builtin validator value (time.Time) is kept as is, so
-// that it is still read as a validator.
+// that it is still read as a validator. A conjunction with a disjunctive
+// operand, (A | B) & C, is the alternatives of that operand each unified with
+// the rest, A & C and B & C: Expr reports the conjunction, not the
+// disjunction inside it. The closing wrapper (cuetil.CloseRecursive) is such a
+// conjunction, _ & v, so a schema that is a disjunction at its top is split
+// here like one beneath a field; _ says nothing and is not unified in.
 func Branches(v cue.Value) []cue.Value {
 	return branches(v)
 }
 
+// maxBranchesDepth bounds how far branches follows an expression's structure.
+const maxBranchesDepth = 16
+
 func branches(v cue.Value) []cue.Value {
+	return branchesDepth(v, 0)
+}
+
+func branchesDepth(v cue.Value, depth int) []cue.Value {
+	if depth > maxBranchesDepth {
+		return []cue.Value{v}
+	}
 	if _, rp := v.ReferencePath(); len(rp.Selectors()) > 0 {
 		if _, builtin := packageMember(v); !builtin {
 			v = cue.Dereference(v)
@@ -383,9 +466,35 @@ func branches(v cue.Value) []cue.Value {
 	case cue.OrOp:
 		var out []cue.Value
 		for _, a := range args {
-			out = append(out, branches(a)...)
+			out = append(out, branchesDepth(a, depth+1)...)
 		}
 		return out
+	case cue.AndOp:
+		for i, a := range args {
+			alts := branchesDepth(a, depth+1)
+			if len(alts) <= 1 {
+				continue
+			}
+			var rest cue.Value
+			for j, b := range args {
+				if j == i || b.IncompleteKind() == cue.TopKind {
+					continue
+				}
+				if !rest.Exists() {
+					rest = b
+				} else {
+					rest = rest.Unify(b)
+				}
+			}
+			if !rest.Exists() {
+				return alts
+			}
+			out := make([]cue.Value, len(alts))
+			for k, alt := range alts {
+				out[k] = alt.Unify(rest)
+			}
+			return out
+		}
 	case cue.NoOp:
 		if len(args) == 1 {
 			return []cue.Value{args[0]}
@@ -834,7 +943,7 @@ func (w *walker) leaf(p cue.Path, pred, succ, wholeSucc cue.Value) {
 		return
 	}
 	if succ.Validate(cue.Concrete(true)) == nil && pred.Validate(cue.Concrete(true)) == nil {
-		if cuetil.Equal(pred, succ) != nil {
+		if w.equal(pred, succ) != nil {
 			w.add(Finding{
 				Path: p, Verdict: Incompatible, Rule: RuleValueNarrowed,
 				Detail: fmt.Sprintf("was %s and is now %s", fmtv(pred), fmtv(succ)),
@@ -863,6 +972,30 @@ func (w *walker) listLen(v cue.Value) cue.Value {
 		return n
 	}
 	return w.ctx.CompileString("[...]").Len()
+}
+
+// A Validator is a validator applied to a value: a builtin call such as
+// list.MaxItems(2), or a builtin validator value such as time.Time. Name is
+// pkg.Name, or the name of a predeclared builtin.
+type Validator struct {
+	Name  string
+	Args  []cue.Value
+	Value cue.Value
+}
+
+// SplitValidators separates v into its plain constraints, unified, and its
+// validators, as the compatibility rules read them. v is one alternative, not
+// a disjunction. The plain part keeps v's kind, and its kind and length are
+// v's own where a validator that needs concrete data (list.MinItems on an open
+// list) leaves v itself incomplete.
+func SplitValidators(ctx *cue.Context, v cue.Value) (cue.Value, []Validator) {
+	w := &walker{ctx: ctx, top: ctx.CompileString("_")}
+	plain, calls := w.splitValidators(v)
+	out := make([]Validator, 0, len(calls))
+	for _, c := range calls {
+		out = append(out, Validator{Name: c.name, Args: c.args, Value: c.v})
+	}
+	return plain, out
 }
 
 // splitValidators separates v into its plain constraints, unified, and its
@@ -897,8 +1030,14 @@ func (w *walker) splitValidators(v cue.Value) (plain cue.Value, calls []call) {
 }
 
 // scalarKinds returns a value admitting exactly the scalar kinds in k, so that
-// a value that is only a validator (time.Time) still constrains its kind.
+// a value that is only a validator (time.Time) still constrains its kind. A k
+// that admits a struct or a list, as _ does, is not made of scalar kinds, and
+// constrains nothing here: the scalar kinds alone would reject the struct or
+// list (b?: {t!: string} released under ... would be narrowed to scalars).
 func (w *walker) scalarKinds(k cue.Kind) (cue.Value, bool) {
+	if k&(cue.StructKind|cue.ListKind) != 0 {
+		return cue.Value{}, false
+	}
 	var alts []string
 	for _, sk := range []struct {
 		k    cue.Kind
@@ -1112,7 +1251,7 @@ func (w *walker) sameExpr(pred, succ cue.Value) bool {
 		case cue.StructKind, cue.ListKind:
 			return w.sameSyntax(pred, succ)
 		}
-		return cuetil.Equal(pred, succ) == nil
+		return w.equal(pred, succ) == nil
 	}
 	for i := range oargs {
 		if !w.sameExpr(oargs[i], nargs[i]) {
@@ -1120,6 +1259,16 @@ func (w *walker) sameExpr(pred, succ cue.Value) bool {
 		}
 	}
 	return true
+}
+
+// equal reports whether pred and succ subsume each other, as values detached
+// from their fields. As of CUE v0.18, Subsume reports the value of an optional
+// or required field as not an instance of a value from anywhere else, such as
+// an operand of a disjunction: t!: "a" against the "a" of t!: "a" | "b".
+// Unifying with top yields the same value, detached. Whether a field is
+// optional or required is compared by classes, not here.
+func (w *walker) equal(pred, succ cue.Value) error {
+	return cuetil.Equal(w.top.Unify(pred), w.top.Unify(succ))
 }
 
 // sameSyntax compares two values by their evaluated syntax: the only view that

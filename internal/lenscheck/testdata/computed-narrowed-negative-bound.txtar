@@ -1,0 +1,12 @@
+# A target bounded below by a negative literal (#147): {a: 0} gives -6, which
+# >=-5 rejects. The bound is read, so the target is not taken as unbounded.
+-- source.cue --
+a: int & >=0 & <=10
+-- target.cue --
+n: int & >=-5 & <=5
+-- lens.cue --
+v0_0: _
+v1_0: {n: v0_0.a - 6}
+-- out --
+not total
+v1_0.n is v0_0.a - 6, which may be as low as -6, where the target schema requires >=-5 (rule computed-narrowed) @ lens.cue:2:11

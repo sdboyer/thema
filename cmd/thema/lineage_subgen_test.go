@@ -94,7 +94,11 @@ func TestGenCapnpRejected(t *testing.T) {
 	if err == nil {
 		t.Fatalf("gen capnp succeeded on a lineage capnp cannot carry:\n%s", out)
 	}
-	if !strings.Contains(string(out), "(rule int-unbounded)") {
-		t.Errorf("rejection does not name its rule:\n%s", out)
+	// Rendered through diag, like every command's errors: the rule's code,
+	// the author's line, and the rule named in the note.
+	for _, want := range []string{"error[E0710]", "ship.cue:", "(Cap'n Proto rule int-unbounded)"} {
+		if !strings.Contains(string(out), want) {
+			t.Errorf("rejection does not show %q:\n%s", want, out)
+		}
 	}
 }

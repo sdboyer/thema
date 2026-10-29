@@ -1,0 +1,9 @@
+# a disjunction narrowed to one of its alternatives: the other is no longer
+# accepted (the converse of widen-single-to-union)
+-- old.cue --
+t!: "a" | "b"
+-- new.cue --
+t!: "a"
+-- out --
+incompatible
+t was "b" and is now "a" (rule value-narrowed) @ new.cue:1:1

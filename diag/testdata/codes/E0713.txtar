@@ -1,0 +1,73 @@
+#op: capnp
+A disjunction compiles to a Cap'n Proto union, and the engine must decide from
+the value alone which member holds it. That needs alternatives of distinct
+kinds, all constants, or structs with a tag field holding a distinct constant
+in each. Here both alternatives are integers, so no value says which one it
+is.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				size: int8 | int16
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0713",
+      "severity": "error",
+      "headline": "size in schema 0.0 has no discriminant for a Cap'n Proto union",
+      "path": [
+        "schemas",
+        "0",
+        "0",
+        "schema",
+        "size"
+      ],
+      "address": {
+        "field": [
+          "size"
+        ],
+        "kind": "schemaField",
+        "version": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 6,
+        "col": 5,
+        "offset": 58,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "size in schema 0.0 is int8 | int16, with several alternatives of kind int that are not all constants; no discriminant can be derived from a value (Cap'n Proto rule disjunction-undiscriminated)"
+        }
+      ],
+      "help": [
+        "give struct alternatives a tag field with a distinct constant in each, make the alternatives of distinct kinds, or make them all constants"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0713]: size in schema 0.0 has no discriminant for a Cap'n Proto union
+ --> lineage.cue:6:5
+  |
+6 |                 size: int8 | int16
+  |                 ^^^^
+  |
+  = note: size in schema 0.0 is int8 | int16, with several alternatives of kind int that are not all constants; no discriminant can be derived from a value (Cap'n Proto rule disjunction-undiscriminated)
+  = help: give struct alternatives a tag field with a distinct constant in each, make the alternatives of distinct kinds, or make them all constants

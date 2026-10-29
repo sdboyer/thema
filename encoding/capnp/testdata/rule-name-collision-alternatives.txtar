@@ -1,0 +1,16 @@
+# rule name-collision, for the members of a union: two tagged alternatives
+# whose tags meet once underscores are dropped ("a_1" and "a1" both name the
+# member tA1). Reported where the disjunction is mapped, before any struct is
+# named.
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+thema.Lineage
+name: "collideAlternatives"
+schemas: "0": "0": schema: {
+	tagged: {t: "a_1", n: int8} | {t: "a1", s: string}
+}
+lenses: {}
+-- out/capnp --
+rejected
+schema 0.0: tagged collides: its alternatives tagged t: "a_1" and tagged t: "a1" are both named tA1 in Cap'n Proto, which drops underscores and joins words in camel case; the members of one union must differ (rule name-collision) @ /in.cue:6:2

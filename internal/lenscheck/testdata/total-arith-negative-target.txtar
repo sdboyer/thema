@@ -1,0 +1,15 @@
+# A target whose alternatives include a negative literal (#147): read as the
+# interval it is, exactly, so a computed value is shown within it.
+-- source.cue --
+a: 0 | 1
+-- target.cue --
+m: -1 | 0
+-- lens.cue --
+v0_0: _
+v1_0: {m: v0_0.a - 1}
+-- out --
+total
+-- ir --
+out: {
+  out.m = in.a - 1
+}

@@ -1,7 +1,6 @@
 package thema
 
 import (
-	"errors"
 	"sort"
 
 	"cuelang.org/go/cue"
@@ -44,8 +43,8 @@ type baseLineage struct {
 	vocab diag.Vocabulary
 
 	// programs holds the program of each lens, built when the lens was proven
-	// total; nil where the proofs were skipped (SkipBuggyChecks). programErr
-	// says why a proven lens has no program. LensPrograms reads both.
+	// total. programErr says why a proven lens has no program. LensPrograms
+	// reads both.
 	programs   lensir.Programs
 	programErr error
 }
@@ -152,7 +151,7 @@ func BindLineage(v cue.Value, rt *Runtime, opts ...BindOption) (Lineage, error) 
 	if err := ml.checkReferences(); err != nil {
 		return nil, err
 	}
-	if err := ml.checkLensTotality(cfg); err != nil {
+	if err := ml.checkLensTotality(); err != nil {
 		return nil, err
 	}
 
@@ -181,19 +180,13 @@ func BindLineage(v cue.Value, rt *Runtime, opts ...BindOption) (Lineage, error) 
 // LensPrograms returns the program of each of lin's lenses, keyed by edge: the
 // target-neutral form of the lens (internal/lensir) that binding built as a
 // by-product of proving the lens total, for backends such as encoding/capnp
-// to render. A lineage bound with [SkipBuggyChecks] skipped the proofs and has
-// no programs; a lens using a construct the IR does not yet carry binds, but
-// has none either. In both cases the error says so.
+// to render. A lens using a construct the IR does not yet carry binds, but
+// has no program: the programs are then those of the other lenses, and the
+// error joins a [lensir.NoProgramError] for each lens without one.
 func LensPrograms(lin Lineage) (lensir.Programs, error) {
 	isValidLineage(lin)
 	tlin := lin.(*baseLineage)
-	switch {
-	case tlin.programs == nil:
-		return nil, errors.New("lineage was bound with SkipBuggyChecks, so its lenses were not proven total and have no programs")
-	case tlin.programErr != nil:
-		return nil, tlin.programErr
-	}
-	return tlin.programs, nil
+	return tlin.programs, tlin.programErr
 }
 
 // VersionID returns the content-hash identity of version v of lin

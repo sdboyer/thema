@@ -1,0 +1,204 @@
+each inside each, over an inner list the source may omit, with a drop in the
+inner body (#167): the drop's lacuna aggregates over the elements of both
+lists, one for clause per list, testing the inner list's presence before
+iterating it, and names each element that had the field by both indices. Its
+message is refined by a DroppedField lacuna keyed through both lists. The
+backward lens drops the field 1.0 added to the inner elements, deriving the
+same aggregate.
+-- ship/history/0.0.thema --
+Schema: {
+	steps: [...{
+		title: string
+		fields?: [...{
+			label:   string
+			legacy?: string
+		}]
+	}]
+}
+-- ship/1.0.thema --
+Schema: {
+	steps: [...{
+		title: string
+		fields?: [...{
+			name:  string
+			hint?: string
+		}]
+	}]
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		steps: _each(v0_0.steps, {
+			fields: _each(_item.fields, {
+				name:   _item.label
+				legacy: _drop
+			})
+		})
+	}
+	lacunas: {
+		steps: {
+			fields: {
+				legacy: [{
+					type:    DroppedField
+					message: "1.0 form fields have no legacy field"
+				}]
+			}
+		}
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		steps: _each(v1_0.steps, {
+			fields: _each(_item.fields, {
+				label: _item.name
+			})
+		})
+	}
+}
+-- data/0.0/mixed.json --
+{"steps": [{"title": "a", "fields": [{"label": "x", "legacy": "old"}, {"label": "y"}]}, {"title": "b"}, {"title": "c", "fields": [{"label": "z", "legacy": "older"}]}]}
+-- data/1.0/hinted.json --
+{"steps": [{"title": "a"}, {"title": "b", "fields": [{"name": "x"}, {"name": "y", "hint": "h"}]}]}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+Schema: {
+	steps: [...{
+		title: string
+		fields?: [...{
+			name:  string
+			hint?: string
+		}]
+	}]
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		steps: _each(
+			v0_0.steps,
+			{
+				fields: _each(_item.fields, {
+					name:   _item.label
+					legacy: _drop
+				})
+			}
+		)
+	}
+	lacunas: {
+		steps: {
+			fields: {
+				legacy: [{
+					type:    DroppedField
+					message: "1.0 form fields have no legacy field"
+				}]
+			}
+		}
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		steps: _each(v1_0.steps, {fields: _each(_item.fields, {label: _item.name})})
+	}
+}
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	steps: [...{
+		title: string
+		fields?: [...{
+			label:   string
+			legacy?: string
+		}]
+	}]
+}
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				steps: [...{
+					title: string
+					fields?: [...{
+						label:   string
+						legacy?: string
+					}]
+				}]
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				steps: [...{
+					title: string
+					fields?: [...{
+						name:  string
+						hint?: string
+					}]
+				}]
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		let _d_0 = [for i, _item in v0_0.steps if _item.fields != _|_ for i1, _item in _item.fields if _item.legacy != _|_ {
+			path:  "steps[\(i)].fields[\(i1)].legacy"
+			value: _item.legacy
+		}]
+		v1_0: {
+			steps: [for _item in v0_0.steps {
+				title: _item.title
+				if _item.fields != _|_ {
+					fields: [for _item in _item.fields {
+						name: _item.label
+					}]
+				}
+			}]
+		}
+		lacunas: [{
+			@thema(derived)
+			condition:    len(_d_0) > 0
+			sourceFields: _d_0
+			message:      "1.0 form fields have no legacy field"
+			type:         "DroppedField"
+		}]
+	}
+	"1.0->0.0": {
+		v1_0: _
+		let _d_0 = [for i, _item in v1_0.steps if _item.fields != _|_ for i1, _item in _item.fields if _item.hint != _|_ {
+			path:  "steps[\(i)].fields[\(i1)].hint"
+			value: _item.hint
+		}]
+		v0_0: {
+			steps: [for _item in v1_0.steps {
+				title: _item.title
+				if _item.fields != _|_ {
+					fields: [for _item in _item.fields {
+						label: _item.name
+					}]
+				}
+			}]
+		}
+		lacunas: [{
+			@thema(derived)
+			condition:    len(_d_0) > 0
+			sourceFields: _d_0
+			message:      "steps[].fields[].hint has no equivalent in 0.0 and was dropped"
+			type:         "DroppedField"
+		}]
+	}
+}
+-- out/translate/0.0/mixed->1.0 --
+{"steps":[{"title":"a","fields":[{"name":"x"},{"name":"y"}]},{"title":"b"},{"title":"c","fields":[{"name":"z"}]}]}
+[{"sourceFields":[{"path":"steps[0].fields[0].legacy","value":"old"},{"path":"steps[2].fields[0].legacy","value":"older"}],"type":"DroppedField","message":"1.0 form fields have no legacy field"}]
+-- out/translate/1.0/hinted->0.0 --
+{"steps":[{"title":"a"},{"title":"b","fields":[{"label":"x"},{"label":"y"}]}]}
+[{"sourceFields":[{"path":"steps[1].fields[1].hint","value":"h"}],"type":"DroppedField","message":"steps[].fields[].hint has no equivalent in 0.0 and was dropped"}]

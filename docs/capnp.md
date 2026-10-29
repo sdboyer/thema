@@ -22,7 +22,10 @@ style of the compatibility and totality checkers: a structural walk, findings
 with stable rule IDs, and three-valued verdicts. A lineage with a construct
 capnp cannot carry is **rejected**; one with a construct this compiler does not
 carry yet is **unknown**. Both fail compilation, and every finding names its
-rule, so that it can be looked up below.
+rule, so that it can be looked up below. Each finding is reported as a
+diagnostic with the rule's code, at the author's construct; the
+[code generation reference](reference/codegen.md#capn-proto) summarizes the
+compiler's interface.
 
 ## Type mapping
 
@@ -60,11 +63,14 @@ Nested nodes are named after the field (`inner: {…}` → `Inner`), with `Item`
 for a list's element (`ElemsItem`, `ElemsItemItem`) and `Entry` for a map's
 (`MappedEntry`); a tagged alternative's struct after the field and the tag
 (`TaggedKindCircle`); a boxed list element's alternatives after the member
-alone (`KindA`). Labels are sanitized to capnp names (camel case, ASCII
-letters and digits, lowercase first for fields and enumerants, uppercase first
-for types, `v` before a leading digit, `empty` for an empty label) and made
-unique by suffix within their scope (`fooBar`, `fooBar2`); a label colliding
-with `extras` is renamed.
+alone (`KindA`). Labels are sanitized to capnp names: underscores are dropped
+(`ship_v2` → `shipv2`), other characters outside ASCII letters and digits
+separate words joined in camel case (`foo-bar` → `fooBar`), lowercase first for
+fields and enumerants, uppercase first for types, `v` before a leading digit,
+`empty` for an empty label. Two labels, values or alternatives of one struct
+that sanitize to the same name (`a_b` and `ab`) are a `name-collision`, never
+renamed; only a label that sanitizes to the compiler's own `extras` field is
+renamed (`extras2`).
 
 ## Generations
 
@@ -126,9 +132,9 @@ Every lens the lineage declares becomes an edge of the result, carrying the
 program binding built for it (`thema.LensPrograms`): the nodes that write the
 result (copies, constants, struct and list literals, `for` over a list,
 conditional branches, lookup tables, computed expressions) and the lacunas it
-declares. The compiler never reads a lens's CUE; a lineage bound with
-`SkipBuggyChecks`, or with a lens using a construct the IR does not carry, has
-no programs and is rejected (`lens-no-program`).
+declares. The compiler never reads a lens's CUE; a lens using a construct the
+IR does not carry has no program, and the lineage is rejected
+(`lens-no-program`).
 
 What a backend without an expression language cannot run, the expressions,
 is rendered to [CEL](https://cel.dev) and type-checked with cel-go against
@@ -194,27 +200,27 @@ Every finding reads
 
     schema <version>: <path> <detail> (rule <name>)
     lens <edge>: <path> <detail> (rule <name>)
-    lineage: the lineage <detail> (rule <name>)
 
 for example
 
     schema 0.0: anint is int, an integer with no finite bounds; capnp integers are sized (int32, uint8, >=0 & <=100) (rule int-unbounded)
     lens 0.0->1.0: up calls strings.ToUpper, whose CEL counterpart changes ASCII only (rule cel-unrenderable)
 
-| Rule | Rejected when | What to do |
-|---|---|---|
-| `int-unbounded` | an integer has no finite lower or upper bound, or bounds beyond 64 bits (`int`, `int & >=0`, `-1 \| int`) | bound it: `int32`, `uint8`, `int & >=0 & <=100` |
-| `float` | a value may be a float (`number`, `float`, `float32`, `float64`), anywhere, including as an alternative or a default | floats are outside the compiled target (#82); use an integer, or a string |
-| `top` | a value is `_`, including as a list element (`[...]`), a map value, or a disjunction alternative | declare the type |
-| `disjunction-undiscriminated` | no value decides the alternative: several non-constant alternatives of one kind (`=~"^a" \| =~"^b"`, `int8 \| int16`, `[...string] \| [...int8]`), a constant beside the open type of its kind (`"a" \| string`), or struct alternatives with no label that holds a distinct constant in each (`{a: string} \| {b: string}`, `{kind: string, …} \| {kind: string, …}`) | give struct alternatives a tag field with a distinct constant in each, make the alternatives of distinct kinds, or make them all constants |
-| `lens-no-program` | the lineage has no lens programs: it was bound with `SkipBuggyChecks`, or a lens uses a construct the IR does not carry (a list literal inside an expression) | bind with the checks on; write the lens in the proven forms |
-| `cel-unrenderable` | an expression of a lens has no faithful CEL rendering (the refused rows of the table above), or its rendering does not type-check | use the rewritable operation (`quo` for `/`, `strings.Contains` for `strings.Index`) |
-| `extras-check-unrenderable` | a label a version newly declares has a constraint the acceptance check cannot express: a validator call, a pattern constraint, `_` | constrain the field with types, bounds, regular expressions and constants |
+| Rule | Code | Rejected when | What to do |
+|---|---|---|---|
+| `int-unbounded` | [E0710](errors/E0710.md) | an integer has no finite lower or upper bound, or bounds beyond 64 bits (`int`, `int & >=0`, `-1 \| int`) | bound it: `int32`, `uint8`, `int & >=0 & <=100` |
+| `float` | [E0711](errors/E0711.md) | a value may be a float (`number`, `float`, `float32`, `float64`), anywhere, including as an alternative or a default | floats are outside the compiled target (#82); use an integer, or a string |
+| `top` | [E0712](errors/E0712.md) | a value is `_`, including as a list element (`[...]`), a map value, or a disjunction alternative | declare the type |
+| `disjunction-undiscriminated` | [E0713](errors/E0713.md) | no value decides the alternative: several non-constant alternatives of one kind (`=~"^a" \| =~"^b"`, `int8 \| int16`, `[...string] \| [...int8]`), a constant beside the open type of its kind (`"a" \| string`), or struct alternatives with no label that holds a distinct constant in each (`{a: string} \| {b: string}`, `{kind: string, …} \| {kind: string, …}`) | give struct alternatives a tag field with a distinct constant in each, make the alternatives of distinct kinds, or make them all constants |
+| `name-collision` | [E0714](errors/E0714.md) | two labels, enum values or tagged alternatives of one struct sanitize to the same capnp name (`a_b` and `ab`; `"x_y" \| "xy"`; a field `kindKA` beside a field `kind` whose alternative tagged `"a"` is the struct `KindKA`) | rename one of them so the names differ once underscores are dropped |
+| `lens-no-program` | [E0715](errors/E0715.md) | a lens uses a construct the IR does not carry, so it has no program (a list literal inside an expression) | write the lens in the forms the lens language proves |
+| `cel-unrenderable` | [E0716](errors/E0716.md) | an expression of a lens has no faithful CEL rendering (the refused rows of the table above), or its rendering does not type-check | use the rewritable operation (`quo` for `/`, `strings.Contains` for `strings.Index`) |
+| `extras-check-unrenderable` | [E0717](errors/E0717.md) | a label a version newly declares has a constraint the acceptance check cannot express: a validator call, a pattern constraint, `_` | constrain the field with types, bounds, regular expressions and constants |
 
-| Rule | Unknown when | What to do |
-|---|---|---|
-| `unknown-pattern-labels` | a struct has pattern constraints other than a lone `[string]: T` beside no declared field: a regular expression, a pattern beside declared fields, several patterns, a narrower key type | declare the fields, or move the map to its own field |
-| `unknown-list-heterogeneous` | a closed list's elements do not all map to one type (`[string, int8]`) | capnp has no tuple; use a struct |
+| Rule | Code | Unknown when | What to do |
+|---|---|---|---|
+| `unknown-pattern-labels` | [E0730](errors/E0730.md) | a struct has pattern constraints other than a lone `[string]: T` beside no declared field: a regular expression, a pattern beside declared fields, several patterns, a narrower key type | declare the fields, or move the map to its own field |
+| `unknown-list-heterogeneous` | [E0731](errors/E0731.md) | a closed list's elements do not all map to one type (`[string, int8]`) | capnp has no tuple; use a struct |
 
 Every rule has a recorded case in `encoding/capnp/testdata`, which also
 records the schema each accepted shape compiles to, the generation each

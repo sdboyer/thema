@@ -36,6 +36,7 @@
 package lensir
 
 import (
+	"fmt"
 	"sort"
 	"strconv"
 
@@ -52,6 +53,20 @@ type Edge struct {
 func (e Edge) String() string {
 	return e.From.String() + "->" + e.To.String()
 }
+
+// A NoProgramError says why the lens on Edge, which binding proved total, has
+// no program: it uses a construct the IR does not carry yet. Binding reports
+// one per such lens, so that a backend can say which lens it cannot compile.
+type NoProgramError struct {
+	Edge Edge
+	Err  error
+}
+
+func (e *NoProgramError) Error() string {
+	return fmt.Sprintf("lens %s has no program: %v", e.Edge, e.Err)
+}
+
+func (e *NoProgramError) Unwrap() error { return e.Err }
 
 // less orders edges by their source version, then their target.
 func (e Edge) less(o Edge) bool {
@@ -141,9 +156,10 @@ func (p Path) String() string {
 }
 
 // isIdent reports whether s is a plain identifier: letters, digits and
-// underscores, not starting with a digit.
+// underscores, not starting with a digit. A label starting with _ is not: in
+// CUE, _id names a hidden field, and the data field "_id" must be quoted.
 func isIdent(s string) bool {
-	if s == "" {
+	if s == "" || s[0] == '_' {
 		return false
 	}
 	for i, r := range s {
@@ -164,8 +180,26 @@ type Node interface {
 
 // Copy writes the input at From to the result at To. An empty From is the
 // whole input.
+//
+// Alts is set where the target at To is a disjunction with a struct or list
+// alternative, which a backend lowers to a tagged union: one entry per
+// alternative of the source at From that the copy may carry, once the
+// patterns it is under have refined them, pairing that source alternative
+// with the target alternative the proof showed accepts it. Which alternative
+// the input holds, the backend tests itself; the patterns above the copy may
+// already fix it. A disjunction of scalars alone needs no Alts: its values
+// carry their own identity.
 type Copy struct {
 	To, From Path
+	Alts     []Alt
+}
+
+// An Alt pairs an alternative of a disjunction in the source with the one in
+// the target that accepts it. Alternatives are numbered as the schemas
+// declare them at the path, in order, nested disjunctions flattened, defaults
+// not counted apart.
+type Alt struct {
+	From, To int
 }
 
 // Constant writes a literal to the result at To.
@@ -177,10 +211,17 @@ type Constant struct {
 // Wrap writes a struct or list literal to the result at To. Its fields or
 // elements are Children, each writing a path beneath To; a list has Len
 // elements.
+//
+// Alt is set where the target at To is a disjunction: the alternative the
+// literal is an instance of, numbered as the target schema declares them at
+// To (see [Alt]), whose fields alone the proof checked Children against. A
+// Wrap whose children are only branches, each wrapping its own alternative,
+// has no Alt: it is the lens's own nesting around the arms.
 type Wrap struct {
 	To       Path
 	Kind     WrapKind
 	Len      int
+	Alt      *int
 	Children []Node
 }
 
@@ -197,6 +238,14 @@ const (
 // list at Source: a lens's [for item in list {body}]. Body writes the open
 // element, To[_], from the source's open element, Source[_]; the proof has
 // shown the source is a list whose length the target accepts.
+//
+// An Each in the Body of another maps a list within the other's element: its
+// Source extends the enclosing Source[_], and its To the enclosing To[_]. Each
+// open element in a path is then the element of the Each whose Source (for an
+// input path) or To (for a result path) the path extends at that step: under
+// an Each over s, s[_].f[_].n reads the current element of the inner list f,
+// within the current element of s. A lens nesting an Each over any other list
+// has no program.
 type Each struct {
 	To     Path
 	Source Path

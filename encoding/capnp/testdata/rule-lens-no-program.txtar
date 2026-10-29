@@ -30,4 +30,4 @@ lenses: {
 }
 -- out/capnp --
 rejected
-lineage: the lineage has no lens programs to compile: lens 0.0->1.0 has no program: [v0_0.a] is not an expression the IR carries (rule lens-no-program) @ /in.cue:14:1
+lens 0.0->1.0: the lens uses a construct the compiled lens programs do not carry yet: [v0_0.a] is not an expression the IR carries (rule lens-no-program) @ /in.cue:15:2

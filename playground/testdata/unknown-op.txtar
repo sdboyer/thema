@@ -10,7 +10,7 @@ An operation the playground does not have.
       "severity": "error",
       "headline": "\"translate-all\" is not an operation of the playground",
       "help": [
-        "the operations are bind, compile, decompile, dehydrate, example, examples, format, hydrate, init, jsonschema, openapi, translate, typescript, validate and validate-any"
+        "the operations are bind, compile, decompile, dehydrate, example, examples, format, hydrate, init, jsonschema, openapi, register-examples, translate, typescript, validate and validate-any"
       ]
     }
   ]

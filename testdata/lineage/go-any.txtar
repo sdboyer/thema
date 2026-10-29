@@ -52,7 +52,7 @@ error[E0501]: the data lacks structVal.inner, which schema 0.0 declares as strin
    |
    = detail: structVal.inner: incomplete value string | int
 -- out/validate/TestValidate/emptyMapAsString --
-error[E0503]: emptyMap in the data is string, but schema 0.0 declares it as {...}
+error[E0503]: emptyMap in the data is "definitely not a map", but schema 0.0 declares it as {...}
   --> in/validate/TestValidate/emptyMapAsString.data.json:2:17
    |
  2 |     "emptyMap": "definitely not a map"
@@ -321,6 +321,63 @@ export interface GoAny {
 }
 -- out/lensir --
 no lenses
+-- out/encoding/jsonschema/TestGenerate --
+== 0.0.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "emptyMap": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "optional": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "boolean"
+        }
+      ]
+    },
+    "structVal": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "inner": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "innerOptional": true
+      },
+      "required": [
+        "inner"
+      ]
+    },
+    "value": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "boolean"
+        }
+      ]
+    }
+  },
+  "required": [
+    "structVal",
+    "value"
+  ]
+}
 -- out/encoding/capnp --
 rejected
 schema 0.0: structVal.inner is int, an integer with no finite bounds; capnp integers are sized (int32, uint8, >=0 & <=100) (rule int-unbounded) @ /in.cue:13:33

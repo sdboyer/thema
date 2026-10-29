@@ -1,0 +1,16 @@
+# A source field whose alternatives include a negative literal (#147): the
+# operand's bounds are read from the literal, so the sum is shown within the
+# target.
+-- source.cue --
+a: -1 | 0
+-- target.cue --
+m: 0 | 1
+-- lens.cue --
+v0_0: _
+v1_0: {m: v0_0.a + 1}
+-- out --
+total
+-- ir --
+out: {
+  out.m = in.a + 1
+}

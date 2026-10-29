@@ -19,7 +19,7 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0101](E0101.md) | error | a file in the lineage's directory is not a version file |
 | [E0102](E0102.md) | error | a version file is not CUE syntax |
 | [E0103](E0103.md) | error | a version file has a package clause |
-| [E0104](E0104.md) | error | a version file imports a package |
+| [E0104](E0104.md) | error | retired: a version file imports a package |
 | [E0105](E0105.md) | error | a version file has a field that is not schema, ForwardLens or BackwardLens |
 | [E0106](E0106.md) | error | a version file declares a field twice |
 | [E0107](E0107.md) | error | a lens block is not a struct |
@@ -51,6 +51,7 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0144](E0144.md) | error | a lens refers to a schema of the lineage |
 | [E0145](E0145.md) | error | a lens refers to another lens of the lineage |
 | [E0146](E0146.md) | error | a reference cannot be resolved statically |
+| [E0147](E0147.md) | error | a version file imports a package its Schema does not use |
 | [E0201](E0201.md) | error | the first schema is not version 0.0 |
 | [E0202](E0202.md) | error | a schema's version does not follow its predecessor's |
 | [E0203](E0203.md) | error | a major version declares no schemas |
@@ -110,6 +111,8 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0355](E0355.md) | error | a minor version has a ForwardLens |
 | [E0356](E0356.md) | error | a normal-form lens is outside what the authoring form expresses |
 | [E0357](E0357.md) | error | a mapping calls a function a lens may not call |
+| [E0358](E0358.md) | error | a field both versions declare cannot be copied: the target does not accept every source value |
+| [E0359](E0359.md) | error | a move reads a source field whose values the target field does not all accept |
 | [E0360](E0360.md) | error | a lens copies a value its target rejects for some instance |
 | [E0361](E0361.md) | error | a lens reads a field that may be absent |
 | [E0362](E0362.md) | error | a lens reads a field its source schema does not declare |
@@ -177,10 +180,24 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0617](E0617.md) | error | this thema was built without the playground |
 | [E0618](E0618.md) | error | the server cannot listen on the address |
 | [E0620](E0620.md) | error | a flag or argument is not valid |
+| [E0621](E0621.md) | error | an example's example.cue is not valid |
+| [E0622](E0622.md) | error | the examples directory holds no example |
 | [E0701](E0701.md) | error | generating code from the schema failed |
+| [E0710](E0710.md) | error | an integer in a schema has no bounds that fit a Cap'n Proto integer |
+| [E0711](E0711.md) | error | a value in a schema may be a float, which compiling to Cap'n Proto does not carry |
+| [E0712](E0712.md) | error | a value in a schema accepts any value, which has no Cap'n Proto type |
+| [E0713](E0713.md) | error | a disjunction in a schema has no discriminant for a Cap'n Proto union |
+| [E0714](E0714.md) | error | two names in one struct of a schema have the same Cap'n Proto name |
+| [E0715](E0715.md) | error | a lens uses a construct the Cap'n Proto compiler cannot carry |
+| [E0716](E0716.md) | error | a lens computes a value CEL, the compiled lens language, does not compute the same way |
+| [E0717](E0717.md) | error | a field a version adds has a constraint the compiled artifact cannot check on earlier data |
+| [E0730](E0730.md) | error | a struct in a schema has pattern constraints the Cap'n Proto compiler does not carry |
+| [E0731](E0731.md) | error | a closed list in a schema has elements with no one Cap'n Proto type |
 | [E0801](E0801.md) | error | the playground request is malformed |
 | [E0802](E0802.md) | error | the playground request gives the lineage in neither form, or in both |
 | [E0803](E0803.md) | error | a version in the playground request is not a version |
+| [E0804](E0804.md) | error | a host example in the playground request is incomplete or inconsistent |
+| [E0805](E0805.md) | error | a host example does not bind as its record declares |
 | [E0901](E0901.md) | error | thema failed internally |
 | [E0902](E0902.md) | error | CUE reported an error thema does not recognize |
 | [E0903](E0903.md) | error | thema reported an error that has no code |

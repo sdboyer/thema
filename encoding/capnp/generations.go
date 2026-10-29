@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"strings"
 
+	"cuelang.org/go/cue"
+	"cuelang.org/go/cue/token"
+
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/encoding/capnp/compiled"
 )
@@ -23,6 +26,38 @@ type generations struct {
 	gens        []*generation
 	roots       map[thema.SyntacticVersion]uint64
 	byID        map[uint64]*gnode
+	// version is the version being added, and field the field being named,
+	// for the findings a name collision raises.
+	version  thema.SyntacticVersion
+	field    *vfield
+	findings []Finding
+}
+
+// collide records that name, claimed for what, is held by other in the same
+// scope: two of the author's labels or values map to one capnp name.
+func (gs *generations) collide(name, what, other string) {
+	var p cue.Path
+	var pos token.Pos
+	if gs.field != nil {
+		p, pos = gs.field.path, gs.field.pos
+	}
+	gs.findings = append(gs.findings, Finding{
+		Version: gs.version, Path: p, Verdict: Rejected, Rule: RuleNameCollision, Pos: pos,
+		Detail: fmt.Sprintf("collides: %s and %s are both named %s in Cap'n Proto, which drops underscores and joins words in camel case; the names in one struct must differ", other, what, name),
+	})
+}
+
+// name claims a field's or enumerant's name for what in s, reporting a
+// collision with another of the author's names. A collision with the
+// reserved extras field is resolved with a suffix instead.
+func (gs *generations) name(s *scope, name, what string) string {
+	if other, ok := s.claim(name, what); !ok {
+		if other == "\x00"+reserved {
+			return gs.name(s, name+"2", what)
+		}
+		gs.collide(name, what, other)
+	}
+	return name
 }
 
 // A generation is one root struct and the versions read through it.
@@ -68,6 +103,7 @@ func (gs *generations) add(v thema.SyntacticVersion, tree *vstruct) {
 		gs.gens = append(gs.gens, g)
 	}
 	g.versions = append(g.versions, v)
+	gs.version = v
 	gs.extend(g.root, tree)
 	gs.roots[v] = g.root.n.ID
 }
@@ -121,7 +157,8 @@ func (gs *generations) newNode(parent *gnode, name string, id uint64, role compi
 	}
 	gs.byID[id] = n
 	if role == compiled.SchemaStruct {
-		f := &compiled.Field{Name: n.names.unique("extras"), Type: &compiled.Type{Kind: compiled.Data}, Ordinal: n.next}
+		n.names.claim(reserved, "\x00"+reserved)
+		f := &compiled.Field{Name: reserved, Type: &compiled.Type{Kind: compiled.Data}, Ordinal: n.next}
 		n.next++
 		n.n.Fields = append(n.n.Fields, f)
 	}
@@ -148,7 +185,7 @@ func (gs *generations) extendEnum(n *gnode, values []string) {
 			continue
 		}
 		n.enums[v] = true
-		n.n.Enumerants = append(n.n.Enumerants, compiled.Enumerant{Name: n.names.unique(fieldName(v)), Value: v, Ordinal: n.next})
+		n.n.Enumerants = append(n.n.Enumerants, compiled.Enumerant{Name: gs.name(n.names, fieldName(v), fmt.Sprintf("the value %q", v)), Value: v, Ordinal: n.next})
 		n.next++
 	}
 }
@@ -282,7 +319,13 @@ func (gs *generations) typeCompatible(t *compiled.Type, vt *vtype) bool {
 // accepted or which is new: new fields, members and enum values take the
 // next ordinals; a field that became optional joins a union at its own.
 func (gs *generations) extend(n *gnode, vs *vstruct) {
-	for _, vf := range vs.fields {
+	outer := gs.field
+	defer func() { gs.field = outer }()
+	for i := range vs.fields {
+		vf := vs.fields[i]
+		if vf.fixed == "" {
+			gs.field = &vs.fields[i]
+		}
 		f, ok := n.byKey[vf.key()]
 		if !ok {
 			f = &compiled.Field{Label: vf.label, Form: vf.form, Default: vf.def}
@@ -290,9 +333,9 @@ func (gs *generations) extend(n *gnode, vs *vstruct) {
 			case vf.fixed == boxField:
 				f.Name = ""
 			case vf.fixed != "":
-				f.Name = n.names.unique(vf.fixed)
+				f.Name = gs.name(n.names, vf.fixed, "\x00"+vf.fixed)
 			default:
-				f.Name = n.names.unique(fieldName(vf.label))
+				f.Name = gs.name(n.names, fieldName(vf.label), fmt.Sprintf("the label %q", vf.label))
 			}
 			n.byKey[vf.key()] = f
 			n.n.Fields = append(n.n.Fields, f)
@@ -372,15 +415,29 @@ func (gs *generations) typeOf(n *gnode, base string, vt *vtype) *compiled.Type {
 		}
 		return &compiled.Type{Kind: compiled.List, Elem: gs.typeOf(n, base+suffix, vt.elem)}
 	case compiled.Enum:
-		e := gs.newEnum(n, n.types.unique(base), vt.enum)
+		e := gs.newEnum(n, gs.typeName(n, base), vt.enum)
 		return &compiled.Type{Kind: compiled.Enum, Node: e.n.ID}
 	case compiled.Struct:
-		name := n.types.unique(base)
+		name := gs.typeName(n, base)
 		s := gs.newNode(n, name, nestedID(n.n.ID, name), vt.strct.role)
 		gs.extend(s, vt.strct)
 		return &compiled.Type{Kind: compiled.Struct, Node: s.n.ID}
 	}
 	return &compiled.Type{Kind: vt.kind}
+}
+
+// typeName claims base for a type nested in n, standing for the field being
+// named. Two fields whose derived type names agree (a field kindA beside a
+// field kind with an alternative tagged a) collide.
+func (gs *generations) typeName(n *gnode, base string) string {
+	what := base
+	if gs.field != nil {
+		what = "the type of " + gs.field.path.String()
+	}
+	if other, ok := n.types.claim(base, what); !ok {
+		gs.collide(base, what, other)
+	}
+	return base
 }
 
 // extendType extends the nodes beneath an existing type to the version's

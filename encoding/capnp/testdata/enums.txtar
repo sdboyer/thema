@@ -8,7 +8,7 @@ thema.Lineage
 name: "enums"
 schemas: "0": "0": schema: {
 	plain:     "red" | "green" | "blue"
-	spaced:    "foo bar" | "foo-bar" | "fooBar" | "FooBar"
+	spaced:    "foo bar" | "with-dash" | "snake_case"
 	digits:    "1" | "2" | "10"
 	keywords:  "struct" | "union" | "enum"
 	empty:     "" | "x"
@@ -41,9 +41,8 @@ struct EnumsV0 @0xb6ab4bbff19a8c44 {
   }
   enum Spaced @0x8601a4e14c04eca5 {
     fooBar @0;  # "foo bar"
-    fooBar2 @1;  # "foo-bar"
-    fooBar3 @2;  # "fooBar"
-    fooBar4 @3;  # "FooBar"
+    withDash @1;  # "with-dash"
+    snakecase @2;  # "snake_case"
   }
   enum Digits @0x822e716567537a1a {
     v1 @0;  # "1"
@@ -76,8 +75,8 @@ struct EnumsV0 @0xb6ab4bbff19a8c44 {
   }
 }
 -- out/capnp/artifact --
-sha256 ac32eefcb1760647fb613505b93793f16e0f73ac50ebf9d0b412930580cfccf1
-4152 bytes
+sha256 b7a1fef35a3b69712e078eb9324aac225c954091b2ed8fd4b2c5b03f2db8cdb6
+4120 bytes
 -- out/capnp/layout --
 struct EnumsV0 @0xb6ab4bbff19a8c44: data=2 ptrs=2
   extras @0: data off=0
@@ -115,9 +114,8 @@ enum EnumsV0.Single @0xb5b26c3497a791c5
   only = 0
 enum EnumsV0.Spaced @0x8601a4e14c04eca5
   fooBar = 0
-  fooBar2 = 1
-  fooBar3 = 2
-  fooBar4 = 3
+  withDash = 1
+  snakecase = 2
 enum EnumsV0.Unicode @0x9b2dad7a426a1a20
   hLlo = 0
   wRld = 1

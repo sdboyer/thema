@@ -1,16 +1,17 @@
 package capnp
 
 import (
-	"strconv"
 	"strings"
 )
 
 // capnp names are ASCII camelCase without underscores: a type name starts
 // with an upper-case letter, any other name with a lower-case one. Labels
-// and values from a lineage are sanitized to that, and a scope keeps the
-// names declared within one struct unique, resolving collisions in
-// declaration order with a numeric suffix. The artifact's name maps carry
-// the label each name stands for.
+// and values from a lineage are sanitized to that: underscores are dropped
+// (ship_v2 is shipv2, #89), other characters outside [A-Za-z0-9] separate
+// words, which are joined in camel case. Two labels can then map to one
+// name; a scope detects it, and the compiler reports it (name-collision)
+// rather than emitting a duplicate. The artifact's name maps carry the label
+// each name stands for.
 
 // fieldName makes a non-type name from s.
 func fieldName(s string) string {
@@ -37,13 +38,16 @@ func typeName(s string) string {
 }
 
 // camel joins the alphanumeric ASCII runs of s, capitalizing each run after
-// the first.
+// the first. An underscore is dropped without ending a run.
 func camel(s string) string {
 	var b strings.Builder
 	first := true
 	inRun := false
 	for i := 0; i < len(s); i++ {
 		c := s[i]
+		if c == '_' {
+			continue
+		}
 		alnum := (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
 		if !alnum {
 			inRun = false
@@ -73,31 +77,27 @@ func upperFirst(s string) string {
 }
 
 // A scope is the names declared in one struct: its fields, its nested types,
-// or an enum's values.
+// or an enum's values. Each name records what it stands for (a label, a
+// value), so that one thing claiming its name again is not a collision.
 type scope struct {
-	used map[string]bool
+	used map[string]string
 }
 
-func newScope(reserved ...string) *scope {
-	s := &scope{used: map[string]bool{}}
-	for _, r := range reserved {
-		s.used[r] = true
-	}
-	return s
+func newScope() *scope {
+	return &scope{used: map[string]string{}}
 }
 
-// unique claims name in the scope, suffixing it with the first of 2, 3, ...
-// that is free where it is taken.
-func (s *scope) unique(name string) string {
-	if !s.used[name] {
-		s.used[name] = true
-		return name
+// claim claims name for what in the scope. Where another thing holds the name
+// already, it returns that thing and false; the caller reports the collision.
+func (s *scope) claim(name, what string) (string, bool) {
+	if have, ok := s.used[name]; ok && have != what {
+		return have, false
 	}
-	for i := 2; ; i++ {
-		n := name + strconv.Itoa(i)
-		if !s.used[n] {
-			s.used[n] = true
-			return n
-		}
-	}
+	s.used[name] = what
+	return "", true
 }
+
+// reserved names a field the compiler adds to every schema struct. A label
+// whose name is reserved is renamed with a suffix, rather than reported: the
+// collision is with the compiler's name, not another of the author's.
+const reserved = "extras"

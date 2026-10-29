@@ -1,0 +1,89 @@
+#op: capnp
+Data from an earlier version may already hold a field a later version
+declares, carried as an extra. The compiled artifact checks such a field
+against the new declaration before reading it as declared, in CEL. A
+constraint CEL cannot express, here a validator call, leaves the check
+unwritten, so the lineage does not compile.
+-- lineage.cue --
+import "strings"
+
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+			}
+		}
+		"1": {
+			schema: {
+				a:     string
+				code?: string & strings.MinRunes(1)
+			}
+		}
+	}
+}
+lenses: {
+	"0.1->0.0": {
+		v0_1: _
+		v0_0: {
+			a: v0_1.a
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0717",
+      "severity": "error",
+      "headline": "code in schema 0.1 has a constraint the compiled artifact cannot check on data from an earlier version",
+      "path": [
+        "schemas",
+        "0",
+        "1",
+        "schema",
+        "code"
+      ],
+      "address": {
+        "field": [
+          "code"
+        ],
+        "kind": "schemaField",
+        "version": [
+          0,
+          1
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 14,
+        "col": 5,
+        "offset": 139,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "code in schema 0.1 is newly declared, and its acceptance check cannot express strings.MinRunes(1) (Cap'n Proto rule extras-check-unrenderable)"
+        }
+      ],
+      "help": [
+        "constrain the field with types, bounds, regular expressions and constants"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0717]: code in schema 0.1 has a constraint the compiled artifact cannot check on data from an earlier version
+  --> lineage.cue:14:5
+   |
+14 |                 code?: string & strings.MinRunes(1)
+   |                 ^^^^
+   |
+   = note: code in schema 0.1 is newly declared, and its acceptance check cannot express strings.MinRunes(1) (Cap'n Proto rule extras-check-unrenderable)
+   = help: constrain the field with types, bounds, regular expressions and constants

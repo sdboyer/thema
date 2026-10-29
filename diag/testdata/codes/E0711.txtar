@@ -1,0 +1,72 @@
+#op: capnp
+Floats are outside the compiled target (#82): a value that may be a float,
+anywhere in a schema, does not compile to Cap'n Proto. This includes number,
+which admits floats, and a float as one alternative of a disjunction or as a
+default.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				speed: number
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0711",
+      "severity": "error",
+      "headline": "speed in schema 0.0 may be a float, which compiling to Cap'n Proto does not carry",
+      "path": [
+        "schemas",
+        "0",
+        "0",
+        "schema",
+        "speed"
+      ],
+      "address": {
+        "field": [
+          "speed"
+        ],
+        "kind": "schemaField",
+        "version": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 6,
+        "col": 5,
+        "offset": 58,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "speed in schema 0.0 is number, a number that may be a float; floats are outside the compiled target (Cap'n Proto rule float)"
+        }
+      ],
+      "help": [
+        "use an integer or a string: floats are outside the compiled target"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0711]: speed in schema 0.0 may be a float, which compiling to Cap'n Proto does not carry
+ --> lineage.cue:6:5
+  |
+6 |                 speed: number
+  |                 ^^^^^
+  |
+  = note: speed in schema 0.0 is number, a number that may be a float; floats are outside the compiled target (Cap'n Proto rule float)
+  = help: use an integer or a string: floats are outside the compiled target

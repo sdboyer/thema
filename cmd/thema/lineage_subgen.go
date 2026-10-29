@@ -98,7 +98,9 @@ func (gc *genCommand) setup(cmd *cobra.Command) {
 	gcp.Flags().StringVarP(&gc.format, "format", "f", "schema", "output format. \"schema\" for the .capnp text, \"artifact\" for the compiled artifact message.")
 	gcp.Flags().StringVar(&gc.namespace, "namespace", "", "hash namespace for type IDs, such as the CUE module path. Defaults to the lineage's name")
 	gcp.Flags().BoolVar(&gc.nolayout, "no-layout", false, "do not run the capnp tool; the artifact carries no layout")
-	gcp.Run = gc.run
+	// capnp returns its error, so that main reports it through diag, as
+	// every command but the older generators does.
+	gcp.RunE = gc.runCapnp
 
 	// TODO
 	// genLineageCmd.AddCommand(genTSTypesLineageCmd)
@@ -129,8 +131,6 @@ func (gc *genCommand) run(cmd *cobra.Command, args []string) {
 		err = gc.runOpenAPI(cmd, args)
 	case "gobindings":
 		err = gc.runGoBindings(cmd, args)
-	case "capnp":
-		err = gc.runCapnp(cmd, args)
 	case "tstypes":
 		err = gc.runTSTypes(cmd, args)
 	default:
@@ -202,7 +202,7 @@ var genJschLineageCmd = &cobra.Command{
 	Short: "Generate JSON Schema from a lineage",
 	Long: `Generate JSON Schema from a lineage.
 
-Generate a JSON Schema (Draft 4) document representing a single schema in a lineage,
+Generate a JSON Schema (draft 2020-12) document representing a single schema in a lineage,
 and print it to stdout.
 `,
 }
@@ -248,8 +248,8 @@ or the compiled artifact message (encoding/capnp/compiled) with
 --format artifact.
 
 Not every lineage compiles; a lineage with a construct Cap'n Proto cannot
-carry is rejected, with one finding per construct naming the rule it fails
-(see docs/capnp.md).
+carry is rejected, with one diagnostic per construct, whose code names the
+rule it fails (see docs/capnp.md).
 
 The layout of every struct is computed by the capnp tool, which must be on
 PATH unless --no-layout is given.
@@ -257,6 +257,7 @@ PATH unless --no-layout is given.
 }
 
 func (gc *genCommand) runCapnp(cmd *cobra.Command, _ []string) error {
+	gc.lin = gc.lla.dl.lin
 	var opts []capnp.Option
 	if gc.namespace != "" {
 		opts = append(opts, capnp.Namespace(gc.namespace))
@@ -280,7 +281,8 @@ func (gc *genCommand) runCapnp(cmd *cobra.Command, _ []string) error {
 		_, err = cmd.OutOrStdout().Write(b)
 		return err
 	default:
-		return fmt.Errorf(`unrecognized output format %q - must choose "schema" or "artifact"`, gc.format)
+		return diag.New(diag.E0620).Headlinef("--format %q is not an output format of gen capnp", gc.format).
+			Help(`pass "schema" for the .capnp text, or "artifact" for the compiled artifact`).Err()
 	}
 }
 

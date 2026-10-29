@@ -8,7 +8,7 @@ This holistic view allows Thema to act like a typechecker, but for change-safety
 
 These capabilities make Thema a general framework for decoupling the evolution of communicating systems. This can be outward-facing: Thema's guardrails allow anyone to create APIs with Stripe's renowned [backwards compatibility](https://stripe.com/docs/upgrades) guarantees. Or it can be inward-facing: or to change the messages passed in a mesh of microservices without intricately orchestrating deployment.
 
-Learn more in our [docs](https://github.com/sdboyer/thema/tree/main/docs), starting with the [overview](docs/overview.md) and the [lineage authoring tutorial](docs/authoring.md); the [authoring form](docs/authoring-form.md) is the reference for the files lineage authors write.
+Learn more in our [docs](https://github.com/sdboyer/thema/tree/main/docs), starting with the [overview](docs/overview.md) and the [lineage authoring tutorial](docs/authoring.md); the [reference](docs/reference/README.md) describes each part of thema precisely, the [authoring form](docs/authoring-form.md) the files lineage authors write, and [translation](docs/translation.md) what translating an instance does to each of its fields.
 
 ## Usage
 

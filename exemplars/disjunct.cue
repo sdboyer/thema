@@ -1,8 +1,10 @@
 package exemplars
 
+import "github.com/sdboyer/thema"
+
 disjunct: {
 	description: "Changes over schemas with complex disjunctions."
-	l: {
+	l: thema.Lineage & {
 		schemas: {
 			"0": "0": {
 				schema: {
@@ -39,24 +41,38 @@ disjunct: {
 			"0.1->0.0": {
 				v0_1: _
 				v0_0: {
-					// FIXME this extra conditional is needed b/c otherwise lienage validation complains 'branch' field doesn't exist
-					//				if input.rootfield.branch != _|_ {
-					//					if input.rootfield.branch == 1 || input.rootfield.branch == 2 {
-					//						// For branches 1 and 2, there are no changes, so just
-					//						// unify the input directly as the result by embedding it
-					//						input
-					//					}
-					//					if input.rootfield.branch == 3 {
-					//						// For branch 3, there is no real correspondence, so choose
-					//						// to fall back to branch 1 with a filler value.
-					//						rootfield: {
-					//							branch:    1
-					//							branchone: "wasthree"
-					//						}
-					//					}
-					//				}
+					// Branches 1 and 2 are unchanged: copy them through.
+					if v0_1.rootfield.branch == 1 {
+						rootfield: v0_1.rootfield
+					}
+					if v0_1.rootfield.branch == 2 {
+						rootfield: v0_1.rootfield
+					}
+
+					// Branch 3 has no correspondence in 0.0: fall back to branch 1
+					// with a filler value, and say so with the lacuna below.
+					if v0_1.rootfield.branch == 3 {
+						rootfield: {
+							branch:    1
+							branchone: "wasthree"
+						}
+					}
 				}
-				lacunas: []
+				lacunas: [
+					thema.Lacuna & {
+						condition: v0_1.rootfield.branch == 3
+						sourceFields: [{
+							path:  "rootfield"
+							value: v0_1.rootfield
+						}]
+						targetFields: [{
+							path:  "rootfield"
+							value: v0_0.rootfield
+						}]
+						message: "rootfield was branch 3, which 0.0 does not have; branch 1 with branchone \"wasthree\" was substituted"
+						type:    thema.LacunaTypes.LossyFieldMapping
+					},
+				]
 			}
 		}
 	}

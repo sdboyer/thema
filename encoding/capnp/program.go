@@ -1,10 +1,9 @@
 package capnp
 
 import (
+	"errors"
 	"fmt"
 	"sort"
-
-	"cuelang.org/go/cue"
 
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/encoding/capnp/compiled"
@@ -12,18 +11,35 @@ import (
 	"github.com/sdboyer/thema/lacuna"
 )
 
+// flatten returns the errors err joins, nested joins flattened.
+func flatten(err error) []error {
+	j, ok := err.(interface{ Unwrap() []error })
+	if !ok {
+		return []error{err}
+	}
+	var out []error
+	for _, e := range j.Unwrap() {
+		out = append(out, flatten(e)...)
+	}
+	return out
+}
+
 // edges builds the compiled edges: one per lens program binding built, each
 // with the CEL renderings of its expressions, and a synthesized identity copy
 // for each forward minor step whose versions are read through different
-// structs. A lineage without programs (bound with SkipBuggyChecks, or with a
-// lens the IR does not carry) is rejected: its artifact would have no way
-// across its edges.
+// structs. A lineage with a lens the IR does not carry has no program for
+// it and is rejected: its artifact would have no way across that edge.
 func (cp *compiler) edges() []*compiled.Edge {
 	progs, err := thema.LensPrograms(cp.lin)
 	if err != nil {
-		pos := authorPos(cp.lin.Underlying().LookupPath(cue.MakePath(cue.Str("lenses"))))
-		cp.add(cp.lin.First().Version(), cue.MakePath(), Rejected, RuleLensNoProgram,
-			fmt.Sprintf("has no lens programs to compile: %v", err), pos)
+		for _, e := range flatten(err) {
+			var npe *lensir.NoProgramError
+			if !errors.As(e, &npe) {
+				panic(fmt.Sprintf("capnp: lens programs failed other than per lens: %v", e))
+			}
+			cp.addLens(npe.Edge, nil, RuleLensNoProgram,
+				fmt.Sprintf("uses a construct the compiled lens programs do not carry yet: %v", npe.Err))
+		}
 		return nil
 	}
 	var edges []*compiled.Edge

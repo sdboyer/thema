@@ -47,15 +47,19 @@ func (pr *printer) block(open string, nodes []Node) {
 func (pr *printer) node(n Node) {
 	switch n := n.(type) {
 	case *Copy:
-		pr.linef("%s <- %s", out(n.To), in(n.From))
+		pr.linef("%s <- %s%s", out(n.To), in(n.From), alts(n.Alts))
 	case *Constant:
 		pr.linef("%s = %s", out(n.To), literal(n.Value))
 	case *Wrap:
+		alt := ""
+		if n.Alt != nil {
+			alt = fmt.Sprintf(" alt %d", *n.Alt)
+		}
 		switch n.Kind {
 		case ListWrap:
-			pr.block(fmt.Sprintf("%s: [%d]", out(n.To), n.Len), n.Children)
+			pr.block(fmt.Sprintf("%s: [%d]%s", out(n.To), n.Len, alt), n.Children)
 		default:
-			pr.block(out(n.To)+":", n.Children)
+			pr.block(out(n.To)+":"+alt, n.Children)
 		}
 	case *Each:
 		pr.block(fmt.Sprintf("%s = each %s", out(n.To), in(n.Source)), n.Body)
@@ -122,6 +126,19 @@ func (pr *printer) fieldRef(list string, f FieldRef) {
 // in and out name an input and a result path.
 func in(p Path) string  { return rooted("in", p) }
 func out(p Path) string { return rooted("out", p) }
+
+// alts renders a copy's alternative pairs: (alt 0 -> 0, 1 -> 1), or nothing
+// where there are none.
+func alts(as []Alt) string {
+	if len(as) == 0 {
+		return ""
+	}
+	ss := make([]string, 0, len(as))
+	for _, a := range as {
+		ss = append(ss, fmt.Sprintf("%d -> %d", a.From, a.To))
+	}
+	return " (alt " + strings.Join(ss, ", ") + ")"
+}
 
 func rooted(root string, p Path) string {
 	if len(p) == 0 {

@@ -9,7 +9,6 @@ import (
 
 	"github.com/sdboyer/thema/diag"
 	terrors "github.com/sdboyer/thema/errors"
-	"github.com/sdboyer/thema/internal/envvars"
 )
 
 // A CUEWrapper wraps a cue.Value, and can return that value for inspection.
@@ -160,8 +159,7 @@ type bindOption func(c *bindConfig)
 
 // Internal bind-time configuration options.
 type bindConfig struct {
-	skipbuggychecks bool
-	vocab           diag.Vocabulary
+	vocab diag.Vocabulary
 }
 
 // WithVocabulary makes [BindLineage] describe the lineage, in its diagnostics,
@@ -172,30 +170,6 @@ type bindConfig struct {
 func WithVocabulary(v diag.Vocabulary) BindOption {
 	return func(c *bindConfig) {
 		c.vocab = v
-	}
-}
-
-// SkipBuggyChecks indicates that [BindLineage] should skip validation checks
-// which have known bugs (e.g. panics) for certain should-be-valid CUE inputs.
-//
-// By default, BindLineage performs these checks anyway, as otherwise the
-// default behavior of BindLineage is to not provide the guarantees it's
-// supposed to provide.
-//
-// As Thema and CUE move towards maturity and the set of validations that are
-// both a) necessary and b) buggy empties out, this will naturally become a
-// no-op. At that point, this function will be marked deprecated.
-//
-// Ratcheting up verification checks in this way does mean that any code relying
-// on this to bypass verification in BindLineage may begin failing in future
-// versions of Thema if the underlying lineage being verified doesn't comply
-// with a planned invariant.
-func SkipBuggyChecks() BindOption {
-	return func(c *bindConfig) {
-		// We let the env var override this to make it easy to disable on tests.
-		if !envvars.ForceVerify {
-			c.skipbuggychecks = true
-		}
 	}
 }
 

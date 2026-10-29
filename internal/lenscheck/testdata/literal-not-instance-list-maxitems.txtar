@@ -1,0 +1,12 @@
+# A list literal longer than list.MaxItems allows at the target (#163).
+-- source.cue --
+a: int
+-- target.cue --
+import "list"
+items: [...int] & list.MaxItems(2)
+-- lens.cue --
+v0_0: _
+v1_0: {items: [v0_0.a, v0_0.a, v0_0.a]}
+-- out --
+not total
+v1_0.items is a list of 3 elements, where the target list's length must be [0, 2] (rule literal-not-instance) @ lens.cue:2:8

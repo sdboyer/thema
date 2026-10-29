@@ -29,6 +29,7 @@ import (
 	"cuelang.org/go/cue/token"
 
 	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/encoding/capnp/compiled"
 	"github.com/sdboyer/thema/internal/cuetil"
 	"github.com/sdboyer/thema/internal/embedreg"
@@ -46,6 +47,7 @@ type config struct {
 	namespace string
 	tool      string
 	noLayout  bool
+	vocab     diag.Vocabulary
 }
 
 // Namespace sets the hash namespace type IDs are derived under, so that two
@@ -111,9 +113,8 @@ const (
 	// neither of pairwise distinct kinds nor structs sharing a tag label with
 	// distinct constants, so no discriminant can be derived from the value.
 	RuleDisjunctionUndiscriminated Rule = "disjunction-undiscriminated"
-	// RuleLensNoProgram: the lineage has no lens programs, because it was
-	// bound with SkipBuggyChecks or a lens uses a construct the IR does not
-	// carry. Without them the artifact has no way across its edges.
+	// RuleLensNoProgram: a lens uses a construct the IR does not carry, so it
+	// has no program. Without one the artifact has no way across its edge.
 	RuleLensNoProgram Rule = "lens-no-program"
 	// RuleCELUnrenderable: an expression of a lens program has no faithful
 	// CEL rendering (a divergence between CUE and CEL, see docs/capnp.md), or
@@ -122,6 +123,11 @@ const (
 	// RuleExtrasCheckUnrenderable: a label a version newly declares has a
 	// constraint the extras acceptance check cannot express in CEL.
 	RuleExtrasCheckUnrenderable Rule = "extras-check-unrenderable"
+	// RuleNameCollision: two labels, values or alternatives of one struct map
+	// to the same Cap'n Proto name once underscores are dropped and other
+	// separators camel-cased (a_b and ab). capnp names in one scope must
+	// differ, and the compiler does not invent one.
+	RuleNameCollision Rule = "name-collision"
 )
 
 // Rules that leave the verdict Unknown: forms this compiler does not carry.
@@ -134,49 +140,51 @@ const (
 	RuleUnknownListHeterogeneous Rule = "unknown-list-heterogeneous"
 )
 
-// Finding is one verdict at one path of one schema version, or of one lens,
-// or of the lineage as a whole. Compilable paths produce no finding.
+// Finding is one verdict at one path of one schema version, or of one lens.
+// Compilable paths produce no finding.
 //
 // Its text reads as a sentence about the value at Path in the version:
 // "schema <version>: <path> <detail> (rule <rule>)"; for a lens, about the
-// result path: "lens <edge>: <path> <detail> (rule <rule>)"; and for the
-// lineage: "lineage: the lineage <detail> (rule <rule>)".
+// result path: "lens <edge>: <path> <detail> (rule <rule>)". Where Path is
+// empty, the subject is the schema or the lens.
 type Finding struct {
-	// Version is the schema version the finding is about; the first version
-	// for a finding about the lineage as a whole.
+	// Version is the schema version the finding is about; for a lens, its
+	// target version.
 	Version thema.SyntacticVersion
 	// Lens is the edge of the lens the finding is about, as "from->to"; ""
-	// for a finding about a schema or the lineage.
+	// for a finding about a schema.
 	Lens    string
 	Path    cue.Path
 	Verdict Verdict
 	Rule    Rule
 	Detail  string
-	// Pos is the author's position for the finding: the value at Path, the
-	// lens, or the lineage's lenses.
+	// Pos is the author's position for the finding: the value at Path, or
+	// the lens.
 	Pos token.Pos
 }
 
-// Lineage reports whether the finding is about the lineage as a whole rather
-// than a path of a version or a lens.
-func (f Finding) Lineage() bool {
-	return f.Lens == "" && len(f.Path.Selectors()) == 0
-}
-
 func (f Finding) String() string {
-	switch {
-	case f.Lineage():
-		return fmt.Sprintf("lineage: the lineage %s (rule %s)", f.Detail, f.Rule)
-	case f.Lens != "":
-		return fmt.Sprintf("lens %s: %s %s (rule %s)", f.Lens, f.Path, f.Detail, f.Rule)
+	if f.Lens != "" {
+		subject := "the lens"
+		if len(f.Path.Selectors()) > 0 {
+			subject = f.Path.String()
+		}
+		return fmt.Sprintf("lens %s: %s %s (rule %s)", f.Lens, subject, f.Detail, f.Rule)
 	}
-	return fmt.Sprintf("schema %s: %s %s (rule %s)", f.Version, f.Path, f.Detail, f.Rule)
+	subject := "the schema"
+	if len(f.Path.Selectors()) > 0 {
+		subject = f.Path.String()
+	}
+	return fmt.Sprintf("schema %s: %s %s (rule %s)", f.Version, subject, f.Detail, f.Rule)
 }
 
 // Result is the outcome of the checker: the findings at every path that is
-// not Compilable. It is the error Compile returns where there are any.
+// not Compilable. It is the error Compile returns where there are any, and
+// unwraps to their diagnostics.
 type Result struct {
 	Findings []Finding
+	// vocab names constructs in the diagnostics (see [Vocabulary]).
+	vocab diag.Vocabulary
 }
 
 // Verdict is the overall verdict: Rejected if any path is, otherwise Unknown
@@ -264,6 +272,7 @@ func Compile(lin thema.Lineage, opts ...Option) (*Compiled, error) {
 		cp.schemas[sch.Version()] = sv
 		cp.gens.add(sch.Version(), tree)
 	}
+	cp.findings = append(cp.findings, cp.gens.findings...)
 	if len(cp.findings) > 0 {
 		return nil, cp.result()
 	}
@@ -297,7 +306,7 @@ func Compile(lin thema.Lineage, opts ...Option) (*Compiled, error) {
 // result sorts the findings, by version, then lens, then path, and returns
 // them as the error.
 func (cp *compiler) result() Result {
-	res := Result{Findings: cp.findings}
+	res := Result{Findings: cp.findings, vocab: cp.cfg.vocab}
 	sort.SliceStable(res.Findings, func(i, j int) bool {
 		a, b := res.Findings[i], res.Findings[j]
 		if a.Version != b.Version {
