@@ -456,7 +456,11 @@ so arms must be exhaustive *and* agree where they overlap.
 **Lists mapped element by element.** A list may be written as one
 comprehension over a source list, `[for item in v0_0.items {...}]`. The body
 is proven as a lens from the source list's element to the target list's, with
-`item` standing for the element, and every rule above applies to it. The list
+`item` standing for the element, and every rule above applies to it. A body
+that embeds one reference, `[for item in v0_0.users {item.id}]`, copies it as
+the whole element, under the rule for copies: the element must always have it
+(`source-absent` otherwise), and the target's element must accept every value
+of it. The list
 has one element per element of the source, so the target list's length bounds
 must accept the source list's. A list's length bounds are those its shape sets
 (`[_, ...T]`) and those `list.MinItems` and `list.MaxItems` set; a list literal
@@ -465,10 +469,14 @@ list (`list.UniqueItems`, `list.IsSorted`, …) constrains it beyond its length,
 which the proof does not compare. Nor does it read any other validator on the
 source list, which may bound its length further: where the bounds it reads do
 not fit the target's, the mapping is Unknown. A comprehension that filters
-(`if`), nests `for` clauses, or sits beside other elements is not proven. A
-list the lens builds this way and names through a `let` may be measured with
-`len`, within the source list's bounds, and its elements reported by a lacuna
-under the comprehension's own patterns. A pattern tested before the `for` clause guards
+(`if`), nests `for` clauses, or sits beside other elements is not proven; a
+comprehension written in the body of another, mapping a list within the
+element, is proven as any list in the body is. A list the lens builds this way
+and names through a `let` may be measured with `len`, within the source list's
+bounds, and its elements reported by a lacuna under the comprehension's own
+patterns. Such a list may also be built by nested `for` clauses (`[for s in
+v0_0.steps for f in s.fields {...}]`), and measures up to the product of the
+lengths of the lists they iterate. A pattern tested before a `for` clause guards
 the iteration (`[if v0_0.items != _|_ for item in v0_0.items {...}]`): where it
 fails the list is empty, and the source list is read under it, so that a list
 the source may omit can be measured.
@@ -622,9 +630,11 @@ that test. Where a copy's target is a disjunction of structs or lists, the
 copy names, for each alternative of the source it may carry, the target
 alternative that accepts it, and a struct literal proven against an
 alternative names it; a backend lowering the disjunction to a tagged union
-reads the member from these. Two proven forms are not yet carried, and a lens using them binds
+reads the member from these. Three proven forms are not yet carried, and a lens using them binds
 without a program: a lacuna reporting one entry per element of a source list,
-and `len` of a list the lens builds through a `let`. Each corpus lineage's
+`len` of a list the lens builds through a `let`, and a list mapped element by
+element inside the body of another over a list outside that one's element,
+where a path into an open element would not say which item it reads. Each corpus lineage's
 programs are recorded beside it (`out/lensir` in `testdata/lineage`,
 `exemplars/testdata/lensir`), and each proven form's in the lens corpus
 (`internal/lenscheck/testdata`, `ir` sections).

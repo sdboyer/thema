@@ -314,6 +314,9 @@ type walker struct {
 	absentAdvice func(p cue.Path) string
 	// ir collects the lens's program as the walk proves it.
 	ir *irBuilder
+	// eachSources are the source lists of the comprehensions mapping a list
+	// element by element that the walk is in, innermost last.
+	eachSources []cue.Path
 }
 
 // checkInput refuses a lens that constrains the field it takes. Translate fills
@@ -1337,6 +1340,16 @@ func (w *walker) each(comp *ast.Comprehension, q cue.Path, gs []pattern, pos tok
 	}
 	eq := appendPath(q, cue.AnyIndex)
 	w.record(&write{q: eq, patterns: gs, kind: compositeW, text: text(comp), pos: pos})
+	// Inside the body, a path into the source list's open element reads this
+	// comprehension's item. A comprehension nested in another's body over a
+	// list that is not in the enclosing item would leave a path into an open
+	// element ambiguous between the two items: the proof holds, but the
+	// program cannot say which item a path reads.
+	if n := len(w.eachSources); n > 0 && !cuetil.PathHasPrefix(p, appendPath(w.eachSources[n-1], cue.AnyIndex)) {
+		w.ir.failf("%s maps the elements of %s inside the body mapping those of %s, outside its element, which the IR does not carry", subj, w.inputRef(p), w.inputRef(w.eachSources[n-1]))
+	}
+	w.eachSources = append(w.eachSources, p)
+	defer func() { w.eachSources = w.eachSources[:len(w.eachSources)-1] }()
 	w.ir.push()
 	if s, ok := comp.Value.(*ast.StructLit); ok {
 		w.decls(s.Elts, eq, gs, pos)

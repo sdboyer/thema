@@ -1,0 +1,24 @@
+# A drop two lists deep (#167): its lacuna is aggregated through a let with one for clause per list, the inner over the outer item's list, which the source may omit and the let tests before iterating. The let's length is up to the product of the lists' lengths.
+-- source.cue --
+s: [...{f?: [...{n: string, legacy?: string}]}]
+-- target.cue --
+s: [...{f?: [...{m: string}]}]
+-- lens.cue --
+v0_0: _
+let _d_0 = [for i, _item in v0_0.s if _item.f != _|_ for i1, _item in _item.f if _item.legacy != _|_ {
+	path:  "s[\(i)].f[\(i1)].legacy"
+	value: _item.legacy
+}]
+v1_0: {s: [for _item in v0_0.s {
+	if _item.f != _|_ {f: [for _item in _item.f {m: _item.n}]}
+}]}
+lacunas: [{
+	condition:    len(_d_0) > 0
+	sourceFields: _d_0
+	message:      "legacy dropped"
+	type:         "DroppedField"
+}]
+-- out --
+total
+-- ir --
+no program: _d_0 is not an expression the IR carries

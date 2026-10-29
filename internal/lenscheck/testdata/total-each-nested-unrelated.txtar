@@ -1,0 +1,12 @@
+# A list mapped element by element inside the body of another, over a list that is not in the outer item: here the same list, so the inner body reads elements of s through both items. The proof holds, but a path into s's open element no longer says which item it reads, so the lens has no program rather than a wrong one.
+-- source.cue --
+s: [...{n: string}]
+-- target.cue --
+s: [...{f: [...{a: string, b: string}]}]
+-- lens.cue --
+v0_0: _
+v1_0: {s: [for x in v0_0.s {f: [for y in v0_0.s {a: x.n, b: y.n}]}]}
+-- out --
+total
+-- ir --
+no program: v1_0.s[_].f maps the elements of v0_0.s inside the body mapping those of v0_0.s, outside its element, which the IR does not carry

@@ -1,0 +1,94 @@
+each inside each (#167): a list of structs each holding a list, mapped two
+lists deep. The issue's example, with closed schemas.
+-- ship/history/0.0.thema --
+Schema: close({
+	s!: [...close({f!: [...close({n!: string})]})]
+})
+-- ship/1.0.thema --
+Schema: close({
+	s!: [...close({f!: [...close({m!: string})]})]
+})
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		s: _each(v0_0.s, {f: _each(_item.f, {m: _item.n})})
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		s: _each(v1_0.s, {f: _each(_item.f, {n: _item.m})})
+	}
+}
+-- data/0.0/two.json --
+{"s": [{"f": [{"n": "a"}, {"n": "b"}]}, {"f": []}]}
+-- data/1.0/one.json --
+{"s": [{"f": [{"m": "a"}]}]}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+Schema: close({s!: [...close({f!: [...close({m!: string})]})]})
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		s: _each(v0_0.s, {f: _each(_item.f, {m: _item.n})})
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		s: _each(v1_0.s, {f: _each(_item.f, {n: _item.m})})
+	}
+}
+-- out/decompiled/history/0.0.thema --
+Schema: close({s!: [...close({f!: [...close({n!: string})]})]})
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: close({
+				s!: [...close({f!: [...close({n!: string})]})]
+			})
+		}
+	}
+	"1": {
+		"0": {
+			schema: close({
+				s!: [...close({f!: [...close({m!: string})]})]
+			})
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			s: [for _item in v0_0.s {
+				f: [for _item in _item.f {
+					m: _item.n
+				}]
+			}]
+		}
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			s: [for _item in v1_0.s {
+				f: [for _item in _item.f {
+					n: _item.m
+				}]
+			}]
+		}
+	}
+}
+-- out/translate/0.0/two->1.0 --
+{"s":[{"f":[{"m":"a"},{"m":"b"}]},{"f":[]}]}
+[]
+-- out/translate/1.0/one->0.0 --
+{"s":[{"f":[{"n":"a"}]}]}
+[]
