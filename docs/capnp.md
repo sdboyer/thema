@@ -55,11 +55,14 @@ Nested nodes are named after the field (`inner: {…}` → `Inner`), with `Item`
 for a list's element (`ElemsItem`, `ElemsItemItem`) and `Entry` for a map's
 (`MappedEntry`); a tagged alternative's struct after the field and the tag
 (`TaggedKindCircle`); a boxed list element's alternatives after the member
-alone (`KindA`). Labels are sanitized to capnp names (camel case, ASCII
-letters and digits, lowercase first for fields and enumerants, uppercase first
-for types, `v` before a leading digit, `empty` for an empty label) and made
-unique by suffix within their scope (`fooBar`, `fooBar2`); a label colliding
-with `extras` is renamed.
+alone (`KindA`). Labels are sanitized to capnp names: underscores are dropped
+(`ship_v2` → `shipv2`), other characters outside ASCII letters and digits
+separate words joined in camel case (`foo-bar` → `fooBar`), lowercase first for
+fields and enumerants, uppercase first for types, `v` before a leading digit,
+`empty` for an empty label. Two labels, values or alternatives of one struct
+that sanitize to the same name (`a_b` and `ab`) are a `name-collision`, never
+renamed; only a label that sanitizes to the compiler's own `extras` field is
+renamed (`extras2`).
 
 ## Generations
 
@@ -132,6 +135,7 @@ for example
 | `float` | a value may be a float (`number`, `float`, `float32`, `float64`), anywhere, including as an alternative or a default | floats are outside the compiled target (#82); use an integer, or a string |
 | `top` | a value is `_`, including as a list element (`[...]`), a map value, or a disjunction alternative | declare the type |
 | `disjunction-undiscriminated` | no value decides the alternative: several non-constant alternatives of one kind (`=~"^a" \| =~"^b"`, `int8 \| int16`, `[...string] \| [...int8]`), a constant beside the open type of its kind (`"a" \| string`), or struct alternatives with no label that holds a distinct constant in each (`{a: string} \| {b: string}`, `{kind: string, …} \| {kind: string, …}`) | give struct alternatives a tag field with a distinct constant in each, make the alternatives of distinct kinds, or make them all constants |
+| `name-collision` | two labels, enum values or tagged alternatives of one struct sanitize to the same capnp name (`a_b` and `ab`; `"x_y" \| "xy"`; a field `kindKA` beside a field `kind` whose alternative tagged `"a"` is the struct `KindKA`) | rename one of them so the names differ once underscores are dropped |
 
 | Rule | Unknown when | What to do |
 |---|---|---|

@@ -107,6 +107,11 @@ const (
 	// neither of pairwise distinct kinds nor structs sharing a tag label with
 	// distinct constants, so no discriminant can be derived from the value.
 	RuleDisjunctionUndiscriminated Rule = "disjunction-undiscriminated"
+	// RuleNameCollision: two labels, values or alternatives of one struct map
+	// to the same Cap'n Proto name once underscores are dropped and other
+	// separators camel-cased (a_b and ab). capnp names in one scope must
+	// differ, and the compiler does not invent one.
+	RuleNameCollision Rule = "name-collision"
 )
 
 // Rules that leave the verdict Unknown: forms this compiler does not carry.
@@ -197,6 +202,7 @@ func Compile(lin thema.Lineage, opts ...Option) (*Compiled, error) {
 		}
 		gens.add(sch.Version(), tree)
 	}
+	res.Findings = append(res.Findings, gens.findings...)
 	if len(res.Findings) > 0 {
 		sort.SliceStable(res.Findings, func(i, j int) bool {
 			a, b := res.Findings[i], res.Findings[j]

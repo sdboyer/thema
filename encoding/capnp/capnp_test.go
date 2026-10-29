@@ -395,7 +395,10 @@ func TestNames(t *testing.T) {
 		{"foo", "foo", "Foo"},
 		{"Bar", "bar", "Bar"},
 		{"foo-bar", "fooBar", "FooBar"},
-		{"foo_bar", "fooBar", "FooBar"},
+		{"foo_bar", "foobar", "Foobar"},
+		{"ship_v2", "shipv2", "Shipv2"},
+		{"_x_", "x", "X"},
+		{"__", "empty", "Empty"},
 		{"with Default", "withDefault", "WithDefault"},
 		{"1x", "v1x", "V1x"},
 		{"", "empty", "Empty"},
@@ -409,10 +412,19 @@ func TestNames(t *testing.T) {
 			t.Errorf("typeName(%q) = %q, want %q", tc.in, got, tc.typ)
 		}
 	}
-	s := newScope("extras")
-	for _, tc := range []struct{ in, want string }{{"extras", "extras2"}, {"a", "a"}, {"a", "a2"}, {"a", "a3"}, {"a2", "a22"}} {
-		if got := s.unique(tc.in); got != tc.want {
-			t.Errorf("unique(%q) = %q, want %q", tc.in, got, tc.want)
+	s := newScope()
+	for _, tc := range []struct {
+		name, what, other string
+		ok                bool
+	}{
+		{"a", "a", "", true},
+		{"a", "a", "", true}, // the same label again, in a later version
+		{"a", "_a", "a", false},
+		{"ab", "a_b", "", true},
+		{"ab", "ab", "a_b", false},
+	} {
+		if other, ok := s.claim(tc.name, tc.what); ok != tc.ok || other != tc.other {
+			t.Errorf("claim(%q, %q) = %q, %v; want %q, %v", tc.name, tc.what, other, ok, tc.other, tc.ok)
 		}
 	}
 }

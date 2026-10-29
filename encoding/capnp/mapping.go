@@ -3,6 +3,7 @@ package capnp
 import (
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 
 	"cuelang.org/go/cue"
@@ -55,6 +56,10 @@ type vfield struct {
 	// def is the schema's default, where the field is Defaulted and the
 	// default is a scalar.
 	def *lensir.Literal
+	// path and pos are the field's path in the schema and the author's
+	// position of its value, for findings raised when the field is named.
+	path cue.Path
+	pos  token.Pos
 }
 
 // boxField is the fixed name of a union box's one field, its anonymous
@@ -174,7 +179,7 @@ func (w *walker) isMap(v cue.Value) (cue.Value, bool) {
 
 // field maps one field: its form, its default and its type.
 func (w *walker) field(sel cue.Selector, v cue.Value, p cue.Path) vfield {
-	f := vfield{label: sel.Unquoted(), form: compiled.Form(compat.FormOf(sel, v))}
+	f := vfield{label: sel.Unquoted(), form: compiled.Form(compat.FormOf(sel, v)), path: p, pos: posOf(v)}
 	if f.form == compiled.Defaulted {
 		d, _ := v.Default()
 		if lit, ok := literalOf(d); ok {
@@ -407,7 +412,23 @@ func (w *walker) disjunction(v cue.Value, brs []cue.Value, p cue.Path) *vtype {
 		}
 		members = append(members, m)
 	}
+	names := newScope()
+	for _, m := range members {
+		if other, ok := names.claim(m.name, memberWhat(m)); !ok {
+			w.add(p, Rejected, RuleNameCollision,
+				fmt.Sprintf("collides: its alternatives %s and %s are both named %s in Cap'n Proto, which drops underscores and joins words in camel case; the members of one union must differ", other, memberWhat(m), m.name), posOf(v))
+			return bad
+		}
+	}
 	return &vtype{union: members}
+}
+
+// memberWhat says which alternative a union member holds, for a collision.
+func memberWhat(m vmember) string {
+	if m.role == compiled.TagMember && m.tag != nil {
+		return "tagged " + m.tagLabel + ": " + strconv.Quote(litText(*m.tag))
+	}
+	return m.kind
 }
 
 // collapse maps the alternatives of one kind to one type: a single

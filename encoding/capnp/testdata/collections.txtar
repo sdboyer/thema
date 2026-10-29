@@ -63,7 +63,7 @@ struct CollectionsV0 @0x8897a4e818553256 {
   withSpace @17 :Text;
   kebabCase @18 :Text;
   v1starts @19 :Text;
-  snakeCase @20 :Text;
+  snakecase @20 :Text;
   extras2 @21 :Text;
   struct StructsItem @0xdbf66abcab6e8547 {
     extras @0 :Data;
@@ -146,7 +146,7 @@ struct CollectionsV0 @0x8897a4e818553256: data=0 ptrs=22
   withSpace @17: text off=17
   kebabCase @18: text off=18
   v1starts @19: text off=19
-  snakeCase @20: text off=20
+  snakecase @20: text off=20
   extras2 @21: text off=21
 struct CollectionsV0.Empty @0xe4a1379d75fd6ffc: data=0 ptrs=1
   extras @0: data off=0
