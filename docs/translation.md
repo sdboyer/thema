@@ -17,7 +17,7 @@ A case this page does not settle is settled here first, before any derivation or
 - **Step.** One translation from an instance of a *source* version to an instance of the adjacent *target* version, forward or backward. A translation across several versions is a sequence of steps, each taking the previous step's result. A step either applies the lens for that pair of versions, or applies no lens ([G1](#steps-and-direction)).
 - **Source field, target field.** A field of the step's source instance, and a field of the instance it produces. A field is named by its path from the instance's root: `meta.owner`.
 - **Declared.** A schema declares a field when it names it: `a: T`, `a?: T` or `a!: T`, inside a struct the schema declares. Being admitted is not being declared:
-  - a name that `...` admits is not declared. On main, the authoring form still treats such a name as declared in places, for instance copying it implicitly ([#174](https://github.com/sdboyer/thema/pull/174));
+  - a name that `...` admits is not declared ([#174](https://github.com/sdboyer/thema/pull/174));
   - a key that matches a pattern constraint, as in `labels: [string]: string`, is not declared ([A4](#what-an-instance-may-hold)). Only a field with a predictable name is.
   - Hidden fields, definitions and `let`s are not data, and are never part of an instance.
 - **Undeclared data.** Fields an instance holds that its schema does not declare: those admitted by `...` or matched by a pattern constraint.
@@ -69,10 +69,10 @@ Carrying into a field the target declares, promotion, is for undeclared data onl
 
 Today on main:
 
-- **B2.** Dropping a present empty struct or list raises its `DroppedField`. #196 is being reworked to raise none, and #176, for a struct dropped whole, is being changed to match.
+- **B2.** Dropping a present empty struct or list raises its `DroppedField`. #196 raises none, and so does #176 for a struct dropped whole.
 - **B4.** The field is dropped with no lacuna. #196 implements the carry.
-- **B5.** A hand-written normal-form lens that leaves the field out drops it with no lacuna. #196 is being reworked to raise the automatic `DroppedField`, superseded by one the lens lists.
-- **B6.** With a hand-written lens, the target field is absent or takes its default, and no lacuna is raised. #196 is being reworked to raise the automatic `DroppedField`.
+- **B5.** A hand-written normal-form lens that leaves the field out drops it with no lacuna. #196 raises the automatic `DroppedField`, superseded by one the lens lists.
+- **B6.** With a hand-written lens, the target field is absent or takes its default, and no lacuna is raised. #196 raises the automatic `DroppedField`.
 
 ## Undeclared data
 
@@ -104,7 +104,7 @@ Today on main:
 
 - **Major steps** discard undeclared data with no lacuna: a lens builds its result from declared fields only, and the result is closed against the target.
 - **Minor steps** keep it where the successor accepts it, and fail the translation where it doesn't.
-- **#196**, as it stands, differs from these rules in four places, and is being reworked to match them: a value that fails promotion raises a `DroppedField` rather than a `LossyFieldMapping` (C3); a carried value replaces what the lens wrote (C4); undeclared data in a struct the lens moves or embeds is set aside rather than following it (C6); and a list whose length changes has all of its elements' undeclared data set aside (C7).
+- **#196** implements these rules.
 
 ## Fields only the target declares
 
@@ -125,9 +125,9 @@ When a struct exists in the result, and how dropping one is reported.
 |---|---|---|---|---|
 | E1 | An optional struct absent from the source | Absent from the target, never `{}`. A struct or list keeps the form the input had: absent stays absent, and empty stays empty. | None. | no: [#176](https://github.com/sdboyer/thema/pull/176) |
 | E2 | A struct the target lacks, present in the source | Dropped whole. | One `DroppedField`, on the struct, whose value includes its contents. It replaces lacunas for the fields beneath it. An empty struct raises none (E4). | no: [#176](https://github.com/sdboyer/thema/pull/176) |
-| E3 | A target struct filled from inside and outside an optional source struct | Present when any of its content is written, under E3a. | As E3a. | no: [#188](https://github.com/sdboyer/thema/issues/188) |
-| E3a | An optional target struct assembled from several sources | Written when at least one of its contents is written, *and* every field it requires is satisfied, written or filled by its default. Otherwise it is not written. | Where some content is available but a required field isn't satisfied: a `DroppedField` for each value that would have gone into the struct. | no: [#188](https://github.com/sdboyer/thema/issues/188) |
-| E4 | The target requires a struct that the source has as optional | `{}` is written when the source is absent, with whatever the struct's own defaults fill. An empty container and an absent one are not distinct information. Where that can't produce the struct for some instance, because it has a required field of its own that nothing fills when the source is absent, the lens is refused at bind, as for any required field it doesn't produce ([D3](#fields-only-the-target-declares)). The remedy is `_orelse` with a struct fallback. | None. Dropping an empty struct or list never raises a lacuna. | `{}` yes; refusing a struct it can't produce: [#188](https://github.com/sdboyer/thema/issues/188); no lacuna for an empty container: [#196](https://github.com/sdboyer/thema/pull/196), and [#176](https://github.com/sdboyer/thema/pull/176) for a struct dropped whole |
+| E3 | A target struct filled from inside and outside an optional source struct | Present when any of its content is written, under E3a. | As E3a. | no: [#188](https://github.com/sdboyer/thema/issues/188), implemented in [#200](https://github.com/sdboyer/thema/pull/200) |
+| E3a | An optional target struct assembled from several sources | Written when at least one of its contents is written, *and* every field it requires is satisfied, written or filled by its default. Otherwise it is not written. | Where some content is available but a required field isn't satisfied: a `DroppedField` for each value that would have gone into the struct. | no: [#188](https://github.com/sdboyer/thema/issues/188), implemented in [#200](https://github.com/sdboyer/thema/pull/200) |
+| E4 | The target requires a struct that the source has as optional | `{}` is written when the source is absent, with whatever the struct's own defaults fill. An empty container and an absent one are not distinct information. Where that can't produce the struct for some instance, because it has a required field of its own that nothing fills when the source is absent, the lens is refused at bind, as for any required field it doesn't produce ([D3](#fields-only-the-target-declares)). The remedy is `_orelse` with a struct fallback. | None. Dropping an empty struct or list never raises a lacuna. | `{}` yes; refusing a struct it can't produce: [#188](https://github.com/sdboyer/thema/issues/188), implemented in [#200](https://github.com/sdboyer/thema/pull/200); no lacuna for an empty container: [#196](https://github.com/sdboyer/thema/pull/196), and [#176](https://github.com/sdboyer/thema/pull/176) for a struct dropped whole |
 
 **E3a**, a target struct exists when there is enough data for it to exist. For example, with 0.0 as `q?: {a!: int, b?: int}`, and 1.0 as `q?: {a!: int}` and `b?: int` (`b` moved out of `q`), the step back from 1.0 to 0.0 gives:
 
@@ -147,9 +147,9 @@ E3a applies to every optional target struct assembled from several sources, not 
 Today on main:
 
 - **E1.** The derived backward lens writes `{}` for an optional struct the instance lacks ([#157](https://github.com/sdboyer/thema/issues/157), fixed by #176).
-- **E2.** The authoring docs describe one derived lacuna per field the newer version added. #176 implements the single lacuna on the struct, and is being changed so that an empty struct raises none (E4).
+- **E2.** The authoring docs describe one derived lacuna per field the newer version added. #176 implements the single lacuna on the struct, and raises none for an empty struct (E4).
 - **E3.** The backward `q.b: v1_0.b`, where `q?` is optional and `b` lives outside it, writes `q: {}` when `b` is absent.
-- **E4.** Dropping a present but empty struct or list raises its `DroppedField` (#196, and #176 for a struct dropped whole). A required struct whose source is absent is written as `{}` with no error at bind, even where it has a required field of its own that nothing fills; and `_orelse` takes no struct fallback ([#188](https://github.com/sdboyer/thema/issues/188)).
+- **E4.** Dropping a present but empty struct or list raises its `DroppedField` (#196, and #176 for a struct dropped whole). A required struct whose source is absent is written as `{}` with no error at bind, even where it has a required field of its own that nothing fills; and `_orelse` takes no struct fallback ([#188](https://github.com/sdboyer/thema/issues/188), [#200](https://github.com/sdboyer/thema/pull/200)).
 
 ## When lacunas fire
 
