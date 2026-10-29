@@ -2,7 +2,6 @@ package thema
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 
 	"cuelang.org/go/cue"
@@ -120,7 +119,7 @@ func (i *Instance) AsSuccessor() (*Instance, lacuna.TranslationLacunas, error) {
 			// whole story, since no lens was involved.
 			return nil, nil, err
 		}
-		raw, lacs, err := carry(ctx, i.raw, decl, nsch.(*schemaDef), i.Schema().Version(), extras)
+		raw, lacs, err := carry(ctx, decl, nil, nsch.(*schemaDef), i.Schema().Version(), extras)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -218,13 +217,14 @@ func (inst *TypedInstance[T]) ValueP() T {
 // introduce room for lacunas and author judgment.
 //
 // Fields an instance holds under an open struct (...) that its schema does not
-// declare are not a lens's to translate. Around each step, translation carries
-// them, and the fields the source schema declares and the target does not that
-// the step's lens leaves alone: each is placed at its own path where the target
-// struct is open, or promoted into a field the target declares if the value is
-// an instance of it. A field the source does not declare that cannot be placed
-// is set aside, with a DroppedField lacuna. Such fields never make translation
-// fail.
+// declare are not a lens's to translate, nor are the fields the source schema
+// declares that a step's lens leaves alone. Around each step, translation
+// carries them: each follows its struct, to where the lens moved or embedded
+// it whole or else to its own path, and is placed there where the target struct is open,
+// or promoted into a field the target declares, and the lens does not write,
+// if the value is an instance of it. A field that is not placed is set aside,
+// with a lacuna. Such fields never make translation fail; see
+// docs/invariants.md, "Fields no lens maps".
 //
 // Thema translation is non-invertible by design. That is, Thema does not seek
 // to generally guarantee that translating an instance from 0.0->1.0->0.0 will
@@ -313,29 +313,14 @@ func (i *Instance) translateStep(data cue.Value, from, to *schemaDef) (cue.Value
 	}
 	step := steps[0]
 
-	lensStep := from.Version()[0] != to.Version()[0] || to.Version().Less(from.Version())
-	var maps []cue.Path
-	mapsRead := false
-	var carried []taken
-	for _, f := range takeFields(ctx, data, fields, raw, from.def, to.def, lensStep) {
-		if f.unmapped {
-			// A field from declares and to does not: carried only if the lens
-			// leaves it alone.
-			if !mapsRead {
-				lens := out.LookupPath(cue.MakePath(cue.Str("steps"), cue.Index(0), cue.Hid("_lens", util.ThemaPackageID)))
-				if maps, err = i.lensMaps(lens, from.Version(), to.Version()); err != nil {
-					return cue.Value{}, lacuna.TranslationStep{}, diag.InternalErr(err)
-				}
-				mapsRead = true
-			}
-			if slices.ContainsFunc(maps, func(m cue.Path) bool { return pathsOverlap(m, f.path) }) {
-				continue
-			}
+	var lens *stepLens
+	if from.Version()[0] != to.Version()[0] || to.Version().Less(from.Version()) {
+		if lens, err = i.stepLens(out, from.Version(), to.Version()); err != nil {
+			return cue.Value{}, lacuna.TranslationStep{}, diag.InternalErr(err)
 		}
-		carried = append(carried, f)
 	}
-
-	raw, lacs, err := carry(ctx, data, raw, to, from.Version(), carried)
+	fields = takeFields(ctx, data, fields, lens, raw, from.def, to.def)
+	raw, lacs, err := carry(ctx, raw, lens, to, from.Version(), fields)
 	if err != nil {
 		return cue.Value{}, lacuna.TranslationStep{}, err
 	}
@@ -343,18 +328,22 @@ func (i *Instance) translateStep(data cue.Value, from, to *schemaDef) (cue.Value
 	return raw, step, nil
 }
 
-// lensMaps returns the input paths the lens of the edge from->to maps, as the
-// step evaluated it (lens): those its result reads, and those any lacuna it
-// lists reports in its sourceFields, whether or not the lacuna applies (a
-// written _drop is a DroppedField lacuna). The reads are read from the
-// lineage's lens, so they depend only on what the lens is.
-func (i *Instance) lensMaps(lens cue.Value, from, to SyntacticVersion) ([]cue.Path, error) {
+// stepLens reads the lens of the edge from->to, as the step whose kernel
+// output is out evaluated it. What the lens maps and copies is read from the
+// lineage's lens, so it depends only on what the lens is; what it wrote, from
+// the step.
+func (i *Instance) stepLens(out cue.Value, from, to SyntacticVersion) (*stepLens, error) {
+	lens := out.LookupPath(cue.MakePath(cue.Str("steps"), cue.Index(0), cue.Hid("_lens", util.ThemaPackageID)))
 	declared := i.Schema().Lineage().Underlying().LookupPath(cue.MakePath(cue.Str("lenses"), cue.Str(lid(from, to).String())))
 	syn, err := cuetil.ParseLens(declared, lensParam(from), lensParam(to))
 	if err != nil {
 		return nil, err
 	}
-	out := syn.InputReads()
+	sl := &stepLens{
+		result: lens.LookupPath(cue.MakePath(cue.Str(lensParam(to)))),
+		maps:   syn.InputReads(),
+		copies: syn.Copies(),
+	}
 	lacs, err := lens.LookupPath(cue.MakePath(cue.Str("lacunas"))).List()
 	if err != nil {
 		return nil, err
@@ -370,11 +359,11 @@ func (i *Instance) lensMaps(lens cue.Value, from, to SyntacticVersion) ([]cue.Pa
 				continue
 			}
 			if p := cue.ParsePath(s); p.Err() == nil {
-				out = append(out, p)
+				sl.maps = append(sl.maps, p)
 			}
 		}
 	}
-	return out, nil
+	return sl, nil
 }
 
 // kernelStep runs the kernel's Translate on data, an instance of from, to the

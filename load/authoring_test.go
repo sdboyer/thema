@@ -132,8 +132,8 @@ BackwardLens: {
 // as between closed structs: no implicit copy produces it (#159). What an
 // instance holds under an open struct that no lens maps, translation carries
 // wherever the target struct is open, promotes into a field the target
-// declares when the value is an instance of it, and otherwise sets aside with
-// a DroppedField lacuna (#158, #193). The derived backward lens leaves such a
+// declares when the value is an instance of it and the lens does not write it,
+// and otherwise sets aside with a lacuna (#158, #193). The derived backward lens leaves such a
 // field to translation; a written _drop still drops it.
 func TestAuthoringOpenStructs(t *testing.T) {
 	const (
@@ -178,14 +178,16 @@ ForwardLens: {
 		"open target, added field": {
 			files: map[string]string{first: open, "1.0.thema": addedRequired},
 			translations: []translation{
-				// Backward, b is carried as a field 0.0 does not declare, and is
-				// promoted again on the way forward (#158).
-				{from: thema.SV(1, 0), to: thema.SV(0, 0), data: abf, want: abfOut, back: abfOut},
-				{from: thema.SV(0, 0), to: thema.SV(1, 0), data: abf, want: abfOut, back: abfOut},
+				// Backward, b is carried as a field 0.0 does not declare (#158).
+				{from: thema.SV(1, 0), to: thema.SV(0, 0), data: abf, want: abfOut},
+				// Forward, the lens writes b, and its value stands: a b the
+				// instance held is set aside, whatever its value.
+				{from: thema.SV(0, 0), to: thema.SV(1, 0), data: abf, want: abtOut, lacunas: []lacuna.Type{lacuna.DroppedField}},
+				{from: thema.SV(0, 0), to: thema.SV(1, 0), data: `{a: "x", b: "s"}`, want: abtOut, lacunas: []lacuna.Type{lacuna.DroppedField}},
+				// The same b as the lens's loses nothing.
+				{from: thema.SV(0, 0), to: thema.SV(1, 0), data: abt, want: abtOut},
 				// Without a b, the lens's b stands, and is carried back.
 				{from: thema.SV(0, 0), to: thema.SV(1, 0), data: ax, want: abtOut, back: abtOut},
-				// A b that is no bool is set aside, and the lens's b stands.
-				{from: thema.SV(0, 0), to: thema.SV(1, 0), data: `{a: "x", b: "s"}`, want: abtOut, lacunas: []lacuna.Type{lacuna.DroppedField}},
 				// A field neither declares rides along both ways.
 				{from: thema.SV(0, 0), to: thema.SV(1, 0), data: `{a: "x", z: 1}`, want: `{"a":"x","b":true,"z":1}`, back: `{"a":"x","b":true,"z":1}`},
 			},
@@ -215,10 +217,10 @@ BackwardLens: {
 			files: map[string]string{first: open, "1.0.thema": "Schema: {\n\ta!: string\n\tb?: bool\n\t...\n}\n"},
 			translations: []translation{
 				{from: thema.SV(0, 0), to: thema.SV(1, 0), data: ax, want: axOut},
-				// A b that is a bool is promoted; one that is not is set aside
-				// (#159).
+				// A b that is a bool is promoted; one that is not maps lossily
+				// to the b 1.0 declares, which stays absent (#159).
 				{from: thema.SV(0, 0), to: thema.SV(1, 0), data: abt, want: abtOut, back: abtOut},
-				{from: thema.SV(0, 0), to: thema.SV(1, 0), data: `{a: "x", b: "x"}`, want: axOut, lacunas: []lacuna.Type{lacuna.DroppedField}},
+				{from: thema.SV(0, 0), to: thema.SV(1, 0), data: `{a: "x", b: "x"}`, want: axOut, lacunas: []lacuna.Type{lacuna.LossyFieldMapping}},
 				{from: thema.SV(1, 0), to: thema.SV(0, 0), data: abt, want: abtOut},
 				{from: thema.SV(1, 0), to: thema.SV(0, 0), data: ax, want: axOut},
 			},

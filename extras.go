@@ -13,54 +13,145 @@ import (
 	"github.com/sdboyer/thema/lacuna"
 )
 
-// This file holds the part of translation that carries data no lens touches
-// (#193, settled in #48). Around each step, translation takes from the
-// instance:
+// This file holds the part of translation that decides what becomes of the
+// fields no lens maps (#193; the rules are docs/invariants.md, "Fields no lens
+// maps"). Around each step, translation takes from the instance:
 //
 //   - its extras: the fields its schema does not declare, which an open
 //     struct's ... admitted;
-//   - for a step with a lens, the fields its schema declares, the target
-//     schema does not, and the lens does not map: neither reads nor reports
-//     in a lacuna (a written _drop is a DroppedField lacuna).
+//   - for a step with a lens, the fields its schema declares that the lens
+//     leaves alone: it reads neither them nor anything that holds them, and no
+//     lacuna it lists names them.
 //
 // The lens runs on the instance without its extras, since a lens reads and
-// writes only declared fields. Each field taken is then placed in the step's
-// result at the same path, if the result is still an instance of the target
-// schema with it there: carried where the target struct is open and does not
-// declare it, promoted where the target declares it and the value is an
-// instance of what it declares. A promoted value replaces whatever the lens
-// wrote there: the lens wrote it for instances that lacked the field. Any
-// other field is set aside: dropped, with a DroppedField lacuna for each
-// struct and cause, naming each field and its value. Translation never fails
-// because of a field taken this way (#57).
+// writes only declared fields. Then:
+//
+//   - An extra follows its struct: where the lens takes the contents of a
+//     struct of its result from one struct of its input as a whole (info:
+//     v0_0.meta, info: {v0_0.meta, x: 1}), the input struct's extras go with
+//     it (cuetil.LensSyntax.Copies). Elsewhere an extra keeps its path;
+//     within a list, element i is taken to be element i, so only the extras
+//     of elements past the result's length have nowhere to go.
+//   - An extra is placed at its path if the result is still an instance of
+//     the target with it: carried where the target's struct is open and does
+//     not declare it, promoted, over any default, where the target declares
+//     it and the value is an instance of what it declares. Where the lens
+//     writes a field the target declares, the lens's value stands.
+//   - A field the source declares and the lens leaves alone is placed the same
+//     way where the target does not declare it. Where the target declares it,
+//     the field is not copied: the lens did not write it.
+//
+// A field not placed is dropped with a lacuna: a LossyFieldMapping for a value
+// not an instance of the field the target declares for it, otherwise a
+// DroppedField for each struct and cause. Dropping an empty struct or list
+// loses nothing, and raises no lacuna. Translation never fails because of
+// these fields (#57).
+//
+// Go's Translate defines this; the kernel's CUE Translate, evaluated alone,
+// neither carries nor sets aside anything (#198).
 
-// A taken field is a field translation carries itself rather than leaving to
-// a lens.
+// A taken field is a field translation decides the fate of itself, rather
+// than leaving it to a lens.
 type taken struct {
 	path  cue.Path
 	value cue.Value
-	// unmapped marks a field the source schema declares and the lens leaves
-	// alone. Where it cannot be carried, the lens's leaving it is the lens's
-	// own drop, as before carrying: no lacuna is added for it. (The authoring
-	// form never leaves one so: its derived lens drops, with a DroppedField
-	// lacuna, any such field it does not carry.)
-	unmapped bool
+	kind  takenKind
 }
 
-// Why a taken field was set aside. Each struct gets one lacuna per cause.
+type takenKind int
+
+const (
+	// takenExtra: the source schema does not declare the field.
+	takenExtra takenKind = iota
+	// takenUnmapped: the source schema declares the field, the target does
+	// not, and the lens leaves it alone.
+	takenUnmapped
+	// takenUnwritten: both schemas declare the field, and the lens neither
+	// maps nor writes it.
+	takenUnwritten
+)
+
+// Why a taken field was set aside with a DroppedField. Each struct gets one
+// lacuna per cause.
 type asideCause int
 
 const (
 	// asideClosed: the target does not declare the field, and its struct
 	// there is closed.
 	asideClosed asideCause = iota
-	// asideConflict: the target declares the field, and the value is not an
-	// instance of what it declares.
-	asideConflict
 	// asideNowhere: the result has no struct at the field's parent path to
 	// carry it in.
 	asideNowhere
+	// asideWritten: the target declares the field, and the lens wrote its own
+	// value for it.
+	asideWritten
+	// asideUnwritten: the target declares the field, and the lens neither
+	// maps nor writes it.
+	asideUnwritten
 )
+
+// stepLens is what translation reads of a step's lens. A step without a lens
+// has a nil *stepLens.
+type stepLens struct {
+	// result is the lens's own result, before translation closes it against
+	// the target: what the lens wrote.
+	result cue.Value
+	// maps are the input paths the lens maps: those its result reads, and
+	// those any lacuna it lists names in its sourceFields, whether or not
+	// the lacuna applies (a written _drop is a DroppedField lacuna).
+	maps []cue.Path
+	// copies are the fields of its result that copy a value of its input
+	// whole.
+	copies []cuetil.Copy
+}
+
+// wrote reports whether the lens wrote a field or element at p.
+func (l *stepLens) wrote(p cue.Path) bool {
+	return l != nil && hasDataPath(l.result, p)
+}
+
+// mapped reports whether the lens maps the input path p, or something holding
+// it (at), or only something beneath it (beneath).
+func (l *stepLens) mapped(p cue.Path) (at, beneath bool) {
+	ps := p.Selectors()
+	for _, m := range l.maps {
+		ms := m.Selectors()
+		if !pathsOverlap(m, p) {
+			continue
+		}
+		if len(ms) <= len(ps) {
+			return true, false
+		}
+		beneath = true
+	}
+	return false, beneath
+}
+
+// targets returns the paths in the step's result the extra at p goes to: the
+// paths of the copies of the deepest struct holding it that the lens copies
+// whole, or, where the lens copies none, p itself.
+func (l *stepLens) targets(p cue.Path) []cue.Path {
+	if l == nil {
+		return []cue.Path{p}
+	}
+	ps := p.Selectors()
+	best := -1
+	var out []cue.Path
+	for _, c := range l.copies {
+		cs := c.Input.Selectors()
+		if len(cs) >= len(ps) || len(cs) < best || !pathsOverlap(c.Input, p) {
+			continue
+		}
+		if len(cs) > best {
+			best, out = len(cs), nil
+		}
+		out = append(out, cue.MakePath(append(c.Result.Selectors(), ps[len(cs):]...)...))
+	}
+	if best < 0 {
+		return []cue.Path{p}
+	}
+	return out
+}
 
 // takeExtras returns data without the fields sch does not declare, and those
 // fields. The fields are found as bind finds undeclared data
@@ -85,12 +176,14 @@ func takeExtras(ctx *cue.Context, data, sch cue.Value) (cue.Value, []taken, erro
 
 // takeFields returns, in the order data holds them, extras (data's fields
 // from does not declare, as takeExtras found them) and, for a step with a
-// lens, the fields of data that from declares and to does not and that the
-// step's result does not have: the candidates for carrying, marked unmapped,
-// of which the caller keeps those the lens does not map. A field both
-// declare is descended into; one only from declares is taken whole.
-func takeFields(ctx *cue.Context, data cue.Value, extras []taken, result, from, to cue.Value, lens bool) []taken {
-	if !lens {
+// lens, the fields of data that from declares and the lens leaves alone:
+// those to does not declare and result, the step's result, does not have
+// (takenUnmapped), and those to declares and the lens did not write
+// (takenUnwritten). List elements are taken as fields are. A field the lens
+// maps is the lens's. A field holding one the lens maps, or one both schemas
+// declare and the lens wrote, is descended into.
+func takeFields(ctx *cue.Context, data cue.Value, extras []taken, lens *stepLens, result, from, to cue.Value) []taken {
+	if lens == nil {
 		return extras
 	}
 	byPath := make(map[string]taken, len(extras))
@@ -98,8 +191,15 @@ func takeFields(ctx *cue.Context, data cue.Value, extras []taken, result, from, 
 		byPath[x.path.String()] = x
 	}
 	var out []taken
-	var walk func(v cue.Value, p cue.Path)
-	walk = func(v cue.Value, p cue.Path) {
+	// walk takes the fields and elements of v, at p; beneath one the lens
+	// maps, it takes only extras.
+	var walk func(v cue.Value, p cue.Path, mapped bool)
+	walk = func(v cue.Value, p cue.Path, mapped bool) {
+		type child struct {
+			path  cue.Path
+			value cue.Value
+		}
+		var children []child
 		switch v.IncompleteKind() {
 		case cue.StructKind:
 			iter, err := v.Fields()
@@ -107,21 +207,7 @@ func takeFields(ctx *cue.Context, data cue.Value, extras []taken, result, from, 
 				return
 			}
 			for iter.Next() {
-				q := appendSel(p, iter.Selector())
-				if x, ok := byPath[q.String()]; ok {
-					out = append(out, x)
-					continue
-				}
-				if !cuetil.DeclaresPath(ctx, from, q) {
-					continue
-				}
-				if cuetil.DeclaresPath(ctx, to, q) {
-					walk(iter.Value(), q)
-					continue
-				}
-				if !hasDataPath(result, q) {
-					out = append(out, taken{path: q, value: iter.Value(), unmapped: true})
-				}
+				children = append(children, child{appendSel(p, iter.Selector()), iter.Value()})
 			}
 		case cue.ListKind:
 			iter, err := v.List()
@@ -129,26 +215,52 @@ func takeFields(ctx *cue.Context, data cue.Value, extras []taken, result, from, 
 				return
 			}
 			for i := 0; iter.Next(); i++ {
-				walk(iter.Value(), appendSel(p, cue.Index(i)))
+				children = append(children, child{appendSel(p, cue.Index(i)), iter.Value()})
+			}
+		}
+		for _, c := range children {
+			q := c.path
+			if x, ok := byPath[q.String()]; ok {
+				out = append(out, x)
+				continue
+			}
+			if !cuetil.DeclaresPath(ctx, from, q) {
+				continue
+			}
+			if mapped {
+				walk(c.value, q, true)
+				continue
+			}
+			at, beneath := lens.mapped(q)
+			if at {
+				walk(c.value, q, true)
+				continue
+			}
+			declared := cuetil.DeclaresPath(ctx, to, q)
+			if beneath || (declared && lens.wrote(q)) {
+				walk(c.value, q, false)
+				continue
+			}
+			switch {
+			case declared:
+				out = append(out, taken{path: q, value: c.value, kind: takenUnwritten})
+			case !hasDataPath(result, q):
+				out = append(out, taken{path: q, value: c.value, kind: takenUnmapped})
 			}
 		}
 	}
-	walk(data, cue.MakePath())
+	walk(data, cue.MakePath(), false)
 	return out
 }
 
-// carry places each field of fields, taken from in, into result, an instance
-// of to's schema produced by the step from version fromV, and returns the
-// result and the lacunas for the fields set aside.
-func carry(ctx *cue.Context, in, result cue.Value, to *schemaDef, fromV SyntacticVersion, fields []taken) (cue.Value, []lacuna.Lacuna, error) {
+// carry places each field of fields in result, an instance of to's schema
+// produced by the step from version fromV through lens, and returns the
+// result and the lacunas for the fields not placed.
+func carry(ctx *cue.Context, result cue.Value, lens *stepLens, to *schemaDef, fromV SyntacticVersion, fields []taken) (cue.Value, []lacuna.Lacuna, error) {
 	if len(fields) == 0 {
 		return result, nil, nil
 	}
 	rx, err := dataSyntax(result)
-	if err != nil {
-		return cue.Value{}, nil, diag.InternalErr(err)
-	}
-	inx, err := dataSyntax(in)
 	if err != nil {
 		return cue.Value{}, nil, diag.InternalErr(err)
 	}
@@ -159,57 +271,133 @@ func carry(ctx *cue.Context, in, result cue.Value, to *schemaDef, fromV Syntacti
 		cause  asideCause
 		refs   []lacuna.FieldRef
 	}
-	var groups []*group
+	// The lacunas, in the order of the first field each concerns: a
+	// LossyFieldMapping is one field's, a group a struct's for one cause.
+	type entry struct {
+		g   *group
+		lac lacuna.Lacuna
+	}
+	var entries []entry
 	byKey := map[string]*group{}
+	ref := func(f taken) (lacuna.FieldRef, error) {
+		var val interface{}
+		if err := f.value.Decode(&val); err != nil {
+			return lacuna.FieldRef{}, diag.InternalErr(err)
+		}
+		return lacuna.FieldRef{Path: f.path.String(), Value: val}, nil
+	}
+	aside := func(f taken, parent cue.Path, cause asideCause) error {
+		if isEmpty(f.value) {
+			return nil
+		}
+		r, err := ref(f)
+		if err != nil {
+			return err
+		}
+		key := fmt.Sprintf("%d %s", cause, parent)
+		g, ok := byKey[key]
+		if !ok {
+			g = &group{parent: parent, cause: cause}
+			byKey[key] = g
+			entries = append(entries, entry{g: g})
+		}
+		g.refs = append(g.refs, r)
+		return nil
+	}
+
 	placed := false
 	for _, f := range fields {
-		sels := f.path.Selectors()
-		parent := sels[:len(sels)-1]
-		cause := asideNowhere
-		if sameLists(inx, rx, parent) && isStructLit(lookupSyntax(rx, parent)) {
-			vx, err := dataSyntax(f.value)
-			if err != nil {
-				return cue.Value{}, nil, diag.InternalErr(err)
+		if f.kind == takenUnwritten {
+			if err := aside(f, parentOf(f.path), asideUnwritten); err != nil {
+				return cue.Value{}, nil, err
+			}
+			continue
+		}
+		dests := []cue.Path{f.path}
+		if f.kind == takenExtra {
+			dests = lens.targets(f.path)
+		}
+		for _, dest := range dests {
+			sels := dest.Selectors()
+			parent := parentOf(dest)
+			if !isStructLit(lookupSyntax(rx, parent.Selectors())) {
+				if err := aside(f, parent, asideNowhere); err != nil {
+					return cue.Value{}, nil, err
+				}
+				continue
+			}
+			declared := cuetil.DeclaresPath(ctx, to.def, dest)
+			if declared && lens.wrote(dest) {
+				// The lens's value stands. Nothing is lost if it is the same.
+				if result.LookupPath(dest).Equals(f.value) {
+					continue
+				}
+				if err := aside(f, parent, asideWritten); err != nil {
+					return cue.Value{}, nil, err
+				}
+				continue
+			}
+			vx, verr := dataSyntax(f.value)
+			if verr != nil {
+				return cue.Value{}, nil, diag.InternalErr(verr)
 			}
 			cand := withAt(rx, sels, vx)
 			if closed.Unify(ctx.BuildExpr(cand)).Validate(cue.Concrete(true)) == nil {
 				rx, placed = cand, true
 				continue
 			}
-			cause = asideClosed
-			if cuetil.DeclaresPath(ctx, to.def, f.path) {
-				cause = asideConflict
+			if !declared {
+				if err := aside(f, parent, asideClosed); err != nil {
+					return cue.Value{}, nil, err
+				}
+				continue
 			}
+			src, rerr := ref(f)
+			if rerr != nil {
+				return cue.Value{}, nil, rerr
+			}
+			// The target field as it ended up: its default, or absent, with no
+			// value.
+			tgt := lacuna.FieldRef{Path: dest.String()}
+			if hasDataPath(result, dest) {
+				if err := result.LookupPath(dest).Decode(&tgt.Value); err != nil {
+					return cue.Value{}, nil, diag.InternalErr(err)
+				}
+			}
+			entries = append(entries, entry{lac: lacuna.Lacuna{
+				SourceFields: []lacuna.FieldRef{src},
+				TargetFields: []lacuna.FieldRef{tgt},
+				Type:         lacuna.LossyFieldMapping,
+				Message:      lossyMessage(f.path, dest, to.Version()),
+			}})
 		}
-		if f.unmapped {
-			continue
-		}
-		var val interface{}
-		if err := f.value.Decode(&val); err != nil {
-			return cue.Value{}, nil, diag.InternalErr(err)
-		}
-		key := fmt.Sprintf("%d %s", cause, cue.MakePath(parent...))
-		g, ok := byKey[key]
-		if !ok {
-			g = &group{parent: cue.MakePath(parent...), cause: cause}
-			byKey[key] = g
-			groups = append(groups, g)
-		}
-		g.refs = append(g.refs, lacuna.FieldRef{Path: f.path.String(), Value: val})
 	}
 
 	if placed {
 		result = ctx.BuildExpr(rx)
 	}
-	lacs := make([]lacuna.Lacuna, 0, len(groups))
-	for _, g := range groups {
+	lacs := make([]lacuna.Lacuna, 0, len(entries))
+	for _, e := range entries {
+		if e.g == nil {
+			lacs = append(lacs, e.lac)
+			continue
+		}
 		lacs = append(lacs, lacuna.Lacuna{
-			SourceFields: g.refs,
+			SourceFields: e.g.refs,
 			Type:         lacuna.DroppedField,
-			Message:      asideMessage(g.refs, g.parent, g.cause, fromV, to.Version()),
+			Message:      asideMessage(e.g.refs, e.g.parent, e.g.cause, fromV, to.Version()),
 		})
 	}
 	return result, lacs, nil
+}
+
+// lossyMessage says why the value at src was not carried to dest, which toV
+// declares.
+func lossyMessage(src, dest cue.Path, toV SyntacticVersion) string {
+	if src.String() == dest.String() {
+		return fmt.Sprintf("%s not carried: its value is not an instance of what %s declares for it", src, toV)
+	}
+	return fmt.Sprintf("%s not carried: its value is not an instance of what %s declares for %s", src, toV, dest)
 }
 
 // asideMessage says why the fields refs, under parent, were set aside on the
@@ -234,10 +422,30 @@ func asideMessage(refs []lacuna.FieldRef, parent cue.Path, cause asideCause, fro
 	switch cause {
 	case asideClosed:
 		return fmt.Sprintf("%s set aside: %s does not declare %s in %s, which it does not leave open", subject, toV, pick("it", "them"), where)
-	case asideConflict:
-		return fmt.Sprintf("%s set aside: %s %s not %s of what %s declares for %s", subject, pick("its value", "their values"), pick("is", "are"), pick("an instance", "instances"), toV, pick("it", "them"))
+	case asideWritten:
+		return fmt.Sprintf("%s set aside: the lens from %s to %s writes %s for %s", subject, fromV, toV, pick("its own value", "its own values"), pick("it", "them"))
+	case asideUnwritten:
+		return fmt.Sprintf("%s set aside: the lens from %s to %s neither maps nor writes %s", subject, fromV, toV, pick("it", "them"))
 	}
 	return fmt.Sprintf("%s set aside: translating from %s to %s produces no %s to carry %s in", subject, fromV, toV, where, pick("it", "them"))
+}
+
+// isEmpty reports whether v is an empty struct or list.
+func isEmpty(v cue.Value) bool {
+	switch v.IncompleteKind() {
+	case cue.StructKind:
+		iter, err := v.Fields()
+		return err == nil && !iter.Next()
+	case cue.ListKind:
+		n, err := v.Len().Int64()
+		return err == nil && n == 0
+	}
+	return false
+}
+
+func parentOf(p cue.Path) cue.Path {
+	sels := p.Selectors()
+	return cue.MakePath(sels[:len(sels)-1]...)
 }
 
 // closed returns the schema closed recursively, as Validate checks data
@@ -351,22 +559,6 @@ func lookupSyntax(x ast.Expr, sels []cue.Selector) ast.Expr {
 		}
 	}
 	return x
-}
-
-// sameLists reports whether every list along sels has as many elements in a
-// as in b, so that an index means the same element in both.
-func sameLists(a, b ast.Expr, sels []cue.Selector) bool {
-	for i, sel := range sels {
-		if sel.Type().LabelType() != cue.IndexLabel {
-			continue
-		}
-		la, aok := lookupSyntax(a, sels[:i]).(*ast.ListLit)
-		lb, bok := lookupSyntax(b, sels[:i]).(*ast.ListLit)
-		if !aok || !bok || len(la.Elts) != len(lb.Elts) {
-			return false
-		}
-	}
-	return true
 }
 
 func isStructLit(x ast.Expr) bool {
