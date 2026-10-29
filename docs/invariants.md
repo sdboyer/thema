@@ -293,7 +293,11 @@ for example
 Compatible changes include adding an optional or defaulted field, making a
 required field optional or defaulted, making an optional field defaulted,
 widening a value, dropping a validator, and adding hidden fields, definitions or
-`let`s.
+`let`s. Removing an optional field from a struct whose `...` still accepts it
+is compatible too, whatever its value, a struct or list included: `...` accepts
+the label with any value. The converse, declaring a type narrower than `_` for
+a label `...` accepted, narrows what *prior* admitted there, even as an
+optional field.
 
 | Rule | Unknown when | What to do |
 |---|---|---|
