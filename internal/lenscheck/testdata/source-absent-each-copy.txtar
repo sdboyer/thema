@@ -1,0 +1,11 @@
+# A list mapped element by element whose elements copy a field the source element may omit: an element of the target list is always written, so the copy must be present (#165).
+-- source.cue --
+u: [...{id?: string}]
+-- target.cue --
+u: [...string]
+-- lens.cue --
+v0_0: _
+v1_0: {u: [for item in v0_0.u {item.id}]}
+-- out --
+not total
+v1_0.u[_] copies v0_0.u[_].id, which may be absent: v0_0.u[_].id is optional in the source schema; write the field under if v0_0.u[_].id != _|_ (rule source-absent) @ lens.cue:2:8

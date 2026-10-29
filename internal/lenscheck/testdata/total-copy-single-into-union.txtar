@@ -1,0 +1,15 @@
+# A struct whose required field is a single value, copied into one where that
+# field is a disjunction containing it (#153).
+-- source.cue --
+s: {t!: "a"}
+-- target.cue --
+s: {t!: "a" | "b"}
+-- lens.cue --
+v0_0: _
+v1_0: {s: v0_0.s}
+-- out --
+total
+-- ir --
+out: {
+  out.s <- in.s
+}

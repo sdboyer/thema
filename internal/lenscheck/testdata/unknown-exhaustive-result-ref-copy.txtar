@@ -1,0 +1,18 @@
+# A copy through a result field written under an if, one struct down (#125):
+# v1_0.s.a is v0_0.n only where v0_0.k == "x", so v1_0.b is not a copy of
+# v0_0.n everywhere.
+-- source.cue --
+k: "x" | "y"
+n: int32
+-- target.cue --
+s: {a?: int32}
+b!: int32
+-- lens.cue --
+v0_0: _
+v1_0: {
+	s: {if v0_0.k == "x" {a: v0_0.n}}
+	b: v1_0.s.a
+}
+-- out --
+unknown
+v1_0.b reads v1_0.s.a, which is written only under v0_0.k == "x", and the checker cannot show that holds wherever v1_0.b is written; write v1_0.b under the same patterns, or v1_0.s.a on every path (rule unknown-exhaustive) @ lens.cue:4:5

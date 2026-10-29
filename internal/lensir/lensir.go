@@ -223,6 +223,14 @@ const (
 // list at Source: a lens's [for item in list {body}]. Body writes the open
 // element, To[_], from the source's open element, Source[_]; the proof has
 // shown the source is a list whose length the target accepts.
+//
+// An Each in the Body of another maps a list within the other's element: its
+// Source extends the enclosing Source[_], and its To the enclosing To[_]. Each
+// open element in a path is then the element of the Each whose Source (for an
+// input path) or To (for a result path) the path extends at that step: under
+// an Each over s, s[_].f[_].n reads the current element of the inner list f,
+// within the current element of s. A lens nesting an Each over any other list
+// has no program.
 type Each struct {
 	To     Path
 	Source Path

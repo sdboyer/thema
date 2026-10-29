@@ -210,10 +210,14 @@ var Codes = []CodeInfo{
 	{Code: E0617, Severity: SeverityError, Title: "this thema was built without the playground", Positionless: true},
 	{Code: E0618, Severity: SeverityError, Title: "the server cannot listen on the address", Positionless: true},
 	{Code: E0620, Severity: SeverityError, Title: "a flag or argument is not valid", Positionless: true},
+	{Code: E0621, Severity: SeverityError, Title: "an example's example.cue is not valid", Positionless: true},
+	{Code: E0622, Severity: SeverityError, Title: "the examples directory holds no example", Positionless: true},
 	{Code: E0701, Severity: SeverityError, Title: "generating code from the schema failed", Positionless: true},
 	{Code: E0801, Severity: SeverityError, Title: "the playground request is malformed", Positionless: true},
 	{Code: E0802, Severity: SeverityError, Title: "the playground request gives the lineage in neither form, or in both", Positionless: true},
 	{Code: E0803, Severity: SeverityError, Title: "a version in the playground request is not a version", Positionless: true},
+	{Code: E0804, Severity: SeverityError, Title: "a host example in the playground request is incomplete or inconsistent", Positionless: true},
+	{Code: E0805, Severity: SeverityError, Title: "a host example does not bind as its record declares", Positionless: true},
 	{Code: E0901, Severity: SeverityError, Title: "thema failed internally", Positionless: true},
 	{Code: E0902, Severity: SeverityError, Title: "CUE reported an error thema does not recognize", Positionless: true},
 	{Code: E0903, Severity: SeverityError, Title: "thema reported an error that has no code", Positionless: true},
@@ -416,6 +420,8 @@ const (
 	E0617 Code = "E0617" // serve playground in a build without it
 	E0618 Code = "E0618" // serve cannot listen
 	E0620 Code = "E0620" // a CLI flag or argument that is not valid
+	E0621 Code = "E0621" // an example.cue that is not CUE, lacks a category, or has another field
+	E0622 Code = "E0622" // an examples directory with no example in it, or not a directory
 
 	// E07xx: code generation.
 	E0701 Code = "E0701" // a generator failed on the schema
@@ -424,6 +430,8 @@ const (
 	E0801 Code = "E0801" // request JSON malformed, or no such operation
 	E0802 Code = "E0802" // lineage in neither form, or both
 	E0803 Code = "E0803" // a request's version does not parse
+	E0804 Code = "E0804" // a host example: no ID, title or category; a taken ID or category; a kind not its lineage's
+	E0805 Code = "E0805" // a host example binds when declared not to, or the reverse
 
 	// E0901: a panic inside thema, recovered at an operation boundary. The
 	// detail holds the panic value and stack.

@@ -1,0 +1,13 @@
+# A list mapped element by element from a source list that list.UniqueItems constrains into a target list that list.MaxItems bounds: the source validator may bound the length, which the checker does not read (#163).
+-- source.cue --
+import "list"
+items: [...int] & list.UniqueItems()
+-- target.cue --
+import "list"
+items: [...int] & list.MaxItems(2)
+-- lens.cue --
+v0_0: _
+v1_0: {items: [for x in v0_0.items {x}]}
+-- out --
+unknown
+v1_0.items has one element per element of v0_0.items, whose length is within [0, +inf], where the target list's length must be [0, 2]; list.UniqueItems may narrow the source's lengths further, which the checker does not read (rule unknown-copy) @ lens.cue:2:8

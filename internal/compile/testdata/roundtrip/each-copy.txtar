@@ -1,0 +1,96 @@
+each whose body copies a field of the element, and the reverse (#165): a list
+of objects becomes the list of their ids, and the list of ids becomes a list
+of objects. The copy is embedded as the element, [for _item in l {_item.id}].
+-- ship/history/0.0.thema --
+Schema: close({
+	u!: [...close({id!: string})]
+})
+-- ship/1.0.thema --
+Schema: close({
+	u!: [...string]
+})
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		u: _each(v0_0.u, _item.id)
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		u: _each(v1_0.u, {id: _item})
+	}
+}
+-- data/0.0/empty.json --
+{"u": []}
+-- data/0.0/two.json --
+{"u": [{"id": "a"}, {"id": "b"}]}
+-- data/1.0/two.json --
+{"u": ["a", "b"]}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+Schema: close({u!: [...string]})
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		u: _each(v0_0.u, _item.id)
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		u: _each(v1_0.u, {id: _item})
+	}
+}
+-- out/decompiled/history/0.0.thema --
+Schema: close({u!: [...close({id!: string})]})
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: close({
+				u!: [...close({id!: string})]
+			})
+		}
+	}
+	"1": {
+		"0": {
+			schema: close({
+				u!: [...string]
+			})
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			u: [for _item in v0_0.u {
+				_item.id
+			}]
+		}
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			u: [for _item in v1_0.u {
+				id: _item
+			}]
+		}
+	}
+}
+-- out/translate/0.0/empty->1.0 --
+{"u":[]}
+[]
+-- out/translate/0.0/two->1.0 --
+{"u":["a","b"]}
+[]
+-- out/translate/1.0/two->0.0 --
+{"u":[{"id":"a"},{"id":"b"}]}
+[]
