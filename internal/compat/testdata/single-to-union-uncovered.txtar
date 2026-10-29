@@ -1,0 +1,9 @@
+# a single value replaced by a disjunction that does not contain it: the
+# prior value is a counterexample (beside widen-single-to-union)
+-- old.cue --
+t!: "a"
+-- new.cue --
+t!: "b" | "c"
+-- out --
+incompatible
+t is now "b" | "c", which has no alternative for the prior "a" (rule value-narrowed) @ new.cue:1:1
