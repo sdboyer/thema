@@ -1,0 +1,31 @@
+# under an author's ..., releasing an optional struct- or list-valued field is
+# compatible: the ... still accepts the label with any value, so every 0.0
+# instance is a 0.1 instance (#166; the converse of compat-open-claim-typed).
+#issue: 166
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "compatOpenReleaseStruct"
+	schemas: {
+		"0": "0": {
+			schema: {
+				a!: string
+				b?: {t!: string}
+				c?: [...string]
+				...
+			}
+		}
+		"0": "1": {
+			schema: {a!: string, ...}
+		}
+	}
+	lenses: {
+		"0.1->0.0": {v0_1: _, v0_0: {a: v0_1.a}}
+	}
+}
+-- expect --
+bind ok
+translate 0.0 0.1 ok {a: "x", b: {t: "y"}, c: ["z"]}

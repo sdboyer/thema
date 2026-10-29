@@ -12,35 +12,42 @@ import (
 
 // What Tree.Conjuncts finds for the field r of each case, rendered as each
 // conjunct's text, then @ and the label of the field it was reached through
-// (- for none).
+// (- for none), then the clauses of each arm it was reached through, in
+// brackets.
 func TestTreeConjuncts(t *testing.T) {
 	ctx := cuecontext.New()
 	for name, c := range map[string]struct {
 		src  string // the case's fields, beside input: _; _ext and #O are outside it
 		want string
 	}{
-		"literal":                    {`r: {a: 1}`, `{a: 1}@-`},
-		"field":                      {`x: {a: 1}, r: x`, `{a: 1}@x`},
-		"hidden field":               {`_h: {h: 1}, r: _h`, `{h: 1}@_h`},
-		"field declared twice":       {`x: {a: 1}, x: {b: 2}, r: x`, `{ a: 1 b: 2 }@x`}, // the export merges them
-		"let":                        {`let L = {l: 1}, r: L`, `{l: 1}@-`},
-		"field alias":                {`x~(X): {al: 1}, r: X`, `{al: 1}@x`},
-		"self":                       {`let S = self, p: {se: 1}, r: S.p`, `{se: 1}@p`},
-		"selection":                  {`x: {y: {s: 1}}, r: x.y`, `{s: 1}@y`},
-		"selection into input":       {`r: input.a.b`, `input.a.b@input`},
-		"index":                      {`x: [{a: 1}, {b: 2}], r: x[1]`, `{b: 2}@x`},
-		"index past comprehension":   {`x: [if input.c {0}, {b: 2}], r: x[1]`, `x[1]@x`},
-		"unification":                {`x: {a: 1}, r: x & {b: 2}`, `{a: 1}@x {b: 2}@-`},
-		"disjunction":                {`r: *{d: 1} | {b: 2}`, `{d: 1}@- {b: 2}@-`},
-		"embedding":                  {`x: {em: 1}, r: {x}`, `{em: 1}@x`},
-		"close":                      {`r: close({c: 1})`, `{c: 1}@-`},
-		"outside, concrete":          {`r: _ext`, `{e: 1}@-`},
-		"definition":                 {`#D: {a: int}, r: #D`, `{a: int}@#D`},
-		"outside definition":         {`r: {k: #O}`, `{k: O.#x}@-`},
-		"through outside definition": {`r: #O.p`, `{q: int}@#x`},
-		"for value":                  {`r: [for v in input.l {v}][0]`, `[for v in input.l { v }][0]@-`},
-		"predeclared":                {`r: int`, `int@-`},
-		"reference chain":            {`x: y, y: z, z: input.a, r: x`, `input.a@input`},
+		"literal":                         {`r: {a: 1}`, `{a: 1}@-`},
+		"field":                           {`x: {a: 1}, r: x`, `{a: 1}@x`},
+		"hidden field":                    {`_h: {h: 1}, r: _h`, `{h: 1}@_h`},
+		"field declared twice":            {`x: {a: 1}, x: {b: 2}, r: x`, `{ a: 1 b: 2 }@x`}, // the export merges them
+		"let":                             {`let L = {l: 1}, r: L`, `{l: 1}@-`},
+		"field alias":                     {`x~(X): {al: 1}, r: X`, `{al: 1}@x`},
+		"self":                            {`let S = self, p: {se: 1}, r: S.p`, `{se: 1}@p`},
+		"selection":                       {`x: {y: {s: 1}}, r: x.y`, `{s: 1}@y`},
+		"selection into input":            {`r: input.a.b`, `input.a.b@input`},
+		"index":                           {`x: [{a: 1}, {b: 2}], r: x[1]`, `{b: 2}@x`},
+		"index past comprehension":        {`x: [if input.c {0}, {b: 2}], r: x[1]`, `x[1]@x`},
+		"unification":                     {`x: {a: 1}, r: x & {b: 2}`, `{a: 1}@x {b: 2}@-`},
+		"disjunction":                     {`r: *{d: 1} | {b: 2}`, `{d: 1}@- {b: 2}@-`},
+		"embedding":                       {`x: {em: 1}, r: {x}`, `{em: 1}@x`},
+		"close":                           {`r: close({c: 1})`, `{c: 1}@-`},
+		"outside, concrete":               {`r: _ext`, `{e: 1}@-`},
+		"definition":                      {`#D: {a: int}, r: #D`, `{a: int}@#D`},
+		"outside definition":              {`r: {k: #O}`, `{k: O.#x}@-`},
+		"through outside definition":      {`r: #O.p`, `{q: int}@#x`},
+		"for value":                       {`r: [for v in input.l {v}][0]`, `[for v in input.l { v }][0]@-`},
+		"predeclared":                     {`r: int`, `int@-`},
+		"reference chain":                 {`x: y, y: z, z: input.a, r: x`, `input.a@input`},
+		"into a comprehension":            {`x: {if input.c {a: 1}}, r: x.a`, `1@a[if input.c]`},
+		"into arms":                       {`x: {if input.c {a: 1}, if !input.c {a: 2}}, r: x.a`, `1@a[if input.c] 2@a[if !input.c]`},
+		"into nested arms":                {`x: {if input.c {s: {if input.d {a: 1}}}}, r: x.s.a`, `1@a[if input.c][if input.d]`},
+		"through a conditional field":     {`y: 1, x: {if input.c {a: y}}, r: x.a`, `1@y[if input.c]`},
+		"through an embedding":            {`e: {if input.c {a: 3}}, x: {e}, r: x.a`, `3@a[if input.c]`},
+		"through a conditional embedding": {`e: {a: 4}, x: {if input.c {e}}, r: x.a`, `4@a[if input.c]`},
 	} {
 		t.Run(name, func(t *testing.T) {
 			v := ctx.CompileString("_ext: {e: 1}\n#O: {p: {q: int}}\ncase: {input: _\n" + c.src + "}").LookupPath(cue.ParsePath("case"))
@@ -76,7 +83,23 @@ func TestTreeConjuncts(t *testing.T) {
 				if cj.Via != nil {
 					via, _, _ = ast.LabelName(cj.Via.Label)
 				}
-				got = append(got, strings.Join(strings.Fields(s), " ")+"@"+via)
+				arms := ""
+				for _, a := range cj.Arms {
+					var cls []string
+					for _, cl := range a.Clauses {
+						ic, ok := cl.(*ast.IfClause)
+						if !ok {
+							t.Fatalf("clause %T", cl)
+						}
+						ct, err := Text(ic.Condition)
+						if err != nil {
+							t.Fatal(err)
+						}
+						cls = append(cls, "if "+strings.Join(strings.Fields(ct), " "))
+					}
+					arms += "[" + strings.Join(cls, " ") + "]"
+				}
+				got = append(got, strings.Join(strings.Fields(s), " ")+"@"+via+arms)
 			}
 			if g := strings.Join(got, " "); g != c.want {
 				t.Errorf("got  %s\nwant %s", g, c.want)

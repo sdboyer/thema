@@ -1,0 +1,12 @@
+# A list mapped element by element into a target list that list.MaxItems bounds: the source list may be longer (#163).
+-- source.cue --
+items: [...int]
+-- target.cue --
+import "list"
+items: [...int] & list.MaxItems(2)
+-- lens.cue --
+v0_0: _
+v1_0: {items: [for x in v0_0.items {x}]}
+-- out --
+not total
+v1_0.items has one element per element of v0_0.items, whose length may be [0, +inf], where the target list's length must be [0, 2] (rule copy-narrowed) @ lens.cue:2:8

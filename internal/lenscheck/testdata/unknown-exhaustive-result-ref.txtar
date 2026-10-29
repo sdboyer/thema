@@ -1,0 +1,17 @@
+# A computed field reading a result field written under an if (#125): where
+# the pattern fails, v1_0.a is absent and v1_0.b an error. The reference
+# carries the arm's pattern, which the reader's patterns do not imply.
+-- source.cue --
+k: "x" | "y"
+-- target.cue --
+a?: int32
+b!: int64
+-- lens.cue --
+v0_0: _
+v1_0: {
+	if v0_0.k == "x" {a: 1}
+	b: v1_0.a + 1
+}
+-- out --
+unknown
+v1_0.b reads v1_0.a, which is written only under v0_0.k == "x", and the checker cannot show that holds wherever v1_0.b is written; write v1_0.b under the same patterns, or v1_0.a on every path (rule unknown-exhaustive) @ lens.cue:4:5

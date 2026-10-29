@@ -1,0 +1,16 @@
+# an open struct claims a label it accepted through ... for a struct or a list
+# (#47's direction): the prior schema admits any value there, so declaring a
+# type narrows it, even as an optional field. The converse of
+# open-release-composite.
+-- old.cue --
+a!: string
+...
+-- new.cue --
+a!: string
+b?: {t!: string}
+c?: [...string]
+...
+-- out --
+incompatible
+b is now {t!: string}, which does not accept every value of the prior _ (rule value-narrowed) @ new.cue:2:1
+c is now [...string], which does not accept every value of the prior _ (rule value-narrowed) @ new.cue:3:1

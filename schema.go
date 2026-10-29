@@ -2,6 +2,7 @@ package thema
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"cuelang.org/go/cue"
@@ -115,9 +116,30 @@ func (sch *schemaDef) validateContext(data cue.Value) diag.Context {
 			v := sch.def.LookupPath(fieldPath(path))
 			return v, v.Exists()
 		},
-		IsData:  func(file string) bool { return dataFile != "" && file == dataFile },
+		IsData: func(file string) bool { return dataFile != "" && file == dataFile },
+		DataValue: func(path []string) (cue.Value, bool) {
+			v, ok := dataAt(data, path)
+			return v, ok && v.Exists()
+		},
 		DataPos: data.Pos(),
 	}
+}
+
+// dataAt is data's value at an error path, whose segments name the fields of
+// structs and the indices of lists.
+func dataAt(data cue.Value, path []string) (cue.Value, bool) {
+	for _, s := range path {
+		sel := cue.Str(s)
+		if data.IncompleteKind() == cue.ListKind {
+			i, err := strconv.Atoi(s)
+			if err != nil {
+				return cue.Value{}, false
+			}
+			sel = cue.Index(i)
+		}
+		data = data.LookupPath(cue.MakePath(sel))
+	}
+	return data, true
 }
 
 // dataFilename is the file the data was parsed from, or "" when it was built
