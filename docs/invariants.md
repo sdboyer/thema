@@ -610,34 +610,53 @@ programs are recorded beside it (`out/lensir` in `testdata/lineage`,
 
 An open struct (`...`) admits fields its schema does not declare, and an
 instance may hold them. A lens reads and writes only declared fields, so data
-of this kind is not the lens's to translate. Translation carries it instead,
-around each step, by one rule in both directions:
+of this kind is not the lens's to translate. Nor is a declared field the lens
+leaves alone. Translation decides what becomes of both, around each step, by
+one rule in both directions:
 
-- **What is carried.** The fields an instance holds that its schema does not
+- **What is taken.** The fields an instance holds that its schema does not
   declare (its *extras*), at any depth: nested structs and list elements
   included. And, in a step with a lens, the fields the source schema declares
-  and the target schema does not, that the lens does not map: its result
-  reads nothing at or beneath them, and no lacuna it lists names them in
-  `sourceFields`. A written `_drop` is such a lacuna, so a dropped field stays
-  dropped.
-- **Carried.** A field is placed at its own path in the step's result, where
-  the target's struct there is open and does not declare it. Nothing is lost,
-  and no lacuna is emitted.
-- **Promoted.** Where the target declares a field of that name, the value is
-  placed in it when it is an instance of what the target declares. It
-  replaces whatever the lens wrote there, which the lens wrote for instances
-  that lacked the field.
-- **Set aside.** An extra that cannot be placed, because the target's struct
-  is closed, the value is not an instance of the field the target declares,
-  or the result has no struct at its parent path, is dropped with a
-  `DroppedField` lacuna: one per struct and cause, naming each field and its
-  value ([lacunas](reference/lacunas.md#set-aside-fields)). A source-declared
-  field the lens does not map, which cannot be placed, is dropped as the lens
-  left it, with no lacuna.
+  that the lens leaves alone: its result reads nothing at them or above them,
+  and no lacuna it lists names them in `sourceFields`. A lacuna the author
+  declares for a field, such as a `DroppedField` (a written `_drop` is one),
+  takes the place of any translation would emit for it, never adds to it.
+- **Where an extra goes.** An extra follows its struct. Where the contents of
+  a struct in the lens's result come from one struct of its input as a whole,
+  by a move (`info: v0_0.meta`), an embedding (`info: {v0_0.meta, x: 1}`), or
+  either with mappings beneath it, the input struct's extras go with it.
+  Elsewhere, as for a struct assembled from parts of several, an extra keeps
+  its path.
+  Within a list, element `i` is taken to be element `i` of the result: a list
+  the lens shortens keeps the extras of the elements it keeps, and has nowhere
+  for those of the elements past its new length.
+- **Carried.** An extra is placed there where the target's struct is open and
+  does not declare it. Nothing is lost, and no lacuna is emitted.
+- **Promoted.** Where the target declares the field and the lens does not
+  write it, the value is placed in it when it is an instance of what the
+  target declares, over the target's default if it has one: filling a default
+  is not a lens write. A value that is not an instance is not carried, and
+  emits a `LossyFieldMapping` naming both fields: the carried field and its
+  value, and the target's field as it ended up, absent or holding its
+  default.
+- **The lens's value wins.** Where the target declares the field and the lens
+  writes it, the lens's value stands, and the extra is set aside, unless it is
+  the same value. A field is best introduced optional first, so that the values
+  instances already hold are promoted into it, and made required later.
+- **Fields the source declares.** One the target does not declare is placed
+  like an extra, at its own path. One the target declares is not copied: the
+  lens did not write it, and its value is set aside.
+- **Set aside.** A field that cannot be placed, because the target's struct
+  is closed, the result has no struct at its parent path, the lens wrote the
+  field, or the lens neither maps nor writes a field the target declares, is
+  dropped with a `DroppedField` lacuna: one per struct and cause, naming each
+  field and its value ([lacunas](reference/lacunas.md#set-aside-fields)).
+- **Empty containers.** An empty struct or list is carried as it is, but
+  dropping one loses nothing and emits no lacuna.
 
 A field is placed only if the result stays an instance of the target schema,
-so carrying never makes a translation fail. Lens checks are unaffected: a lens
-result is still bound to the fields its target declares
+so these fields never make a translation fail. Lens checks are unaffected: a
+lens result is still bound to the fields its target declares
 ([E0305](errors/E0305.md)), since carrying is not a lens write.
 
 The authoring form follows the same rule. Its derived backward lens leaves a
@@ -648,6 +667,6 @@ must still be moved or dropped, however open the newer version is
 ([E0347](errors/E0347.md)): carrying applies only to data no lens touches, and
 a forgotten rename must not ride along under its old name.
 
-Fields are matched by path: a field travels with the struct at the same path
-in the target. A struct the lens moves to another path, or a list whose length
-the lens changes, leaves its extras with no place, and they are set aside.
+These rules are defined by Go's `Translate`. The kernel's CUE `Translate`,
+evaluated alone, applies each lens and closes its result, and carries or sets
+aside nothing ([#198](https://github.com/sdboyer/thema/issues/198)).
