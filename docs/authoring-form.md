@@ -1,6 +1,6 @@
 # The authoring form
 
-This is the reference for the authoring form: the files a lineage author writes, and the language lenses are written in. For a guided introduction to lineages, start with the [overview](overview.md) and the [authoring tutorial](authoring.md), which show the normal form that every thema tool consumes. The authoring form compiles to that normal form, and decompiles back from it, without loss.
+This is the reference for the authoring form: the files a lineage author writes, and the language lenses are written in. For a guided introduction to lineages, start with the [overview](overview.md) and the [authoring tutorial](authoring.md), which show the normal form that every thema tool consumes. The authoring form compiles to that normal form, and decompiles back from it, without loss. What translation then does with each field of an instance is defined in [translation](translation.md).
 
 Every `thema` command that takes a lineage with `-l` accepts a lineage's directory in this form, and `thema lineage fmt -l <dir>` lays out its files in place. In Go, `load.AuthoringLineage` loads, compiles and binds a directory in one call, and the `authoring` package exposes the pieces: the files, the compiled normal form, the decompiler and the formatter.
 
@@ -92,6 +92,8 @@ The operations, `_drop`, `_orelse`, `_match` and `_each`, and `_item` inside an 
 
 ### What is written and what is implied
 
+What a lens does to an instance is defined in [translation](translation.md), field by field. The rules below are derivations: what the authoring form writes into the compiled lens when the author says nothing. Each one exists to produce a rule of translation, listed under [what each derivation must produce](#what-each-derivation-must-produce), and is correct exactly when it does. A case translation does not settle is settled there first, never here.
+
 - **Copies are implicit.** A field both schemas declare, that no mapping mentions, is copied. The copy is made as high as the two schemas agree: a field whose contents the target declares whole is copied whole, and one whose contents differ is descended into. A copy, like a move, must fit: the target field has to accept every value the source field may hold, or the field must be mapped.
 - **`...` declares nothing.** An open struct admits names it does not declare, and a lens treats a name it only admits as absent from the schema. A field one version declares and the other only admits is added or removed, exactly as between closed structs: it is never copied implicitly, the derived backward lens drops a field the new version added with a `DroppedField` lacuna, and a major version's forward lens must move or drop a field it removed. A lens reads, drops and writes only fields its schemas declare.
 - **Optional sources are used only when present.** A copy, a move, a computed value or an `_each` that reads a field the source may omit is written only when the instance has it. Where the target requires the field, the author must say what to use when it is absent, with `_orelse`; an `_each` has no fallback yet, so it maps an optional list only into a list the target does not require.
@@ -100,6 +102,8 @@ The operations, `_drop`, `_orelse`, `_match` and `_each`, and `_item` inside an 
 
 ### The backward lens
 
+The derived backward lens is a derivation like those above, and must produce what [translation](translation.md) says for every field of the newer version.
+
 The backward lens is derived from the forward lens:
 
 - every move whose source is used once is inverted (`after: v0_0.before` forward derives `before: v1_0.after` backward);
@@ -107,6 +111,19 @@ The backward lens is derived from the forward lens:
 - fields both versions share are copied, as always.
 
 What the author writes in `BackwardLens` overrides the derivation at the same key or beneath it. Writing `x: _drop` for a field the derivation would have moved suppresses the move. `_orelse`, `_match` and `_each` have no derived inverse, so a forward lens that uses them usually needs a written backward lens.
+
+### What each derivation must produce
+
+| Derivation | The rule of translation it produces |
+|---|---|
+| Implicit copies: a field both schemas declare is copied | the field is mapped ([B1](translation.md#fields-the-source-declares)), so it never reaches [B6](translation.md#fields-the-source-declares), which would drop it with a `DroppedField` |
+| Optional sources are used only when present: a mapping that reads an optional field is written under a presence test | nothing is written from an absent field ([B3](translation.md#fields-the-source-declares)), and an absent optional struct stays absent ([E1](translation.md#structs-and-presence)), not yet on main ([#176](https://github.com/sdboyer/thema/pull/176)) |
+| Required fields must be produced | a field the target requires with no default is written for every instance ([D3](translation.md#fields-only-the-target-declares)) |
+| Removed fields must be accounted for | none: this is an authoring rule, which catches a forgotten rename, not a translation rule ([G3](translation.md#steps-and-direction)) |
+| The backward lens inverts a move whose source is used once | the field is mapped ([B1](translation.md#fields-the-source-declares)) |
+| The backward lens drops a field the newer version added, with a `DroppedField` | into a closed struct, the field is dropped with a lacuna ([B5](translation.md#fields-the-source-declares)), and a struct is dropped whole with one lacuna ([E2](translation.md#structs-and-presence), not yet on main: [#176](https://github.com/sdboyer/thema/pull/176)). Into an open struct, the field is left for translation to carry ([B4](translation.md#fields-the-source-declares)); main still drops it ([#196](https://github.com/sdboyer/thema/pull/196)) |
+| A drop derives a `DroppedField` | [B2](translation.md#fields-the-source-declares) |
+| The condition a lacuna's mapping implies, and `when` replacing it | [F1–F4](translation.md#lacunas-the-lens-lists) |
 
 ## Lacunas
 
