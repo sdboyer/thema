@@ -31,6 +31,8 @@ Three principles hold for every rule below:
 - **Dropped data always raises a lacuna.** No value that an instance held disappears from a step without a lacuna saying so. Dropping an empty struct or list is not dropping data ([E4](#structs-and-presence)).
 - **Direction doesn't matter.** Every rule applies the same way forward and backward ([G3](#steps-and-direction)).
 
+One guideline, which settles most cases the rules leave open: **a refusal at bind follows from the target schema; a lacuna follows from the source schema.** A lens is refused when the target requires something it can't produce for some instance (D3, E4). Data the source holds that a step can't deliver to the target is never a reason to refuse; it raises a lacuna (B5, B6, C3 to C5, E3a). It is a guideline, not a rule: where a row below says otherwise, the row holds.
+
 ## What an instance may hold
 
 Validation decides what can reach a translation at all. It closes the schema, but keeps the author's `...`.
@@ -171,7 +173,7 @@ These are not listed by any lens. Translation raises them whatever lens the step
 | `LossyFieldMapping` | undeclared data that a declared target field doesn't accept | [C3](#undeclared-data) |
 | `DroppedField` | undeclared data discarded for the value the lens wrote | [C4](#undeclared-data) |
 | `DroppedField` | undeclared data set aside: a closed target struct, no struct to carry it in, or a list element past the new length | [C5, C7](#undeclared-data) |
-| `DroppedField` | values that would have gone into an optional target struct that isn't written | [E3a](#structs-and-presence) |
+| `DroppedField` | a present source value that the lens reads, where no field that reads it is written for this instance; for example the values that would have gone into an optional target struct that isn't written. Unless the lens lists a `DroppedField` for it, as the authoring form's derived lens does | [E3a](#structs-and-presence) |
 
 None of these is on main yet. Their trackers are in the rules' rows.
 
