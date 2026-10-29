@@ -2,10 +2,13 @@ package compile
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	cerrors "cuelang.org/go/cue/errors"
 
@@ -25,7 +28,10 @@ import (
 //   - out/decompiled/<path>: the authoring files decompiled from the normal
 //     form, which must equal the input up to formatting;
 //   - out/error: the compile error, for an archive that must not compile; the
-//     other sections are then absent.
+//     other sections are then absent;
+//   - out/translate/<version>/<name>-><to>: for each instance data/<version>/<name>
+//     the archive holds, as JSON, the result of translating it to every other
+//     version and the lacunas reported, as JSON on a line each.
 func TestRoundTrip(t *testing.T) {
 	files, err := filepath.Glob("testdata/roundtrip/*.txtar")
 	if err != nil {
@@ -61,7 +67,8 @@ func TestRoundTrip(t *testing.T) {
 			}
 			// Bound with the authoring form's vocabulary, so that what bind
 			// reports names the author's files and lenses.
-			if _, berr := thema.BindLineage(v, thema.NewRuntime(ctx), thema.WithVocabulary(Vocabulary(c))); berr != nil {
+			lin, berr := thema.BindLineage(v, thema.NewRuntime(ctx), thema.WithVocabulary(Vocabulary(c)))
+			if berr != nil {
 				ds := diag.Diagnostics(berr)
 				if len(ds) == 0 {
 					t.Fatalf("a bind failure is made of diagnostics, got: %v", berr)
@@ -70,6 +77,7 @@ func TestRoundTrip(t *testing.T) {
 				got["out/bind"] = rendered(ds, a)
 			} else {
 				got["out/bind"] = "ok\n"
+				a.translate(t, ctx, lin, got)
 			}
 
 			dname, dfiles, err := Decompile(v)
@@ -139,6 +147,54 @@ func formatted(t *testing.T, name string, text []byte) string {
 	return string(b)
 }
 
+// translate translates each instance the archive holds under data/ from its
+// version to every other version of lin, recording the result and lacunas.
+func (a *archive) translate(t *testing.T, ctx *cue.Context, lin thema.Lineage, got map[string]string) {
+	t.Helper()
+	for _, f := range a.ar.Files {
+		rest, ok := strings.CutPrefix(f.Name, "data/")
+		if !ok {
+			continue
+		}
+		vs, name, ok := strings.Cut(rest, "/")
+		if !ok {
+			t.Fatalf("%s: data file %s is not under data/<version>/", a.path, f.Name)
+		}
+		from, err := thema.ParseSyntacticVersion(vs)
+		if err != nil {
+			t.Fatalf("%s: %v", f.Name, err)
+		}
+		sch, err := lin.Schema(from)
+		if err != nil {
+			t.Fatalf("%s: %v", f.Name, err)
+		}
+		inst, err := sch.Validate(ctx.CompileBytes(f.Data, cue.Filename(f.Name)))
+		if err != nil {
+			t.Fatalf("%s is not an instance of %s: %v", f.Name, from, cerrors.Details(err, nil))
+		}
+		for to := lin.First(); to != nil; to = to.Successor() {
+			if to.Version() == from {
+				continue
+			}
+			key := fmt.Sprintf("out/translate/%s/%s->%s", vs, strings.TrimSuffix(name, ".json"), to.Version())
+			out, lac, err := inst.Translate(to.Version())
+			if err != nil {
+				got[key] = "error: " + cerrors.Details(err, nil) + "\n"
+				continue
+			}
+			res, err := json.Marshal(out.Underlying())
+			if err != nil {
+				t.Fatalf("%s: %v", key, err)
+			}
+			lacs, err := json.Marshal(lac.AsList())
+			if err != nil {
+				t.Fatalf("%s: %v", key, err)
+			}
+			got[key] = string(res) + "\n" + string(lacs) + "\n"
+		}
+	}
+}
+
 // lineage returns the archive's authoring files: those under its first
 // directory, which names the lineage.
 func (a *archive) lineage(t *testing.T) (string, []File) {
@@ -146,7 +202,7 @@ func (a *archive) lineage(t *testing.T) (string, []File) {
 	var name string
 	var files []File
 	for _, f := range a.ar.Files {
-		if strings.HasPrefix(f.Name, "out/") {
+		if strings.HasPrefix(f.Name, "out/") || strings.HasPrefix(f.Name, "data/") {
 			continue
 		}
 		dir, rest, ok := strings.Cut(f.Name, "/")

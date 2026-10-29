@@ -492,6 +492,22 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 	for _, g := range groups {
 		tpath := appendPath(tbase, cue.Str(g.name))
 		en := dentry{target: tpath, comments: ast.Comments(g.brs[0].field)}
+		if len(g.brs) == 1 {
+			// An each over a list the source may omit, written only where it
+			// is present.
+			ts, ok := b.tests(g.brs[0].cond)
+			if each, isEach := b.eachOf(g.brs[0].field.Value, key); isEach && ok && len(ts) == 1 && ts[0].operand == nil && ts[0].present {
+				if each.err != nil {
+					return each.err
+				}
+				if ts[0].path.String() != each.source.String() {
+					return fmt.Errorf("lens %s is outside the authoring form: the presence test on %s does not test the list it maps", key, tpath)
+				}
+				en.kind, en.source, en.body = kindEach, each.source, each.body
+				b.entries = append(b.entries, en)
+				continue
+			}
+		}
 		if len(g.brs) == 1 && b.allPresence(g.brs[0].cond) {
 			if _, _, isRef := refPathAny(g.brs[0].field.Value); !isRef && !isLiteral(g.brs[0].field.Value) {
 				// A computed mapping that reads optional fields, written only
@@ -890,12 +906,18 @@ func fieldPaths(exprs []ast.Expr, lets map[string]ast.Expr) (paths []cue.Path, e
 		}
 		for _, el := range list.Elts {
 			if c, ok := el.(*ast.Comprehension); ok {
-				if fc, ok := c.Clauses[0].(*ast.ForClause); ok {
+				// The clauses may test the list's presence before iterating it.
+				for _, cl := range c.Clauses {
+					fc, ok := cl.(*ast.ForClause)
+					if !ok {
+						continue
+					}
 					_, listPath, ok := refPathAny(fc.Source)
 					if !ok {
 						return nil, nil, fmt.Errorf("a lacuna's fields iterate something other than a list in input")
 					}
 					each = &listPath
+					break
 				}
 				el = c.Value
 			}

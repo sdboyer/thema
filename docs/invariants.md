@@ -468,7 +468,10 @@ not fit the target's, the mapping is Unknown. A comprehension that filters
 (`if`), nests `for` clauses, or sits beside other elements is not proven. A
 list the lens builds this way and names through a `let` may be measured with
 `len`, within the source list's bounds, and its elements reported by a lacuna
-under the comprehension's own patterns.
+under the comprehension's own patterns. A pattern tested before the `for` clause guards
+the iteration (`[if v0_0.items != _|_ for item in v0_0.items {...}]`): where it
+fails the list is empty, and the source list is read under it, so that a list
+the source may omit can be measured.
 
 **Exhaustiveness.** Every field the target requires must be written for every
 instance. That holds when the field is written unconditionally, or when the
