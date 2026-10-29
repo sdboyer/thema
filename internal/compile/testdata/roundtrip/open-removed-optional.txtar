@@ -1,0 +1,54 @@
+0.1 removes the optional b from an open struct, which
+is a minor version: an instance of 0.0 that has a b is still an instance of
+0.1, through its .... 0.1 admits a b but does not declare one, so the derived
+backward lens copies nothing into b, and translating forward, which has no
+lens, raises nothing about it (#159).
+-- ship/history/0.0.thema --
+Schema: {
+	a!: string
+	b?: string
+	...
+}
+-- ship/0.1.thema --
+Schema: {
+	a!: string
+	...
+}
+-- out/bind --
+ok
+-- out/decompiled/0.1.thema --
+Schema: {
+	a!: string
+	...
+}
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	a!: string
+	b?: string
+	...
+}
+-- out/normal.cue --
+name: "ship"
+schemas:
+	"0": {
+		"0": {
+			schema: {
+				a!: string
+				b?: string
+				...
+			}
+		}
+		"1": {
+			schema: {
+				a!: string
+				...
+			}
+		}
+	}
+lenses:
+	"0.1->0.0": {
+		v0_1: _
+		v0_0: {
+			a: v0_1.a
+		}
+	}

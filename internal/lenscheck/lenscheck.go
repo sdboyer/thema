@@ -31,6 +31,7 @@ package lenscheck
 
 import (
 	"fmt"
+	"math/big"
 	"sort"
 	"strconv"
 	"strings"
@@ -388,6 +389,9 @@ type write struct {
 	src      cue.Path // copyW: the source path copied
 	text     string   // the expression, for messages and conflicts
 	pos      token.Pos
+	// hidden is set for a write within a hidden field, which is not data: only
+	// the one-value-per-path rule applies to it.
+	hidden bool
 	// tgt is the target alternative a struct literal was proven against,
 	// where the target at q is a disjunction; exhaustiveness beneath q is
 	// judged by it.
@@ -400,7 +404,8 @@ type write struct {
 }
 
 func (w *walker) record(wr *write) {
-	if w.quiet == 0 && w.hidden == 0 {
+	if w.quiet == 0 {
+		wr.hidden = w.hidden > 0
 		w.writes = append(w.writes, wr)
 	}
 }
@@ -550,12 +555,34 @@ func (w *walker) conjunct(c cueview.Conjunct, q cue.Path, gs []pattern, pos toke
 	}
 }
 
+// valueConjuncts returns the conjuncts of the value x written at q under
+// patterns gs (guarded), reporting there where a read through arms may find
+// the field it reads absent.
+func (w *walker) valueConjuncts(x ast.Expr, q cue.Path, gs []pattern, pos token.Pos) []cueview.Conjunct {
+	conjs, detail, ok := w.guarded(x, w.subject(q), gs)
+	if !ok {
+		w.add(Finding{Path: w.subject(q), Verdict: Unknown, Rule: RuleUnknownExhaustive, Detail: detail, Pos: pos})
+	}
+	return conjs
+}
+
 // hiddenConjunct handles one conjunct of a hidden result field (see hidden): a
 // copy must read a declared path, a struct's fields are walked in turn, and a
 // computed expression must evaluate.
 func (w *walker) hiddenConjunct(c cueview.Conjunct, q cue.Path, gs []pattern, pos token.Pos) {
+	if c.Disjunction != nil {
+		// One of the values the field may be: alternatives may disagree, so
+		// none is a write.
+		w.quiet++
+		defer func() { w.quiet-- }()
+	}
 	if w.syn.FromInput(c) {
-		if p, ok := w.sourcePath(c); ok && !w.lookupSource(p, gs).declared {
+		p, ok := w.sourcePath(c)
+		if !ok {
+			return
+		}
+		w.record(&write{q: q, patterns: gs, kind: copyW, src: p, text: w.inputRef(p), pos: pos})
+		if !w.lookupSource(p, gs).declared {
 			w.add(Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleSourceUndeclared,
 				Detail: fmt.Sprintf("copies %s, which the source schema does not declare", w.inputRef(p)), Pos: pos})
 		}
@@ -563,18 +590,27 @@ func (w *walker) hiddenConjunct(c cueview.Conjunct, q cue.Path, gs []pattern, po
 	}
 	switch e := c.Expr.(type) {
 	case *ast.StructLit:
+		w.record(&write{q: q, patterns: gs, kind: compositeW, text: "{...}", pos: pos})
 		w.decls(e.Elts, q, gs, pos)
 	case *ast.ListLit:
+		w.record(&write{q: q, patterns: gs, kind: compositeW, text: "[...]", pos: pos})
 		for i, x := range e.Elts {
 			switch x.(type) {
 			case *ast.Comprehension, *ast.Ellipsis:
 				return
 			}
-			for _, ec := range w.tree.Conjuncts(x) {
-				w.conjunct(ec, appendPath(q, cue.Index(i)), gs, pos)
+			eq := appendPath(q, cue.Index(i))
+			for _, ec := range w.valueConjuncts(x, eq, gs, pos) {
+				w.conjunct(ec, eq, gs, pos)
 			}
 		}
-	case *ast.BasicLit, *ast.Ident:
+	case *ast.BasicLit:
+		w.record(&write{q: q, patterns: gs, kind: literalW, text: text(e), pos: pos})
+	case *ast.Ident:
+		// A constraint (int, _) is the lens's own business; a literal is a value.
+		if w.predeclared(e) && (isBoolName(e.Name) || e.Name == "null") {
+			w.record(&write{q: q, patterns: gs, kind: literalW, text: e.Name, pos: pos})
+		}
 	case *ast.BottomLit:
 		w.add(Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleNotAValue,
 			Detail: "is _|_, an error", Pos: pos})
@@ -1039,7 +1075,7 @@ func (w *walker) compositeDisjunct(e *ast.StructLit, q cue.Path, gs []pattern, p
 			case isStruct:
 				w.composite(s, q, ngs, cpos)
 			default:
-				for _, c := range w.tree.Conjuncts(x.Value) {
+				for _, c := range w.valueConjuncts(x.Value, q, ngs, cpos) {
 					w.conjunct(c, q, ngs, cpos)
 				}
 			}
@@ -1177,23 +1213,35 @@ func (w *walker) list(e *ast.ListLit, q cue.Path, gs []pattern, pos token.Pos) {
 			return
 		}
 	}
-	if tgt, ok := w.targetAt(q, pos); ok && tgt.IncompleteKind() != cue.TopKind {
-		if tgt.IncompleteKind()&cue.ListKind == 0 {
-			w.add(Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleLiteralNotInstance,
-				Detail: fmt.Sprintf("is a list, where the target schema wants %s", tgt.IncompleteKind()), Pos: pos})
-			return
-		}
-		shape := w.ctx.CompileString("[" + strings.Repeat("_,", len(e.Elts)) + "]")
-		if err := tgt.Unify(shape).Validate(); err != nil {
-			w.add(Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleLiteralNotInstance,
-				Detail: fmt.Sprintf("is a list of %d elements, which the target schema does not accept: %s", len(e.Elts), errMsg(err)), Pos: pos})
-			return
+	if tgt, ok := w.targetAt(q, pos); ok {
+		if want := w.listBoundsOf(tgt); want.kind != cue.TopKind {
+			if want.kind&cue.ListKind == 0 {
+				w.add(Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleLiteralNotInstance,
+					Detail: fmt.Sprintf("is a list, where the target schema wants %s", want.kind), Pos: pos})
+				return
+			}
+			shape := w.ctx.CompileString("[" + strings.Repeat("_,", len(e.Elts)) + "]")
+			if err := want.plain.Unify(shape).Validate(); err != nil {
+				w.add(Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleLiteralNotInstance,
+					Detail: fmt.Sprintf("is a list of %d elements, which the target schema does not accept: %s", len(e.Elts), errMsg(err)), Pos: pos})
+				return
+			}
+			if !want.iv.contains(big.NewInt(int64(len(e.Elts)))) {
+				w.add(Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleLiteralNotInstance,
+					Detail: fmt.Sprintf("is a list of %d elements, where the target list's length must be %s", len(e.Elts), want.iv), Pos: pos})
+				return
+			}
+			if len(want.other) > 0 {
+				w.add(Finding{Path: w.subject(q), Verdict: Unknown, Rule: RuleUnknownTargetConstraint,
+					Detail: fmt.Sprintf("is a list literal, and the target list must satisfy %s, which constrains the list beyond its length; the checker reads list.MinItems and list.MaxItems on a list, and nothing else", strings.Join(want.other, ", ")), Pos: pos})
+				return
+			}
 		}
 	}
 	w.ir.push()
 	for i, x := range e.Elts {
 		eq := appendPath(q, cue.Index(i))
-		for _, c := range w.tree.Conjuncts(x) {
+		for _, c := range w.valueConjuncts(x, eq, gs, pos) {
 			w.conjunct(c, eq, gs, pos)
 		}
 	}
@@ -1251,32 +1299,43 @@ func (w *walker) each(comp *ast.Comprehension, q cue.Path, gs []pattern, pos tok
 			Detail: fmt.Sprintf("maps the elements of %s, which may be absent: %s; write the field under if %s != _|_", w.inputRef(p), src.why, w.inputRef(p)), Pos: pos})
 		return
 	}
+	srcLens := make([]listBounds, 0, len(src.branches))
 	for _, b := range src.branches {
 		if b.IncompleteKind() != cue.ListKind {
 			w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownDynamic,
 				Detail: fmt.Sprintf("maps the elements of %s, which may be %s rather than a list", w.inputRef(p), b.IncompleteKind()), Pos: pos})
 			return
 		}
+		srcLens = append(srcLens, w.listBoundsOf(b))
 	}
 	tgt, ok := w.targetAt(q, pos)
 	if !ok {
 		return
 	}
-	if tgt.IncompleteKind() != cue.TopKind {
-		if tgt.IncompleteKind()&cue.ListKind == 0 {
+	if want := w.listBoundsOf(tgt); want.kind != cue.TopKind {
+		if want.kind&cue.ListKind == 0 {
 			w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleLiteralNotInstance,
-				Detail: fmt.Sprintf("is a list, where the target schema wants %s", tgt.IncompleteKind()), Pos: pos})
+				Detail: fmt.Sprintf("is a list, where the target schema wants %s", want.kind), Pos: pos})
+			return
+		}
+		if len(want.other) > 0 {
+			w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownTargetConstraint,
+				Detail: fmt.Sprintf("has one element per element of %s, and the target list must satisfy %s, which constrains the list beyond its length; the checker reads list.MinItems and list.MaxItems on a mapped list, and nothing else", w.inputRef(p), strings.Join(want.other, ", ")), Pos: pos})
 			return
 		}
 		// As many elements as the source list has.
-		if want, _, ok := intervalOf(tgt.Len()); ok {
-			for _, b := range src.branches {
-				if have, _, ok := intervalOf(b.Len()); ok && !have.within(want) {
-					w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleCopyNarrowed,
-						Detail: fmt.Sprintf("has one element per element of %s, whose length may be %s, where the target list's length must be %s", w.inputRef(p), have, want), Pos: pos})
-					return
-				}
+		for _, have := range srcLens {
+			if have.iv.within(want.iv) {
+				continue
 			}
+			if len(have.other) > 0 {
+				w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownCopy,
+					Detail: fmt.Sprintf("has one element per element of %s, whose length is within %s, where the target list's length must be %s; %s may narrow the source's lengths further, which the checker does not read", w.inputRef(p), have.iv, want.iv, strings.Join(have.other, ", ")), Pos: pos})
+				return
+			}
+			w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleCopyNarrowed,
+				Detail: fmt.Sprintf("has one element per element of %s, whose length may be %s, where the target list's length must be %s", w.inputRef(p), have.iv, want.iv), Pos: pos})
+			return
 		}
 	}
 	eq := appendPath(q, cue.AnyIndex)
@@ -1295,11 +1354,58 @@ func (w *walker) each(comp *ast.Comprehension, q cue.Path, gs []pattern, pos tok
 	if s, ok := comp.Value.(*ast.StructLit); ok {
 		w.decls(s.Elts, eq, gs, pos)
 	} else {
-		for _, c := range w.tree.Conjuncts(comp.Value) {
+		for _, c := range w.valueConjuncts(comp.Value, eq, gs, pos) {
 			w.conjunct(c, eq, gs, pos)
 		}
 	}
 	w.ir.emit(&lensir.Each{To: w.ir.path(q), Source: w.ir.path(p), Body: w.ir.pop()})
+}
+
+// listBounds is what a list value says about its length: its plain part and
+// its kind, read from the plain part, since a validator that needs concrete
+// data (list.MinItems on an open list) leaves the value itself incomplete; the
+// lengths it admits, its own length within the bounds list.MinItems and
+// list.MaxItems set; and any other validator on the list itself, which
+// constrains it beyond its length.
+type listBounds struct {
+	plain cue.Value
+	kind  cue.Kind
+	iv    interval
+	other []string
+}
+
+func (w *walker) listBoundsOf(v cue.Value) listBounds {
+	if len(compat.Branches(v)) > 1 {
+		// Each alternative has its own bounds; a disjunction's elements are
+		// not descended into (descendTarget).
+		return listBounds{plain: v, kind: v.IncompleteKind()}
+	}
+	plain, vals := compat.SplitValidators(w.ctx, v)
+	lb := listBounds{plain: plain, kind: plain.IncompleteKind()}
+	if lb.kind != cue.ListKind {
+		return lb
+	}
+	lb.iv, _, _ = intervalOf(plain.Len())
+	for _, vl := range vals {
+		n, err := int64Arg(vl)
+		switch {
+		case vl.Name == "list.MinItems" && err == nil:
+			lb.iv = lb.iv.meet(interval{lo: big.NewInt(n)})
+		case vl.Name == "list.MaxItems" && err == nil:
+			lb.iv = lb.iv.meet(interval{hi: big.NewInt(n)})
+		default:
+			lb.other = append(lb.other, vl.Name)
+		}
+	}
+	return lb
+}
+
+// int64Arg is the single integer argument of the validator vl.
+func int64Arg(vl compat.Validator) (int64, error) {
+	if len(vl.Args) != 1 {
+		return 0, fmt.Errorf("%s takes %d arguments", vl.Name, len(vl.Args))
+	}
+	return vl.Args[0].Int64()
 }
 
 // literal proves the scalar literal x written at q.
@@ -1343,14 +1449,15 @@ func (w *walker) decls(decls []ast.Decl, q cue.Path, gs []pattern, pos token.Pos
 				// A hidden field is not data either, but it is evaluated. A
 				// quoted label ("_id") is data.
 				cq = appendPath(q, cue.Hid(name, "_"))
+				cpos = w.resultPos(cq, pos)
 				w.hidden++
-				for _, c := range w.tree.Conjuncts(x.Value) {
+				for _, c := range w.valueConjuncts(x.Value, cq, gs, cpos) {
 					w.conjunct(c, cq, gs, cpos)
 				}
 				w.hidden--
 				continue
 			}
-			for _, c := range w.tree.Conjuncts(x.Value) {
+			for _, c := range w.valueConjuncts(x.Value, cq, gs, cpos) {
 				w.conjunct(c, cq, gs, cpos)
 			}
 		case *ast.Comprehension:
@@ -1362,19 +1469,19 @@ func (w *walker) decls(decls []ast.Decl, q cue.Path, gs []pattern, pos token.Pos
 			if s, ok := x.Value.(*ast.StructLit); ok {
 				w.decls(s.Elts, q, ngs, cpos)
 			} else {
-				for _, c := range w.tree.Conjuncts(x.Value) {
+				for _, c := range w.valueConjuncts(x.Value, q, ngs, cpos) {
 					w.conjunct(c, q, ngs, cpos)
 				}
 			}
 			w.ir.branch(ngs[len(gs):])
 		case *ast.EmbedDecl:
-			for _, c := range w.tree.Conjuncts(x.Expr) {
+			for _, c := range w.valueConjuncts(x.Expr, q, gs, pos) {
 				w.conjunct(c, q, gs, pos)
 			}
 		case ast.Expr:
 			// An embedding beside a comprehension is exported as a bare
 			// expression (cueview, comprehensions golden).
-			for _, c := range w.tree.Conjuncts(x) {
+			for _, c := range w.valueConjuncts(x, q, gs, pos) {
 				w.conjunct(c, q, gs, pos)
 			}
 		}
@@ -1485,6 +1592,13 @@ func (w *walker) descendTarget(root cue.Value, q cue.Path, from int) targetLooku
 			prefix := cue.MakePath(sels[:i]...)
 			return targetLookup{finding: &Finding{Path: w.subject(q), Verdict: Unknown, Rule: RuleUnknownTargetConstraint,
 				Detail: fmt.Sprintf("is written beneath %s, which is a disjunction in the target schema; the checker proves a struct literal written at %s against one of its alternatives, and descends into nothing else beneath it", w.subject(prefix), w.subject(prefix))}}
+		}
+		if cur.IncompleteKind() == cue.BottomKind {
+			// list.MinItems leaves an open list incomplete; its elements are
+			// declared by the list it constrains.
+			if lb := w.listBoundsOf(cur); lb.kind == cue.ListKind {
+				cur = lb.plain
+			}
 		}
 		next, _, ok := cuetil.DeclaredChild(w.ctx, cur, sels[i])
 		if !ok {
@@ -1604,7 +1718,7 @@ func presentIn(parent cue.Value, sel, csel cue.Selector) (string, bool) {
 func (w *walker) writesAt(q cue.Path) bool {
 	key := q.String()
 	for _, wr := range w.writes {
-		if wr.kind != armsW && wr.q.String() == key {
+		if !wr.hidden && wr.kind != armsW && wr.q.String() == key {
 			return true
 		}
 	}
@@ -1628,6 +1742,9 @@ func (w *walker) checkExhaustive() {
 	}
 	parents := []parent{{q: cue.MakePath(), pos: w.resultPos(cue.MakePath(), token.NoPos)}}
 	for _, wr := range w.writes {
+		if wr.hidden {
+			continue
+		}
 		switch wr.kind {
 		case compositeW:
 			parents = append(parents, parent{q: wr.q, patterns: wr.patterns, pos: wr.pos, tgt: wr.tgt})
@@ -1729,7 +1846,7 @@ func (w *walker) candidates(gs []pattern, cq cue.Path) (cands [][]pattern, writt
 	for _, wr := range w.writes {
 		patterns := wr.patterns
 		switch {
-		case wr.kind == armsW:
+		case wr.hidden, wr.kind == armsW:
 			continue
 		case wr.q.String() == cq.String():
 		case wr.kind == copyW && cuetil.PathHasPrefix(cq, wr.q):
@@ -1772,7 +1889,9 @@ func (w *walker) copyChildPatterns(cw *write, rel cue.Path) ([]pattern, bool) {
 // different paths, a constant and a computed value. Two struct literals merge,
 // and a copy of a struct beside a struct literal is judged by the children
 // they share; but at a disjunctive target, two writes that may produce
-// different alternatives merge into an instance of neither.
+// different alternatives merge into an instance of neither. A hidden field the
+// lens declares is a path like any other: it is evaluated, and the fields that
+// read it read one value.
 func (w *walker) checkConflicts() {
 	var all []*write
 	for _, wr := range w.writes {
@@ -2228,7 +2347,9 @@ func (w *walker) pathOf(x ast.Expr) (cue.Path, bool) {
 	}
 	var p cue.Path
 	for i, c := range conjs {
-		if !w.syn.FromInput(c) {
+		// A read through arms (a field written under if) reads the path only
+		// where they hold.
+		if !w.syn.FromInput(c) || len(c.Arms) > 0 {
 			return cue.Path{}, false
 		}
 		cp, ok := w.sourcePath(c)
