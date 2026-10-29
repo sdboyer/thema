@@ -1,6 +1,6 @@
 # Code generation
 
-This page is the reference for generating code from a lineage. Each generator except Go reads one schema of the lineage at a time. The Go generator reads the whole lineage, and binds one schema to a Go type only when asked to. The `thema lineage gen` command generates OpenAPI, JSON Schema and Go bindings. The `encoding/*` Go packages generate all four. The browser playground generates OpenAPI, JSON Schema and TypeScript. Every generator accepts a lineage in either the [authoring form](../authoring-form.md) or the normal form, except where its **Limits** say otherwise.
+This page is the reference for generating code from a lineage. Each generator except Go reads one schema of the lineage at a time. The Go generator reads the whole lineage, and binds one schema to a Go type only when asked to. The `thema lineage gen` command generates OpenAPI, JSON Schema and Go bindings. The `encoding/*` Go packages generate all four, and [Cap'n Proto](#capn-proto) from the whole lineage. The browser playground generates OpenAPI, JSON Schema and TypeScript. Every generator accepts a lineage in either the [authoring form](../authoring-form.md) or the normal form, except where its **Limits** say otherwise.
 
 The examples use the `ship` lineage from the playground's tour, with a minor version `1.1` added:
 
@@ -327,3 +327,28 @@ thema lineage gen gobindings -l <path> [-p <cue-path>] [--bind-type <T>] [-v <ve
 - No Go types are generated for schemas.
 - The generated loader reads `.cue` files with `load.InstanceWithThema`. A lineage in the authoring form, a directory of `.thema` files, is not loaded by it: for a directory the embed pattern is `*.cue`, which matches none of its files.
 - With `--stdout`, or with no `go.mod` or `cue.mod` above the lineage, the generated file does not compile until `loadInstanceFor<Name>()` is written.
+
+## Cap'n Proto
+
+Compiles the whole lineage to a Cap'n Proto schema: one struct per major version, split wherever a minor version is not append-compatible in Cap'n Proto, with ordinals and type IDs derived from the lineage's history so that appending a version never moves one. [Compiling to Cap'n Proto](../capnp.md) describes the type mapping, the generations, the names and every rule in full.
+
+**Takes**
+
+- The whole lineage, in either form.
+- A namespace for the type IDs; the default is the lineage's name.
+
+**Output**
+
+- The schema text, deterministic for a lineage.
+- The `capnp` tool's layout of it, the `CodeGeneratorRequest` of `capnp compile -o-`, unless asked not to compute it.
+
+**Go**
+
+- Package `github.com/sdboyer/thema/encoding/capnp`.
+- `capnp.Compile(lin thema.Lineage, opts ...capnp.Option) (*capnp.Compiled, error)`. `capnp.Namespace` sets the namespace, `capnp.Tool` the `capnp` executable, `capnp.WithoutLayout` skips it, and `capnp.Vocabulary` names constructs in diagnostics in the terms of the form the lineage was written in.
+- The error of a lineage that does not compile is a `capnp.Result` listing every finding, which unwraps to one diagnostic per finding.
+
+**Limits**
+
+- A construct Cap'n Proto cannot carry is rejected: an unbounded integer ([E0710](../errors/E0710.md)), a float ([E0711](../errors/E0711.md)), `_` ([E0712](../errors/E0712.md)), a disjunction no value discriminates ([E0713](../errors/E0713.md)), and two names in one struct that are one Cap'n Proto name ([E0714](../errors/E0714.md)).
+- A construct the compiler does not carry yet fails too: pattern constraints other than a lone `[string]: T` ([E0730](../errors/E0730.md)), and a closed list of mixed types ([E0731](../errors/E0731.md)).

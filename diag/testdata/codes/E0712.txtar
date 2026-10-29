@@ -1,0 +1,71 @@
+#op: capnp
+_ accepts any value, and Cap'n Proto has no type for any value: every field,
+list element and union member has one. This includes _ as a list element, a
+map value or one alternative of a disjunction.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				cargo: _
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0712",
+      "severity": "error",
+      "headline": "cargo in schema 0.0 accepts any value, which has no Cap'n Proto type",
+      "path": [
+        "schemas",
+        "0",
+        "0",
+        "schema",
+        "cargo"
+      ],
+      "address": {
+        "field": [
+          "cargo"
+        ],
+        "kind": "schemaField",
+        "version": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 6,
+        "col": 5,
+        "offset": 58,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "cargo in schema 0.0 is _, which has no type (Cap'n Proto rule top)"
+        }
+      ],
+      "help": [
+        "declare the type"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0712]: cargo in schema 0.0 accepts any value, which has no Cap'n Proto type
+ --> lineage.cue:6:5
+  |
+6 |                 cargo: _
+  |                 ^^^^^
+  |
+  = note: cargo in schema 0.0 is _, which has no type (Cap'n Proto rule top)
+  = help: declare the type

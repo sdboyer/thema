@@ -17,7 +17,10 @@ style of the compatibility and totality checkers: a structural walk, findings
 with stable rule IDs, and three-valued verdicts. A lineage with a construct
 capnp cannot carry is **rejected**; one with a construct this compiler does not
 carry yet is **unknown**. Both fail compilation, and every finding names its
-rule, so that it can be looked up below.
+rule, so that it can be looked up below. Each finding is reported as a
+diagnostic with the rule's code, at the author's construct; the
+[code generation reference](reference/codegen.md#capn-proto) summarizes the
+compiler's interface.
 
 ## Type mapping
 
@@ -129,18 +132,18 @@ for example
 
     schema 0.0: anint is int, an integer with no finite bounds; capnp integers are sized (int32, uint8, >=0 & <=100) (rule int-unbounded)
 
-| Rule | Rejected when | What to do |
-|---|---|---|
-| `int-unbounded` | an integer has no finite lower or upper bound, or bounds beyond 64 bits (`int`, `int & >=0`, `-1 \| int`) | bound it: `int32`, `uint8`, `int & >=0 & <=100` |
-| `float` | a value may be a float (`number`, `float`, `float32`, `float64`), anywhere, including as an alternative or a default | floats are outside the compiled target (#82); use an integer, or a string |
-| `top` | a value is `_`, including as a list element (`[...]`), a map value, or a disjunction alternative | declare the type |
-| `disjunction-undiscriminated` | no value decides the alternative: several non-constant alternatives of one kind (`=~"^a" \| =~"^b"`, `int8 \| int16`, `[...string] \| [...int8]`), a constant beside the open type of its kind (`"a" \| string`), or struct alternatives with no label that holds a distinct constant in each (`{a: string} \| {b: string}`, `{kind: string, …} \| {kind: string, …}`) | give struct alternatives a tag field with a distinct constant in each, make the alternatives of distinct kinds, or make them all constants |
-| `name-collision` | two labels, enum values or tagged alternatives of one struct sanitize to the same capnp name (`a_b` and `ab`; `"x_y" \| "xy"`; a field `kindKA` beside a field `kind` whose alternative tagged `"a"` is the struct `KindKA`) | rename one of them so the names differ once underscores are dropped |
+| Rule | Code | Rejected when | What to do |
+|---|---|---|---|
+| `int-unbounded` | [E0710](errors/E0710.md) | an integer has no finite lower or upper bound, or bounds beyond 64 bits (`int`, `int & >=0`, `-1 \| int`) | bound it: `int32`, `uint8`, `int & >=0 & <=100` |
+| `float` | [E0711](errors/E0711.md) | a value may be a float (`number`, `float`, `float32`, `float64`), anywhere, including as an alternative or a default | floats are outside the compiled target (#82); use an integer, or a string |
+| `top` | [E0712](errors/E0712.md) | a value is `_`, including as a list element (`[...]`), a map value, or a disjunction alternative | declare the type |
+| `disjunction-undiscriminated` | [E0713](errors/E0713.md) | no value decides the alternative: several non-constant alternatives of one kind (`=~"^a" \| =~"^b"`, `int8 \| int16`, `[...string] \| [...int8]`), a constant beside the open type of its kind (`"a" \| string`), or struct alternatives with no label that holds a distinct constant in each (`{a: string} \| {b: string}`, `{kind: string, …} \| {kind: string, …}`) | give struct alternatives a tag field with a distinct constant in each, make the alternatives of distinct kinds, or make them all constants |
+| `name-collision` | [E0714](errors/E0714.md) | two labels, enum values or tagged alternatives of one struct sanitize to the same capnp name (`a_b` and `ab`; `"x_y" \| "xy"`; a field `kindKA` beside a field `kind` whose alternative tagged `"a"` is the struct `KindKA`) | rename one of them so the names differ once underscores are dropped |
 
-| Rule | Unknown when | What to do |
-|---|---|---|
-| `unknown-pattern-labels` | a struct has pattern constraints other than a lone `[string]: T` beside no declared field: a regular expression, a pattern beside declared fields, several patterns, a narrower key type | declare the fields, or move the map to its own field |
-| `unknown-list-heterogeneous` | a closed list's elements do not all map to one type (`[string, int8]`) | capnp has no tuple; use a struct |
+| Rule | Code | Unknown when | What to do |
+|---|---|---|---|
+| `unknown-pattern-labels` | [E0730](errors/E0730.md) | a struct has pattern constraints other than a lone `[string]: T` beside no declared field: a regular expression, a pattern beside declared fields, several patterns, a narrower key type | declare the fields, or move the map to its own field |
+| `unknown-list-heterogeneous` | [E0731](errors/E0731.md) | a closed list's elements do not all map to one type (`[string, int8]`) | capnp has no tuple; use a struct |
 
 Every rule has a recorded case in `encoding/capnp/testdata`, which also
 records the schema each accepted shape compiles to, the generation each

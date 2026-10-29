@@ -13,8 +13,10 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/encoding/capnp/compiled"
 	"github.com/sdboyer/thema/exemplars"
+	"github.com/sdboyer/thema/internal/diagtest"
 	"github.com/sdboyer/thema/internal/envvars"
 	"github.com/sdboyer/thema/internal/txtartest/bindlin"
 	"github.com/sdboyer/thema/internal/txtartest/vanilla"
@@ -59,6 +61,23 @@ func render(t testing.TB, c *Compiled, err error, schema io.Writer, layout func(
 	}
 }
 
+// lintFindings checks that every finding of a failed compilation is a
+// diagnostic an author can read: one each, positioned at the author's
+// construct, in the author's terms. The exemplars are not linted: they are
+// thema's own CUE, so their positions are never a primary.
+func lintFindings(t testing.TB, err error) {
+	t.Helper()
+	var res Result
+	if !asResult(err, &res) {
+		return
+	}
+	ds := diag.Diagnostics(err)
+	if len(ds) != len(res.Findings) {
+		t.Errorf("%d findings became %d diagnostics", len(res.Findings), len(ds))
+	}
+	diagtest.Lint(t, ds, diagtest.Normal)
+}
+
 func asResult(err error, res *Result) bool {
 	r, ok := err.(Result)
 	if ok {
@@ -88,6 +107,7 @@ func TestGoldens(t *testing.T) {
 		}
 		c, err := Compile(lin, compileOpts()...)
 		render(tc, c, err, tc, func() io.Writer { return tc.Writer("layout") })
+		lintFindings(tc, err)
 	})
 }
 
@@ -107,6 +127,7 @@ func TestCorpus(t *testing.T) {
 		}
 		c, err := Compile(lin, WithoutLayout())
 		render(tc, c, err, tc, nil)
+		lintFindings(tc, err)
 	})
 }
 

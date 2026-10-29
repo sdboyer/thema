@@ -183,6 +183,13 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0621](E0621.md) | error | an example's example.cue is not valid |
 | [E0622](E0622.md) | error | the examples directory holds no example |
 | [E0701](E0701.md) | error | generating code from the schema failed |
+| [E0710](E0710.md) | error | an integer in a schema has no bounds that fit a Cap'n Proto integer |
+| [E0711](E0711.md) | error | a value in a schema may be a float, which compiling to Cap'n Proto does not carry |
+| [E0712](E0712.md) | error | a value in a schema accepts any value, which has no Cap'n Proto type |
+| [E0713](E0713.md) | error | a disjunction in a schema has no discriminant for a Cap'n Proto union |
+| [E0714](E0714.md) | error | two names in one struct of a schema have the same Cap'n Proto name |
+| [E0730](E0730.md) | error | a struct in a schema has pattern constraints the Cap'n Proto compiler does not carry |
+| [E0731](E0731.md) | error | a closed list in a schema has elements with no one Cap'n Proto type |
 | [E0801](E0801.md) | error | the playground request is malformed |
 | [E0802](E0802.md) | error | the playground request gives the lineage in neither form, or in both |
 | [E0803](E0803.md) | error | a version in the playground request is not a version |

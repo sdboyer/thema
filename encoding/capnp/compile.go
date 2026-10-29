@@ -27,6 +27,7 @@ import (
 	"cuelang.org/go/cue/token"
 
 	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/encoding/capnp/compiled"
 	"github.com/sdboyer/thema/internal/cuetil"
 	"github.com/sdboyer/thema/internal/util"
@@ -42,6 +43,7 @@ type config struct {
 	namespace string
 	tool      string
 	noLayout  bool
+	vocab     diag.Vocabulary
 }
 
 // Namespace sets the hash namespace type IDs are derived under, so that two
@@ -148,9 +150,12 @@ func (f Finding) String() string {
 }
 
 // Result is the outcome of the checker: the findings at every path that is
-// not Compilable. It is the error Compile returns where there are any.
+// not Compilable. It is the error Compile returns where there are any, and
+// unwraps to their diagnostics.
 type Result struct {
 	Findings []Finding
+	// vocab names constructs in the diagnostics (see [Vocabulary]).
+	vocab diag.Vocabulary
 }
 
 // Verdict is the overall verdict: Rejected if any path is, otherwise Unknown
@@ -191,7 +196,7 @@ func Compile(lin thema.Lineage, opts ...Option) (*Compiled, error) {
 	}
 	ctx := lin.Runtime().Context()
 
-	var res Result
+	res := Result{vocab: cfg.vocab}
 	gens := newGenerations(cfg.namespace, lin.Name())
 	for _, sch := range lin.All() {
 		w := &walker{ctx: ctx, version: sch.Version()}

@@ -1,0 +1,72 @@
+#op: capnp
+Cap'n Proto names drop underscores and join other words in camel case, so two
+labels of one struct can become one name: a_b and ab are both ab. Names in one
+struct, enum or union must differ, and the compiler never invents one.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				crew_size: int8
+				crewsize:  int8
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0714",
+      "severity": "error",
+      "headline": "crewsize in schema 0.0 has the same Cap'n Proto name as another name in its struct",
+      "path": [
+        "schemas",
+        "0",
+        "0",
+        "schema",
+        "crewsize"
+      ],
+      "address": {
+        "field": [
+          "crewsize"
+        ],
+        "kind": "schemaField",
+        "version": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 7,
+        "col": 5,
+        "offset": 78,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "crewsize in schema 0.0 collides: the label \"crew_size\" and the label \"crewsize\" are both named crewsize in Cap'n Proto, which drops underscores and joins words in camel case; the names in one struct must differ (Cap'n Proto rule name-collision)"
+        }
+      ],
+      "help": [
+        "rename one of them, so that the names differ once underscores are dropped"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0714]: crewsize in schema 0.0 has the same Cap'n Proto name as another name in its struct
+ --> lineage.cue:7:5
+  |
+7 |                 crewsize:  int8
+  |                 ^^^^^^^^
+  |
+  = note: crewsize in schema 0.0 collides: the label "crew_size" and the label "crewsize" are both named crewsize in Cap'n Proto, which drops underscores and joins words in camel case; the names in one struct must differ (Cap'n Proto rule name-collision)
+  = help: rename one of them, so that the names differ once underscores are dropped
