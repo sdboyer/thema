@@ -161,6 +161,14 @@ func TestLensSyntaxConstructionIndependent(t *testing.T) {
 			if got := strings.Join(copies, " "); got != "a<-a n<-n" {
 				t.Errorf("copies: got %s, want a<-a n<-n", got)
 			}
+			var readers []string
+			for _, r := range ls.Readers() {
+				readers = append(readers, r.Result.String()+"<-"+r.Input.String())
+			}
+			sort.Strings(readers)
+			if got := strings.Join(readers, " "); got != "a<-a n<-n" {
+				t.Errorf("readers: got %s, want a<-a n<-n", got)
+			}
 		})
 	}
 }
@@ -227,6 +235,46 @@ func TestCopies(t *testing.T) {
 			var got []string
 			for _, cp := range ls.Copies() {
 				got = append(got, cp.Result.String()+"<-"+cp.Input.String())
+			}
+			sort.Strings(got)
+			if s := "[" + strings.Join(got, " ") + "]"; s != c.want {
+				t.Errorf("got %s, want %s", s, c.want)
+			}
+		})
+	}
+}
+
+func TestReaders(t *testing.T) {
+	ctx := cuecontext.New()
+	for name, c := range map[string]struct {
+		lens string // the lens's body; input: _ is supplied
+		want string // result<-input, sorted
+	}{
+		"copy":        {`result: {a: input.a}`, `[a<-a]`},
+		"two inputs":  {`result: {a: input.a + input.b}`, `[a<-a a<-b]`},
+		"constant":    {`result: {a: 1}`, `[]`},
+		"in a struct": {`result: {q: {a: input.q.a, b: input.b}}`, `[q.a<-q.a q.b<-b]`},
+		// The guard decides whether q exists; it carries nothing.
+		"guarded":     {`result: {if input.q != _|_ {q: {a: input.q.a, b: input.b}}}`, `[q.a<-q.a q.b<-b]`},
+		"embedded":    {`result: {info: {input.meta, x: input.y}}`, `[info.x<-y info<-meta]`},
+		"helper":      {`result: {_h: {p: input.n}, x: _h}`, `[x<-n]`},
+		"let":         {`let N = input.n, result: {x: N.p}`, `[x<-n.p]`},
+		"list":        {`result: {l: [for x in input.items {name: x.title}]}`, `[l<-items.[_].title]`},
+		"lacuna":      {`result: {}, lacunas: [{sourceFields: [{path: "b", value: input.b}]}]`, `[]`},
+		"disjunction": {`result: {a: *input.a | "x"}`, `[a<-a]`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			v := ctx.CompileString("lens: {input: _\n" + c.lens + "}").LookupPath(cue.ParsePath("lens"))
+			if err := v.Err(); err != nil {
+				t.Fatal(err)
+			}
+			ls, err := ParseLens(v, "input", "result")
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got []string
+			for _, r := range ls.Readers() {
+				got = append(got, r.Result.String()+"<-"+r.Input.String())
 			}
 			sort.Strings(got)
 			if s := "[" + strings.Join(got, " ") + "]"; s != c.want {

@@ -603,6 +603,98 @@ func (ls *LensSyntax) Copies() []Copy {
 	return out
 }
 
+// A Reader is a field of a lens's result that reads a path of the lens's
+// input: it copies the value there, or computes from it.
+type Reader struct {
+	Result, Input cue.Path
+}
+
+// Readers returns, for each path of its input the lens's result reads, the
+// fields of the result that read it: the fields whose origin is copied or
+// computed (see [LensField]), with their reads resolved as [LensSyntax.InputReads]
+// resolves them. Fields are followed through struct literals, a
+// comprehension's fields included; a value that is not a struct literal, such
+// as a list or a reference to a helper struct, is one reader of everything it
+// reads. A comprehension's clauses only decide whether its fields exist, so
+// what they read has no reader; nor does what a lacuna reads.
+//
+// Like [LensSyntax.InputReads], the answer depends only on what the lens is.
+func (ls *LensSyntax) Readers() []Reader {
+	var out []Reader
+	var walk func(values []ast.Expr, at cue.Path)
+	walk = func(values []ast.Expr, at cue.Path) {
+		fields := map[string][]ast.Expr{}
+		var order []string
+		read := func(ps ...cue.Path) {
+			for _, p := range ps {
+				out = append(out, Reader{Result: at, Input: p})
+			}
+		}
+		var visit func(x ast.Expr)
+		var decls func(elts []ast.Decl)
+		visit = func(x ast.Expr) {
+			switch e := x.(type) {
+			case *ast.BinaryExpr:
+				if e.Op == token.AND {
+					visit(e.X)
+					visit(e.Y)
+					return
+				}
+			case *ast.ParenExpr:
+				visit(e.X)
+				return
+			case *ast.StructLit:
+				decls(e.Elts)
+				return
+			}
+			r := &inputReads{ls: ls, walked: map[ast.Node]bool{}, visiting: map[ast.Node]bool{}}
+			if p, ok, _ := r.resolve(x); ok {
+				read(p)
+			}
+			// What resolving walked: the reads of whatever x refers to that is
+			// not a chain into the input.
+			read(r.out...)
+		}
+		decls = func(elts []ast.Decl) {
+			for _, d := range elts {
+				switch e := d.(type) {
+				case *ast.Field:
+					name, isIdent, err := ast.LabelName(e.Label)
+					if err != nil || (isIdent && strings.HasPrefix(name, "_")) || (isIdent && strings.HasPrefix(name, "#")) {
+						// Not data: a dynamic label, or a hidden field or definition.
+						continue
+					}
+					if _, ok := fields[name]; !ok {
+						order = append(order, name)
+					}
+					fields[name] = append(fields[name], e.Value)
+				case *ast.Comprehension:
+					if s, ok := e.Value.(*ast.StructLit); ok {
+						decls(s.Elts)
+					}
+				case *ast.EmbedDecl:
+					visit(e.Expr)
+				case ast.Expr:
+					// An embedding beside a comprehension (see FieldDecls).
+					visit(e)
+				}
+			}
+		}
+		for _, v := range values {
+			visit(v)
+		}
+		for _, name := range order {
+			walk(fields[name], appendPath(at, cue.Str(name)))
+		}
+	}
+	var roots []ast.Expr
+	for _, f := range ls.resultFields {
+		roots = append(roots, f.Value)
+	}
+	walk(roots, cue.MakePath())
+	return out
+}
+
 type inputReads struct {
 	ls       *LensSyntax
 	walked   map[ast.Node]bool
