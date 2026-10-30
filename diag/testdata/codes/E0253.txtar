@@ -2,7 +2,9 @@
 Versions are only appended: a new version comes after the newest published
 one. Here 0.0 and 1.0 were published, and the candidate adds 0.1 between them,
 so the published 1.0 would no longer follow the version it was published
-after.
+after. 1.0 itself is as published: its lenses map the same from 0.1 as from
+0.0, and its backward lens derives the same drop of crew, though the drop's
+message now names 0.1.
 -- candidate/ship/history/0.0.thema --
 Schema: {
 	size: int & <10
@@ -27,17 +29,23 @@ BackwardLens: {
 -- candidate/ship/history/1.0.thema --
 Schema: {
 	size: string
+	crew: int
 }
 
 ForwardLens: {
 	v0_1: _
 	v1_0: {
 		size: "unknown"
+		crew: 0
 	}
 	lacunas: {
 		size: [{
 			type:    Placeholder
 			message: "unknown is a placeholder"
+		}]
+		crew: [{
+			type:    Placeholder
+			message: "0 is a placeholder"
 		}]
 	}
 }
@@ -61,17 +69,23 @@ Schema: {
 -- published/ship/history/1.0.thema --
 Schema: {
 	size: string
+	crew: int
 }
 
 ForwardLens: {
 	v0_0: _
 	v1_0: {
 		size: "unknown"
+		crew: 0
 	}
 	lacunas: {
 		size: [{
 			type:    Placeholder
 			message: "unknown is a placeholder"
+		}]
+		crew: [{
+			type:    Placeholder
+			message: "0 is a placeholder"
 		}]
 	}
 }

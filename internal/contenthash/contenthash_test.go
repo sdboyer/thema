@@ -216,3 +216,48 @@ func TestLensFormConstruction(t *testing.T) {
 		})
 	}
 }
+
+// Of a lacuna, the lens form keeps what translation does with it, and not its
+// message.
+func TestLensFormLacunas(t *testing.T) {
+	form := func(lacunas string) string {
+		t.Helper()
+		lin := compileLineage(t, `lin: {
+	schemas: {"0": {"0": {schema: {a: string}}, "1": {schema: {a: string, c?: int, d?: int}}}}
+	lenses: {"0.1->0.0": {
+		v0_1: _
+		v0_0: {a: v0_1.a}
+		`+lacunas+`
+	}}
+}`)
+		return mustLensForm(t, lin, Version{0, 1})
+	}
+	base := form(`lacunas: [if v0_1.c != _|_ {{sourceFields: [{path: "c", value: v0_1.c}], message: "c has no equivalent in 0.0 and was dropped", type: "DroppedField"}}]`)
+	if strings.Contains(base, "message") {
+		t.Fatalf("the lens form holds a message:\n%s", base)
+	}
+	for name, c := range map[string]struct {
+		lacunas string
+		equal   bool
+	}{
+		"message reworded": {`lacunas: [if v0_1.c != _|_ {{sourceFields: [{path: "c", value: v0_1.c}], message: "c is dropped", type: "DroppedField"}}]`, true},
+		"message in a let": {`let L = {sourceFields: [{path: "c", value: v0_1.c}], message: "c is dropped", type: "DroppedField"}, lacunas: [if v0_1.c != _|_ {L}]`, true},
+		"type":             {`lacunas: [if v0_1.c != _|_ {{sourceFields: [{path: "c", value: v0_1.c}], message: "c has no equivalent in 0.0 and was dropped", type: "LossyFieldMapping"}}]`, false},
+		"source field":     {`lacunas: [if v0_1.d != _|_ {{sourceFields: [{path: "d", value: v0_1.d}], message: "c has no equivalent in 0.0 and was dropped", type: "DroppedField"}}]`, false},
+		"condition":        {`lacunas: [{sourceFields: [{path: "c", value: v0_1.c}], message: "c has no equivalent in 0.0 and was dropped", type: "DroppedField"}]`, false},
+		"target field":     {`lacunas: [if v0_1.c != _|_ {{sourceFields: [{path: "c", value: v0_1.c}], targetFields: [{path: "a", value: v0_0.a}], message: "c has no equivalent in 0.0 and was dropped", type: "DroppedField"}}]`, false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if got := form(c.lacunas); (got == base) != c.equal {
+				t.Errorf("want equal=%v:\n%s\n---\n%s", c.equal, got, base)
+			}
+		})
+	}
+
+	// A reported field's value is instance data, not a lacuna: a field of it
+	// named message is kept.
+	kept := form(`lacunas: [{targetFields: [{path: "a", value: {message: "x"}}], message: "m", type: "Placeholder"}]`)
+	if strings.Count(kept, "message") != 1 {
+		t.Errorf("want the value's message, and only it:\n%s", kept)
+	}
+}
