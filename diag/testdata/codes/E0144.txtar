@@ -32,7 +32,7 @@ lin: {
     {
       "code": "E0144",
       "severity": "error",
-      "headline": "v1_0.b in lens 0.0->1.0 refers to lin.schemas[\"0\"][\"0\"].schema.a, a schema",
+      "headline": "v1_0.b in lens 0.0->1.0 refers to schemas[\"0\"][\"0\"].schema.a, a schema",
       "path": [
         "lenses",
         "0.0->1.0"
@@ -72,7 +72,7 @@ lin: {
   }
 }
 -- out/text --
-error[E0144]: v1_0.b in lens 0.0->1.0 refers to lin.schemas["0"]["0"].schema.a, a schema
+error[E0144]: v1_0.b in lens 0.0->1.0 refers to schemas["0"]["0"].schema.a, a schema
   --> lineage.cue:18:14
    |
 18 |             v1_0: {b: lin.schemas["0"]["0"].schema.a}

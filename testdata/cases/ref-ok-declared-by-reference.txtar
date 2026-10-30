@@ -1,0 +1,16 @@
+# a lineage that is a reference to a value declared beside it: the evaluator
+# shares that value, so a schema's reference to its own field resolves under
+# the value's path rather than the lineage's. What the value declares is the
+# lineage, so the reference is to the schema's own body
+#issue: 217
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+_impl: thema.Lineage & {
+	name: "refOkDeclaredByReference"
+	schemas: "0": "0": schema: {a: int, b: int & >=a}
+}
+
+lin: _impl
+-- expect --
+bind ok
