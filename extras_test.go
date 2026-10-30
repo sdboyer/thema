@@ -692,6 +692,7 @@ func TestTranslateLostDefaults(t *testing.T) {
 		written = defaultsLineage(`{a: string, b: *0 | int}`, `{a: string, b: int}`, `{a: v0_0.a, b: 7}`)
 		fixed   = defaultsLineage(`{a: string, k: "k"}`, `{a: string}`, `{a: v0_0.a}`)
 		closedX = "x set aside: 1.0 does not declare it in the instance, which it does not leave open"
+		onlyA   = `{"a":"q"}`
 	)
 
 	for name, c := range map[string]struct {
@@ -699,48 +700,48 @@ func TestTranslateLostDefaults(t *testing.T) {
 		minor               bool // from 0.1 to 0.0, rather than 0.0 to 1.0
 		lacunas             []lacuna.Lacuna
 	}{
-		"removed: default written": {lineage: removed, data: `{a: "q", x: 1}`, want: `{"a":"q"}`},
-		"removed: default filled":  {lineage: removed, data: `{a: "q"}`, want: `{"a":"q"}`},
+		"removed: default written": {lineage: removed, data: `{a: "q", x: 1}`, want: onlyA},
+		"removed: default filled":  {lineage: removed, data: `{a: "q"}`, want: onlyA},
 		"removed: other than default": {
-			lineage: removed, data: `{a: "q", x: 5}`, want: `{"a":"q"}`,
+			lineage: removed, data: `{a: "q", x: 5}`, want: onlyA,
 			lacunas: []lacuna.Lacuna{dropped(closedX, ref("x", int64(5)))},
 		},
-		"removed: constant": {lineage: fixed, data: `{a: "q", k: "k"}`, want: `{"a":"q"}`},
+		"removed: constant": {lineage: fixed, data: `{a: "q", k: "k"}`, want: onlyA},
 
 		"minor: default": {
-			lineage: minorDefaultLineage, data: `{a: "q", z: 0}`, want: `{"a":"q"}`,
+			lineage: minorDefaultLineage, data: `{a: "q", z: 0}`, want: onlyA,
 			minor: true,
 		},
 		"minor: other than default": {
-			lineage: minorDefaultLineage, data: `{a: "q", z: 5}`, want: `{"a":"q"}`,
+			lineage: minorDefaultLineage, data: `{a: "q", z: 5}`, want: onlyA,
 			minor:   true,
 			lacunas: []lacuna.Lacuna{dropped("z set aside: 0.0 does not declare it in the instance, which it does not leave open", ref("z", int64(5)))},
 		},
 
-		"struct: empty":      {lineage: structs, data: `{a: "q", o: {}}`, want: `{"a":"q"}`},
-		"struct: empty list": {lineage: lists, data: `{a: "q", o: {l: []}}`, want: `{"a":"q"}`},
+		"struct: empty":      {lineage: structs, data: `{a: "q", o: {}}`, want: onlyA},
+		"struct: empty list": {lineage: lists, data: `{a: "q", o: {l: []}}`, want: onlyA},
 		"struct: list": {
-			lineage: lists, data: `{a: "q", o: {l: [1]}}`, want: `{"a":"q"}`,
+			lineage: lists, data: `{a: "q", o: {l: [1]}}`, want: onlyA,
 			lacunas: []lacuna.Lacuna{dropped("o set aside: 1.0 does not declare it in the instance, which it does not leave open", ref("o", map[string]interface{}{"l": []interface{}{1.0}}))},
 		},
-		"struct: defaults written": {lineage: structs, data: `{a: "q", o: {x: 1}}`, want: `{"a":"q"}`},
+		"struct: defaults written": {lineage: structs, data: `{a: "q", o: {x: 1}}`, want: onlyA},
 		"struct: other than default": {
-			lineage: structs, data: `{a: "q", o: {x: 2}}`, want: `{"a":"q"}`,
+			lineage: structs, data: `{a: "q", o: {x: 2}}`, want: onlyA,
 			lacunas: []lacuna.Lacuna{dropped("o set aside: 1.0 does not declare it in the instance, which it does not leave open", ref("o", map[string]interface{}{"x": 2.0}))},
 		},
 		"struct: optional field present": {
-			lineage: structs, data: `{a: "q", o: {y: 3}}`, want: `{"a":"q"}`,
+			lineage: structs, data: `{a: "q", o: {y: 3}}`, want: onlyA,
 			lacunas: []lacuna.Lacuna{dropped("o set aside: 1.0 does not declare it in the instance, which it does not leave open", ref("o", map[string]interface{}{"y": 3.0}))},
 		},
 
 		// One lacuna per struct per cause names only the fields that held
 		// more than their default.
 		"mixed: one default": {
-			lineage: mixed, data: `{a: "q", x: 1, w: "v"}`, want: `{"a":"q"}`,
+			lineage: mixed, data: `{a: "q", x: 1, w: "v"}`, want: onlyA,
 			lacunas: []lacuna.Lacuna{dropped("w set aside: 1.0 does not declare it in the instance, which it does not leave open", ref("w", "v"))},
 		},
 		"mixed: neither default": {
-			lineage: mixed, data: `{a: "q", x: 5, w: "v"}`, want: `{"a":"q"}`,
+			lineage: mixed, data: `{a: "q", x: 5, w: "v"}`, want: onlyA,
 			lacunas: []lacuna.Lacuna{dropped("x, w set aside: 1.0 does not declare them in the instance, which it does not leave open", ref("x", int64(5)), ref("w", "v"))},
 		},
 
