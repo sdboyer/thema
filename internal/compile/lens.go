@@ -2005,8 +2005,8 @@ func (e *edge) dropLacuna(out *compiledLens, en *entry) {
 		if e.optional(e.S, en.source) {
 			conds = append(conds, e.present(p, en.source))
 		}
-		if e.container(en.source) {
-			conds = append(conds, e.nonEmpty(p, en.source))
+		if c := e.excess(p, en.source, e.regular(e.S, en.source)); c != nil {
+			conds = append(conds, c)
 		}
 		name := e.aggregate(out, p, conds, en.source)
 		elts = append(elts,
@@ -2078,21 +2078,94 @@ func (e *edge) nonEmptyLet(p token.Pos, name string) ast.Expr {
 }
 
 // dropCondition is the condition a drop of path implies, nil for always: that
-// the field was present, and for a struct or a list, that it was not empty.
-// An empty container carries no information, so dropping one loses nothing.
+// the field was present, and that it held more than the source fills there by
+// itself (see excess). An empty container, or a default, carries no
+// information, so dropping one loses nothing.
 func (e *edge) dropCondition(p token.Pos, path cue.Path) ast.Expr {
-	optional, container := e.optional(e.S, path), e.container(path)
+	optional, more := e.optional(e.S, path), e.excess(p, path, e.regular(e.S, path))
 	switch {
-	case optional && container:
-		// len of an absent field is not false but an error, so the length is
-		// read only where the field is present.
-		return e.head(p, e.present(p, path), e.nonEmpty(p, path), at(p, ast.NewBool(false)))
+	case optional && more != nil:
+		// A field beneath an absent one is not false but an error, so the
+		// excess is read only where the field is present.
+		return e.head(p, e.present(p, path), more, at(p, ast.NewBool(false)))
 	case optional:
 		return e.present(p, path)
-	case container:
-		return e.nonEmpty(p, path)
 	}
-	return nil
+	return more
+}
+
+// excess is the condition that the source's field at path, where present,
+// holds more than the source fills there by itself, nil for always: a value
+// equal to the fill and absence are the same information. regular says the
+// field is neither optional nor required, so that its default (or constant)
+// is its fill; an optional or required field fills nothing. A list's fill is
+// [] (it holds more when not empty), and a struct's is what its fields fill:
+// it holds more when one of them does, compared field by field, so the
+// condition grows with the schema, never with the data. A struct that is
+// open, whose fields are all bare presence tests, or that has an optional
+// field holding a struct or list, holds more when it is not empty.
+func (e *edge) excess(p token.Pos, path cue.Path, regular bool) ast.Expr {
+	v := lookup(e.S, path)
+	switch v.IncompleteKind() {
+	case cue.ListKind:
+		return e.nonEmpty(p, path)
+	case cue.StructKind:
+		iter, err := v.Fields(cue.Optional(true))
+		//nolint:staticcheck // every schema the compiler looks into is built in the one context it was given
+		if err != nil || cuetil.CloseRecursive(v.Context(), v).Allows(cue.AnyString) {
+			return e.nonEmpty(p, path)
+		}
+		var conds []ast.Expr
+		plain := true
+		for iter.Next() {
+			sel := iter.Selector()
+			child := appendPath(path, cue.Str(sel.Unquoted()))
+			more := e.excess(p, child, sel.ConstraintType() == 0)
+			switch sel.ConstraintType() {
+			case cue.OptionalConstraint:
+				if more != nil {
+					// Comparing the field with its fill needs it present, a
+					// guard the lens checker proves only around a whole
+					// condition, not inside one: the struct is compared only
+					// with {}.
+					return e.nonEmpty(p, path)
+				}
+				conds = append(conds, e.present(p, child))
+				continue
+			default:
+				if more == nil {
+					// The field always holds more, so the struct does: it is
+					// never empty.
+					return e.nonEmpty(p, path)
+				}
+				conds = append(conds, more)
+			}
+			plain = false
+		}
+		if plain {
+			return e.nonEmpty(p, path)
+		}
+		return at(p, ast.NewBinExpr(token.LOR, conds...))
+	}
+	if !regular {
+		return nil
+	}
+	d, _ := v.Default()
+	lit, err := cueview.Data(d)
+	if err != nil {
+		return nil
+	}
+	x, ok := lit.(ast.Expr)
+	if !ok {
+		return nil
+	}
+	return at(p, ast.NewBinExpr(token.NEQ, at(p, e.ref(path)), x))
+}
+
+// regular reports whether the last field along p in v is neither optional
+// nor required.
+func (e *edge) regular(v cue.Value, p cue.Path) bool {
+	return !e.optionalAt(v, p) && !e.marked(v, p)
 }
 
 // dropSource is the field a drop's lacuna reports. Where its condition reads
