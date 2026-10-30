@@ -48,9 +48,12 @@ func (ml *maybeLineage) bindContext() diag.Context {
 		Op:         diag.OpBind,
 		Base:       diag.Address{Kind: diag.AddrLineage},
 		Vocabulary: ml.vocab(),
-		// Errors from the lineage unified with thema.Lineage carry the
-		// kernel's root; the author's paths start below it.
-		PathPrefix: []string{"Lineage"},
+		// Errors from the lineage unified with thema.Lineage carry the path
+		// of the unified value: the kernel's root (Lineage) where thema
+		// unified it in Go, or wherever the author's root holds the lineage
+		// where the author unified it (lin, or flagship where a package
+		// re-exports it). The author's paths start below it.
+		PathPrefix: pathSegments(ml.uni.Path()),
 		SourceValue: func(path []string) (cue.Value, bool) {
 			v := ml.uni.LookupPath(normalFormPath(path))
 			return v, v.Exists()
