@@ -17,7 +17,7 @@ ship/
     1.0.thema
 ```
 
-- A version that has been cut is named `history/<major>.<minor>.thema`. Data has been written against it, so it never changes. A numbered file at the top of the directory is an error (`E0148`) that says to move it under `history/`.
+- A version that has been cut is named `history/<major>.<minor>.thema`. Data has been written against it, so it never changes. A numbered file at the top of the directory is an error (`E0148`) that says to move it under `history/`. `thema lineage check -l <dir> --published <published-dir>` checks that `history/` only appends to the one that was published, such as `history/` at the released revision; see [published versions](reference/lineage.md#versions).
 - Versions are contiguous from `0.0`: each file is either the next minor version of the one before it, or the next major version with minor `0`.
 - Only files ending in `.thema` are read; anything else in the directory is left alone. The playground uses this to keep an `example.cue` beside a lineage that it offers as an example (see `thema playground examples --help`).
 - Whether a version is minor or major is not the author's call. thema checks each version against the one before it under the [backwards compatibility](invariants.md#backwards-compatibility) rules. A file named as a minor version must be compatible with its predecessor, and a file named as a major version must not be. A file named the wrong way is an error that says which version number it should have.

@@ -108,8 +108,13 @@ var Codes = []CodeInfo{
 	{Code: E0233, Severity: SeverityError, Title: "a minor version's disjunction cannot be shown to cover its predecessor's", Sentinels: []error{terrors.ErrInvalidLineage}},
 	{Code: E0234, Severity: SeverityError, Title: "a minor version's pattern constraints cannot be shown to cover its predecessor's", Sentinels: []error{terrors.ErrInvalidLineage}},
 	{Code: E0240, Severity: SeverityError, Title: "the lineage has no schema with that version", Sentinels: []error{terrors.ErrVersionNotExist}, Positionless: true},
-	{Code: E0242, Severity: SeverityError, Title: "a published schema was deleted", Sentinels: []error{terrors.ErrInvalidLineage}, Positionless: true},
-	{Code: E0243, Severity: SeverityError, Title: "a published schema was changed", Sentinels: []error{terrors.ErrInvalidLineage}, Positionless: true},
+	{Code: E0242, Severity: SeverityError, Title: "a published schema was deleted", Sentinels: []error{terrors.ErrInvalidLineage}, Positionless: true, Retired: "thema.IsAppendOnly, which reported it, was replaced by thema.CheckAppendOnly (#56), which reports a removed version as E0252."},
+	{Code: E0243, Severity: SeverityError, Title: "a published schema was changed", Sentinels: []error{terrors.ErrInvalidLineage}, Positionless: true, Retired: "thema.IsAppendOnly, which reported it, was replaced by thema.CheckAppendOnly (#56), which compares versions by their identity, and reports a changed schema as E0250 and a changed lens as E0251."},
+	{Code: E0250, Severity: SeverityError, Title: "a published version's schema was changed", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0251, Severity: SeverityError, Title: "a published version's lens was changed", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0252, Severity: SeverityError, Title: "a published version was removed", Sentinels: []error{terrors.ErrInvalidLineage}, Positionless: true},
+	{Code: E0253, Severity: SeverityError, Title: "a new version comes before the newest published version", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0254, Severity: SeverityError, Title: "the lineage's name differs from the name it was published with", Sentinels: []error{terrors.ErrInvalidLineage}, Positionless: true},
 	{Code: E0301, Severity: SeverityError, Title: "the lineage lacks a lens its versions require", Sentinels: []error{terrors.ErrMissingLenses, terrors.ErrInvalidLineage}, Positionless: true},
 	{Code: E0302, Severity: SeverityError, Title: "the lineage declares a lens its versions do not require", Sentinels: []error{terrors.ErrErroneousLenses, terrors.ErrInvalidLineage}},
 	{Code: E0303, Severity: SeverityError, Title: "a lens does not accept every instance of its source schema", Sentinels: []error{terrors.ErrInvalidLens, terrors.ErrInvalidLineage}},
@@ -299,8 +304,15 @@ const (
 	E0233 Code = "E0233" // unknown-disjunction
 	E0234 Code = "E0234" // unknown-patterns
 	E0240 Code = "E0240" // no schema with the requested version
-	E0242 Code = "E0242" // IsAppendOnly: a schema was deleted
-	E0243 Code = "E0243" // IsAppendOnly: a schema was changed
+	E0242 Code = "E0242" // retired: IsAppendOnly, a schema was deleted
+	E0243 Code = "E0243" // retired: IsAppendOnly, a schema was changed
+	// E0250 to E0254: CheckAppendOnly, one per way a candidate fails to only
+	// append to the published lineage.
+	E0250 Code = "E0250" // a published version's schema digest changed
+	E0251 Code = "E0251" // a published version's lens changed
+	E0252 Code = "E0252" // a published version is missing from the candidate
+	E0253 Code = "E0253" // a new version numbered before the newest published one
+	E0254 Code = "E0254" // the candidate's name is not the published one
 
 	E0301 Code = "E0301" // a required lens is missing
 	E0302 Code = "E0302" // a lens no edge requires

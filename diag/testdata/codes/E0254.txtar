@@ -1,0 +1,56 @@
+#op: append-only
+A lineage is named for its directory, and its name is part of what was
+published: what refers to the lineage names it. Here ship's history is
+published again as boat. A lineage with a new name is a new lineage.
+-- candidate/boat/history/0.0.thema --
+Schema: {
+	name: string
+}
+-- published/ship/history/0.0.thema --
+Schema: {
+	name: string
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0254",
+      "severity": "error",
+      "headline": "the lineage is named boat, but was published as ship",
+      "path": [
+        "name"
+      ],
+      "address": {
+        "kind": "name"
+      },
+      "primary": {
+        "file": "history/0.0.thema",
+        "line": 1,
+        "col": 1,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "a lineage's name is part of what was published: what refers to it names it"
+        }
+      ],
+      "help": [
+        "name it ship, or publish it as a new lineage"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0254]: the lineage is named boat, but was published as ship
+ --> history/0.0.thema:1:1
+  |
+1 | Schema: {
+  | ^^^^^^
+  |
+  = note: a lineage's name is part of what was published: what refers to it names it
+  = help: name it ship, or publish it as a new lineage

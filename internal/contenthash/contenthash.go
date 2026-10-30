@@ -15,8 +15,13 @@
 //
 // The lens digest covers the lenses on the edge into the version: forward,
 // from its predecessor, and backward, to it. It covers each lens's input,
-// result and lacunas, not its from and to, which are again position. Fixing a
-// published lens changes the lens digest and leaves the schema digest alone.
+// result and lacunas, not its from and to, which are again position. Of a
+// lacuna, it covers what translation does with it, its type, its condition
+// and the fields it reports, and not its message, which is prose: a derived
+// lacuna's message names the version it drops a field from, so hashing it
+// would make renumbering a predecessor change the lens, and rewording a
+// message is not a fix to a published lens. Fixing a published lens changes
+// the lens digest and leaves the schema digest alone.
 // Only lenses that exist are hashed: a minor version's forward lens is
 // implicit, so its edge holds only the backward lens. The first version has no
 // predecessor and no lenses; its lens digest is that of the empty edge, whose
@@ -42,6 +47,7 @@ import (
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/ast"
+	"cuelang.org/go/cue/ast/astutil"
 
 	"github.com/sdboyer/thema/internal/cuetil"
 )
@@ -119,6 +125,32 @@ func LensForm(lin cue.Value, v Version) (string, error) {
 	return canonicalize(edge)
 }
 
+// LensForms returns the canonical form of each lens on the edge into version
+// v of the lineage lin on its own: forward, from v's predecessor, and
+// backward, to it, each "" when the edge has no such lens. They tell which of
+// an edge's lenses differs between two lineages whose lens digests differ.
+// The digest is of [LensForm], not of these.
+func LensForms(lin cue.Value, v Version) (forward, backward string, err error) {
+	fwd, back, err := versionLenses(lin, v)
+	if err != nil {
+		return "", "", err
+	}
+	var forms [2]string
+	for i, l := range []edgeLens{fwd, back} {
+		if !l.lens.Exists() {
+			continue
+		}
+		x, err := lensSyntax(l.lens, l.from, l.to)
+		if err != nil {
+			return "", "", err
+		}
+		if forms[i], err = canonicalize(x); err != nil {
+			return "", "", err
+		}
+	}
+	return forms[0], forms[1], nil
+}
+
 // lensSyntax returns the exported content fields of the lens from version from
 // to version to, as a struct: its source field, its result field (both named
 // by their version, cuetil.LensParam) and its lacunas. The edge is the lens's
@@ -142,7 +174,38 @@ func lensSyntax(lens cue.Value, from, to Version) (ast.Expr, error) {
 		if err != nil {
 			return nil, err
 		}
+		if f.name == "lacunas" {
+			x = withoutMessages(x)
+		}
 		s.Elts = append(s.Elts, &ast.Field{Label: ast.NewIdent(f.label), Value: x})
 	}
 	return s, nil
+}
+
+// withoutMessages returns the exported lacunas x without each lacuna's
+// message: what a lacuna does is its type, its condition and the fields it
+// reports, and its message is prose about them. A derived lacuna's message
+// names the version it drops a field from, which is position; and rewording a
+// message is not a change to a published lens.
+//
+// A message is a field labelled message anywhere in the lacunas, wherever the
+// lacuna is written: a struct in the list, under a comprehension, combined
+// with thema.Lacuna, or bound in a let. The one place a field of that name is
+// not a lacuna's is inside a reported field's value, the instance data a
+// LacunaFieldRef points at, which is not descended into.
+func withoutMessages(x ast.Expr) ast.Expr {
+	return astutil.Apply(x, func(c astutil.Cursor) bool {
+		f, ok := c.Node().(*ast.Field)
+		if !ok {
+			return true
+		}
+		switch name, _, _ := ast.LabelName(f.Label); name {
+		case "message":
+			c.Delete()
+			return false
+		case "value":
+			return false
+		}
+		return true
+	}, nil).(ast.Expr)
 }

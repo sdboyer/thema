@@ -338,37 +338,3 @@ type unaryConvLineage[T Assignee] struct {
 func (lin *unaryConvLineage[T]) TypedSchema() TypedSchema[T] {
 	return lin.tsch
 }
-
-// IsAppendOnly returns nil if the new lineage only contains new schemas compared to the old one.
-// It returns an error if old schemas are updated or deleted.
-func IsAppendOnly(oldLineage Lineage, newLineage Lineage) error {
-	oldSchemas := oldLineage.All()
-	newSchemas := newLineage.All()
-
-	if len(newSchemas) < len(oldSchemas) {
-		return diag.New(diag.E0242).
-			Headlinef("the new lineage has %d schemas where the published one has %d", len(newSchemas), len(oldSchemas)).
-			Help("a published schema is never deleted; add versions, do not remove them").
-			Err()
-	}
-
-	// Compare each schema as thema uses it: joined with the joinSchema, and closed,
-	// since the openness of a schema as written says nothing about whether two
-	// schemas accept the same instances.
-	ctx := oldLineage.Runtime().Context()
-	for i, schema := range oldSchemas {
-		x := cuetil.CloseRecursive(ctx, schema.Underlying().LookupPath(pathSchDef))
-		y := cuetil.CloseRecursive(ctx, newSchemas[i].Underlying().LookupPath(pathSchDef))
-
-		if err := cuetil.Equal(x, y); err != nil {
-			return diag.New(diag.E0243).
-				Headlinef("schema %s differs from the published one", schema.Version()).
-				AtValue(newSchemas[i].Underlying().LookupPath(pathSch)).
-				Cause(err).
-				Help("a published schema is never changed; add a new version instead").
-				Err()
-		}
-	}
-
-	return nil
-}

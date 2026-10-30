@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/fstest"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
@@ -24,6 +25,7 @@ import (
 	"github.com/sdboyer/thema/internal/compile"
 	"github.com/sdboyer/thema/internal/diagdocs"
 	"github.com/sdboyer/thema/internal/diagtest"
+	"github.com/sdboyer/thema/load"
 	"github.com/sdboyer/thema/playground"
 )
 
@@ -395,25 +397,38 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 		}
 		return diag.Diagnostics(err)
 	},
-	// append-only: bind old.cue and new.cue and check that new only appends
-	// to old (thema.IsAppendOnly).
+	// append-only: bind the lineage in the authoring form under published/
+	// and the one under candidate/, each from its history/ alone, and check
+	// that the candidate only appends to the published one
+	// (thema.CheckAppendOnly). Both position their files by the same paths,
+	// history/<version>.thema, so the candidate's come first in the archive,
+	// for the excerpts to be of them.
 	"append-only": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {
-		ctx := cuecontext.New()
-		rt := thema.NewRuntime(ctx)
-		bind := func(name string) thema.Lineage {
-			src, ok := a.File(name)
-			if !ok {
-				t.Fatalf("append-only needs %s", name)
+		fsys := fstest.MapFS{}
+		dirs := map[string]string{}
+		for _, f := range a.Inputs() {
+			parts := strings.SplitN(f.Name, "/", 3)
+			if len(parts) != 3 {
+				t.Fatalf("append-only takes published/<name>/... and candidate/<name>/..., not %s", f.Name)
 			}
-			lin, err := thema.BindLineage(ctx.CompileString(src, cue.Filename(name)), rt)
+			dirs[parts[0]] = parts[0] + "/" + parts[1]
+			fsys[f.Name] = &fstest.MapFile{Data: f.Data}
+		}
+		rt := thema.NewRuntime(cuecontext.New())
+		bind := func(side string) thema.Lineage {
+			dir, ok := dirs[side]
+			if !ok {
+				t.Fatalf("append-only needs a lineage under %s/", side)
+			}
+			lin, err := load.AuthoringLineage(fsys, dir, rt)
 			if err != nil {
-				t.Fatalf("%s does not bind: %v", name, err)
+				t.Fatalf("%s does not bind: %v", dir, diag.Diagnostics(err))
 			}
 			return lin
 		}
-		err := thema.IsAppendOnly(bind("old.cue"), bind("new.cue"))
+		err := thema.CheckAppendOnly(bind("published"), bind("candidate"))
 		if err == nil {
-			t.Fatal("the new lineage only appends")
+			t.Fatal("the candidate only appends")
 		}
 		return diag.Diagnostics(err)
 	},

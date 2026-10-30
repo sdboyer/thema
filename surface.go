@@ -219,6 +219,13 @@ type Schema interface {
 	// lineage. The string key is the name given to the example.
 	Examples() map[string]*Instance
 
+	// ID returns the version's identity, computed from its content: the
+	// digest of its schema and the digest of the lenses on the edge into it.
+	// See [VersionID]. Two lineages agree on a version exactly when its ID is
+	// the same in both, which is what [CheckAppendOnly] checks. The error is
+	// thema's own, and means the content could not be put in canonical form.
+	ID() (VersionID, error)
+
 	// Schema must be a private interface in order to ensure all instances fully
 	// conform to Thema invariants.
 	_schema()

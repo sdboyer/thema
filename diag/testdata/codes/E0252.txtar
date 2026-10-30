@@ -1,0 +1,44 @@
+#op: append-only
+A published version may have instances, so it is never removed. Here the
+candidate's history/ stops at 0.0, and 0.1, which was published, is gone.
+-- candidate/ship/history/0.0.thema --
+Schema: {
+	name: string
+}
+-- published/ship/history/0.0.thema --
+Schema: {
+	name: string
+}
+-- published/ship/history/0.1.thema --
+Schema: {
+	name:  string
+	size?: int
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0252",
+      "severity": "error",
+      "headline": "the lineage removes published version 0.1",
+      "notes": [
+        {
+          "label": "the schema in history/0.1.thema was published, so instances of it may exist"
+        }
+      ],
+      "help": [
+        "restore the schema in history/0.1.thema as it was published; a published version is never removed"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0252]: the lineage removes published version 0.1
+  |
+  = note: the schema in history/0.1.thema was published, so instances of it may exist
+  = help: restore the schema in history/0.1.thema as it was published; a published version is never removed

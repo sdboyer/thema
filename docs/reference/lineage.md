@@ -75,7 +75,9 @@ The error for a version numbered the wrong way says which version it should be.
 - In the authoring form, the latest version's file is at the top of the lineage's directory.
 - CLI commands and playground operations that take an optional version use the latest when none is given.
 
-**Published versions.** A published schema is never changed or deleted. `thema.IsAppendOnly` compares two revisions of a lineage, and reports a deleted schema (`E0242`) or a changed one (`E0243`). Binding does not perform this check.
+**Published versions.** A published version is never changed or removed, and new versions only come after the newest published one. `thema.CheckAppendOnly(published, candidate)` compares a lineage's next revision with the one on record, and `thema lineage check -l <candidate> --published <published>` runs it from the CLI. It reports every violation: a changed schema (`E0250`), a changed lens (`E0251`), a removed version (`E0252`), a new version before the newest published one (`E0253`) and a changed name (`E0254`). Binding does not perform this check, since it sees one revision.
+
+A version is the same in both when it has the same number and the same identity, `Schema.ID()`. The identity is `<schema-hash>:<lens-hash>`: a SHA-256 digest of the canonical form of the version's schema, joined with the `joinSchema`, and one of the lenses on the edge into it, forward from its predecessor and backward to it. Neither covers the version number, examples, comments or layout, so an edit to comments or formatting is not a change, and fixing a lens changes the lens hash and not the schema hash. Of a lacuna, the lens hash covers its type, its condition and the fields it reports, and not its message, which is prose: rewording a message is not a change, and a derived lacuna whose message names the predecessor's number is the same when that number changes. The identity is never stored in the files it describes: what was published is read from the published lineage itself, such as `history/` at the released revision. A tip is never part of the check; in the authoring form, both revisions are read from `history/` alone.
 
 ## Schemas
 

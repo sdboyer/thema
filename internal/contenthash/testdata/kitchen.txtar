@@ -111,7 +111,7 @@ lin: {
 {}
 -- out/0.1 --
 # id
-0c9ada93158827d8a4bfe557fe81eb1137ccd42cb346dd448f3357336e685e03:265ec2cd1e73d982ab0128146f7ec1c413f79f6ea2b85e73ee1ac4812427d5f3
+0c9ada93158827d8a4bfe557fe81eb1137ccd42cb346dd448f3357336e685e03:b9f5e7f311dc8c7dff5cf047faac1c3c57a825fd5b9b4d186cea38e51ff19cda
 # schema
 {
 	#Person: {
@@ -133,7 +133,6 @@ lin: {
 		lacunas: {
 			[if __L3_d2e2adf7177b7a8a.owner != _|_ {
 				__L3_ae51671473fde27d & {
-					message: "owner is dropped"
 					sourceFields: [{
 						path:  "owner"
 						value: __L3_d2e2adf7177b7a8a.owner
@@ -159,7 +158,7 @@ lin: {
 }
 -- out/1.0 --
 # id
-e502270c583211c51f3e6c98916ec9a8b96ad611623b518916a81696cf7a2ab1:4f5595f12a4e7b2838964965543be56225674f38959f6e817f510484a099c276
+e502270c583211c51f3e6c98916ec9a8b96ad611623b518916a81696cf7a2ab1:6f9fe8580c7b3df316002d0c093d65899eab02d05a04801116f4c6b404b2b25c
 # schema
 {
 	count: (>=0 & int) | *0
@@ -177,7 +176,6 @@ e502270c583211c51f3e6c98916ec9a8b96ad611623b518916a81696cf7a2ab1:4f5595f12a4e7b2
 	backward: {
 		lacunas: {
 			[__L3_ae51671473fde27d & {
-				message: "label values are dropped"
 				sourceFields: [{
 					path:  "labels"
 					value: __L3_d2e2adf7177b7a8a.labels

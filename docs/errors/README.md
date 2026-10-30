@@ -76,8 +76,13 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0233](E0233.md) | error | a minor version's disjunction cannot be shown to cover its predecessor's |
 | [E0234](E0234.md) | error | a minor version's pattern constraints cannot be shown to cover its predecessor's |
 | [E0240](E0240.md) | error | the lineage has no schema with that version |
-| [E0242](E0242.md) | error | a published schema was deleted |
-| [E0243](E0243.md) | error | a published schema was changed |
+| [E0242](E0242.md) | error | retired: a published schema was deleted |
+| [E0243](E0243.md) | error | retired: a published schema was changed |
+| [E0250](E0250.md) | error | a published version's schema was changed |
+| [E0251](E0251.md) | error | a published version's lens was changed |
+| [E0252](E0252.md) | error | a published version was removed |
+| [E0253](E0253.md) | error | a new version comes before the newest published version |
+| [E0254](E0254.md) | error | the lineage's name differs from the name it was published with |
 | [E0301](E0301.md) | error | the lineage lacks a lens its versions require |
 | [E0302](E0302.md) | error | the lineage declares a lens its versions do not require |
 | [E0303](E0303.md) | error | a lens does not accept every instance of its source schema |
