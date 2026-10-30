@@ -30,7 +30,7 @@ describe("Output", () => {
 
   it("reads versions through the label it is given", () => {
     const root = document.createElement("div");
-    const label = (v: string) => (v === "1.1" ? "tip (cuts as 1.1)" : v);
+    const label = (v: string) => (v === "1.1" || v === "tip" ? "tip (cuts as 1.1)" : v);
     render(
       <Output
         onOpen={() => {}}
@@ -40,8 +40,9 @@ describe("Output", () => {
           resp: {
             ok: true,
             diagnostics: [],
-            from: "1.1",
+            from: "tip",
             to: "1.0",
+            cutsAs: "1.1",
             output: { firstfield: "hello" },
             lacunas: [{ from: [1, 1], to: [1, 0], lacunas: [{ type: "DroppedField", message: "gone", sourceFields: [{ path: "size", value: "large" }] }] }],
           },

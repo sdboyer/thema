@@ -95,9 +95,6 @@ type TipInfo struct {
 	// it is not clean, and an instance of that version is an instance of the
 	// tip, not of a version that was cut.
 	Provisional bool `json:"provisional"`
-	// Label is the tip as tools show it: "tip (cuts as 2.1)", or "tip
-	// (clean at 2.0)".
-	Label string `json:"label"`
 }
 
 // ValidateRequest validates a data document against one schema. An empty
@@ -146,11 +143,14 @@ type TranslateRequest struct {
 }
 
 // TranslateResponse is the translated instance, as JSON, and the lacunas each
-// step emitted.
+// step emitted. From and To are versions, except that the tip's provisional
+// version is "tip", and CutsAs then gives the version it cuts as; CutsAs is
+// omitted when the translation does not involve the tip.
 type TranslateResponse struct {
 	Result  `tstype:",extends"`
 	From    string                    `json:"from,omitempty"`
 	To      string                    `json:"to,omitempty"`
+	CutsAs  string                    `json:"cutsAs,omitempty"`
 	Output  json.RawMessage           `json:"output,omitempty"`
 	Lacunas lacuna.TranslationLacunas `json:"lacunas,omitempty"`
 }

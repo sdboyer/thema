@@ -11,6 +11,7 @@ import (
 	cerrors "cuelang.org/go/cue/errors"
 
 	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/authoring"
 	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/vmux"
 )
@@ -82,12 +83,23 @@ func instance(lin thema.Lineage, data cue.Value, version string) (*thema.Instanc
 	return sch.Validate(data)
 }
 
+// versionName names version v of a lineage whose tip is tip, nil for none,
+// in a response: "tip" for the tip's provisional version, and cutsAs the
+// version it cuts as; otherwise v, and cutsAs is empty.
+func versionName(tip *authoring.Tip, v thema.SyntacticVersion) (name, cutsAs string) {
+	if tip != nil && !tip.Clean && v == tip.Version {
+		return authoring.TipParam, v.String()
+	}
+	return v.String(), ""
+}
+
 // Translate translates a data document from one version to another.
 func (s *Session) Translate(req TranslateRequest) TranslateResponse {
 	lin, data, err := s.linData(req.Lineage, req.Data)
 	if err != nil {
 		return TranslateResponse{Result: failed(err)}
 	}
+	tip := s.lineage(req.Lineage).tip
 	if req.To == "" {
 		return TranslateResponse{Result: failed(diag.New(diag.E0803).Headline("no version to translate to was given").
 			Help("name the version, such as 1.0").Err())}
@@ -102,7 +114,12 @@ func (s *Session) Translate(req TranslateRequest) TranslateResponse {
 	if err != nil {
 		return TranslateResponse{Result: failed(err)}
 	}
-	resp := TranslateResponse{From: inst.Schema().Version().String(), To: to.Version().String()}
+	resp := TranslateResponse{}
+	resp.From, resp.CutsAs = versionName(tip, inst.Schema().Version())
+	var toCuts string
+	if resp.To, toCuts = versionName(tip, to.Version()); toCuts != "" {
+		resp.CutsAs = toCuts
+	}
 	out, lacunas, err := inst.Translate(to.Version())
 	if err != nil {
 		resp.Result = failed(err)

@@ -123,7 +123,7 @@ Each step's result is closed against its target schema and is the next step's in
 
 **Returns**
 
-- `from` and `to`: the source and target versions.
+- `from` and `to`: the source and target versions. On the [development path](../authoring-form.md#the-tip), which the playground uses for the authoring form and the CLI with `--tip`, the tip's provisional version is `"tip"`, and `cutsAs` gives the version the tip cuts as: `{"from": "1.0", "to": "tip", "cutsAs": "2.1", ...}`. `cutsAs` is omitted when neither end is the tip.
 - The translated instance: playground `output`, CLI `result`, and in Go an `*Instance` of the target schema.
 - `lacunas`: one entry per step, in order, each with `from` and `to` as `[major, minor]` and the `lacunas` that step emitted, `[]` when none. In Go this is `lacuna.TranslationLacunas`; `AsList` flattens it. The playground omits `lacunas` when there were no steps. See [lacunas](lacunas.md) for each lacuna's fields.
 
@@ -144,10 +144,11 @@ Each step's result is closed against its target schema and is the next step's in
 thema data translate -l <lineage> [-p <cue-path>] --to <version> [-e json|yaml] [<data-file>]
 ```
 
-- `-v`, `--to`: the target version. Required.
+- `-v`, `--to`: the target version. Required. With `--tip`, `tip` names the tip's version.
+- `--tip`: bind a lineage in the authoring form with its tip, on the development path.
 - `-l`, `-p`, `-e`, `<data-file>` and `--diag-format` are as for [validate](#validate). There is no `-q`.
 
-Success prints a JSON object with `from`, `to`, `result` and `lacunas`, and exits 0. Failure prints the diagnostics and exits 1.
+Success prints a JSON object with `from`, `to`, `cutsAs` when the tip is involved, `result` and `lacunas`, and exits 0. Failure prints the diagnostics and exits 1.
 
 **Go**
 

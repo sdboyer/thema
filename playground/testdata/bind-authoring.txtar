@@ -42,7 +42,6 @@ Schema: {
   "tip": {
     "version": "1.0",
     "clean": true,
-    "provisional": false,
-    "label": "tip (clean at 1.0)"
+    "provisional": false
   }
 }

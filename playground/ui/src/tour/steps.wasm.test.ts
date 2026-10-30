@@ -66,6 +66,7 @@ describe.skipIf(!haveThema())("the tour, against thema", () => {
 
   it("translates forward, with a placeholder", async () => {
     const r = await t.call("translate", { lineage: lineage(ship), data: doc(data.v0), to: "1.0" });
+    expect([r.from, r.to, r.cutsAs]).toEqual(["0.0", "1.0", undefined]);
     expect(r.output).toEqual(JSON.parse(step("translate-forward").result!));
     expect(r.lacunas!.flatMap((s) => s.lacunas.map((l) => l.type))).toEqual(["Placeholder"]);
   });
@@ -94,6 +95,7 @@ describe.skipIf(!haveThema())("the tour, against thema", () => {
   it("chains translation through 1.0", async () => {
     const r = await t.call("translate", { lineage: lineage(withMinor()), data: doc(data.v11Large), from: "1.1", to: "0.0" });
     expect(r.output).toEqual(JSON.parse(step("translate-chain").result!));
+    expect([r.from, r.to, r.cutsAs]).toEqual(["tip", "0.0", "1.1"]);
     expect(r.lacunas!.map((s) => s.lacunas.map((l) => `${l.type} ${(l.sourceFields ?? []).map((f) => f.path)}`))).toEqual([
       ["DroppedField size"],
       ["DroppedField secondfield"],

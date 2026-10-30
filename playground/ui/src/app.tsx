@@ -13,7 +13,7 @@ import {
   lineageInput,
   shareWarnBytes,
 } from "./state/session";
-import { bindSummary, byKind, isHistory, tipFile, versionLabel } from "./state/tip";
+import { bindSummary, byKind, isHistory, tipFile, tipLabel, versionLabel } from "./state/tip";
 import { Tour } from "./tour/Tour";
 import { Diagnostics } from "./ui/Diagnostics";
 import { DocLink, hasDoc } from "./ui/docs";
@@ -314,7 +314,7 @@ export function App() {
           {frozen && (
             <p class="frozen-note" role="note">
               {lin.path} is frozen: a version under history/ is cut and never changes. Edit {tipFile}
-              {tip ? `, the ${tip.label}` : ""}.
+              {tip ? `, the ${tipLabel(tip)}` : ""}.
             </p>
           )}
           <div class={`lineage-editor ${frozen ? "frozen" : ""}`}>

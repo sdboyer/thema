@@ -254,6 +254,16 @@ func (dl *dynamicLoader) versionLabel(v thema.SyntacticVersion) string {
 	return v.String()
 }
 
+// versionName names version v of the loaded lineage in machine-readable
+// output: with --tip, the tip's version is "tip", and cutsAs the version it
+// cuts as; otherwise v, and cutsAs is empty.
+func (dl *dynamicLoader) versionName(v thema.SyntacticVersion) (name, cutsAs string) {
+	if dl.dev != nil && dl.dev.Provisional(v) {
+		return authoring.TipParam, v.String()
+	}
+	return v.String(), ""
+}
+
 // attachSchema attaches the requested schema, or the latest, to the loaded
 // lineage. Other validators decide whether what was loaded is acceptable
 // (i.e. if the command required explicit input).

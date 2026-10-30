@@ -34,7 +34,7 @@ func (s *Session) Bind(req BindRequest) BindResponse {
 		resp.Versions = append(resp.Versions, sch.Version().String())
 	}
 	if e.tip != nil {
-		resp.Tip = &TipInfo{Version: e.tip.Version.String(), Clean: e.tip.Clean, Provisional: !e.tip.Clean, Label: e.tip.String()}
+		resp.Tip = &TipInfo{Version: e.tip.Version.String(), Clean: e.tip.Clean, Provisional: !e.tip.Clean}
 	}
 	return resp
 }

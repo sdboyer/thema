@@ -21,15 +21,23 @@ function compareVersions(a: string, b: string): number {
   return (x[0] ?? 0) - (y[0] ?? 0) || (x[1] ?? 0) - (y[1] ?? 0) || a.localeCompare(b);
 }
 
+// tipLabel is the tip as tools show it: "tip (cuts as 2.1)", or "tip (clean
+// at 2.0)" when it equals the newest version cut.
+export function tipLabel(tip: TipInfo): string {
+  return tip.clean ? `tip (clean at ${tip.version})` : `tip (cuts as ${tip.version})`;
+}
+
 // versionLabel is how version v reads: the tip's label for the provisional
-// version the tip binds as, v itself for every version cut.
+// version the tip binds as, and for "tip", which thema's responses name it
+// by; v itself for every version cut.
 export function versionLabel(v: string, tip?: TipInfo | null): string {
-  return tip?.provisional && v === tip.version ? tip.label : v;
+  if (!tip) return v;
+  return v === "tip" || (tip.provisional && v === tip.version) ? tipLabel(tip) : v;
 }
 
 // bindSummary says what a lineage binds: its versions, with the tip's label
 // for a provisional tip, or after them for a clean one.
 export function bindSummary(versions: readonly string[], tip?: TipInfo | null): string {
   const s = `binds: ${versions.map((v) => versionLabel(v, tip)).join(", ")}`;
-  return tip && !tip.provisional ? `${s} · ${tip.label}` : s;
+  return tip && !tip.provisional ? `${s} · ${tipLabel(tip)}` : s;
 }

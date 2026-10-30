@@ -2,9 +2,11 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -105,12 +107,45 @@ func TestDataTip(t *testing.T) {
 		t.Fatalf("validate --tip -v tip: %v\n%s\n%s", err, out, errOut)
 	}
 
-	out, errOut, err = runThema(t, dir, `{"name": "Argo"}`, "data", "translate", "-l", dir, "--tip", "--to", "0.1")
-	if err != nil {
-		t.Fatalf("translate --tip: %v\n%s", err, errOut)
+}
+
+// thema data translate names the tip "tip" in its JSON, with the version it
+// cuts as beside it, and prints a translation that does not involve the tip
+// as it would without --tip.
+func TestDataTranslateTip(t *testing.T) {
+	dir := writeTipDir(t, minorTip)
+	cases := []struct {
+		name, doc string
+		args      []string
+		want      map[string]any // the output's fields other than result and lacunas
+	}{
+		{"into the tip", `{"name": "Argo"}`, []string{"--tip", "--to", "0.1"},
+			map[string]any{"from": "0.0", "to": "tip", "cutsAs": "0.1"}},
+		{"into the tip, named tip", `{"name": "Argo"}`, []string{"--tip", "--to", "tip"},
+			map[string]any{"from": "0.0", "to": "tip", "cutsAs": "0.1"}},
+		{"out of the tip", `{"name": "Argo", "crew": 3}`, []string{"--tip", "--to", "0.0"},
+			map[string]any{"from": "tip", "to": "0.0", "cutsAs": "0.1"}},
+		{"within the history, with --tip", `{"name": "Argo"}`, []string{"--tip", "--to", "0.0"},
+			map[string]any{"from": "0.0", "to": "0.0"}},
+		{"without --tip", `{"name": "Argo"}`, []string{"--to", "0.0"},
+			map[string]any{"from": "0.0", "to": "0.0"}},
 	}
-	if !strings.Contains(out, `"to": "tip (cuts as 0.1)"`) || !strings.Contains(out, `"from": "0.0"`) {
-		t.Errorf("translate --tip output:\n%s", out)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			out, errOut, err := runThema(t, dir, c.doc, append([]string{"data", "translate", "-l", dir}, c.args...)...)
+			if err != nil {
+				t.Fatalf("%v\n%s", err, errOut)
+			}
+			var got map[string]any
+			if err := json.Unmarshal([]byte(out), &got); err != nil {
+				t.Fatalf("output is not JSON: %v\n%s", err, out)
+			}
+			delete(got, "result")
+			delete(got, "lacunas")
+			if !reflect.DeepEqual(got, c.want) {
+				t.Errorf("got %v, want %v; output:\n%s", got, c.want, out)
+			}
+		})
 	}
 }
 

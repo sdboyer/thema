@@ -181,6 +181,10 @@ Success outputs the translated object instance, the version the input validated
 against, any emitted lacuna, and exits 0. Failure exits 1 with an informative
 error.
 
+With --tip, a "from" or "to" that is the tip's version is "tip", and "cutsAs"
+gives the version the tip cuts as: {"from": "1.0", "to": "tip", "cutsAs":
+"2.1", ...}. A translation that does not involve the tip has no "cutsAs".
+
 Note that Thema's invariants (once finalized) guarantee that failures can only
 arise during data input decoding or validation, never during translation.
 `,
@@ -207,9 +211,15 @@ func (dc *dataCommand) runTranslate(cmd *cobra.Command, args []string) error {
 	}
 
 	// TODO support non-JSON output
+	from, cutsAs := dc.lla.dl.versionName(inst.Schema().Version())
+	to, toCuts := dc.lla.dl.versionName(tinst.Schema().Version())
+	if toCuts != "" {
+		cutsAs = toCuts
+	}
 	r := translationResult{
-		From:    dc.lla.dl.versionLabel(inst.Schema().Version()),
-		To:      dc.lla.dl.versionLabel(tinst.Schema().Version()),
+		From:    from,
+		To:      to,
+		CutsAs:  cutsAs,
 		Result:  tinst.Underlying(),
 		Lacunas: lac,
 	}
@@ -224,9 +234,13 @@ func (dc *dataCommand) runTranslate(cmd *cobra.Command, args []string) error {
 	return err
 }
 
+// translationResult is translate's output. With --tip, a version that is the
+// tip's is "tip", and CutsAs is the version the tip cuts as; it is empty, and
+// omitted, when the translation does not involve the tip.
 type translationResult struct {
 	From    string                    `json:"from"`
 	To      string                    `json:"to,omitempty"`
+	CutsAs  string                    `json:"cutsAs,omitempty"`
 	Result  cue.Value                 `json:"result"`
 	Lacunas lacuna.TranslationLacunas `json:"lacunas"`
 }

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { TipInfo } from "../api/types";
-import { bindSummary, byKind, isHistory, isTip, versionLabel } from "./tip";
+import { bindSummary, byKind, isHistory, isTip, tipLabel, versionLabel } from "./tip";
 
-const cutting: TipInfo = { version: "1.1", clean: false, provisional: true, label: "tip (cuts as 1.1)" };
-const clean: TipInfo = { version: "1.0", clean: true, provisional: false, label: "tip (clean at 1.0)" };
+const cutting: TipInfo = { version: "1.1", clean: false, provisional: true };
+const clean: TipInfo = { version: "1.0", clean: true, provisional: false };
 
 describe("the tip and history", () => {
   it("tells the two kinds of file apart", () => {
@@ -20,8 +20,15 @@ describe("the tip and history", () => {
     expect(byKind(files).map((x) => x.path)).toEqual(["tip.thema", "history/2.0.thema", "history/2.1.thema", "history/10.0.thema"]);
   });
 
-  it("labels the provisional version as the tip, and no other", () => {
+  it("labels the tip from its version and whether it is clean", () => {
+    expect(tipLabel(cutting)).toBe("tip (cuts as 1.1)");
+    expect(tipLabel(clean)).toBe("tip (clean at 1.0)");
+  });
+
+  it("labels the provisional version, and tip, as the tip, and no other", () => {
     expect(versionLabel("1.1", cutting)).toBe("tip (cuts as 1.1)");
+    expect(versionLabel("tip", cutting)).toBe("tip (cuts as 1.1)");
+    expect(versionLabel("tip", null)).toBe("tip");
     expect(versionLabel("1.0", cutting)).toBe("1.0");
     expect(versionLabel("1.0", clean)).toBe("1.0");
     expect(versionLabel("1.0", undefined)).toBe("1.0");

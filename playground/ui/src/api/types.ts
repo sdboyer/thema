@@ -114,11 +114,6 @@ export interface TipInfo {
    * tip, not of a version that was cut.
    */
   provisional: boolean;
-  /**
-   * Label is the tip as tools show it: "tip (cuts as 2.1)", or "tip
-   * (clean at 2.0)".
-   */
-  label: string;
 }
 /**
  * ValidateRequest validates a data document against one schema. An empty
@@ -171,11 +166,14 @@ export interface TranslateRequest {
 }
 /**
  * TranslateResponse is the translated instance, as JSON, and the lacunas each
- * step emitted.
+ * step emitted. From and To are versions, except that the tip's provisional
+ * version is "tip", and CutsAs then gives the version it cuts as; CutsAs is
+ * omitted when the translation does not involve the tip.
  */
 export interface TranslateResponse extends Result {
   from?: string;
   to?: string;
+  cutsAs?: string;
   output?: unknown;
   lacunas?: TranslationLacunas;
 }

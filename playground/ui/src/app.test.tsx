@@ -46,7 +46,7 @@ const fakeThema: Thema = {
           name: "ship",
           versions: ["0.0", "0.1"],
           normal: "",
-          tip: { version: "0.1", clean: false, provisional: true, label: "tip (cuts as 0.1)" },
+          tip: { version: "0.1", clean: false, provisional: true },
         };
       default:
         return { ok: true, diagnostics: [] };

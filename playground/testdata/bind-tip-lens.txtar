@@ -32,8 +32,9 @@ BackwardLens: {
 {
   "ok": true,
   "diagnostics": [],
-  "from": "1.0",
+  "from": "tip",
   "to": "0.0",
+  "cutsAs": "1.0",
   "output": {
     "name": "Argo",
     "crew": 4
