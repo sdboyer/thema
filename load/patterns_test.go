@@ -22,7 +22,7 @@ import (
 // says how to declare one. Declaring it optional in a minor version first lets
 // the values instances carry there land in it, for the next lens to map.
 func TestAuthoringPatternKeys(t *testing.T) {
-	const first = "history/0.0.thema"
+	const first, tip = "history/0.0.thema", "1.0.thema"
 	const labels = "Schema: {\n\tlabels: [string]: string\n}\n"
 	type translation struct {
 		from, to thema.SyntacticVersion
@@ -40,8 +40,8 @@ func TestAuthoringPatternKeys(t *testing.T) {
 	}{
 		"implicit copy carries the keys": {
 			files: map[string]string{
-				first:       "Schema: {\n\tlabels: [string]: string\n\ta: string\n}\n",
-				"1.0.thema": "Schema: {\n\tlabels: [string]: string\n\ta: int\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {\n\t\ta: 1\n\t}\n}\n\nBackwardLens: {\n\tv1_0: _\n\tv0_0: {\n\t\ta: \"x\"\n\t}\n}\n",
+				first: "Schema: {\n\tlabels: [string]: string\n\ta: string\n}\n",
+				tip:   "Schema: {\n\tlabels: [string]: string\n\ta: int\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {\n\t\ta: 1\n\t}\n}\n\nBackwardLens: {\n\tv1_0: _\n\tv0_0: {\n\t\ta: \"x\"\n\t}\n}\n",
 			},
 			translations: []translation{
 				{from: thema.SV(0, 0), to: thema.SV(1, 0), data: `{labels: {env: "prod"}, a: "y"}`, want: `{"labels":{"env":"prod"},"a":1}`},
@@ -50,16 +50,16 @@ func TestAuthoringPatternKeys(t *testing.T) {
 		},
 		"reads a key": {
 			files: map[string]string{
-				first:       labels,
-				"1.0.thema": "Schema: {\n\tlabels: [string]: string\n\tenv:    string\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {\n\t\tenv: _coalesce(v0_0.labels.env, \"none\")\n\t}\n}\n",
+				first: labels,
+				tip:   "Schema: {\n\tlabels: [string]: string\n\tenv:    string\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {\n\t\tenv: _coalesce(v0_0.labels.env, \"none\")\n\t}\n}\n",
 			},
 			err:  diag.E0340,
 			help: "declare labels.env as an optional field in a new minor version",
 		},
 		"writes a key": {
 			files: map[string]string{
-				first:       "Schema: {\n\tenv: string\n}\n",
-				"1.0.thema": "Schema: {\n\tlabels: [string]: string\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {\n\t\tlabels: {\n\t\t\tenv: v0_0.env\n\t\t}\n\t}\n}\n",
+				first: "Schema: {\n\tenv: string\n}\n",
+				tip:   "Schema: {\n\tlabels: [string]: string\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {\n\t\tlabels: {\n\t\t\tenv: v0_0.env\n\t\t}\n\t}\n}\n",
 			},
 			err:  diag.E0341,
 			help: "declare labels.env in 1.0, or copy the struct that holds it whole",
@@ -71,7 +71,7 @@ func TestAuthoringPatternKeys(t *testing.T) {
 			files: map[string]string{
 				first:       labels,
 				"0.1.thema": "Schema: {\n\tlabels: {\n\t\tenv?: string\n\t\t[string]: string\n\t}\n}\n",
-				"1.0.thema": "Schema: {\n\tlabels: [string]: string\n\tenv:    string\n}\n\nForwardLens: {\n\tv0_1: _\n\tv1_0: {\n\t\tenv: _coalesce(v0_1.labels.env, \"none\")\n\t}\n}\n",
+				tip:         "Schema: {\n\tlabels: [string]: string\n\tenv:    string\n}\n\nForwardLens: {\n\tv0_1: _\n\tv1_0: {\n\t\tenv: _coalesce(v0_1.labels.env, \"none\")\n\t}\n}\n",
 			},
 			translations: []translation{
 				{from: thema.SV(0, 0), to: thema.SV(1, 0), data: `{labels: {env: "prod", x: "y"}}`, want: `{"labels":{"x":"y"},"env":"prod"}`},

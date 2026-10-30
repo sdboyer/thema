@@ -85,6 +85,8 @@ func TestDeclaresPath(t *testing.T) {
 	}
 }
 
+const labelsEnv, mxy = "labels.env", "m.xy"
+
 func TestPatternKey(t *testing.T) {
 	ctx := cuecontext.New()
 	sch := ctx.CompileString(`{
@@ -99,11 +101,11 @@ func TestPatternKey(t *testing.T) {
 	for path, want := range map[string]string{
 		"a":               "",
 		"labels":          "",
-		"labels.env":      "labels.env",
-		"labels.env.deep": "labels.env",
+		labelsEnv:         labelsEnv,
+		"labels.env.deep": labelsEnv,
 		"m.named":         "",
-		"m.xy":            "m.xy",
-		"m.xy.v":          "m.xy",
+		mxy:               mxy,
+		"m.xy.v":          mxy,
 		"m.y":             "",
 		"open.y":          "",
 		"l[2].tags.k":     "l[2].tags.k",
@@ -129,7 +131,7 @@ func TestPatternKeyConstructionIndependent(t *testing.T) {
 	const body = `{a: string, labels: {team?: string, [string]: string}, ...}`
 	path := cue.ParsePath("s")
 	for name, mk := range map[string]func() cue.Value{
-		"literal":            func() cue.Value { return ctx.CompileString("s: " + body).LookupPath(path) },
+		"literal struct":     func() cue.Value { return ctx.CompileString("s: " + body).LookupPath(path) },
 		"reference":          func() cue.Value { return ctx.CompileString("_S: " + body + "\ns: _S").LookupPath(path) },
 		"embedded reference": func() cue.Value { return ctx.CompileString("_S: " + body + "\ns: {_S}").LookupPath(path) },
 		"definition":         func() cue.Value { return ctx.CompileString("#S: " + body + "\ns: #S").LookupPath(path) },
@@ -149,7 +151,7 @@ func TestPatternKeyConstructionIndependent(t *testing.T) {
 			if err := sch.Err(); err != nil {
 				t.Fatal(err)
 			}
-			for path, want := range map[string]string{"labels.env": "labels.env", "labels.team": "", "a": "", "z": ""} {
+			for path, want := range map[string]string{labelsEnv: labelsEnv, "labels.team": "", "a": "", "z": ""} {
 				got := ""
 				if k, ok := PatternKey(ctx, sch, cue.ParsePath(path)); ok {
 					got = k.String()
@@ -158,7 +160,7 @@ func TestPatternKeyConstructionIndependent(t *testing.T) {
 					t.Errorf("%s: got %q, want %q", path, got, want)
 				}
 			}
-			if DeclaresPath(ctx, sch, cue.ParsePath("labels.env")) {
+			if DeclaresPath(ctx, sch, cue.ParsePath(labelsEnv)) {
 				t.Error("labels.env declared")
 			}
 			if !DeclaresPath(ctx, sch, cue.ParsePath("labels.team")) {
@@ -168,7 +170,7 @@ func TestPatternKeyConstructionIndependent(t *testing.T) {
 			for _, p := range UndeclaredFields(ctx, ctx.CompileString(`{a: "x", labels: {team: "t", env: "e"}, z: 1}`), sch) {
 				got = append(got, p.String())
 			}
-			if !reflect.DeepEqual(got, []string{"labels.env", "z"}) {
+			if !reflect.DeepEqual(got, []string{labelsEnv, "z"}) {
 				t.Errorf("undeclared: got %v, want [labels.env z]", got)
 			}
 		})
