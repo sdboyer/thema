@@ -341,7 +341,7 @@ Compiles the whole lineage to a Cap'n Proto schema: one struct per major version
 
 - The schema text, deterministic for a lineage.
 - The `capnp` tool's layout of it, the `CodeGeneratorRequest` of `capnp compile -o-`, unless asked not to compute it.
-- The compiled artifact: a Cap'n Proto message (`encoding/capnp/compiled/wire/compiled.capnp`) carrying the schema, its nodes, each version's root struct, each lens's program, its CEL and its writes into unions, and the extras checks.
+- The compiled artifact: a Cap'n Proto message (`encoding/capnp/compiled/wire/compiled.capnp`) carrying the schema, its nodes, each version's root struct and the structs it declares, each lens's program, its CEL, its writes into unions and what translation reads of it, the acceptance checks, and the messages of the lacunas translation raises by itself ([what the engine does around each step](../capnp.md#what-the-engine-does-around-each-step)).
 
 **CLI**
 

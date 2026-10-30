@@ -48,9 +48,26 @@ edge 0.1 -> 0.0
     out.b <- in.b
     out.t <- in.t
   }
+-- out/capnp/fate --
+version 0.0
+  struct (root) RequiredToDefaultedPointerV0 closed: s, b, t
+  struct t RequiredToDefaultedPointerV0.T closed: a
+version 0.1
+  struct (root) RequiredToDefaultedPointerV0 closed: s, b, t
+  struct t RequiredToDefaultedPointerV0.T closed: a
+edge 0.1 -> 0.0
+  read s
+  read b
+  read t
+  reader s <- s
+  reader b <- b
+  reader t <- t
+  copy s <- s
+  copy b <- b
+  copy t <- t
 -- out/capnp/artifact --
-sha256 7ed17d09c820f94106851ea0dce409aa738fa1b17cb62f7ebf9773965f37276e
-2200 bytes
+sha256 bb27f7ea74feabfb6256f0adc681938d1780b319efe5a1d69f0cc42e809fbd49
+4840 bytes
 -- out/capnp/layout --
 struct RequiredToDefaultedPointerV0 @0xd8c40829f7e1304b: data=0 ptrs=4
   extras @0: data off=0

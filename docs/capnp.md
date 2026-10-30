@@ -199,9 +199,11 @@ constraint the renderer cannot express, such as a validator call
 `encoding/capnp/compiled/wire/compiled.capnp` declares (an unpacked,
 single-segment Cap'n Proto message; `compiled.Decode` reads it back): the
 namespace and lineage name, the schema text and the tool's layout, the
-versions with their content hashes and root structs, every node with how its
-fields map back to the lineage's labels and values, every edge with its
-program, its CEL and its writes into unions, and the checks. Nothing in it is specific to Go, and the Go
+versions with their content hashes, root structs and the structs each
+declares, every node with how its fields map back to the lineage's labels and
+values, every edge with its program, its CEL, its writes into unions and what
+translation reads of its lens, the checks, and the messages of the lacunas
+translation raises by itself. Nothing in it is specific to Go, and the Go
 model it round-trips through (`encoding/capnp/compiled`) does not depend on
 CUE. The meta-schema is a published language (`compiled-artifact` in
 `.thresh/thresh.cue`): a field may be appended, never renumbered, retyped or
@@ -236,7 +238,11 @@ The compiler never derives these from the program a second time.
   declares there, and whether the author left it open (`...`). A node is
   shared by the minor versions of a generation, so the labels say which of
   its fields belong to this version. The struct alternatives of one
-  disjunction share a path and differ by node.
+  disjunction share a path and differ by node. Openness is read as
+  translation reads it: whether an instance holding a field the struct does
+  not declare is still an instance of the closed schema. A struct
+  alternative as `compat.Branches` returns it reports every label allowed,
+  closed or not, so `Allows` cannot answer.
 - **Per edge with a lens, `fate`**:
   - `reads`: the input paths the lens's result reads (`InputReads`).
   - `readers`: for each read, the result fields that copy it or compute from
@@ -254,9 +260,10 @@ The compiler never derives these from the program a second time.
   where undeclared data could arrive under that name in some step. That is a
   struct the version declares the label in, whose counterpart in an adjacent
   version is open and does not declare it. The counterpart is the struct at
-  the same path, or the input of a copy. These checks extend the extras
-  checks: a forward minor step needs the same ones, and each check is a
-  predicate over the arriving value, whatever step it arrives from.
+  the same path, or the input of a copy, and for a tagged alternative the one
+  with the same tag. These checks extend the extras checks: a forward minor
+  step needs the same ones, and each check is a predicate over the arriving
+  value, whatever step it arrives from.
 - **`messages`**: the text of every lacuna translation raises by itself, as
   templates identical to Go's ([set-aside fields](reference/lacunas.md#set-aside-fields)).
   Each has a cause and a form: one field, several fields, or, for a
@@ -342,9 +349,12 @@ facto answer, and the encoder decides none of them. An engine that follows
 the procedure above follows Go.
 
 1. **Disjunctions.** Go's `DeclaresPath` counts a path as declared when any
-   alternative declares it. The artifact lists each alternative, so the
-   engine takes the union of the labels of every `structs` entry at the path.
-   Openness is decided by validation against the alternative the data is in.
+   alternative declares it, then places the field by validating against the
+   alternative the data is in. The artifact lists each alternative, so the
+   engine takes the union of the labels of every `structs` entry at the path
+   for "declared". A label only another alternative declares is then carried
+   where the data's alternative is open, and is otherwise a
+   `LossyFieldMapping`, not a `DroppedField`.
 2. **Pattern keys** count as declared ([#197](https://github.com/sdboyer/thema/issues/197)).
 3. **A value read only in a comprehension's clause** has no reader, so it is
    never lost, even when its value goes nowhere (#196, open item 0).
@@ -362,8 +372,19 @@ the procedure above follows Go.
 10. **Placing is validation.** Go places a field only where the result is
     still an instance of the closed target. For what compiles, that is an
     undeclared label in an open struct, or a check that accepts the value.
-11. **Values and paths in lacunas** are rendered as Go decodes them (JSON
-    numbers, strings, objects in instance order) and as CUE prints a path.
+11. **Values and paths in lacunas** are rendered as Go decodes a value into
+    `any`, so an object's keys carry no order, and paths as CUE prints a
+    path.
+12. **Unreachable rules.** Two of the forms above cannot arise in a lineage
+    that compiles. They are kept because they are Go's.
+    - A minor version cannot close a struct, and cannot declare a label in an
+      open one unless the label accepts every value (compat's labels rules).
+      Capnp has no type that accepts every value (rule `top`), so no compiled
+      forward minor step promotes or sets aside undeclared data.
+    - The moved form of `LossyFieldMapping` needs an extra to reach a field at
+      another path. That happens only beneath a struct the lens copies whole
+      from an open one, and lenscheck refuses such a copy as not total
+      wherever the target declares a label the source does not.
 
 ## Verdicts and rules
 

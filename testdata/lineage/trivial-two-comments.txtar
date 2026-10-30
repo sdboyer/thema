@@ -268,6 +268,15 @@ edge 0.1 -> 0.0
   }
 checks
   0.1 TrivialTwoCommentsV0.secondfield: ((type(x) == int) && (x >= -2147483648) && (x <= 2147483647))
+-- out/encoding/capnp/fate --
+version 0.0
+  struct (root) TrivialTwoCommentsV0 closed: firstfield
+version 0.1
+  struct (root) TrivialTwoCommentsV0 closed: firstfield, secondfield
+edge 0.1 -> 0.0
+  read firstfield
+  reader firstfield <- firstfield
+  copy firstfield <- firstfield
 -- out/encoding/capnp/artifact --
-sha256 73e928f1e9f74c86ad7ab470f593d10f6dae059ed158f50b46b808320763e4a4
-1704 bytes
+sha256 e095fcf4acfaed59ead280e01a37f2ec213b61f2fd0fa71e04c239eff3caec16
+3800 bytes

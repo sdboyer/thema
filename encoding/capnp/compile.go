@@ -293,7 +293,25 @@ func Compile(lin thema.Lineage, opts ...Option) (*Compiled, error) {
 	}
 	cp.c.Nodes = cp.gens.nodes()
 	cp.c.Edges = cp.edges()
+	if err := cp.fates(); err != nil {
+		return nil, err
+	}
+	shapes := map[thema.SyntacticVersion][]shape{}
+	for i, sch := range lin.All() {
+		v := sch.Version()
+		shapes[v] = cp.shapes(v)
+		for _, s := range shapes[v] {
+			cp.c.Versions[i].Structs = append(cp.c.Versions[i].Structs, s.StructShape)
+		}
+	}
 	cp.c.Checks = cp.checks()
+	have := map[string]bool{}
+	for _, ck := range cp.c.Checks {
+		have[checkKey(thema.SyntacticVersion(ck.Version), ck.Node, ck.Label)] = true
+	}
+	cp.c.Checks = append(cp.c.Checks, cp.fateChecks(shapes, have)...)
+	sortChecks(cp.c.Checks)
+	cp.c.Messages = asideMessages
 	if len(cp.findings) > 0 {
 		return nil, cp.result()
 	}

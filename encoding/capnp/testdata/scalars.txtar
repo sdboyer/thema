@@ -81,9 +81,12 @@ struct ScalarsV0 @0xe08eb1e049c9456a {
     c @2;
   }
 }
+-- out/capnp/fate --
+version 0.0
+  struct (root) ScalarsV0 closed: b, s, by, n, i8, i16, i32, i64, u8, u16, u32, u64, small, negative, wide, huge, constant, negConst, bigConst, intHull, strConst, defBool, defStr, defBytes, defInt, defEnum, defNeg
 -- out/capnp/artifact --
-sha256 c6658ef154cb7f71660aa1e6c69d93f1171c8c76f77e52c0d7b26554910b0d54
-4880 bytes
+sha256 d214e48015b8791cd24489dc645b34ca1c1c3aa1cbfedcf8166463bfe82e95fb
+7016 bytes
 -- out/capnp/layout --
 struct ScalarsV0 @0xe08eb1e049c9456a: data=8 ptrs=5
   extras @0: data off=0

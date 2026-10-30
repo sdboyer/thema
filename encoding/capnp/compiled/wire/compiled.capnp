@@ -4,7 +4,8 @@
 # layout the capnp tool computed), the struct and enum nodes and how each maps
 # back to the lineage's labels and values, the versions and the struct each is
 # read through, every lens program (the lens IR) with its expressions rendered
-# to CEL, and the extras acceptance checks (#48).
+# to CEL, the extras acceptance checks (#48), and what translation reads
+# around each step for the fields a program does not write.
 #
 # Nothing here is specific to Go: the $Go annotations only direct Go code
 # generation, and the artifact is the same message under any binding. The
@@ -33,6 +34,9 @@ struct Artifact {
   nodes @5 :List(Node);
   edges @6 :List(Edge);
   checks @7 :List(Check);
+  messages @8 :List(AsideMessage);
+  # The templates of the lacunas translation raises by itself, for the fields
+  # no program writes and translation does not carry.
 }
 
 struct SynVer {
@@ -48,6 +52,22 @@ struct Version {
   # The version's content-hash identity, <schema digest>:<lens digest>.
   root @2 :UInt64;
   # The ID of the struct node instances of this version are read through.
+  structs @3 :List(StructShape);
+  # The structs the version's schema declares, at any depth, root first.
+}
+
+struct StructShape {
+  # One struct a version's schema declares: what translation reads of it to
+  # decide whether undeclared data has a place there.
+  path @0 :List(Step);
+  # The struct's path in an instance; a list's element and a map's value are
+  # any. The struct alternatives of one disjunction share a path.
+  node @1 :UInt64;
+  # The struct node it is read through.
+  labels @2 :List(Text);
+  # The labels this version declares in the struct, in declaration order.
+  open @3 :Bool;
+  # The author left the struct open (...): it carries undeclared data.
 }
 
 struct Node {
@@ -193,6 +213,71 @@ struct Edge {
   unions @6 :List(UnionWrite);
   # The writes of the program that name an alternative of a disjunction
   # (a copy's alts, a wrap's alt), lowered to members of the compiled unions.
+  fate @7 :Fate;
+  # What translation reads of the step's lens to decide the fate of the
+  # fields its program does not write. Null for a step with no lens.
+}
+
+struct Fate {
+  # What translation reads of a lens, from the lens itself, for the fields its
+  # program does not write. Paths are within the lens's input or result.
+  reads @0 :List(PathRef);
+  # The input paths the lens's result reads.
+  readers @1 :List(PathPair);
+  # Each read input path, with a result field that copies or computes from it.
+  copies @2 :List(PathPair);
+  # Each result field whose contents come whole from one input value.
+  named @3 :List(Named);
+  # The input paths the lens's lacunas name in their sourceFields.
+}
+
+struct PathRef {
+  steps @0 :List(Step);
+}
+
+struct PathPair {
+  result @0 :List(Step);
+  input @1 :List(Step);
+}
+
+struct Named {
+  # A source path a lacuna of the lens names, as the program's field reference
+  # field of lacuna lacuna does, under that reference's guard.
+  path @0 :List(Step);
+  lacuna @1 :UInt32;
+  field @2 :UInt32;
+}
+
+struct AsideMessage {
+  # The template of the message of a lacuna translation raises by itself.
+  # Placeholders: {fields}, {field}, {target}, {from}, {to}, {struct}.
+  cause @0 :AsideCause;
+  form @1 :MessageForm;
+  type @2 :Text;
+  # The lacuna's type: DroppedField or LossyFieldMapping.
+  text @3 :Text;
+}
+
+enum AsideCause {
+  closed @0;
+  # The target does not declare the field, and its struct there is closed.
+  nowhere @1;
+  # The result has no struct at the field's parent path.
+  written @2;
+  # The target declares the field, and the program wrote its own value.
+  unwritten @3;
+  # Both versions declare the field, and the lens neither maps nor writes it.
+  lost @4;
+  # The lens reads the field, none of its readers was written, and it could
+  # not be carried.
+  lossy @5;
+  # The value is not an instance of the field the target declares for it.
+}
+
+enum MessageForm {
+  one @0;
+  several @1;
+  moved @2;
 }
 
 struct UnionWrite {
@@ -401,9 +486,9 @@ enum VarRole {
 }
 
 struct Check {
-  # One extras acceptance check: whether an extra carried under label by data
-  # of the version before is an instance of the field the version newly
-  # declares at the struct node.
+  # One acceptance check: whether a value arriving as undeclared data under
+  # label is an instance of the field the version declares at the struct
+  # node.
   version @0 :SynVer;
   node @1 :UInt64;
   label @2 :Text;

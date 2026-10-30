@@ -51,9 +51,21 @@ edge 0.1 -> 0.0
     out.a <- in.a
     out.s <- in.s
   }
+-- out/capnp/fate --
+version 0.0
+  struct (root) OptionalToDefaultedV0 closed: a, s
+version 0.1
+  struct (root) OptionalToDefaultedV0M1 closed: a, s
+edge 0.1 -> 0.0
+  read a
+  read s
+  reader a <- a
+  reader s <- s
+  copy a <- a
+  copy s <- s
 -- out/capnp/artifact --
-sha256 6104f2f260423f3683389116163a9e4f69488ec22fe757f4fb45f7086a920558
-2344 bytes
+sha256 eea856ee20a042bc9ff3b86b3529715d1452499f986ef08b4a8c586ec7985e57
+4600 bytes
 -- out/capnp/layout --
 struct OptionalToDefaultedV0 @0xc2b6dcc847e2751d: data=1 ptrs=3
   extras @0: data off=0

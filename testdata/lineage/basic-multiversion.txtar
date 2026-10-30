@@ -1797,6 +1797,107 @@ checks
   0.2 BasicMultiversionV0.withDefault: ((x == "foo") || (x == "bar"))
   1.0 BasicMultiversionV1.renamed: (type(x) == string)
   2.0 BasicMultiversionV2.toObj: ((type(x) == map) && (("init" in x) && (type(x["init"]) == string)) && (x.all(k1, k1 in ["init"])))
+-- out/encoding/capnp/fate --
+version 0.0
+  struct (root) BasicMultiversionV0 closed: init
+version 0.1
+  struct (root) BasicMultiversionV0 closed: init, optional
+version 0.2
+  struct (root) BasicMultiversionV0 closed: init, optional, withDefault
+version 0.3
+  struct (root) BasicMultiversionV0 closed: init, optional, withDefault
+version 1.0
+  struct (root) BasicMultiversionV1 closed: renamed, optional, withDefault
+version 1.1
+  struct (root) BasicMultiversionV1 closed: renamed, optional, withDefault
+version 2.0
+  struct (root) BasicMultiversionV2 closed: toObj, optional, withDefault
+  struct toObj BasicMultiversionV2.ToObj closed: init
+edge 0.1 -> 0.0
+  read init
+  reader init <- init
+  copy init <- init
+edge 0.2 -> 0.1
+  read init
+  read optional
+  read optional
+  reader init <- init
+  reader optional <- optional
+  copy init <- init
+  copy optional <- optional
+edge 0.3 -> 0.2
+  read init
+  read optional
+  read optional
+  read withDefault
+  read withDefault
+  read withDefault
+  read withDefault
+  reader init <- init
+  reader optional <- optional
+  reader withDefault <- withDefault
+  copy init <- init
+  copy optional <- optional
+  named withDefault (lacuna 0, field 0)
+edge 0.3 -> 1.0
+  read init
+  read optional
+  read optional
+  read withDefault
+  read withDefault
+  read withDefault
+  reader renamed <- init
+  reader optional <- optional
+  reader withDefault <- withDefault
+  copy renamed <- init
+  copy optional <- optional
+edge 1.0 -> 0.3
+  read renamed
+  read optional
+  read optional
+  read withDefault
+  read withDefault
+  read withDefault
+  reader init <- renamed
+  reader optional <- optional
+  reader withDefault <- withDefault
+  copy init <- renamed
+  copy optional <- optional
+edge 1.1 -> 1.0
+  read renamed
+  read optional
+  read optional
+  read withDefault
+  read withDefault
+  read withDefault
+  reader renamed <- renamed
+  reader optional <- optional
+  reader withDefault <- withDefault
+  copy renamed <- renamed
+  copy optional <- optional
+  named withDefault (lacuna 0, field 0)
+edge 1.1 -> 2.0
+  read renamed
+  read optional
+  read optional
+  read withDefault
+  reader toObj.init <- renamed
+  reader optional <- optional
+  reader withDefault <- withDefault
+  copy toObj.init <- renamed
+  copy optional <- optional
+  copy withDefault <- withDefault
+edge 2.0 -> 1.1
+  read toObj.init
+  read optional
+  read optional
+  read withDefault
+  reader renamed <- toObj.init
+  reader optional <- optional
+  reader withDefault <- withDefault
+  copy renamed <- toObj.init
+  copy optional <- optional
+  copy withDefault <- withDefault
 -- out/encoding/capnp/artifact --
-sha256 7cf6d60022ebba7d5da89c4d26b6e0a56e46ebec409b0bf96343d54420250701
-15544 bytes
+sha256 af3d31399d4267f412afc86144724cb4b8ec97e0e9994efeee85e1d27e4f0a9d
+23904 bytes

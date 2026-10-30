@@ -84,9 +84,28 @@ edge 1.0 -> 0.0
   }
 checks
   1.0 EachNestedV1.SItem.FItem.m: (type(x) == string)
+-- out/capnp/fate --
+version 0.0
+  struct (root) EachNestedV0 closed: s
+  struct s[_] EachNestedV0.SItem closed: f, k
+  struct s[_].f[_] EachNestedV0.SItem.FItem closed: n
+version 1.0
+  struct (root) EachNestedV1 closed: s
+  struct s[_] EachNestedV1.SItem closed: f, k
+  struct s[_].f[_] EachNestedV1.SItem.FItem closed: m
+edge 0.0 -> 1.0
+  read s[_].k
+  read s[_].f[_].n
+  reader s <- s[_].k
+  reader s <- s[_].f[_].n
+edge 1.0 -> 0.0
+  read s[_].k
+  read s[_].f[_].m
+  reader s <- s[_].k
+  reader s <- s[_].f[_].m
 -- out/capnp/artifact --
-sha256 eabb37824bede582706e3600ffe69ca8b2d70ee37fff8400cbb3a53d8cc98ac5
-5344 bytes
+sha256 8d90a89ebb7fda125ce20fb92e04f9f45127566befde1e86cc21a1c5d1b4e9df
+8688 bytes
 -- out/capnp/layout --
 struct EachNestedV0 @0xf84004196e487481: data=0 ptrs=2
   extras @0: data off=0

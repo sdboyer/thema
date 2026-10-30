@@ -74,9 +74,12 @@ struct EnumsV0 @0xb6ab4bbff19a8c44 {
     y @1;
   }
 }
+-- out/capnp/fate --
+version 0.0
+  struct (root) EnumsV0 closed: plain, spaced, digits, keywords, empty, unicode, single, defaulted, elems
 -- out/capnp/artifact --
-sha256 bd155f2d02e2e49e1543fa3bc4f8996db89d875a56774bbf2d32b2723a39aeb0
-4120 bytes
+sha256 59f711f062426c534362cc816c6a9e5c3a10d2150d1acbd68c5e97f74203103e
+5936 bytes
 -- out/capnp/layout --
 struct EnumsV0 @0xb6ab4bbff19a8c44: data=2 ptrs=2
   extras @0: data off=0

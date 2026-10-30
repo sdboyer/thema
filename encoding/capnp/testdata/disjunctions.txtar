@@ -210,9 +210,24 @@ struct DisjunctionsV0 @0xd96f94153a884245 {
     }
   }
 }
+-- out/capnp/fate --
+version 0.0
+  struct (root) DisjunctionsV0 closed: kinds, withList, withStruct, tagged, intTagged, boolTagged, taggedAndKind, strings, ints, optional, elems, mapped, mappedList, nested, doubleList, taggedElems, nullable
+  struct withStruct DisjunctionsV0.WithStruct closed: a
+  struct tagged DisjunctionsV0.TaggedKindCircle closed: kind, r
+  struct tagged DisjunctionsV0.TaggedKindSquare closed: kind, side
+  struct intTagged DisjunctionsV0.IntTaggedT1 closed: t, a
+  struct intTagged DisjunctionsV0.IntTaggedT2 closed: t, b
+  struct boolTagged DisjunctionsV0.BoolTaggedOnTrue closed: on, a
+  struct boolTagged DisjunctionsV0.BoolTaggedOnFalse closed: on
+  struct taggedAndKind DisjunctionsV0.TaggedAndKindKindA closed: kind, x
+  struct taggedAndKind DisjunctionsV0.TaggedAndKindKindB closed: kind, y
+  struct nested DisjunctionsV0.Nested closed: inner
+  struct taggedElems[_] DisjunctionsV0.TaggedElemsItem.KindA closed: kind, x
+  struct taggedElems[_] DisjunctionsV0.TaggedElemsItem.KindB closed: kind, y
 -- out/capnp/artifact --
-sha256 ae7d74381f74664bcc85a32cbad86bcc903eddfaaf0a93d723bc75f454a75652
-16648 bytes
+sha256 547ef98126ca328d0aeb7e7d3c1f14f105c54b7f9ac6c1f47526cf9aa55eb495
+19864 bytes
 -- out/capnp/layout --
 struct DisjunctionsV0 @0xd96f94153a884245: data=5 ptrs=17
   extras @0: data off=0

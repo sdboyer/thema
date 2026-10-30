@@ -124,9 +124,19 @@ struct CollectionsV0 @0x8897a4e818553256 {
     }
   }
 }
+-- out/capnp/fate --
+version 0.0
+  struct (root) CollectionsV0 closed: strings, ints, nested, closed, structs, stringMap, listMap, mapMap, structMap, mapList, inner, empty, emptyList, emptyElems, emptyMap, Capital, with space, kebab-case, 1starts, snake_case, extras
+  struct structs[_] CollectionsV0.StructsItem closed: a, b
+  struct structMap[_] CollectionsV0.StructMapEntry.Value closed: a
+  struct inner CollectionsV0.Inner closed: a, deeper
+  struct inner.deeper CollectionsV0.Inner.Deeper closed: b
+  struct empty CollectionsV0.Empty closed: 
+  struct emptyElems[_] CollectionsV0.EmptyElemsItem closed: 
+  struct emptyMap[_] CollectionsV0.EmptyMapEntry.Value closed: 
 -- out/capnp/artifact --
-sha256 3353fb7a5de057d8dd27785aa516bc0c82dff7439684f1c5b271dc244f92c289
-8856 bytes
+sha256 5d37f4d8094f9b1bd4e5982505249cf5e073ca6a1cb7e3d43b9b8f6975ae10d4
+11568 bytes
 -- out/capnp/layout --
 struct CollectionsV0 @0x8897a4e818553256: data=0 ptrs=22
   extras @0: data off=0
