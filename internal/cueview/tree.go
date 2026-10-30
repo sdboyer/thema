@@ -32,6 +32,22 @@ func NewTree(v cue.Value) (*Tree, error) {
 	if err != nil {
 		return nil, err
 	}
+	return treeOf(n)
+}
+
+// NewSelfContainedTree is NewTree, exporting v as SelfContained: references
+// into imported packages are bound in generated lets, as other references
+// that leave v are, so the tree's file can be evaluated on its own, without
+// the packages v's source imported. Only builtin packages stay imported.
+func NewSelfContainedTree(v cue.Value) (*Tree, error) {
+	n, err := SelfContained(v)
+	if err != nil {
+		return nil, err
+	}
+	return treeOf(n)
+}
+
+func treeOf(n ast.Node) (*Tree, error) {
 	var f *ast.File
 	switch x := n.(type) {
 	case *ast.File:
