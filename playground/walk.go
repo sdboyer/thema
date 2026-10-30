@@ -4,7 +4,6 @@ import (
 	"errors"
 	"io/fs"
 	"path"
-	"strings"
 
 	"cuelang.org/go/cue"
 	cerrors "cuelang.org/go/cue/errors"
@@ -30,30 +29,22 @@ const ExampleFile = "example.cue"
 // for the register-examples operation, so that a host can offer a directory
 // of lineages without writing their records by hand.
 //
-// Every directory beneath root, or root itself, that holds a version file, as
-// its tip or under its history/, is a lineage in the authoring form, and is
-// one example when it holds an [ExampleFile] too; nothing beneath it is
-// another. A lineage without one is not an example, so a tree of lineages
-// can hold some that are not offered; when none is an example, the error
-// lists them. An example's ID is its directory's path relative to root, or
-// root's name when root is the lineage. Whether it binds is found by binding
-// it, and its data documents are its schemas' examples.
+// root is a collection of lineages in the authoring form, as
+// [authoring.LoadCollection] reads it: each of its immediate subdirectories
+// that holds a version file, as its tip or under its history/, is a lineage.
+// A lineage is one example when its directory holds an [ExampleFile] too. A
+// lineage without one is not an example, so a collection can hold some that
+// are not offered; when none is an example, the error lists them. An
+// example's ID is its lineage's name. Whether it binds is found by binding it,
+// and its data documents are its schemas' examples.
 //
 // Each problem found is a diagnostic in the error, and no examples are
 // returned with one.
 func WalkExamples(fsys fs.FS, root string) (RegisterExamplesRequest, error) {
 	req := RegisterExamplesRequest{Examples: []HostExample{}}
-	info, err := fs.Stat(fsys, root)
-	switch {
-	case err != nil:
-		b := diag.New(diag.E0601).Headlinef("%s does not exist", root)
-		if !errors.Is(err, fs.ErrNotExist) {
-			b.Headlinef("%s cannot be read", root).Detail(diag.OSReason(err))
-		}
-		return req, b.Help("give the directory that holds the examples' lineages").Err()
-	case !info.IsDir():
-		return req, diag.New(diag.E0622).Headlinef("%s is not a directory", root).
-			Help("give the directory that holds the examples' lineages").Err()
+	members, err := authoring.LoadCollection(fsys, root)
+	if err != nil {
+		return req, err
 	}
 	s, err := New()
 	if err != nil {
@@ -62,15 +53,13 @@ func WalkExamples(fsys fs.FS, root string) (RegisterExamplesRequest, error) {
 
 	var errs cerrors.Error
 	var bare []string
-	walkErr := fs.WalkDir(fsys, root, func(dir string, d fs.DirEntry, err error) error {
-		if err != nil {
-			errs = cerrors.Append(errs, cerrors.Promote(diag.New(diag.E0601).Headlinef("%s cannot be read", dir).Detail(diag.OSReason(err)).Err(), ""))
-			return nil
+	for _, m := range members {
+		if m.Err != nil {
+			errs = cerrors.Append(errs, cerrors.Promote(m.Err, ""))
+			continue
 		}
-		if !d.IsDir() || !holdsVersionFile(fsys, dir) {
-			return nil
-		}
-		h, found, err := s.walkExample(fsys, root, dir)
+		dir := path.Join(root, m.Name)
+		h, found, err := s.walkExample(fsys, dir, m)
 		switch {
 		case err != nil:
 			errs = cerrors.Append(errs, cerrors.Promote(err, ""))
@@ -79,10 +68,6 @@ func WalkExamples(fsys fs.FS, root string) (RegisterExamplesRequest, error) {
 		default:
 			bare = append(bare, dir)
 		}
-		return fs.SkipDir
-	})
-	if walkErr != nil {
-		return req, diag.InternalErr(walkErr)
 	}
 	if errs != nil {
 		return RegisterExamplesRequest{Examples: []HostExample{}}, errs
@@ -97,26 +82,9 @@ func WalkExamples(fsys fs.FS, root string) (RegisterExamplesRequest, error) {
 	return req, nil
 }
 
-// holdsVersionFile says whether dir holds a version file of its own: its tip,
-// at its top, or a frozen version under its history/.
-func holdsVersionFile(fsys fs.FS, dir string) bool {
-	for _, d := range []string{dir, path.Join(dir, authoring.HistoryDir)} {
-		ents, err := fs.ReadDir(fsys, d)
-		if err != nil {
-			continue
-		}
-		for _, e := range ents {
-			if !e.IsDir() && strings.HasSuffix(e.Name(), authoring.Ext) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// walkExample reads the example in the lineage directory dir, beneath root.
+// walkExample reads the example of the lineage m, whose directory is dir.
 // found is false when dir has no [ExampleFile].
-func (s *Session) walkExample(fsys fs.FS, root, dir string) (h HostExample, found bool, err error) {
+func (s *Session) walkExample(fsys fs.FS, dir string, m authoring.Member) (h HostExample, found bool, err error) {
 	metaPath := path.Join(dir, ExampleFile)
 	src, err := fs.ReadFile(fsys, metaPath)
 	if err != nil {
@@ -129,23 +97,15 @@ func (s *Session) walkExample(fsys fs.FS, root, dir string) (h HostExample, foun
 	if err != nil {
 		return h, false, err
 	}
-	name, files, err := authoring.Load(fsys, dir)
-	if err != nil {
-		return h, false, err
-	}
-	in := LineageInput{Name: name}
-	for _, f := range files {
+	in := LineageInput{Name: m.Name}
+	for _, f := range m.Files {
 		in.Files = append(in.Files, File{Path: f.Path, Text: string(f.Text)})
 	}
-	id := strings.TrimPrefix(dir, root+"/")
-	if dir == root {
-		id = path.Base(root)
-	}
 	if meta.title == "" {
-		meta.title = name
+		meta.title = m.Name
 	}
 	h = HostExample{
-		Example: ExampleInfo{ID: id, Title: meta.title, Category: meta.category, Summary: meta.summary, Kind: kindAuthoring},
+		Example: ExampleInfo{ID: m.Name, Title: meta.title, Category: meta.category, Summary: meta.summary, Kind: kindAuthoring},
 		Lineage: in,
 		Data:    []DataInput{},
 	}

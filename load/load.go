@@ -1,6 +1,6 @@
 // Package load loads lineages: CUE packages that import thema's CUE module,
-// through [InstanceWithThema], and lineages in the authoring form, through
-// [AuthoringLineage].
+// through [InstanceWithThema], lineages in the authoring form, through
+// [AuthoringLineage], and collections of them, through [AuthoringCollection].
 package load
 
 import (

@@ -185,6 +185,8 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0620](E0620.md) | error | a flag or argument is not valid |
 | [E0621](E0621.md) | error | an example's example.cue is not valid |
 | [E0622](E0622.md) | error | the examples directory holds no example |
+| [E0623](E0623.md) | error | a collection's path is not a directory |
+| [E0624](E0624.md) | error | a collection's directory is a lineage's directory |
 | [E0701](E0701.md) | error | generating code from the schema failed |
 | [E0801](E0801.md) | error | the playground request is malformed |
 | [E0802](E0802.md) | error | the playground request gives the lineage in neither form, or in both |

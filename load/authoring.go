@@ -19,6 +19,12 @@ func AuthoringLineage(fsys fs.FS, dir string, rt *thema.Runtime, opts ...thema.B
 	if err != nil {
 		return nil, err
 	}
+	return bindAuthoring(rt, name, files, opts)
+}
+
+// bindAuthoring compiles the history of the lineage name, in files, and binds
+// it.
+func bindAuthoring(rt *thema.Runtime, name string, files []authoring.File, opts []thema.BindOption) (thema.Lineage, error) {
 	c, err := authoring.Compile(rt.Context(), name, files)
 	if err != nil {
 		return nil, err
@@ -64,6 +70,12 @@ func DevelopmentLineage(fsys fs.FS, dir string, rt *thema.Runtime, opts ...thema
 	if err != nil {
 		return nil, err
 	}
+	return bindDevelopment(rt, name, files, opts)
+}
+
+// bindDevelopment compiles the lineage name, in files, with its tip, and
+// binds it on the development path.
+func bindDevelopment(rt *thema.Runtime, name string, files []authoring.File, opts []thema.BindOption) (*Development, error) {
 	c, err := authoring.CompileDevelopment(rt.Context(), name, files)
 	if err != nil {
 		return nil, err

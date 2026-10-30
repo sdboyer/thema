@@ -1,0 +1,29 @@
+#op: cli
+#args: playground examples lineages.md
+A collection of lineages is a directory: each directory directly beneath it
+that holds version files is a lineage, named for its directory. A file is not
+a collection.
+-- lineages.md --
+The lineages are elsewhere.
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0623",
+      "severity": "error",
+      "headline": "lineages.md is not a directory",
+      "help": [
+        "give the directory that holds the lineages' directories"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0623]: lineages.md is not a directory
+  |
+  = help: give the directory that holds the lineages' directories

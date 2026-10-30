@@ -23,17 +23,20 @@ var playgroundExamplesCmd = &cobra.Command{
 	Long: `Print the examples a directory of lineages offers the playground, as the
 examples.json the playground's frontend looks for beside thema.wasm.
 
-Every directory beneath <dir> that holds version files, a tip.thema or a
-history/ of frozen versions, is a lineage in the authoring form. The playground
-shows its tip as the one file to edit, and its history read-only. It is an
-example when it also holds an example.cue, which describes it:
+<dir> is a collection of lineages in the authoring form: each directory
+directly beneath it that holds version files, a tip.thema or a history/ of
+frozen versions, is a lineage, named for its directory. A collection is flat:
+nothing deeper is read, and files beside the lineages are ignored. The
+playground shows a lineage's tip as the one file to edit, and its history
+read-only. A lineage is an example when its directory also holds an
+example.cue, which describes it:
 
     category: "Pets"            // required: the group it is listed in
     title:    "dog"             // optional: the lineage's name if absent
     summary:  "A dog's record." // optional
 
 A lineage without an example.cue is not offered. Each example's ID is its
-directory's path beneath <dir>; whether it binds is found by binding it with
+lineage's name; whether it binds is found by binding it with
 its tip, as the playground does, and its data documents are its schemas'
 examples.
 

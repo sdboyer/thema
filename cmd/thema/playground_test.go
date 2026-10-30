@@ -18,15 +18,15 @@ import (
 
 var setupPlaygroundOnce, setupServeOnce sync.Once
 
-// writeExamplesDir writes a directory of lineages, one of them an example,
-// and returns it.
+// writeExamplesDir writes a collection of lineages, one of them an example,
+// and returns it. wip is not a lineage of it, but a collection of its own.
 func writeExamplesDir(t *testing.T) string {
 	t.Helper()
 	dir := filepath.Join(t.TempDir(), "lineages")
 	files := map[string]string{
-		"pets/cat/history/0.0.thema":  "Schema: {\n\tlives: int\n}\n",
-		"pets/cat/tip.thema":          "Schema: {\n\tlives: int\n}\n",
-		"pets/cat/example.cue":        "category: \"Pets\"\nsummary: \"A cat.\"\n",
+		"cat/history/0.0.thema":       "Schema: {\n\tlives: int\n}\n",
+		"cat/tip.thema":               "Schema: {\n\tlives: int\n}\n",
+		"cat/example.cue":             "category: \"Pets\"\nsummary: \"A cat.\"\n",
 		"wip/draft/history/0.0.thema": "Schema: {\n\tx: int\n}\n",
 		"wip/draft/tip.thema":         "Schema: {\n\tx: int\n}\n",
 	}
@@ -75,7 +75,7 @@ func TestPlaygroundExamples(t *testing.T) {
 	if len(req.Examples) != 1 {
 		t.Fatalf("printed %d examples, want 1:\n%s", len(req.Examples), out)
 	}
-	if e := req.Examples[0].Example; e.ID != "pets/cat" || e.Category != "Pets" || e.Summary != "A cat." || !e.Binds {
+	if e := req.Examples[0].Example; e.ID != "cat" || e.Category != "Pets" || e.Summary != "A cat." || !e.Binds {
 		t.Errorf("printed %+v", e)
 	}
 }
