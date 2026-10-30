@@ -28,7 +28,7 @@ Schema: {
       "severity": "error",
       "headline": "_coalesce takes two arguments: _coalesce(v0_0.<path>, fallback)",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "ship/history/1.0.thema",
         "line": 8,
         "col": 6,
         "offset": 62,
@@ -40,7 +40,7 @@ Schema: {
       "severity": "error",
       "headline": "0.0 declares a and 1.0 does not, and nothing maps it: write <field>: v0_0.a to move it, or a: _drop",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "ship/history/1.0.thema",
         "line": 5,
         "col": 1,
         "offset": 24,
@@ -56,14 +56,14 @@ Schema: {
 }
 -- out/text --
 error[E0335]: _coalesce takes two arguments: _coalesce(v0_0.<path>, fallback)
- --> history/1.0.thema:8:6
+ --> ship/history/1.0.thema:8:6
   |
 8 |         b: _coalesce(v0_0.a)
   |            ^^^^^^^^^
   |
 
 error[E0347]: 0.0 declares a and 1.0 does not, and nothing maps it: write <field>: v0_0.a to move it, or a: _drop
- --> history/1.0.thema:5:1
+ --> ship/history/1.0.thema:5:1
   |
 5 | ForwardLens: {
   | ^^^^^^^^^^^

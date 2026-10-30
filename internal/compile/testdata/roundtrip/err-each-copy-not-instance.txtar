@@ -19,7 +19,7 @@ ForwardLens: {
 Schema: close({u!: [...string]})
 -- out/error --
 error[E0359]: the ForwardLens in history/1.0.thema copies u[].id into the elements of u, which do not accept every value of it
- --> history/1.0.thema:8:20
+ --> ship/history/1.0.thema:8:20
   |
 8 |         u: _each(v0_0.u, _item.id)
   |                          ^^^^^

@@ -141,7 +141,10 @@ func (ic *initCommand) processPackageArgs(cmd *cobra.Command, args []string) err
 
 // process both openapi and json schema, abstract over stdin
 func (ic *initCommand) processInput(cmd *cobra.Command, args []string) error {
-	byt, err := pathOrStdin(args)
+	if err := openWorkspace(args...); err != nil {
+		return err
+	}
+	byt, _, err := pathOrStdin(args)
 	if err != nil {
 		return err
 	}

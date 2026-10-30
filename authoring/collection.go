@@ -12,10 +12,13 @@ import (
 )
 
 // A Member is one lineage of a collection, as [LoadCollection] reads it: its
-// name, which is its directory's, and its files, as [Load] reads them. Err is
-// set, and Files is nil, when its files cannot be read.
+// name, which is its directory's; its directory, by its path within the
+// fs.FS the collection was read from; and its files, as [Load] reads them,
+// each named by its path within that FS. Err is set, and Files is nil, when
+// its files cannot be read.
 type Member struct {
 	Name  string
+	Dir   string
 	Files []File
 	Err   error
 }
@@ -74,10 +77,10 @@ func LoadCollection(fsys fs.FS, root string) ([]Member, error) {
 		lin, err := holdsVersionFile(fsys, dir)
 		switch {
 		case err != nil:
-			members = append(members, Member{Name: e.Name(), Err: diag.New(diag.E0601).
+			members = append(members, Member{Name: e.Name(), Dir: dir, Err: diag.New(diag.E0601).
 				Headlinef("%s cannot be read", dir).Detail(diag.OSReason(err)).Err()})
 		case lin:
-			m := Member{Name: e.Name()}
+			m := Member{Name: e.Name(), Dir: dir}
 			_, m.Files, m.Err = Load(fsys, dir)
 			members = append(members, m)
 		}

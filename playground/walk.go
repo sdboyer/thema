@@ -58,15 +58,14 @@ func WalkExamples(fsys fs.FS, root string) (RegisterExamplesRequest, error) {
 			errs = cerrors.Append(errs, cerrors.Promote(m.Err, ""))
 			continue
 		}
-		dir := path.Join(root, m.Name)
-		h, found, err := s.walkExample(fsys, dir, m)
+		h, found, err := s.walkExample(fsys, m)
 		switch {
 		case err != nil:
 			errs = cerrors.Append(errs, cerrors.Promote(err, ""))
 		case found:
 			req.Examples = append(req.Examples, h)
 		default:
-			bare = append(bare, dir)
+			bare = append(bare, m.Dir)
 		}
 	}
 	if errs != nil {
@@ -82,10 +81,10 @@ func WalkExamples(fsys fs.FS, root string) (RegisterExamplesRequest, error) {
 	return req, nil
 }
 
-// walkExample reads the example of the lineage m, whose directory is dir.
-// found is false when dir has no [ExampleFile].
-func (s *Session) walkExample(fsys fs.FS, dir string, m authoring.Member) (h HostExample, found bool, err error) {
-	metaPath := path.Join(dir, ExampleFile)
+// walkExample reads the example of the lineage m. found is false when its
+// directory has no [ExampleFile].
+func (s *Session) walkExample(fsys fs.FS, m authoring.Member) (h HostExample, found bool, err error) {
+	metaPath := path.Join(m.Dir, ExampleFile)
 	src, err := fs.ReadFile(fsys, metaPath)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {

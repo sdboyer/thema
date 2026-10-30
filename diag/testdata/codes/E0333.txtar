@@ -37,7 +37,7 @@ Schema: {
       "severity": "error",
       "headline": "the ForwardLens in history/1.0.thema declares _match, a hidden field, which is not data",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "ship/history/1.0.thema",
         "line": 8,
         "col": 3,
         "offset": 65,
@@ -61,7 +61,7 @@ Schema: {
 }
 -- out/text --
 error[E0333]: the ForwardLens in history/1.0.thema declares _match, a hidden field, which is not data
- --> history/1.0.thema:8:3
+ --> ship/history/1.0.thema:8:3
   |
 8 |         _match: "a"
   |         ^^^^^^

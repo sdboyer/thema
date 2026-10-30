@@ -19,7 +19,7 @@ ForwardLens: {
 Schema: close({u!: [...string]})
 -- out/error --
 error[E0337]: _each's body "id-" + _item.id is neither a struct of mappings over _item nor a copy of it
- --> history/1.0.thema:8:20
+ --> ship/history/1.0.thema:8:20
   |
 8 |         u: _each(v0_0.u, "id-" + _item.id)
   |                          ^^^^^

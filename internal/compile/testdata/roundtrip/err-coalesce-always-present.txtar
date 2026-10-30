@@ -20,7 +20,7 @@ Schema: {
 }
 -- out/error --
 error[E0348]: 0.0 always has a, so _coalesce's fallback could never apply: write b: v0_0.a
- --> history/1.0.thema:8:6
+ --> ship/history/1.0.thema:8:6
   |
 8 |         b: _coalesce(v0_0.a, "x")
   |            ^^^^^^^^^

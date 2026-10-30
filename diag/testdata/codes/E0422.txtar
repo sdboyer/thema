@@ -46,7 +46,7 @@ Schema: {
       "severity": "error",
       "headline": "_drop is not defined in a lens; an expression refers to v0_0, to len, quo, rem, div, mod and to the strings functions",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "ship/history/1.0.thema",
         "line": 9,
         "col": 10,
         "offset": 88,
@@ -58,7 +58,7 @@ Schema: {
       "severity": "error",
       "headline": "v0_0.name is string, not a condition: compare it; an optional field named bare tests its presence",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "ship/history/1.0.thema",
         "line": 15,
         "col": 13,
         "offset": 198,
@@ -70,7 +70,7 @@ Schema: {
       "severity": "error",
       "headline": "0.0 declares count and 1.0 does not, and nothing maps it: write <field>: v0_0.count to move it, or count: _drop",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "ship/history/1.0.thema",
         "line": 5,
         "col": 1,
         "offset": 27,
@@ -86,21 +86,21 @@ Schema: {
 }
 -- out/text --
 error[E0418]: _drop is not defined in a lens; an expression refers to v0_0, to len, quo, rem, div, mod and to the strings functions
- --> history/1.0.thema:9:10
+ --> ship/history/1.0.thema:9:10
   |
 9 |         count: _drop(v0_0.count)
   |                ^^^^^
   |
 
 error[E0422]: v0_0.name is string, not a condition: compare it; an optional field named bare tests its presence
-  --> history/1.0.thema:15:13
+  --> ship/history/1.0.thema:15:13
    |
 15 |             when:    v0_0.name
    |                      ^^^^
    |
 
 error[E0347]: 0.0 declares count and 1.0 does not, and nothing maps it: write <field>: v0_0.count to move it, or count: _drop
- --> history/1.0.thema:5:1
+ --> ship/history/1.0.thema:5:1
   |
 5 | ForwardLens: {
   | ^^^^^^^^^^^

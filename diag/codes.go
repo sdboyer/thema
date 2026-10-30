@@ -87,7 +87,7 @@ var Codes = []CodeInfo{
 	{Code: E0148, Severity: SeverityError, Title: "a numbered version file is at the top of the lineage's directory, not under history/", Sentinels: []error{terrors.ErrInvalidLineage}, Positionless: true},
 	{Code: E0149, Severity: SeverityError, Title: "the lineage's directory has no tip.thema", Sentinels: []error{terrors.ErrInvalidLineage}, Positionless: true},
 	{Code: E0150, Severity: SeverityError, Title: "a lens of the tip names a version other than the tip's parent, the newest version under history/", Sentinels: []error{terrors.ErrInvalidLineage}},
-	{Code: E0151, Severity: SeverityError, Title: "a collection's lineage has no lineage.cue, or one that is not the normal form of its history/", Positionless: true},
+	{Code: E0151, Severity: SeverityError, Title: "a collection's lineage has no normalized.gen.cue, or one that is not the normal form of its history/", Positionless: true},
 	{Code: E0201, Severity: SeverityError, Title: "the first schema is not version 0.0", Sentinels: []error{terrors.ErrNonContiguousVersions}},
 	{Code: E0202, Severity: SeverityError, Title: "a schema's version does not follow its predecessor's", Sentinels: []error{terrors.ErrNonContiguousVersions}},
 	{Code: E0203, Severity: SeverityError, Title: "a major version declares no schemas", Sentinels: []error{terrors.ErrNonContiguousVersions}},
@@ -277,7 +277,7 @@ const (
 	E0148 Code = "E0148" // a <major>.<minor>.thema at the top of the lineage, not under history/
 	E0149 Code = "E0149" // no tip.thema, where the tip is needed (the development path, the clean check)
 	E0150 Code = "E0150" // a tip lens names a stale parent, v2_0 where history/'s newest is 2.1
-	E0151 Code = "E0151" // a collection's lineage whose lineage.cue is missing, or not GenerateLineageFile's text
+	E0151 Code = "E0151" // a collection's lineage whose normalized.gen.cue is missing, or not GenerateNormalizedFile's text
 
 	E0201 Code = "E0201" // first version is not 0.0
 	E0202 Code = "E0202" // a version is neither the next minor nor the next major

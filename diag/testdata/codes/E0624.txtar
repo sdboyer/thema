@@ -20,14 +20,14 @@ category: "Ships"
     {
       "code": "E0624",
       "severity": "error",
-      "headline": "ship is a lineage's directory, not a collection's",
+      "headline": "lineages/ship is a lineage's directory, not a collection's",
       "notes": [
         {
           "label": "a collection's lineages are the directories beneath it, each holding tip.thema and history/"
         }
       ],
       "help": [
-        "give the directory that holds ship, or load it as one lineage"
+        "give the directory that holds lineages/ship, or load it as one lineage"
       ]
     }
   ],
@@ -38,7 +38,7 @@ category: "Ships"
   }
 }
 -- out/text --
-error[E0624]: ship is a lineage's directory, not a collection's
+error[E0624]: lineages/ship is a lineage's directory, not a collection's
   |
   = note: a collection's lineages are the directories beneath it, each holding tip.thema and history/
-  = help: give the directory that holds ship, or load it as one lineage
+  = help: give the directory that holds lineages/ship, or load it as one lineage

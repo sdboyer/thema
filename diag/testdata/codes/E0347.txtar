@@ -31,7 +31,7 @@ Schema: {
       "severity": "error",
       "headline": "0.0 declares before and 1.0 does not, and nothing maps it: write <field>: v0_0.before to move it, or before: _drop",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "ship/history/1.0.thema",
         "line": 6,
         "col": 1,
         "offset": 51,
@@ -47,7 +47,7 @@ Schema: {
 }
 -- out/text --
 error[E0347]: 0.0 declares before and 1.0 does not, and nothing maps it: write <field>: v0_0.before to move it, or before: _drop
- --> history/1.0.thema:6:1
+ --> ship/history/1.0.thema:6:1
   |
 6 | ForwardLens: {
   | ^^^^^^^^^^^

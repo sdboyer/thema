@@ -29,7 +29,7 @@ Schema: {
       "severity": "error",
       "headline": "b is mapped twice",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "ship/history/1.0.thema",
         "line": 9,
         "col": 3,
         "offset": 71,
@@ -45,7 +45,7 @@ Schema: {
 }
 -- out/text --
 error[E0345]: b is mapped twice
- --> history/1.0.thema:9:3
+ --> ship/history/1.0.thema:9:3
   |
 9 |         b: "x"
   |         ^

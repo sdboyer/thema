@@ -37,7 +37,7 @@ func TestLoadCollection(t *testing.T) {
 	if !slices.Equal(names, []string{"a", "b"}) {
 		t.Fatalf("members %v, want a and b", names)
 	}
-	if len(ms[0].Files) != 1 || ms[0].Files[0].Path != "history/0.0.thema" {
+	if len(ms[0].Files) != 1 || ms[0].Files[0].Path != v00File {
 		t.Errorf("a's files are %+v, want its one version file", ms[0].Files)
 	}
 	if len(ms[1].Files) != 1 || ms[1].Files[0].Path != authoring.TipFile {
@@ -68,7 +68,7 @@ func TestLoadCollectionUnreadable(t *testing.T) {
 	if err := os.Chmod(locked, 0); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = os.Chmod(locked, 0o700) })
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o700) }) //nolint:gosec // a directory, which needs x to be removed
 
 	ms, err := authoring.LoadCollection(os.DirFS(root), ".")
 	if err != nil {

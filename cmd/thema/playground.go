@@ -3,8 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -66,14 +64,14 @@ func setupPlaygroundCommand(cmd *cobra.Command) {
 // examplesManifest walks dir for the playground's examples, and returns them
 // as examples.json.
 func examplesManifest(dir string) ([]byte, error) {
-	abs, err := filepath.Abs(dir)
-	if err != nil {
-		return nil, diag.New(diag.E0601).Headlinef("%s cannot be resolved to a path", dir).Detail(diag.OSReason(err)).Err()
+	if err := openWorkspace(dir); err != nil {
+		return nil, err
 	}
-	// Positions name files relative to dir's parent.
-	parent := filepath.Dir(abs)
-	sourceDirs = append(sourceDirs, parent)
-	req, err := tplayground.WalkExamples(os.DirFS(parent), filepath.Base(abs))
+	root, err := ws.name(dir)
+	if err != nil {
+		return nil, err
+	}
+	req, err := tplayground.WalkExamples(ws.fsys, root)
 	if err != nil {
 		return nil, err
 	}

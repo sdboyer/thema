@@ -12,11 +12,11 @@ import (
 	terrors "github.com/sdboyer/thema/errors"
 )
 
-// files builds a lineage's files from path, text pairs.
+// files builds a lineage's files from path, text pairs, named by their paths.
 func files(pairs ...string) []File {
 	var fs []File
-	for i := 0; i < len(pairs); i += 2 {
-		fs = append(fs, File{Path: pairs[i], Text: []byte(pairs[i+1])})
+	for i := 0; i+1 < len(pairs); i += 2 {
+		fs = append(fs, File{Path: pairs[i], Name: pairs[i], Text: []byte(pairs[i+1])})
 	}
 	return fs
 }

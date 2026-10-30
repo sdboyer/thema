@@ -88,7 +88,8 @@ func decompile(lin cue.Value) (name string, files []File, err error) {
 		if err != nil {
 			return "", nil, err
 		}
-		files = append(files, File{Path: fmt.Sprintf("%s/%s%s", HistoryDir, v.v, Ext), Text: []byte(text)})
+		p := fmt.Sprintf("%s/%s%s", HistoryDir, v.v, Ext)
+		files = append(files, File{Path: p, Name: p, Text: []byte(text)})
 	}
 	// The tip a lineage has just after its newest version was cut: that
 	// version's schema, with no lenses.
@@ -97,7 +98,7 @@ func decompile(lin cue.Value) (name string, files []File, err error) {
 	if err != nil {
 		return "", nil, err
 	}
-	files = append(files, File{Path: TipFile, Text: []byte(text)})
+	files = append(files, File{Path: TipFile, Name: TipFile, Text: []byte(text)})
 	return name, files, nil
 }
 

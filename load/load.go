@@ -53,17 +53,20 @@ func AsModFS(in fs.FS, modname string) fs.FS {
 
 // Configure prepares cfg for loading CUE that imports thema's CUE module,
 // github.com/sdboyer/thema@v0. That module is served from the copy embedded in
-// this Go module, which is added to cfg.Overlay at a virtual path naming the
-// module and version, e.g. /github.com/sdboyer/thema@v0.1.0; that path appears in
-// error positions for thema's CUE.
+// this Go module, at a virtual path naming the module and version, e.g.
+// /github.com/sdboyer/thema@v0.1.0; that path appears in error positions for
+// thema's CUE.
+//
+// With cfg.FS set, the loader reads only that FS, and every other file is
+// named in positions by its path within it, relative to its root, with no
+// leading slash: an excerpt is read from the same FS by that name.
+// cfg.FromFSPath must be unset. Otherwise the module is added to cfg.Overlay,
+// and the loader reads the host's filesystem.
 //
 // The loaded module must declare a dependency on thema's CUE module at exactly
 // the version embedded in this Go module; any other version is an error. All
 // other dependencies are fetched through cfg.Registry if set, or else through a
 // registry configured from cfg.Env, as [load.Config] would by default.
-//
-// Configure returns an error if cfg sets FS, which the CUE loader does not
-// permit to be combined with Overlay.
 func Configure(cfg *load.Config) error {
 	return embedreg.Configure(cfg, thema.CueJointFS)
 }

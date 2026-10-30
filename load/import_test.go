@@ -37,12 +37,12 @@ manifest: ship.schemas["1"]["0"].schema & {
 names: [ship.name, boat.name]
 `
 
-// A lineage's lineage.cue makes its directory a CUE package that native CUE
-// imports and uses: its schemas are types. The package's value is the
+// A lineage's normalized.gen.cue makes its directory a CUE package that native
+// CUE imports and uses: its schemas are types. The package's value is the
 // lineage, which binds; the authoring files beside it, and example.cue, which
 // declares no package, are not part of it. It is all offline: thema's CUE
 // module is the embedded copy, and the fleet is in the overlay.
-func TestImportLineageFile(t *testing.T) {
+func TestImportNormalizedFile(t *testing.T) {
 	const module = "example.com/harbor"
 	fsys := fstest.MapFS{
 		"cue.mod/module.cue": &fstest.MapFile{Data: []byte(util.ModuleFile(module))},
@@ -66,10 +66,10 @@ func TestImportLineageFile(t *testing.T) {
 		ModuleRoot: root,
 		Dir:        root,
 	}
-	if err := util.ToOverlay(root, fsys, cfg.Overlay); err != nil {
+	if err = util.ToOverlay(root, fsys, cfg.Overlay); err != nil {
 		t.Fatal(err)
 	}
-	if err := Configure(cfg); err != nil {
+	if err = Configure(cfg); err != nil {
 		t.Fatal(err)
 	}
 	insts := load.Instances([]string{"."}, cfg)
@@ -79,17 +79,17 @@ func TestImportLineageFile(t *testing.T) {
 
 	ctx := cuecontext.New()
 	v := ctx.BuildInstance(insts[0])
-	if err := v.Validate(); err != nil {
+	if err = v.Validate(); err != nil {
 		t.Fatal(cerrors.Details(err, nil))
 	}
-	if err := v.LookupPath(cue.ParsePath("manifest")).Validate(cue.Concrete(true)); err != nil {
+	if err = v.LookupPath(cue.ParsePath("manifest")).Validate(cue.Concrete(true)); err != nil {
 		t.Errorf("an instance of ship 1.0: %s", cerrors.Details(err, nil))
 	}
 	names, err := v.LookupPath(cue.ParsePath("names")).List()
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"ship", "boat"} {
+	for _, want := range []string{shipName, boatName} {
 		names.Next()
 		if got, _ := names.Value().String(); got != want {
 			t.Errorf("imported %s, want %s", got, want)
@@ -108,7 +108,7 @@ func TestImportLineageFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(cerrors.Details(err, nil))
 	}
-	if got := versionsOf(lin); len(got) != 2 || got[0] != "0.0" || got[1] != "1.0" {
+	if got := versionsOf(lin); len(got) != 2 || got[0] != v00 || got[1] != "1.0" {
 		t.Errorf("the imported ship has versions %v, want 0.0 and 1.0", got)
 	}
 

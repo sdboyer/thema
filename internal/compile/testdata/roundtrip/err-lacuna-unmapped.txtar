@@ -41,7 +41,7 @@ Schema: {
 }
 -- out/error --
 error[E0412]: lacunas.secondfeild: ForwardLens has no mapping keyed secondfeild
-  --> history/1.0.thema:12:17
+  --> ship/history/1.0.thema:12:17
    |
 12 |         secondfeild: [{
    |                       ^

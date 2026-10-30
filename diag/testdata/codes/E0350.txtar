@@ -32,7 +32,7 @@ Schema: {
       "severity": "error",
       "headline": "_match has two arms for \"a\"",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "ship/history/1.0.thema",
         "line": 10,
         "col": 4,
         "offset": 100,
@@ -48,7 +48,7 @@ Schema: {
 }
 -- out/text --
 error[E0350]: _match has two arms for "a"
-  --> history/1.0.thema:10:4
+  --> ship/history/1.0.thema:10:4
    |
 10 |             "a": 2
    |             ^^^

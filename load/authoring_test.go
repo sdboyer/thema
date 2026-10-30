@@ -81,12 +81,12 @@ func TestAuthoringLineageErrorPosition(t *testing.T) {
 	}
 	var found bool
 	for _, e := range cerrors.Errors(err) {
-		if e.Position().Filename() == "history/1.0.thema" {
+		if e.Position().Filename() == "ship/history/1.0.thema" {
 			found = true
 		}
 	}
 	if !found {
-		t.Errorf("no error positioned in history/1.0.thema:\n%s", cerrors.Details(err, nil))
+		t.Errorf("no error positioned in ship/history/1.0.thema:\n%s", cerrors.Details(err, nil))
 	}
 }
 

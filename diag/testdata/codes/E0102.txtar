@@ -15,7 +15,7 @@ Schema: {
       "severity": "error",
       "headline": "a version file is not CUE syntax",
       "primary": {
-        "file": "history/0.0.thema",
+        "file": "ship/history/0.0.thema",
         "line": 2,
         "col": 12,
         "offset": 21,
@@ -32,7 +32,7 @@ Schema: {
 }
 -- out/text --
 error[E0102]: a version file is not CUE syntax
- --> history/0.0.thema:2:12
+ --> ship/history/0.0.thema:2:12
   |
 2 |     a: string
   |              ^

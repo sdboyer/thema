@@ -22,7 +22,7 @@ Schema: {
 }
 -- out/error --
 error[E0343]: v0_0.count * 2 reads v0_0.count, which 0.0 may omit, and 1.0 requires total
- --> history/1.0.thema:8:3
+ --> ship/history/1.0.thema:8:3
   |
 8 |         total: v0_0.count * 2
   |         ^^^^^

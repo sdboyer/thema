@@ -34,7 +34,7 @@ Schema: {
       "severity": "error",
       "headline": "lacunas.b is a list of the mapping's lacunas, or a struct of keys beneath it",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "ship/history/1.0.thema",
         "line": 12,
         "col": 6,
         "offset": 93,
@@ -50,7 +50,7 @@ Schema: {
 }
 -- out/text --
 error[E0410]: lacunas.b is a list of the mapping's lacunas, or a struct of keys beneath it
-  --> history/1.0.thema:12:6
+  --> ship/history/1.0.thema:12:6
    |
 12 |         b: 5
    |            ^

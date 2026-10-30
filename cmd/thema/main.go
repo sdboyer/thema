@@ -3,9 +3,9 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"cuelang.org/go/cue/cuecontext"
 	"github.com/spf13/cobra"
@@ -61,12 +61,11 @@ func report(err error) int {
 	ds := diag.From(err, diag.Context{})
 	switch diagFormat {
 	case "json":
-		if err := diag.RenderJSON(os.Stdout, ds); err != nil {
+		if err := diag.RenderJSON(os.Stdout, displayedJSON(ds)); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 	default:
-		cwd, _ := os.Getwd()
-		diag.Render(os.Stderr, ds, diag.RenderOptions{Source: readSource, Rel: cwd})
+		diag.Render(os.Stderr, ds, renderOptions)
 	}
 	return 1
 }
@@ -78,21 +77,38 @@ func warn(err error) {
 	if err == nil {
 		return
 	}
-	cwd, _ := os.Getwd()
-	diag.Render(os.Stderr, diag.From(err, diag.Context{}), diag.RenderOptions{Source: readSource, Rel: cwd})
+	diag.Render(os.Stderr, diag.From(err, diag.Context{}), renderOptions)
 }
 
-// inlineSources holds text that was read from somewhere diagnostics cannot
-// reread, such as data on stdin, under the name its positions carry.
+// renderOptions renders a diagnostic's excerpts from where its positions say:
+// each by the name the position carries, and shown as the user knows it.
+var renderOptions = diag.RenderOptions{Source: readSource, Display: displayFile}
+
+// displayedJSON returns ds with each position in the workspace named as the
+// user knows the file ([workspace.display]), for tools that open it.
+func displayedJSON(ds []diag.Diagnostic) []diag.Diagnostic {
+	show := func(p *diag.Pos) {
+		if p != nil && isName(p.File) {
+			p.File = ws.display(p.File)
+		}
+	}
+	for i := range ds {
+		show(ds[i].Primary)
+		for j := range ds[i].Notes {
+			show(ds[i].Notes[j].Pos)
+		}
+	}
+	return ds
+}
+
+// inlineSources holds text that was read from somewhere other than the
+// workspace, such as data on stdin, under the name its positions carry.
 var inlineSources = map[string][]byte{}
 
-// sourceDirs are directories that relative positions may be relative to,
-// besides the working directory: a lineage in the authoring form positions its
-// errors by paths relative to its own directory.
-var sourceDirs []string
-
-// readSource reads a file for an excerpt: thema's own CUE from the embedded
-// module, text a command read from stdin from memory, anything else from disk.
+// readSource reads a file for an excerpt, by the name its position carries:
+// thema's own CUE from the embedded module, text a command read from stdin
+// from memory, and anything else from the workspace. It never reads the
+// host's filesystem but through the workspace.
 func readSource(file string) ([]byte, bool) {
 	if rel, ok := embedreg.KernelPath(file); ok {
 		b, err := thema.CueFS.ReadFile(rel)
@@ -101,30 +117,45 @@ func readSource(file string) ([]byte, bool) {
 	if b, ok := inlineSources[file]; ok {
 		return b, true
 	}
-	if b, err := os.ReadFile(file); err == nil {
-		return b, true
+	if !isName(file) {
+		return nil, false
 	}
-	if !filepath.IsAbs(file) {
-		for _, dir := range sourceDirs {
-			if b, err := os.ReadFile(filepath.Join(dir, file)); err == nil {
-				return b, true
-			}
-		}
-	}
-	return nil, false
+	b, err := fs.ReadFile(ws.fsys, file)
+	return b, err == nil
 }
 
-// displayPath is path as a diagnostic names it: relative to the working
-// directory when it lies beneath it.
-func displayPath(path string) string {
+// displayFile shows the file a position names: thema's own CUE as
+// thema/<file>, and a workspace file as the user knows it.
+func displayFile(file string) string {
+	if rel, ok := embedreg.KernelPath(file); ok {
+		return "thema/" + rel
+	}
+	if _, inline := inlineSources[file]; inline || !isName(file) {
+		return file
+	}
+	return ws.display(file)
+}
+
+// displayPath is a workspace file's name as a message shows it.
+func displayPath(name string) string {
+	if ws == nil {
+		return name
+	}
+	return ws.display(name)
+}
+
+// displayHostPath shows a path on the host, for the code generators, which
+// write beside the lineage and read its module's go.mod there: relative to
+// the working directory when it lies beneath it.
+func displayHostPath(p string) string {
 	cwd, err := os.Getwd()
 	if err != nil {
-		return path
+		return p
 	}
-	if rel, err := filepath.Rel(cwd, path); err == nil && !strings.HasPrefix(rel, "..") {
-		return rel
+	if rel, ok := within(filepath.Clean(cwd), p); ok {
+		return filepath.FromSlash(rel)
 	}
-	return path
+	return p
 }
 
 func addLinPathVars(cmd *cobra.Command, lla *lineageLoadArgs) {

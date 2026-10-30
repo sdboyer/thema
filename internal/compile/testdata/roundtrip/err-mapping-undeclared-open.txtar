@@ -24,7 +24,7 @@ Schema: {
 }
 -- out/error --
 error[E0341]: 1.0 does not declare extra
-  --> history/1.0.thema:10:3
+  --> ship/history/1.0.thema:10:3
    |
 10 |         extra: v0_0.a
    |         ^^^^^

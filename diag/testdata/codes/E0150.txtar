@@ -49,7 +49,7 @@ ForwardLens: {
       "severity": "error",
       "headline": "ForwardLens in tip.thema names v1_0, but the tip's parent is 1.1",
       "primary": {
-        "file": "tip.thema",
+        "file": "ship/tip.thema",
         "line": 8,
         "col": 2,
         "offset": 57,
@@ -73,7 +73,7 @@ ForwardLens: {
 }
 -- out/text --
 error[E0150]: ForwardLens in tip.thema names v1_0, but the tip's parent is 1.1
- --> tip.thema:8:2
+ --> ship/tip.thema:8:2
   |
 8 |     v1_0: _
   |     ^^^^
