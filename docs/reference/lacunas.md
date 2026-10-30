@@ -44,7 +44,7 @@ The types, in the order `lacuna.cue` declares them. The Go constants in package 
 ### Placeholder
 
 - **Gap:** a target field holds a value the lens invented to meet the target schema, standing in for data the source does not have. It is not a schema default: it is a lens-defined value that exists to be replaced by the calling program. The usual case is a new required field with no default.
-- **Fields:** `targetFields`, the field holding the placeholder. A lacuna on an `_orelse` in the authoring form also lists the source field when the instance has it; when the fallback applied, it does not.
+- **Fields:** `targetFields`, the field holding the placeholder. A lacuna on a `_coalesce` in the authoring form also lists the source field when the instance has it; when the fallback applied, it does not.
 - **Derived:** never. Emitted only when declared ([D1](../translation.md#fields-only-the-target-declares)).
 
 ### DroppedField

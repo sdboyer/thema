@@ -7,7 +7,7 @@ import { StreamLanguage, type StreamParser } from "@codemirror/language";
 const keywords = new Set(["package", "import", "for", "in", "if", "let", "true", "false", "null"]);
 const types = new Set(["bool", "string", "bytes", "number", "int", "float", "uint", "rune", "_", "_|_", "int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "float32", "float64"]);
 // The authoring form's own words.
-const authoring = new Set(["Schema", "ForwardLens", "BackwardLens", "lacunas", "_drop", "_orelse", "_match", "_each", "_item", "when"]);
+const authoring = new Set(["Schema", "ForwardLens", "BackwardLens", "lacunas", "_drop", "_coalesce", "_match", "_each", "_item", "when"]);
 
 interface State {
   // inString is the closing delimiter of a multi-line string being read.

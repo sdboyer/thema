@@ -65,7 +65,7 @@ var categories = []string{CategoryExemplar, CategoryAuthoring, CategoryErrors}
 // The round-trip fixtures offered: the ones that bind, and a few that show
 // one of the compiler's diagnostics.
 var roundtrips = []string{
-	"ship", "rename", "nested", "orelse", "computed", "each", "lacunas", "minor", "when-optional",
+	"ship", "rename", "nested", "coalesce", "computed", "each", "lacunas", "minor", "when-optional",
 	"err-required-unproduced", "err-match-not-total", "err-optional-to-required",
 }
 
