@@ -366,7 +366,10 @@ thema proves this when it binds a lineage, and a lineage with a lens it cannot
 prove total does not bind. Binding is how thema loads a lineage and checks every
 invariant in this document, and nothing in thema uses a lineage that has not
 bound. Because every lens is total, translating an instance from one version to
-another cannot fail.
+another cannot fail. What a step does with each field of an instance, including
+fields no lens maps and the fields an open struct admits without declaring,
+and which lacunas it raises, is defined in [translation](translation.md); this
+section is about the lens.
 
 This section defines totality, states the rules a lens must satisfy for thema
 to prove it, and says what the verdicts are worth across thema releases.

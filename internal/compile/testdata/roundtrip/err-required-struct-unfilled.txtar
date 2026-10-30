@@ -2,8 +2,8 @@ A struct the target requires, copied from a struct the source has as
 optional, where the struct requires a field of its own: an instance that
 lacks the struct has nothing to fill it with, so the lens is not total, and
 bind refuses it. 1.0 requires q beneath o, and q requires a, which 0.0 has
-only where it has o.q. The remedy is _orelse with a struct fallback
-(orelse-struct).
+only where it has o.q. The remedy is _coalesce with a struct fallback
+(coalesce-struct).
 -- ship/history/0.0.thema --
 Schema: {
 	o?: {

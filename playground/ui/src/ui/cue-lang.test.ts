@@ -44,7 +44,7 @@ describe("the CUE tokenizer", () => {
 
   it("marks the lens language's operations, and not the old names", () => {
     const style = (w: string) => tokens(`x: ${w}(v0_0.a)`).find(([t]) => t === w)?.[1];
-    for (const op of ["_drop", "_orelse", "_match", "_each", "_item"]) expect(style(op), op).toBe("keyword");
-    for (const old of ["drop", "orelse", "match", "each"]) expect(style(old), old).toBe("variableName");
+    for (const op of ["_drop", "_coalesce", "_match", "_each", "_item"]) expect(style(op), op).toBe("keyword");
+    for (const old of ["drop", "coalesce", "match", "each"]) expect(style(old), old).toBe("variableName");
   });
 });

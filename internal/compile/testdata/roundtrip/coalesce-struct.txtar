@@ -1,4 +1,4 @@
-_orelse takes a struct fallback for a struct the target requires and the
+_coalesce takes a struct fallback for a struct the target requires and the
 source has as optional: the fallback, a struct of constants, is written
 where the source lacks the struct, and the author declares what it stands
 for. 1.0 requires q, whose a nothing can fill where 0.0 lacks q.
@@ -18,7 +18,7 @@ Schema: {
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		q: _orelse(v0_0.q, {
+		q: _coalesce(v0_0.q, {
 			a: 0
 		})
 	}
@@ -47,7 +47,7 @@ Schema: {
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		q: _orelse(v0_0.q, {a: 0})
+		q: _coalesce(v0_0.q, {a: 0})
 	}
 	lacunas: {
 		q: [{
