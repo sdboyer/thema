@@ -1,0 +1,48 @@
+#firstLin: lin1
+#secondLin: lin2
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin1: thema.Lineage
+lin1: name: "refstruct"
+lin1: schemas: {
+	"0": "0": {
+		schema: {
+			aBaz: #Baz
+	
+			#Baz: {
+				run:  string
+				tell: bytes
+				dat:  int32
+			}
+		}
+	}
+}
+
+lin2: thema.Lineage
+lin2: name: "refstruct"
+lin2: schemas: {
+	"0": "0": {
+	    schema: {
+			aBaz: #Baz
+	
+			#Baz: {
+				run:  string
+				dat:  int32
+			}
+	    }
+	}
+}
+-- out/appendonly-fail --
+error[E0243]: schema 0.0 differs from the published one
+   --> /in.cue:23:6
+    |
+ 23 |         schema: {
+    |         ^^^^^^
+    |
+    = note: in thema's own CUE
+     --> thema/lineage.cue:178:11
+    = detail: regular field is constraint in subsumed value: tell
+              field aBaz not present in {aBaz:~(#closed.#Baz),#Baz:{run:string,dat:int32}}
+              missing field "aBaz"
+    = help: a published schema is never changed; add a new version instead

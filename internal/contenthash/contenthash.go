@@ -119,6 +119,32 @@ func LensForm(lin cue.Value, v Version) (string, error) {
 	return canonicalize(edge)
 }
 
+// LensForms returns the canonical form of each lens on the edge into version
+// v of the lineage lin on its own: forward, from v's predecessor, and
+// backward, to it, each "" when the edge has no such lens. They tell which of
+// an edge's lenses differs between two lineages whose lens digests differ.
+// The digest is of [LensForm], not of these.
+func LensForms(lin cue.Value, v Version) (forward, backward string, err error) {
+	fwd, back, err := versionLenses(lin, v)
+	if err != nil {
+		return "", "", err
+	}
+	var forms [2]string
+	for i, l := range []edgeLens{fwd, back} {
+		if !l.lens.Exists() {
+			continue
+		}
+		x, err := lensSyntax(l.lens, l.from, l.to)
+		if err != nil {
+			return "", "", err
+		}
+		if forms[i], err = canonicalize(x); err != nil {
+			return "", "", err
+		}
+	}
+	return forms[0], forms[1], nil
+}
+
 // lensSyntax returns the exported content fields of the lens from version from
 // to version to, as a struct: its source field, its result field (both named
 // by their version, cuetil.LensParam) and its lacunas. The edge is the lens's

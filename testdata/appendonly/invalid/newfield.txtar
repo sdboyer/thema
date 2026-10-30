@@ -1,0 +1,35 @@
+#firstLin: lin1
+#secondLin: lin2
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin1: thema.Lineage
+lin1: name: "newfield"
+lin1: schemas: {
+	"0": "0": {
+		schema: {
+			firstfield: string
+		}
+	}
+}
+
+lin2: thema.Lineage
+lin2: name: "newfield"
+lin2: schemas: {
+	"0": "0": {
+	    schema: {
+	        firstfield: string
+	        secondfield: int32
+	    }
+	}
+}
+-- out/appendonly-fail --
+error[E0243]: schema 0.0 differs from the published one
+  --> /in.cue:17:6
+   |
+17 |         schema: {
+   |         ^^^^^^
+   |
+   = detail: field not allowed in closed struct: secondfield
+             value not an instance
+   = help: a published schema is never changed; add a new version instead

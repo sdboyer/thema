@@ -1,0 +1,36 @@
+#firstLin: lin1
+#secondLin: lin2
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin1: thema.Lineage
+lin1: name: "boundaries"
+lin1: schemas: {
+	"0": "0": {
+		schema: {
+			anInt: uint32 & >0 & <=24 | *12
+		}
+	}
+}
+
+lin2: thema.Lineage
+lin2: name: "boundaries"
+lin2: schemas: {
+	"0": "0": {
+		schema: {
+			anInt: uint32 & >0 & <=14 | *12
+		}
+	}
+}
+-- out/appendonly-fail --
+error[E0243]: schema 0.0 differs from the published one
+   --> /in.cue:17:3
+    |
+ 17 |         schema: {
+    |         ^^^^^^
+    |
+    = note: in thema's own CUE
+     --> thema/lineage.cue:178:11
+    = detail: field anInt not present in {anInt:*12 | >0 & <=24 & int}
+              missing field "anInt"
+    = help: a published schema is never changed; add a new version instead
