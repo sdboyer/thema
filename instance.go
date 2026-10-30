@@ -216,15 +216,16 @@ func (inst *TypedInstance[T]) ValueP() T {
 // or 0.0), is nontrivial and relies on explicitly defined lenses, which
 // introduce room for lacunas and author judgment.
 //
-// Fields an instance holds under an open struct (...) that its schema does not
-// declare are not a lens's to translate, nor are the fields the source schema
-// declares that a step's lens leaves alone. Around each step, translation
-// carries them: each follows its struct, to where the lens moved or embedded
-// it whole or else to its own path, and is placed there where the target struct is open,
-// or promoted into a field the target declares, and the lens does not write,
-// if the value is an instance of it. A field that is not placed is set aside,
-// with a lacuna. Such fields never make translation fail; see
-// docs/invariants.md, "Fields no lens maps".
+// Fields an instance holds that its schema does not declare, under an open
+// struct (...) or matched by a pattern constraint, are not a lens's to
+// translate, nor are the fields the source schema declares that a step's lens
+// leaves alone. Around each step, translation carries them: each follows its
+// struct, to where the lens moved or embedded it whole or else to its own
+// path, and is placed there where the target struct is open or has a pattern
+// constraint that accepts it, or promoted into a field the target declares,
+// and the lens does not write, if the value is an instance of it. A field that
+// is not placed is set aside, with a lacuna. Such fields never make
+// translation fail; see docs/invariants.md, "Fields no lens maps".
 //
 // Thema translation is non-invertible by design. That is, Thema does not seek
 // to generally guarantee that translating an instance from 0.0->1.0->0.0 will
@@ -446,10 +447,12 @@ func (i *Instance) checkLensResultFields(out cue.Value) error {
 			lin := i.Schema().Lineage().(*baseLineage)
 			resultA := diag.Address{Kind: diag.AddrLensResult, From: diag.Version(from), To: diag.Version(to)}
 			own := lin.uni.LookupPath(cue.MakePath(cue.Str("lenses"), cue.Str(lid(from, to).String()), cue.Str(lensParam(to))))
-			return diag.New(diag.E0305).AtValue(own).Addr(resultA).
-				Headlinef("%s writes %s for this instance, which %s does not declare", lin.vocab.Term(resultA), strings.Join(paths, ", "), lin.vocab.Term(schemaAddr(to))).
-				Help("a lens writes only fields its target schema declares, however open the schema is written").
-				Err()
+			b := diag.New(diag.E0305).AtValue(own).Addr(resultA).
+				Headlinef("%s writes %s for this instance, which %s does not declare", lin.vocab.Term(resultA), strings.Join(paths, ", "), lin.vocab.Term(schemaAddr(to)))
+			if !patternKeys(b, i.rt().Context(), def.def, lin.vocab.Term(schemaAddr(to)), "writes", paths) {
+				b.Help("a lens writes only fields its target schema declares, however open the schema is written")
+			}
+			return b.Err()
 		}
 	}
 	return nil

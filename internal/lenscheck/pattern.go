@@ -277,8 +277,9 @@ func (w *walker) checkPatterns(gs, outer []pattern, subj string, pos token.Pos) 
 		}
 		src := w.lookupSource(g.path, outer)
 		if !src.declared {
+			clause, help := w.undeclaredInput(g.path)
 			w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleSourceUndeclared,
-				Detail: fmt.Sprintf("is under the pattern %s, but the source schema does not declare %s", g, w.inputRef(g.path)), Pos: pos})
+				Detail: fmt.Sprintf("is under the pattern %s, but the source schema does not declare %s%s", g, w.inputRef(g.path), clause), Help: help, Pos: pos})
 			continue
 		}
 		if g.kind != equality {
