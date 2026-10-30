@@ -1,7 +1,7 @@
 #op: compile
 A lens body holds only mappings: a target field and where it comes from.
 Embeddings, comprehensions and let declarations are not mappings. A reference
-to an optional field is guarded for you, and orelse decides what to use when it
+to an optional field is guarded for you, and coalesce decides what to use when it
 is absent.
 -- ship/history/0.0.thema --
 Schema: {

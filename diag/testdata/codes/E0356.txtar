@@ -56,7 +56,7 @@ lenses: {
         "origin": "user"
       },
       "help": [
-        "the authoring form expresses the lenses Compile produces: mappings that copy and compute, and _drop, _orelse, _match and _each"
+        "the authoring form expresses the lenses Compile produces: mappings that copy and compute, and _drop, _coalesce, _match and _each"
       ]
     }
   ],
@@ -73,4 +73,4 @@ error[E0356]: lens 0.0->1.0 is outside the authoring form: a lacuna over several
 1 | name: "ship"
   | ^^^^
   |
-  = help: the authoring form expresses the lenses Compile produces: mappings that copy and compute, and _drop, _orelse, _match and _each
+  = help: the authoring form expresses the lenses Compile produces: mappings that copy and compute, and _drop, _coalesce, _match and _each

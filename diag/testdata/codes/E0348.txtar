@@ -1,5 +1,5 @@
 #op: compile
-orelse supplies a fallback for a field that may be absent. Over a field the
+coalesce supplies a fallback for a field that may be absent. Over a field the
 source always has, the fallback could never apply; write the reference alone.
 -- ship/history/0.0.thema --
 Schema: {
@@ -13,7 +13,7 @@ Schema: {
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		b: _orelse(v0_0.a, "x")
+		b: _coalesce(v0_0.a, "x")
 	}
 }
 -- out/json --
@@ -22,7 +22,7 @@ ForwardLens: {
     {
       "code": "E0348",
       "severity": "error",
-      "headline": "0.0 always has a, so _orelse's fallback could never apply: write b: v0_0.a",
+      "headline": "0.0 always has a, so _coalesce's fallback could never apply: write b: v0_0.a",
       "primary": {
         "file": "1.0.thema",
         "line": 8,
@@ -39,9 +39,9 @@ ForwardLens: {
   }
 }
 -- out/text --
-error[E0348]: 0.0 always has a, so _orelse's fallback could never apply: write b: v0_0.a
+error[E0348]: 0.0 always has a, so _coalesce's fallback could never apply: write b: v0_0.a
  --> 1.0.thema:8:6
   |
-8 |         b: _orelse(v0_0.a, "x")
-  |            ^^^^^^^
+8 |         b: _coalesce(v0_0.a, "x")
+  |            ^^^^^^^^^
   |

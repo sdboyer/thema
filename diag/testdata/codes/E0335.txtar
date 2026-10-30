@@ -1,5 +1,5 @@
 #op: compile
-orelse takes two arguments: a reference into the source instance, and the
+coalesce takes two arguments: a reference into the source instance, and the
 fallback to use when the referenced field is absent.
 -- ship/history/0.0.thema --
 Schema: {
@@ -13,7 +13,7 @@ Schema: {
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		b: _orelse(v0_0.a)
+		b: _coalesce(v0_0.a)
 	}
 }
 -- out/json --
@@ -22,7 +22,7 @@ ForwardLens: {
     {
       "code": "E0335",
       "severity": "error",
-      "headline": "_orelse takes two arguments: _orelse(v0_0.<path>, fallback)",
+      "headline": "_coalesce takes two arguments: _coalesce(v0_0.<path>, fallback)",
       "primary": {
         "file": "1.0.thema",
         "line": 8,
@@ -51,11 +51,11 @@ ForwardLens: {
   }
 }
 -- out/text --
-error[E0335]: _orelse takes two arguments: _orelse(v0_0.<path>, fallback)
+error[E0335]: _coalesce takes two arguments: _coalesce(v0_0.<path>, fallback)
  --> 1.0.thema:8:6
   |
-8 |         b: _orelse(v0_0.a)
-  |            ^^^^^^^
+8 |         b: _coalesce(v0_0.a)
+  |            ^^^^^^^^^
   |
 
 error[E0347]: 0.0 declares a and 1.0 does not, and nothing maps it: write <field>: v0_0.a to move it, or a: _drop

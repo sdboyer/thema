@@ -119,7 +119,7 @@ var Codes = []CodeInfo{
 	{Code: E0332, Severity: SeverityError, Title: "a mapping has an attribute", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0333, Severity: SeverityError, Title: "a lens body or its lacunas declare a hidden field or a definition", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0334, Severity: SeverityError, Title: "a nested body embeds something other than a path into the source instance", Sentinels: []error{terrors.ErrInvalidLens}},
-	{Code: E0335, Severity: SeverityError, Title: "an _orelse is not _orelse(source path, fallback)", Sentinels: []error{terrors.ErrInvalidLens}},
+	{Code: E0335, Severity: SeverityError, Title: "a _coalesce is not _coalesce(source path, fallback)", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0336, Severity: SeverityError, Title: "a _match is not _match(source path, arms)", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0337, Severity: SeverityError, Title: "an _each is not _each(source list, body)", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0338, Severity: SeverityError, Title: "a _match's arms are not constant arms with at most one catch-all", Sentinels: []error{terrors.ErrInvalidLens}},
@@ -131,8 +131,8 @@ var Codes = []CodeInfo{
 	{Code: E0345, Severity: SeverityError, Title: "a lens maps a target field twice", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0346, Severity: SeverityError, Title: "a lens produces nothing for a field its target version requires", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0347, Severity: SeverityError, Title: "a field the source version has and the target lacks is neither mapped nor dropped", Sentinels: []error{terrors.ErrInvalidLens}},
-	{Code: E0348, Severity: SeverityError, Title: "an _orelse reads a field the source version always has", Sentinels: []error{terrors.ErrInvalidLens}},
-	{Code: E0349, Severity: SeverityError, Title: "an _orelse's fallback may itself be absent", Sentinels: []error{terrors.ErrInvalidLens}},
+	{Code: E0348, Severity: SeverityError, Title: "a _coalesce reads a field the source version always has", Sentinels: []error{terrors.ErrInvalidLens}},
+	{Code: E0349, Severity: SeverityError, Title: "a _coalesce's fallback may itself be absent", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0350, Severity: SeverityError, Title: "a _match has two arms for one value", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0351, Severity: SeverityError, Title: "a _match is not exhaustive", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0352, Severity: SeverityError, Title: "a _match passes values through to a target the lens cannot test them against", Sentinels: []error{terrors.ErrInvalidLens}},
@@ -310,7 +310,7 @@ const (
 	E0332 Code = "E0332" // mapping has an attribute
 	E0333 Code = "E0333" // hidden field or definition as a key in a lens body or its lacunas
 	E0334 Code = "E0334" // nested body embeds something other than input.<path>
-	E0335 Code = "E0335" // orelse arguments
+	E0335 Code = "E0335" // coalesce arguments
 	E0336 Code = "E0336" // match arguments
 	E0337 Code = "E0337" // each arguments
 	E0338 Code = "E0338" // match arms shape
@@ -322,8 +322,8 @@ const (
 	E0345 Code = "E0345" // target field mapped twice
 	E0346 Code = "E0346" // required target field unproduced
 	E0347 Code = "E0347" // source field neither mapped nor dropped
-	E0348 Code = "E0348" // orelse on an always-present field
-	E0349 Code = "E0349" // orelse fallback optional
+	E0348 Code = "E0348" // coalesce on an always-present field
+	E0349 Code = "E0349" // coalesce fallback optional
 	E0350 Code = "E0350" // match has two arms for a value
 	E0351 Code = "E0351" // match not exhaustive
 	E0352 Code = "E0352" // match passthrough target not self-contained
