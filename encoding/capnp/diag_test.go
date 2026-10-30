@@ -3,8 +3,12 @@ package capnp
 import (
 	"os"
 	"regexp"
+	"strings"
 	"testing"
 
+	"cuelang.org/go/cue/cuecontext"
+
+	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/diag"
 )
 
@@ -41,5 +45,35 @@ func TestRuleCodes(t *testing.T) {
 	}
 	if len(rules) != len(Codes) {
 		t.Errorf("Codes has %d entries for %d rules", len(Codes), len(rules))
+	}
+}
+
+// A label named as the field every struct reserves for undeclared data is a
+// name-collision at the author's field, never renamed, and its help says
+// why the name is taken.
+func TestReservedExtras(t *testing.T) {
+	rt := thema.NewRuntime(cuecontext.New())
+	lin := bindString(t, rt, `
+name: "reserved"
+schemas: "0": "0": schema: {a: string, extras: string}
+lenses: {}
+`)
+	_, err := Compile(lin, WithoutLayout())
+	if err == nil {
+		t.Fatal("compiled a lineage with a label named extras")
+	}
+	ds := diag.Diagnostics(err)
+	if len(ds) != 1 {
+		t.Fatalf("%d diagnostics, want 1: %v", len(ds), err)
+	}
+	d := ds[0]
+	if d.Code != diag.E0714 {
+		t.Errorf("code %s, want E0714", d.Code)
+	}
+	if d.Primary == nil {
+		t.Error("no primary position")
+	}
+	if len(d.Help) != 1 || !strings.Contains(d.Help[0], "reserved for undeclared data in the Cap'n Proto encoding") {
+		t.Errorf("help %q does not say extras is reserved", d.Help)
 	}
 }

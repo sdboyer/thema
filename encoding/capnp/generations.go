@@ -47,13 +47,31 @@ func (gs *generations) collide(name, what, other string) {
 	})
 }
 
+// collideReserved records that what, one of the author's labels, has the
+// name of the field the compiler adds to every schema struct for undeclared
+// data. Renaming the label would leave a reader no way to tell it is the
+// author's.
+func (gs *generations) collideReserved(name, what string) {
+	var p cue.Path
+	var pos token.Pos
+	if gs.field != nil {
+		p, pos = gs.field.path, gs.field.pos
+	}
+	gs.findings = append(gs.findings, Finding{
+		Version: gs.version, Path: p, Verdict: Rejected, Rule: RuleNameCollision, Pos: pos,
+		Detail: fmt.Sprintf("collides: %s is named %s in Cap'n Proto, the name of the field every struct reserves for undeclared data", what, name),
+		Help:   fmt.Sprintf("rename it: %s is reserved for undeclared data in the Cap'n Proto encoding", name),
+	})
+}
+
 // name claims a field's or enumerant's name for what in s, reporting a
-// collision with another of the author's names. A collision with the
-// reserved extras field is resolved with a suffix instead.
+// collision with another of the author's names or with the reserved extras
+// field.
 func (gs *generations) name(s *scope, name, what string) string {
 	if other, ok := s.claim(name, what); !ok {
 		if other == "\x00"+reserved {
-			return gs.name(s, name+"2", what)
+			gs.collideReserved(name, what)
+			return name
 		}
 		gs.collide(name, what, other)
 	}
