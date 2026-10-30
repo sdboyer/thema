@@ -24,12 +24,11 @@ lin2: schemas: {
 	}
 }
 -- out/appendonly-fail --
-error[E0243]: schema 0.0 differs from the published one
+error[E0250]: schema 0.0 is not as published
   --> /in.cue:17:6
    |
 17 |         schema: {
    |         ^^^^^^
    |
-   = detail: field not allowed in closed struct: aNewOptionalField
-             value not an instance
-   = help: a published schema is never changed; add a new version instead
+   = note: a published version never changes: instances were validated against it as it was published
+   = help: restore schema 0.0 as it was published, and make the change in a new version
