@@ -158,7 +158,7 @@ lacunas: [{
 
 ## Set-aside fields
 
-Translation, not a lens, emits lacunas for the fields no lens maps that it does not carry ([fields no lens maps](../invariants.md#fields-no-lens-maps)): fields an instance holds that the step's source schema does not declare, fields it declares that the step's lens leaves alone, and fields the lens reads where no result field that reads them was written for the instance. A lacuna the lens lists for a field takes the place of any translation would emit for it.
+Translation, not a lens, emits lacunas for the fields no lens maps that it does not carry ([fields no lens maps](../invariants.md#fields-no-lens-maps)): fields an instance holds that the step's source schema does not declare, fields it declares that the step's lens leaves alone (a field read only in a comprehension's condition among them) or writes its own value for, and fields the lens reads where no result field that reads them was written for the instance by the arm that reads them. A lacuna the lens lists for a field takes the place of any translation would emit for it.
 
 A value that is not an instance of a field the target declares, where the lens does not write that field, is not carried, and emits one `LossyFieldMapping`:
 
@@ -174,9 +174,9 @@ Any other field not carried is set aside, with a `DroppedField` for each struct 
 |---|---|
 | the target schema does not declare the field, and its struct there is closed | `<fields> set aside: <version> does not declare them in <struct>, which it does not leave open` |
 | the step's result has no struct at the field's parent path: the lens removed it, or a list the lens shortened has no element there | `<fields> set aside: translating from <version> to <version> produces no <struct> to carry them in` |
-| the target schema declares the field, and the lens wrote its own value for it | `<fields> set aside: the lens from <version> to <version> writes its own values for them` |
+| the target schema declares the field, and the lens wrote its own value for it, without reading this one | `<fields> set aside: the lens from <version> to <version> writes its own values for them` |
 | the target schema declares a field the source declares, and the lens neither maps nor writes it | `<fields> set aside: the lens from <version> to <version> neither maps nor writes them` |
-| the lens reads the field, none of the result fields that read it was written for the instance, and it could not be carried | `<fields> set aside: the lens from <version> to <version> reads them, but wrote nothing that carries them for this instance` |
+| the lens reads the field, none of the result fields that read it was written for the instance by the arm that reads it, and it could not be carried | `<fields> set aside: the lens from <version> to <version> reads them, but wrote nothing that carries them for this instance` |
 
 - `<fields>` lists the fields' paths, comma-separated, and `<struct>` is the parent path in the step's result, or `the instance` at the root. For a single field the message reads `it` and `its value`.
 - `sourceFields` names each field set aside and its value, in the order the instance holds them. There are no `targetFields`: the lacuna applies because the fields were set aside.

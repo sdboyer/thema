@@ -50,7 +50,9 @@ Today on main:
 
 ## Fields the source declares
 
-Grouped by what the step's lens does with the field. A lens *maps* a field when its result reads the field or anything beneath it, and *drops* a field when a `DroppedField` lacuna it lists names the field. Steps without a lens are under [G1](#steps-and-direction).
+Grouped by what the step's lens does with the field. A lens *maps* a field when a field of its result takes its value from the field or anything beneath it: copies it, or computes from it. A field the lens reads only in a comprehension's condition (`if v0_0.kind == "x" {...}`, or a list filter's `if`) is not mapped: the condition decides which fields exist, and none of its data is in them. A lens *drops* a field when a `DroppedField` lacuna it lists names the field. Steps without a lens are under [G1](#steps-and-direction).
+
+One rule underlies the table: **a present source value whose data has no effect on any target value the lens writes for the instance is dropped.** It raises a `DroppedField` unless (i) a target field written for this instance copies it or computes from it, through the comprehension arm that actually fired; (ii) it is carried as undeclared data (B4); or (iii) the lens lists a `DroppedField` of its own for it (B2), which is raised instead. A field the lens maps only in an arm that didn't fire for this instance is not mapped for it, even where another arm wrote the target field ([lacunas translation raises](#lacunas-translation-raises-by-itself)).
 
 The rules apply field by field, at every depth: a struct the lens reads in part is mapped in that part, and each declared field beneath it that nothing reads is a case of its own. A struct that nothing reads, and that the target lacks, is dropped whole ([E2](#structs-and-presence)).
 
@@ -61,7 +63,9 @@ The rules apply field by field, at every depth: a struct the lens reads in part 
 | B3 | Optional in the source, absent from the instance | Nothing is written from it. A target that requires the field takes a fallback the lens supplies (`_coalesce`). | None from the mapping ([F2](#when-lacunas-fire)). | yes, except `_match` ([F5](#when-lacunas-fire), [#187](https://github.com/sdboyer/thema/issues/187)) |
 | B4 | The lens doesn't map it; the target doesn't declare it; the target's struct at the same path is open | Carried, as undeclared data of the target, at its own path. On the way back it is promoted into the field the source declares ([C2](#undeclared-data)). | None. | yes |
 | B5 | The lens doesn't map it; the target doesn't declare it; the target's struct is closed, or the target has no struct at that path | Dropped. | `DroppedField`, raised by translation itself, whenever the field was present: one per struct per cause, naming each field and its value, as for C5. A `DroppedField` the lens lists for the field supersedes this one: it is raised instead, not as well. | yes |
-| B6 | The lens doesn't map it; the target also declares it | Not copied. The target field is absent, takes its default ([D2](#fields-only-the-target-declares)), or, where the target requires it with no default, the lens is refused at bind ([D3](#fields-only-the-target-declares)). The source value is dropped. | `DroppedField`, as for B5. | yes |
+| B6 | The lens doesn't map it; the target also declares it | Not copied. The target field gets the value the lens writes there without reading this one (a constant, or one computed from other fields), or is absent, takes its default ([D2](#fields-only-the-target-declares)), or, where the target requires it with no default, the lens is refused at bind ([D3](#fields-only-the-target-declares)). The source value is dropped. | `DroppedField`, as for B5. Where the lens writes the target field, none is raised if the value it writes equals the source value. | yes |
+
+A field read only in a condition, such as a discriminator, is a B4, B5 or B6 case: its value is carried where the target's struct is open, and otherwise dropped with a `DroppedField`, even where the lens writes something that encodes it (`if v0_0.kind == "a" {isA: true}`). A lens that writes the same value back into a field the target declares (`if v0_0.kind == "a" {kind: "a"}`) loses nothing, and raises none.
 
 Leaving a field unmapped is not refused at bind for that reason alone. A lens must turn every instance of its source into a valid instance of its target; it need not account for how. The authoring form never reaches B6: it copies a field both versions declare implicitly. It reaches B5 only through its derived backward lens, which drops a field the older version lacks with a `DroppedField` of its own; going forward, an unmapped removed field is an error ([E0347](errors/E0347.md)).
 
@@ -149,11 +153,13 @@ These are not listed by any lens. Translation raises them whatever lens the step
 
 | Lacuna | Raised for | Rule |
 |---|---|---|
-| `DroppedField` | a declared source field the lens doesn't map and translation can't carry, when present, unless the lens lists a `DroppedField` for it | [B5, B6](#fields-the-source-declares) |
+| `DroppedField` | a declared source field the lens doesn't map and translation can't carry, when present, unless the lens lists a `DroppedField` for it. A field read only in a comprehension's condition is not mapped. Nor is a field both versions declare that the lens writes without reading it, unless the value it writes equals the source value | [B5, B6](#fields-the-source-declares) |
 | `LossyFieldMapping` | undeclared data that a declared target field doesn't accept | [C3](#undeclared-data) |
 | `DroppedField` | undeclared data discarded for the value the lens wrote | [C4](#undeclared-data) |
 | `DroppedField` | undeclared data set aside: a closed target struct, no struct to carry it in, or a list element past the new length | [C5, C7](#undeclared-data) |
-| `DroppedField` | a present source value that the lens reads, where no field that reads it is written for this instance; for example the values that would have gone into an optional target struct that isn't written. Unless the lens lists a `DroppedField` for it, as the authoring form's derived lens does | [E3a](#structs-and-presence) |
+| `DroppedField` | a present source value that the lens maps, where no target field that copies it or computes from it was written for this instance by the arm that maps it, and that translation can't carry. For example the values that would have gone into an optional target struct that isn't written; or `b`, where `if v0_0.m == "copy" {x: v0_0.b}` didn't fire and another arm wrote `x`. Unless the lens lists a `DroppedField` for it, as the authoring form's derived lens does | [E3a](#structs-and-presence), [B](#fields-the-source-declares) |
+
+Together these say: a present source value whose data affects no target value the lens writes for the instance, and that isn't carried as undeclared data, always raises a lacuna; one per struct per cause, with the lens's own `DroppedField` for the field raised in its place, and none for an empty struct or list.
 
 Go's `Translate` raises all of these ([G4](#which-implementation-defines-translation)). The authoring form also derives the E3a lacuna into the lens itself ([#200](https://github.com/sdboyer/thema/pull/200)).
 

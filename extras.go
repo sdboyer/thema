@@ -20,12 +20,15 @@ import (
 //   - its extras: the fields its schema does not declare, which an open
 //     struct's ... admitted;
 //   - for a step with a lens, the fields its schema declares that the lens
-//     leaves alone: it reads neither them nor anything that holds them, and no
-//     lacuna it lists names them;
+//     leaves alone: no field of its result reads them or anything that holds
+//     them (copies them, or computes from them), and no lacuna it lists names
+//     them. A field read only in a comprehension's if clause is left alone:
+//     the condition decides whether fields exist, and carries none of its data;
 //   - for a step with a lens, the fields its schema declares that the lens
-//     reads, where none of the result fields that read them (that copy them,
-//     or compute from them) was written for the instance: such as a field the
-//     lens moves into a struct it writes only when another field is present.
+//     reads, where none of the result fields that read them was written for
+//     the instance by the arm that reads them: such as a field the lens moves
+//     into a struct it writes only when another field is present, or one it
+//     reads in an arm that did not fire, where another arm wrote the field.
 //
 // The lens runs on the instance without its extras, since a lens reads and
 // writes only declared fields. Then:
@@ -44,7 +47,7 @@ import (
 //   - A field the source declares and the lens leaves alone, or reads to no
 //     effect, is placed the same way where the target does not declare it.
 //     Where the target declares it, the field is not copied: the lens did not
-//     write it.
+//     write it, or wrote its own value for it.
 //
 // A field not placed is dropped with a lacuna: a LossyFieldMapping for a value
 // not an instance of the field the target declares for it, otherwise a
@@ -74,8 +77,12 @@ const (
 	// takenUnwritten: both schemas declare the field, and the lens neither
 	// maps nor writes it.
 	takenUnwritten
+	// takenOverwritten: both schemas declare the field, and the lens writes
+	// its own value for it without mapping it.
+	takenOverwritten
 	// takenLost: the source schema declares the field, the lens reads it, and
-	// none of the result fields that read it was written for this instance.
+	// none of the result fields that read it carried it for this instance:
+	// none was written by the arm that reads it.
 	takenLost
 )
 
@@ -91,7 +98,8 @@ const (
 	// carry it in.
 	asideNowhere
 	// asideWritten: the target declares the field, and the lens wrote its own
-	// value for it.
+	// value for it: an extra, or a field the source declares and the lens does
+	// not map.
 	asideWritten
 	// asideUnwritten: the target declares the field, and the lens neither
 	// maps nor writes it.
@@ -107,11 +115,12 @@ type stepLens struct {
 	// result is the lens's own result, before translation closes it against
 	// the target: what the lens wrote.
 	result cue.Value
-	// reads are the input paths its result reads.
-	reads []cue.Path
-	// readers are the fields of its result that read each of those paths:
-	// that copy the value there, or compute from it.
+	// readers are the fields of its result that read each input path its
+	// result reads: that copy the value there, or compute from it.
 	readers []cuetil.Reader
+	// firing are the readers that read for this instance: those not in a
+	// comprehension's body, and those in one that fired.
+	firing []cuetil.Reader
 	// named are the input paths any lacuna it lists names in its
 	// sourceFields, whether or not the lacuna applies (a written _drop is a
 	// DroppedField lacuna).
@@ -130,17 +139,17 @@ func (l *stepLens) wrote(p cue.Path) bool {
 type readFate int
 
 const (
-	// unread: nothing reads or names the value, anything holding it, or
-	// anything beneath it.
+	// unread: no field of the result reads the value, anything holding it,
+	// or anything beneath it, and no lacuna the lens lists names any of
+	// them. A value read only in a comprehension's if clause is unread.
 	unread readFate = iota
 	// readBeneath: whether the value is carried is decided beneath it.
 	readBeneath
 	// readCarried: a lacuna the lens lists names the value or something
-	// holding it, a result field that reads it was written for this
-	// instance, or it is read only by a comprehension's clauses, which
-	// decide whether fields exist rather than carry it.
+	// holding it, or a result field that reads it carried it for this
+	// instance: it was written, by the arm that reads it.
 	readCarried
-	// readLost: result fields read the value, and none of them was written
+	// readLost: result fields read the value, and none of them carried it
 	// for this instance.
 	readLost
 )
@@ -159,41 +168,30 @@ func (l *stepLens) read(p cue.Path) readFate {
 		beneath = true
 	}
 	covered := false
-	for _, m := range l.reads {
-		if !pathsOverlap(m, p) {
-			continue
-		}
-		if len(m.Selectors()) <= np {
-			covered = true
-		} else {
-			beneath = true
-		}
-	}
-	if !covered {
-		if beneath {
-			return readBeneath
-		}
-		return unread
-	}
-	readers := false
 	for _, r := range l.readers {
-		if len(r.Input.Selectors()) > np || !pathsOverlap(r.Input, p) {
+		if !pathsOverlap(r.Input, p) {
 			continue
 		}
-		if l.wrote(r.Result) {
+		if len(r.Input.Selectors()) > np {
+			beneath = true
+		} else {
+			covered = true
+		}
+	}
+	for _, r := range l.firing {
+		if len(r.Input.Selectors()) <= np && pathsOverlap(r.Input, p) && l.wrote(r.Result) {
 			return readCarried
 		}
-		readers = true
 	}
 	switch {
 	case beneath:
-		// What holds the value went unwritten, or only a clause read it:
-		// what is beneath it may still be carried.
+		// What holds the value was not carried: what is beneath it may
+		// still be.
 		return readBeneath
-	case readers:
+	case covered:
 		return readLost
 	}
-	return readCarried
+	return unread
 }
 
 // targets returns the paths in the step's result the extra at p goes to: the
@@ -247,11 +245,14 @@ func takeExtras(ctx *cue.Context, data, sch cue.Value) (cue.Value, []taken, erro
 // from does not declare, as takeExtras found them) and, for a step with a
 // lens, the fields of data that from declares and the lens leaves alone:
 // those to does not declare and result, the step's result, does not have
-// (takenUnmapped), and those to declares and the lens did not write
-// (takenUnwritten), and those it reads but wrote nothing that carries for this
-// instance (takenLost). List elements are taken as fields are. A field the
-// lens carries is the lens's. A field holding one the lens reads, or one both
-// schemas declare and the lens wrote, is descended into.
+// (takenUnmapped), those to declares and the lens did not write
+// (takenUnwritten), and those to declares and the lens wrote its own value
+// for (takenOverwritten); and those it reads but wrote nothing that carries
+// for this instance (takenLost). List elements are taken as fields are. A
+// field the lens carries is the lens's. A field holding one the lens reads,
+// or a struct or list both schemas declare and the lens wrote one of, is
+// descended into. A field the step's result holds unchanged at its own path
+// is not lost.
 func takeFields(ctx *cue.Context, data cue.Value, extras []taken, lens *stepLens, result, from, to cue.Value) []taken {
 	if lens == nil {
 		return extras
@@ -313,8 +314,16 @@ func takeFields(ctx *cue.Context, data cue.Value, extras []taken, lens *stepLens
 				continue
 			}
 			declared := cuetil.DeclaresPath(ctx, to, q)
-			if fate == readBeneath || (declared && lens.wrote(q)) {
+			if fate == readBeneath {
 				walk(c.value, q, false)
+				continue
+			}
+			if declared && lens.wrote(q) {
+				if sameContainer(c.value, lens.result.LookupPath(q)) {
+					walk(c.value, q, false)
+				} else if !result.LookupPath(q).Equals(c.value) {
+					out = append(out, taken{path: q, value: c.value, kind: takenOverwritten})
+				}
 				continue
 			}
 			switch {
@@ -383,8 +392,13 @@ func carry(ctx *cue.Context, result cue.Value, lens *stepLens, to *schemaDef, fr
 
 	placed := false
 	for _, f := range fields {
-		if f.kind == takenUnwritten {
-			if err := aside(f, parentOf(f.path), asideUnwritten); err != nil {
+		switch f.kind {
+		case takenUnwritten, takenOverwritten:
+			cause := asideUnwritten
+			if f.kind == takenOverwritten {
+				cause = asideWritten
+			}
+			if err := aside(f, parentOf(f.path), cause); err != nil {
 				return cue.Value{}, nil, err
 			}
 			continue
@@ -527,6 +541,12 @@ func asideMessage(refs []lacuna.FieldRef, parent cue.Path, cause asideCause, fro
 		return fmt.Sprintf("%s set aside: the lens from %s to %s reads %s, but wrote nothing that carries %s for this instance", subject, fromV, toV, pick("it", "them"), pick("it", "them"))
 	}
 	return fmt.Sprintf("%s set aside: translating from %s to %s produces no %s to carry %s in", subject, fromV, toV, where, pick("it", "them"))
+}
+
+// sameContainer reports whether a and b are both structs, or both lists.
+func sameContainer(a, b cue.Value) bool {
+	k := a.IncompleteKind()
+	return (k == cue.StructKind || k == cue.ListKind) && k == b.IncompleteKind()
 }
 
 // isEmpty reports whether v is an empty struct or list.

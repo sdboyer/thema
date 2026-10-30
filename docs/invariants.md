@@ -656,8 +656,11 @@ one rule in both directions:
 - **What is taken.** The fields an instance holds that its schema does not
   declare (its *extras*), at any depth: nested structs and list elements
   included. And, in a step with a lens, the fields the source schema declares
-  that the lens leaves alone: its result reads nothing at them or above them,
-  and no lacuna it lists names them in `sourceFields`. A lacuna the author
+  that the lens leaves alone: no field of its result copies or computes from
+  them or anything above them, and no lacuna it lists names them in
+  `sourceFields`. A field read only in a comprehension's condition
+  (`if v0_0.kind == "a"`) is left alone: the condition decides which fields
+  exist, and none of its data is in them. A lacuna the author
   declares for a field, such as a `DroppedField` (a written `_drop` is one),
   takes the place of any translation would emit for it, never adds to it.
 - **Where an extra goes.** An extra follows its struct. Where the contents of
@@ -684,17 +687,19 @@ one rule in both directions:
   instances already hold are promoted into it, and made required later.
 - **Fields the source declares.** One the target does not declare is placed
   like an extra, at its own path. One the target declares is not copied: the
-  lens did not write it, and its value is set aside.
+  lens did not write it, or wrote its own value for it without reading this
+  one, and its value is set aside, unless the lens wrote the same value.
 - **Values read to no effect.** A value the source declares and the lens
   reads, where none of the result fields that read it (that copy it, or
-  compute from it) was written for the instance, is lost all the same: for
-  instance, a field a hand-written lens moves into a struct it writes only
-  when another field is present. It is placed like a field the lens leaves
-  alone where the target does not declare it, and otherwise set aside.
-  Reading a value only in a comprehension's clause (`if v1_0.q != _|_`)
-  decides whether fields exist; it carries nothing, and is not counted. A
-  lens's own lacuna for the field takes the place of this one. Lacunas follow
-  from properties of the source schema, so such a lens still binds.
+  compute from it) was written for the instance by the comprehension arm
+  that reads it, is lost all the same: for instance, a field a hand-written
+  lens moves into a struct it writes only when another field is present, or
+  `b` where `if v0_0.m == "copy" {x: v0_0.b}` did not fire and another arm
+  wrote `x`. It is placed like a field the lens leaves alone where the target
+  does not declare it, and otherwise set aside. Which arms fired is found by
+  evaluating the lens's own syntax on the instance. A lens's own lacuna for
+  the field takes the place of this one. Lacunas follow from properties of
+  the source schema, so such a lens still binds.
 - **Set aside.** A field that cannot be placed, because the target's struct
   is closed, the result has no struct at its parent path, the lens wrote the
   field, the lens neither maps nor writes a field the target declares, or the
