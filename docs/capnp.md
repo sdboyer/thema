@@ -271,7 +271,10 @@ The compiler never derives these from the program a second time.
   `LossyFieldMapping`, a value moved to another path. The placeholders are
   `{fields}`, `{field}`, `{target}`, `{from}`, `{to}` and `{struct}`. Paths are
   rendered as CUE renders a path (`meta.owner`, `items[1]`, `"a-b".c`), and
-  `{struct}` is `the instance` at the root.
+  `{struct}` is `the instance` at the root. A lacuna's values and paths are
+  written as [translation](translation.md#how-a-lacuna-is-written) requires
+  (F6, F7): values as JSON-shaped data with an object's keys in code point
+  order, paths as CUE prints them.
 
 ### What the engine does in each step
 
@@ -373,10 +376,7 @@ the procedure above follows Go.
 10. **Placing is validation.** Go places a field only where the result is
     still an instance of the closed target. For what compiles, that is an
     undeclared label in an open struct, or a check that accepts the value.
-11. **Values and paths in lacunas** are rendered as Go decodes a value into
-    `any`, so an object's keys carry no order, and paths as CUE prints a
-    path.
-12. **Unreachable rules.** Two of the forms above cannot arise in a lineage
+11. **Unreachable rules.** Two of the forms above cannot arise in a lineage
     that compiles. They are kept because they are Go's.
     - A minor version cannot close a struct, and cannot declare a label in an
       open one unless the label accepts every value (compat's labels rules).
