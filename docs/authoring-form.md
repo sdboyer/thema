@@ -112,7 +112,7 @@ The backward lens is derived from the forward lens:
 
 - every move whose source is used once is inverted (`after: v0_0.before` forward derives `before: v1_0.after` backward);
 - every field the new version added is dropped, with a derived `DroppedField` lacuna saying so (a struct the new version added is dropped whole, with one lacuna about the struct, reported where it is present and holds more than its fields fill, whose value holds the fields beneath it), unless the old version's struct is open: there the field is left alone, and translation carries it into the old version as a field it does not declare, to be promoted again on the way forward unless the forward lens writes it. A field that a backward mapping reads part of is dropped all the same;
-- a value moved into a struct that is not written, for want of a field the struct requires, is set aside with a derived `DroppedField` lacuna (see above);
+- a value moved into a struct that is not written, for want of a field the struct requires, goes with it, and no lacuna is derived: the lens refers to the value, which counts as an effect ([E3a](translation.md#structs-and-presence)). An author who wants one writes it in `BackwardLens`;
 - fields both versions share are copied, as always.
 
 What the author writes in `BackwardLens` overrides the derivation at the same key or beneath it. Writing `x: _drop` for a field the derivation would have moved suppresses the move, and writing it for a field the derivation would have left to translation drops the field, with its `DroppedField` lacuna. `_coalesce`, `_match` and `_each` have no derived inverse, so a forward lens that uses them usually needs a written backward lens.
