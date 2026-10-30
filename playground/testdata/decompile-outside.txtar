@@ -56,7 +56,7 @@ lenses: {
         "origin": "user"
       },
       "help": [
-        "the authoring form expresses the lenses Compile produces: mappings that copy and compute, and _drop, _orelse, _match and _each"
+        "the authoring form expresses the lenses Compile produces: mappings that copy and compute, and _drop, _coalesce, _match and _each"
       ]
     }
   ]

@@ -33,7 +33,7 @@ func Decompile(lin cue.Value) (name string, files []File, err error) {
 		// Every reason is a sentence in the normal form's terms about what
 		// the authoring form cannot express; the lineage is the position.
 		return "", nil, diag.New(diag.E0356).AtValue(lin).Headline(err.Error()).
-			Help("the authoring form expresses the lenses Compile produces: mappings that copy and compute, and _drop, _orelse, _match and _each").
+			Help("the authoring form expresses the lenses Compile produces: mappings that copy and compute, and _drop, _coalesce, _match and _each").
 			Err()
 	}
 	return name, files, nil
@@ -148,7 +148,7 @@ type dentry struct {
 	source   cue.Path
 	expr     ast.Expr
 	comments []*ast.CommentGroup
-	// fallback is orelse's fallback; arms and catchAll are match's arms;
+	// fallback is coalesce's fallback; arms and catchAll are match's arms;
 	// body is each's body.
 	fallback ast.Expr
 	arms     []arm
@@ -157,7 +157,7 @@ type dentry struct {
 	// implicit marks a copy (a move from a path to itself) Compile would
 	// regenerate, which is omitted unless a lacuna names it.
 	implicit bool
-	// computed is a computed mapping's expression, or orelse's computed
+	// computed is a computed mapping's expression, or coalesce's computed
 	// primary.
 	computed ast.Expr
 }
@@ -338,12 +338,12 @@ func (b *dbody) field(f *ast.Field, tbase cue.Path, key string) error {
 			return eerr
 		}
 	} else if h, ok := asHeadSyntax(f.Value); ok && b.allPresence(h.cond) {
-		// orelse over a computed primary: the expression where the optional
+		// coalesce over a computed primary: the expression where the optional
 		// fields it reads are present, the fallback otherwise.
 		if _, _, isRef := refPathAny(h.els); !isRef && !isLiteral(h.els) {
 			return fmt.Errorf("lens %s is outside the authoring form: the fallback of %s is computed", key, tpath)
 		}
-		en.kind, en.computed, en.fallback = kindOrElse, h.then, h.els
+		en.kind, en.computed, en.fallback = kindCoalesce, h.then, h.els
 	} else if b.expressionOK(f.Value) {
 		en.kind, en.computed = kindComputed, f.Value
 	} else {
@@ -482,7 +482,7 @@ func (b *dbody) tests(cond ast.Expr) ([]test, bool) {
 }
 
 // branches interprets the comprehensions of one struct: a copy or move under
-// a presence test, the two arms of an orelse, or the arms of a match.
+// a presence test, the two arms of a coalesce, or the arms of a match.
 func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 	type group struct {
 		name string
@@ -588,13 +588,13 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 		case len(present) == 1 && len(absent) == 1:
 			root, p, ok := refPathAny(present[0].field.Value)
 			if !ok || root != b.root || p.String() != source.String() {
-				return fmt.Errorf("lens %s is outside the authoring form: the arms of %s are not an _orelse", key, tpath)
+				return fmt.Errorf("lens %s is outside the authoring form: the arms of %s are not a _coalesce", key, tpath)
 			}
 			fb := absent[0].field.Value
 			if _, _, isRef := refPathAny(fb); !isRef && !isLiteral(fb) {
 				return fmt.Errorf("lens %s is outside the authoring form: the fallback of %s is computed", key, tpath)
 			}
-			en.kind, en.source, en.fallback = kindOrElse, source, fb
+			en.kind, en.source, en.fallback = kindCoalesce, source, fb
 		case len(present) == 1 && len(absent) == 0:
 			root, p, ok := refPathAny(present[0].field.Value)
 			if !ok || root != b.root || p.String() != source.String() {
@@ -721,13 +721,13 @@ func (b *dbody) find(p cue.Path, drop bool) *dentry {
 
 // when turns a lacuna's condition into the authored when: nil, and
 // structural, if the condition is the one en implies (none for a move or a
-// constant; the fallback for an orelse; the [_] arm for a match; presence
+// constant; the fallback for a coalesce; the [_] arm for a match; presence
 // for a drop), else the condition as written.
 func (b *dbody) when(en *dentry, cond ast.Expr) (when ast.Expr, structural bool) {
 	if cond == nil {
 		return nil, en.kind != kindEach
 	}
-	if en.kind == kindOrElse && en.computed != nil {
+	if en.kind == kindCoalesce && en.computed != nil {
 		// The fallback was used: [if <presence> {false}, true][0].
 		if h, ok := asHeadSyntax(cond); ok && b.allPresence(h.cond) && isBoolLit(h.then, litFalse) && isBoolLit(h.els, litTrue) {
 			return nil, true
@@ -737,7 +737,7 @@ func (b *dbody) when(en *dentry, cond ast.Expr) (when ast.Expr, structural bool)
 	if ok {
 		last := ts[len(ts)-1]
 		switch en.kind {
-		case kindOrElse:
+		case kindCoalesce:
 			if len(ts) == 1 && last.operand == nil && !last.present && last.path.String() == en.source.String() {
 				return nil, true
 			}
@@ -1237,7 +1237,7 @@ func (b *dbody) syntax() *ast.StructLit {
 			val = en.expr
 		case kindDrop:
 			val = ast.NewIdent(opDrop)
-		case kindOrElse:
+		case kindCoalesce:
 			fallback := en.fallback
 			if root, p, ok := refPathAny(fallback); ok && root == b.root {
 				fallback = ref(b.root, p)
@@ -1246,7 +1246,7 @@ func (b *dbody) syntax() *ast.StructLit {
 			if primary == nil {
 				primary = ref(b.root, en.source)
 			}
-			val = &ast.CallExpr{Fun: ast.NewIdent(opOrElse), Args: []ast.Expr{primary, fallback}}
+			val = &ast.CallExpr{Fun: ast.NewIdent(opCoalesce), Args: []ast.Expr{primary, fallback}}
 		case kindComputed:
 			val = en.computed
 		case kindMatch:

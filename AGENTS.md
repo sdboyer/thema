@@ -1,5 +1,17 @@
 # Agent guidance for thema
 
+## Three layers of behaviour
+
+thema's behaviour is documented in three layers. **Translation**
+(`docs/translation.md`) says what happens to each field of an instance in a
+step, and whether it raises a lacuna. **The lens language** says what a lens
+can express. **Authoring derivations** say what the authoring form writes when
+the author says nothing, and are correct exactly when they produce what
+translation says. Settle a case in `docs/translation.md` before changing a
+derivation or a lens rule to handle it, and never answer a translation question
+inside a derivation. `docs/translation.md` marks the rules main doesn't
+implement yet; keep those marks current when a change implements one.
+
 ## Inspecting CUE values
 
 There is no single, reliable way to serialize a `cue.Value` that shows everything

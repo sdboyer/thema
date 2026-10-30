@@ -1,6 +1,6 @@
 # Lacunas
 
-A lacuna is a lens's report of a gap in translating an instance from one version to another: something the translation lost, invented or guessed. A lens declares every lacuna it can emit, and translating an instance returns the ones that applied to it. How lacunas are written in the authoring form is in [the authoring form](../authoring-form.md#lacunas); a guided example is in [the tutorial](../authoring.md#emitting-a-lacuna); why thema has them is in the [overview](../overview.md).
+A lacuna is a lens's report of a gap in translating an instance from one version to another: something the translation lost, invented or guessed. A lens declares every lacuna it can emit, and translating an instance returns the ones that applied to it. How lacunas are written in the authoring form is in [the authoring form](../authoring-form.md#lacunas); a guided example is in [the tutorial](../authoring.md#emitting-a-lacuna); why thema has them is in the [overview](../overview.md). What a translation step does to each field, and which lacunas it raises, including those translation raises by itself rather than a lens, is defined in [translation](../translation.md).
 
 ## Fields
 
@@ -44,8 +44,8 @@ The types, in the order `lacuna.cue` declares them. The Go constants in package 
 ### Placeholder
 
 - **Gap:** a target field holds a value the lens invented to meet the target schema, standing in for data the source does not have. It is not a schema default: it is a lens-defined value that exists to be replaced by the calling program. The usual case is a new required field with no default.
-- **Fields:** `targetFields`, the field holding the placeholder. A lacuna on an `_orelse` in the authoring form also lists the source field when the instance has it; when the fallback applied, it does not.
-- **Derived:** never. Emitted only when declared.
+- **Fields:** `targetFields`, the field holding the placeholder. A lacuna on a `_coalesce` in the authoring form also lists the source field when the instance has it; when the fallback applied, it does not.
+- **Derived:** never. Emitted only when declared ([D1](../translation.md#fields-only-the-target-declares)).
 
 ### DroppedField
 
@@ -57,7 +57,7 @@ The types, in the order `lacuna.cue` declares them. The Go constants in package 
 
 - **Gap:** no clear mapping exists from the source value to the meaning of any valid target value, such as a coercion that only some source values survive: a string field becoming an integer, where `"12"` parses and `"twelve"` does not. At least one valid source value has a clear, lossless mapping to a target value.
 - **Fields:** both. `sourceFields`, the field whose value did not map; `targetFields`, the field it mapped to.
-- **Derived:** never. Emitted when declared, and by translation for a value it [could not promote](#set-aside-fields) into a field the target declares.
+- **Derived:** never by a lens. Translation raises one by itself for undeclared data, carried under a name the target declares, whose value is not an instance of the target field ([C3](../translation.md#undeclared-data)); see [set-aside fields](#set-aside-fields).
 
 ### ChangedDefault
 
@@ -81,9 +81,11 @@ The types, in the order `lacuna.cue` declares them. The Go constants in package 
 
 - **Gap:** a target field holds the target schema's default because the source instance had no corresponding data. The value is a legitimate one chosen by the schema, not a placeholder, but it was inferred rather than stated.
 - **Fields:** `targetFields`, the defaulted field.
-- **Derived:** never. A target schema's default that fills a field during translation emits no lacuna unless the lens declares one.
+- **Derived:** never. A target schema's default that fills a field during translation emits no lacuna unless the lens declares one ([D2](../translation.md#fields-only-the-target-declares)).
 
 ## Emission
+
+This section describes how main emits lacunas today. [Translation](../translation.md#when-lacunas-fire) defines which lacunas a step raises. Main does not yet raise any of the [lacunas translation raises by itself](../translation.md#lacunas-translation-raises-by-itself), so where this section says a step emits only its lens's lacunas, or that a minor step emits none, it describes main, not the contract. Likewise, where the target version's struct is open, the derived drop of a field the newer version added is main's behaviour; translation carries such a field instead ([B4](../translation.md#fields-the-source-declares)).
 
 A translation passes through every version between its `from` and `to` versions, one step per pair of adjacent versions.
 

@@ -4,7 +4,7 @@ These are the operations that combine data with a lineage: `validate`, `validate
 
 ## validate
 
-Checks that the data is an instance of one schema. The schema is closed for validation: a field the schema does not declare is an error, however open the author wrote the schema. Every field the schema declares that is not optional must have a concrete value, from the data or from the schema's default.
+Checks that the data is an instance of one schema. The schema is closed for validation, keeping the author's `...`: a field the schema neither declares nor admits is an error. A struct the author wrote with `...` admits any field, and a pattern constraint admits the keys it matches; any other struct, including one written without `...`, is closed ([what an instance may hold](../translation.md#what-an-instance-may-hold)). Every field the schema declares that is not optional must have a concrete value, from the data or from the schema's default.
 
 **Takes**
 
@@ -23,7 +23,7 @@ Checks that the data is an instance of one schema. The schema is closed for vali
 **Fails when**
 
 - The data lacks a field the schema requires ([E0501](../errors/E0501.md)).
-- The data has a field the schema does not declare ([E0502](../errors/E0502.md)).
+- The data has a field the schema neither declares nor admits ([E0502](../errors/E0502.md)).
 - A value is of a kind the schema does not accept ([E0503](../errors/E0503.md)), is outside the bounds it allows ([E0504](../errors/E0504.md)), or matches none of its alternatives ([E0505](../errors/E0505.md)).
 - The data is not concrete ([E0506](../errors/E0506.md)). Only data built in CUE can be; parsed JSON and YAML are always concrete.
 - The version is not a version: [E0803](../errors/E0803.md) in the playground, [E0620](../errors/E0620.md) in the CLI.
@@ -98,7 +98,7 @@ Success prints the accepting version and exits 0. Failure exits 1, printing diag
 
 ## translate
 
-Transforms an instance of one schema into an instance of another schema in the same lineage, and returns the [lacunas](lacunas.md) each step emitted.
+Transforms an instance of one schema into an instance of another schema in the same lineage, and returns the [lacunas](lacunas.md) each step emitted. What a step does to each field of the instance, and which lacunas it raises, is defined in [translation](../translation.md). This section describes the operation as main implements it today; the rules of translation main does not implement yet, such as carrying the fields an open struct admits without declaring, are marked there.
 
 A translation passes through every version between the two, one step per pair of adjacent versions:
 
