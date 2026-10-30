@@ -523,12 +523,14 @@ func fillsAt(ctx *cue.Context, v, sch cue.Value, p cue.Path) bool {
 }
 
 // fills reports whether v is what sch, declared with sel, fills by itself: a
-// struct each of whose fields fills, or the default (or constant) of a
-// regular field. An optional, required or pattern field fills nothing, so a
-// value it holds is more than its fill; an empty struct or list is caught
-// before this, as isEmpty.
+// struct each of whose fields fills, an empty list, or the default (or
+// constant) of a regular field. An optional, required or pattern field fills
+// nothing, so a value it holds is more than its fill.
 func fills(ctx *cue.Context, v, sch cue.Value, sel cue.Selector) bool {
-	if v.IncompleteKind() == cue.StructKind {
+	switch v.IncompleteKind() {
+	case cue.ListKind:
+		return isEmpty(v)
+	case cue.StructKind:
 		d, _ := sch.Default()
 		iter, err := v.Fields()
 		if err != nil {
@@ -546,7 +548,7 @@ func fills(ctx *cue.Context, v, sch cue.Value, sel cue.Selector) bool {
 		return false
 	}
 	d, _ := sch.Default()
-	if d.Validate(cue.Concrete(true)) != nil || (d.IncompleteKind() == cue.ListKind && d.Allows(cue.AnyIndex)) {
+	if d.Validate(cue.Concrete(true)) != nil {
 		return false
 	}
 	vd, _ := v.Default()

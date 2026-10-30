@@ -687,6 +687,7 @@ func TestTranslateLostDefaults(t *testing.T) {
 	var (
 		removed = defaultsLineage(`{a: string, x: *1 | int}`, `{a: string}`, `{a: v0_0.a}`)
 		structs = defaultsLineage(`{a: string, o?: {x: *1 | int, y?: int}}`, `{a: string}`, `{a: v0_0.a}`)
+		lists   = defaultsLineage(`{a: string, o: {l: [...int]}}`, `{a: string}`, `{a: v0_0.a}`)
 		mixed   = defaultsLineage(`{a: string, x: *1 | int, w: *"w" | string}`, `{a: string}`, `{a: v0_0.a}`)
 		written = defaultsLineage(`{a: string, b: *0 | int}`, `{a: string, b: int}`, `{a: v0_0.a, b: 7}`)
 		fixed   = defaultsLineage(`{a: string, k: "k"}`, `{a: string}`, `{a: v0_0.a}`)
@@ -716,7 +717,12 @@ func TestTranslateLostDefaults(t *testing.T) {
 			lacunas: []lacuna.Lacuna{dropped("z set aside: 0.0 does not declare it in the instance, which it does not leave open", ref("z", int64(5)))},
 		},
 
-		"struct: empty":            {lineage: structs, data: `{a: "q", o: {}}`, want: `{"a":"q"}`},
+		"struct: empty":      {lineage: structs, data: `{a: "q", o: {}}`, want: `{"a":"q"}`},
+		"struct: empty list": {lineage: lists, data: `{a: "q", o: {l: []}}`, want: `{"a":"q"}`},
+		"struct: list": {
+			lineage: lists, data: `{a: "q", o: {l: [1]}}`, want: `{"a":"q"}`,
+			lacunas: []lacuna.Lacuna{dropped("o set aside: 1.0 does not declare it in the instance, which it does not leave open", ref("o", map[string]interface{}{"l": []interface{}{1.0}}))},
+		},
 		"struct: defaults written": {lineage: structs, data: `{a: "q", o: {x: 1}}`, want: `{"a":"q"}`},
 		"struct: other than default": {
 			lineage: structs, data: `{a: "q", o: {x: 2}}`, want: `{"a":"q"}`,
