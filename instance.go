@@ -315,7 +315,7 @@ func (i *Instance) translateStep(data cue.Value, from, to *schemaDef) (cue.Value
 
 	var lens *stepLens
 	if from.Version()[0] != to.Version()[0] || to.Version().Less(from.Version()) {
-		if lens, err = i.stepLens(out, decl, from.Version(), to.Version()); err != nil {
+		if lens, err = i.stepLens(out, from.Version(), to.Version()); err != nil {
 			return cue.Value{}, lacuna.TranslationStep{}, diag.InternalErr(err)
 		}
 	}
@@ -329,26 +329,20 @@ func (i *Instance) translateStep(data cue.Value, from, to *schemaDef) (cue.Value
 }
 
 // stepLens reads the lens of the edge from->to, as the step whose kernel
-// output is out evaluated it on data. What the lens reads and copies is read
-// from the lineage's lens, so it depends only on what the lens is; what it
-// wrote, from the step; and which of its arms fired, from the lineage's lens
-// evaluated on data.
-func (i *Instance) stepLens(out, data cue.Value, from, to SyntacticVersion) (*stepLens, error) {
+// output is out evaluated it. What the lens reads and copies is read from the
+// lineage's lens, so it depends only on what the lens is; what it wrote, from
+// the step.
+func (i *Instance) stepLens(out cue.Value, from, to SyntacticVersion) (*stepLens, error) {
 	lens := out.LookupPath(cue.MakePath(cue.Str("steps"), cue.Index(0), cue.Hid("_lens", util.ThemaPackageID)))
 	declared := i.Schema().Lineage().Underlying().LookupPath(cue.MakePath(cue.Str("lenses"), cue.Str(lid(from, to).String())))
 	syn, err := cuetil.ParseLens(declared, lensParam(from), lensParam(to))
 	if err != nil {
 		return nil, err
 	}
-	firing, err := syn.Firing(i.rt().Context(), data)
-	if err != nil {
-		return nil, err
-	}
 	sl := &stepLens{
-		result:  lens.LookupPath(cue.MakePath(cue.Str(lensParam(to)))),
-		readers: syn.Readers(),
-		firing:  firing,
-		copies:  syn.Copies(),
+		result: lens.LookupPath(cue.MakePath(cue.Str(lensParam(to)))),
+		reads:  syn.InputReads(),
+		copies: syn.Copies(),
 	}
 	lacs, err := lens.LookupPath(cue.MakePath(cue.Str("lacunas"))).List()
 	if err != nil {
