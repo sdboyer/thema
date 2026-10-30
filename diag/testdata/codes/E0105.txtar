@@ -31,7 +31,7 @@ scehma: {
       "severity": "error",
       "headline": "scehma is not a field of a version file",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "ship/history/1.0.thema",
         "line": 1,
         "col": 1,
         "origin": "user"
@@ -45,7 +45,7 @@ scehma: {
       "severity": "error",
       "headline": "history/1.0.thema declares no Schema",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "ship/history/1.0.thema",
         "line": 1,
         "col": 1,
         "origin": "user"
@@ -63,7 +63,7 @@ scehma: {
 }
 -- out/text --
 error[E0105]: scehma is not a field of a version file
- --> history/1.0.thema:1:1
+ --> ship/history/1.0.thema:1:1
   |
 1 | scehma: {
   | ^^^^^^
@@ -71,7 +71,7 @@ error[E0105]: scehma is not a field of a version file
   = help: did you mean Schema?
 
 error[E0108]: history/1.0.thema declares no Schema
- --> history/1.0.thema:1:1
+ --> ship/history/1.0.thema:1:1
   |
 1 | scehma: {
   | ^^^^^^

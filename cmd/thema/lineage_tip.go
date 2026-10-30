@@ -2,13 +2,10 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
 	"github.com/sdboyer/thema/authoring"
-	"github.com/sdboyer/thema/diag"
 )
 
 type tipCommand struct {
@@ -43,12 +40,14 @@ func (tc *tipCommand) setup(cmd *cobra.Command) {
 }
 
 func (tc *tipCommand) run(cmd *cobra.Command, _ []string) error {
-	abs, err := filepath.Abs(tc.dir)
-	if err != nil {
-		return diag.New(diag.E0601).Headlinef("%s cannot be resolved to a path", tc.dir).Detail(diag.OSReason(err)).Err()
+	if err := openWorkspace(tc.dir); err != nil {
+		return err
 	}
-	sourceDirs = append(sourceDirs, abs)
-	_, files, err := authoring.Load(os.DirFS(filepath.Dir(abs)), filepath.Base(abs))
+	dir, err := ws.name(tc.dir)
+	if err != nil {
+		return err
+	}
+	_, files, err := authoring.Load(ws.fsys, dir)
 	if err != nil {
 		return err
 	}

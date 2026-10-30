@@ -11,23 +11,33 @@ import (
 // AuthoringLineage loads the authoring files of the lineage in dir, a
 // directory of fsys, compiles its frozen versions, those under history/, to
 // the normal form and binds the result. The tip is not read.
-// Errors are positioned in the authoring files, by their paths relative to
-// dir, and worded in the authoring form's terms. For the pieces of that
-// sequence, see [github.com/sdboyer/thema/authoring].
+// Errors are positioned in the authoring files, by their paths within fsys
+// (dir/history/1.0.thema), so that an excerpt is read from fsys by the name a
+// position gives, and worded in the authoring form's terms. For the pieces of
+// that sequence, see [github.com/sdboyer/thema/authoring].
 func AuthoringLineage(fsys fs.FS, dir string, rt *thema.Runtime, opts ...thema.BindOption) (thema.Lineage, error) {
 	name, files, err := authoring.Load(fsys, dir)
 	if err != nil {
 		return nil, err
 	}
+	lin, _, err := bindAuthoring(rt, name, files, opts)
+	return lin, err
+}
+
+// bindAuthoring compiles the history of the lineage name, in files, and binds
+// it. It returns what it compiled, for the collection's check of the
+// lineage's normal form.
+func bindAuthoring(rt *thema.Runtime, name string, files []authoring.File, opts []thema.BindOption) (thema.Lineage, *authoring.Compiled, error) {
 	c, err := authoring.Compile(rt.Context(), name, files)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	v := rt.Context().BuildFile(c.File)
 	if err := v.Err(); err != nil {
-		return nil, diag.Convert(err, diag.Context{Op: diag.OpCompile, Vocabulary: authoring.Vocabulary(c), Generic: diag.E0112})
+		return nil, nil, diag.Convert(err, diag.Context{Op: diag.OpCompile, Vocabulary: authoring.Vocabulary(c), Generic: diag.E0112})
 	}
-	return thema.BindLineage(v, rt, append([]thema.BindOption{thema.WithVocabulary(authoring.Vocabulary(c))}, opts...)...)
+	lin, err := thema.BindLineage(v, rt, append([]thema.BindOption{thema.WithVocabulary(authoring.Vocabulary(c))}, opts...)...)
+	return lin, c, err
 }
 
 // Development is a lineage bound with its tip, on the development path.
@@ -57,13 +67,20 @@ func (d *Development) Provisional(v thema.SyntacticVersion) bool {
 // newest version, provisional, at the version it cuts as. It is for
 // developing and testing a lineage, never for serving it: what is published
 // is what [AuthoringLineage] binds, the versions under history/. A lineage
-// with no tip.thema is an error (E0149). For the pieces, see
+// with no tip.thema is an error (E0149). Errors are positioned as
+// [AuthoringLineage] positions them. For the pieces, see
 // [authoring.CompileDevelopment] and [authoring.BindDevelopment].
 func DevelopmentLineage(fsys fs.FS, dir string, rt *thema.Runtime, opts ...thema.BindOption) (*Development, error) {
 	name, files, err := authoring.Load(fsys, dir)
 	if err != nil {
 		return nil, err
 	}
+	return bindDevelopment(rt, name, files, opts)
+}
+
+// bindDevelopment compiles the lineage name, in files, with its tip, and
+// binds it on the development path.
+func bindDevelopment(rt *thema.Runtime, name string, files []authoring.File, opts []thema.BindOption) (*Development, error) {
 	c, err := authoring.CompileDevelopment(rt.Context(), name, files)
 	if err != nil {
 		return nil, err

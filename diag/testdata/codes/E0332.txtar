@@ -30,7 +30,7 @@ Schema: {
       "severity": "error",
       "headline": "a mapping has no attributes; a lacuna is declared in the lens's lacunas field, keyed by the mapping",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "ship/history/1.0.thema",
         "line": 9,
         "col": 19,
         "offset": 103,
@@ -46,7 +46,7 @@ Schema: {
 }
 -- out/text --
 error[E0332]: a mapping has no attributes; a lacuna is declared in the lens's lacunas field, keyed by the mapping
- --> history/1.0.thema:9:19
+ --> ship/history/1.0.thema:9:19
   |
 9 |         secondfield: -1 @lacuna(Placeholder, "-1 is a placeholder")
   |                         ^

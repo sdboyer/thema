@@ -48,7 +48,13 @@ const (
 )
 
 // A File is one authoring file: its path relative to the lineage's directory
-// (tip.thema, history/0.0.thema) and its text.
+// (tip.thema, history/0.0.thema), which places it in the lineage, its Name,
+// which its positions carry, and its text. [Load] names each file by its path
+// within the fs.FS it read it from (ship/history/0.0.thema), so that a tool
+// reads an excerpt from that FS by the name a diagnostic gives, and two
+// lineages' files of the same Path are never confused. A file that was not
+// read from an FS must be named by whoever makes it; one with no Name is not
+// compiled.
 type File = compile.File
 
 // Tip is a lineage's tip as it stands against the lineage's history: the
@@ -63,7 +69,7 @@ type Compiled = compile.Compiled
 
 // Load reads the authoring files of the lineage in dir, a directory of fsys:
 // every .thema file at the top of dir and under dir/history. The lineage's
-// name is dir's base name.
+// name is dir's base name. Each file is named by its path within fsys.
 func Load(fsys fs.FS, dir string) (name string, files []File, err error) {
 	return compile.Load(fsys, dir)
 }
@@ -140,7 +146,8 @@ func Vocabulary(c *Compiled) diag.Vocabulary {
 // inverse of Compile on the lineages Compile produces; a lens outside that
 // form is an error naming its edge, never an approximation. Every version
 // is decompiled under history/, and the tip is clean: the newest version's
-// schema, with no lenses.
+// schema, with no lenses. The files were read from no FS, and are named by
+// their Path.
 func Decompile(lin cue.Value) (name string, files []File, err error) {
 	return compile.Decompile(lin)
 }

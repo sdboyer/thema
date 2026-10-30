@@ -3,8 +3,8 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io/fs"
 	"os"
-	"path/filepath"
 
 	"cuelang.org/go/cue/parser"
 	"github.com/spf13/cobra"
@@ -36,23 +36,26 @@ func (fc *fmtCommand) setup(cmd *cobra.Command) {
 }
 
 func (fc *fmtCommand) run(cmd *cobra.Command, _ []string) error {
-	abs, err := filepath.Abs(fc.dir)
-	if err != nil {
-		return diag.New(diag.E0601).Headlinef("%s cannot be resolved to a path", fc.dir).Detail(diag.OSReason(err)).Err()
+	if err := openWorkspace(fc.dir); err != nil {
+		return err
 	}
-	if !isAuthoringDir(abs) {
+	dir, err := ws.name(fc.dir)
+	if err != nil {
+		return err
+	}
+	if !isAuthoringDir(dir) {
 		return diag.New(diag.E0110).Headlinef("%s holds no version file, so it is not a lineage in the authoring form", fc.dir).
 			Helpf("a lineage in the authoring form is a directory holding %s and its frozen versions under %s/, such as %s/0.0%s", authoring.TipFile, authoring.HistoryDir, authoring.HistoryDir, authoring.Ext).
 			Err()
 	}
-	_, files, err := authoring.Load(os.DirFS(filepath.Dir(abs)), filepath.Base(abs))
+	_, files, err := authoring.Load(ws.fsys, dir)
 	if err != nil {
 		return err
 	}
 	for _, f := range files {
-		// Parsed under its path first, so that a syntax error points into
+		// Parsed under its name first, so that a syntax error points into
 		// the file; Format parses without one.
-		if _, err := parser.ParseFile(filepath.Join(fc.dir, filepath.FromSlash(f.Path)), f.Text, parser.ParseComments); err != nil {
+		if _, err := parser.ParseFile(f.Name, f.Text, parser.ParseComments); err != nil {
 			return diag.Convert(err, diag.Context{Op: diag.OpCompile, Generic: diag.E0102})
 		}
 		out, err := authoring.Format(f.Text)
@@ -62,14 +65,14 @@ func (fc *fmtCommand) run(cmd *cobra.Command, _ []string) error {
 		if bytes.Equal(out, f.Text) {
 			continue
 		}
-		// Rewritten with the mode it had.
-		p := filepath.Join(abs, filepath.FromSlash(f.Path))
-		info, err := os.Stat(p)
+		// Rewritten with the mode it had, at its host path: fsys is
+		// read-only.
+		info, err := fs.Stat(ws.fsys, f.Name)
 		if err != nil {
-			return diag.New(diag.E0601).Headlinef("%s cannot be read", displayPath(p)).Detail(diag.OSReason(err)).Err()
+			return diag.New(diag.E0601).Headlinef("%s cannot be read", displayPath(f.Name)).Detail(diag.OSReason(err)).Err()
 		}
-		if err := os.WriteFile(p, out, info.Mode().Perm()); err != nil {
-			return diag.New(diag.E0616).Headlinef("%s cannot be written", displayPath(p)).Detail(diag.OSReason(err)).Err()
+		if err := os.WriteFile(ws.osPath(f.Name), out, info.Mode().Perm()); err != nil {
+			return diag.New(diag.E0616).Headlinef("%s cannot be written", displayPath(f.Name)).Detail(diag.OSReason(err)).Err()
 		}
 		if _, err := fmt.Fprintln(cmd.OutOrStdout(), f.Path); err != nil {
 			return err

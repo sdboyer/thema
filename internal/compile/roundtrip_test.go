@@ -123,12 +123,12 @@ func TestRoundTrip(t *testing.T) {
 
 // rendered is the diagnostics as the author sees them, with the archive's
 // authoring files as the source of excerpts. Positions name the files by their
-// path under the lineage's directory.
+// path in the archive.
 func rendered(ds []diag.Diagnostic, a *archive) string {
 	var b bytes.Buffer
 	diag.Render(&b, ds, diag.RenderOptions{Source: func(file string) ([]byte, bool) {
 		for _, f := range a.ar.Files {
-			if f.Name == file || strings.HasSuffix(f.Name, "/"+file) {
+			if f.Name == file {
 				return f.Data, true
 			}
 		}
@@ -214,7 +214,7 @@ func (a *archive) lineage(t *testing.T) (string, []File) {
 		} else if dir != name {
 			t.Fatalf("%s: files under %s and %s; an archive holds one lineage", a.path, name, dir)
 		}
-		files = append(files, File{Path: rest, Text: f.Data})
+		files = append(files, File{Path: rest, Name: f.Name, Text: f.Data})
 	}
 	return name, files
 }

@@ -1,0 +1,44 @@
+#op: cli
+#args: playground examples lineages/ship
+A collection of lineages is a directory whose immediate subdirectories are
+lineages' directories. A directory that holds version files of its own, a
+tip.thema or a history/, is one lineage, not a collection of them: its
+history/ would be read as a lineage named history.
+-- lineages/ship/history/0.0.thema --
+Schema: {
+	name: string
+}
+-- lineages/ship/tip.thema --
+Schema: {
+	name: string
+}
+-- lineages/ship/example.cue --
+category: "Ships"
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0624",
+      "severity": "error",
+      "headline": "lineages/ship is a lineage's directory, not a collection's",
+      "notes": [
+        {
+          "label": "a collection's lineages are the directories beneath it, each holding tip.thema and history/"
+        }
+      ],
+      "help": [
+        "give the directory that holds lineages/ship, or load it as one lineage"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0624]: lineages/ship is a lineage's directory, not a collection's
+  |
+  = note: a collection's lineages are the directories beneath it, each holding tip.thema and history/
+  = help: give the directory that holds lineages/ship, or load it as one lineage

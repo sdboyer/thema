@@ -22,7 +22,7 @@ Schema: {
 }
 -- out/error --
 error[E0344]: "one" is not an instance of 1.0's b
- --> history/1.0.thema:9:6
+ --> ship/history/1.0.thema:9:6
   |
 3 |     b: int
   |        --- here

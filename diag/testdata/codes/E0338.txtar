@@ -33,7 +33,7 @@ Schema: {
       "severity": "error",
       "headline": "a _match arm's value must be a constant",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "ship/history/1.0.thema",
         "line": 9,
         "col": 9,
         "offset": 93,
@@ -45,7 +45,7 @@ Schema: {
       "severity": "error",
       "headline": "0.0 declares x and 1.0 does not, and nothing maps it: write <field>: v0_0.x to move it, or x: _drop",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "ship/history/1.0.thema",
         "line": 5,
         "col": 1,
         "offset": 24,
@@ -61,14 +61,14 @@ Schema: {
 }
 -- out/text --
 error[E0338]: a _match arm's value must be a constant
- --> history/1.0.thema:9:9
+ --> ship/history/1.0.thema:9:9
   |
 9 |             "a": v0_0.x
   |                  ^^^^
   |
 
 error[E0347]: 0.0 declares x and 1.0 does not, and nothing maps it: write <field>: v0_0.x to move it, or x: _drop
- --> history/1.0.thema:5:1
+ --> ship/history/1.0.thema:5:1
   |
 5 | ForwardLens: {
   | ^^^^^^^^^^^

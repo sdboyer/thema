@@ -330,7 +330,7 @@ func (gc *genCommand) runGoBindings(cmd *cobra.Command, args []string) error {
 func findModRoot(abspath string) (rootfind, error) {
 	stat, err := os.Stat(abspath)
 	if err != nil {
-		return rootfind{}, diag.New(diag.E0601).Headlinef("%s cannot be read", displayPath(abspath)).Detail(diag.OSReason(err)).Err()
+		return rootfind{}, diag.New(diag.E0601).Headlinef("%s cannot be read", displayHostPath(abspath)).Detail(diag.OSReason(err)).Err()
 	}
 	if !stat.IsDir() {
 		abspath = filepath.Dir(abspath)
@@ -344,7 +344,7 @@ func findModRoot(abspath string) (rootfind, error) {
 		if err == nil {
 			r.cuemod, err = cuecontext.New().CompileBytes(cf).LookupPath(cue.MakePath(cue.Str("module"))).String()
 			if err != nil {
-				return rootfind{}, diag.New(diag.E0606).Headlinef("%s does not declare module", displayPath(filepath.Join(p, "cue.mod", "module.cue"))).Cause(err).Help(`a module file declares module: "<path>" and language: version: "<version>"`).Err()
+				return rootfind{}, diag.New(diag.E0606).Headlinef("%s does not declare module", displayHostPath(filepath.Join(p, "cue.mod", "module.cue"))).Cause(err).Help(`a module file declares module: "<path>" and language: version: "<version>"`).Err()
 			}
 			r.cuemodpath = p
 			break

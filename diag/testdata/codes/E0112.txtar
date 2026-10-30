@@ -19,7 +19,7 @@ Schema: {
       "severity": "error",
       "headline": "a version file's schema has an error",
       "primary": {
-        "file": "history/0.0.thema",
+        "file": "ship/history/0.0.thema",
         "line": 3,
         "col": 5,
         "offset": 20,
@@ -28,7 +28,7 @@ Schema: {
       "notes": [
         {
           "pos": {
-            "file": "history/0.0.thema",
+            "file": "ship/history/0.0.thema",
             "line": 2,
             "col": 5,
             "offset": 14,
@@ -48,7 +48,7 @@ Schema: {
 }
 -- out/text --
 error[E0112]: a version file's schema has an error
- --> history/0.0.thema:3:5
+ --> ship/history/0.0.thema:3:5
   |
 2 |     a: 1
   |        - also here

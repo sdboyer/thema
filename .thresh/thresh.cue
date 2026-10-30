@@ -260,6 +260,37 @@ seams: "playground-api": {
 	]
 }
 
+// A file is named, in every position, by its path within the fs.FS it was
+// read from, relative to that FS's root: ship/history/0.1.thema, never
+// history/0.1.thema. Whatever renders an excerpt reads it from that same FS
+// by that name, and never from the host or by a path it rebuilt. Lineages
+// of a collection are laid out alike, file for file, so a position named
+// any other way shows one lineage's error under another's text.
+seams: "fs-positions": {
+	kind:    "shared-kernel"
+	purpose: "every position names its file by its path within the fs.FS it was read from, and every excerpt is read from that FS by that name, so that two lineages laid out alike are never confused"
+	paths: [
+		"internal/compile/source.go",
+		"authoring/authoring.go",
+		"authoring/collection.go",
+		"authoring/normalized.go",
+		"load/authoring.go",
+		"load/collection.go",
+		"load/load.go",
+		"internal/embedreg/embedreg.go",
+		"cmd/thema/workspace.go",
+		"cmd/thema/main.go",
+		"cmd/thema/load.go",
+		"playground/lineage.go",
+		"playground/walk.go",
+	]
+	consult: [
+		"the alike-layout tests: TestCollectionPositionsAlike, TestDevelopmentCollectionPositionsAlike and TestLineagePositionsAlike in load, TestCollectionPositionsAlike in cmd/thema, and the E0151 reproducer, whose two lineages share every relative path",
+		"every renderer of excerpts (the CLI's readSource, the playground, diag's goldens), each of which reads from the FS the positions were made in, by their name, and never from os",
+		"loading-path independence (#217): what a lineage reports must not depend on whether it was loaded alone, in a collection, from the CLI or from a playground request",
+	]
+}
+
 // --- choke-point ------------------------------------------------------------------
 
 // BindLineage is the sole verification choke point (see docs/go-mapping.md).
@@ -293,6 +324,18 @@ seams: "embedded-registry": {
 	paths:  ["internal/embedreg/*.go"]
 	type:   "registry"
 	onlyIn: ["Configure"]
+}
+
+// The CLI reads the host's filesystem through one os.DirFS, opened once per
+// run at the edge by openWorkspace; every file a command reads, and every
+// excerpt, goes through it by name. A workspace built anywhere else is a
+// second view of the host, whose names would not be the positions' names.
+seams: "cli-workspace": {
+	kind:    "choke-point"
+	purpose: "the CLI wraps os.DirFS exactly once, so that every name a position carries is a path within the one FS that excerpts are read from"
+	paths:   ["cmd/thema/*.go"]
+	type:    "workspace"
+	onlyIn:  ["openWorkspace"]
 }
 
 // --- declared-set: the Go/CUE partition of responsibility ------------------------

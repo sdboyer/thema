@@ -48,33 +48,33 @@ func (dc *dataCommand) setup(cmd *cobra.Command) {
 	validateCmd.Flags().StringVarP(&dc.lla.verstr, "version", "v", "", "schema syntactic version to validate data against. defaults to latest")
 	validateCmd.Flags().StringVarP(&dc.format, "format", "e", "", "input data format. Autodetected by default, but can be constrained to \"json\" or \"yaml\".")
 	validateCmd.Flags().BoolVarP(&dc.quiet, "quiet", "q", false, "emit no output, exit status only")
-	validateCmd.PersistentPreRunE = mergeCobraefuncs(dc.lla.validateLineageInput, dc.lla.validateVersionInputOptional, dc.validateDataInput)
+	validateCmd.PersistentPreRunE = mergeCobraefuncs(dc.openWorkspace, dc.lla.validateLineageInput, dc.lla.validateVersionInputOptional, dc.validateDataInput)
 	validateCmd.RunE = dc.runValidate
 
 	dataCmd.AddCommand(validateAnyCmd)
 	validateAnyCmd.Flags().StringVarP(&dc.lla.verstr, "version", "v", "", "schema syntactic version to validate data against")
 	validateAnyCmd.Flags().StringVarP(&dc.format, "format", "e", "", "input data format. Autodetected by default, but can be constrained to \"json\" or \"yaml\".")
 	validateAnyCmd.Flags().BoolVarP(&dc.quiet, "quiet", "q", false, "emit no output, exit status only")
-	validateAnyCmd.PersistentPreRunE = mergeCobraefuncs(dc.lla.validateLineageInput, dc.lla.validateVersionInputOptional, dc.validateDataInput)
+	validateAnyCmd.PersistentPreRunE = mergeCobraefuncs(dc.openWorkspace, dc.lla.validateLineageInput, dc.lla.validateVersionInputOptional, dc.validateDataInput)
 	validateAnyCmd.RunE = dc.runValidateAny
 
 	dataCmd.AddCommand(translateCmd)
 	translateCmd.Flags().StringVarP(&dc.lla.verstr, "to", "v", "", "schema version to translate input data to")
 	translateCmd.MarkFlagRequired("to")
 	translateCmd.Flags().StringVarP(&dc.format, "format", "e", "", "input data format. Autodetected by default, but can be constrained to \"json\" or \"yaml\".")
-	translateCmd.PersistentPreRunE = mergeCobraefuncs(dc.lla.validateLineageInput, dc.lla.validateVersionInput, dc.validateDataInput)
+	translateCmd.PersistentPreRunE = mergeCobraefuncs(dc.openWorkspace, dc.lla.validateLineageInput, dc.lla.validateVersionInput, dc.validateDataInput)
 	translateCmd.RunE = dc.runTranslate
 
 	dataCmd.AddCommand(hydrateCmd)
 	hydrateCmd.Flags().StringVarP(&dc.lla.verstr, "version", "v", "", "schema syntactic version to validate data against")
 	hydrateCmd.Flags().StringVarP(&dc.format, "format", "e", "", "input data format. Autodetected by default, but can be constrained to \"json\" or \"yaml\".")
-	hydrateCmd.PersistentPreRunE = mergeCobraefuncs(dc.lla.validateLineageInput, dc.lla.validateVersionInputOptional, dc.validateDataInput)
+	hydrateCmd.PersistentPreRunE = mergeCobraefuncs(dc.openWorkspace, dc.lla.validateLineageInput, dc.lla.validateVersionInputOptional, dc.validateDataInput)
 	hydrateCmd.RunE = dc.runHydrate
 
 	dataCmd.AddCommand(dehydrateCmd)
 	dehydrateCmd.Flags().StringVarP(&dc.lla.verstr, "version", "v", "", "schema syntactic version to validate data against")
 	dehydrateCmd.Flags().StringVarP(&dc.format, "format", "e", "", "input data format. Autodetected by default, but can be constrained to \"json\" or \"yaml\".")
-	dehydrateCmd.PersistentPreRunE = mergeCobraefuncs(dc.lla.validateLineageInput, dc.lla.validateVersionInputOptional, dc.validateDataInput)
+	dehydrateCmd.PersistentPreRunE = mergeCobraefuncs(dc.openWorkspace, dc.lla.validateLineageInput, dc.lla.validateVersionInputOptional, dc.validateDataInput)
 	dehydrateCmd.RunE = dc.runDehydrate
 }
 
@@ -340,8 +340,15 @@ func stdinHasInput(mode fs.FileMode) bool {
 	return mode&fs.ModeCharDevice == 0
 }
 
-func pathOrStdin(args []string) ([]byte, error) {
-	var byt []byte
+// openWorkspace opens the run's workspace for the lineage and the data.
+func (dc *dataCommand) openWorkspace(_ *cobra.Command, args []string) error {
+	return dc.lla.openLineageWorkspace(args...)
+}
+
+// pathOrStdin reads the data: from the workspace, the file args names, or
+// else stdin. name is what its positions call it: its name in the
+// workspace, or stdin.
+func pathOrStdin(args []string) (byt []byte, name string, err error) {
 	switch len(args) {
 	case 0:
 		fi, err := os.Stdin.Stat()
@@ -349,54 +356,48 @@ func pathOrStdin(args []string) ([]byte, error) {
 			panic(err)
 		}
 		if !stdinHasInput(fi.Mode()) {
-			return nil, diag.New(diag.E0613).Headline("no data was given").
+			return nil, "", diag.New(diag.E0613).Headline("no data was given").
 				Help("pass the path to a JSON or YAML file, or pipe the data on stdin").Err()
 		}
 
 		byt, err = io.ReadAll(os.Stdin)
 		if err != nil {
-			return nil, diag.New(diag.E0613).Headline("the data on stdin cannot be read").Detail(diag.OSReason(err)).Err()
+			return nil, "", diag.New(diag.E0613).Headline("the data on stdin cannot be read").Detail(diag.OSReason(err)).Err()
 		}
-		return byt, nil
+		inlineSources[stdinName] = byt
+		return byt, stdinName, nil
 	case 1:
-		fi, err := os.Stat(args[0])
+		name, err := ws.name(args[0])
 		if err != nil {
-			return nil, diag.New(diag.E0613).Headlinef("the data path %s cannot be read", args[0]).Detail(diag.OSReason(err)).Err()
+			return nil, "", err
+		}
+		fi, err := fs.Stat(ws.fsys, name)
+		if err != nil {
+			return nil, "", diag.New(diag.E0613).Headlinef("the data path %s cannot be read", args[0]).Detail(diag.OSReason(err)).Err()
 		}
 		if fi.IsDir() {
-			return nil, diag.New(diag.E0613).Headlinef("the data path %s is a directory", args[0]).
+			return nil, "", diag.New(diag.E0613).Headlinef("the data path %s is a directory", args[0]).
 				Help("pass the path to one JSON or YAML file").Err()
 		}
-
-		f, err := os.Open(args[0])
+		byt, err = fs.ReadFile(ws.fsys, name)
 		if err != nil {
-			return nil, diag.New(diag.E0613).Headlinef("the data path %s cannot be opened", args[0]).Detail(diag.OSReason(err)).Err()
+			return nil, "", diag.New(diag.E0613).Headlinef("the data path %s cannot be read", args[0]).Detail(diag.OSReason(err)).Err()
 		}
-		defer f.Close() // nolint: errcheck
-
-		byt, err = io.ReadAll(f)
-		if err != nil {
-			return nil, diag.New(diag.E0613).Headlinef("the data path %s cannot be read", args[0]).Detail(diag.OSReason(err)).Err()
-		}
-
+		return byt, name, nil
 	default:
-		return nil, diag.New(diag.E0620).Headlinef("%d arguments were given, where the data is one path", len(args)).
+		return nil, "", diag.New(diag.E0620).Headlinef("%d arguments were given, where the data is one path", len(args)).
 			Help("pass the path to one JSON or YAML file, or pipe the data on stdin").Err()
 	}
-
-	return byt, nil
 }
 
 func (dc *dataCommand) validateDataInput(cmd *cobra.Command, args []string) error {
 	var ext string
 
-	byt, err := pathOrStdin(args)
+	byt, name, err := pathOrStdin(args)
 	if err != nil {
 		return err
 	}
-	if len(byt) > 0 && len(dc.inbytes) == 0 {
-		dc.inbytes = byt
-	}
+	dc.inbytes = byt
 
 	if len(args) == 1 {
 		switch filepath.Ext(args[0]) {
@@ -408,15 +409,10 @@ func (dc *dataCommand) validateDataInput(cmd *cobra.Command, args []string) erro
 	}
 
 	// The data's positions name its file, so that diagnostics point into it.
-	name := "stdin"
-	if len(args) == 1 {
-		name = args[0]
-	}
-	inlineSources[name] = dc.inbytes
 	jd := vmux.NewJSONCodec(name)
 	yd := vmux.NewYAMLCodec(name)
 	parseFailed := func(err error, format string) error {
-		b := diag.New(diag.E0507).Headlinef("%s is not valid %s", name, format)
+		b := diag.New(diag.E0507).Headlinef("%s is not valid %s", displayFile(name), format)
 		var ce cerrors.Error
 		if errors.As(err, &ce) {
 			b.At(ce.Position())

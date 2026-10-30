@@ -36,7 +36,7 @@ Schema: {
       "severity": "error",
       "headline": "_match on kind: 1.0's kind is not a self-contained type",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "ship/history/1.0.thema",
         "line": 10,
         "col": 9,
         "offset": 120,
@@ -60,7 +60,7 @@ Schema: {
 }
 -- out/text --
 error[E0352]: _match on kind: 1.0's kind is not a self-contained type
-  --> history/1.0.thema:10:9
+  --> ship/history/1.0.thema:10:9
    |
 10 |         kind: _match(v0_0.kind, {
    |               ^^^^^^

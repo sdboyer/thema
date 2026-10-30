@@ -31,7 +31,7 @@ Schema: {
       "severity": "error",
       "headline": "\"one\" is not an instance of 1.0's b",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "ship/history/1.0.thema",
         "line": 9,
         "col": 6,
         "offset": 70,
@@ -40,7 +40,7 @@ Schema: {
       "notes": [
         {
           "pos": {
-            "file": "history/1.0.thema",
+            "file": "ship/history/1.0.thema",
             "line": 3,
             "col": 5,
             "offset": 25,
@@ -50,7 +50,7 @@ Schema: {
         },
         {
           "pos": {
-            "file": "history/1.0.thema",
+            "file": "ship/history/1.0.thema",
             "line": 9,
             "col": 6,
             "offset": 70,
@@ -70,7 +70,7 @@ Schema: {
 }
 -- out/text --
 error[E0344]: "one" is not an instance of 1.0's b
- --> history/1.0.thema:9:6
+ --> ship/history/1.0.thema:9:6
   |
 3 |     b: int
   |        --- here

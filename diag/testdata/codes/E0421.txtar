@@ -53,7 +53,7 @@ Schema: {
       "severity": "error",
       "headline": "lacunas.items.legacy: a _drop inside _each aggregates over the list, and its lacuna has no when",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "ship/history/1.0.thema",
         "line": 19,
         "col": 14,
         "offset": 243,
@@ -65,7 +65,7 @@ Schema: {
       "severity": "error",
       "headline": "lacunas.items.legacy: a lacuna on a mapping inside _each is not supported yet; a DroppedField lacuna on a _drop refines the _drop's",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "ship/history/1.0.thema",
         "line": 16,
         "col": 13,
         "offset": 168,
@@ -81,14 +81,14 @@ Schema: {
 }
 -- out/text --
 error[E0421]: lacunas.items.legacy: a _drop inside _each aggregates over the list, and its lacuna has no when
-  --> history/1.0.thema:19:14
+  --> ship/history/1.0.thema:19:14
    |
 19 |                 when:    len(v0_0.items) > 1
    |                          ^^^
    |
 
 error[E0413]: lacunas.items.legacy: a lacuna on a mapping inside _each is not supported yet; a DroppedField lacuna on a _drop refines the _drop's
-  --> history/1.0.thema:16:13
+  --> ship/history/1.0.thema:16:13
    |
 16 |             legacy: [{
    |                      ^

@@ -31,7 +31,7 @@ Schema: {
       "severity": "error",
       "headline": "history/0.1.thema is backward compatible with 0.0, so it has no ForwardLens",
       "primary": {
-        "file": "history/0.1.thema",
+        "file": "ship/history/0.1.thema",
         "line": 6,
         "col": 1,
         "offset": 34,
@@ -55,7 +55,7 @@ Schema: {
 }
 -- out/text --
 error[E0355]: history/0.1.thema is backward compatible with 0.0, so it has no ForwardLens
- --> history/0.1.thema:6:1
+ --> ship/history/0.1.thema:6:1
   |
 6 | ForwardLens: {
   | ^^^^^^^^^^^

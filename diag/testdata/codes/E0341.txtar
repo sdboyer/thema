@@ -29,7 +29,7 @@ Schema: {
       "severity": "error",
       "headline": "1.0 does not declare nope",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "ship/history/1.0.thema",
         "line": 9,
         "col": 3,
         "offset": 74,
@@ -45,7 +45,7 @@ Schema: {
 }
 -- out/text --
 error[E0341]: 1.0 does not declare nope
- --> history/1.0.thema:9:3
+ --> ship/history/1.0.thema:9:3
   |
 9 |         nope: v0_0.a
   |         ^^^^

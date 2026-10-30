@@ -20,7 +20,7 @@ Schema: {
       "severity": "error",
       "headline": "the Schema in tip.thema differs from the one in history/0.0.thema",
       "primary": {
-        "file": "tip.thema",
+        "file": "ship/tip.thema",
         "line": 1,
         "col": 1,
         "origin": "user"
@@ -43,7 +43,7 @@ Schema: {
 }
 -- out/text --
 error[E1003]: the Schema in tip.thema differs from the one in history/0.0.thema
- --> tip.thema:1:1
+ --> ship/tip.thema:1:1
   |
 1 | Schema: {
   | ^^^^^^

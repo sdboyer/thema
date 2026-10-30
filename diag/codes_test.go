@@ -548,7 +548,9 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 }
 
 // authoringFiles returns the archive's authoring files: those under its one
-// directory, whose name is the lineage's unless #name gives it.
+// directory, whose name is the lineage's unless #name gives it. The archive is
+// the files' FS: each is named by its path in the archive, which is what its
+// positions carry and what renderText reads its excerpts by.
 func authoringFiles(t *testing.T, a *diagtest.Archive) (string, []compile.File) {
 	t.Helper()
 	dirs, _ := a.Directives()
@@ -562,7 +564,7 @@ func authoringFiles(t *testing.T, a *diagtest.Archive) (string, []compile.File) 
 		if name == "" {
 			name = dir
 		}
-		files = append(files, compile.File{Path: rest, Text: f.Data})
+		files = append(files, compile.File{Path: rest, Name: f.Name, Text: f.Data})
 	}
 	if name == "" {
 		t.Fatal("the operation needs authoring files under the lineage's directory")
@@ -619,21 +621,12 @@ func formOf(a *diagtest.Archive) diagtest.Form {
 	return diagtest.Normal
 }
 
-// renderText renders with the archive's files as sources. Authoring files are
-// stored under the lineage's directory but positioned by their path within it.
+// renderText renders with the archive's files as sources, by the names the
+// positions carry: every file an operation reads is named by its path in the
+// archive.
 func renderText(ds []diag.Diagnostic, a *diagtest.Archive) string {
 	var b bytes.Buffer
-	diag.Render(&b, ds, diag.RenderOptions{Source: func(file string) ([]byte, bool) {
-		if src, ok := a.Source(file); ok {
-			return src, true
-		}
-		for _, f := range a.Inputs() {
-			if strings.HasSuffix(f.Name, "/"+file) {
-				return f.Data, true
-			}
-		}
-		return nil, false
-	}})
+	diag.Render(&b, ds, diag.RenderOptions{Source: a.Source})
 	return b.String()
 }
 

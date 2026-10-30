@@ -41,7 +41,7 @@ Schema: {
 }
 -- out/bind --
 error[E0382]: properbool in the ForwardLens in history/1.0.thema is not total for some instance
- --> history/1.0.thema:5:1
+ --> ship/history/1.0.thema:5:1
   |
 5 | ForwardLens: {
   | ^^^^^^^^^^^
@@ -51,7 +51,7 @@ error[E0382]: properbool in the ForwardLens in history/1.0.thema is not total fo
   = help: write the mapping in a form the checker can follow, or add a lacuna where it cannot decide
 
 error[E0369]: properbool in the ForwardLens in history/1.0.thema is not total for some instance
- --> history/1.0.thema:8:3
+ --> ship/history/1.0.thema:8:3
   |
 8 |         properbool: _match(v0_0.boolish, {
   |         ^^^^^^^^^^

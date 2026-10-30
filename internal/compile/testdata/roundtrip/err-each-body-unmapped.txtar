@@ -21,7 +21,7 @@ ForwardLens: {
 Schema: close({u!: [...close({key!: string})]})
 -- out/error --
 error[E0347]: 0.0 declares is_enabled and 1.0 does not, and nothing maps it: write <field>: _item.is_enabled to move it, or is_enabled: _drop
- --> history/1.0.thema:8:3
+ --> ship/history/1.0.thema:8:3
   |
 8 |         u: _each(v0_0.u, {key: _item.id})
   |         ^

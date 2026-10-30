@@ -34,7 +34,7 @@ Schema: {
       "severity": "error",
       "headline": "history/1.0.thema imports strings, which its Schema does not use",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "ship/history/1.0.thema",
         "line": 1,
         "col": 8,
         "offset": 7,
@@ -53,7 +53,7 @@ Schema: {
 }
 -- out/text --
 error[E0147]: history/1.0.thema imports strings, which its Schema does not use
- --> history/1.0.thema:1:8
+ --> ship/history/1.0.thema:1:8
   |
 1 | import "strings"
   |        ^^^^^^^^^

@@ -3,11 +3,11 @@
 A directory of lineages offers the playground the ones with an example.cue
 beside their version files, and a directory with none offers nothing, which
 is a mistake: the notes list the lineages it holds without one.
--- lineages/wip/draft/history/0.0.thema --
+-- lineages/draft/history/0.0.thema --
 Schema: {
 	x: int
 }
--- lineages/wip/draft/tip.thema --
+-- lineages/draft/tip.thema --
 Schema: {
 	x: int
 }
@@ -20,7 +20,7 @@ Schema: {
       "headline": "lineages holds no example",
       "notes": [
         {
-          "label": "lineages/wip/draft holds a lineage but no example.cue"
+          "label": "lineages/draft holds a lineage but no example.cue"
         }
       ],
       "help": [
@@ -37,5 +37,5 @@ Schema: {
 -- out/text --
 error[E0622]: lineages holds no example
   |
-  = note: lineages/wip/draft holds a lineage but no example.cue
+  = note: lineages/draft holds a lineage but no example.cue
   = help: an example is a lineage's directory of version files with an example.cue beside them

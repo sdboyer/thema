@@ -28,7 +28,7 @@ Schema: {
       "severity": "error",
       "headline": "_match takes two arguments: _match(v0_0.<path>, {...})",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "ship/history/1.0.thema",
         "line": 8,
         "col": 9,
         "offset": 67,
@@ -44,7 +44,7 @@ Schema: {
 }
 -- out/text --
 error[E0336]: _match takes two arguments: _match(v0_0.<path>, {...})
- --> history/1.0.thema:8:9
+ --> ship/history/1.0.thema:8:9
   |
 8 |         kind: _match(v0_0.kind)
   |               ^^^^^^

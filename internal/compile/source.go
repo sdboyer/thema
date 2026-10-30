@@ -2,6 +2,7 @@ package compile
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"path"
 	"regexp"
@@ -31,9 +32,19 @@ const (
 )
 
 // File is one authoring file: its path relative to the lineage's directory,
-// and its text.
+// which places it in the lineage's layout, the name its positions carry, and
+// its text.
+//
+// Name is the file's path within the fs.FS it was read from, relative to that
+// FS's root, as [Load] sets it: ship/history/0.0.thema for Path
+// history/0.0.thema in a lineage read from ship. It is the one name a
+// diagnostic gives the file, so a tool reads an excerpt from the same FS by
+// it, and two lineages whose files have the same Path are never confused. A
+// file that was not read from an FS is named by whoever made it; a File with
+// no Name is not compiled.
 type File struct {
 	Path string
+	Name string
 	Text []byte
 }
 
@@ -52,7 +63,9 @@ const (
 )
 
 // Load reads the authoring files of the lineage in dir: every file with [Ext]
-// in dir and in dir/history. The lineage's name is dir's base name. Whether
+// in dir and in dir/history. The lineage's name is dir's base name. Each
+// file is named by its path within fsys, which is what its positions carry
+// (see [File]). Whether
 // the files are laid out as a lineage is for the compiler to say, so that
 // every misplaced file is reported with the others.
 func Load(fsys fs.FS, dir string) (name string, files []File, err error) {
@@ -73,7 +86,7 @@ func Load(fsys fs.FS, dir string) (name string, files []File, err error) {
 			if err != nil {
 				return "", nil, diag.New(diag.E0601).Headlinef("%s cannot be read", p).Detail(diag.OSReason(err)).Err()
 			}
-			files = append(files, File{Path: strings.TrimPrefix(p, dir+"/"), Text: b})
+			files = append(files, File{Path: strings.TrimPrefix(p, dir+"/"), Name: p, Text: b})
 		}
 	}
 	return path.Base(dir), files, nil
@@ -187,7 +200,10 @@ func (v *version) schemaField() *ast.Field {
 // its version, or the tip, whose version is derived later. Its contents are at
 // most a schema, a forward block and a backward block.
 func parseVersion(f File, tip bool) (*version, error) {
-	af, err := parser.ParseFile(f.Path, f.Text, parser.ParseComments)
+	if f.Name == "" {
+		return nil, diag.InternalErr(fmt.Errorf("%s has no name for its positions", f.Path))
+	}
+	af, err := parser.ParseFile(f.Name, f.Text, parser.ParseComments)
 	if err != nil {
 		return nil, diag.Convert(err, diag.Context{Op: diag.OpCompile, Generic: diag.E0102})
 	}

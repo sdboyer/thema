@@ -55,6 +55,7 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0148](E0148.md) | error | a numbered version file is at the top of the lineage's directory, not under history/ |
 | [E0149](E0149.md) | error | the lineage's directory has no tip.thema |
 | [E0150](E0150.md) | error | a lens of the tip names a version other than the tip's parent, the newest version under history/ |
+| [E0151](E0151.md) | error | a collection's lineage has no normalized.gen.cue, or one that is not the normal form of its history/ |
 | [E0201](E0201.md) | error | the first schema is not version 0.0 |
 | [E0202](E0202.md) | error | a schema's version does not follow its predecessor's |
 | [E0203](E0203.md) | error | a major version declares no schemas |
@@ -185,6 +186,8 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0620](E0620.md) | error | a flag or argument is not valid |
 | [E0621](E0621.md) | error | an example's example.cue is not valid |
 | [E0622](E0622.md) | error | the examples directory holds no example |
+| [E0623](E0623.md) | error | a collection's path is not a directory |
+| [E0624](E0624.md) | error | a collection's directory is a lineage's directory |
 | [E0701](E0701.md) | error | generating code from the schema failed |
 | [E0801](E0801.md) | error | the playground request is malformed |
 | [E0802](E0802.md) | error | the playground request gives the lineage in neither form, or in both |

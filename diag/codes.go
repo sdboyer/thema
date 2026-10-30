@@ -87,6 +87,7 @@ var Codes = []CodeInfo{
 	{Code: E0148, Severity: SeverityError, Title: "a numbered version file is at the top of the lineage's directory, not under history/", Sentinels: []error{terrors.ErrInvalidLineage}, Positionless: true},
 	{Code: E0149, Severity: SeverityError, Title: "the lineage's directory has no tip.thema", Sentinels: []error{terrors.ErrInvalidLineage}, Positionless: true},
 	{Code: E0150, Severity: SeverityError, Title: "a lens of the tip names a version other than the tip's parent, the newest version under history/", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0151, Severity: SeverityError, Title: "a collection's lineage has no normalized.gen.cue, or one that is not the normal form of its history/", Positionless: true},
 	{Code: E0201, Severity: SeverityError, Title: "the first schema is not version 0.0", Sentinels: []error{terrors.ErrNonContiguousVersions}},
 	{Code: E0202, Severity: SeverityError, Title: "a schema's version does not follow its predecessor's", Sentinels: []error{terrors.ErrNonContiguousVersions}},
 	{Code: E0203, Severity: SeverityError, Title: "a major version declares no schemas", Sentinels: []error{terrors.ErrNonContiguousVersions}},
@@ -217,6 +218,8 @@ var Codes = []CodeInfo{
 	{Code: E0620, Severity: SeverityError, Title: "a flag or argument is not valid", Positionless: true},
 	{Code: E0621, Severity: SeverityError, Title: "an example's example.cue is not valid", Positionless: true},
 	{Code: E0622, Severity: SeverityError, Title: "the examples directory holds no example", Positionless: true},
+	{Code: E0623, Severity: SeverityError, Title: "a collection's path is not a directory", Positionless: true},
+	{Code: E0624, Severity: SeverityError, Title: "a collection's directory is a lineage's directory", Positionless: true},
 	{Code: E0701, Severity: SeverityError, Title: "generating code from the schema failed", Positionless: true},
 	{Code: E0801, Severity: SeverityError, Title: "the playground request is malformed", Positionless: true},
 	{Code: E0802, Severity: SeverityError, Title: "the playground request gives the lineage in neither form, or in both", Positionless: true},
@@ -274,6 +277,7 @@ const (
 	E0148 Code = "E0148" // a <major>.<minor>.thema at the top of the lineage, not under history/
 	E0149 Code = "E0149" // no tip.thema, where the tip is needed (the development path, the clean check)
 	E0150 Code = "E0150" // a tip lens names a stale parent, v2_0 where history/'s newest is 2.1
+	E0151 Code = "E0151" // a collection's lineage whose normalized.gen.cue is missing, or not GenerateNormalizedFile's text
 
 	E0201 Code = "E0201" // first version is not 0.0
 	E0202 Code = "E0202" // a version is neither the next minor nor the next major
@@ -432,7 +436,9 @@ const (
 	E0618 Code = "E0618" // serve cannot listen
 	E0620 Code = "E0620" // a CLI flag or argument that is not valid
 	E0621 Code = "E0621" // an example.cue that is not CUE, lacks a category, or has another field
-	E0622 Code = "E0622" // an examples directory with no example in it, or not a directory
+	E0622 Code = "E0622" // an examples directory with no example in it
+	E0623 Code = "E0623" // a collection's root that is not a directory
+	E0624 Code = "E0624" // a collection's root that holds a lineage's version files itself
 
 	// E07xx: code generation.
 	E0701 Code = "E0701" // a generator failed on the schema

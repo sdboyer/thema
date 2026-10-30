@@ -2,8 +2,10 @@ package embedreg_test
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
@@ -17,6 +19,9 @@ import (
 
 // loadWithThema loads a single-file module at /m that imports thema, with the
 // given module.cue contents and lineage body.
+// inFile is the file TestFS loads, by its path within the FS.
+const inFile = "m/in.cue"
+
 func loadWithThema(t *testing.T, modfile, body string) cue.Value {
 	t.Helper()
 	cfg := &load.Config{
@@ -91,9 +96,48 @@ func TestErrorPositionsUseRoot(t *testing.T) {
 	t.Fatalf("expected an error position in %s, got: %v", want, cerrors.Details(err, nil))
 }
 
-func TestRejectsFS(t *testing.T) {
-	cfg := &load.Config{FS: thema.CueJointFS}
+func TestRejectsFromFSPath(t *testing.T) {
+	cfg := &load.Config{FS: fstest.MapFS{}, FromFSPath: func(p string) string { return p }}
 	if err := embedreg.Configure(cfg, thema.CueJointFS); err == nil {
-		t.Fatal("expected an error when cfg.FS is set")
+		t.Fatal("expected an error when cfg.FromFSPath is set")
+	}
+}
+
+// With cfg.FS, the loader reads only that FS: thema's module is served beside
+// it, a file of the caller's is named by its path within the FS, relative to
+// its root, and thema's own files are named as they are in the overlay.
+func TestFS(t *testing.T) {
+	fsys := fstest.MapFS{
+		"m/cue.mod/module.cue": {Data: []byte(util.ModuleFile("example.com/m"))},
+		inFile:                 {Data: []byte("package m\n\nimport \"github.com/sdboyer/thema\"\n\nlin: thema.Lineage & {name: 42}\n")},
+	}
+	cfg := &load.Config{FS: fsys, Dir: "/m", ModuleRoot: "/m", Env: []string{"CUE_REGISTRY=none"}}
+	if err := embedreg.Configure(cfg, thema.CueJointFS); err != nil {
+		t.Fatal(err)
+	}
+	bi := load.Instances([]string{"."}, cfg)[0]
+	if bi.Err != nil {
+		t.Fatal(cerrors.Details(bi.Err, nil))
+	}
+	if got := bi.Files[0].Filename; got != inFile {
+		t.Errorf("the caller's file is named %q, want m/in.cue", got)
+	}
+	err := cuecontext.New().BuildInstance(bi).Validate()
+	if err == nil {
+		t.Fatal("expected a conflict with thema.Lineage")
+	}
+	var files []string
+	for _, e := range cerrors.Errors(err) {
+		for _, p := range e.InputPositions() {
+			files = append(files, p.Filename())
+		}
+	}
+	if !slices.Contains(files, embedreg.Root()+"/lineage.cue") || !slices.Contains(files, inFile) {
+		t.Errorf("positions name %v, want %s/lineage.cue and m/in.cue", files, embedreg.Root())
+	}
+	for _, f := range files {
+		if _, kernel := embedreg.KernelPath(f); !kernel && f != inFile {
+			t.Errorf("position in %s, which is neither thema's nor the caller's file", f)
+		}
 	}
 }

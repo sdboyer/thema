@@ -22,7 +22,7 @@ ForwardLens: {
       "severity": "error",
       "headline": "history/1.0.thema declares no Schema",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "ship/history/1.0.thema",
         "line": 1,
         "col": 1,
         "origin": "user"
@@ -40,7 +40,7 @@ ForwardLens: {
 }
 -- out/text --
 error[E0108]: history/1.0.thema declares no Schema
- --> history/1.0.thema:1:1
+ --> ship/history/1.0.thema:1:1
   |
 1 | ForwardLens: {
   | ^^^^^^^^^^^

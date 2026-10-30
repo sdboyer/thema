@@ -3,11 +3,14 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
+	"testing/fstest"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/build"
@@ -22,6 +25,7 @@ import (
 	terrors "github.com/sdboyer/thema/errors"
 	"github.com/sdboyer/thema/internal/util"
 	tload "github.com/sdboyer/thema/load"
+	"github.com/yalue/merged_fs"
 )
 
 // TODO OMG WOULD BE SO AMAZING TO MAKE THIS ALL JUST USE github.com/sdboyer/thema/load
@@ -62,13 +66,6 @@ type lineageLoadArgs struct {
 }
 
 type dynamicLoader struct {
-	// if a real cue.mod existed on disk, this is non-nil
-	cm *parentCueMod
-	// relative path from the cue mod to the dir containing the loaded lineage, if there was a cue.mod
-	relToLinDir string
-	// filename of the lineage, if a single specific filename was provided
-	linFilename string
-
 	// build.Instance from which the lineage came
 	binst *build.Instance
 	// loaded lineage
@@ -82,64 +79,78 @@ type dynamicLoader struct {
 	sch thema.Schema
 }
 
-// lineageFromPaths takes a filepath and an optional CUE path expression
-// and loads the result up and bind it to a Lineage.
-type parentCueMod struct {
-	// the absolute path to the dir containing cue.mod directory
-	cuemodparentdir string
-	// name of module according to cue.mod/module.cue file
-	modname string
+// openLineageWorkspace opens the run's workspace for the lineage at
+// lla.inputLinFilePath and the other paths the command reads, such as its
+// data. A lineage in a CUE module is loaded with the module, so the
+// workspace holds the directory of the nearest cue.mod above the lineage
+// too; that one is found on the host by its existence, before the workspace
+// is opened, and read through it.
+func (lla *lineageLoadArgs) openLineageWorkspace(paths ...string) error {
+	all := append([]string{lla.inputLinFilePath}, paths...)
+	if lla.inputLinFilePath != "" {
+		if abs, err := filepath.Abs(lla.inputLinFilePath); err == nil {
+			if mod, ok := hostCueModDir(abs); ok {
+				// The workspace holds the directory of each path it is given:
+				// cue.mod's is the module's root.
+				all = append(all, filepath.Join(mod, "cue.mod"))
+			}
+		}
+	}
+	return openWorkspace(all...)
+}
+
+// hostCueModDir returns the nearest directory at or above path that holds a
+// cue.mod/module.cue, by its existence on the host. Its contents are read
+// through the workspace.
+func hostCueModDir(path string) (string, bool) {
+	for p := path; ; p = filepath.Dir(p) {
+		if info, err := os.Stat(filepath.Join(p, "cue.mod", "module.cue")); err == nil && !info.IsDir() {
+			return p, true
+		}
+		if p == filepath.Dir(p) {
+			return "", false
+		}
+	}
 }
 
 func (lla *lineageLoadArgs) dynLoad() (*dynamicLoader, error) {
 	if lla.inputLinFilePath == "" {
 		return nil, diag.New(diag.E0620).Headline("no lineage path was given").Help("pass the path to a .cue file or a directory with -l").Err()
 	}
+	if err := lla.openLineageWorkspace(); err != nil {
+		return nil, err
+	}
 
 	dl := &dynamicLoader{}
-	// scenarios
-	// - lineage load path has no cue.mod parent (dynamically create cueFS in load dir)
-	// - lineage load path has a cue.mod in some parent (dynamically make a cueFS that includes it; record rel)
-	// - cwd is in the same cue.mod as target lineage
-	// - cwd is different
-	//
-	// loadpath is absolute vs. relative (CUE load.Instances() seems to choke on absolute paths)
-
 	var err error
+	// subgen writes beside the lineage, at its host path.
 	lla.absInput, err = filepath.Abs(lla.inputLinFilePath)
 	if err != nil {
 		return nil, diag.New(diag.E0601).Headlinef("%s cannot be resolved to a path", lla.inputLinFilePath).Detail(diag.OSReason(err)).Err()
 	}
+	name, err := ws.name(lla.inputLinFilePath)
+	if err != nil {
+		return nil, err
+	}
 
-	var binsts []*build.Instance
-	var cfg *load.Config
-
-	// GOAL:
-	// cfg.ModuleRoot is the ABSOLUTE path up to the module root, real or virtual
-	// cfg.Module is the name of the module, real or virtual
-	// cfg.Dir is the RELATIVE path, from module root to what we actually want to load, less filename
-
-	var info os.FileInfo
-	info, err = os.Stat(lla.absInput)
+	info, err := fs.Stat(ws.fsys, name)
 	if err != nil {
 		b := diag.New(diag.E0601).Headlinef("%s does not exist", lla.inputLinFilePath)
-		if !errors.Is(err, os.ErrNotExist) {
+		if !errors.Is(err, fs.ErrNotExist) {
 			b.Headlinef("%s cannot be read", lla.inputLinFilePath).Detail(diag.OSReason(err))
 		}
 		return nil, b.Help("pass the path to a .cue file or a directory with -l").Err()
 	}
 	lla.pathIsDir = info.IsDir()
 
-	if lla.pathIsDir && isAuthoringDir(lla.absInput) {
+	if lla.pathIsDir && isAuthoringDir(name) {
 		// A lineage in the authoring form: compiled to the normal form and
 		// bound, with errors positioned in its files.
 		if lla.skipBindLineage {
 			return nil, diag.InternalErr(fmt.Errorf("%s is a lineage in the authoring form, which a command that skips binding does not take", lla.inputLinFilePath))
 		}
-		sourceDirs = append(sourceDirs, lla.absInput)
-		fsys, dir := os.DirFS(filepath.Dir(lla.absInput)), filepath.Base(lla.absInput)
 		if lla.tip {
-			dl.dev, err = tload.DevelopmentLineage(fsys, dir, rt)
+			dl.dev, err = tload.DevelopmentLineage(ws.fsys, name, rt)
 			if err != nil {
 				return nil, err
 			}
@@ -147,7 +158,7 @@ func (lla *lineageLoadArgs) dynLoad() (*dynamicLoader, error) {
 			dl.lin = dl.dev.Lineage
 			return lla.attachSchema(dl)
 		}
-		dl.lin, err = tload.AuthoringLineage(fsys, dir, rt)
+		dl.lin, err = tload.AuthoringLineage(ws.fsys, name, rt)
 		if err != nil {
 			return nil, err
 		}
@@ -158,56 +169,33 @@ func (lla *lineageLoadArgs) dynLoad() (*dynamicLoader, error) {
 			Helpf("pass the directory of a lineage with %s and %s/", authoring.TipFile, authoring.HistoryDir).Err()
 	}
 
-	dl.cm, err = findCueMod(lla.absInput)
-	if err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			return nil, err
-		}
-
-		dyndir := lla.absInput
-		var args []string
-		if !lla.pathIsDir {
-			args = append(args, filepath.Base(dyndir))
-			dyndir = filepath.Dir(dyndir)
-		}
-
-		overlay := map[string]load.Source{
-			filepath.Join(dyndir, "cue.mod", "module.cue"): load.FromString(util.ModuleFile("thema.cli/input")),
-		}
-		cfg = &load.Config{
-			ModuleRoot: dyndir,
-			Overlay:    overlay,
-			Dir:        dyndir,
-			Package:    "*",
-		}
-		if err := tload.Configure(cfg); err != nil {
-			return nil, err
-		}
-
-		binsts = load.Instances(args, cfg)
-	} else {
-		dl.relToLinDir, err = filepath.Rel(dl.cm.cuemodparentdir, lla.absInput)
-		if err != nil {
-			return nil, diag.InternalErr(fmt.Errorf("cue.mod parent %s is not relative to the lineage path %s", dl.cm.cuemodparentdir, lla.inputLinFilePath))
-		}
-		var args []string
-		if !lla.pathIsDir {
-			dl.linFilename = filepath.Base(dl.relToLinDir)
-			dl.relToLinDir = filepath.Dir(dl.relToLinDir)
-			args = append(args, dl.linFilename)
-		}
-
-		cfg = &load.Config{
-			ModuleRoot: dl.cm.cuemodparentdir,
-			Module:     dl.cm.modname,
-			Dir:        filepath.Join(dl.cm.cuemodparentdir, dl.relToLinDir),
-			// Package:    "*",
-		}
-		if err := tload.Configure(cfg); err != nil {
-			return nil, err
-		}
-		binsts = load.Instances(args, cfg)
+	// The CUE loader reads the workspace, and nothing else: its positions
+	// name files as the workspace does (load.Configure).
+	dir := name
+	var args []string
+	if !lla.pathIsDir {
+		dir = path.Dir(name)
+		args = append(args, path.Base(name))
 	}
+	var cfg *load.Config
+	modroot, modname, err := findCueMod(dir)
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		// No module: the lineage's directory is made one, with a module
+		// file of its own beside the workspace's files.
+		fsys := merged_fs.NewMergedFS(fstest.MapFS{
+			path.Join(dir, "cue.mod", "module.cue"): &fstest.MapFile{Data: []byte(util.ModuleFile("thema.cli/input"))},
+		}, ws.fsys)
+		cfg = &load.Config{FS: fsys, ModuleRoot: fsAbs(dir), Dir: fsAbs(dir), Package: "*"}
+	case err != nil:
+		return nil, err
+	default:
+		cfg = &load.Config{FS: ws.fsys, ModuleRoot: fsAbs(modroot), Module: modname, Dir: fsAbs(dir)}
+	}
+	if err = tload.Configure(cfg); err != nil {
+		return nil, err
+	}
+	binsts := load.Instances(args, cfg)
 
 	if lla.skipBindLineage {
 		// just take the first one, ooof
@@ -228,11 +216,12 @@ func (lla *lineageLoadArgs) dynLoad() (*dynamicLoader, error) {
 	return lla.attachSchema(dl)
 }
 
-// isAuthoringDir reports whether dir holds a lineage in the authoring form:
-// a .thema file at its top level, such as its tip, or under its history/.
+// isAuthoringDir reports whether dir, a directory in the workspace, holds a
+// lineage in the authoring form: a .thema file at its top level, such as its
+// tip, or under its history/.
 func isAuthoringDir(dir string) bool {
-	for _, d := range []string{dir, filepath.Join(dir, authoring.HistoryDir)} {
-		ents, err := os.ReadDir(d)
+	for _, d := range []string{dir, path.Join(dir, authoring.HistoryDir)} {
+		ents, err := fs.ReadDir(ws.fsys, d)
 		if err != nil {
 			continue
 		}
@@ -320,40 +309,31 @@ func (lla *lineageLoadArgs) validateVersionInputOptional(cmd *cobra.Command, arg
 	return lla.dynLoadOnce()
 }
 
-// findCueMod recursively searches the given path and its parent directories
-// until one is found containing a cue.mod/module.cue. An error is returned on
-// file read errors, or if no cue.mod was found.
-func findCueMod(path string) (*parentCueMod, error) {
-	stat, err := os.Stat(path)
-	if err != nil {
-		return nil, diag.New(diag.E0601).Headlinef("%s cannot be read", path).Detail(diag.OSReason(err)).Err()
-	}
-	if !stat.IsDir() {
-		path = filepath.Dir(path)
-	}
-	p := path
-
-	for ; p != filepath.Dir(p); p = filepath.Dir(p) {
-		mpath := filepath.Join(p, "cue.mod", "module.cue")
-		byt, err := os.ReadFile(mpath)
+// findCueMod finds the module dir, a directory in the workspace, belongs
+// to: the nearest directory at or above it holding cue.mod/module.cue, read
+// through the workspace. It returns that directory and the module's name, or
+// an error that is fs.ErrNotExist when there is none.
+func findCueMod(dir string) (root, modname string, err error) {
+	for p := dir; ; p = path.Dir(p) {
+		mpath := path.Join(p, "cue.mod", "module.cue")
+		byt, err := fs.ReadFile(ws.fsys, mpath)
 		if err == nil {
 			modname, err := cuecontext.New().CompileBytes(byt, cue.Filename(mpath)).LookupPath(cue.MakePath(cue.Str("module"))).String()
 			if err != nil {
-				return nil, diag.New(diag.E0606).Headlinef("%s does not declare module", displayPath(mpath)).
+				return "", "", diag.New(diag.E0606).Headlinef("%s does not declare module", displayPath(mpath)).
 					Cause(err).
 					Help(`a module file declares module: "<path>" and language: version: "<version>"`).
 					Err()
 			}
-			return &parentCueMod{
-				cuemodparentdir: p,
-				modname:         modname,
-			}, nil
+			return p, modname, nil
 		}
-		if !errors.Is(err, os.ErrNotExist) {
-			return nil, diag.New(diag.E0606).Headlinef("%s cannot be read", displayPath(mpath)).Detail(diag.OSReason(err)).Err()
+		if !errors.Is(err, fs.ErrNotExist) {
+			return "", "", diag.New(diag.E0606).Headlinef("%s cannot be read", displayPath(mpath)).Detail(diag.OSReason(err)).Err()
+		}
+		if p == "." {
+			return "", "", fs.ErrNotExist
 		}
 	}
-	return nil, os.ErrNotExist
 }
 
 // loadDiag describes a failure of CUE's loader. Three are recognized by the
@@ -449,7 +429,7 @@ func loadone(rt *thema.Runtime, binst *build.Instance, pkgpath, cuepath string) 
 	if len(binst.Files) == 0 {
 		// A directory with no .cue files loads as an empty package, which
 		// would otherwise be reported as a lineage with no name.
-		return nil, diag.New(diag.E0602).Headlinef("there is no CUE package at %s", displayPath(binst.Dir)).
+		return nil, diag.New(diag.E0602).Headlinef("there is no CUE package at %s", displayPath(strings.TrimPrefix(filepath.ToSlash(binst.Dir), "/"))).
 			Help("a lineage is a .cue file, or a directory of .cue files in one package").Err()
 	}
 

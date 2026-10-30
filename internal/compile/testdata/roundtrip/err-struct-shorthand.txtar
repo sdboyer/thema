@@ -27,7 +27,7 @@ Schema: {
 }
 -- out/error --
 error[E0109]: Schema: meta: ... is CUE's struct shorthand, which a version file's Schema does not use
- --> history/0.0.thema:1:9
+ --> ship/history/0.0.thema:1:9
   |
 1 | Schema: meta: {
   |         ^^^^
@@ -36,7 +36,7 @@ error[E0109]: Schema: meta: ... is CUE's struct shorthand, which a version file'
   = help: write Schema: {meta: ...}
 
 error[E0109]: ForwardLens: v1_0: ... is CUE's struct shorthand, which a version file's ForwardLens does not use
- --> history/1.0.thema:8:14
+ --> ship/history/1.0.thema:8:14
   |
 8 | ForwardLens: v1_0: {
   |              ^^^^

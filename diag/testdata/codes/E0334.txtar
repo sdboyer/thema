@@ -39,7 +39,7 @@ Schema: {
       "severity": "error",
       "headline": "a nested body may embed only v0_0.<path>, to copy from it",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "ship/history/1.0.thema",
         "line": 12,
         "col": 4,
         "offset": 103,
@@ -55,7 +55,7 @@ Schema: {
 }
 -- out/text --
 error[E0334]: a nested body may embed only v0_0.<path>, to copy from it
-  --> history/1.0.thema:12:4
+  --> ship/history/1.0.thema:12:4
    |
 12 |             defaults
    |             ^^^^^^^^

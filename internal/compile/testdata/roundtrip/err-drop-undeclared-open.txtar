@@ -27,7 +27,7 @@ Schema: {
 }
 -- out/error --
 error[E0340]: 0.0 does not declare b, so there is nothing to drop
-  --> history/1.0.thema:10:3
+  --> ship/history/1.0.thema:10:3
    |
 10 |         b: _drop
    |         ^

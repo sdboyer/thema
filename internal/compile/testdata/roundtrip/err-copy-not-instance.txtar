@@ -24,7 +24,7 @@ Schema: {
 }
 -- out/error --
 error[E0358]: the ForwardLens in history/1.0.thema would copy v0_0.tags into tags, which does not accept every value of it
- --> history/1.0.thema:7:1
+ --> ship/history/1.0.thema:7:1
   |
 7 | ForwardLens: {
   | ^^^^^^^^^^^

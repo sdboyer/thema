@@ -85,10 +85,12 @@ func (s *Session) bindAuthoring(name string, files []File) cached {
 	return cached{lin: lin, raw: ctx.BuildFile(c.File), normal: normal, err: err, tip: c.Tip, pending: c.Pending}
 }
 
+// authoringFiles converts a request's authoring files. The request is the
+// playground's FS: each file is named by its path in it.
 func authoringFiles(files []File) []authoring.File {
 	out := make([]authoring.File, len(files))
 	for i, f := range files {
-		out[i] = authoring.File{Path: f.Path, Text: []byte(f.Text)}
+		out[i] = authoring.File{Path: f.Path, Name: f.Path, Text: []byte(f.Text)}
 	}
 	return out
 }

@@ -2,7 +2,7 @@
 
 This is the reference for the authoring form: the files a lineage author writes, and the language lenses are written in. For a guided introduction to lineages, start with the [overview](overview.md) and the [authoring tutorial](authoring.md), which show the normal form that every thema tool consumes. The authoring form compiles to that normal form, and decompiles back from it, without loss. What translation then does with each field of an instance is defined in [translation](translation.md).
 
-Every `thema` command that takes a lineage with `-l` accepts a lineage's directory in this form, `thema lineage fmt -l <dir>` lays out its files in place, and `thema lineage tip -l <dir>` reports the version its tip cuts as. In Go, `load.AuthoringLineage` loads, compiles and binds a directory in one call, and the `authoring` package exposes the pieces: the files, the compiled normal form, the tip, the decompiler and the formatter.
+Every `thema` command that takes a lineage with `-l` accepts a lineage's directory in this form, `thema lineage fmt -l <dir>` lays out its files in place, `thema lineage tip -l <dir>` reports the version its tip cuts as, and `thema lineage compile -l <dir>` writes its normal form to [`normalized.gen.cue`](#normalizedgencue). In Go, `load.AuthoringLineage` loads, compiles and binds a directory in one call, `load.AuthoringCollection` does the same for a [collection](#collections) of them, and the `authoring` package exposes the pieces: the files, the compiled normal form, the tip, the decompiler and the formatter.
 
 ## Files
 
@@ -19,7 +19,7 @@ ship/
 
 - A version that has been cut is named `history/<major>.<minor>.thema`. Data has been written against it, so it never changes. A numbered file at the top of the directory is an error (`E0148`) that says to move it under `history/`.
 - Versions are contiguous from `0.0`: each file is either the next minor version of the one before it, or the next major version with minor `0`.
-- Only files ending in `.thema` are read; anything else in the directory is left alone. The playground uses this to keep an `example.cue` beside a lineage that it offers as an example (see `thema playground examples --help`).
+- Only files ending in `.thema` are read; anything else in the directory is left alone. The playground uses this to keep an `example.cue` beside a lineage that it offers as an example (see `thema playground examples --help`). In a [collection](#collections), the directory also holds the generated [`normalized.gen.cue`](#normalizedgencue).
 - Whether a version is minor or major is not the author's call. thema checks each version against the one before it under the [backwards compatibility](invariants.md#backwards-compatibility) rules. A file named as a minor version must be compatible with its predecessor, and a file named as a major version must not be. A file named the wrong way is an error that says which version number it should have.
 
 ### The tip
@@ -69,6 +69,74 @@ BackwardLens: {
 - `BackwardLens` maps instances of this version to the previous one. Every version after the first has one. It is derived from the forward lens unless written, as described under [the backward lens](#the-backward-lens).
 
 Each of the three is written as a block in braces. The file has no package clause. It may import CUE's standard packages for its `Schema`'s constraints, such as `strings.MinRunes(1)` or `time.Format(time.RFC3339)`; it imports nothing else, and only what the `Schema` uses, since a lens calls the `strings` functions without an import. A standard constraint is written alone, `name: strings.MinRunes(1)`, since it already says the value is a string.
+
+## Collections
+
+A collection is a directory of lineages, such as the set of objects one API or one service serves. Each of its immediate subdirectories is a lineage's directory, laid out as above, and named for its lineage:
+
+```
+fleet/
+  ship/
+    tip.thema
+    history/
+      0.0.thema
+      1.0.thema
+  boat/
+    tip.thema
+    history/
+      0.0.thema
+```
+
+- **Flat.** A subdirectory is a lineage when it holds a version file, its `tip.thema` at its top or a frozen version under its `history/`. Any other subdirectory is not part of the collection, and nothing beneath it is read: a lineage two levels down is not in it.
+- **Names are directories.** A lineage's name is its directory's, so two lineages of a collection never share one. The name must still be a valid lineage name (`E0137`).
+- **Other files are left alone.** Files at the top of the collection, such as a README, are not read, and neither are files in a lineage's directory that are not version files, such as the playground's `example.cue`. A version file at the top of the collection makes the directory a lineage's, not a collection's (`E0624`).
+- **Each lineage stands alone.** A lineage is read, compiled and bound on its own, and one that fails does not keep the others from binding. In Go, `load.AuthoringCollection` binds every lineage's history and `load.DevelopmentCollection` binds each with its tip. Both return a `load.Collection`: the lineages that bound, by name, and the error of each that did not, by name, positioned in that lineage's files. The call itself fails only when the directory is not a collection: it does not exist (`E0601`), is not a directory (`E0623`), or is a lineage's directory (`E0624`). `authoring.LoadCollection` reads a collection's files without compiling them.
+- **No links.** A lineage's schemas cannot refer to another lineage of the collection, as they cannot refer to anything outside their own lineage. What a link between lineages would mean, and how it would version, is open ([#40](https://github.com/sdboyer/thema/issues/40)).
+
+`thema playground examples <dir>` reads `<dir>` as a collection, and offers each lineage with an `example.cue` as an example.
+
+### normalized.gen.cue
+
+Each lineage of a collection keeps its normal form beside its authoring files, in `normalized.gen.cue`, the way a `.d.ts` sits beside a `.js`. The authoring files are for thema's tools; `normalized.gen.cue` is for CUE, which can import a lineage by its directory's path and use its schemas as types, with no thema tooling:
+
+```
+fleet/
+  ship/
+    normalized.gen.cue
+    tip.thema
+    history/
+      0.0.thema
+      1.0.thema
+```
+
+- **History only.** `normalized.gen.cue` is every version under `history/`, compiled, and never the tip: what CUE imports is what was cut, which never changes.
+- **A package named for the lineage.** It declares `package ship`, imports `github.com/sdboyer/thema` and the standard packages the history imports, and embeds `thema.Lineage`, so that the package's value is the lineage. A lineage named for a CUE keyword gets a trailing underscore, `package for_`, and is imported as `"<module>/fleet/for:for_"`. Nothing else in the directory is part of the package: the version files are not CUE files, and the playground's `example.cue` declares no package.
+- **Generated and committed.** `thema lineage compile -l <dir>` writes it, for one lineage or for each of a collection's, and lists the files it changed. Its first line marks it generated; it is never edited by hand. In Go, `authoring.GenerateNormalizedFile` produces its text from `authoring.Compile`'s result, for a tool that cuts a version to rewrite it.
+- **Checked.** `load.AuthoringCollection` fails a lineage whose `normalized.gen.cue` is missing or is not exactly what its history compiles to (`E0151`), saying which versions each holds or the first line that differs. `thema lineage compile --check -l <dir>` runs the same check without writing, for CI. The development path, `load.DevelopmentCollection` and the playground, does not check it: they bind the tip, which `normalized.gen.cue` never holds, and a tip being worked on is no reason to fail. A lineage loaded on its own, with `load.AuthoringLineage` or `-l`, needs no `normalized.gen.cue`, since nothing imports it.
+
+To be importable, the collection sits in a CUE module that depends on thema's, as any CUE that imports thema does ([CUE modules](cue-modules.md)):
+
+```cue
+// cue.mod/module.cue
+module: "example.com/apis"
+language: version: "v0.18.0"
+deps: "github.com/sdboyer/thema@v0": v: "v0.1.0"
+```
+
+and CUE elsewhere in that module, or in a module that depends on it, imports a lineage by its path:
+
+```cue
+package harbor
+
+import "example.com/apis/fleet/ship"
+
+manifest: ship.schemas["1"]["0"].schema & {
+	firstfield:  "cargo"
+	secondfield: 3
+}
+```
+
+The `normalized.gen.cue` files are checked against `thema.Lineage` as the thema that generated them has it, so `deps` names that thema's version, the version of the `thema` CLI or Go module that wrote them; thema's Go library, loading the module, requires exactly its own version anyway. Regenerating after upgrading thema, and bumping `deps` with it, keeps the two together. A lineage seen through another package's import, such as `flagship: ship` above, is a CUE value and not something to bind: its lenses' references resolve in the ship package, which binding reads as an import (`E0143`). To bind it in Go, load the lineage's own package.
 
 ## Lenses
 
@@ -218,6 +286,8 @@ Each of these is refused with an error naming what to write instead, rather than
 The compiler produces the normal form that the tutorial shows: a `thema.Lineage` with schemas keyed by version and lenses keyed by edge. A lens's fields keep their names, `v0_0` and `v1_0`, so a normal-form lens reads as its authoring form did. Implicit copies are written out, a copy of an optional field is written under a presence test, `_coalesce` and `_match` become one branch per case, `_each` becomes a loop over the list, and each lacuna becomes an entry of the lens's `lacunas` list with its condition and the fields it reports.
 
 Every part of the normal form is positioned in the authoring file it came from. An error from the evaluator, from binding or from translation points at the author's line, and the compiler's own errors are worded in these terms: the file, the lens block and the mapping.
+
+A position names its file by its path within the `fs.FS` the lineage was loaded from, relative to that FS's root: loaded from `fleet` in an FS, ship's 0.1 is `fleet/ship/history/0.1.thema`, never `history/0.1.thema`, so the lineages of a collection, laid out alike, are never confused. An excerpt under a position is read from that same FS, by that name; the CLI opens one FS of the host, at the directory holding the working directory and its arguments, and shows each name relative to the working directory.
 
 Binding a lineage proves every lens [total](invariants.md#lens-totality). Every form the compiler emits is one the proof decides, so a lineage that compiles binds.
 

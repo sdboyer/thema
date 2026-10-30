@@ -17,7 +17,7 @@ Schema: {
       "severity": "error",
       "headline": "Schema: name: ... is CUE's struct shorthand, which a version file's Schema does not use",
       "primary": {
-        "file": "history/0.0.thema",
+        "file": "ship/history/0.0.thema",
         "line": 1,
         "col": 9,
         "offset": 8,
@@ -41,7 +41,7 @@ Schema: {
 }
 -- out/text --
 error[E0109]: Schema: name: ... is CUE's struct shorthand, which a version file's Schema does not use
- --> history/0.0.thema:1:9
+ --> ship/history/0.0.thema:1:9
   |
 1 | Schema: name: string
   |         ^^^^

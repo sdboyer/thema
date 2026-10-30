@@ -4,15 +4,15 @@ Each lineage a playground deployment offers as an example has an example.cue
 beside its version files, describing it: a category, the group it is listed
 in, and optionally a title and a summary, each a string. Nothing else may be
 in it.
--- lineages/pets/cat/history/0.0.thema --
+-- lineages/cat/history/0.0.thema --
 Schema: {
 	lives: int
 }
--- lineages/pets/cat/tip.thema --
+-- lineages/cat/tip.thema --
 Schema: {
 	lives: int
 }
--- lineages/pets/cat/example.cue --
+-- lineages/cat/example.cue --
 category: "Pets"
 color:    "grey"
 -- out/json --
@@ -21,9 +21,9 @@ color:    "grey"
     {
       "code": "E0621",
       "severity": "error",
-      "headline": "lineages/pets/cat/example.cue has a field color, which is not category, title or summary",
+      "headline": "lineages/cat/example.cue has a field color, which is not category, title or summary",
       "primary": {
-        "file": "lineages/pets/cat/example.cue",
+        "file": "lineages/cat/example.cue",
         "line": 2,
         "col": 1,
         "offset": 17,
@@ -41,8 +41,8 @@ color:    "grey"
   }
 }
 -- out/text --
-error[E0621]: lineages/pets/cat/example.cue has a field color, which is not category, title or summary
- --> lineages/pets/cat/example.cue:2:1
+error[E0621]: lineages/cat/example.cue has a field color, which is not category, title or summary
+ --> lineages/cat/example.cue:2:1
   |
 2 | color:    "grey"
   | ^^^^^

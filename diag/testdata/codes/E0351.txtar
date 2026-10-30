@@ -31,7 +31,7 @@ Schema: {
       "severity": "error",
       "headline": "_match on kind is not exhaustive: 0.0's kind may be \"c\", which no arm matches and 1.0's kind does not accept",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "ship/history/1.0.thema",
         "line": 8,
         "col": 9,
         "offset": 71,
@@ -50,7 +50,7 @@ Schema: {
 }
 -- out/text --
 error[E0351]: _match on kind is not exhaustive: 0.0's kind may be "c", which no arm matches and 1.0's kind does not accept
- --> history/1.0.thema:8:9
+ --> ship/history/1.0.thema:8:9
   |
 8 |         kind: _match(v0_0.kind, {
   |               ^^^^^^

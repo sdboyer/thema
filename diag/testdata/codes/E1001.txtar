@@ -22,7 +22,7 @@ Schema: {
       "severity": "warning",
       "headline": "tip.thema has no ForwardLens, and one cannot be derived",
       "primary": {
-        "file": "tip.thema",
+        "file": "ship/tip.thema",
         "line": 1,
         "col": 1,
         "origin": "user"
@@ -33,7 +33,7 @@ Schema: {
         },
         {
           "pos": {
-            "file": "tip.thema",
+            "file": "ship/tip.thema",
             "line": 1,
             "col": 1,
             "origin": "user"
@@ -50,7 +50,7 @@ Schema: {
       "severity": "warning",
       "headline": "tip.thema has no BackwardLens, and one cannot be derived",
       "primary": {
-        "file": "tip.thema",
+        "file": "ship/tip.thema",
         "line": 1,
         "col": 1,
         "origin": "user"
@@ -61,7 +61,7 @@ Schema: {
         },
         {
           "pos": {
-            "file": "tip.thema",
+            "file": "ship/tip.thema",
             "line": 1,
             "col": 1,
             "origin": "user"
@@ -82,7 +82,7 @@ Schema: {
 }
 -- out/text --
 warning[E1001]: tip.thema has no ForwardLens, and one cannot be derived
- --> tip.thema:1:1
+ --> ship/tip.thema:1:1
   |
 1 | Schema: {
   | ^^^^^^
@@ -92,7 +92,7 @@ warning[E1001]: tip.thema has no ForwardLens, and one cannot be derived
   = help: write ForwardLens: {v0_0: _, tip: {...}} in tip.thema
 
 warning[E1001]: tip.thema has no BackwardLens, and one cannot be derived
- --> tip.thema:1:1
+ --> ship/tip.thema:1:1
   |
 1 | Schema: {
   | ^^^^^^

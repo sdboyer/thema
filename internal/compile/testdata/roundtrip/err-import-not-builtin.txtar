@@ -13,7 +13,7 @@ Schema: {
 }
 -- out/error --
 error[E0143]: history/0.0.thema imports example.com/common, which is not one of CUE's builtin packages
- --> history/0.0.thema:1:8
+ --> ship/history/0.0.thema:1:8
   |
 1 | import "example.com/common"
   |        ^^^^^^^^^^^^^^^^^^^^

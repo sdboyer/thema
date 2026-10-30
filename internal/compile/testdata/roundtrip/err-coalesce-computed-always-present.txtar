@@ -22,7 +22,7 @@ Schema: {
 }
 -- out/error --
 error[E0348]: 0.0 always has every field v0_0.count * 2 reads, so _coalesce's fallback could never apply: write total: v0_0.count * 2
- --> history/1.0.thema:8:20
+ --> ship/history/1.0.thema:8:20
   |
 8 |         total: _coalesce(v0_0.count * 2, 0)
   |                          ^^^^

@@ -23,7 +23,7 @@ Schema: {
 }
 -- out/error --
 error[E0357]: strings.Title is not a function a lens may call
- --> history/1.0.thema:9:10
+ --> ship/history/1.0.thema:9:10
   |
 9 |         label: strings.Title(v0_0.name)
   |                ^^^^^^^
