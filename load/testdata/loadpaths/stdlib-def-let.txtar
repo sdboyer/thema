@@ -1,0 +1,60 @@
+A lineage whose schemas use a builtin package, a definition, a let and a
+sibling field, and whose lens calls a builtin.
+-- ship/history/0.0.thema --
+import "strings"
+
+Schema: {
+	#Name: string
+	let limit = 10
+	name:  #Name
+	nick:  string | *"x"
+	count: int & <=limit
+	tag:   string & strings.MaxRunes(4)
+}
+-- ship/1.0.thema --
+import "strings"
+
+Schema: {
+	#Name: string
+	name:  #Name
+	label: string
+	let limit = 10
+	count: int & <=limit
+	tag:   string & strings.MaxRunes(4)
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		label: strings.ToUpper(v0_0.name)
+		nick:  _drop
+	}
+}
+-- out/verdict --
+# bind
+ok
+# ids
+0.0 0d2e1809dbd75fcf0f6dd7105b52a02a0d6430065c7aea7976c4cc573c15d9f8:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
+1.0 f00d860f918ed073f3ad247d9ff8afaea0932eec532dcf2c8f876f0739304312:37f5f01a2bba735f8b1a2f9d01cabaf0fd2db5e0428667be69554a9871b20b83
+# programs
+lens 0.0->1.0
+out: {
+  out.name <- in.name
+  out.label = strings.ToUpper(in.name)
+  out.count <- in.count
+  out.tag <- in.tag
+}
+lacuna DroppedField {
+  source nick = in.nick
+  message "nick has no equivalent in 1.0 and was dropped"
+}
+lens 1.0->0.0
+out: {
+  out.name <- in.name
+  out.count <- in.count
+  out.tag <- in.tag
+}
+lacuna DroppedField {
+  source label = in.label
+  message "label has no equivalent in 0.0 and was dropped"
+}

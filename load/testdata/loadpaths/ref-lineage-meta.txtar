@@ -1,0 +1,10 @@
+A schema that refers to the lineage's name, which is invalid however the
+lineage was loaded (ref-lineage-meta).
+-- normal.cue --
+name: "ship"
+schemas: "0": "0": schema: {kind: name}
+-- out/verdict --
+# bind
+E0141 kind in schema 0.0 refers to name, which is declared in the lineage outside the schema
+# ids
+0.0 7b1357e224ff7d3f08f26aca00b4eacbb2047535ae59b84e76423a98084e7bd0:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
