@@ -3,16 +3,21 @@ Versions must be contiguous: 0.2 cannot follow 0.0.
 Schema: {
 	a: string
 }
--- ship/0.2.thema --
+-- ship/history/0.2.thema --
+Schema: {
+	a:  string
+	b?: int
+}
+-- ship/tip.thema --
 Schema: {
 	a:  string
 	b?: int
 }
 -- out/error --
-error[E0205]: 0.2.thema skips a version: after 0.0 comes 0.1
- --> 0.2.thema:1:1
+error[E0205]: history/0.2.thema skips a version: after 0.0 comes 0.1
+ --> history/0.2.thema:1:1
   |
 1 | Schema: {
   | ^^^^^^
   |
-  = help: rename the file 0.1.thema, or add the versions between
+  = help: rename the file history/0.1.thema, or add the versions between

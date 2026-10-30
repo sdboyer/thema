@@ -4,7 +4,7 @@ proves.
 Schema: {
 	name: string
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	name:  string
 	label: string
@@ -16,9 +16,14 @@ ForwardLens: {
 		label: strings.Title(v0_0.name)
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	name:  string
+	label: string
+}
 -- out/error --
 error[E0357]: strings.Title is not a function a lens may call
- --> 1.0.thema:9:10
+ --> history/1.0.thema:9:10
   |
 9 |         label: strings.Title(v0_0.name)
   |                ^^^^^^^

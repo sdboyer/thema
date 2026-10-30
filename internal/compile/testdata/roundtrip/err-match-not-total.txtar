@@ -4,7 +4,7 @@ a target that does not accept it.
 Schema: {
 	kind: string
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	kind: int
 }
@@ -17,9 +17,13 @@ ForwardLens: {
 		})
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	kind: int
+}
 -- out/error --
 error[E0351]: _match on kind is not exhaustive: 0.0's kind may hold values no arm matches and 1.0's kind does not accept
- --> 1.0.thema:8:9
+ --> history/1.0.thema:8:9
   |
 8 |         kind: _match(v0_0.kind, {
   |               ^^^^^^

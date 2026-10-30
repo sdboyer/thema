@@ -8,7 +8,7 @@ Schema: {
 	name: string
 	count?: int
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	name: string
 }
@@ -26,6 +26,10 @@ BackwardLens: {
 		name: v1_0.name
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	name: string
+}
 -- out/json --
 {
   "diagnostics": [
@@ -34,7 +38,7 @@ BackwardLens: {
       "severity": "error",
       "headline": "strings.Reverse is not a function a lens may call",
       "primary": {
-        "file": "1.0.thema",
+        "file": "history/1.0.thema",
         "line": 8,
         "col": 9,
         "offset": 68,
@@ -49,7 +53,7 @@ BackwardLens: {
       "severity": "error",
       "headline": "0.0 declares count and 1.0 does not, and nothing maps it: write <field>: v0_0.count to move it, or count: _drop",
       "primary": {
-        "file": "1.0.thema",
+        "file": "history/1.0.thema",
         "line": 5,
         "col": 1,
         "offset": 27,
@@ -65,7 +69,7 @@ BackwardLens: {
 }
 -- out/text --
 error[E0357]: strings.Reverse is not a function a lens may call
- --> 1.0.thema:8:9
+ --> history/1.0.thema:8:9
   |
 8 |         name: strings.Reverse(v0_0.name)
   |               ^^^^^^^
@@ -73,7 +77,7 @@ error[E0357]: strings.Reverse is not a function a lens may call
   = help: the strings functions a lens may call are strings.Contains, strings.HasPrefix, strings.HasSuffix, strings.Replace, strings.ToLower, strings.ToUpper, strings.Trim, strings.TrimLeft, strings.TrimPrefix, strings.TrimRight, strings.TrimSpace, strings.TrimSuffix
 
 error[E0347]: 0.0 declares count and 1.0 does not, and nothing maps it: write <field>: v0_0.count to move it, or count: _drop
- --> 1.0.thema:5:1
+ --> history/1.0.thema:5:1
   |
 5 | ForwardLens: {
   | ^^^^^^^^^^^

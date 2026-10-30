@@ -6,7 +6,7 @@ the other.
 Schema: {
 	aunion: *"foo" | "bar" | "baz"
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	aunion: "foo" | *"bar" | "baz"
 }
@@ -37,10 +37,18 @@ BackwardLens: {
 			when:    v1_0.aunion == "bar"
 		}]
 	}
+}
+-- ship/tip.thema --
+Schema: {
+	aunion: "foo" | *"bar" | "baz"
 }
 -- out/bind --
 ok
--- out/decompiled/1.0.thema --
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	aunion: *"foo" | "bar" | "baz"
+}
+-- out/decompiled/history/1.0.thema --
 Schema: {
 	aunion: "foo" | *"bar" | "baz"
 }
@@ -72,9 +80,9 @@ BackwardLens: {
 		}]
 	}
 }
--- out/decompiled/history/0.0.thema --
+-- out/decompiled/tip.thema --
 Schema: {
-	aunion: *"foo" | "bar" | "baz"
+	aunion: "foo" | *"bar" | "baz"
 }
 -- out/normal.cue --
 name: "ship"

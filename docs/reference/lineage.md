@@ -175,7 +175,7 @@ A lens has no other regular fields (`E0123`). It may declare hidden fields, defi
 
 **Translation.** Translating an instance from one version to another steps through every version between them, one edge at a time. A step across a declared lens evaluates the lens; a step forward within a major version unifies the instance with the next schema. Each step's result is closed against its target schema, and each step reports its own lacunas.
 
-**In the authoring form.** A version file holds the lenses between its version and its predecessor: `ForwardLens`, for a major version only, and `BackwardLens`, which is derived from the forward lens unless written. The lens language is described under [Lenses](../authoring-form.md#lenses); a lens's fields keep their names, `v0_0` and `v1_0`, in both forms.
+**In the authoring form.** A version file holds the lenses between its version and its predecessor: `ForwardLens`, for a major version only, and `BackwardLens`, which is derived from the forward lens unless written. The lens language is described under [Lenses](../authoring-form.md#lenses); a lens's fields keep their names, `v0_0` and `v1_0`, in both forms. In the tip's lenses, the tip's instance is named `tip`, and compiles to the name of the version the tip cuts as ([The tip](../authoring-form.md#the-tip)).
 
 ## Forms
 
@@ -189,17 +189,17 @@ A lineage is written in one of two forms.
 
 **The authoring form** is a directory of version files, one per version, described in [the authoring form](../authoring-form.md).
 
-- The directory's base name is the lineage's name. Version files are read from the directory and its `history/` subdirectory; the latest version's file is at the top, and earlier ones are under `history/`.
+- The directory's base name is the lineage's name. Every version that has been cut is a file under `history/`. `tip.thema`, at the top, is the version being worked on, whose version number is derived ([The tip](../authoring-form.md#the-tip)). Published lineages are read from `history/` alone; the development path reads the tip too.
 - A version file holds `Schema`, and `ForwardLens` and `BackwardLens` where its version has them.
 - It compiles to the normal form. Decompiling a normal form the compiler produced gives back its files, in the authoring form's layout. A normal-form lens outside what the authoring form expresses does not decompile (`E0356`).
 - It has no field for `joinSchema` or `examples`. A lineage that uses them is written in the normal form.
 
 Converting between the forms:
 
-- In Go, the `authoring` package compiles (`authoring.Compile`), decompiles (`authoring.Decompile`) and formats (`authoring.Format`). `load.AuthoringLineage` loads, compiles and binds a directory in one call.
+- In Go, the `authoring` package compiles (`authoring.Compile`, and `authoring.CompileDevelopment` with the tip), decompiles (`authoring.Decompile`) and formats (`authoring.Format`). `load.AuthoringLineage` loads, compiles and binds a directory in one call; `load.DevelopmentLineage` does the same with the tip.
 - `thema lineage fmt -l <dir>` lays out a directory's version files in place, in the authoring form's [layout](../authoring-form.md#layout). It does not bind the lineage.
 - Every CLI command that takes `-l` accepts a `.cue` file, a directory holding a CUE package, or a directory in the authoring form.
-- In the playground, "Show as normal form" compiles the version files to the normal form, and "Show as version files" decompiles the normal form to version files. Decompiling requires the lineage to bind.
+- In the playground, "Show as normal form" compiles the version files, with the tip, to the normal form, and "Show as version files" decompiles the normal form to version files and a clean tip. Decompiling requires the lineage to bind.
 
 ## Binding
 
@@ -209,8 +209,9 @@ Binding takes a lineage in the normal form, checks that it satisfies every invar
 
 - `thema.BindLineage(v cue.Value, rt *thema.Runtime, opts ...thema.BindOption) (thema.Lineage, error)` binds a normal-form value. It is the only way to obtain a non-nil `thema.Lineage`.
 - `load.AuthoringLineage(fsys fs.FS, dir string, rt *thema.Runtime, opts ...thema.BindOption) (thema.Lineage, error)` compiles a directory in the authoring form and binds the result, with diagnostics positioned in, and worded in terms of, the version files.
+- `load.DevelopmentLineage(fsys fs.FS, dir string, rt *thema.Runtime, opts ...thema.BindOption) (*load.Development, error)` does the same with the tip, as a provisional newest version; `authoring.BindDevelopment` binds what `authoring.CompileDevelopment` compiled. A lens the tip's edge lacks is a warning (`E1001`) rather than an error, and translating across it fails (`E1002`). The development path is for writing and testing a lineage, never for serving it.
 - The CLI binds the lineage whenever a command loads one with `-l`.
-- The playground binds the lineage, in either form, before validating or translating data against it or generating code from it.
+- The playground binds the lineage, in either form, before validating or translating data against it or generating code from it. It binds the authoring form with its tip, on the development path.
 
 **Checks.** Binding runs these steps in order. A step that fails ends binding, and reports every diagnostic it found; later steps do not run.
 
@@ -230,7 +231,7 @@ Binding takes a lineage in the normal form, checks that it satisfies every invar
 
 Where step 8 finds a result that is not an instance of its target, and the totality proof can name the rule broken, the totality finding is reported in place of `E0304`. The rules behind steps 5, 10 and 11 are stated in [invariants](../invariants.md): [Schema constructs](../invariants.md#schema-constructs), [Backwards compatibility](../invariants.md#backwards-compatibility), [References](../invariants.md#references) and [Lens totality](../invariants.md#lens-totality). Every code is listed in [Error codes](../errors/README.md).
 
-A lineage in the authoring form is checked by the compiler before it is bound: the files, their version numbering, whether each version is minor or major, and each lens's mappings and lacunas (`E0101`–`E0112`, `E0204`–`E0206`, `E0330`–`E0357`, `E0410`–`E0423`). Binding then runs every step above on the compiled normal form.
+A lineage in the authoring form is checked by the compiler before it is bound: the files, their version numbering, whether each version is minor or major, and each lens's mappings and lacunas (`E0101`–`E0112`, `E0148`, `E0149`, `E0204`–`E0206`, `E0330`–`E0357`, `E0410`–`E0423`). Binding then runs every step above on the compiled normal form. On the development path, the tip's missing lenses and its cleanness are reported as `E1001`–`E1003`.
 
 **Options.**
 

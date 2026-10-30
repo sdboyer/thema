@@ -1,0 +1,102 @@
+#op: develop
+The tip removes a field without writing a `ForwardLens` that says where the
+field goes, so the lens on the edge into the tip cannot be derived. The
+development path binds the lineage anyway, without that lens, and reports it
+as a warning: the edge is still being written. The derivation's own findings
+are the notes. Translating across the missing lens fails (E1002); binding the
+history alone never reads the tip.
+-- ship/history/0.0.thema --
+Schema: {
+	a: string
+	b: int
+}
+-- ship/tip.thema --
+Schema: {
+	a: string
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E1001",
+      "severity": "warning",
+      "headline": "tip.thema has no ForwardLens, and one cannot be derived",
+      "primary": {
+        "file": "tip.thema",
+        "line": 1,
+        "col": 1,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "translating from 0.0 to tip needs it; until tip.thema writes it, that translation fails (E1002)"
+        },
+        {
+          "pos": {
+            "file": "tip.thema",
+            "line": 1,
+            "col": 1,
+            "origin": "user"
+          },
+          "label": "0.0 declares b and tip does not, and nothing maps it: write <field>: v0_0.b to move it, or b: _drop"
+        }
+      ],
+      "help": [
+        "write ForwardLens: {v0_0: _, tip: {...}} in tip.thema"
+      ]
+    },
+    {
+      "code": "E1001",
+      "severity": "warning",
+      "headline": "tip.thema has no BackwardLens, and one cannot be derived",
+      "primary": {
+        "file": "tip.thema",
+        "line": 1,
+        "col": 1,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "translating from tip to 0.0 needs it; until tip.thema writes it, that translation fails (E1002)"
+        },
+        {
+          "pos": {
+            "file": "tip.thema",
+            "line": 1,
+            "col": 1,
+            "origin": "user"
+          },
+          "label": "tip.thema has no BackwardLens, and 0.0 requires b: write BackwardLens: {tip: _, v0_0: {b: <mapping>}}"
+        }
+      ],
+      "help": [
+        "write BackwardLens: {tip: _, v0_0: {...}} in tip.thema"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 0,
+    "warnings": 2,
+    "notes": 0
+  }
+}
+-- out/text --
+warning[E1001]: tip.thema has no ForwardLens, and one cannot be derived
+ --> tip.thema:1:1
+  |
+1 | Schema: {
+  | ^^^^^^
+  | ------ 0.0 declares b and tip does not, and nothing maps it: write <field>: v0_0.b to move it, or b: _drop
+  |
+  = note: translating from 0.0 to tip needs it; until tip.thema writes it, that translation fails (E1002)
+  = help: write ForwardLens: {v0_0: _, tip: {...}} in tip.thema
+
+warning[E1001]: tip.thema has no BackwardLens, and one cannot be derived
+ --> tip.thema:1:1
+  |
+1 | Schema: {
+  | ^^^^^^
+  | ------ tip.thema has no BackwardLens, and 0.0 requires b: write BackwardLens: {tip: _, v0_0: {b: <mapping>}}
+  |
+  = note: translating from tip to 0.0 needs it; until tip.thema writes it, that translation fails (E1002)
+  = help: write BackwardLens: {tip: _, v0_0: {...}} in tip.thema

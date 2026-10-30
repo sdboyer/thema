@@ -4,7 +4,7 @@ requires: coalesce says what to use when it is absent.
 Schema: {
 	count?: int32
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	total: int64
 }
@@ -16,9 +16,13 @@ ForwardLens: {
 		count: _drop
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	total: int64
+}
 -- out/error --
 error[E0343]: v0_0.count * 2 reads v0_0.count, which 0.0 may omit, and 1.0 requires total
- --> 1.0.thema:8:3
+ --> history/1.0.thema:8:3
   |
 8 |         total: v0_0.count * 2
   |         ^^^^^

@@ -12,7 +12,22 @@ schema: {
 	title: string
 	count?: int
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
+schema: {
+	title: string
+	count: int & <10
+	...
+}
+
+forward: {
+	count: from.count
+	extra: 1
+}
+
+backward: {
+	count: to.count
+}
+-- ship/tip.thema --
 schema: {
 	title: string
 	count: int & <10
@@ -29,7 +44,7 @@ backward: {
 }
 -- out/error --
 the result of lens 0.0->1.0 writes extra, which schema 1.0 does not declare:
-    ship/1.0.thema:7:1
+    ship/history/1.0.thema:7:1
 -- out/positions --
 the result of lens 0.0->1.0 writes extra, which schema 1.0 does not declare
-	authored ship/1.0.thema:7:1
+	authored ship/history/1.0.thema:7:1

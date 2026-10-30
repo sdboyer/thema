@@ -9,22 +9,32 @@ Schema: {
 	b?: string
 	...
 }
--- ship/0.1.thema --
+-- ship/history/0.1.thema --
+Schema: {
+	a!: string
+	...
+}
+-- ship/tip.thema --
 Schema: {
 	a!: string
 	...
 }
 -- out/bind --
 ok
--- out/decompiled/0.1.thema --
-Schema: {
-	a!: string
-	...
-}
 -- out/decompiled/history/0.0.thema --
 Schema: {
 	a!: string
 	b?: string
+	...
+}
+-- out/decompiled/history/0.1.thema --
+Schema: {
+	a!: string
+	...
+}
+-- out/decompiled/tip.thema --
+Schema: {
+	a!: string
 	...
 }
 -- out/normal.cue --

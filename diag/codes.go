@@ -42,6 +42,8 @@ type CodeInfo struct {
 //	E05xx  data validation
 //	E06xx  loading, modules and the CLI's inputs
 //	E09xx  thema itself: internal errors and CUE errors thema does not recognize
+//	E10xx  development states of a lineage's tip, which the development bind
+//	       path tolerates; never an error in the lineage
 //
 // A code's meaning never changes. A code that stops being reported is retired,
 // not reused.
@@ -82,6 +84,8 @@ var Codes = []CodeInfo{
 	{Code: E0145, Severity: SeverityError, Title: "a lens refers to another lens of the lineage", Sentinels: []error{terrors.ErrInvalidLens}},
 	{Code: E0146, Severity: SeverityError, Title: "a reference cannot be resolved statically", Sentinels: []error{terrors.ErrInvalidLineage}},
 	{Code: E0147, Severity: SeverityError, Title: "a version file imports a package its Schema does not use", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0148, Severity: SeverityError, Title: "a numbered version file is at the top of the lineage's directory, not under history/", Sentinels: []error{terrors.ErrInvalidLineage}, Positionless: true},
+	{Code: E0149, Severity: SeverityError, Title: "the lineage's directory has no tip.thema", Sentinels: []error{terrors.ErrInvalidLineage}, Positionless: true},
 	{Code: E0201, Severity: SeverityError, Title: "the first schema is not version 0.0", Sentinels: []error{terrors.ErrNonContiguousVersions}},
 	{Code: E0202, Severity: SeverityError, Title: "a schema's version does not follow its predecessor's", Sentinels: []error{terrors.ErrNonContiguousVersions}},
 	{Code: E0203, Severity: SeverityError, Title: "a major version declares no schemas", Sentinels: []error{terrors.ErrNonContiguousVersions}},
@@ -221,6 +225,9 @@ var Codes = []CodeInfo{
 	{Code: E0901, Severity: SeverityError, Title: "thema failed internally", Positionless: true},
 	{Code: E0902, Severity: SeverityError, Title: "CUE reported an error thema does not recognize", Positionless: true},
 	{Code: E0903, Severity: SeverityError, Title: "thema reported an error that has no code", Positionless: true},
+	{Code: E1001, Severity: SeverityWarning, Title: "a lens on the edge into the tip is missing", Sentinels: []error{terrors.ErrProvisional}},
+	{Code: E1002, Severity: SeverityError, Title: "a translation needs a lens the tip does not have yet", Sentinels: []error{terrors.ErrProvisional}, Positionless: true},
+	{Code: E1003, Severity: SeverityError, Title: "the tip is not clean: it differs from the newest version in history/", Sentinels: []error{terrors.ErrProvisional}},
 }
 
 // The codes.
@@ -263,6 +270,8 @@ const (
 	E0145 Code = "E0145" // ref-lens-to-lens
 	E0146 Code = "E0146" // ref-unresolved
 	E0147 Code = "E0147" // a version file imports a package its Schema does not use
+	E0148 Code = "E0148" // a <major>.<minor>.thema at the top of the lineage, not under history/
+	E0149 Code = "E0149" // no tip.thema, where the tip is needed (the development path, the clean check)
 
 	E0201 Code = "E0201" // first version is not 0.0
 	E0202 Code = "E0202" // a version is neither the next minor nor the next major
@@ -442,6 +451,12 @@ const (
 	// E0903: a plain Go error from thema that was never given a code. Every
 	// one of these is a gap to close; the detail holds its text.
 	E0903 Code = "E0903"
+
+	// E10xx: development states of a lineage's tip. Only the development
+	// bind path reports them, and each unwraps to ErrProvisional alone.
+	E1001 Code = "E1001" // a lens the edge into the tip needs, which tip.thema does not write and derivation cannot produce
+	E1002 Code = "E1002" // translating across the edge into the tip, where the lens is missing
+	E1003 Code = "E1003" // the tip differs from the newest version in history/, or declares lenses
 )
 
 // Lookup returns the declaration of c.

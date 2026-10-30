@@ -5,6 +5,12 @@ import "example.com/common"
 Schema: {
 	name: common.Name
 }
+-- ship/tip.thema --
+import "example.com/common"
+
+Schema: {
+	name: common.Name
+}
 -- out/error --
 error[E0143]: history/0.0.thema imports example.com/common, which is not one of CUE's builtin packages
  --> history/0.0.thema:1:8

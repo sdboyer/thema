@@ -26,7 +26,7 @@ v1_0: {l: [for item in v0_0.l {u: item.t}]}`,
 v1_0: {}
 lacunas: [{condition: true, sourceFields: [{path: "l", value: v0_0.l}], message: "m", type: "DroppedField"}]`,
 	}
-	v := vocab{paths: map[thema.SyntacticVersion]string{thema.SV(0, 0): "history/0.0.thema", thema.SV(1, 0): "1.0.thema"}}
+	v := vocab{paths: map[thema.SyntacticVersion]string{thema.SV(0, 0): "history/0.0.thema", thema.SV(1, 0): "history/1.0.thema"}}
 	for name, lens := range cases {
 		t.Run(name, func(t *testing.T) {
 			res := lenscheck.Check(ctx, ctx.CompileString(lens), source, target, "v0_0", "v1_0")

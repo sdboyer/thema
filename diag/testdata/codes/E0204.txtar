@@ -1,12 +1,16 @@
 #op: compile
-A version has one file, at the top of the lineage's directory or under
-`history/`, not both. Two files declaring the same version would be two
-schemas for it.
+A version has one file. Two files at the same path, `history/0.0.thema`, can
+only reach the compiler through its API, as in a playground request, and
+would be two schemas for one version.
 -- ship/history/0.0.thema --
 Schema: {
 	a: string
 }
--- ship/0.0.thema --
+-- ship/history/0.0.thema --
+Schema: {
+	a: string
+}
+-- ship/tip.thema --
 Schema: {
 	a: string
 }
@@ -16,9 +20,9 @@ Schema: {
     {
       "code": "E0204",
       "severity": "error",
-      "headline": "history/0.0.thema and 0.0.thema both declare version 0.0",
+      "headline": "history/0.0.thema and history/0.0.thema both declare version 0.0",
       "primary": {
-        "file": "0.0.thema",
+        "file": "history/0.0.thema",
         "line": 1,
         "col": 1,
         "origin": "user"
@@ -35,7 +39,7 @@ Schema: {
         }
       ],
       "help": [
-        "a version has one file, at the top of the lineage's directory or under history/"
+        "a version has one file, under history/"
       ]
     }
   ],
@@ -46,15 +50,11 @@ Schema: {
   }
 }
 -- out/text --
-error[E0204]: history/0.0.thema and 0.0.thema both declare version 0.0
- --> 0.0.thema:1:1
+error[E0204]: history/0.0.thema and history/0.0.thema both declare version 0.0
+ --> history/0.0.thema:1:1
   |
 1 | Schema: {
   | ^^^^^^
-  |
- ::: history/0.0.thema:1:1
-  |
-1 | Schema: {
   | ------ the other is here
   |
-  = help: a version has one file, at the top of the lineage's directory or under history/
+  = help: a version has one file, under history/

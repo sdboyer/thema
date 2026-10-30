@@ -8,7 +8,7 @@ schema: {
 	title: string
 	count?: int
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 schema: {
 	title: string
 	count: int & <10
@@ -26,9 +26,27 @@ forward: {
 backward: {
 	count: to.count
 }
+-- ship/tip.thema --
+schema: {
+	title: string
+	count: int & <10
+}
+
+forward: {
+	count: from.count
+	lacuna: {
+		kind:    "Guess"
+		target:  "count"
+		message: "count is a placeholder"
+	}
+}
+
+backward: {
+	count: to.count
+}
 -- out/error --
 the lacuna's type is "Guess", which is not a lacuna type:
-    ship/1.0.thema:9:9
+    ship/history/1.0.thema:9:9
 -- out/positions --
 the lacuna's type is "Guess", which is not a lacuna type
-	authored ship/1.0.thema:9:9
+	authored ship/history/1.0.thema:9:9

@@ -57,6 +57,10 @@ type maybeLineage struct {
 	programs   lensir.Programs
 	programErr error
 
+	// missing holds the lenses absent from the edge into a provisional
+	// version, which bind tolerated (see provisional.go).
+	missing map[lensID]bool
+
 	// The raw input value is the root of a package instance
 	// rawIsPackage bool
 }
@@ -880,19 +884,25 @@ func (ml *maybeLineage) checkLensEdges() error {
 		v := sch.Version()
 		revid := lid(v, prior)
 
-		if !all[revid] {
-			missing = append(missing, revid)
-		} else {
+		switch {
+		case all[revid]:
 			delete(all, revid)
+		case ml.cfg.tolerated(revid):
+			ml.missing[revid] = true
+		default:
+			missing = append(missing, revid)
 		}
 
 		if v[0] != prior[0] {
 			// if we crossed a major version, there must also be a forward lens
 			fwdid := lid(prior, v)
-			if !all[fwdid] {
-				missing = append(missing, fwdid)
-			} else {
+			switch {
+			case all[fwdid]:
 				delete(all, fwdid)
+			case ml.cfg.tolerated(fwdid):
+				ml.missing[fwdid] = true
+			default:
+				missing = append(missing, fwdid)
 			}
 		}
 		prior = v

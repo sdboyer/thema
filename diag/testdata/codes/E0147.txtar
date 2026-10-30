@@ -5,7 +5,7 @@ without an import, so an import the Schema does not use has no purpose.
 Schema: {
 	name: string
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 import "strings"
 
 Schema: {
@@ -19,15 +19,22 @@ ForwardLens: {
 		label: strings.ToUpper(v0_0.name)
 	}
 }
+-- ship/tip.thema --
+import "strings"
+
+Schema: {
+	name:  string
+	label: string
+}
 -- out/json --
 {
   "diagnostics": [
     {
       "code": "E0147",
       "severity": "error",
-      "headline": "1.0.thema imports strings, which its Schema does not use",
+      "headline": "history/1.0.thema imports strings, which its Schema does not use",
       "primary": {
-        "file": "1.0.thema",
+        "file": "history/1.0.thema",
         "line": 1,
         "col": 8,
         "offset": 7,
@@ -45,8 +52,8 @@ ForwardLens: {
   }
 }
 -- out/text --
-error[E0147]: 1.0.thema imports strings, which its Schema does not use
- --> 1.0.thema:1:8
+error[E0147]: history/1.0.thema imports strings, which its Schema does not use
+ --> history/1.0.thema:1:8
   |
 1 | import "strings"
   |        ^^^^^^^^^

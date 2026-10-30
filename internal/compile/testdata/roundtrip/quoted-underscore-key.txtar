@@ -5,7 +5,7 @@ Schema: {
 	"_id": string
 	kind:  string
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	"_id":   string
 	"_kind": string
@@ -16,25 +16,35 @@ ForwardLens: {
 	v1_0: {
 		"_kind": v0_0.kind
 	}
+}
+-- ship/tip.thema --
+Schema: {
+	"_id":   string
+	"_kind": string
 }
 -- out/bind --
 ok
--- out/decompiled/1.0.thema --
-Schema: {
-	"_id":   string
-	"_kind": string
-}
-
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		"_kind": v0_0.kind
-	}
-}
 -- out/decompiled/history/0.0.thema --
 Schema: {
 	"_id": string
 	kind:  string
+}
+-- out/decompiled/history/1.0.thema --
+Schema: {
+	"_id":   string
+	"_kind": string
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		"_kind": v0_0.kind
+	}
+}
+-- out/decompiled/tip.thema --
+Schema: {
+	"_id":   string
+	"_kind": string
 }
 -- out/normal.cue --
 name: "ship"

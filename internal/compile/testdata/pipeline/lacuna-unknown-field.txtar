@@ -10,7 +10,7 @@ schema: {
 	title: string
 	count?: int
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 schema: {
 	title: string
 	count: int & <10
@@ -29,9 +29,28 @@ forward: {
 backward: {
 	count: to.count
 }
+-- ship/tip.thema --
+schema: {
+	title: string
+	count: int & <10
+}
+
+forward: {
+	count: from.count
+	lacuna: {
+		kind:     "Placeholder"
+		target:   "count"
+		message:  "count is a placeholder"
+		severity: "high"
+	}
+}
+
+backward: {
+	count: to.count
+}
 -- out/error --
 severity is not a field of a lacuna:
-    ship/1.0.thema:12:13
+    ship/history/1.0.thema:12:13
 -- out/positions --
 severity is not a field of a lacuna
-	authored ship/1.0.thema:12:13
+	authored ship/history/1.0.thema:12:13

@@ -6,7 +6,7 @@ schema: {
 	title: string
 	count?: int
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 schema: {
 	title: string
 	count: int & <10
@@ -24,9 +24,27 @@ forward: {
 backward: {
 	count: to.count
 }
+-- ship/tip.thema --
+schema: {
+	title: string
+	count: int & <10
+}
+
+forward: {
+	count: from.count
+	lacuna: {
+		kind:    "Placeholder"
+		target:  "cuont"
+		message: "count is a placeholder"
+	}
+}
+
+backward: {
+	count: to.count
+}
 -- out/error --
 lacuna 0 of lens 0.0->1.0 names cuont in targetFields[0], which schema 1.0 does not declare:
-    ship/1.0.thema:10:11
+    ship/history/1.0.thema:10:11
 -- out/positions --
 lacuna 0 of lens 0.0->1.0 names cuont in targetFields[0], which schema 1.0 does not declare
-	authored ship/1.0.thema:10:11
+	authored ship/history/1.0.thema:10:11

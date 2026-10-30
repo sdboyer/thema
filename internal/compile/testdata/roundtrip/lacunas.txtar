@@ -12,7 +12,7 @@ Schema: {
 	}
 	count?: int
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	name: string
 	meta: {
@@ -52,50 +52,18 @@ ForwardLens: {
 			when:    v0_0.name == "legacy"
 		}]
 	}
+}
+-- ship/tip.thema --
+Schema: {
+	name: string
+	meta: {
+		owner: string
+		team:  string
+	}
+	count: int
 }
 -- out/bind --
 ok
--- out/decompiled/1.0.thema --
-Schema: {
-	name: string
-	meta: {
-		owner: string
-		team:  string
-	}
-	count: int
-}
-
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		name: v0_0.name
-		meta: {
-			team: "unassigned"
-		}
-		count: _coalesce(v0_0.count, 0)
-	}
-	lacunas: {
-		name: [{
-			type:    LossyFieldMapping
-			message: "names longer than 64 characters are truncated downstream"
-			when:    len(v0_0.name) > 64
-		}]
-		meta: {
-			team: [{
-				type:    Placeholder
-				message: "0.0 has no team; \"unassigned\" is a placeholder"
-			}]
-		}
-		count: [{
-			type:    Placeholder
-			message: "count was absent; 0 is a placeholder"
-		}, {
-			type:    AmbiguousMapping
-			message: "legacy records never recorded a count, so 0 may be real"
-			when:    v0_0.name == "legacy"
-		}]
-	}
-}
 -- out/decompiled/history/0.0.thema --
 Schema: {
 	name: string
@@ -103,6 +71,56 @@ Schema: {
 		owner: string
 	}
 	count?: int
+}
+-- out/decompiled/history/1.0.thema --
+Schema: {
+	name: string
+	meta: {
+		owner: string
+		team:  string
+	}
+	count: int
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		name: v0_0.name
+		meta: {
+			team: "unassigned"
+		}
+		count: _coalesce(v0_0.count, 0)
+	}
+	lacunas: {
+		name: [{
+			type:    LossyFieldMapping
+			message: "names longer than 64 characters are truncated downstream"
+			when:    len(v0_0.name) > 64
+		}]
+		meta: {
+			team: [{
+				type:    Placeholder
+				message: "0.0 has no team; \"unassigned\" is a placeholder"
+			}]
+		}
+		count: [{
+			type:    Placeholder
+			message: "count was absent; 0 is a placeholder"
+		}, {
+			type:    AmbiguousMapping
+			message: "legacy records never recorded a count, so 0 may be real"
+			when:    v0_0.name == "legacy"
+		}]
+	}
+}
+-- out/decompiled/tip.thema --
+Schema: {
+	name: string
+	meta: {
+		owner: string
+		team:  string
+	}
+	count: int
 }
 -- out/normal.cue --
 name: "ship"

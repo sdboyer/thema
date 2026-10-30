@@ -20,7 +20,7 @@ import (
 // else is built by lineage from the authoring files' common shape:
 //
 //	ship/history/0.0.thema: schema with title and an optional count
-//	ship/1.0.thema:         schema with title and count: int & <10, then the
+//	ship/history/1.0.thema: schema with title and count: int & <10, then the
 //	                        forward and backward lenses of the 0.0 <-> 1.0 edge
 type ship struct {
 	v0, v1 *source
@@ -139,13 +139,13 @@ type pipelineCase struct {
 }
 
 func shipFrom(t *testing.T, a *archive) ship {
-	return ship{v0: a.source(t, "ship/history/0.0.thema"), v1: a.source(t, "ship/1.0.thema")}
+	return ship{v0: a.source(t, "ship/history/0.0.thema"), v1: a.source(t, "ship/history/1.0.thema")}
 }
 
 var pipelineCases = map[string]pipelineCase{
 	"compat": {
 		build: func(t *testing.T, a *archive) *ast.File {
-			v0, v1 := a.source(t, "ship/history/0.0.thema"), a.source(t, "ship/0.1.thema")
+			v0, v1 := a.source(t, "ship/history/0.0.thema"), a.source(t, "ship/history/0.1.thema")
 			return &ast.File{Decls: []ast.Decl{
 				field("name", at(v1.header(), ast.NewString("ship"))),
 				field("schemas", at(v1.header(), strct(key("0", at(v1.header(), strct(
