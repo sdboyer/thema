@@ -1,0 +1,260 @@
+# Thresh seams for thema. `thresh explain` renders them as agent guidance;
+# each seam's purpose says why it exists, so the reasons live here and not in
+# AGENTS.md.
+
+seams:
+  # --- published-language: consumers we cannot enumerate -------------------
+
+  lineages:
+    kind: published-language
+    purpose: "Every lineage is a versioned contract. thema makes authors declare the version tuple and enforces that a major bump means breaking, so the compat verdict is read straight from the declaration."
+    paths: ["exemplars/*.cue", "docs/*.cue"]
+    format: thema
+
+  compat-verdicts:
+    kind: shared-kernel
+    purpose: "Every compatibility verdict is part of the versioning contract: a lineage is valid only if its minor steps are compatible and its major steps are not, so a verdict that changes can invalidate lineages already published. The corpus records one verdict per rule; a diff there is a contract change, even when it fixes a bug. Before v1 verdicts are declared unstable, but the diff is still loud. Its consumers are every bound lineage, so it is a published language at heart, declared as a kernel to fire on touch."
+    paths: ["internal/compat/testdata/*.txtar"]
+    consult:
+      - "every lineage already bound: a verdict that moves can make a published minor step invalid or a major step unnecessary"
+      - "the rule tables in docs/invariants.md, which must describe the recorded verdicts"
+      - "the stability policy in docs/invariants.md: after v1 a recorded verdict may not change"
+
+  lenscheck-verdicts:
+    kind: shared-kernel
+    purpose: "Every lens-totality verdict is part of what binding guarantees: a lens that binds is total, so a verdict that moves can make a published lens fail to bind, or let through one that fails at translate (#57 rests on this). The corpus records one verdict per rule; a diff there is a contract change, even when it fixes a bug. Declared as a kernel to fire on touch, as compat-verdicts is."
+    paths: ["internal/lenscheck/testdata/*.txtar"]
+    consult:
+      - "every lineage already bound: a verdict that moves can make a published lens fail to bind, or admit one that fails at translate"
+      - "the rule tables in docs/invariants.md (Lens totality), which must describe the recorded verdicts"
+      - "the stability policy in docs/invariants.md: after v1 a recorded verdict may not change"
+      - "internal/compat, whose verdicts the copy rule reuses: a compat verdict that moves moves copies with it"
+
+  # --- shared-kernel: co-owners we can name --------------------------------
+
+  compile-roundtrip:
+    kind: shared-kernel
+    purpose: "The compiler and the decompiler are inverses on the canonical subset of the normal form, and the round-trip fixtures prove it in both directions. A change to what either emits or recognizes owes the other the same change."
+    paths:
+      - internal/compile/compile.go
+      - internal/compile/lens.go
+      - internal/compile/decompile.go
+      - "internal/compile/testdata/roundtrip/*.txtar"
+    consult:
+      - "the other direction: what Compile emits, Decompile must recognize, and what Decompile omits, Compile must regenerate"
+      - "the round-trip fixtures in internal/compile/testdata/roundtrip, which hold both directions' goldens, and the compiler's diagnostics in the authoring vocabulary"
+      - "the lens language design (#62) and the authoring file format (#61), which the vocabulary and layout follow"
+
+  diag-codes:
+    kind: shared-kernel
+    purpose: "Every error thema reports is a diag.Diagnostic with a stable code (E0xxx, allocated by hundreds: E01 lineage shape, E02 versions and compatibility, E03 lenses, E04 lacunas, E05 data, E06 loading and the CLI, E09 internal). The codes are the stable identity of thema's errors: tools, docs links and users' scripts match on them, and the playground renders by them. A code's meaning never changes; one that stops applying is retired, never reused. Sites build diagnostics with diag.New(code); errors from CUE go through diag.Convert or diag.From, which recognize CUE's messages by shape (diag/shapes.go) and report what they don't recognize as E0902 with CUE's text verbatim. The CLI renders them in the rustc layout, or as JSON with --diag-format json."
+    paths: [diag/codes.go, "diag/testdata/codes/*.txtar", "docs/errors/*.md"]
+    consult:
+      - "every consumer that matches on a code: the CLI's --diag-format json readers, docs/errors links, the playground; retire and allocate rather than change a code's meaning"
+      - "the lockstep tests in diag/codes_test.go: one reproducer per code, diag/testdata/codes/<code>.txtar, which runs the operation (#op) and records the rendering; docs/errors generated from them (THEMA_UPDATE_GOLDEN=1 go test ./diag); read the rendered text before considering a diagnostic done"
+      - "the author's vocabulary only: headlines, notes and help use the terms of the form the author wrote (version file, schema, ForwardLens, v0_0 for the authoring form; schemas, lenses, input, result for the normal form), never kernel or pipeline terms (_accum, steps, Lineage., #closed, embedreg paths); internal/diagtest.Lint fails a headline that leaks"
+      - "CUE's own text is never embedded: CUE's message is the Detail or a note, never interpolated into a headline, and no cerrors.Details in message construction"
+      - "nothing is dropped: every entry of cerrors.Errors(err) becomes a headline or a note of some diagnostic"
+      - "the primary position is the author's: a thema-origin position is never a primary, it becomes a note, and only codes declared Positionless may have none"
+      - "headline = rule + violator, in one line under diag.MaxHeadline: the invariant in the author's terms and the construct that breaks it; a note says why, help says what to do"
+      - "compat and totality findings are not re-derived: compat.Finding and the lenscheck findings are the source, internal/rulecodes maps each rule to its code, and the finding's detail is the note"
+      - "internal/compile/vocab.go and diagnose.go, which render the same codes in the authoring and normal-form vocabularies"
+
+  cue-error-shapes:
+    kind: shared-kernel
+    purpose: "thema depends on the exact messages the CUE evaluator and loader produce: diag/shapes.go recognizes them by format string, and the menagerie records every shape with a digest that fails on change. A CUE upgrade that moves the digest means re-checking every shape match and every reproducer's rendering."
+    paths: [diag/shapes.go, "diag/shapes_*.go", diag/testdata/menagerie.txtar, docs/cue-errors.md]
+    consult:
+      - "menagerieDigest in diag/menagerie_test.go, updated by hand after reading the regenerated menagerie and docs/cue-errors.md"
+      - "TestShapesCovered and the unmatchedYet backlog: every recorded format is matched by a shape or listed, so nothing is reported as E0902 unknowingly"
+      - "the reproducers in diag/testdata/codes, whose details quote CUE's text"
+
+  lineage-kernel:
+    kind: shared-kernel
+    purpose: "thema's own CUE is the kernel both halves stand on: every lineage anyone writes unifies with thema.Lineage, and the Go library binds to it by path."
+    paths: [lineage.cue, translate.cue, lacuna.cue, traverse.cue]
+    consult:
+      - "every lineage that unifies with thema.Lineage"
+      - "the Go facade (bind.go, lineage.go, surface.go)"
+      - "Go code that calls thema's CUE pseudofunctions and decodes their output shape (instance.go Translate decodes Translate's out)"
+      - "bind.go parseVersionKey, parseLensEdge and lensID.String, which mirror the schemas and lenses key formats (versionKey, edgeKey in lineage.cue)"
+
+  thema-module-identity:
+    kind: shared-kernel
+    purpose: "Go constants that mirror thema's CUE module identity: its path, embedded version and language version, and the package identity that scopes thema's hidden fields (cue.Hid). They must stay in lockstep with cue.mod/module.cue and the release tag."
+    paths: [internal/util/modfile.go]
+    consult:
+      - "cue.mod/module.cue (lockstep test in internal/util)"
+      - "the release process, which tags the Go and CUE modules with ThemaModuleVersion"
+      - "every module.cue thema synthesizes (util.ModuleFile) and every cue.Hid lookup"
+
+  embedded-module-root:
+    kind: shared-kernel
+    purpose: "The virtual path at which the embedded thema module is presented to the CUE loader appears in every error position that points into thema's CUE."
+    paths: [internal/embedreg/embedreg.go]
+    consult:
+      - "users reading error positions (the path is user-facing; diag renders a file under it as thema/<file>)"
+      - "diag/pos.go, which classifies every position's origin by IsKernelFile, and the Positionless rule in diag: a kernel position is never a primary"
+      - "golden error output in testdata, diag/testdata and docs/errors"
+
+  lacuna-types:
+    kind: shared-kernel
+    purpose: "Go's set of lacuna types mirrors LacunaTypes in thema's CUE; every lacuna a translation emits is decoded into it."
+    paths: [lacuna/lacuna.go]
+    consult:
+      - "LacunaTypes in lacuna.cue (lockstep test TestLacunaTypesMatchCUE)"
+      - "instance.go Translate, which decodes the lacunas of every step into these types"
+
+  cue-module:
+    kind: shared-kernel
+    purpose: "The CUE module config is pure substrate: everything that evaluates thema's CUE reads it."
+    paths: [cue.mod/module.cue]
+    consult: ["everything that evaluates thema's CUE"]
+
+  cue-dependency:
+    kind: shared-kernel
+    purpose: "The upstream CUE implementation is the language every lineage is written in, and thema leans on its exact behaviour: its error messages, how it exports values, and where positions land. Only the CUE dependency line matters, not unrelated go.mod churn."
+    paths: [go.mod]
+    watch: [cuelang.org/go]
+    consult:
+      - "every lineage's validity; the Go facade's cue.Value handling"
+      - "diag/shapes.go, which recognizes CUE's errors by the format string of Msg(); the menagerie (diag/testdata/menagerie.txtar, menagerieDigest in diag/menagerie_test.go) and docs/cue-errors.md record every shape thema depends on, and the digest fails on a change"
+      - "cmd/thema load.go loadDiag, which recognizes two of the loader's failures by their text, since the loader formats them before thema sees them"
+      - "Go code that works around evaluator behavior (assignable.go detaches values before Subsume)"
+      - "golden error output in testdata, and the reproducers in diag/testdata/codes with the docs/errors pages generated from them, which record CUE's wording (as details) and positions"
+      - "internal/cueview goldens, which record how CUE presents values as syntax; every check built on a view (lens checks in internal/cuetil) depends on them"
+      - "version IDs (internal/contenthash goldens): the canonical form is built on how CUE exports values, so an upgrade that changes the export changes stored IDs"
+      - "internal/compile tests, which pin what the evaluator does with positions in AST built for authoring files: that a node's position carries its language version and experiments, and where errors' positions land in thema's pipeline"
+
+  kernel-paths:
+    kind: shared-kernel
+    purpose: "Error positions are chosen by telling thema's own CUE apart from the author's by path. thema's CUE reaches the evaluator at two paths: embedreg.Root(), the embedded module's root, for lineages that import thema, and embedreg.RuntimeRoot(), the Runtime's load path, for everything BindLineage unifies with thema.Lineage itself and for every pseudofunction call such as Translate. Every diag.Pos carries an origin decided by those paths, and diagnostics show a file under either as thema/<file>."
+    paths: [runtime.go]
+    consult:
+      - "internal/embedreg IsKernel, IsKernelFile, KernelPath and AuthorPos, which recognize thema's CUE only at embedreg.Root() and embedreg.RuntimeRoot(); diag/pos.go, which classifies every position's origin through them, and diag.AuthorPos; every error position bind.go takes through them"
+      - "internal/compile classify, and the kernel positions in its pipeline goldens"
+      - "diag/render.go and cmd/thema readSource, which display and read thema's files by those roots"
+
+  cueview-goldens:
+    kind: shared-kernel
+    purpose: "How CUE presents a value as syntax shifts between versions and surprises often (_#def wrappers, generated lets, comprehensions kept or dropped). The goldens record what each view produces for definitions, references and lets, aliases, hidden fields, comprehensions and output shape; add a case for any new quirk you rely on. A diff there is a change every caller of that view must be checked against."
+    paths: ["internal/cueview/testdata/*.txtar"]
+    consult:
+      - "every caller of the view whose output changed (internal/cuetil syntax.go reads Evaluated through cueview.Tree; internal/contenthash builds its canonical form on SelfContained)"
+      - "the view's doc comment in internal/cueview/view.go, which lists its quirks"
+
+  lens-result-fields:
+    kind: shared-kernel
+    purpose: "Lenses are strictly bound to the schema as defined. A lens result is closed against the target schema inside Translate, and the fields each lens writes are also checked against what the target schema declares (cuetil.UndeclaredLensFields), even where the author wrote `...`. Each result field's origin is copied (input data, reached however indirectly: lets, aliases, self, other fields), constant (a literal) or computed (any other expression, or a mix); a reference to anything but input, such as a hidden helper field, has the origin of what it refers to. Copied data is not checked, and neither are steps with no lens (identity, minor versions). Origins are read from the lens's syntax (cuetil.LensSyntax), so they depend only on what the lens is, and they decide what lenses can compile to: a target without an expression language can only copy. Hidden fields follow closedness: one the target doesn't declare is the lens's scratch space and isn't checked; beneath one it declares, the lens may write only what it declares. The rule is enforced at bind and at translate from shared helpers, and the sites must agree; when they didn't, hidden fields were rejected at bind that translate accepted."
+    paths: [internal/cuetil/declared.go, internal/cuetil/syntax.go, internal/cueview/tree.go]
+    consult:
+      - "bind.go checkLensResults and checkLacunas, and instance.go checkLensResultFields: all must apply the same rule, and report it as E0305"
+      - "testdata/cases/lens-* and the construction-independence tests in internal/cuetil"
+
+  lens-ir:
+    kind: shared-kernel
+    purpose: "The lens IR (internal/lensir) is what every lens compiles to: its node set, what each node carries and how Print renders it are read by every backend (encoding/capnp renders CEL and layout from it) and recorded in the goldens of every corpus lineage and of every proven form. A change here changes what each of them sees."
+    paths: ["internal/lensir/*.go"]
+    consult:
+      - "encoding/capnp, which renders CEL and capnp layout from the IR, and every other backend built on it"
+      - "the IR goldens: out/lensir in testdata/lineage, exemplars/testdata/lensir and the ir sections of internal/lenscheck/testdata, which record what each lens and each proven form compiles to"
+      - "internal/lenscheck ir.go, which emits every node and must carry what the proof established for each"
+
+  content-hash:
+    kind: shared-kernel
+    purpose: "A version's ID is two digests of canonical forms of its content. IDs are stored (envelopes, a registry of record), so the canonical form is co-owned with every ID ever computed: a change to it, or to where a version's schema and lenses are found, changes IDs and orphans what was recorded against them."
+    paths: ["internal/contenthash/*.go", "internal/contenthash/testdata/*.txtar"]
+    consult:
+      - "every stored version ID; a change to the golden digests in internal/contenthash/testdata is a change to them"
+      - "internal/cueview SelfContained and its goldens, which the canonical form is built on"
+      - "the tip and cut workflow (#65) and lens fixes (#67), which compare schema and lens digests"
+
+  playground-api:
+    kind: shared-kernel
+    purpose: "The playground's wire format is a contract between the Go side and the frontend in playground/ui, which reads it through the generated types.ts and calls it through thema.wasm's bridge. Both live in this tree, so a change is complete only when the frontend moves in the same change."
+    paths:
+      - playground/types.go
+      - playground/ui/src/api/types.ts
+      - playground/session.go
+      - cmd/thema-wasm/main.go
+      - cmd/thema-wasm/thema-fs.js
+    consult:
+      - "playground/ui, in the same change: a renamed field, operation or bridge function breaks it; its tests run against this tree's thema.wasm (go generate ./cmd/thema/playground, then npm test in playground/ui)"
+      - "playground/ui/src/api/types.ts, regenerated from the Go types (THEMA_UPDATE_GOLDEN=1 go test ./playground), and the response goldens in playground/testdata"
+      - "the release assets a statically hosted playground fetches by tag: thema.wasm, wasm_exec.js, thema-fs.js, types.ts"
+
+  # --- choke-point ----------------------------------------------------------
+
+  bindlineage:
+    kind: choke-point
+    purpose: "BindLineage is the sole verification choke point (see docs/go-mapping.md). Constructing the guarded impl type anywhere else skips its invariants."
+    paths: ["*.go"]
+    type: baseLineage
+    onlyIn: [BindLineage]
+
+  lensir-programs:
+    kind: choke-point
+    purpose: "A lens program (internal/lensir) is the by-product of proving the lens total: lenscheck.Check builds it from what the walk proved, and only where the verdict is Total, so no node exists without its proof. A program built anywhere else would be a claim about a lens nothing has checked. thresh sees a construction by its unqualified type name, so this fires on Program literals inside lensir and lenscheck; the qualified lensir.Program{} in Check is the choke point itself."
+    paths: ["internal/lensir/*.go", "internal/lenscheck/*.go", "*.go", "encoding/*/*.go"]
+    type: Program
+    onlyIn: [Check]
+
+  embedded-registry:
+    kind: choke-point
+    purpose: "Configure is the only way thema's CUE module gets served to the loader. Building the registry elsewhere could skip the module-file check or the overlay that makes its virtual root readable."
+    paths: ["internal/embedreg/*.go"]
+    type: registry
+    onlyIn: [Configure]
+
+  # --- declared-set: the Go/CUE partition of responsibility -----------------
+
+  go-residual-checks:
+    kind: declared-set
+    purpose: "Go enforces only what CUE cannot yet express. Every Go-side validity check is declared here with the reason it is Go-side; an undeclared one is a partition violation. As CUE gains expressiveness, rules move into lineage.cue and come off this list."
+    paths: [bind.go]
+    funcs: "check*"
+    declared:
+      checkGoValidity: "compat vs declared version delta: needs the compat checker, which closes both schemas and subsumes them in Go; also rejects a major version key with no minors, which struct.MinFields only reports under concrete validation, which abstract schemas never pass"
+      checkSchemaVersions: "versions must be contiguous from 0.0: in CUE a skipped version is a missing key, which is only an incomplete reference (unification could still supply it), so validation never reports it"
+      checkExists: "presence of required lineage parts before deeper checks"
+      checkLineageShape: "structural shape checks on the raw lineage value"
+      checkNativeValidity: "runs the CUE-native validity pass and surfaces its errors"
+      checkLensEdges: "exactly the required lenses exist: needs the bound version list; a missing lens would otherwise surface only when a translation crosses its edge, and an extra one would be silently unused"
+      checkSchemaShapes: "schemas and joinSchema must be structs, and examples valid instances: CUE can constrain kinds, but reports a schema like _ only once data arrives"
+      checkLensResults: "static lens checks with input standing for any source instance: needs each lens paired with its source and target schemas, closedness applied at use, and the declared-fields walker"
+      checkLacunas: "lacuna lists must be enumerable without input, and lacuna field paths declared by the lens's schemas: needs the lineage's schemas, and CUE would only report missing required lacuna fields once data arrives"
+      checkUnknownFields: "unknown lineage/schema/lens fields, and schemas/lenses keys that aren't versions/edges; CUE rejects them too, but positions the error at its guard in thema's CUE, while Go can point at the author's line. Known fields are read from thema's CUE, not duplicated"
+      checkLensTotality: "every CUE lens must map every instance of its source schema to an instance of its target: a quantified claim over instances, which CUE can only evaluate one instance at a time. The walk (internal/lenscheck) reads each lens's syntax, judges copies with the compat checker and bounds through Expr(), and treats what it cannot decide as an error"
+      checkSchemaConstructs: "no comprehensions or reference cycles in a schema: CUE evaluates both happily, but no later check (compat, lens results, lacunas) can describe a schema whose fields depend on evaluation or whose paths are unbounded; refused before any of them runs, and reported at the construct"
+      checkReferences: "a schema refers only to its own body and CUE's builtin packages, a lens only to the instance it takes, its own body and those packages: CUE resolves a reference to anything in lexical scope, so a sibling schema, the lineage's name, a helper beside the lineage or another package all evaluate without complaint, and each can change a published schema's meaning without its text changing. Found in the value: Expr() splits each field into its expression tree, ReferencePath() names the root and path each reference resolves to, and Dereference reaches the value a let is bound to; only a pending comprehension, which declares nothing until an instance decides it, is read from the schema's or lens's syntax (the Raw view)"
+
+  kernel-definitions:
+    kind: declared-set
+    purpose: "thema's CUE API (Lineage, SchemaDef, Lens, Lacuna, …) is built from regular fields, not definitions: definitions close recursively, and authors' schemas flow through these structures, so a definition would impose closedness on every schema regardless of what its author wrote. thema's CUE takes no position on schema openness; operations that need closed semantics apply them where they are used. Each definition is an exception that must say why it can't be a regular field."
+    paths: [lineage.cue, translate.cue, lacuna.cue, traverse.cue]
+    defs: "*#*"
+    declared:
+      "#LatestVersion": "lets a user's package reference a computed member without it appearing in exported data; holds a version, never a schema"
+
+  cue-views:
+    kind: declared-set
+    purpose: "Each view of a cue.Value as syntax is a deliberate, documented choice of options with known quirks, listed in its doc comment. Variants made ad hoc at call sites are how those quirks get rediscovered: pick a view by name rather than assembling Syntax options at a call site, and a new view must say why none of these will do. Never decide anything about a value from Source() (the Written view): it depends on how the value was constructed, not on what it is. To follow references within a value, cueview.Tree resolves its exported syntax."
+    paths: [internal/cueview/view.go]
+    funcs: "[A-Z]*"
+    declared:
+      Written: "the author's text with positions, per conjunct; for pointing errors at it, never for deciding anything"
+      Evaluated: "the value as evaluated, not final; depends only on the value; the basis for structural checks"
+      Raw: "the names the value's syntax refers to, left dangling"
+      Final: "defaults taken, closed; what a user sees by default, without requiring concreteness"
+      Data: "concrete data, failing on anything else, which Syntax alone would hide as _|_ comments"
+      Documented: "Evaluated with doc comments, for output people read"
+      Text: "formats syntax from any view as CUE source"
+      SelfContained: "Evaluated with imported packages inlined, for questions about a value's content that must not stop at an import path, such as hashing it"
+
+  # --- references-resolve: the CUE<->Go binding -----------------------------
+
+  cue-go-binding:
+    kind: references-resolve
+    purpose: "Go reaches into CUE by literal path (cue.Str, cue.Def, cue.Hid). A rename in the CUE breaks those bindings in Go files the change never touched."
+    go: ["*.go"]
+    cue: ["*.cue"]
