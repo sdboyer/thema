@@ -19,21 +19,24 @@ func AuthoringLineage(fsys fs.FS, dir string, rt *thema.Runtime, opts ...thema.B
 	if err != nil {
 		return nil, err
 	}
-	return bindAuthoring(rt, name, files, opts)
+	lin, _, err := bindAuthoring(rt, name, files, opts)
+	return lin, err
 }
 
 // bindAuthoring compiles the history of the lineage name, in files, and binds
-// it.
-func bindAuthoring(rt *thema.Runtime, name string, files []authoring.File, opts []thema.BindOption) (thema.Lineage, error) {
+// it. It returns what it compiled, for the collection's check of the
+// lineage's normal form.
+func bindAuthoring(rt *thema.Runtime, name string, files []authoring.File, opts []thema.BindOption) (thema.Lineage, *authoring.Compiled, error) {
 	c, err := authoring.Compile(rt.Context(), name, files)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	v := rt.Context().BuildFile(c.File)
 	if err := v.Err(); err != nil {
-		return nil, diag.Convert(err, diag.Context{Op: diag.OpCompile, Vocabulary: authoring.Vocabulary(c), Generic: diag.E0112})
+		return nil, nil, diag.Convert(err, diag.Context{Op: diag.OpCompile, Vocabulary: authoring.Vocabulary(c), Generic: diag.E0112})
 	}
-	return thema.BindLineage(v, rt, append([]thema.BindOption{thema.WithVocabulary(authoring.Vocabulary(c))}, opts...)...)
+	lin, err := thema.BindLineage(v, rt, append([]thema.BindOption{thema.WithVocabulary(authoring.Vocabulary(c))}, opts...)...)
+	return lin, c, err
 }
 
 // Development is a lineage bound with its tip, on the development path.

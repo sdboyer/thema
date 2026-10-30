@@ -1,0 +1,17 @@
+Schema: {
+	firstfield:  string
+	secondfield: int
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		secondfield: -1
+	}
+	lacunas: {
+		secondfield: [{
+			type:    Placeholder
+			message: "-1 is a placeholder"
+		}]
+	}
+}

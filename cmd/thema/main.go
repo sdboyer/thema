@@ -148,6 +148,7 @@ var allCmds = []*cobra.Command{
 	lineageBumpCmd,
 	fmtLineageCmd,
 	tipLineageCmd,
+	compileLineageCmd,
 	genLineageCmd,
 	genTSTypesLineageCmd,
 	genGoBindingsLineageCmd,

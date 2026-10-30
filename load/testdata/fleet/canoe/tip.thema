@@ -1,0 +1,4 @@
+Schema: {
+	paddles: int
+	seats?:  int
+}

@@ -1,12 +1,15 @@
 package load
 
 import (
+	"errors"
 	"io/fs"
 	"maps"
+	"path"
 	"slices"
 
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/authoring"
+	"github.com/sdboyer/thema/diag"
 )
 
 // Collection is a collection of lineages, each loaded, compiled and bound on
@@ -39,11 +42,33 @@ func (c *Collection[L]) Names() []string {
 // under history/, with its tip ignored. The collection's layout is described
 // in [authoring.LoadCollection].
 //
+// Each lineage of a collection also keeps its normal form beside its
+// history, in [authoring.LineageFile], for native CUE to import. A lineage
+// that binds, but whose lineage.cue is missing or is not
+// [authoring.GenerateLineageFile]'s text, fails with E0151: what the
+// collection publishes to CUE must be what thema binds.
+//
 // The error is for root itself, when it is not a collection's directory; each
 // lineage's own error is in the result's Failed. opts apply to every lineage.
 func AuthoringCollection(fsys fs.FS, root string, rt *thema.Runtime, opts ...thema.BindOption) (*Collection[thema.Lineage], error) {
-	return collection(fsys, root, func(name string, files []authoring.File) (thema.Lineage, error) {
-		return bindAuthoring(rt, name, files, opts)
+	return collection(fsys, root, func(dir string, m authoring.Member) (thema.Lineage, error) {
+		lin, c, err := bindAuthoring(rt, m.Name, m.Files, opts)
+		if err != nil {
+			return nil, err
+		}
+		committed, err := fs.ReadFile(fsys, path.Join(dir, authoring.LineageFile))
+		switch {
+		case errors.Is(err, fs.ErrNotExist):
+			committed = nil
+		case err != nil:
+			return nil, diag.New(diag.E0601).Headlinef("%s cannot be read", path.Join(dir, authoring.LineageFile)).Detail(diag.OSReason(err)).Err()
+		case committed == nil:
+			committed = []byte{}
+		}
+		if err := authoring.CheckLineageFile(c, committed); err != nil {
+			return nil, err
+		}
+		return lin, nil
 	})
 }
 
@@ -51,17 +76,21 @@ func AuthoringCollection(fsys fs.FS, root string, rt *thema.Runtime, opts ...the
 // of fsys, and binds each lineage with its tip, on the development path, as
 // [DevelopmentLineage] does. It is for developing and testing a collection,
 // never for serving it: what is published is what [AuthoringCollection]
-// binds. A lineage with no tip.thema fails (E0149), as it does alone.
+// binds. A lineage with no tip.thema fails (E0149), as it does alone. Its
+// lineage.cue is not checked: it holds the history, which is what
+// [AuthoringCollection] checks, and never the tip being developed.
 //
 // The error is for root itself, when it is not a collection's directory; each
 // lineage's own error is in the result's Failed. opts apply to every lineage.
 func DevelopmentCollection(fsys fs.FS, root string, rt *thema.Runtime, opts ...thema.BindOption) (*Collection[*Development], error) {
-	return collection(fsys, root, func(name string, files []authoring.File) (*Development, error) {
-		return bindDevelopment(rt, name, files, opts)
+	return collection(fsys, root, func(_ string, m authoring.Member) (*Development, error) {
+		return bindDevelopment(rt, m.Name, m.Files, opts)
 	})
 }
 
-func collection[L any](fsys fs.FS, root string, bind func(name string, files []authoring.File) (L, error)) (*Collection[L], error) {
+// collection binds each lineage of the collection in root with bind, which is
+// given the lineage's directory and what LoadCollection read of it.
+func collection[L any](fsys fs.FS, root string, bind func(dir string, m authoring.Member) (L, error)) (*Collection[L], error) {
 	members, err := authoring.LoadCollection(fsys, root)
 	if err != nil {
 		return nil, err
@@ -72,7 +101,7 @@ func collection[L any](fsys fs.FS, root string, bind func(name string, files []a
 			c.Failed[m.Name] = m.Err
 			continue
 		}
-		lin, err := bind(m.Name, m.Files)
+		lin, err := bind(path.Join(root, m.Name), m)
 		if err != nil {
 			c.Failed[m.Name] = err
 			continue

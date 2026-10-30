@@ -1,0 +1,4 @@
+Schema: {
+	firstfield:  string
+	secondfield: int
+}
