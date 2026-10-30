@@ -57,11 +57,11 @@ The rules apply field by field, at every depth: a struct the lens reads in part 
 | Rule | Case | Outcome | Lacuna | Main |
 |---|---|---|---|---|
 | B1 | The lens maps it: copy, move, computed value, `_match`, `_each` | The target gets the mapped value. | Only those the lens lists, under the conditions in [F](#when-lacunas-fire). | yes |
-| B2 | The lens drops it (`_drop`) | Dropped. | `DroppedField`, whenever the field was present, unless it was an empty struct or list ([E4](#structs-and-presence)). | yes, except the empty-container case: [#196](https://github.com/sdboyer/thema/pull/196); for a struct dropped whole, [#176](https://github.com/sdboyer/thema/pull/176) |
+| B2 | The lens drops it (`_drop`) | Dropped. | `DroppedField`, whenever the field was present, unless it was an empty struct or list ([E4](#structs-and-presence)). | yes, except an empty struct dropped whole: [#176](https://github.com/sdboyer/thema/pull/176) |
 | B3 | Optional in the source, absent from the instance | Nothing is written from it. A target that requires the field takes a fallback the lens supplies (`_coalesce`). | None from the mapping ([F2](#when-lacunas-fire)). | yes, except `_match` ([F5](#when-lacunas-fire), [#187](https://github.com/sdboyer/thema/issues/187)) and optional structs ([E1](#structs-and-presence), [#176](https://github.com/sdboyer/thema/pull/176)) |
-| B4 | The lens doesn't map it; the target doesn't declare it; the target's struct at the same path is open | Carried, as undeclared data of the target, at its own path. On the way back it is promoted into the field the source declares ([C2](#undeclared-data)). | None. | no: [#196](https://github.com/sdboyer/thema/pull/196) |
-| B5 | The lens doesn't map it; the target doesn't declare it; the target's struct is closed, or the target has no struct at that path | Dropped. | `DroppedField`, raised by translation itself, whenever the field was present: one per struct per cause, naming each field and its value, as for C5. A `DroppedField` the lens lists for the field supersedes this one: it is raised instead, not as well. | for the authoring form's derived drops, yes; for a hand-written lens, no: [#196](https://github.com/sdboyer/thema/pull/196) |
-| B6 | The lens doesn't map it; the target also declares it | Not copied. The target field is absent, takes its default ([D2](#fields-only-the-target-declares)), or, where the target requires it with no default, the lens is refused at bind ([D3](#fields-only-the-target-declares)). The source value is dropped. | `DroppedField`, as for B5. | no: [#196](https://github.com/sdboyer/thema/pull/196) |
+| B4 | The lens doesn't map it; the target doesn't declare it; the target's struct at the same path is open | Carried, as undeclared data of the target, at its own path. On the way back it is promoted into the field the source declares ([C2](#undeclared-data)). | None. | yes |
+| B5 | The lens doesn't map it; the target doesn't declare it; the target's struct is closed, or the target has no struct at that path | Dropped. | `DroppedField`, raised by translation itself, whenever the field was present: one per struct per cause, naming each field and its value, as for C5. A `DroppedField` the lens lists for the field supersedes this one: it is raised instead, not as well. | yes |
+| B6 | The lens doesn't map it; the target also declares it | Not copied. The target field is absent, takes its default ([D2](#fields-only-the-target-declares)), or, where the target requires it with no default, the lens is refused at bind ([D3](#fields-only-the-target-declares)). The source value is dropped. | `DroppedField`, as for B5. | yes |
 
 Leaving a field unmapped is not refused at bind for that reason alone. A lens must turn every instance of its source into a valid instance of its target; it need not account for how. The authoring form never reaches B6: it copies a field both versions declare implicitly. It reaches B5 only through its derived backward lens, which drops a field the older version lacks with a `DroppedField` of its own; going forward, an unmapped removed field is an error ([E0347](errors/E0347.md)).
 
@@ -69,10 +69,7 @@ Carrying into a field the target declares, promotion, is for undeclared data onl
 
 Today on main:
 
-- **B2.** Dropping a present empty struct or list raises its `DroppedField`. #196 raises none, and so does #176 for a struct dropped whole.
-- **B4.** The field is dropped with no lacuna. #196 implements the carry.
-- **B5.** A hand-written normal-form lens that leaves the field out drops it with no lacuna. #196 raises the automatic `DroppedField`, superseded by one the lens lists.
-- **B6.** With a hand-written lens, the target field is absent or takes its default, and no lacuna is raised. #196 raises the automatic `DroppedField`.
+- **B2.** Dropping a present but empty struct whole raises its `DroppedField` (#176).
 
 ## Undeclared data
 
@@ -80,13 +77,13 @@ Fields an instance holds that its schema doesn't declare, under `...` ([A1](#wha
 
 | Rule | Case | Outcome | Lacuna | Main |
 |---|---|---|---|---|
-| C1 | The target's struct at the same path is open and doesn't declare it | Carried at its own path. | None. | no: [#196](https://github.com/sdboyer/thema/pull/196) |
-| C2 | The target declares a field of that name, the lens wrote nothing there for this instance, and the value is an instance of the target field | Promoted into the declared field. A value that fits is promoted over the target's default. | None. | no: [#196](https://github.com/sdboyer/thema/pull/196) |
-| C3 | The target declares it, the lens wrote nothing there, and the value is not an instance of the target field | Set aside. The target field is absent, or takes its default. This arises only where the target field is optional or has a default: the lens writes every field the target requires without a default ([D3](#fields-only-the-target-declares)), so C4 applies there. | `LossyFieldMapping`. Its `sourceFields` hold the carried field and its value, and its `targetFields` the declared target field and what it ended up as: absent, or its default. | no: [#196](https://github.com/sdboyer/thema/pull/196) |
-| C4 | The target declares it, and the lens wrote that field | The lens's value wins. The carried value is discarded. | `DroppedField` for the discarded value. Any lacuna the lens lists on the field still fires. | no: [#196](https://github.com/sdboyer/thema/pull/196) |
-| C5 | The target's struct is closed, and doesn't declare it | Set aside. | `DroppedField`: one per struct per cause, naming each field and its value. | no: [#196](https://github.com/sdboyer/thema/pull/196) |
-| C6 | A target struct's contents come from one source struct as a whole, at another path: a move (`info: v0_0.meta`), an embed (`info: {v0_0.meta, x: 1}`), or a move with mappings beneath it | It follows the struct: carried to the target struct, where C1–C5 apply. Openness belongs to a struct, and taking a whole struct brings its undeclared data along. A struct assembled from parts of several source structs takes none: undeclared data keeps matching by path. | As C1–C5 at the new path. | no: [#196](https://github.com/sdboyer/thema/pull/196) |
-| C7 | Inside list elements | Carried element by element, by index. Where the lens changes the list's length, undeclared fields on the indices that survive are kept, and only those on elements past the new length are set aside. | `DroppedField` for what is set aside. | no: [#196](https://github.com/sdboyer/thema/pull/196) |
+| C1 | The target's struct at the same path is open and doesn't declare it | Carried at its own path. | None. | yes |
+| C2 | The target declares a field of that name, the lens wrote nothing there for this instance, and the value is an instance of the target field | Promoted into the declared field. A value that fits is promoted over the target's default. | None. | yes |
+| C3 | The target declares it, the lens wrote nothing there, and the value is not an instance of the target field | Set aside. The target field is absent, or takes its default. This arises only where the target field is optional or has a default: the lens writes every field the target requires without a default ([D3](#fields-only-the-target-declares)), so C4 applies there. | `LossyFieldMapping`. Its `sourceFields` hold the carried field and its value, and its `targetFields` the declared target field and what it ended up as: absent, or its default. | yes |
+| C4 | The target declares it, and the lens wrote that field | The lens's value wins. The carried value is discarded. | `DroppedField` for the discarded value. Any lacuna the lens lists on the field still fires. | yes |
+| C5 | The target's struct is closed, and doesn't declare it | Set aside. | `DroppedField`: one per struct per cause, naming each field and its value. | yes |
+| C6 | A target struct's contents come from one source struct as a whole, at another path: a move (`info: v0_0.meta`), an embed (`info: {v0_0.meta, x: 1}`), or a move with mappings beneath it | It follows the struct: carried to the target struct, where C1–C5 apply. Openness belongs to a struct, and taking a whole struct brings its undeclared data along. A struct assembled from parts of several source structs takes none: undeclared data keeps matching by path. | As C1–C5 at the new path. | yes |
+| C7 | Inside list elements | Carried element by element, by index. Where the lens changes the list's length, undeclared fields on the indices that survive are kept, and only those on elements past the new length are set aside. | `DroppedField` for what is set aside. | yes |
 
 Wherever undeclared data has no place in the target, because the target has no struct at its parent path, it is set aside with a `DroppedField`. Undeclared fields inside a struct that is dropped whole are part of the struct's value, which its own `DroppedField` reports ([E2](#structs-and-presence)).
 
@@ -99,12 +96,6 @@ For example, with 0.0 as `{a!: string, ...}` and 1.0 as `{a!: string, b?: bool, 
 | 0.0 → 1.0 | `{a: "x", b: true, z: 1}` | `{a: "x", b: true, z: 1}`: `b` promoted, `z` carried | none |
 | 0.0 → 1.0 | `{a: "x", b: "s"}` | `{a: "x"}` | `LossyFieldMapping` on `b` (C3) |
 | 1.0 → 0.0 | `{a: "x", b: false}` | `{a: "x", b: false}`: `b` carried as undeclared data (B4) | none |
-
-Today on main:
-
-- **Major steps** discard undeclared data with no lacuna: a lens builds its result from declared fields only, and the result is closed against the target.
-- **Minor steps** keep it where the successor accepts it, and fail the translation where it doesn't.
-- **#196** implements these rules.
 
 ## Fields only the target declares
 
@@ -127,7 +118,7 @@ When a struct exists in the result, and how dropping one is reported.
 | E2 | A struct the target lacks, present in the source | Dropped whole. | One `DroppedField`, on the struct, whose value includes its contents. It replaces lacunas for the fields beneath it. An empty struct raises none (E4). | no: [#176](https://github.com/sdboyer/thema/pull/176) |
 | E3 | A target struct filled from inside and outside an optional source struct | Present when any of its content is written, under E3a. | As E3a. | no: [#188](https://github.com/sdboyer/thema/issues/188), implemented in [#200](https://github.com/sdboyer/thema/pull/200) |
 | E3a | An optional target struct assembled from several sources | Written when at least one of its contents is written, *and* every field it requires is satisfied, written or filled by its default. Otherwise it is not written. | Where some content is available but a required field isn't satisfied: a `DroppedField` for each value that would have gone into the struct. | no: [#188](https://github.com/sdboyer/thema/issues/188), implemented in [#200](https://github.com/sdboyer/thema/pull/200) |
-| E4 | The target requires a struct that the source has as optional | `{}` is written when the source is absent, with whatever the struct's own defaults fill. An empty container and an absent one are not distinct information. Where that can't produce the struct for some instance, because it has a required field of its own that nothing fills when the source is absent, the lens is refused at bind, as for any required field it doesn't produce ([D3](#fields-only-the-target-declares)). The remedy is `_coalesce` with a struct fallback. | None. Dropping an empty struct or list never raises a lacuna. | `{}` yes; refusing a struct it can't produce: [#188](https://github.com/sdboyer/thema/issues/188), implemented in [#200](https://github.com/sdboyer/thema/pull/200); no lacuna for an empty container: [#196](https://github.com/sdboyer/thema/pull/196), and [#176](https://github.com/sdboyer/thema/pull/176) for a struct dropped whole |
+| E4 | The target requires a struct that the source has as optional | `{}` is written when the source is absent, with whatever the struct's own defaults fill. An empty container and an absent one are not distinct information. Where that can't produce the struct for some instance, because it has a required field of its own that nothing fills when the source is absent, the lens is refused at bind, as for any required field it doesn't produce ([D3](#fields-only-the-target-declares)). The remedy is `_coalesce` with a struct fallback. | None. Dropping an empty struct or list never raises a lacuna. | `{}` yes; refusing a struct it can't produce: [#188](https://github.com/sdboyer/thema/issues/188), implemented in [#200](https://github.com/sdboyer/thema/pull/200); no lacuna for an empty container, yes, except a struct dropped whole: [#176](https://github.com/sdboyer/thema/pull/176) |
 
 **E3a**, a target struct exists when there is enough data for it to exist. For example, with 0.0 as `q?: {a!: int, b?: int}`, and 1.0 as `q?: {a!: int}` and `b?: int` (`b` moved out of `q`), the step back from 1.0 to 0.0 gives:
 
@@ -149,7 +140,7 @@ Today on main:
 - **E1.** The derived backward lens writes `{}` for an optional struct the instance lacks ([#157](https://github.com/sdboyer/thema/issues/157), fixed by #176).
 - **E2.** The authoring docs describe one derived lacuna per field the newer version added. #176 implements the single lacuna on the struct, and raises none for an empty struct (E4).
 - **E3.** The backward `q.b: v1_0.b`, where `q?` is optional and `b` lives outside it, writes `q: {}` when `b` is absent.
-- **E4.** Dropping a present but empty struct or list raises its `DroppedField` (#196, and #176 for a struct dropped whole). A required struct whose source is absent is written as `{}` with no error at bind, even where it has a required field of its own that nothing fills; and `_coalesce` takes no struct fallback ([#188](https://github.com/sdboyer/thema/issues/188), [#200](https://github.com/sdboyer/thema/pull/200)).
+- **E4.** Dropping a present but empty struct whole raises its `DroppedField` (#176). A required struct whose source is absent is written as `{}` with no error at bind, even where it has a required field of its own that nothing fills; and `_coalesce` takes no struct fallback ([#188](https://github.com/sdboyer/thema/issues/188), [#200](https://github.com/sdboyer/thema/pull/200)).
 
 ## When lacunas fire
 
@@ -159,7 +150,7 @@ Today on main:
 |---|---|---|---|
 | F1 | A move, computed value or constant from a required source, with no `when` | Always. | yes |
 | F2 | A move or computed value from an optional source, with no `when` | Only when the source is present, so that the mapping wrote its field. | no: [#182](https://github.com/sdboyer/thema/pull/182) |
-| F3 | `_coalesce`; `_match`; `_drop` | When the fallback was used; when the wildcard arm applied; when the dropped field was present and not an empty container ([E4](#structs-and-presence)). | yes, except the empty-container case ([#196](https://github.com/sdboyer/thema/pull/196), [#176](https://github.com/sdboyer/thema/pull/176)) and F5 |
+| F3 | `_coalesce`; `_match`; `_drop` | When the fallback was used; when the wildcard arm applied; when the dropped field was present and not an empty container ([E4](#structs-and-presence)). | yes, except an empty struct dropped whole ([#176](https://github.com/sdboyer/thema/pull/176)) and F5 |
 | F4 | A written `when` | The `when` replaces the implied condition entirely, so the lacuna can fire where the mapping wrote nothing. It then names no target field. | replacing, yes; naming no target field: [#182](https://github.com/sdboyer/thema/pull/182) |
 | F5 | `_match` on an absent optional source | Writes nothing, and raises no lacuna (B3, F2). | no: bug [#187](https://github.com/sdboyer/thema/issues/187) |
 
@@ -175,7 +166,7 @@ These are not listed by any lens. Translation raises them whatever lens the step
 | `DroppedField` | undeclared data set aside: a closed target struct, no struct to carry it in, or a list element past the new length | [C5, C7](#undeclared-data) |
 | `DroppedField` | a present source value that the lens reads, where no field that reads it is written for this instance; for example the values that would have gone into an optional target struct that isn't written. Unless the lens lists a `DroppedField` for it, as the authoring form's derived lens does | [E3a](#structs-and-presence) |
 
-None of these is on main yet. Their trackers are in the rules' rows.
+Go's `Translate` raises all of these ([G4](#which-implementation-defines-translation)). The authoring form also derives the E3a lacuna into the lens itself ([#200](https://github.com/sdboyer/thema/pull/200)).
 
 Today on main:
 
@@ -187,15 +178,11 @@ Today on main:
 
 | Rule | Case | Outcome | Main |
 |---|---|---|---|
-| G1 | A step forward to the next minor version | No lens: the instance is already an instance of the successor. Undeclared data follows [C](#undeclared-data), so a closed struct of the successor sets aside what it can't hold. | no lens, yes; undeclared data: [#196](https://github.com/sdboyer/thema/pull/196) |
+| G1 | A step forward to the next minor version | No lens: the instance is already an instance of the successor. Undeclared data follows [C](#undeclared-data), so a closed struct of the successor sets aside what it can't hold. | yes |
 | G2 | Defaults in the input | Before the first step, the data is unified with its own schema, so non-optional fields with defaults are filled, and they appear in the output. | yes |
 | G3 | Direction | The same rules apply forward and backward. Nothing depends on which way a step goes. | yes, for each rule main implements |
 
 Forward and backward lenses differ only in what the authoring form derives for them. Its rule that a forward lens must account for every field the newer version removes ([E0347](errors/E0347.md)) guards against a forgotten rename. It is an authoring rule, not a translation rule.
-
-Today on main:
-
-- **G1.** The minor step validates the instance against the successor, and the translation fails where the successor rejects undeclared data.
 
 ## Which implementation defines translation
 
@@ -203,4 +190,4 @@ Today on main:
 |---|---|---|---|
 | G4 | Which implementation defines this page | Go's `Instance.Translate`. The CUE `thema.Translate` pseudofunction in `translate.cue` translates declared fields only; bringing it to parity is a subordinate goal. | the gap is tracked in [#198](https://github.com/sdboyer/thema/issues/198) |
 
-Today on main, Go's `Translate` evaluates the CUE pseudofunction, so the two agree. Once #196 lands, Go carries, promotes and sets aside undeclared data around each step, and the pseudofunction doesn't; the automatic lacunas of B5 and B6 will also live only in Go.
+Go's `Translate` evaluates the CUE pseudofunction for the lenses, then carries, promotes and sets aside undeclared data around each step, and raises the automatic lacunas; the pseudofunction does neither.

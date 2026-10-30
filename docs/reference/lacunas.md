@@ -85,7 +85,7 @@ The types, in the order `lacuna.cue` declares them. The Go constants in package 
 
 ## Emission
 
-This section describes how main emits lacunas today. [Translation](../translation.md#when-lacunas-fire) defines which lacunas a step raises. Main does not yet raise any of the [lacunas translation raises by itself](../translation.md#lacunas-translation-raises-by-itself), so where this section says a step emits only its lens's lacunas, or that a minor step emits none, it describes main, not the contract. Likewise, where the target version's struct is open, the derived drop of a field the newer version added is main's behaviour; translation carries such a field instead ([B4](../translation.md#fields-the-source-declares)).
+[Translation](../translation.md#when-lacunas-fire) defines which lacunas a step raises; this section describes how they are emitted. Besides the lacunas its lens lists, a step raises the [lacunas translation raises by itself](../translation.md#lacunas-translation-raises-by-itself), with or without a lens.
 
 A translation passes through every version between its `from` and `to` versions, one step per pair of adjacent versions.
 
