@@ -51,13 +51,13 @@ The types, in the order `lacuna.cue` declares them. The Go constants in package 
 
 - **Gap:** one or more source fields were dropped in a way that may lose what they meant. Fields dropped for one cause belong in one `DroppedField`, such as every instance field dropped from an open struct because the schema lacks it.
 - **Fields:** `sourceFields`, the dropped fields. No `targetFields`.
-- **Derived:** yes. thema derives one for every drop in a compiled lens, described under [emission](#emission). An author may also declare one.
+- **Derived:** yes. thema derives one for every drop in a compiled lens, described under [emission](#emission), and translation emits one for the fields it [sets aside](#set-aside-fields). An author may also declare one.
 
 ### LossyFieldMapping
 
 - **Gap:** no clear mapping exists from the source value to the meaning of any valid target value, such as a coercion that only some source values survive: a string field becoming an integer, where `"12"` parses and `"twelve"` does not. At least one valid source value has a clear, lossless mapping to a target value.
 - **Fields:** both. `sourceFields`, the field whose value did not map; `targetFields`, the field it mapped to.
-- **Derived:** never by a lens. Translation raises one by itself for undeclared data, carried under a name the target declares, whose value is not an instance of the target field ([C3](../translation.md#undeclared-data)). That is not on main yet ([#196](https://github.com/sdboyer/thema/pull/196)); today no translation raises a `LossyFieldMapping` that a lens does not declare.
+- **Derived:** never by a lens. Translation raises one by itself for undeclared data, carried under a name the target declares, whose value is not an instance of the target field ([C3](../translation.md#undeclared-data)); see [set-aside fields](#set-aside-fields).
 
 ### ChangedDefault
 
@@ -85,14 +85,16 @@ The types, in the order `lacuna.cue` declares them. The Go constants in package 
 
 ## Emission
 
-This section describes how main emits lacunas today. [Translation](../translation.md#when-lacunas-fire) defines which lacunas a step raises. Main does not yet raise any of the [lacunas translation raises by itself](../translation.md#lacunas-translation-raises-by-itself), so where this section says a step emits only its lens's lacunas, or that a minor step emits none, it describes main, not the contract. Likewise, where the target version's struct is open, the derived drop of a field the newer version added is main's behaviour; translation carries such a field instead ([B4](../translation.md#fields-the-source-declares)).
+[Translation](../translation.md#when-lacunas-fire) defines which lacunas a step raises; this section describes how they are emitted. Besides the lacunas its lens lists, a step raises the [lacunas translation raises by itself](../translation.md#lacunas-translation-raises-by-itself), with or without a lens.
 
 A translation passes through every version between its `from` and `to` versions, one step per pair of adjacent versions.
 
-- A forward step to the next minor version applies no lens: the instance is already an instance of the successor. It emits no lacunas.
+- A forward step to the next minor version applies no lens: the instance is already an instance of the successor. It emits no lacunas of its own.
 - A forward step to the next major version, and every backward step, minor or major, applies the lens for that pair of versions.
 
 A step that applies a lens evaluates the `condition` of each lacuna in the lens's `lacunas` list, against the instance that lens takes. A lacuna whose condition is `true` is emitted. Lacunas are emitted in list order.
+
+Around every step, translation carries the fields no lens maps ([invariants](../invariants.md#fields-no-lens-maps)), and adds lacunas after the lens's for those it [did not carry](#set-aside-fields).
 
 Translation returns the lacunas grouped by step, `lacuna.TranslationLacunas` in Go:
 
@@ -124,6 +126,8 @@ Translation returns the lacunas grouped by step, `lacuna.TranslationLacunas` in 
 - each `_drop` the author writes;
 - in a backward lens, each field the source version declares and the target version does not, that no mapping uses, including every field the newer version added. Such a field is dropped, and the drop derives the lacuna. In a forward lens, such a field is an error instead ([E0347](../errors/E0347.md)).
 
+A backward lens derives no drop for a field translation carries: where the target version's struct is open, and nothing the lens maps reads the field or anything beneath it, the field is left alone, and translation carries it into the target as a field the target does not declare ([fields no lens maps](../invariants.md#fields-no-lens-maps)). Nothing is lost, so there is nothing to report. A written `_drop` of such a field still drops it, with its lacuna.
+
 A derived lacuna has:
 
 - `sourceFields`: the dropped field. No `targetFields`.
@@ -149,5 +153,41 @@ lacunas: [{
 ```
 
 - The attribute is not data. An emitted derived lacuna is indistinguishable from a declared one.
-- The decompiler reads a derived lacuna back as a `_drop`. Where derivation would produce that drop again, as for a field the newer version added, nothing is written. Where the message or condition differs from the derived one, the `_drop` gets a declared `DroppedField` lacuna.
+- The decompiler reads a derived lacuna back as a `_drop`. Where derivation would produce that drop again, as for a field the newer version added to a struct the older version closes, nothing is written; a drop of a field derivation would leave to translation is written as the author's. Where the message or condition differs from the derived one, the `_drop` gets a declared `DroppedField` lacuna.
 - A lacuna marked derived must be a `DroppedField` over exactly one source field and no target fields; any other is outside the authoring form, and decompiling it is an error.
+
+## Set-aside fields
+
+Translation, not a lens, emits lacunas for the fields no lens maps that it does not carry ([fields no lens maps](../invariants.md#fields-no-lens-maps)): fields an instance holds that the step's source schema does not declare, fields it declares that the step's lens leaves alone, and fields the lens reads where no result field that reads them was written for the instance. A lacuna the lens lists for a field takes the place of any translation would emit for it.
+
+A value that is not an instance of a field the target declares, where the lens does not write that field, is not carried, and emits one `LossyFieldMapping`:
+
+- `sourceFields`: the field and its value.
+- `targetFields`: the target's field as it ended up: holding its default, or absent, with a `null` value.
+- `message`: `<field> not carried: its value is not an instance of what <version> declares for it` (for `<target field>`, where the lens moved the struct holding it).
+
+`LossyFieldMapping`, not `DroppedField`: the source field maps to the target field of that name, as values that are instances of it show by being promoted into it. This one value does not survive the mapping.
+
+Any other field not carried is set aside, with a `DroppedField` for each struct and cause:
+
+| Cause | Message |
+|---|---|
+| the target schema does not declare the field, and its struct there is closed | `<fields> set aside: <version> does not declare them in <struct>, which it does not leave open` |
+| the step's result has no struct at the field's parent path: the lens removed it, or a list the lens shortened has no element there | `<fields> set aside: translating from <version> to <version> produces no <struct> to carry them in` |
+| the target schema declares the field, and the lens wrote its own value for it | `<fields> set aside: the lens from <version> to <version> writes its own values for them` |
+| the target schema declares a field the source declares, and the lens neither maps nor writes it | `<fields> set aside: the lens from <version> to <version> neither maps nor writes them` |
+| the lens reads the field, none of the result fields that read it was written for the instance, and it could not be carried | `<fields> set aside: the lens from <version> to <version> reads them, but wrote nothing that carries them for this instance` |
+
+- `<fields>` lists the fields' paths, comma-separated, and `<struct>` is the parent path in the step's result, or `the instance` at the root. For a single field the message reads `it` and `its value`.
+- `sourceFields` names each field set aside and its value, in the order the instance holds them. There are no `targetFields`: the lacuna applies because the fields were set aside.
+- A field whose value is an empty struct or list emits no lacuna: dropping it loses nothing.
+- An extra's paths need not be declared by the step's source schema, since these are the fields it does not declare. The check that a lens's lacunas name declared fields ([E0404](../errors/E0404.md)) applies to the lacunas a lens lists, not to these.
+- A step's lacunas from translation follow the lacunas of its lens, in the order the instance holds the fields.
+
+```json
+{
+    "sourceFields": [{"path": "withDefault", "value": "bar"}],
+    "type": "DroppedField",
+    "message": "withDefault set aside: 0.1 does not declare it in the instance, which it does not leave open"
+}
+```

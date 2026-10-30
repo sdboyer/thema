@@ -73,7 +73,11 @@ func TestLensResultClassification(t *testing.T) {
 		"selector into helper": {`_h: {y: {extra: 1}}, result: {x: _h.y}`, `{x=constant{extra=constant}}`},
 	} {
 		t.Run(name, func(t *testing.T) {
-			v := ctx.CompileString("lens: {input: _\n" + c.lens + "}").LookupPath(cue.ParsePath("lens"))
+			src := "lens: {input: _\n" + c.lens + "}"
+			if strings.Contains(c.lens, "strings.") {
+				src = "import \"strings\"\n" + src
+			}
+			v := ctx.CompileString(src).LookupPath(cue.ParsePath("lens"))
 			if err := v.Err(); err != nil {
 				t.Fatal(err)
 			}
@@ -141,6 +145,30 @@ func TestLensSyntaxConstructionIndependent(t *testing.T) {
 			if !ls.LacunasConditional() {
 				t.Error("conditional lacunas not detected")
 			}
+			var reads []string
+			for _, p := range ls.InputReads() {
+				reads = append(reads, p.String())
+			}
+			sort.Strings(reads)
+			if got := strings.Join(reads, " "); got != "a a n" {
+				t.Errorf("reads: got %s, want a a n", got)
+			}
+			var copies []string
+			for _, cp := range ls.Copies() {
+				copies = append(copies, cp.Result.String()+"<-"+cp.Input.String())
+			}
+			sort.Strings(copies)
+			if got := strings.Join(copies, " "); got != "a<-a n<-n" {
+				t.Errorf("copies: got %s, want a<-a n<-n", got)
+			}
+			var readers []string
+			for _, r := range ls.Readers() {
+				readers = append(readers, r.Result.String()+"<-"+r.Input.String())
+			}
+			sort.Strings(readers)
+			if got := strings.Join(readers, " "); got != "a<-a n<-n" {
+				t.Errorf("readers: got %s, want a<-a n<-n", got)
+			}
 		})
 	}
 }
@@ -162,5 +190,149 @@ func TestLacunasConditional(t *testing.T) {
 		if got := ls.LacunasConditional(); got != want {
 			t.Errorf("%s: got %v, want %v", lacunas, got, want)
 		}
+	}
+}
+
+// Which input paths a lens's result reads, for each way of reading them.
+func TestCopies(t *testing.T) {
+	const infoMeta = `[info<-meta]`
+	ctx := cuecontext.New()
+	for name, c := range map[string]struct {
+		lens string // the lens's body; input: _ is supplied
+		want string
+	}{
+		"moved":          {`result: {info: input.meta}`, infoMeta},
+		"same path":      {`result: {meta: input.meta}`, `[meta<-meta]`},
+		"nested":         {`result: {a: {b: input.x.y}}`, `[a.b<-x.y]`},
+		"let":            {`let M = input.meta, result: {info: M}`, infoMeta},
+		"alias":          {`result: {x~(X): input.a, y: X}`, `[x<-a y<-a]`},
+		"helper":         {`result: {_h: input.n, x: _h}`, `[x<-n]`},
+		"conditional":    {`result: {if input.f != _|_ {info: input.meta}}`, infoMeta},
+		"computed":       {`result: {a: input.a + 1}`, `[]`},
+		"with mappings":  {`result: {info: input.meta & {x: input.y}}`, `[info.x<-y info<-meta]`},
+		"embedded":       {`result: {info: {input.meta, x: 1}}`, infoMeta},
+		"declared twice": {`result: {info: input.meta, info: x: 1}`, infoMeta},
+		"assembled":      {`result: {info: {input.a, input.b}}`, `[]`},
+		"closed":         {`result: {info: input.meta & close({})}`, infoMeta},
+		"disjunction":    {`result: {info: input.meta | input.other}`, `[]`},
+		"nested beneath": {`result: {info: {input.meta, sub: input.other}}`, `[info.sub<-other info<-meta]`},
+		"two same":       {`result: {info: input.meta, info: input.meta}`, infoMeta},
+		"two different":  {`result: {info: input.a, info: input.b}`, `[]`},
+		"constant":       {`result: {a: {b: 1}}`, `[]`},
+		"computed index": {`result: {a: input.l[input.i]}`, `[]`},
+		"each":           {`result: {l: [for x in input.items {x}]}`, `[]`},
+		"whole input":    {`result: input`, `[]`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			v := ctx.CompileString("lens: {input: _\n" + c.lens + "}").LookupPath(cue.ParsePath("lens"))
+			if err := v.Err(); err != nil {
+				t.Fatal(err)
+			}
+			ls, err := ParseLens(v, "input", "result")
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got []string
+			for _, cp := range ls.Copies() {
+				got = append(got, cp.Result.String()+"<-"+cp.Input.String())
+			}
+			sort.Strings(got)
+			if s := "[" + strings.Join(got, " ") + "]"; s != c.want {
+				t.Errorf("got %s, want %s", s, c.want)
+			}
+		})
+	}
+}
+
+func TestReaders(t *testing.T) {
+	ctx := cuecontext.New()
+	for name, c := range map[string]struct {
+		lens string // the lens's body; input: _ is supplied
+		want string // result<-input, sorted
+	}{
+		"copy":        {`result: {a: input.a}`, `[a<-a]`},
+		"two inputs":  {`result: {a: input.a + input.b}`, `[a<-a a<-b]`},
+		"constant":    {`result: {a: 1}`, `[]`},
+		"in a struct": {`result: {q: {a: input.q.a, b: input.b}}`, `[q.a<-q.a q.b<-b]`},
+		// The guard decides whether q exists; it carries nothing.
+		"guarded":     {`result: {if input.q != _|_ {q: {a: input.q.a, b: input.b}}}`, `[q.a<-q.a q.b<-b]`},
+		"embedded":    {`result: {info: {input.meta, x: input.y}}`, `[info.x<-y info<-meta]`},
+		"helper":      {`result: {_h: {p: input.n}, x: _h}`, `[x<-n]`},
+		"let":         {`let N = input.n, result: {x: N.p}`, `[x<-n.p]`},
+		"list":        {`result: {l: [for x in input.items {name: x.title}]}`, `[l<-items.[_].title]`},
+		"lacuna":      {`result: {}, lacunas: [{sourceFields: [{path: "b", value: input.b}]}]`, `[]`},
+		"disjunction": {`result: {a: *input.a | "x"}`, `[a<-a]`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			v := ctx.CompileString("lens: {input: _\n" + c.lens + "}").LookupPath(cue.ParsePath("lens"))
+			if err := v.Err(); err != nil {
+				t.Fatal(err)
+			}
+			ls, err := ParseLens(v, "input", "result")
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got []string
+			for _, r := range ls.Readers() {
+				got = append(got, r.Result.String()+"<-"+r.Input.String())
+			}
+			sort.Strings(got)
+			if s := "[" + strings.Join(got, " ") + "]"; s != c.want {
+				t.Errorf("got %s, want %s", s, c.want)
+			}
+		})
+	}
+}
+
+func TestInputReads(t *testing.T) {
+	ctx := cuecontext.New()
+	for name, c := range map[string]struct {
+		lens string // the lens's body; input: _ is supplied
+		want string
+	}{
+		"direct":         {`result: {a: input.a, n: input.n.x}`, `[a n.x]`},
+		"nothing":        {`result: {a: 1}`, `[]`},
+		"whole input":    {`result: input & {b: 1}`, `[<input>]`},
+		"let":            {`let N = input.n, result: {x: N.x}`, `[n.x]`},
+		"alias":          {`result: {x~(X): input.a, y: X}`, `[a a]`},
+		"hidden helper":  {`result: {_h: input.n, x: _h.p}`, `[n n.p]`},
+		"computed":       {`result: {a: input.a + input.b}`, `[a b]`},
+		"condition":      {`result: {if input.f != _|_ {a: 1}}`, `[f]`},
+		"each":           {`result: {l: [for x in input.items {name: x.title}]}`, `[items.[_].title]`},
+		"each whole":     {`result: {l: [for x in input.items {x}]}`, `[items.[_]]`},
+		"each key":       {`result: {l: [for i, x in input.items {n: i}]}`, `[]`},
+		"computed index": {`result: {a: input.l[input.i].x}`, `[i l]`},
+		"literal index":  {`result: {a: input.l[0].x}`, `[l[0].x]`},
+		"quoted":         {`result: {a: input["a-b"]}`, `["a-b"]`},
+		"builtin":        {`result: {a: strings.ToUpper(input.s)}`, `[s]`},
+		// Lacunas are not the result.
+		"lacuna only": {`result: {}, lacunas: [{sourceFields: [{path: "b", value: input.b}]}]`, `[]`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			src := "lens: {input: _\n" + c.lens + "}"
+			if strings.Contains(c.lens, "strings.") {
+				src = "import \"strings\"\n" + src
+			}
+			v := ctx.CompileString(src).LookupPath(cue.ParsePath("lens"))
+			if err := v.Err(); err != nil {
+				t.Fatal(err)
+			}
+			ls, err := ParseLens(v, "input", "result")
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got []string
+			for _, p := range ls.InputReads() {
+				s := p.String()
+				if s == "" {
+					s = "<input>"
+				}
+				got = append(got, s)
+			}
+			sort.Strings(got)
+			if s := "[" + strings.Join(got, " ") + "]"; s != c.want {
+				t.Errorf("got %s, want %s", s, c.want)
+			}
+		})
 	}
 }

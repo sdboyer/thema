@@ -1154,7 +1154,7 @@ func stripDerived(entries, fwd []dentry, lacunas []dlacuna, newer, older cue.Val
 				continue
 			}
 		case kindDrop:
-			if !named[en.target.String()] && lookup(newer, en.source).Exists() && !lookup(older, en.source).Exists() {
+			if !named[en.target.String()] && lookup(newer, en.source).Exists() && !lookup(older, en.source).Exists() && !carriedField(older.Context(), older, en.source, func(outer cue.Path) bool { return readsUnder(entries, outer) }) { //nolint:staticcheck // the schemas are built in one context
 				continue
 			}
 		case kindEach:
@@ -1163,6 +1163,38 @@ func stripDerived(entries, fwd []dentry, lacunas []dlacuna, newer, older cue.Val
 		out = append(out, en)
 	}
 	return out
+}
+
+// readsUnder reports whether any entry other than a drop reads a source path
+// at or beneath outer: what derivation counts as consumed.
+func readsUnder(entries []dentry, outer cue.Path) bool {
+	under := func(p cue.Path) bool { return pathHasPrefix(p, outer) }
+	for _, en := range entries {
+		if en.kind == kindDrop {
+			continue
+		}
+		if en.kind != kindConst && en.kind != kindComputed && en.computed == nil && under(en.source) {
+			return true
+		}
+		for _, x := range []ast.Expr{en.computed, en.fallback} {
+			if x == nil {
+				continue
+			}
+			found := false
+			ast.Walk(x, func(n ast.Node) bool {
+				if s, ok := n.(ast.Expr); ok {
+					if _, p, ok := refPathAny(s); ok && under(p) {
+						found = true
+					}
+				}
+				return !found
+			}, nil)
+			if found {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // stripDerivedDrops removes from an each body, whose list is at the full
