@@ -132,7 +132,7 @@ A derived lacuna has:
 
 - `sourceFields`: the dropped field. No `targetFields`.
 - `message`: `<path> has no equivalent in <version> and was dropped`, where `<version>` is the lens's target version: `meta.team has no equivalent in 0.0 and was dropped`.
-- `condition`: that the field is present, when the source schema has it as optional. Otherwise none, so it always applies.
+- `condition`: that the field is present, when the source schema has it as optional, and that it holds more than the source fills by itself: other than its default, for a struct other than what its fields fill (each defaulted field compared with its default), for a struct or list not empty. A field with nothing to compare and that the source always has has no condition, so it always applies. A value equal to its fill and absence are the same information ([translation](../translation.md)).
 
 A drop inside an `_each` body derives one lacuna for the whole list. Its message is `<list>[].<path> has no equivalent in <version> and was dropped`, its `sourceFields` name each element that had the field, as `<list>[<i>].<path>`, and its condition is that at least one element had it.
 
@@ -168,7 +168,7 @@ A value that is not an instance of a field the target declares, where the lens d
 
 `LossyFieldMapping`, not `DroppedField`: the source field maps to the target field of that name, as values that are instances of it show by being promoted into it. This one value does not survive the mapping.
 
-Any other field not carried is set aside, with a `DroppedField` for each struct and cause:
+Any other field not carried is set aside, with a `DroppedField` for each struct and cause. A declared field that holds only what the source fills by itself, its default or a struct of defaults, is set aside with none:
 
 | Cause | Message |
 |---|---|
