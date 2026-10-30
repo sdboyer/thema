@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"cuelang.org/go/cue"
-	"cuelang.org/go/pkg/encoding/json"
 
 	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/internal/cuetil"
@@ -391,8 +390,7 @@ func (i *Instance) kernelStep(data cue.Value, from, to SyntacticVersion) (cue.Va
 	// Otherwise, all the Translate results are non-concrete, which leads to undesired effects.
 	raw, _ := out.LookupPath(cue.MakePath(cue.Str("result"), cue.Str("result"))).Default()
 
-	// Check that the result is concrete by trying to marshal/export it as JSON
-	if _, err = json.Marshal(raw); err != nil {
+	if err = raw.Validate(cue.Concrete(true)); err != nil {
 		ctx := lin.translateContext(out)
 		ctx.Generic = diag.E0307
 		return cue.Value{}, cue.Value{}, diag.Convert(err, ctx)
