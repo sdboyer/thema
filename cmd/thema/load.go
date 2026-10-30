@@ -44,6 +44,10 @@ type lineageLoadArgs struct {
 	// String argument of a version
 	verstr string
 
+	// tip binds a lineage in the authoring form with its tip, on the
+	// development path
+	tip bool
+
 	// skip binding the lineage - useful when operating on values that are known to be
 	// invalid lineages
 	skipBindLineage bool
@@ -69,6 +73,9 @@ type dynamicLoader struct {
 	binst *build.Instance
 	// loaded lineage
 	lin thema.Lineage
+
+	// dev is the lineage bound with its tip, with --tip
+	dev *tload.Development
 
 	// loaded schema. latest if no version was provided. it's up to the command
 	// to decide if it's acceptable to use latest - this gets loaded either way.
@@ -130,11 +137,25 @@ func (lla *lineageLoadArgs) dynLoad() (*dynamicLoader, error) {
 			return nil, diag.InternalErr(fmt.Errorf("%s is a lineage in the authoring form, which a command that skips binding does not take", lla.inputLinFilePath))
 		}
 		sourceDirs = append(sourceDirs, lla.absInput)
-		dl.lin, err = tload.AuthoringLineage(os.DirFS(filepath.Dir(lla.absInput)), filepath.Base(lla.absInput), rt)
+		fsys, dir := os.DirFS(filepath.Dir(lla.absInput)), filepath.Base(lla.absInput)
+		if lla.tip {
+			dl.dev, err = tload.DevelopmentLineage(fsys, dir, rt)
+			if err != nil {
+				return nil, err
+			}
+			warn(dl.dev.Pending)
+			dl.lin = dl.dev.Lineage
+			return lla.attachSchema(dl)
+		}
+		dl.lin, err = tload.AuthoringLineage(fsys, dir, rt)
 		if err != nil {
 			return nil, err
 		}
 		return lla.attachSchema(dl)
+	}
+	if lla.tip {
+		return nil, diag.New(diag.E0620).Headlinef("--tip takes a lineage in the authoring form, and %s is not one", lla.inputLinFilePath).
+			Helpf("pass the directory of a lineage with %s and %s/", authoring.TipFile, authoring.HistoryDir).Err()
 	}
 
 	dl.cm, err = findCueMod(lla.absInput)
@@ -208,27 +229,41 @@ func (lla *lineageLoadArgs) dynLoad() (*dynamicLoader, error) {
 }
 
 // isAuthoringDir reports whether dir holds a lineage in the authoring form:
-// a version file at its top level.
+// a .thema file at its top level, such as its tip, or under its history/.
 func isAuthoringDir(dir string) bool {
-	ents, err := os.ReadDir(dir)
-	if err != nil {
-		return false
-	}
-	for _, e := range ents {
-		if !e.IsDir() && strings.HasSuffix(e.Name(), authoring.Ext) {
-			return true
+	for _, d := range []string{dir, filepath.Join(dir, authoring.HistoryDir)} {
+		ents, err := os.ReadDir(d)
+		if err != nil {
+			continue
+		}
+		for _, e := range ents {
+			if !e.IsDir() && strings.HasSuffix(e.Name(), authoring.Ext) {
+				return true
+			}
 		}
 	}
 	return false
+}
+
+// versionLabel names version v of the loaded lineage as the CLI reports it:
+// with --tip, the tip's version is the tip, "tip (cuts as 2.1)".
+func (dl *dynamicLoader) versionLabel(v thema.SyntacticVersion) string {
+	if dl.dev != nil && dl.dev.Provisional(v) {
+		return dl.dev.Tip.String()
+	}
+	return v.String()
 }
 
 // attachSchema attaches the requested schema, or the latest, to the loaded
 // lineage. Other validators decide whether what was loaded is acceptable
 // (i.e. if the command required explicit input).
 func (lla *lineageLoadArgs) attachSchema(dl *dynamicLoader) (*dynamicLoader, error) {
-	if lla.verstr == "" {
+	switch {
+	case lla.verstr == "":
 		dl.sch = dl.lin.Latest()
-	} else {
+	case lla.verstr == authoring.TipParam && dl.dev != nil:
+		dl.sch = thema.SchemaP(dl.lin, dl.dev.Tip.Version)
+	default:
 		synv, err := thema.ParseSyntacticVersion(lla.verstr)
 		if err != nil {
 			return nil, diag.New(diag.E0620).Headlinef("%q is not a version", lla.verstr).Help("a version is <major>.<minor>, such as 1.0").Err()

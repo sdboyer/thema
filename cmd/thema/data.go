@@ -42,6 +42,7 @@ func (dc *dataCommand) setup(cmd *cobra.Command) {
 	dc.lla = new(lineageLoadArgs)
 	addLinPathVars(cmd, dc.lla)
 	dataCmd.MarkPersistentFlagRequired("lineage")
+	dataCmd.PersistentFlags().BoolVar(&dc.lla.tip, "tip", false, "bind a lineage in the authoring form with its tip, as its newest version: provisional, at the version it cuts as, and named \"tip\" by -v")
 
 	dataCmd.AddCommand(validateCmd)
 	validateCmd.Flags().StringVarP(&dc.lla.verstr, "version", "v", "", "schema syntactic version to validate data against. defaults to latest")
@@ -152,13 +153,13 @@ func (dc *dataCommand) runValidateAny(cmd *cobra.Command, args []string) error {
 	if dc.lla.dl.sch != nil {
 		_, reterr = dc.lla.dl.sch.Validate(dc.datval)
 		if reterr == nil {
-			fmt.Fprintf(cmd.OutOrStdout(), "%s\n", dc.lla.dl.sch.Version())
+			fmt.Fprintf(cmd.OutOrStdout(), "%s\n", dc.lla.dl.versionLabel(dc.lla.dl.sch.Version()))
 			return nil
 		}
 	}
 	inst := dc.lla.dl.lin.ValidateAny(dc.datval)
 	if inst != nil {
-		fmt.Fprintf(cmd.OutOrStdout(), "%s\n", inst.Schema().Version())
+		fmt.Fprintf(cmd.OutOrStdout(), "%s\n", dc.lla.dl.versionLabel(inst.Schema().Version()))
 		return nil
 	}
 
@@ -207,8 +208,8 @@ func (dc *dataCommand) runTranslate(cmd *cobra.Command, args []string) error {
 
 	// TODO support non-JSON output
 	r := translationResult{
-		From:    inst.Schema().Version().String(),
-		To:      tinst.Schema().Version().String(),
+		From:    dc.lla.dl.versionLabel(inst.Schema().Version()),
+		To:      dc.lla.dl.versionLabel(tinst.Schema().Version()),
 		Result:  tinst.Underlying(),
 		Lacunas: lac,
 	}
