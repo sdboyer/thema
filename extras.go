@@ -305,9 +305,9 @@ func takeFields(ctx *cue.Context, data cue.Value, extras []taken, lens *stepLens
 }
 
 // carry places each field of fields in result, an instance of to's schema
-// produced by the step from version fromV through lens, and returns the
-// result and the lacunas for the fields not placed.
-func carry(ctx *cue.Context, result cue.Value, lens *stepLens, to *schemaDef, fromV SyntacticVersion, fields []taken) (cue.Value, []lacuna.Lacuna, error) {
+// produced by the step from version fromV, whose schema is from, through
+// lens, and returns the result and the lacunas for the fields not placed.
+func carry(ctx *cue.Context, result cue.Value, lens *stepLens, from cue.Value, to *schemaDef, fromV SyntacticVersion, fields []taken) (cue.Value, []lacuna.Lacuna, error) {
 	if len(fields) == 0 {
 		return result, nil, nil
 	}
@@ -338,7 +338,7 @@ func carry(ctx *cue.Context, result cue.Value, lens *stepLens, to *schemaDef, fr
 		return lacuna.FieldRef{Path: f.path.String(), Value: val}, nil
 	}
 	aside := func(f taken, parent cue.Path, cause asideCause) error {
-		if isEmpty(f.value) {
+		if isEmpty(f.value) || (f.kind != takenExtra && fillsAt(ctx, f.value, from, f.path)) {
 			return nil
 		}
 		r, err := ref(f)
@@ -503,6 +503,56 @@ func isEmpty(v cue.Value) bool {
 		return err == nil && n == 0
 	}
 	return false
+}
+
+// fillsAt reports whether v, the value at p of an instance of sch, is what sch
+// fills there by itself where an instance omits it. Such a value and absence
+// are the same information, so setting it aside loses nothing. Whether the
+// instance wrote it or the schema filled it is not asked.
+func fillsAt(ctx *cue.Context, v, sch cue.Value, p cue.Path) bool {
+	var sel cue.Selector
+	for _, x := range p.Selectors() {
+		d, _ := sch.Default()
+		next, s, ok := cuetil.DeclaredChild(ctx, d, x)
+		if !ok {
+			return false
+		}
+		sch, sel = next, s
+	}
+	return fills(ctx, v, sch, sel)
+}
+
+// fills reports whether v is what sch, declared with sel, fills by itself: a
+// struct each of whose fields fills, an empty list, or the default (or
+// constant) of a regular field. An optional, required or pattern field fills
+// nothing, so a value it holds is more than its fill.
+func fills(ctx *cue.Context, v, sch cue.Value, sel cue.Selector) bool {
+	switch v.IncompleteKind() {
+	case cue.ListKind:
+		return isEmpty(v)
+	case cue.StructKind:
+		d, _ := sch.Default()
+		iter, err := v.Fields()
+		if err != nil {
+			return false
+		}
+		for iter.Next() {
+			s, ssel, ok := cuetil.DeclaredChild(ctx, d, iter.Selector())
+			if !ok || !fills(ctx, iter.Value(), s, ssel) {
+				return false
+			}
+		}
+		return true
+	}
+	if !sel.IsString() || sel.ConstraintType() != 0 {
+		return false
+	}
+	d, _ := sch.Default()
+	if d.Validate(cue.Concrete(true)) != nil {
+		return false
+	}
+	vd, _ := v.Default()
+	return d.Equals(vd)
 }
 
 func parentOf(p cue.Path) cue.Path {

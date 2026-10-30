@@ -410,8 +410,8 @@ func TestTranslateReferencedUnwritten(t *testing.T) {
 		"b with q": {
 			data: `{q: {a: 1}, b: 2}`, want: `{"q":{"a":1,"b":2}}`,
 		},
-		"q alone": {data: `{q: {a: 1}}`, want: `{"q":{"a":1}}`},
-		"nothing": {data: `{}`, want: `{}`},
+		"q alone":    {data: `{q: {a: 1}}`, want: `{"q":{"a":1}}`},
+		"nothing":    {data: `{}`, want: `{}`},
 		"empty tags": {data: `{b: 2, tags: []}`, want: `{}`},
 		"the lens's own lacuna stands alone": {
 			lacunas: ownLacuna,
@@ -632,6 +632,155 @@ func TestTranslateReferenceIsEffect(t *testing.T) {
 				c.lacunas = []lacuna.Lacuna{}
 			}
 			want := lacuna.TranslationLacunas{{From: lacuna.SyntacticVersion(SV(0, 0)), To: lacuna.SyntacticVersion(SV(1, 0)), Lacunas: c.lacunas}}
+			if g, w := mustJSON(t, lac), mustJSON(t, want); g != w {
+				t.Errorf("lacunas: got %s\nwant %s", g, w)
+			}
+		})
+	}
+}
+
+// defaultsLineage steps from 0.0, whose schema is s0, to 1.0, whose schema
+// is s1, through a lens that writes body.
+func defaultsLineage(s0, s1, body string) string {
+	return `lin: thema.Lineage & {
+	name: "defaults"
+	schemas: {
+		"0": "0": schema: ` + s0 + `
+		"1": "0": schema: ` + s1 + `
+	}
+	lenses: {
+		"0.0->1.0": {
+			v0_0: _
+			v1_0: ` + body + `
+		}
+		"1.0->0.0": {
+			v1_0: _
+			v0_0: {a: v1_0.a}
+		}
+	}
+}`
+}
+
+// minorDefaultLineage's 0.1 adds a defaulted z, which the step back to 0.0
+// loses.
+const minorDefaultLineage = `lin: thema.Lineage & {
+	name: "minordefault"
+	schemas: {
+		"0": "0": schema: {a: string}
+		"0": "1": schema: {a: string, z: *0 | int}
+	}
+	lenses: "0.1->0.0": {
+		v0_1: _
+		v0_0: {a: v0_1.a}
+	}
+}`
+
+// A value equal to what the source schema fills by itself and absence are the
+// same information, so setting one aside raises no lacuna: a scalar equal to
+// its default, or a struct whose fields all are. Whether the instance wrote
+// the value or the schema filled it is not asked.
+func TestTranslateLostDefaults(t *testing.T) {
+	ref := func(path string, v interface{}) lacuna.FieldRef { return lacuna.FieldRef{Path: path, Value: v} }
+	dropped := func(msg string, refs ...lacuna.FieldRef) lacuna.Lacuna {
+		return lacuna.Lacuna{SourceFields: refs, Type: lacuna.DroppedField, Message: msg}
+	}
+	var (
+		removed = defaultsLineage(`{a: string, x: *1 | int}`, `{a: string}`, `{a: v0_0.a}`)
+		structs = defaultsLineage(`{a: string, o?: {x: *1 | int, y?: int}}`, `{a: string}`, `{a: v0_0.a}`)
+		lists   = defaultsLineage(`{a: string, o: {l: [...int]}}`, `{a: string}`, `{a: v0_0.a}`)
+		mixed   = defaultsLineage(`{a: string, x: *1 | int, w: *"w" | string}`, `{a: string}`, `{a: v0_0.a}`)
+		written = defaultsLineage(`{a: string, b: *0 | int}`, `{a: string, b: int}`, `{a: v0_0.a, b: 7}`)
+		fixed   = defaultsLineage(`{a: string, k: "k"}`, `{a: string}`, `{a: v0_0.a}`)
+		closedX = "x set aside: 1.0 does not declare it in the instance, which it does not leave open"
+		onlyA   = `{"a":"q"}`
+	)
+
+	for name, c := range map[string]struct {
+		lineage, data, want string
+		minor               bool // from 0.1 to 0.0, rather than 0.0 to 1.0
+		lacunas             []lacuna.Lacuna
+	}{
+		"removed: default written": {lineage: removed, data: `{a: "q", x: 1}`, want: onlyA},
+		"removed: default filled":  {lineage: removed, data: `{a: "q"}`, want: onlyA},
+		"removed: other than default": {
+			lineage: removed, data: `{a: "q", x: 5}`, want: onlyA,
+			lacunas: []lacuna.Lacuna{dropped(closedX, ref("x", int64(5)))},
+		},
+		"removed: constant": {lineage: fixed, data: `{a: "q", k: "k"}`, want: onlyA},
+
+		"minor: default": {
+			lineage: minorDefaultLineage, data: `{a: "q", z: 0}`, want: onlyA,
+			minor: true,
+		},
+		"minor: other than default": {
+			lineage: minorDefaultLineage, data: `{a: "q", z: 5}`, want: onlyA,
+			minor:   true,
+			lacunas: []lacuna.Lacuna{dropped("z set aside: 0.0 does not declare it in the instance, which it does not leave open", ref("z", int64(5)))},
+		},
+
+		"struct: empty":      {lineage: structs, data: `{a: "q", o: {}}`, want: onlyA},
+		"struct: empty list": {lineage: lists, data: `{a: "q", o: {l: []}}`, want: onlyA},
+		"struct: list": {
+			lineage: lists, data: `{a: "q", o: {l: [1]}}`, want: onlyA,
+			lacunas: []lacuna.Lacuna{dropped("o set aside: 1.0 does not declare it in the instance, which it does not leave open", ref("o", map[string]interface{}{"l": []interface{}{1.0}}))},
+		},
+		"struct: defaults written": {lineage: structs, data: `{a: "q", o: {x: 1}}`, want: onlyA},
+		"struct: other than default": {
+			lineage: structs, data: `{a: "q", o: {x: 2}}`, want: onlyA,
+			lacunas: []lacuna.Lacuna{dropped("o set aside: 1.0 does not declare it in the instance, which it does not leave open", ref("o", map[string]interface{}{"x": 2.0}))},
+		},
+		"struct: optional field present": {
+			lineage: structs, data: `{a: "q", o: {y: 3}}`, want: onlyA,
+			lacunas: []lacuna.Lacuna{dropped("o set aside: 1.0 does not declare it in the instance, which it does not leave open", ref("o", map[string]interface{}{"y": 3.0}))},
+		},
+
+		// One lacuna per struct per cause names only the fields that held
+		// more than their default.
+		"mixed: one default": {
+			lineage: mixed, data: `{a: "q", x: 1, w: "v"}`, want: onlyA,
+			lacunas: []lacuna.Lacuna{dropped("w set aside: 1.0 does not declare it in the instance, which it does not leave open", ref("w", "v"))},
+		},
+		"mixed: neither default": {
+			lineage: mixed, data: `{a: "q", x: 5, w: "v"}`, want: onlyA,
+			lacunas: []lacuna.Lacuna{dropped("x, w set aside: 1.0 does not declare them in the instance, which it does not leave open", ref("x", int64(5)), ref("w", "v"))},
+		},
+
+		// The lens writes its own value without referring to the source's.
+		"written: source default": {lineage: written, data: `{a: "q", b: 0}`, want: `{"a":"q","b":7}`},
+		"written: other than default": {
+			lineage: written, data: `{a: "q", b: 3}`, want: `{"a":"q","b":7}`,
+			lacunas: []lacuna.Lacuna{dropped("b set aside: the lens from 0.0 to 1.0 writes its own value for it", ref("b", int64(3)))},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			from, to := SV(0, 0), SV(1, 0)
+			if c.minor {
+				from, to = SV(0, 1), SV(0, 0)
+			}
+			ctx := cuecontext.New()
+			lin, err := bindString(t, NewRuntime(ctx), c.lineage)
+			if err != nil {
+				t.Fatal(err)
+			}
+			sch, err := lin.Schema(from)
+			if err != nil {
+				t.Fatal(err)
+			}
+			in, err := sch.Validate(ctx.CompileString(c.data))
+			if err != nil {
+				t.Fatal(err)
+			}
+			out, lac, err := in.Translate(to)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := mustJSON(t, out.Underlying()); got != c.want {
+				t.Errorf("got %s\nwant %s", got, c.want)
+			}
+			if c.lacunas == nil {
+				c.lacunas = []lacuna.Lacuna{}
+			}
+			want := lacuna.TranslationLacunas{{From: lacuna.SyntacticVersion(from), To: lacuna.SyntacticVersion(to), Lacunas: c.lacunas}}
 			if g, w := mustJSON(t, lac), mustJSON(t, want); g != w {
 				t.Errorf("lacunas: got %s\nwant %s", g, w)
 			}

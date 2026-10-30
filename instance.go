@@ -118,7 +118,7 @@ func (i *Instance) AsSuccessor() (*Instance, lacuna.TranslationLacunas, error) {
 			// whole story, since no lens was involved.
 			return nil, nil, err
 		}
-		raw, lacs, err := carry(ctx, decl, nil, nsch.(*schemaDef), i.Schema().Version(), extras)
+		raw, lacs, err := carry(ctx, decl, nil, i.sch.(*schemaDef).def, nsch.(*schemaDef), i.Schema().Version(), extras)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -319,7 +319,7 @@ func (i *Instance) translateStep(data cue.Value, from, to *schemaDef) (cue.Value
 		}
 	}
 	fields = takeFields(ctx, data, fields, lens, raw, from.def, to.def)
-	raw, lacs, err := carry(ctx, raw, lens, to, from.Version(), fields)
+	raw, lacs, err := carry(ctx, raw, lens, from.def, to, from.Version(), fields)
 	if err != nil {
 		return cue.Value{}, lacuna.TranslationStep{}, err
 	}

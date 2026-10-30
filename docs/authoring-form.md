@@ -111,7 +111,7 @@ The derived backward lens is a derivation like those above, and must produce wha
 The backward lens is derived from the forward lens:
 
 - every move whose source is used once is inverted (`after: v0_0.before` forward derives `before: v1_0.after` backward);
-- every field the new version added is dropped, with a derived `DroppedField` lacuna saying so (a struct the new version added is dropped whole, with one lacuna about the struct, reported where it is present and not empty, whose value holds the fields beneath it), unless the old version's struct is open: there the field is left alone, and translation carries it into the old version as a field it does not declare, to be promoted again on the way forward unless the forward lens writes it. A field that a backward mapping reads part of is dropped all the same;
+- every field the new version added is dropped, with a derived `DroppedField` lacuna saying so (a struct the new version added is dropped whole, with one lacuna about the struct, reported where it is present and holds more than its fields fill, whose value holds the fields beneath it), unless the old version's struct is open: there the field is left alone, and translation carries it into the old version as a field it does not declare, to be promoted again on the way forward unless the forward lens writes it. A field that a backward mapping reads part of is dropped all the same;
 - a value moved into a struct that is not written, for want of a field the struct requires, goes with it, and no lacuna is derived: the lens refers to the value, which counts as an effect ([E3a](translation.md#structs-and-presence)). An author who wants one writes it in `BackwardLens`;
 - fields both versions share are copied, as always.
 
@@ -180,7 +180,7 @@ A key must name a mapping the author wrote. A copy the author wants a lacuna on 
 | move or computed value reading a field the source may omit | the fields it reads were present, so that it was written |
 | `_coalesce` | the fallback was used |
 | `_match` | the wildcard arm applied |
-| `_drop` | the dropped field was present, and for a struct or a list, not empty |
+| `_drop` | the dropped field was present, and held more than the source fills by itself: for a scalar, other than its default; for a struct, other than what its contents fill; for a list, not empty |
 
 A `when` replaces the implied condition. It is a comparison or combination of source fields, built from the usual operators (`==`, `!=`, `<`, `>`, `<=`, `>=`, `&&`, `||`, `!`, `+`, `-`, `*`), `len` for the length of a string or list, and whole-number division (`quo`, `rem`, `div`, `mod`). Three rules govern the fields it reads:
 
@@ -190,7 +190,7 @@ A `when` replaces the implied condition. It is a comparison or combination of so
 
 **The fields a lacuna reports.** A lacuna reports the source fields its mapping reads and the target field it writes, each only where the translation has it. A move or computed value that reads a field the source may omit writes its target field only where the instance has what it reads, so a lacuna on it reports the target field only there. Without a `when`, such a lacuna applies only where the mapping writes, so an instance that lacks what it reads raises none; a `when` replaces that condition, as it does any other.
 
-**Drops.** A drop derives a `DroppedField` lacuna by itself. A `DroppedField` lacuna declared on a drop replaces the derived message. A lacuna of another type on a drop is added beside the derived one. A drop of a struct derives one lacuna, about the struct, not one for each field beneath it. An empty struct or list carries no information: an empty container and an absent one are not told apart as data, so dropping an empty one raises no lacuna.
+**Drops.** A drop derives a `DroppedField` lacuna by itself. A `DroppedField` lacuna declared on a drop replaces the derived message. A lacuna of another type on a drop is added beside the derived one. A drop of a struct derives one lacuna, about the struct, not one for each field beneath it. An empty struct or list carries no information: an empty container and an absent one are not told apart as data, so dropping an empty one raises no lacuna. Nor does dropping a value the source fills in by itself, its default or a struct of defaults: the filled value and absence are the same information ([translation](translation.md)). The implied condition compares each defaulted field with its default, so it grows with the schema, never with the data.
 
 **Matches.** A wildcard arm must have a lacuna: one on the match's key without a `when`, which applies when the arm does. A lacuna on an arm other than the wildcard is written with a `when` naming the value, `when: v0_0.kind == "a"`. A match without a wildcard arm has no implied condition, so every lacuna on it needs a `when`.
 
