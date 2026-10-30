@@ -581,8 +581,8 @@ for example
 | `source-constrained` | the lens constrains the field it takes with anything but `_`: a type, a field or a default |
 | `copy-narrowed` | a copied value has an instance the target rejects: a kind, bound, alternative, constant or field the target lacks, a field it requires that the source does not declare, or a default differing from the source's. The finding names the compatibility rule |
 | `source-absent` | a path the lens reads may be absent where it is read: an optional field, an element past a list's minimum length, or a field beneath `_`, with no presence or type test establishing it |
-| `source-undeclared` | the lens reads a path the source schema does not declare |
-| `target-undeclared` | the lens writes a path the target schema does not declare |
+| `source-undeclared` | the lens reads a path the source schema does not declare, such as a key only a pattern constraint matches |
+| `target-undeclared` | the lens writes a path the target schema does not declare, such as a key only a pattern constraint matches |
 | `pattern-absent` | an equality tests a path that may be absent. CUE makes comparing an absent field an error, not `false` |
 | `not-a-value` | a result field is a constraint (`int`, `_`), an error (`_\|_`), or a disjunction, where an instance needs one concrete value; or a lacuna's type is not a literal |
 | `literal-not-instance` | a literal, struct or list is not an instance of the target at its path: a wrong kind, a value outside the target, a list of the wrong length, a struct no alternative of a disjunctive target accepts |
@@ -648,8 +648,10 @@ programs are recorded beside it (`out/lensir` in `testdata/lineage`,
 ## Fields no lens maps
 
 An open struct (`...`) admits fields its schema does not declare, and an
-instance may hold them. A lens reads and writes only declared fields, so data
-of this kind is not the lens's to translate. Nor is a declared field the lens
+instance may hold them, as it may hold keys a pattern constraint matches
+(`labels: [string]: string`): only a field with a predictable name is declared
+([A4](translation.md#what-an-instance-may-hold)). A lens reads and writes only
+declared fields, so data of this kind is not the lens's to translate. Nor is a declared field the lens
 leaves alone. Translation decides what becomes of both, around each step, by
 one rule in both directions:
 
@@ -669,8 +671,15 @@ one rule in both directions:
   Within a list, element `i` is taken to be element `i` of the result: a list
   the lens shortens keeps the extras of the elements it keeps, and has nowhere
   for those of the elements past its new length.
-- **Carried.** An extra is placed there where the target's struct is open and
-  does not declare it. Nothing is lost, and no lacuna is emitted.
+- **Carried.** An extra is placed there where the target's struct does not
+  declare it and is open, or has a pattern constraint matching its name of
+  whose value it is an instance. Nothing is lost, and no lacuna is emitted.
+- **Keys under a pattern.** A key a pattern constraint matches is part of the
+  value of the named field that holds it. A lens never reads or writes such a
+  key by name (bind refuses one that does), but a lens that copies the named
+  field whole (`tags: v0_0.labels`) copies its keys with it, and they stand
+  as the lens wrote them. A key the lens does not copy is placed like any
+  other extra.
 - **Promoted.** Where the target declares the field and the lens does not
   write it, the value is placed in it when it is an instance of what the
   target declares, over the target's default if it has one: filling a default
@@ -696,9 +705,10 @@ one rule in both directions:
   lens's own lacuna for the field takes the place of this one. Lacunas follow
   from properties of the source schema, so such a lens still binds.
 - **Set aside.** A field that cannot be placed, because the target's struct
-  is closed, the result has no struct at its parent path, the lens wrote the
-  field, the lens neither maps nor writes a field the target declares, or the
-  lens read it to no effect, is
+  is closed, a pattern constraint matching its name does not accept its value,
+  the result has no struct at its parent path, the lens wrote the field, the
+  lens neither maps nor writes a field the target declares, or the lens read
+  it to no effect, is
   dropped with a `DroppedField` lacuna: one per struct and cause, naming each
   field and its value ([lacunas](reference/lacunas.md#set-aside-fields)).
 - **Empty containers.** An empty struct or list is carried as it is, but
