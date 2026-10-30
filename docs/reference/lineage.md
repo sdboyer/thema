@@ -231,7 +231,7 @@ Binding takes a lineage in the normal form, checks that it satisfies every invar
 
 Where step 8 finds a result that is not an instance of its target, and the totality proof can name the rule broken, the totality finding is reported in place of `E0304`. The rules behind steps 5, 10 and 11 are stated in [invariants](../invariants.md): [Schema constructs](../invariants.md#schema-constructs), [Backwards compatibility](../invariants.md#backwards-compatibility), [References](../invariants.md#references) and [Lens totality](../invariants.md#lens-totality). Every code is listed in [Error codes](../errors/README.md).
 
-A lineage in the authoring form is checked by the compiler before it is bound: the files, their version numbering, whether each version is minor or major, and each lens's mappings and lacunas (`E0101`–`E0112`, `E0148`, `E0149`, `E0204`–`E0206`, `E0330`–`E0357`, `E0410`–`E0423`). Binding then runs every step above on the compiled normal form. On the development path, the tip's missing lenses and its cleanness are reported as `E1001`–`E1003`.
+A lineage in the authoring form is checked by the compiler before it is bound: the files, their version numbering, whether each version is minor or major, and each lens's mappings and lacunas (`E0101`–`E0112`, `E0148`–`E0150`, `E0204`–`E0206`, `E0330`–`E0357`, `E0410`–`E0423`). Binding then runs every step above on the compiled normal form. On the development path, the tip's missing lenses and its cleanness are reported as `E1001`–`E1003`.
 
 **Options.**
 

@@ -5,6 +5,7 @@ import (
 	"maps"
 	"regexp"
 	"slices"
+	"strconv"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/ast"
@@ -323,6 +324,10 @@ func lensBlock(f *ast.Field, from, to *version) (body, lacunas *ast.StructLit, e
 		return diag.New(diag.E0111).At(p).Headlinef(format, args...).Help(shape).Err()
 	}
 	var param, result, lac *ast.Field
+	// numbered holds the fields of a lens on the tip's edge named after a
+	// version that is neither end's; which end each stands for is decided
+	// once every field is read.
+	var numbered []*ast.Field
 	for _, d := range f.Value.(*ast.StructLit).Elts {
 		switch d := d.(type) {
 		case *ast.CommentGroup:
@@ -355,17 +360,17 @@ func lensBlock(f *ast.Field, from, to *version) (body, lacunas *ast.StructLit, e
 					Err()
 			default:
 				if (from.tip || to.tip) && paramPattern.MatchString(label) {
-					return nil, nil, diag.New(diag.E0111).At(d.Pos()).
-						Headlinef("%s names the tip's instance %s, which has no version yet", name, label).
-						Notef(token.NoPos, "the tip's version is derived when it is cut, so its lenses name its instance %s", TipParam).
-						Help(shape).
-						Err()
+					numbered = append(numbered, d)
+					continue
 				}
 				return nil, nil, fail(d.Pos(), "%s is not part of %s", label, name)
 			}
 		default:
 			return nil, nil, fail(d.Pos(), "%s holds a declaration that is not a field", name)
 		}
+	}
+	if len(numbered) > 0 {
+		return nil, nil, numberedTipParam(f, numbered[0], from, to, param, result, shape)
 	}
 	if param == nil {
 		return nil, nil, fail(f.Pos(), "%s does not declare the instance it takes", name)
@@ -377,6 +382,63 @@ func lensBlock(f *ast.Field, from, to *version) (body, lacunas *ast.StructLit, e
 		lacunas = lac.Value.(*ast.StructLit)
 	}
 	return result.Value.(*ast.StructLit), lacunas, nil
+}
+
+// numberedTipParam is the error for d, a field of the lens f on the tip's
+// edge named after a version that is neither end's, given the fields read as
+// the instance the lens takes and the one it produces. d stands for the tip's
+// parent, the newest version under history/, when the lens names the tip but
+// not the parent, or when, naming neither, d is shaped as the parent's end:
+// the instance the ForwardLens takes, or the BackwardLens's body. That is a
+// lens written against an older parent, as after a rebase onto a cut of a
+// newer version (E0150). Otherwise d stands for the tip, whose instance is
+// named tip, since its version is derived (E0111).
+func numberedTipParam(f, d *ast.Field, from, to *version, param, result *ast.Field, shape string) cerrors.Error {
+	name, _, _ := ast.LabelName(f.Label)
+	label, _, _ := ast.LabelName(d.Label)
+	parent, parentField, tipField := from, param, result
+	if from.tip {
+		parent, parentField, tipField = to, result, param
+	}
+	var parentShaped bool
+	if parent == from {
+		id, ok := d.Value.(*ast.Ident)
+		parentShaped = ok && id.Name == "_"
+	} else {
+		_, parentShaped = d.Value.(*ast.StructLit)
+	}
+	if parentField == nil && (tipField != nil || parentShaped) {
+		e := diag.New(diag.E0150).At(d.Pos()).
+			Headlinef("%s in %s names %s, but the tip's parent is %s", name, TipFile, label, parent.v)
+		if named, ok := versionOfParam(label); ok && named.Less(parent.v) {
+			e = e.Notef(token.NoPos, "the lens was written against an older parent, %s; the newest version under %s/ is now %s, %s", named, HistoryDir, parent.v, parent.path)
+		} else {
+			e = e.Notef(token.NoPos, "the tip's lenses connect it to the newest version under %s/, %s, %s", HistoryDir, parent.v, parent.path)
+		}
+		if parent == from {
+			e = e.Helpf("declare %s: _ in place of %s, and review the mappings against %s's schema", parent.param(), label, parent.v)
+		} else {
+			e = e.Helpf("name the body %s in place of %s, and review its mappings against %s's schema", parent.param(), label, parent.v)
+		}
+		return e.Err()
+	}
+	return diag.New(diag.E0111).At(d.Pos()).
+		Headlinef("%s names the tip's instance %s, which has no version yet", name, label).
+		Notef(token.NoPos, "the tip's version is derived when it is cut, so its lenses name its instance %s", TipParam).
+		Help(shape).
+		Err()
+}
+
+// versionOfParam is the version a lens parameter named after one names:
+// 2.1 for v2_1.
+func versionOfParam(label string) (thema.SyntacticVersion, bool) {
+	m := paramPattern.FindStringSubmatch(label)
+	if m == nil {
+		return thema.SyntacticVersion{}, false
+	}
+	a, _ := strconv.ParseUint(m[1], 10, 32)
+	b, _ := strconv.ParseUint(m[2], 10, 32)
+	return thema.SV(uint(a), uint(b)), true
 }
 
 // paramPattern matches a lens parameter named after a version, v0_0.

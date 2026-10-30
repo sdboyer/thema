@@ -282,3 +282,53 @@ func equalVersions(a, b []thema.SyntacticVersion) bool {
 	}
 	return true
 }
+
+// A lens of the tip that names a version at the parent's end, other than the
+// newest under history/, was written against an older parent (E0150); a
+// version named at the tip's end names the tip, whose instance is tip (E0111).
+func TestTipLensStaleParent(t *testing.T) {
+	ctx := cuecontext.New()
+	history := []string{"history/0.0.thema", v00, "history/0.1.thema", v01}
+	withTip := func(tip string) []File { return files(append(history, TipFile, tip)...) }
+	cases := []struct {
+		name, tip            string
+		code, headline, help string
+	}{
+		{"forward, against an older parent",
+			v10 + "\nForwardLens: {\n\tv0_0: _\n\ttip: {crew: 1}\n}\n",
+			"E0150", "ForwardLens in tip.thema names v0_0, but the tip's parent is 0.1",
+			"declare v0_1: _ in place of v0_0, and review the mappings against 0.1's schema"},
+		{"backward, against an older parent",
+			v01 + "\nBackwardLens: {\n\ttip: _\n\tv0_0: {crew: _drop}\n}\n",
+			"E0150", "BackwardLens in tip.thema names v0_0, but the tip's parent is 0.1",
+			"name the body v0_1 in place of v0_0, and review its mappings against 0.1's schema"},
+		{"forward, naming neither end, against an older parent",
+			v10 + "\nForwardLens: {\n\tv0_0: _\n\tv1_0: {crew: 1}\n}\n",
+			"E0150", "ForwardLens in tip.thema names v0_0, but the tip's parent is 0.1", ""},
+		{"forward, numbering the tip",
+			v10 + "\nForwardLens: {\n\tv0_1: _\n\tv1_0: {crew: 1}\n}\n",
+			"E0111", "ForwardLens names the tip's instance v1_0, which has no version yet", ""},
+		{"backward, numbering the tip",
+			v01 + "\nBackwardLens: {\n\tv0_2: _\n\tv0_1: {}\n}\n",
+			"E0111", "BackwardLens names the tip's instance v0_2, which has no version yet", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, err := CompileDevelopment(ctx, "ship", withTip(c.tip))
+			ds := diag.From(err, diag.Context{})
+			if len(ds) != 1 {
+				t.Fatalf("%d diagnostics, want 1: %v", len(ds), err)
+			}
+			d := ds[0]
+			if string(d.Code) != c.code || d.Headline != c.headline {
+				t.Errorf("got %s %q, want %s %q", d.Code, d.Headline, c.code, c.headline)
+			}
+			if c.help != "" && (len(d.Help) != 1 || d.Help[0] != c.help) {
+				t.Errorf("help = %q, want %q", d.Help, c.help)
+			}
+			if d.Primary == nil || d.Primary.File != TipFile {
+				t.Errorf("primary = %v, want in %s", d.Primary, TipFile)
+			}
+		})
+	}
+}
