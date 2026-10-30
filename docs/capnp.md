@@ -33,7 +33,8 @@ Each schema is closed before it is walked, so the only openness the compiler
 sees is what the author wrote. Every struct of the schema becomes a capnp
 struct whose field `extras @0 :Data` is reserved for an opaque side-channel
 (fields a newer version declares that this generation does not); every other
-field follows.
+field follows. The name is reserved: a label that sanitizes to `extras` is a
+`name-collision`, never renamed.
 
 | CUE | Cap'n Proto |
 |---|---|
@@ -69,8 +70,8 @@ separate words joined in camel case (`foo-bar` → `fooBar`), lowercase first fo
 fields and enumerants, uppercase first for types, `v` before a leading digit,
 `empty` for an empty label. Two labels, values or alternatives of one struct
 that sanitize to the same name (`a_b` and `ab`) are a `name-collision`, never
-renamed; only a label that sanitizes to the compiler's own `extras` field is
-renamed (`extras2`).
+renamed. So is a label that sanitizes to `extras`, the field every struct
+reserves for undeclared data.
 
 ## Generations
 
@@ -407,7 +408,7 @@ for example
 | `float` | [E0711](errors/E0711.md) | a value may be a float (`number`, `float`, `float32`, `float64`), anywhere, including as an alternative or a default | floats are outside the compiled target (#82); use an integer, or a string |
 | `top` | [E0712](errors/E0712.md) | a value is `_`, including as a list element (`[...]`), a map value, or a disjunction alternative | declare the type |
 | `disjunction-undiscriminated` | [E0713](errors/E0713.md) | no value decides the alternative: several non-constant alternatives of one kind (`=~"^a" \| =~"^b"`, `int8 \| int16`, `[...string] \| [...int8]`), a constant beside the open type of its kind (`"a" \| string`), or struct alternatives with no label that holds a distinct constant in each (`{a: string} \| {b: string}`, `{kind: string, …} \| {kind: string, …}`) | give struct alternatives a tag field with a distinct constant in each, make the alternatives of distinct kinds, or make them all constants |
-| `name-collision` | [E0714](errors/E0714.md) | two labels, enum values or tagged alternatives of one struct sanitize to the same capnp name (`a_b` and `ab`; `"x_y" \| "xy"`; a field `kindKA` beside a field `kind` whose alternative tagged `"a"` is the struct `KindKA`) | rename one of them so the names differ once underscores are dropped |
+| `name-collision` | [E0714](errors/E0714.md) | two labels, enum values or tagged alternatives of one struct sanitize to the same capnp name (`a_b` and `ab`; `"x_y" \| "xy"`; a field `kindKA` beside a field `kind` whose alternative tagged `"a"` is the struct `KindKA`), or a label sanitizes to `extras`, which every struct reserves for undeclared data | rename one of them so the names differ once underscores are dropped; rename a label named `extras` |
 | `lens-no-program` | [E0715](errors/E0715.md) | a lens uses a construct the IR does not carry, so it has no program (a list literal inside an expression) | write the lens in the forms the lens language proves |
 | `cel-unrenderable` | [E0716](errors/E0716.md) | an expression of a lens has no faithful CEL rendering (the refused rows of the table above), or its rendering does not type-check | use the rewritable operation (`quo` for `/`, `strings.Contains` for `strings.Index`) |
 | `extras-check-unrenderable` | [E0717](errors/E0717.md) | a label a version newly declares has a constraint the acceptance check cannot express: a validator call, a pattern constraint, `_` | constrain the field with types, bounds, regular expressions and constants |

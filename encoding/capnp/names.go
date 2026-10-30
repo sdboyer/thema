@@ -97,7 +97,6 @@ func (s *scope) claim(name, what string) (string, bool) {
 	return "", true
 }
 
-// reserved names a field the compiler adds to every schema struct. A label
-// whose name is reserved is renamed with a suffix, rather than reported: the
-// collision is with the compiler's name, not another of the author's.
+// reserved names a field the compiler adds to every schema struct, for
+// undeclared data. A label whose name is reserved is a name-collision.
 const reserved = "extras"
