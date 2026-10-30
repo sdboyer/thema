@@ -339,10 +339,9 @@ func (i *Instance) stepLens(out cue.Value, from, to SyntacticVersion) (*stepLens
 		return nil, err
 	}
 	sl := &stepLens{
-		result:  lens.LookupPath(cue.MakePath(cue.Str(lensParam(to)))),
-		reads:   syn.InputReads(),
-		readers: syn.Readers(),
-		copies:  syn.Copies(),
+		result: lens.LookupPath(cue.MakePath(cue.Str(lensParam(to)))),
+		reads:  syn.InputReads(),
+		copies: syn.Copies(),
 	}
 	lacs, err := lens.LookupPath(cue.MakePath(cue.Str("lacunas"))).List()
 	if err != nil {

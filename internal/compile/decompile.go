@@ -646,7 +646,7 @@ func (b *dbody) lacuna(x ast.Expr, lets map[string]ast.Expr, key string, tv them
 	if !ok {
 		return fmt.Errorf("lens %s is outside the authoring form: a lacuna that is not a struct literal", key)
 	}
-	var derived, setAside bool
+	var derived bool
 	var typ, msg string
 	var cond ast.Expr
 	var sources, targets []ast.Expr
@@ -655,7 +655,6 @@ func (b *dbody) lacuna(x ast.Expr, lets map[string]ast.Expr, key string, tv them
 		case *ast.Attribute:
 			if k, body := d.Split(); k == "thema" {
 				derived = derived || strings.TrimSpace(body) == "derived"
-				setAside = setAside || strings.TrimSpace(body) == "setaside"
 			}
 		case *ast.Field:
 			name, _, _ := ast.LabelName(d.Label)
@@ -686,14 +685,6 @@ func (b *dbody) lacuna(x ast.Expr, lets map[string]ast.Expr, key string, tv them
 		return fmt.Errorf("lens %s: %w", key, err)
 	}
 
-	if setAside {
-		// Values set aside where the struct they go into is not written:
-		// Compile derives the lacuna again from the mappings.
-		if typ != lacunaDropped || len(tgtPaths) != 0 {
-			return fmt.Errorf("lens %s is outside the authoring form: a set-aside lacuna of type %s", key, typ)
-		}
-		return nil
-	}
 	if derived {
 		if typ != lacunaDropped || len(srcPaths) != 1 || len(tgtPaths) != 0 {
 			return fmt.Errorf("lens %s is outside the authoring form: a derived lacuna of type %s", key, typ)

@@ -656,8 +656,9 @@ one rule in both directions:
 - **What is taken.** The fields an instance holds that its schema does not
   declare (its *extras*), at any depth: nested structs and list elements
   included. And, in a step with a lens, the fields the source schema declares
-  that the lens leaves alone: its result reads nothing at them or above them,
-  and no lacuna it lists names them in `sourceFields`. A lacuna the author
+  that the lens leaves alone: its result refers to nothing at them or above
+  them, anywhere (a value, a condition, or a struct or arm it does not write
+  for this instance), and no lacuna it lists names them in `sourceFields`. A lacuna the author
   declares for a field, such as a `DroppedField` (a written `_drop` is one),
   takes the place of any translation would emit for it, never adds to it.
 - **Where an extra goes.** An extra follows its struct. Where the contents of
@@ -684,21 +685,17 @@ one rule in both directions:
   instances already hold are promoted into it, and made required later.
 - **Fields the source declares.** One the target does not declare is placed
   like an extra, at its own path. One the target declares is not copied: the
-  lens did not write it, and its value is set aside.
-- **Values read to no effect.** A value the source declares and the lens
-  reads, where none of the result fields that read it (that copy it, or
-  compute from it) was written for the instance, is lost all the same: for
-  instance, a field a hand-written lens moves into a struct it writes only
-  when another field is present. It is placed like a field the lens leaves
-  alone where the target does not declare it, and otherwise set aside.
-  Reading a value only in a comprehension's clause (`if v1_0.q != _|_`)
-  decides whether fields exist; it carries nothing, and is not counted. A
-  lens's own lacuna for the field takes the place of this one. Lacunas follow
-  from properties of the source schema, so such a lens still binds.
+  lens did not write it, or wrote its own value for it, and the source's
+  value is set aside, unless the result holds that same value.
+- **A reference is an effect.** A value the lens refers to is the lens's,
+  wherever the reference is: a field a hand-written lens moves into a struct
+  it writes only when another field is present, or one read only in a
+  comprehension's clause (`if v1_0.q != _|_`), has an effect on the target.
+  Translation neither carries it nor emits a lacuna for it; a lens that wants
+  to report it lists the lacuna itself.
 - **Set aside.** A field that cannot be placed, because the target's struct
   is closed, the result has no struct at its parent path, the lens wrote the
-  field, the lens neither maps nor writes a field the target declares, or the
-  lens read it to no effect, is
+  field, or the lens neither maps nor writes a field the target declares, is
   dropped with a `DroppedField` lacuna: one per struct and cause, naming each
   field and its value ([lacunas](reference/lacunas.md#set-aside-fields)).
 - **Empty containers.** An empty struct or list is carried as it is, but

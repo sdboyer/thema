@@ -956,12 +956,10 @@ type node struct {
 	// field is written under: if <root>.<p> != _|_ && ... {...}.
 	present []cue.Path
 	// For a struct the target may omit: guarded is set, and guard is the
-	// condition it is written under (see settle). needs are the fields it
-	// requires, each with the condition it is satisfied under, and satisfied
-	// the condition all of them are.
+	// condition it is written under (see settle), and satisfied the condition
+	// every field it requires is satisfied under.
 	guarded   bool
 	guard     dnf
-	needs     []need
 	satisfied dnf
 	pos       token.Pos
 }
@@ -1136,7 +1134,6 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 	e.fill(root, cue.MakePath(), b, consumed, dropped, out)
 	e.settle(root, cue.MakePath(), b)
 	e.unmapped(b, consumed, out)
-	e.setAside(root, cue.MakePath(), always, nil, out)
 	if e.each == nil {
 		e.declare(b, out)
 		out.lacunas = append(out.lacunas, out.derived...)
@@ -2464,8 +2461,9 @@ func at[T ast.Node](p token.Pos, n T) T {
 }
 
 // Presence. A struct the target may omit exists when there is enough data for
-// it to exist: settle decides the condition each one is written under, emit
-// writes it, and setAside reports what an unwritten struct would have held.
+// it to exist: settle decides the condition each one is written under, and
+// emit writes it. What an unwritten struct would have held raises no derived
+// lacuna: the lens refers to it, so it has an effect on the target.
 
 // A dnf is a condition on what the source has, in disjunctive normal form:
 // each term is a conjunction of source paths that are present. A term with
@@ -2473,13 +2471,6 @@ func at[T ast.Node](p token.Pos, n T) T {
 type dnf [][]cue.Path
 
 var always = dnf{nil}
-
-// A need is a field a target struct requires, and the condition it is
-// satisfied under.
-type need struct {
-	path cue.Path
-	cond dnf
-}
 
 // settle decides the condition each struct beneath n is written under, and
 // returns what n writes: the condition any of its content is written under. A
@@ -2502,7 +2493,6 @@ func (e *edge) settle(n *node, tbase cue.Path, b *body) (content dnf) {
 			w = e.writes(c)
 			if e.requiredAt(e.T, tpath) {
 				needs = e.and(needs, w)
-				n.needs = append(n.needs, need{tpath, w})
 			}
 		} else {
 			w = e.settle(c, tpath, b)
@@ -2525,7 +2515,6 @@ func (e *edge) settle(n *node, tbase cue.Path, b *body) (content dnf) {
 			e.unproduced(tpath)
 		}
 		needs = nil
-		n.needs = append(n.needs, need{tpath, nil})
 	}
 	n.satisfied = needs
 	return content
@@ -2544,146 +2533,6 @@ func (e *edge) writes(c *node) dnf {
 // is not optional there, and its value is not complete without data.
 func (e *edge) requiredAt(v cue.Value, p cue.Path) bool {
 	return !e.optionalAt(v, p) && lookup(v, p).Validate(cue.Concrete(true)) != nil
-}
-
-// An enclosing struct is one a leaf is written beneath, under its guard.
-type enclosing struct {
-	path cue.Path
-	n    *node
-}
-
-// setAside derives a DroppedField lacuna for every value the lens has but
-// does not write because a struct it goes into is not written: where the
-// value's sources are present and the structs it goes into are not all
-// written. enc is the condition the structs above n are written under, and
-// chain the guarded ones among them.
-func (e *edge) setAside(n *node, tbase cue.Path, enc dnf, chain []enclosing, out *compiledLens) {
-	if len(enc) == 0 {
-		return // never written: settle has reported why
-	}
-	for _, name := range e.order(n, tbase) {
-		c, tpath := n.fields[name], appendPath(tbase, cue.Str(name))
-		if c.leaf == nil {
-			inner, ch := enc, chain
-			if c.guarded {
-				inner = e.and(enc, c.guard)
-				ch = append(slices.Clone(chain), enclosing{tpath, c})
-			}
-			e.setAside(c, tpath, inner, ch, out)
-			continue
-		}
-		srcs := e.reads(c.leaf)
-		if len(srcs) == 0 {
-			continue
-		}
-		has := c.present
-		if k := c.leaf.kind; k != kindMove && k != kindComputed {
-			has = nil
-			for _, sp := range srcs {
-				if e.optional(e.S, sp) {
-					has = append(has, sp)
-				}
-			}
-		}
-		lost := e.beneath(enc, e.term(has...))
-		if lost == nil {
-			continue
-		}
-		e.setAsideLacuna(out, c.pos, has, srcs, lost, e.setAsideMessage(srcs, has, chain))
-	}
-}
-
-// reads returns the source paths whose values a leaf writes.
-func (e *edge) reads(en *entry) []cue.Path {
-	switch en.kind {
-	case kindMove, kindMatch, kindEach:
-		return []cue.Path{en.source}
-	case kindComputed:
-		return en.reads
-	case kindCoalesce:
-		if en.computed != nil {
-			return en.reads
-		}
-		return []cue.Path{en.source}
-	}
-	return nil
-}
-
-// setAsideLacuna builds the lacuna for the values at srcs: where every path
-// in has is present and written, the condition the structs they go into are
-// written under, does not hold.
-func (e *edge) setAsideLacuna(out *compiledLens, p token.Pos, has, srcs []cue.Path, written dnf, msg string) {
-	var cond ast.Expr
-	if len(has) > 0 {
-		cond = e.presentAll(p, has)
-	}
-	cond = at(p, and(cond, e.notExpr(p, written)))
-	if e.each != nil {
-		for _, sp := range srcs {
-			name := e.aggregate(out, p, []ast.Expr{cond}, sp)
-			out.derived = append(out.derived, at(p, &ast.StructLit{Elts: []ast.Decl{
-				at(p, &ast.Attribute{Text: "@thema(setaside)"}),
-				at(p, &ast.Field{Label: at(p, ast.NewIdent("condition")), Value: e.nonEmptyLet(p, name)}),
-				at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewIdent(name))}),
-				at(p, &ast.Field{Label: at(p, ast.NewIdent("message")), Value: at(p, ast.NewString(msg))}),
-				at(p, &ast.Field{Label: at(p, ast.NewIdent("type")), Value: at(p, ast.NewString(lacunaDropped))}),
-			}}))
-		}
-		return
-	}
-	var fields []ast.Expr
-	for _, sp := range srcs {
-		src := e.fieldRef(p, sp, e.root)
-		if e.optional(e.S, sp) {
-			src = at(p, &ast.Comprehension{Clauses: []ast.Clause{at(p, &ast.IfClause{Condition: e.present(p, sp)})}, Value: src})
-		}
-		fields = append(fields, src)
-	}
-	out.derived = append(out.derived, at(p, &ast.StructLit{Elts: []ast.Decl{
-		at(p, &ast.Attribute{Text: "@thema(setaside)"}),
-		at(p, &ast.Field{Label: at(p, ast.NewIdent("condition")), Value: cond}),
-		at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewList(fields...))}),
-		at(p, &ast.Field{Label: at(p, ast.NewIdent("message")), Value: at(p, ast.NewString(msg))}),
-		at(p, &ast.Field{Label: at(p, ast.NewIdent("type")), Value: at(p, ast.NewString(lacunaDropped))}),
-	}}))
-}
-
-// setAsideMessage names the values at srcs, and the innermost struct they go
-// into that is not written, with the fields it requires that the instance
-// does not satisfy.
-func (e *edge) setAsideMessage(srcs, has []cue.Path, chain []enclosing) string {
-	var names []string
-	for _, sp := range srcs {
-		if e.each != nil {
-			names = append(names, fmt.Sprintf("%s[].%s", e.each.list, sp))
-			continue
-		}
-		names = append(names, sp.String())
-	}
-	target := func(p cue.Path) string {
-		if e.each != nil {
-			return fmt.Sprintf("%s[].%s", e.each.target, p)
-		}
-		return p.String()
-	}
-	what, verb := strings.Join(names, " and "), "was"
-	if len(names) > 1 {
-		verb = "were"
-	}
-	t := e.term(has...)
-	for i := len(chain) - 1; i >= 0; i-- {
-		s := chain[i]
-		var missing []string
-		for _, nd := range s.n.needs {
-			if !e.implies(t, nd.cond) {
-				missing = append(missing, target(nd.path))
-			}
-		}
-		if len(missing) > 0 {
-			return fmt.Sprintf("%s %s dropped: %s in %s is written only with %s", what, verb, target(s.path), e.tv, strings.Join(missing, " and "))
-		}
-	}
-	return fmt.Sprintf("%s %s dropped: the struct it goes into in %s is not written", what, verb, e.tv)
 }
 
 // atom is the path whose presence p's stands for: its deepest optional
