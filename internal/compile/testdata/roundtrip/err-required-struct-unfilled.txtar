@@ -1,0 +1,126 @@
+A struct the target requires, copied from a struct the source has as
+optional, where the struct requires a field of its own: an instance that
+lacks the struct has nothing to fill it with, so the lens is not total, and
+bind refuses it. 1.0 requires q beneath o, and q requires a, which 0.0 has
+only where it has o.q. The remedy is _coalesce with a struct fallback
+(coalesce-struct).
+-- ship/history/0.0.thema --
+Schema: {
+	o?: {
+		q?: {
+			a!: int
+			z?: int
+		}
+	}
+}
+-- ship/1.0.thema --
+Schema: {
+	o?: {
+		q: {
+			a!: int
+		}
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		o: {
+			q: {
+				z: _drop
+			}
+		}
+	}
+}
+-- out/bind --
+error[E0382]: o.q.a in the ForwardLens in 1.0.thema is not total for some instance
+ --> 1.0.thema:9:1
+  |
+9 | ForwardLens: {
+  | ^^^^^^^^^^^
+  |
+  = note: o.q.a in the ForwardLens in 1.0.thema is required by 1.0.thema, and is written only under v0_0.o.q.a != _|_, which the checker cannot show cover every instance under v0_0.o != _|_; write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field
+  = note: a lens must be total: every instance of the schema in history/0.0.thema must translate to an instance of the schema in 1.0.thema (totality rule unknown-exhaustive)
+  = help: write the mapping in a form the checker can follow, or add a lacuna where it cannot decide
+-- out/decompiled/1.0.thema --
+Schema: {
+	o?: {
+		q: {
+			a!: int
+		}
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		o: {
+			q: {
+				z: _drop
+			}
+		}
+	}
+}
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	o?: {
+		q?: {
+			a!: int
+			z?: int
+		}
+	}
+}
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				o?: {
+					q?: {
+						a!: int
+						z?: int
+					}
+				}
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				o?: {
+					q: {
+						a!: int
+					}
+				}
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {if v0_0.o != _|_ {
+			o:
+				q: {if v0_0.o.q.a != _|_ {
+					a: v0_0.o.q.a
+				}}
+		}}
+		lacunas: [{
+			@thema(derived)
+			condition: v0_0.o.q.z != _|_
+			sourceFields: [{
+				path:  "o.q.z"
+				value: v0_0.o.q.z
+			}]
+			message: "o.q.z has no equivalent in 1.0 and was dropped"
+			type:    "DroppedField"
+		}]
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {if v1_0.o != _|_ {
+			o: v1_0.o
+		}}
+	}
+}

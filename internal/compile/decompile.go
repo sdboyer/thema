@@ -1,6 +1,7 @@
 package compile
 
 import (
+	"bytes"
 	"fmt"
 	"sort"
 	"strconv"
@@ -157,6 +158,9 @@ type dentry struct {
 	// implicit marks a copy (a move from a path to itself) Compile would
 	// regenerate, which is omitted unless a lacuna names it.
 	implicit bool
+	// present are the optional source paths the mapping is written under,
+	// whose presence is the condition a lacuna on it implies.
+	present []cue.Path
 	// computed is a computed mapping's expression, or coalesce's computed
 	// primary.
 	computed ast.Expr
@@ -340,7 +344,7 @@ func (b *dbody) field(f *ast.Field, tbase cue.Path, key string) error {
 	} else if h, ok := asHeadSyntax(f.Value); ok && b.allPresence(h.cond) {
 		// coalesce over a computed primary: the expression where the optional
 		// fields it reads are present, the fallback otherwise.
-		if _, _, isRef := refPathAny(h.els); !isRef && !isLiteral(h.els) {
+		if _, _, isRef := refPathAny(h.els); !isRef && !isConstant(h.els) {
 			return fmt.Errorf("lens %s is outside the authoring form: the fallback of %s is computed", key, tpath)
 		}
 		en.kind, en.computed, en.fallback = kindCoalesce, h.then, h.els
@@ -506,10 +510,18 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 	for _, g := range groups {
 		tpath := appendPath(tbase, cue.Str(g.name))
 		en := dentry{target: tpath, comments: ast.Comments(g.brs[0].field)}
+		if s, ok := b.sameStruct(g.brs); ok && len(g.brs) > 1 {
+			// A struct written under a condition of several terms, as
+			// disjoint arms that each write it.
+			if err := b.walk(s.Elts, tpath, key); err != nil {
+				return err
+			}
+			continue
+		}
 		if len(g.brs) == 1 {
-			ts, ok := b.tests(g.brs[0].cond)
 			// An each over a list the source may omit, written only where it
 			// is present.
+			ts, ok := b.tests(g.brs[0].cond)
 			if each, isEach := b.eachOf(g.brs[0].field.Value, key); isEach && ok && len(ts) == 1 && ts[0].operand == nil && ts[0].present {
 				if each.err != nil {
 					return each.err
@@ -521,17 +533,18 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 				b.entries = append(b.entries, en)
 				continue
 			}
-			if s, isStruct := g.brs[0].field.Value.(*ast.StructLit); isStruct {
-				// A copy of an optional struct, written only where the source
-				// has it.
-				if !ok || len(ts) != 1 || ts[0].operand != nil || !ts[0].present || ts[0].path.String() != tpath.String() {
-					return fmt.Errorf("lens %s is outside the authoring form: %s is written under a condition the authoring form cannot express", key, tpath)
-				}
-				if err := b.walk(s.Elts, tpath, key); err != nil {
-					return err
-				}
-				continue
+		}
+		if s, ok := g.brs[0].field.Value.(*ast.StructLit); ok && len(g.brs) == 1 {
+			// A struct the target may omit, written where there is enough
+			// data for it: a condition on what the source has, which Compile
+			// derives again from what the struct holds.
+			if !b.allPresence(g.brs[0].cond) {
+				return fmt.Errorf("lens %s is outside the authoring form: %s is written under a condition the authoring form cannot express", key, tpath)
 			}
+			if err := b.walk(s.Elts, tpath, key); err != nil {
+				return err
+			}
+			continue
 		}
 		if len(g.brs) == 1 && b.allPresence(g.brs[0].cond) {
 			if _, _, isRef := refPathAny(g.brs[0].field.Value); !isRef && !isLiteral(g.brs[0].field.Value) {
@@ -539,6 +552,10 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 				// where they are present.
 				if !b.expressionOK(g.brs[0].field.Value) {
 					return fmt.Errorf("lens %s is outside the authoring form: %s is an expression the authoring form cannot write", key, tpath)
+				}
+				ts, _ := b.tests(g.brs[0].cond)
+				for _, t := range ts {
+					en.present = append(en.present, t.path)
 				}
 				en.kind, en.computed = kindComputed, g.brs[0].field.Value
 				b.entries = append(b.entries, en)
@@ -602,7 +619,7 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 				return fmt.Errorf("lens %s is outside the authoring form: the arms of %s are not a _coalesce", key, tpath)
 			}
 			fb := absent[0].field.Value
-			if _, _, isRef := refPathAny(fb); !isRef && !isLiteral(fb) {
+			if _, _, isRef := refPathAny(fb); !isRef && !isConstant(fb) {
 				return fmt.Errorf("lens %s is outside the authoring form: the fallback of %s is computed", key, tpath)
 			}
 			en.kind, en.source, en.fallback = kindCoalesce, source, fb
@@ -612,6 +629,7 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 				return fmt.Errorf("lens %s is outside the authoring form: the presence test on %s does not test its own reference", key, tpath)
 			}
 			en.kind, en.source, en.expr, en.implicit = kindMove, p, present[0].field.Value, p.String() == tpath.String()
+			en.present = []cue.Path{p}
 		default:
 			return fmt.Errorf("lens %s is outside the authoring form: the arms of %s", key, tpath)
 		}
@@ -628,15 +646,16 @@ func (b *dbody) lacuna(x ast.Expr, lets map[string]ast.Expr, key string, tv them
 	if !ok {
 		return fmt.Errorf("lens %s is outside the authoring form: a lacuna that is not a struct literal", key)
 	}
-	var derived bool
+	var derived, setAside bool
 	var typ, msg string
 	var cond ast.Expr
 	var sources, targets []ast.Expr
 	for _, d := range s.Elts {
 		switch d := d.(type) {
 		case *ast.Attribute:
-			if k, body := d.Split(); k == "thema" && strings.TrimSpace(body) == "derived" {
-				derived = true
+			if k, body := d.Split(); k == "thema" {
+				derived = derived || strings.TrimSpace(body) == "derived"
+				setAside = setAside || strings.TrimSpace(body) == "setaside"
 			}
 		case *ast.Field:
 			name, _, _ := ast.LabelName(d.Label)
@@ -667,6 +686,14 @@ func (b *dbody) lacuna(x ast.Expr, lets map[string]ast.Expr, key string, tv them
 		return fmt.Errorf("lens %s: %w", key, err)
 	}
 
+	if setAside {
+		// Values set aside where the struct they go into is not written:
+		// Compile derives the lacuna again from the mappings.
+		if typ != lacunaDropped || len(tgtPaths) != 0 {
+			return fmt.Errorf("lens %s is outside the authoring form: a set-aside lacuna of type %s", key, typ)
+		}
+		return nil
+	}
 	if derived {
 		if typ != lacunaDropped || len(srcPaths) != 1 || len(tgtPaths) != 0 {
 			return fmt.Errorf("lens %s is outside the authoring form: a derived lacuna of type %s", key, typ)
@@ -719,6 +746,40 @@ func (b *dbody) lacuna(x ast.Expr, lets map[string]ast.Expr, key string, tv them
 	return nil
 }
 
+// sameStruct returns the struct each of brs writes, if every one writes the
+// same struct literal under presence and absence tests.
+func (b *dbody) sameStruct(brs []branch) (*ast.StructLit, bool) {
+	var first *ast.StructLit
+	var text []byte
+	for _, br := range brs {
+		s, ok := br.field.Value.(*ast.StructLit)
+		if !ok {
+			return nil, false
+		}
+		ts, ok := b.tests(br.cond)
+		if !ok {
+			return nil, false
+		}
+		for _, t := range ts {
+			if t.operand != nil {
+				return nil, false
+			}
+		}
+		out, err := format.Node(s)
+		if err != nil {
+			return nil, false
+		}
+		if first == nil {
+			first, text = s, out
+			continue
+		}
+		if !bytes.Equal(out, text) {
+			return nil, false
+		}
+	}
+	return first, first != nil
+}
+
 // find returns the entry keyed p: a drop of p, or the mapping producing p.
 func (b *dbody) find(p cue.Path, drop bool) *dentry {
 	for i := range b.entries {
@@ -731,9 +792,11 @@ func (b *dbody) find(p cue.Path, drop bool) *dentry {
 }
 
 // when turns a lacuna's condition into the authored when: nil, and
-// structural, if the condition is the one en implies (none for a move or a
-// constant; the fallback for a coalesce; the [_] arm for a match; presence
-// for a drop), else the condition as written.
+// structural, if the condition is the one en implies (none for a constant,
+// or a move or computed value that reads only fields the source always has;
+// the presence of the optional fields it reads for one that does; the
+// fallback for a coalesce; the [_] arm for a match; presence for a drop), else
+// the condition as written.
 func (b *dbody) when(en *dentry, cond ast.Expr) (when ast.Expr, structural bool) {
 	if cond == nil {
 		return nil, en.kind != kindEach
@@ -763,6 +826,10 @@ func (b *dbody) when(en *dentry, cond ast.Expr) (when ast.Expr, structural bool)
 			if len(ts) == 1 && last.operand == nil && last.present && last.path.String() == en.source.String() {
 				return nil, true
 			}
+		case kindMove, kindComputed:
+			if presenceOf(ts, en.present) {
+				return nil, true
+			}
 		}
 		if len(ts) == 1 && last.operand == nil && last.present {
 			// A presence test alone is an optional field named bare.
@@ -775,6 +842,19 @@ func (b *dbody) when(en *dentry, cond ast.Expr) (when ast.Expr, structural bool)
 		return inner, false
 	}
 	return cond, false
+}
+
+// presenceOf reports whether ts are presence tests of exactly paths, in order.
+func presenceOf(ts []test, paths []cue.Path) bool {
+	if len(paths) == 0 || len(ts) != len(paths) {
+		return false
+	}
+	for i, t := range ts {
+		if t.operand != nil || !t.present || t.path.String() != paths[i].String() {
+			return false
+		}
+	}
+	return true
 }
 
 // dropsContainer reports whether cond is the condition a drop of a struct or

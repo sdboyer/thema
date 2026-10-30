@@ -1,0 +1,33 @@
+A field a struct requires that no mapping produces is an error, even
+beneath a struct the target may omit: without it the struct could never be
+written.
+-- ship/history/0.0.thema --
+Schema: {
+	o?: {
+		x?: int
+		y?: int
+	}
+}
+-- ship/1.0.thema --
+Schema: {
+	o?: {
+		x?: int
+		z!: int
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		o: {
+			y: _drop
+		}
+	}
+}
+-- out/error --
+error[E0346]: ForwardLens produces nothing for o.z, which 1.0 requires: add o.z: <mapping> to v1_0
+ --> 1.0.thema:8:1
+  |
+8 | ForwardLens: {
+  | ^^^^^^^^^^^
+  |

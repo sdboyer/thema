@@ -1,0 +1,125 @@
+A struct the target requires, copied from a struct the source has as
+optional, is written as {} where the source lacks it: an empty struct and an
+absent one carry the same information. 1.0 requires q, which 0.0 has as
+optional, and drops q.y. Back from 1.0, q is a copy of a struct 1.0 always
+has, so it is always written.
+-- ship/history/0.0.thema --
+Schema: {
+	q?: {
+		x?: int
+		y?: int
+	}
+}
+-- ship/1.0.thema --
+Schema: {
+	q: {
+		x?: int
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		q: {
+			y: _drop
+		}
+	}
+}
+-- data/0.0/absent.json --
+{}
+-- data/0.0/empty.json --
+{"q": {}}
+-- data/0.0/full.json --
+{"q": {"x": 1, "y": 2}}
+-- data/1.0/empty.json --
+{"q": {}}
+-- data/1.0/x.json --
+{"q": {"x": 1}}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+Schema: {
+	q: {
+		x?: int
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		q: {
+			y: _drop
+		}
+	}
+}
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	q?: {
+		x?: int
+		y?: int
+	}
+}
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				q?: {
+					x?: int
+					y?: int
+				}
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				q: {
+					x?: int
+				}
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			q: {if v0_0.q.x != _|_ {
+				x: v0_0.q.x
+			}}
+		}
+		lacunas: [{
+			@thema(derived)
+			condition: v0_0.q.y != _|_
+			sourceFields: [{
+				path:  "q.y"
+				value: v0_0.q.y
+			}]
+			message: "q.y has no equivalent in 1.0 and was dropped"
+			type:    "DroppedField"
+		}]
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			q: v1_0.q
+		}
+	}
+}
+-- out/translate/0.0/absent->1.0 --
+{"q":{}}
+[]
+-- out/translate/0.0/empty->1.0 --
+{"q":{}}
+[]
+-- out/translate/0.0/full->1.0 --
+{"q":{"x":1}}
+[{"sourceFields":[{"path":"q.y","value":2}],"type":"DroppedField","message":"q.y has no equivalent in 1.0 and was dropped"}]
+-- out/translate/1.0/empty->0.0 --
+{"q":{}}
+[]
+-- out/translate/1.0/x->0.0 --
+{"q":{"x":1}}
+[]

@@ -1,0 +1,49 @@
+# A struct the target may omit, written where the input has what it
+# requires, with a field filled from outside it, and the lacuna that sets
+# that field's value aside where the struct is not written: the value is
+# present and the struct the target requires it in is not. The target's q
+# requires a, which only the input's q holds.
+-- source.cue --
+q?: {a!: int}
+b?: int
+-- target.cue --
+q?: {
+	a!: int
+	b?: int
+}
+-- lens.cue --
+v0_0: _
+v1_0: {
+	if v0_0.q != _|_ {
+		q: {
+			a: v0_0.q.a
+			if v0_0.b != _|_ {
+				b: v0_0.b
+			}
+		}
+	}
+}
+lacunas: [{
+	condition: v0_0.b != _|_ && v0_0.q == _|_
+	sourceFields: [if v0_0.b != _|_ {path: "b", value: v0_0.b}]
+	message: "b was dropped: q is written only with q.a"
+	type:    "DroppedField"
+}]
+-- out --
+total
+-- ir --
+out: {
+  if in.q != _|_ {
+    out.q: {
+      out.q.a <- in.q.a
+      if in.b != _|_ {
+        out.q.b <- in.b
+      }
+    }
+  }
+}
+lacuna DroppedField {
+  when in.b != _|_ && in.q == _|_
+  source if in.b != _|_ { b = in.b }
+  message "b was dropped: q is written only with q.a"
+}

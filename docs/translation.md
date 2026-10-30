@@ -112,9 +112,9 @@ When a struct exists in the result, and how dropping one is reported.
 |---|---|---|---|---|
 | E1 | An optional struct absent from the source | Absent from the target, never `{}`. A struct or list keeps the form the input had: absent stays absent, and empty stays empty. | None. | yes |
 | E2 | A struct the target lacks, present in the source | Dropped whole. | One `DroppedField`, on the struct, whose value includes its contents. It replaces lacunas for the fields beneath it. An empty struct raises none (E4). | yes |
-| E3 | A target struct filled from inside and outside an optional source struct | Present when any of its content is written, under E3a. | As E3a. | no: [#188](https://github.com/sdboyer/thema/issues/188), implemented in [#200](https://github.com/sdboyer/thema/pull/200) |
-| E3a | An optional target struct assembled from several sources | Written when at least one of its contents is written, *and* every field it requires is satisfied, written or filled by its default. Otherwise it is not written. | Where some content is available but a required field isn't satisfied: a `DroppedField` for each value that would have gone into the struct. | no: [#188](https://github.com/sdboyer/thema/issues/188), implemented in [#200](https://github.com/sdboyer/thema/pull/200) |
-| E4 | The target requires a struct that the source has as optional | `{}` is written when the source is absent, with whatever the struct's own defaults fill. An empty container and an absent one are not distinct information. Where that can't produce the struct for some instance, because it has a required field of its own that nothing fills when the source is absent, the lens is refused at bind, as for any required field it doesn't produce ([D3](#fields-only-the-target-declares)). The remedy is `_coalesce` with a struct fallback. | None. Dropping an empty struct or list never raises a lacuna. | `{}` yes; refusing a struct it can't produce: [#188](https://github.com/sdboyer/thema/issues/188), implemented in [#200](https://github.com/sdboyer/thema/pull/200); no lacuna for an empty container, yes |
+| E3 | A target struct filled from inside and outside an optional source struct | Present when any of its content is written, under E3a. | As E3a. | yes |
+| E3a | An optional target struct assembled from several sources | Written when at least one of its contents is written, *and* every field it requires is satisfied, written or filled by its default. Otherwise it is not written. | Where some content is available but a required field isn't satisfied: a `DroppedField` for each value that would have gone into the struct. | yes |
+| E4 | The target requires a struct that the source has as optional | `{}` is written when the source is absent, with whatever the struct's own defaults fill. An empty container and an absent one are not distinct information. Where that can't produce the struct for some instance, because it has a required field of its own that nothing fills when the source is absent, the lens is refused at bind, as for any required field it doesn't produce ([D3](#fields-only-the-target-declares)). The remedy is `_coalesce` with a struct fallback. | None. Dropping an empty struct or list never raises a lacuna. | yes |
 
 **E3a**, a target struct exists when there is enough data for it to exist. For example, with 0.0 as `q?: {a!: int, b?: int}`, and 1.0 as `q?: {a!: int}` and `b?: int` (`b` moved out of `q`), the step back from 1.0 to 0.0 gives:
 
@@ -131,11 +131,6 @@ The lacuna's condition depends on more than one field: some content source is pr
 
 E3a applies to every optional target struct assembled from several sources, not only to a struct a field was moved out of. A lens can express the guarded struct and its lacuna with `when`; a derived lens must produce them, and a written one must write them, or the lens is not total.
 
-Today on main:
-
-- **E3.** The backward `q.b: v1_0.b`, where `q?` is optional and `b` lives outside it, writes `q: {}` when `b` is absent.
-- **E4.** A required struct whose source is absent is written as `{}` with no error at bind, even where it has a required field of its own that nothing fills; and `_coalesce` takes no struct fallback ([#188](https://github.com/sdboyer/thema/issues/188), [#200](https://github.com/sdboyer/thema/pull/200)).
-
 ## When lacunas fire
 
 ### Lacunas the lens lists
@@ -143,9 +138,9 @@ Today on main:
 | Rule | Case | Fires | Main |
 |---|---|---|---|
 | F1 | A move, computed value or constant from a required source, with no `when` | Always. | yes |
-| F2 | A move or computed value from an optional source, with no `when` | Only when the source is present, so that the mapping wrote its field. | no: [#182](https://github.com/sdboyer/thema/pull/182) |
+| F2 | A move or computed value from an optional source, with no `when` | Only when the source is present, so that the mapping wrote its field. | yes |
 | F3 | `_coalesce`; `_match`; `_drop` | When the fallback was used; when the wildcard arm applied; when the dropped field was present and not an empty container ([E4](#structs-and-presence)). | yes, except F5 |
-| F4 | A written `when` | The `when` replaces the implied condition entirely, so the lacuna can fire where the mapping wrote nothing. It then names no target field. | replacing, yes; naming no target field: [#182](https://github.com/sdboyer/thema/pull/182) |
+| F4 | A written `when` | The `when` replaces the implied condition entirely, so the lacuna can fire where the mapping wrote nothing. It then names no target field. | yes |
 | F5 | `_match` on an absent optional source | Writes nothing, and raises no lacuna (B3, F2). | no: bug [#187](https://github.com/sdboyer/thema/issues/187) |
 
 ### Lacunas translation raises by itself
@@ -164,8 +159,6 @@ Go's `Translate` raises all of these ([G4](#which-implementation-defines-transla
 
 Today on main:
 
-- **F2.** A lacuna on a move from an optional source field is refused at bind ([#156](https://github.com/sdboyer/thema/issues/156)).
-- **F4.** A lacuna with a `when` that fires where its mapping wrote nothing still reports the mapping's target field.
 - **F5.** `{}` translates to the wildcard arm's constant, and raises the wildcard's lacuna.
 
 ## Steps and direction
