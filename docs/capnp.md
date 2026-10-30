@@ -132,9 +132,11 @@ Every lens the lineage declares becomes an edge of the result, carrying the
 program binding built for it (`thema.LensPrograms`): the nodes that write the
 result (copies, constants, struct and list literals, `for` over a list,
 conditional branches, lookup tables, computed expressions) and the lacunas it
-declares. The compiler never reads a lens's CUE; a lens using a construct the
-IR does not carry has no program, and the lineage is rejected
-(`lens-no-program`).
+declares. The compiler builds no program from a lens's CUE: a lens using a
+construct the IR does not carry has no program, and the lineage is rejected
+(`lens-no-program`). It reads a lens's CUE only as Go's translation does, for
+the fields the program does not write (see
+[what the engine does around each step](#what-the-engine-does-around-each-step)).
 
 A program names the alternatives of a disjunction of structs or lists where
 it writes one: a copy into one pairs each source alternative it carries with
@@ -205,6 +207,163 @@ CUE. The meta-schema is a published language (`compiled-artifact` in
 `.thresh/thresh.cue`): a field may be appended, never renumbered, retyped or
 removed. The goldens record each case's artifact digest, without the layout,
 whose bytes carry the tool's version.
+
+## What the engine does around each step
+
+A lens program says what a step writes. [Translation](translation.md) also
+says what becomes of every field a program does not write: fields the
+source declares that the lens leaves alone, undeclared data, and values the
+lens reads to no effect. Go's `Instance.Translate` defines that behaviour
+([G4](translation.md#which-implementation-defines-translation); `extras.go`
+and `translateStep`, #196), and an engine must reproduce it. This section
+says what the artifact carries for each rule and what the engine does with
+it. It is the contract for #90. The artifact computes nothing about an
+instance. The compiler reads only what Go reads from CUE before it sees data:
+
+- what each lens reads, which result fields read each value, and which
+  structs it takes whole, from the same reading of the lens as Go's
+  translation (`cuetil.LensSyntax`: `InputReads`, `Readers`, `Copies`);
+- what each version declares and leaves open.
+
+The compiler never derives these from the program a second time.
+
+### What the artifact carries
+
+- **Per version, `structs`**: one entry per struct the version's schema
+  declares, at any depth, including list elements and the struct alternatives
+  of a union. Each entry holds the struct's path (a list's element or a
+  map's value as `any`), the node it is read through, the labels this version
+  declares there, and whether the author left it open (`...`). A node is
+  shared by the minor versions of a generation, so the labels say which of
+  its fields belong to this version. The struct alternatives of one
+  disjunction share a path and differ by node.
+- **Per edge with a lens, `fate`**:
+  - `reads`: the input paths the lens's result reads (`InputReads`).
+  - `readers`: for each read, the result fields that copy it or compute from
+    it (`Readers`).
+  - `copies`: the result structs whose contents come whole from one input
+    struct, by a move or an embedding (`Copies`).
+  - `named`: the source paths the lens's lacunas name in `sourceFields`. Each
+    entry points at the lacuna and the field reference in the program, so
+    that the engine can apply the reference's own guard (`if p != _|_`). A
+    lacunas list is never conditional ([E0401](errors/E0401.md)).
+
+  A synthesized edge has no `fate`, and neither does a forward minor step
+  within one struct, which has no edge. Neither applies a lens.
+- **`checks`**: one acceptance check for every label a version declares
+  where undeclared data could arrive under that name in some step. That is a
+  struct the version declares the label in, whose counterpart in an adjacent
+  version is open and does not declare it. The counterpart is the struct at
+  the same path, or the input of a copy. These checks extend the extras
+  checks: a forward minor step needs the same ones, and each check is a
+  predicate over the arriving value, whatever step it arrives from.
+- **`messages`**: the text of every lacuna translation raises by itself, as
+  templates identical to Go's ([set-aside fields](reference/lacunas.md#set-aside-fields)).
+  Each has a cause and a form: one field, several fields, or, for a
+  `LossyFieldMapping`, a value moved to another path. The placeholders are
+  `{fields}`, `{field}`, `{target}`, `{from}`, `{to}` and `{struct}`. Paths are
+  rendered as CUE renders a path (`meta.owner`, `items[1]`, `"a-b".c`), and
+  `{struct}` is `the instance` at the root.
+
+### What the engine does in each step
+
+As `translateStep` does:
+
+1. **Take extras.** A source struct's extras are its `extras`, plus any field
+   its node has that the source version's `structs` entry does not declare.
+   The program never sees them.
+2. **Run the program** on the declared data. Record which result paths it
+   wrote. A field the target fills from a default is not written.
+3. **Decide each declared source field**, walking the instance, as
+   `stepLens.read` and `takeFields` do. A path is `named` when a `named`
+   path's guard held and that path is at or above it. It is read when a
+   `reads` path is at or above it, with `any` matching every index. Beneath a
+   field that is named, or read with a reader written, only extras are taken.
+   A read field none of whose readers was written is taken as **lost**,
+   unless the result holds an equal value at its path. A field read only
+   beneath, or one both versions declare and the program wrote, is
+   descended into. Of the rest, a field the target declares is
+   **unwritten**, and one the target does not declare and the result lacks is
+   **unmapped**.
+4. **Place each taken field**, in instance order (`carry`).
+   - An extra goes to every copy of the deepest struct holding it that
+     `copies` lists, as `stepLens.targets` does, and otherwise to its own
+     path.
+   - With no struct at the destination's parent, it is set aside (cause
+     `nowhere`).
+   - Where the target declares the label and the program wrote it, the
+     program's value stands, set aside (`written`) unless equal.
+   - Where the target's struct is open and does not declare it, it is
+     carried into that struct's extras.
+   - Where the target declares it, it is promoted if the check for
+     (version, node, label) accepts it. Otherwise it is a
+     `LossyFieldMapping` whose target field is the default, or absent with a
+     `null` value.
+   - Otherwise it is set aside (`closed`).
+   - An unmapped field is placed the same way at its own path. An unwritten
+     one is always set aside (`unwritten`). A lost one is carried only where
+     the target struct is open and does not declare it; otherwise it is set
+     aside (`lost`).
+5. **Raise the lacunas.** The set-aside fields form one `DroppedField` per
+   destination parent struct and cause, holding each field's path and value
+   and rendered from `messages`. An empty struct or list is never set aside.
+   These follow the program's own lacunas, ordered by their first field.
+
+### Rule by rule
+
+| Rule | Artifact | Engine |
+|---|---|---|
+| A4 | A lone `[string]: T` is a `List(Entry)` field. Any other pattern is `unknown-pattern-labels`. | A map is one declared field whose value is its entries, copied whole. No key has a fate of its own unless a program addresses a key by name, which main allows ([#197](https://github.com/sdboyer/thema/issues/197)). Go then treats the key as declared. |
+| B1, B2, B3 | the program: its writes, `_drop` and its lacuna, presence tests and `_orelse` | runs the program |
+| B4 | `fate.reads`, `readers`, `named`; the target's `structs` (labels, open) | an unmapped field whose target struct is open: carried into its extras |
+| B5 | as B4; `messages` (`closed`, `nowhere`) | an unmapped field with a closed target struct, or none: `DroppedField`, unless `named` |
+| B6 | as B4; `messages` (`unwritten`) | an unwritten field: not copied, `DroppedField`, unless `named` |
+| C1 | the source's and target's `structs` | an extra whose target struct is open and does not declare it: carried |
+| C2 | `checks` | an extra the target declares and the program did not write: promoted where the check accepts it, over a default |
+| C3 | `checks`; `Field.default`; `messages` (`lossy`) | otherwise `LossyFieldMapping`, the target field as it ended up |
+| C4 | `messages` (`written`) | the program wrote it: its value stands; `DroppedField` unless equal |
+| C5 | `structs` (open); `messages` (`closed`) | a closed target struct that does not declare it: `DroppedField` |
+| C6 | `fate.copies` | an extra follows the deepest copied struct holding it, to every copy |
+| C7 | nothing more | element *i*'s extras go to element *i*; past the result's length, `nowhere` |
+| D1–D4 | the program; defaults in the schema and `Field.default` | runs the program; D3 is refused at bind |
+| E1 | the program (#176) | runs the program |
+| E2 | as B5 | a struct nothing reads or names that the target lacks is taken whole: one `DroppedField`, its contents in its value |
+| E3, E3a | the program, with the lacunas #200 derives; `fate.readers`; `messages` (`lost`) | a value read where no reader was written: carried if it can be, otherwise `DroppedField`, unless `named` |
+| E4 | nothing | an empty struct or list is never set aside; the refusal is at bind |
+| F1–F5 | the program's lacuna conditions and CEL | evaluates them |
+| G1 | `structs`, `checks`; no `fate` | a step with no lens takes and places extras only |
+| G2 | defaults in the schema and `Field.default` | fills them before the first step |
+| G3 | an edge per lens, either way | the same procedure both ways |
+
+### Left open, or settled only by what Go does
+
+Translation.md does not settle these. Go's behaviour under #196 is the de
+facto answer, and the encoder decides none of them. An engine that follows
+the procedure above follows Go.
+
+1. **Disjunctions.** Go's `DeclaresPath` counts a path as declared when any
+   alternative declares it. The artifact lists each alternative, so the
+   engine takes the union of the labels of every `structs` entry at the path.
+   Openness is decided by validation against the alternative the data is in.
+2. **Pattern keys** count as declared ([#197](https://github.com/sdboyer/thema/issues/197)).
+3. **A value read only in a comprehension's clause** has no reader, so it is
+   never lost, even when its value goes nowhere (#196, open item 0).
+4. **A field both versions declare that the lens writes without reading**
+   raises no lacuna (#196, item 1).
+5. **C4 with an equal value** raises no lacuna (#196, item 2).
+6. **C3 with an absent target field** reports `value: null` (#196, item 3).
+7. **B6 where the target fills a default**: the `DroppedField` still fires
+   (#196, item 4).
+8. **C6.** A struct copied to two places sends its extras to both. An
+   element-wise list move (`[for x in l {x}]`) is not followed (#196, item
+   5).
+9. **C7.** Elements past the new length that nothing maps are one
+   `DroppedField` on the elements, as B6 (#196, item 6).
+10. **Placing is validation.** Go places a field only where the result is
+    still an instance of the closed target. For what compiles, that is an
+    undeclared label in an open struct, or a check that accepts the value.
+11. **Values and paths in lacunas** are rendered as Go decodes them (JSON
+    numbers, strings, objects in instance order) and as CUE prints a path.
 
 ## Verdicts and rules
 
