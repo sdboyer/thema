@@ -171,6 +171,18 @@ func (b *body) dropped(p cue.Path) bool {
 	return false
 }
 
+// nests reports whether target path p is an authored nested body that copies
+// from source path s, its counterpart, which is not a mapping of its own: a
+// body that only drops leaves the rest of its struct to copy.
+func (b *body) nests(p, s cue.Path) bool {
+	for _, r := range b.rebases {
+		if r.target.String() == p.String() {
+			return r.source.String() == s.String()
+		}
+	}
+	return false
+}
+
 // sourceBase returns the source path that target fields under tbase copy
 // from: the innermost rebase covering tbase, else the same path.
 func (b *body) sourceBase(tbase cue.Path) cue.Path {
@@ -921,8 +933,9 @@ type node struct {
 	fields map[string]*node
 	// For a leaf: the entry producing it.
 	leaf *entry
-	// present, if non-empty, are the optional source paths the leaf is
-	// written under: if <root>.<p> != _|_ && ... {...}.
+	// present, if non-empty, are the optional source paths the field is
+	// written under: if <root>.<p> != _|_ && ... {...}. A struct is written
+	// under one when it copies an optional struct (see guardStruct).
 	present []cue.Path
 	pos     token.Pos
 }
@@ -1132,8 +1145,8 @@ func (e *edge) declare(b *body, out *compiledLens) {
 		cond := d.when
 		switch en.kind {
 		case kindDrop:
-			if cond == nil && e.optional(e.S, en.source) {
-				cond = e.present(d.pos, en.source)
+			if cond == nil {
+				cond = e.dropCondition(d.pos, en.source)
 			}
 		case kindCoalesce:
 			if cond == nil && en.computed != nil {
@@ -1505,21 +1518,23 @@ func (e *edge) fill(n *node, tbase cue.Path, b *body, consumed, dropped map[stri
 		if c, ok := n.fields[name]; ok {
 			if c.leaf == nil {
 				e.fill(c, tpath, b, consumed, dropped, out)
+				e.guardStruct(c, tpath)
 			}
 			continue
 		}
-		if b.claimed[tpath.String()] {
+		spath := appendPath(sbase, cue.Str(name))
+		if b.claimed[tpath.String()] && !b.nests(tpath, spath) {
 			// An authored mapping that was refused: its error stands, and an
 			// implicit copy would only add another.
 			continue
 		}
-		spath := appendPath(sbase, cue.Str(name))
 		if sv := lookup(e.S, spath); sv.Exists() && !dropped[spath.String()] {
 			tv := lookup(e.T, tpath)
 			if isStruct(sv) && isStruct(tv) && !e.covers(sv, tv) {
 				c := n.child(name)
 				c.pos = e.blockPos
 				e.fill(c, tpath, b, consumed, dropped, out)
+				e.guardStruct(c, tpath)
 				continue
 			}
 			en := entry{kind: kindMove, target: tpath, source: spath, pos: e.blockPos, derived: true}
@@ -1545,6 +1560,47 @@ func (e *edge) fill(n *node, tbase cue.Path, b *body, consumed, dropped map[stri
 			e.unproduced(tpath)
 		}
 	}
+}
+
+// guardStruct writes c, the struct the lens builds at tpath, only where the
+// source has it, when c is a copy of an optional struct of the source: a
+// struct's presence is information, so an absent struct stays absent, and a
+// present but empty one stays present. c is such a copy when everything it
+// produces reads only from beneath the same path in the source (see
+// readsFrom), whether the author wrote it as a nested body or not. A struct
+// that holds anything else, such as a constant, is written always, and so is
+// one the target requires.
+func (e *edge) guardStruct(c *node, tpath cue.Path) {
+	if !e.optionalAt(e.S, tpath) || e.required(e.T, tpath) || !c.readsFrom(tpath) {
+		return
+	}
+	c.present = []cue.Path{tpath}
+}
+
+// readsFrom reports whether every field n produces is a move from beneath the
+// source path p, or a computed value that reads only from beneath it, so that
+// none of them is written where the source lacks p.
+func (n *node) readsFrom(p cue.Path) bool {
+	if en := n.leaf; en != nil {
+		switch en.kind {
+		case kindMove:
+			return pathHasPrefix(en.source, p)
+		case kindComputed:
+			for _, r := range en.reads {
+				if !pathHasPrefix(r, p) {
+					return false
+				}
+			}
+			return len(en.reads) > 0
+		}
+		return false
+	}
+	for _, c := range n.fields {
+		if !c.readsFrom(p) {
+			return false
+		}
+	}
+	return true
 }
 
 // misfits returns why a copy of source path spath into target path tpath
@@ -1610,12 +1666,9 @@ func (e *edge) unproduced(tpath cue.Path) {
 }
 
 // unmapped applies the direction's rule to every source field the target does
-// not declare and nothing consumed.
+// not declare and nothing consumed (see unaccounted).
 func (e *edge) unmapped(b *body, consumed map[string]bool, out *compiledLens) {
-	for _, spath := range e.leaves(e.S, cue.MakePath()) {
-		if consumedUnder(consumed, spath) || lookup(e.T, spath).Exists() && !e.rebased(b, spath) {
-			continue
-		}
+	for _, spath := range e.unaccounted(b, consumed, cue.MakePath()) {
 		switch e.dir {
 		case forward:
 			if e.identity {
@@ -1634,6 +1687,46 @@ func (e *edge) unmapped(b *body, consumed map[string]bool, out *compiledLens) {
 			e.dropLacuna(out, &en)
 		}
 	}
+}
+
+// unaccounted returns the source fields under p that the target does not
+// declare (or whose counterpart a rebase puts elsewhere) and nothing
+// consumed. A struct is returned whole, since its presence is information,
+// unless something beneath it was consumed: then its remaining fields are.
+func (e *edge) unaccounted(b *body, consumed map[string]bool, p cue.Path) []cue.Path {
+	var out []cue.Path
+	for _, name := range e.fields(e.S, p) {
+		fp := appendPath(p, cue.Str(name))
+		if consumedUnder(consumed, fp) {
+			continue
+		}
+		kept := lookup(e.T, fp).Exists() && !e.rebased(b, fp)
+		if isStruct(lookup(e.S, fp)) && (kept || consumedBeneath(consumed, fp)) {
+			out = append(out, e.unaccounted(b, consumed, fp)...)
+			continue
+		}
+		if !kept {
+			out = append(out, fp)
+		}
+	}
+	return out
+}
+
+// leaves returns every non-struct path v declares under p, and every empty
+// struct, depth first.
+func (e *edge) leaves(v cue.Value, p cue.Path) []cue.Path {
+	var out []cue.Path
+	for _, name := range e.fields(v, p) {
+		fp := appendPath(p, cue.Str(name))
+		if isStruct(lookup(v, fp)) {
+			if sub := e.leaves(v, fp); len(sub) > 0 {
+				out = append(out, sub...)
+				continue
+			}
+		}
+		out = append(out, fp)
+	}
+	return out
 }
 
 // carries reports whether translation carries spath, a source field the
@@ -1700,13 +1793,31 @@ func consumedUnder(consumed map[string]bool, p cue.Path) bool {
 	return false
 }
 
+// consumedBeneath reports whether something strictly beneath p was consumed.
+func consumedBeneath(consumed map[string]bool, p cue.Path) bool {
+	for k := range consumed {
+		if pathHasPrefix(cue.ParsePath(k), p) && k != p.String() {
+			return true
+		}
+	}
+	return false
+}
+
 // emit builds the result struct from the tree, in the target's field order.
 func (e *edge) emit(n *node, tbase cue.Path) *ast.StructLit {
 	s := &ast.StructLit{}
 	for _, name := range e.order(n, tbase) {
 		c := n.fields[name]
 		if c.leaf == nil {
-			s.Elts = append(s.Elts, at(c.pos, &ast.Field{Label: at(c.pos, label(name)), Value: e.emit(c, appendPath(tbase, cue.Str(name)))}))
+			f := at(c.pos, &ast.Field{Label: at(c.pos, label(name)), Value: e.emit(c, appendPath(tbase, cue.Str(name)))})
+			if len(c.present) == 0 {
+				s.Elts = append(s.Elts, f)
+				continue
+			}
+			s.Elts = append(s.Elts, at(c.pos, &ast.Comprehension{
+				Clauses: []ast.Clause{at(c.pos, &ast.IfClause{Condition: e.presentAll(c.pos, c.present)})},
+				Value:   at(c.pos, &ast.StructLit{Elts: []ast.Decl{f}}),
+			}))
 			continue
 		}
 		s.Elts = append(s.Elts, e.emitLeaf(name, c)...)
@@ -1910,6 +2021,9 @@ func (e *edge) dropLacuna(out *compiledLens, en *entry) {
 		if e.optional(e.S, en.source) {
 			clauses = append(clauses, at(p, &ast.IfClause{Condition: e.present(p, en.source)}))
 		}
+		if e.container(en.source) {
+			clauses = append(clauses, at(p, &ast.IfClause{Condition: e.nonEmpty(p, en.source)}))
+		}
 		pathLit := at(p, &ast.Interpolation{Elts: append(parts, at(p, ast.NewLit(token.STRING, `)].`+en.source.String()+`"`)))})
 		comp := at(p, &ast.Comprehension{Clauses: clauses, Value: at(p, &ast.StructLit{Elts: []ast.Decl{
 			at(p, &ast.Field{Label: at(p, ast.NewIdent("path")), Value: pathLit}),
@@ -1924,10 +2038,10 @@ func (e *edge) dropLacuna(out *compiledLens, en *entry) {
 		switch {
 		case decl != nil && decl.when != nil:
 			elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("condition")), Value: decl.when}))
-		case e.optional(e.S, en.source):
-			elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("condition")), Value: e.present(p, en.source)}))
+		case e.dropCondition(p, en.source) != nil:
+			elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("condition")), Value: e.dropCondition(p, en.source)}))
 		}
-		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewList(e.fieldRef(p, en.source, e.root)))}))
+		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewList(e.dropSource(p, en.source)))}))
 	}
 	elts = append(elts,
 		at(p, &ast.Field{Label: at(p, ast.NewIdent("message")), Value: at(p, ast.NewString(msg))}),
@@ -1939,6 +2053,46 @@ func (e *edge) dropLacuna(out *compiledLens, en *entry) {
 		return
 	}
 	out.derived = append(out.derived, lac)
+}
+
+// dropCondition is the condition a drop of path implies, nil for always: that
+// the field was present, and for a struct or a list, that it was not empty.
+// An empty container carries no information, so dropping one loses nothing.
+func (e *edge) dropCondition(p token.Pos, path cue.Path) ast.Expr {
+	optional, container := e.optional(e.S, path), e.container(path)
+	switch {
+	case optional && container:
+		// len of an absent field is not false but an error, so the length is
+		// read only where the field is present.
+		return e.head(p, e.present(p, path), e.nonEmpty(p, path), at(p, ast.NewBool(false)))
+	case optional:
+		return e.present(p, path)
+	case container:
+		return e.nonEmpty(p, path)
+	}
+	return nil
+}
+
+// dropSource is the field a drop's lacuna reports. Where its condition reads
+// an optional container's length under a presence test, the field is read
+// under the same test.
+func (e *edge) dropSource(p token.Pos, path cue.Path) ast.Expr {
+	ref := e.fieldRef(p, path, e.root)
+	if e.optional(e.S, path) && e.container(path) {
+		return at(p, &ast.Comprehension{Clauses: []ast.Clause{at(p, &ast.IfClause{Condition: e.present(p, path)})}, Value: ref})
+	}
+	return ref
+}
+
+// container reports whether the source's field at p is a struct or a list.
+func (e *edge) container(p cue.Path) bool {
+	k := lookup(e.S, p).IncompleteKind()
+	return k == cue.StructKind || k == cue.ListKind
+}
+
+// nonEmpty is len(<root>.<path>) > 0, positioned at p.
+func (e *edge) nonEmpty(p token.Pos, path cue.Path) ast.Expr {
+	return at(p, ast.NewBinExpr(token.GTR, at(p, &ast.CallExpr{Fun: at(p, ast.NewIdent("len")), Args: []ast.Expr{at(p, e.ref(path))}}), at(p, ast.NewLit(token.INT, "0"))))
 }
 
 // dropMessage is the derived lacuna's default message for dropping p.
@@ -1977,7 +2131,7 @@ func (e *edge) lacunaFor(en *entry, d *lacunaDecl, cond ast.Expr) ast.Expr {
 		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("condition")), Value: cond}))
 	}
 	if en.kind == kindDrop {
-		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewList(e.fieldRef(p, en.source, e.root)))}))
+		elts = append(elts, at(p, &ast.Field{Label: at(p, ast.NewIdent("sourceFields")), Value: at(p, ast.NewList(e.dropSource(p, en.source)))}))
 	} else {
 		var srcs []ast.Expr
 		paths := en.reads
@@ -2093,23 +2247,6 @@ func (e *edge) fields(v cue.Value, p cue.Path) []string {
 	return out
 }
 
-// leaves returns every non-struct path v declares under p, and every empty
-// struct, depth first.
-func (e *edge) leaves(v cue.Value, p cue.Path) []cue.Path {
-	var out []cue.Path
-	for _, name := range e.fields(v, p) {
-		fp := appendPath(p, cue.Str(name))
-		if isStruct(lookup(v, fp)) {
-			if sub := e.leaves(v, fp); len(sub) > 0 {
-				out = append(out, sub...)
-				continue
-			}
-		}
-		out = append(out, fp)
-	}
-	return out
-}
-
 // covers reports whether the target declares every path the source declares
 // under it, so that the source's struct can be copied whole.
 func (e *edge) covers(sv, tv cue.Value) bool {
@@ -2143,6 +2280,26 @@ func (e *edge) optional(v cue.Value, p cue.Path) bool {
 				}
 				break
 			}
+		}
+	}
+	return false
+}
+
+// optionalAt reports whether the field at p is itself optional in v, whatever
+// the fields above it.
+func (e *edge) optionalAt(v cue.Value, p cue.Path) bool {
+	sels := p.Selectors()
+	if len(sels) == 0 {
+		return false
+	}
+	iter, err := lookup(v, cue.MakePath(sels[:len(sels)-1]...)).Fields(cue.Optional(true))
+	if err != nil {
+		return false
+	}
+	name := sels[len(sels)-1].Unquoted()
+	for iter.Next() {
+		if sel := iter.Selector(); sel.IsString() && sel.Unquoted() == name {
+			return sel.ConstraintType() == cue.OptionalConstraint
 		}
 	}
 	return false

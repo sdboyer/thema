@@ -1,0 +1,26 @@
+# The length of a struct read from the input is its number of data fields:
+# a lacuna that applies only where an optional struct is present and not
+# empty, as the drop of a struct implies.
+-- source.cue --
+o?: {e?: bool}
+-- target.cue --
+{}
+-- lens.cue --
+v0_0: _
+v1_0: {}
+lacunas: [{
+	condition: [if v0_0.o != _|_ {len(v0_0.o) > 0}, false][0]
+	sourceFields: [if v0_0.o != _|_ {path: "o", value: v0_0.o}]
+	message: "o was dropped"
+	type:    "DroppedField"
+}]
+-- out --
+total
+-- ir --
+out: {
+}
+lacuna DroppedField {
+  when (if in.o != _|_ then len(in.o) > 0 else false)
+  source if in.o != _|_ { o = in.o }
+  message "o was dropped"
+}

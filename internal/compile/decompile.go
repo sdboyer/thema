@@ -507,9 +507,9 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 		tpath := appendPath(tbase, cue.Str(g.name))
 		en := dentry{target: tpath, comments: ast.Comments(g.brs[0].field)}
 		if len(g.brs) == 1 {
+			ts, ok := b.tests(g.brs[0].cond)
 			// An each over a list the source may omit, written only where it
 			// is present.
-			ts, ok := b.tests(g.brs[0].cond)
 			if each, isEach := b.eachOf(g.brs[0].field.Value, key); isEach && ok && len(ts) == 1 && ts[0].operand == nil && ts[0].present {
 				if each.err != nil {
 					return each.err
@@ -519,6 +519,17 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 				}
 				en.kind, en.source, en.body = kindEach, each.source, each.body
 				b.entries = append(b.entries, en)
+				continue
+			}
+			if s, isStruct := g.brs[0].field.Value.(*ast.StructLit); isStruct {
+				// A copy of an optional struct, written only where the source
+				// has it.
+				if !ok || len(ts) != 1 || ts[0].operand != nil || !ts[0].present || ts[0].path.String() != tpath.String() {
+					return fmt.Errorf("lens %s is outside the authoring form: %s is written under a condition the authoring form cannot express", key, tpath)
+				}
+				if err := b.walk(s.Elts, tpath, key); err != nil {
+					return err
+				}
 				continue
 			}
 		}
@@ -727,6 +738,9 @@ func (b *dbody) when(en *dentry, cond ast.Expr) (when ast.Expr, structural bool)
 	if cond == nil {
 		return nil, en.kind != kindEach
 	}
+	if en.kind == kindDrop && b.dropsContainer(en.source, cond) {
+		return nil, true
+	}
 	if en.kind == kindCoalesce && en.computed != nil {
 		// The fallback was used: [if <presence> {false}, true][0].
 		if h, ok := asHeadSyntax(cond); ok && b.allPresence(h.cond) && isBoolLit(h.then, litFalse) && isBoolLit(h.els, litTrue) {
@@ -761,6 +775,39 @@ func (b *dbody) when(en *dentry, cond ast.Expr) (when ast.Expr, structural bool)
 		return inner, false
 	}
 	return cond, false
+}
+
+// dropsContainer reports whether cond is the condition a drop of a struct or
+// a list at p implies: len(<root>.p) > 0, under p's presence test where p is
+// optional.
+func (b *dbody) dropsContainer(p cue.Path, cond ast.Expr) bool {
+	nonEmpty := func(x ast.Expr) bool {
+		bin, ok := x.(*ast.BinaryExpr)
+		if !ok || bin.Op != token.GTR {
+			return false
+		}
+		if lit, isLit := bin.Y.(*ast.BasicLit); !isLit || lit.Value != "0" {
+			return false
+		}
+		call, ok := bin.X.(*ast.CallExpr)
+		if !ok || len(call.Args) != 1 {
+			return false
+		}
+		if fn, isID := call.Fun.(*ast.Ident); !isID || fn.Name != "len" {
+			return false
+		}
+		root, q, ok := refPathAny(call.Args[0])
+		return ok && root == b.root && q.String() == p.String()
+	}
+	if nonEmpty(cond) {
+		return true
+	}
+	h, ok := asHeadSyntax(cond)
+	if !ok || !isBoolLit(h.els, litFalse) || !nonEmpty(h.then) {
+		return false
+	}
+	ts, ok := b.tests(h.cond)
+	return ok && len(ts) == 1 && ts[0].operand == nil && ts[0].present && ts[0].path.String() == p.String()
 }
 
 // headSyntax is [if cond {then}, els][0], as written.

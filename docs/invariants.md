@@ -542,8 +542,8 @@ upon.
   zero. `/` yields a float in CUE and is not proven. Each occurrence of an
   operand is bounded on its own, so `v0_0.n - v0_0.n` is bounded like any
   difference and is never refuted. `len` is bounded by the list's declared
-  length, and for a string not at all: a validator such as
-  `strings.MaxRunes` is not read.
+  length, and for a string or a struct (its number of data fields) not at
+  all: a validator such as `strings.MaxRunes` is not read.
 - Strings: concatenation and interpolation of strings and integers, and
   `strings.ToUpper`, `ToLower`, `TrimSpace`, `Trim`, `TrimLeft`, `TrimRight`,
   `TrimPrefix`, `TrimSuffix` and `Replace` with an integer count.

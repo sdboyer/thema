@@ -1,0 +1,216 @@
+A struct whose every field reads from beneath the source's optional struct of
+the same name is a copy of it, written only where the instance has it, whether
+the author wrote it as a nested body or not. q's nested body renames x and
+drops y, so q is a copy of q in both directions. r's nested body adds a
+constant, which is written always, and so is r with it. s is dropped whole,
+with a lacuna where it is not empty.
+-- ship/history/0.0.thema --
+Schema: {
+	q?: {
+		x?: int
+		y?: int
+	}
+	r?: {
+		k?: int
+	}
+	s?: {
+		v?: int
+	}
+}
+-- ship/1.0.thema --
+Schema: {
+	q?: {
+		x2?: int
+	}
+	r?: {
+		k?: int
+		c?: string
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		q: {
+			x2: v0_0.q.x
+			y:  _drop
+		}
+		r: {
+			c: "z"
+		}
+		s: _drop
+	}
+}
+-- data/0.0/absent.json --
+{}
+-- data/0.0/empty.json --
+{"q": {}, "r": {}, "s": {}}
+-- data/0.0/full.json --
+{"q": {"x": 1, "y": 2}, "r": {"k": 3}, "s": {"v": 4}}
+-- data/1.0/absent.json --
+{}
+-- data/1.0/empty.json --
+{"q": {}, "r": {}}
+-- data/1.0/constant.json --
+{"r": {"c": "z"}}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+Schema: {
+	q?: {
+		x2?: int
+	}
+	r?: {
+		k?: int
+		c?: string
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		q: {
+			x2: v0_0.q.x
+			y:  _drop
+		}
+		r: {
+			c: "z"
+		}
+		s: _drop
+	}
+}
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	q?: {
+		x?: int
+		y?: int
+	}
+	r?: {
+		k?: int
+	}
+	s?: {
+		v?: int
+	}
+}
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				q?: {
+					x?: int
+					y?: int
+				}
+				r?: {
+					k?: int
+				}
+				s?: {
+					v?: int
+				}
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				q?: {
+					x2?: int
+				}
+				r?: {
+					k?: int
+					c?: string
+				}
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			if v0_0.q != _|_ {
+				q: {if v0_0.q.x != _|_ {
+					x2: v0_0.q.x
+				}}
+			}
+			r: {
+				if v0_0.r.k != _|_ {
+					k: v0_0.r.k
+				}
+				c: "z"
+			}
+		}
+		lacunas: [
+			{
+				@thema(derived)
+				condition: v0_0.q.y != _|_
+				sourceFields: [{
+					path:  "q.y"
+					value: v0_0.q.y
+				}]
+				message: "q.y has no equivalent in 1.0 and was dropped"
+				type:    "DroppedField"
+			},
+			{
+				@thema(derived)
+				condition: [
+					if v0_0.s != _|_ {
+						len(v0_0.s) > 0
+					},
+					false
+				][
+					0]
+				sourceFields: [if v0_0.s != _|_ {
+					path:  "s"
+					value: v0_0.s
+				}]
+				message: "s has no equivalent in 1.0 and was dropped"
+				type:    "DroppedField"
+			}
+		]
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			if v1_0.q != _|_ {
+				q: {if v1_0.q.x2 != _|_ {
+					x: v1_0.q.x2
+				}}
+			}
+			if v1_0.r != _|_ {
+				r: {if v1_0.r.k != _|_ {
+					k: v1_0.r.k
+				}}
+			}
+		}
+		lacunas: [{
+			@thema(derived)
+			condition: v1_0.r.c != _|_
+			sourceFields: [{
+				path:  "r.c"
+				value: v1_0.r.c
+			}]
+			message: "r.c has no equivalent in 0.0 and was dropped"
+			type:    "DroppedField"
+		}]
+	}
+}
+-- out/translate/0.0/absent->1.0 --
+{"r":{"c":"z"}}
+[]
+-- out/translate/0.0/empty->1.0 --
+{"q":{},"r":{"c":"z"}}
+[]
+-- out/translate/0.0/full->1.0 --
+{"q":{"x2":1},"r":{"k":3,"c":"z"}}
+[{"sourceFields":[{"path":"q.y","value":2}],"type":"DroppedField","message":"q.y has no equivalent in 1.0 and was dropped"},{"sourceFields":[{"path":"s","value":{"v":4}}],"type":"DroppedField","message":"s has no equivalent in 1.0 and was dropped"}]
+-- out/translate/1.0/absent->0.0 --
+{}
+[]
+-- out/translate/1.0/constant->0.0 --
+{"r":{}}
+[{"sourceFields":[{"path":"r.c","value":"z"}],"type":"DroppedField","message":"r.c has no equivalent in 0.0 and was dropped"}]
+-- out/translate/1.0/empty->0.0 --
+{"q":{},"r":{}}
+[]
