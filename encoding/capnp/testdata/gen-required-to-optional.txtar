@@ -63,8 +63,8 @@ edge 0.1 -> 0.0
     }
   }
 -- out/capnp/artifact --
-sha256 95fa1755cb39f6124e34890cc63e89638b3e989ea490ff2fe7686e273a2627ad
-2672 bytes
+sha256 5d9c7635926ba3d3d910b2ce0be8392443918389220a77d2ea0fd64f686ebc1b
+2760 bytes
 -- out/capnp/layout --
 struct RequiredToOptionalV0 @0x9d12cedba10738d9: data=1 ptrs=3
   extras @0: data off=0

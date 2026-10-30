@@ -183,5 +183,5 @@ struct NorefV0 @0xae2ed32808df5fa1 {
   someField @1 :Text;
 }
 -- out/encoding/capnp/artifact --
-sha256 0572236beabe537bf61d0905c2debf2ca83cd69d91ed74f6799846a4a043a1f1
+sha256 173cc20a6d324f0f006f26f5c357008e64a5d1d0b0c73c6ff955084f0e3b5c9b
 744 bytes

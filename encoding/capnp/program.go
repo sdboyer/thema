@@ -37,7 +37,7 @@ func (cp *compiler) edges() []*compiled.Edge {
 			if !errors.As(e, &npe) {
 				panic(fmt.Sprintf("capnp: lens programs failed other than per lens: %v", e))
 			}
-			cp.addLens(npe.Edge, nil, RuleLensNoProgram,
+			cp.addLens(npe.Edge, nil, Rejected, RuleLensNoProgram,
 				fmt.Sprintf("uses a construct the compiled lens programs do not carry yet: %v", npe.Err))
 		}
 		return nil
@@ -46,6 +46,7 @@ func (cp *compiler) edges() []*compiled.Edge {
 	for _, p := range progs.Sorted() {
 		e := &compiled.Edge{From: [2]uint(p.Edge.From), To: [2]uint(p.Edge.To), Program: p}
 		e.CEL = cp.renderProgram(p)
+		e.Unions = cp.unionWrites(p)
 		edges = append(edges, e)
 	}
 	var prev thema.Schema

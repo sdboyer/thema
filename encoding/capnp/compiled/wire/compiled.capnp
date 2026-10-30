@@ -190,6 +190,31 @@ struct Edge {
   lacunas @4 :List(Lacuna);
   cel @5 :List(Cel);
   # The CEL rendering of each expression of the program.
+  unions @6 :List(UnionWrite);
+  # The writes of the program that name an alternative of a disjunction
+  # (a copy's alts, a wrap's alt), lowered to members of the compiled unions.
+}
+
+struct UnionWrite {
+  # One copy or wrap of a program, whose IR names alternatives of a
+  # disjunction, lowered to the members of the unions that hold them.
+  node @0 :UInt32;
+  # The copy or wrap: its index in a pre-order walk of the program's result,
+  # nested nodes counted where they appear (as Cel.node).
+  source @1 :List(UInt16);
+  # For a copy, per entry of its alts in order: the ordinal of the member of
+  # the source field's union holding the alternative copied from. Empty where
+  # the source is not a union, and for a wrap.
+  target @2 :List(UInt16);
+  # For a copy, per entry of its alts in order: the ordinal of the member of
+  # the target field's union to set. For a wrap, the one member it writes.
+}
+
+struct Alt {
+  # A source alternative of a copy and the target alternative accepting it,
+  # numbered as the schemas declare them at the path (internal/lensir Alt).
+  from @0 :UInt32;
+  to @1 :UInt32;
 }
 
 struct Step {
@@ -208,6 +233,9 @@ struct IRNode {
     copy :group {
       to @0 :List(Step);
       from @1 :List(Step);
+      alts @22 :List(Alt);
+      # Where the target is a disjunction with a struct or list alternative:
+      # the target alternative each copied source alternative lands in.
     }
     constant :group {
       to @2 :List(Step);
@@ -218,6 +246,9 @@ struct IRNode {
       kind @5 :WrapKind;
       len @6 :UInt32;
       children @7 :List(IRNode);
+      alt @23 :Int32 = -1;
+      # Where the target is a disjunction: the alternative the literal is an
+      # instance of; -1 where none is named.
     }
     each :group {
       to @8 :List(Step);

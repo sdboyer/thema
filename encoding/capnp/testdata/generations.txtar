@@ -270,8 +270,8 @@ checks
   1.1 StabilityV1.later: ((type(x) == int) && (x >= -32768) && (x <= 32767))
   2.0 StabilityV2.label: (type(x) == string)
 -- out/capnp/artifact --
-sha256 ca76e28649282f5422c15a5511ee59394a9d746cb73d8fecdc9fe655a0e3dcca
-13560 bytes
+sha256 bada99b15d293785471f400e4591dc0dc6e63f703f3a05f37074f3203d5220e2
+13960 bytes
 -- out/capnp/layout --
 struct StabilityV0 @0xb7bdbd0fbc7dbac3: data=2 ptrs=2
   extras @0: data off=0

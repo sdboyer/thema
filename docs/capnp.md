@@ -136,6 +136,21 @@ declares. The compiler never reads a lens's CUE; a lens using a construct the
 IR does not carry has no program, and the lineage is rejected
 (`lens-no-program`).
 
+A program names the alternatives of a disjunction of structs or lists where
+it writes one: a copy into one pairs each source alternative it carries with
+the target alternative that accepts it (`Copy.Alts`), and a struct literal of
+one alternative says which (`Wrap.Alt`), each numbered as the schema declares
+the alternatives. The type mapping makes such a disjunction a union, so the
+compiler lowers each of these writes to union members, by ordinal, in the
+edge's `unions`: for a copy, per pair, the source member holding the source
+alternative (none where the source is not a union) and the target member to
+set, so that the engine copies per discriminant; for a literal, the target
+member it sets. It finds the members by walking the path through the version's
+structs, list elements, map values and union boxes, and through a union only
+beneath a literal that names that union's alternative. A write it cannot place
+that way, such as a copy whose source lies beneath another disjunction, leaves
+the verdict unknown (`unknown-union-write`).
+
 What a backend without an expression language cannot run, the expressions,
 is rendered to [CEL](https://cel.dev) and type-checked with cel-go against
 the type of the field it writes: each computed node's expression, each
@@ -184,7 +199,7 @@ single-segment Cap'n Proto message; `compiled.Decode` reads it back): the
 namespace and lineage name, the schema text and the tool's layout, the
 versions with their content hashes and root structs, every node with how its
 fields map back to the lineage's labels and values, every edge with its
-program and CEL, and the checks. Nothing in it is specific to Go, and the Go
+program, its CEL and its writes into unions, and the checks. Nothing in it is specific to Go, and the Go
 model it round-trips through (`encoding/capnp/compiled`) does not depend on
 CUE. The meta-schema is a published language (`compiled-artifact` in
 `.thresh/thresh.cue`): a field may be appended, never renumbered, retyped or
@@ -220,6 +235,7 @@ for example
 | Rule | Code | Unknown when | What to do |
 |---|---|---|---|
 | `unknown-pattern-labels` | [E0730](errors/E0730.md) | a struct has pattern constraints other than a lone `[string]: T` beside no declared field: a regular expression, a pattern beside declared fields, several patterns, a narrower key type | declare the fields, or move the map to its own field |
+| `unknown-union-write` | [E0732](errors/E0732.md) | a lens writes an alternative of a disjunction at a path the compiler cannot place among the compiled unions: a copy whose source lies beneath another disjunction, selected only by a test above it | copy from a field that is not beneath a disjunction |
 | `unknown-list-heterogeneous` | [E0731](errors/E0731.md) | a closed list's elements do not all map to one type (`[string, int8]`) | capnp has no tuple; use a struct |
 
 Every rule has a recorded case in `encoding/capnp/testdata`, which also

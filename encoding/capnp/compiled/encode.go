@@ -235,6 +235,29 @@ func (e *encoder) edge(w wire.Edge, ed *Edge) {
 			e.check(y.SetType(v.Type))
 		}
 	}
+	if len(ed.Unions) == 0 {
+		// Left null: an edge without union writes encodes as it did before
+		// the field was appended.
+		return
+	}
+	us, uerr := w.NewUnions(n32(len(ed.Unions)))
+	e.check(uerr)
+	for i, u := range ed.Unions {
+		x := us.At(i)
+		x.SetNode(u32(u.Node))
+		if len(u.Source) > 0 {
+			ss, serr := x.NewSource(n32(len(u.Source)))
+			e.check(serr)
+			for j, o := range u.Source {
+				ss.Set(j, o)
+			}
+		}
+		ts, terr := x.NewTarget(n32(len(u.Target)))
+		e.check(terr)
+		for j, o := range u.Target {
+			ts.Set(j, o)
+		}
+	}
 }
 
 func (e *encoder) path(newer func(int32) (wire.Step_List, error), p lensir.Path) {
@@ -290,6 +313,14 @@ func (e *encoder) irnode(w wire.IRNode, n lensir.Node) {
 		g := w.Copy()
 		e.path(g.NewTo, n.To)
 		e.path(g.NewFrom, n.From)
+		if len(n.Alts) > 0 {
+			as, err := g.NewAlts(n32(len(n.Alts)))
+			e.check(err)
+			for i, a := range n.Alts {
+				as.At(i).SetFrom(u32(a.From))
+				as.At(i).SetTo(u32(a.To))
+			}
+		}
 	case *lensir.Constant:
 		w.SetConstant()
 		g := w.Constant()
@@ -303,6 +334,9 @@ func (e *encoder) irnode(w wire.IRNode, n lensir.Node) {
 		e.path(g.NewTo, n.To)
 		g.SetKind(enum[wire.WrapKind](n.Kind))
 		g.SetLen(u32(n.Len))
+		if n.Alt != nil {
+			g.SetAlt(n32(*n.Alt))
+		}
 		e.nodeList(g.NewChildren, n.Children)
 	case *lensir.Each:
 		w.SetEach()
@@ -601,6 +635,23 @@ func (d *decoder) edge(w wire.Edge) *Edge {
 		}
 		ed.CEL = append(ed.CEL, c)
 	}
+	us, uerr := w.Unions()
+	d.check(uerr)
+	for i := 0; i < us.Len(); i++ {
+		x := us.At(i)
+		u := UnionWrite{Node: int(x.Node())}
+		ss, serr := x.Source()
+		d.check(serr)
+		for j := 0; j < ss.Len(); j++ {
+			u.Source = append(u.Source, ss.At(j))
+		}
+		ts, terr := x.Target()
+		d.check(terr)
+		for j := 0; j < ts.Len(); j++ {
+			u.Target = append(u.Target, ts.At(j))
+		}
+		ed.Unions = append(ed.Unions, u)
+	}
 	return ed
 }
 
@@ -659,7 +710,13 @@ func (d *decoder) irnode(w wire.IRNode) lensir.Node {
 	switch w.Which() {
 	case wire.IRNode_Which_copy:
 		g := w.Copy()
-		return &lensir.Copy{To: d.path(g.To()), From: d.path(g.From())}
+		c := &lensir.Copy{To: d.path(g.To()), From: d.path(g.From())}
+		as, err := g.Alts()
+		d.check(err)
+		for i := 0; i < as.Len(); i++ {
+			c.Alts = append(c.Alts, lensir.Alt{From: int(as.At(i).From()), To: int(as.At(i).To())})
+		}
+		return c
 	case wire.IRNode_Which_constant:
 		g := w.Constant()
 		l, err := g.Value()
@@ -667,7 +724,12 @@ func (d *decoder) irnode(w wire.IRNode) lensir.Node {
 		return &lensir.Constant{To: d.path(g.To()), Value: d.literal(l)}
 	case wire.IRNode_Which_wrap:
 		g := w.Wrap()
-		return &lensir.Wrap{To: d.path(g.To()), Kind: lensir.WrapKind(g.Kind() + 1), Len: int(g.Len()), Children: d.nodes(g.Children())}
+		wr := &lensir.Wrap{To: d.path(g.To()), Kind: lensir.WrapKind(g.Kind() + 1), Len: int(g.Len()), Children: d.nodes(g.Children())}
+		if a := g.Alt(); a >= 0 {
+			alt := int(a)
+			wr.Alt = &alt
+		}
+		return wr
 	case wire.IRNode_Which_each:
 		g := w.Each()
 		return &lensir.Each{To: d.path(g.To()), Source: d.path(g.Source()), Body: d.nodes(g.Body())}

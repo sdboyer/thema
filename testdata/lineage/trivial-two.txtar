@@ -280,5 +280,5 @@ edge 0.1 -> 0.0
 checks
   0.1 TrivialTwoV0.secondfield: ((type(x) == int) && (x >= -2147483648) && (x <= 2147483647))
 -- out/encoding/capnp/artifact --
-sha256 dfdc0710044a739fd436241e7a902cd5c2e0adb3db7b8b9d239e2ee856ff5140
-1632 bytes
+sha256 a0f620f80594602d03016598b7abd85ed9dd6159c5eb40c04d914d97cc17e7d1
+1656 bytes

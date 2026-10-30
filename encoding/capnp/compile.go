@@ -138,6 +138,11 @@ const (
 	// RuleUnknownListHeterogeneous: a closed list whose elements do not all
 	// map to one type.
 	RuleUnknownListHeterogeneous Rule = "unknown-list-heterogeneous"
+	// RuleUnknownUnionWrite: a lens writes an alternative of a disjunction
+	// (a copy into one, a struct literal of one alternative) at a path the
+	// compiler cannot place among the members of the compiled unions, such
+	// as beneath a union in the source.
+	RuleUnknownUnionWrite Rule = "unknown-union-write"
 )
 
 // Finding is one verdict at one path of one schema version, or of one lens.
@@ -236,11 +241,11 @@ func (cp *compiler) add(v thema.SyntacticVersion, p cue.Path, verdict Verdict, r
 
 // addLens records a finding about a lens: at its target version, with the
 // result path the finding is about, positioned at the lens.
-func (cp *compiler) addLens(edge lensir.Edge, to lensir.Path, rule Rule, detail string) {
+func (cp *compiler) addLens(edge lensir.Edge, to lensir.Path, verdict Verdict, rule Rule, detail string) {
 	pos := authorPos(cp.lin.Underlying().LookupPath(cue.MakePath(cue.Str("lenses"), cue.Str(edge.String()))))
 	cp.findings = append(cp.findings, Finding{
 		Version: thema.SyntacticVersion(edge.To), Lens: edge.String(), Path: cuePathOf(to),
-		Verdict: Rejected, Rule: rule, Detail: detail, Pos: pos,
+		Verdict: verdict, Rule: rule, Detail: detail, Pos: pos,
 	})
 }
 

@@ -243,8 +243,8 @@ checks
   1.0 OpsV1.either: (type(x) == bool)
   1.0 OpsV1.fits: (type(x) == bool)
 -- out/capnp/artifact --
-sha256 0a2834fb785dd128b67779cc255a21faf516e7364b1f8f7352af9a0a174ef49a
-16240 bytes
+sha256 aca3a8d780be506d93a819786c513dca0c72a4312b4c5729cb17f0a413e59cee
+16472 bytes
 -- out/capnp/layout --
 struct OpsV0 @0xfadb30d3473861a3: data=2 ptrs=3
   extras @0: data off=0

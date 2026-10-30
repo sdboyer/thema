@@ -24,6 +24,7 @@ var Codes = map[Rule]diag.Code{
 
 	RuleUnknownPatternLabels:     diag.E0730,
 	RuleUnknownListHeterogeneous: diag.E0731,
+	RuleUnknownUnionWrite:        diag.E0732,
 }
 
 // ruleText is what each rule's diagnostic says beyond the finding: the
@@ -43,6 +44,7 @@ var ruleText = map[Rule]struct {
 	RuleExtrasCheckUnrenderable:    {"%s has a constraint the compiled artifact cannot check on data from an earlier version", "constrain the field with types, bounds, regular expressions and constants"},
 	RuleUnknownPatternLabels:       {"%s has pattern constraints the Cap'n Proto compiler does not carry", "declare the fields, or move the map to a field of its own"},
 	RuleUnknownListHeterogeneous:   {"%s is a closed list whose elements have no one Cap'n Proto type", "use a struct: Cap'n Proto has no tuple"},
+	RuleUnknownUnionWrite:          {"%s writes an alternative the Cap'n Proto compiler cannot place in a union", "write the disjunction's field from a source field that is not beneath another disjunction"},
 }
 
 // Vocabulary sets the vocabulary diagnostics name the lineage's constructs

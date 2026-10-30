@@ -37,6 +37,10 @@ type vtype struct {
 	enum []string
 	// union holds a discriminated disjunction's alternatives.
 	union []vmember
+	// alts maps each alternative of the disjunction, numbered as
+	// compat.Branches lists them (as a lens program numbers them, see
+	// lensir.Alt), to the member of union that holds it.
+	alts []int
 }
 
 // A vstruct is one version's view of a struct.
@@ -359,9 +363,10 @@ func (w *walker) disjunction(v cue.Value, brs []cue.Value, p cue.Path) *vtype {
 	type group struct {
 		kind cue.Kind
 		brs  []cue.Value
+		idx  []int
 	}
 	var groups []*group
-	for _, b := range brs {
+	for bi, b := range brs {
 		k := b.IncompleteKind()
 		if k == cue.TopKind {
 			w.add(p, Rejected, RuleTop, fmt.Sprintf("is %s, whose alternative _ has no type", fmtv(v)), posOf(v))
@@ -387,14 +392,19 @@ func (w *walker) disjunction(v cue.Value, brs []cue.Value, p cue.Path) *vtype {
 			groups = append(groups, g)
 		}
 		g.brs = append(g.brs, b)
+		g.idx = append(g.idx, bi)
 	}
 
 	var members []vmember
+	alts := make([]int, len(brs))
 	for _, g := range groups {
 		if g.kind == cue.StructKind && len(g.brs) > 1 {
 			tags, ok := w.tags(v, g.brs, p)
 			if !ok {
 				return bad
+			}
+			for j, bi := range g.idx {
+				alts[bi] = len(members) + j
 			}
 			members = append(members, tags...)
 			continue
@@ -410,6 +420,9 @@ func (w *walker) disjunction(v cue.Value, brs []cue.Value, p cue.Path) *vtype {
 		if g.kind == cue.NullKind {
 			m.typ = nil
 		}
+		for _, bi := range g.idx {
+			alts[bi] = len(members)
+		}
 		members = append(members, m)
 	}
 	names := newScope()
@@ -420,7 +433,7 @@ func (w *walker) disjunction(v cue.Value, brs []cue.Value, p cue.Path) *vtype {
 			return bad
 		}
 	}
-	return &vtype{union: members}
+	return &vtype{union: members, alts: alts}
 }
 
 // memberWhat says which alternative a union member holds, for a collision.

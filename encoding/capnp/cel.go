@@ -122,7 +122,7 @@ func (cp *compiler) newRenderer(edge lensir.Edge, to lensir.Path) *renderer {
 func (r *renderer) fail(detail string) string {
 	if !r.failed {
 		r.failed = true
-		r.cp.addLens(r.edge, r.to, RuleCELUnrenderable, detail)
+		r.cp.addLens(r.edge, r.to, Rejected, RuleCELUnrenderable, detail)
 	}
 	return "/* unrenderable */"
 }

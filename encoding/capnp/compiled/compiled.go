@@ -78,6 +78,28 @@ type Edge struct {
 	// Computed node's expression, and each lacuna's condition, message and
 	// field values. Ordered as the program declares them.
 	CEL []CEL
+	// Unions lowers each write of the program that names an alternative of a
+	// disjunction (a Copy's Alts, a Wrap's Alt) to the members of the
+	// compiled unions, in the order the writes appear.
+	Unions []UnionWrite
+}
+
+// A UnionWrite is one Copy or Wrap of a program whose IR names alternatives
+// of a disjunction, lowered to the members of the unions that hold them: a
+// copy becomes one copy per source member, setting the target member its
+// alternative lands in; a wrap sets one target member.
+type UnionWrite struct {
+	// Node is the copy or wrap, numbered as [CEL].Node: its index in a
+	// pre-order walk of the program's result.
+	Node int
+	// Source holds, for each of a copy's Alts in order, the ordinal of the
+	// member of the source field's union that holds the alternative copied
+	// from. nil where the source is not a union, and for a wrap.
+	Source []uint16
+	// Target holds, for each of a copy's Alts in order, the ordinal of the
+	// member of the target field's union to set; for a wrap, the one member
+	// it writes.
+	Target []uint16
 }
 
 // CELRole says which expression of a program a CEL rendering is of.

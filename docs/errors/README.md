@@ -193,6 +193,7 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0717](E0717.md) | error | a field a version adds has a constraint the compiled artifact cannot check on earlier data |
 | [E0730](E0730.md) | error | a struct in a schema has pattern constraints the Cap'n Proto compiler does not carry |
 | [E0731](E0731.md) | error | a closed list in a schema has elements with no one Cap'n Proto type |
+| [E0732](E0732.md) | error | a lens writes an alternative of a disjunction the Cap'n Proto compiler cannot place in a union |
 | [E0801](E0801.md) | error | the playground request is malformed |
 | [E0802](E0802.md) | error | the playground request gives the lineage in neither form, or in both |
 | [E0803](E0803.md) | error | a version in the playground request is not a version |

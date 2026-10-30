@@ -1798,5 +1798,5 @@ checks
   1.0 BasicMultiversionV1.renamed: (type(x) == string)
   2.0 BasicMultiversionV2.toObj: ((type(x) == map) && (("init" in x) && (type(x["init"]) == string)) && (x.all(k1, k1 in ["init"])))
 -- out/encoding/capnp/artifact --
-sha256 a5e3298554bfe93842cee5c1c5608f05fa58247f97fb6ad5ac484ff0689ad6c2
-15080 bytes
+sha256 7cf6d60022ebba7d5da89c4d26b6e0a56e46ebec409b0bf96343d54420250701
+15544 bytes

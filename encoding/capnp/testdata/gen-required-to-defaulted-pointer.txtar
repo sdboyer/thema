@@ -49,8 +49,8 @@ edge 0.1 -> 0.0
     out.t <- in.t
   }
 -- out/capnp/artifact --
-sha256 c73cabc26c2fcdf858aa92fba31e40f09c68517c76e8f9fa9259fd52bab47b3f
-2160 bytes
+sha256 7ed17d09c820f94106851ea0dce409aa738fa1b17cb62f7ebf9773965f37276e
+2200 bytes
 -- out/capnp/layout --
 struct RequiredToDefaultedPointerV0 @0xd8c40829f7e1304b: data=0 ptrs=4
   extras @0: data off=0

@@ -104,7 +104,8 @@ func roundTrip(t testing.TB, c *Compiled) string {
 
 // describePrograms renders the edges and checks of a compilation: each
 // edge's program as lensir prints it, then the CEL rendering of each of its
-// expressions with the variables it reads, then the extras checks.
+// expressions with the variables it reads, then its writes into unions by
+// member ordinal, then the extras checks.
 func describePrograms(c *Compiled) string {
 	var b strings.Builder
 	for _, e := range c.Edges {
@@ -128,6 +129,9 @@ func describePrograms(c *Compiled) string {
 			for _, v := range x.Vars {
 				fmt.Fprintf(&b, "    %s = %s %s :%s\n", v.Name, v.Role, v.Path, v.Type)
 			}
+		}
+		for _, u := range e.Unions {
+			fmt.Fprintf(&b, "  union #%d: source members %v, target members %v\n", u.Node, u.Source, u.Target)
 		}
 	}
 	if len(c.Checks) > 0 {

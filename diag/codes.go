@@ -224,6 +224,7 @@ var Codes = []CodeInfo{
 	{Code: E0717, Severity: SeverityError, Title: "a field a version adds has a constraint the compiled artifact cannot check on earlier data"},
 	{Code: E0730, Severity: SeverityError, Title: "a struct in a schema has pattern constraints the Cap'n Proto compiler does not carry"},
 	{Code: E0731, Severity: SeverityError, Title: "a closed list in a schema has elements with no one Cap'n Proto type"},
+	{Code: E0732, Severity: SeverityError, Title: "a lens writes an alternative of a disjunction the Cap'n Proto compiler cannot place in a union"},
 	{Code: E0801, Severity: SeverityError, Title: "the playground request is malformed", Positionless: true},
 	{Code: E0802, Severity: SeverityError, Title: "the playground request gives the lineage in neither form, or in both", Positionless: true},
 	{Code: E0803, Severity: SeverityError, Title: "a version in the playground request is not a version", Positionless: true},
@@ -448,6 +449,7 @@ const (
 	// E073x: what the Cap'n Proto compiler does not carry yet (unknown).
 	E0730 Code = "E0730" // capnp unknown-pattern-labels
 	E0731 Code = "E0731" // capnp unknown-list-heterogeneous
+	E0732 Code = "E0732" // capnp unknown-union-write
 
 	// E08xx: the playground's requests.
 	E0801 Code = "E0801" // request JSON malformed, or no such operation

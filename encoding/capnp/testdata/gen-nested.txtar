@@ -159,8 +159,8 @@ checks
   0.1 NestedV0.Inner.c: (type(x) == string)
   0.3 NestedV0M2.Inner.d: (type(x) == string)
 -- out/capnp/artifact --
-sha256 ea5b24da68018613527c0940c331a3e9491fb262c78bf5ab29f7be338c8fd32f
-8592 bytes
+sha256 75de77217718404c4110a2b6d8ea6e8042cb50969eec113b6983cfd6723408cb
+8792 bytes
 -- out/capnp/layout --
 struct NestedV0 @0xc2ff6bbcf9df5063: data=0 ptrs=4
   extras @0: data off=0

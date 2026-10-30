@@ -30,5 +30,5 @@ checks
   1.0 RenameV1.after: (type(x) == string)
 
 -- artifact --
-sha256 6fde86c68e85ec29b7c33638946e81e861669141f64a849e9f1868554cc22c2a
-2336 bytes
+sha256 2e9733be75981f79502e4d12a12fd2caa6c141965830b87076e64b4b706c7455
+2400 bytes
