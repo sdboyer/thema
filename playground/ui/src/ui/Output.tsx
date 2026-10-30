@@ -21,14 +21,19 @@ export type Outcome =
 interface Props {
   outcome: Outcome;
   onOpen: (file: string) => void;
+  // label is how a version reads: the tip's label for the tip's version.
+  label?: (version: string) => string;
 }
 
-export function Output({ outcome, onOpen }: Props) {
+type Label = (version: string) => string;
+const plain: Label = (v) => v;
+
+export function Output({ outcome, onOpen, label = plain }: Props) {
   const { resp } = outcome;
   return (
     <div class="output">
-      <Summary outcome={outcome} />
-      <Body outcome={outcome} />
+      <Summary outcome={outcome} label={label} />
+      <Body outcome={outcome} label={label} />
       {(resp.diagnostics.length > 0 || outcome.op !== "validate-any") && (
         <Diagnostics diagnostics={resp.diagnostics} onOpen={onOpen} empty="" />
       )}
@@ -36,18 +41,18 @@ export function Output({ outcome, onOpen }: Props) {
   );
 }
 
-function Summary({ outcome }: { outcome: Outcome }) {
+function Summary({ outcome, label }: { outcome: Outcome; label: Label }) {
   const { op, resp } = outcome;
   if (!resp.ok) return <p class="status failed">{op} failed</p>;
   switch (op) {
     case "validate":
-      return <p class="status ok">The data is an instance of schema {outcome.resp.version}.</p>;
+      return <p class="status ok">The data is an instance of schema {label(outcome.resp.version ?? "")}.</p>;
     case "validate-any":
-      return <p class="status ok">The newest schema the data is an instance of is {outcome.resp.version}.</p>;
+      return <p class="status ok">The newest schema the data is an instance of is {label(outcome.resp.version ?? "")}.</p>;
     case "translate":
       return (
         <p class="status ok">
-          Translated from {outcome.resp.from} to {outcome.resp.to}
+          Translated from {label(outcome.resp.from ?? "")} to {label(outcome.resp.to ?? "")}
           {lacunaCount(outcome.resp) === 0 ? ", with no lacunas" : lacunaCount(outcome.resp) === 1 ? ", with 1 lacuna" : `, with ${lacunaCount(outcome.resp)} lacunas`}.
         </p>
       );
@@ -55,15 +60,15 @@ function Summary({ outcome }: { outcome: Outcome }) {
     case "dehydrate":
       return (
         <p class="status ok">
-          {outcome.resp.changed ? `${capitalize(op)}d` : "Unchanged"}, against schema {outcome.resp.version}.
+          {outcome.resp.changed ? `${capitalize(op)}d` : "Unchanged"}, against schema {label(outcome.resp.version ?? "")}.
         </p>
       );
     default:
-      return <p class="status ok">Generated from schema {outcome.resp.version}.</p>;
+      return <p class="status ok">Generated from schema {label(outcome.resp.version ?? "")}.</p>;
   }
 }
 
-function Body({ outcome }: { outcome: Outcome }) {
+function Body({ outcome, label }: { outcome: Outcome; label: Label }) {
   switch (outcome.op) {
     case "validate-any":
       return (
@@ -71,7 +76,7 @@ function Body({ outcome }: { outcome: Outcome }) {
           {outcome.resp.perVersion.map((v) => (
             <details key={v.version} open={!outcome.resp.ok}>
               <summary>
-                schema {v.version}: {v.diagnostics.length === 0 ? "accepts the data" : `${v.diagnostics.length} diagnostics`}
+                schema {label(v.version)}: {v.diagnostics.length === 0 ? "accepts the data" : `${v.diagnostics.length} diagnostics`}
               </summary>
               <Diagnostics diagnostics={v.diagnostics} empty="Accepts the data." />
             </details>
@@ -84,7 +89,7 @@ function Body({ outcome }: { outcome: Outcome }) {
       return (
         <>
           <Result text={JSON.stringify(r.output, null, 2)} language="json" label="Translated instance" />
-          <Lacunas resp={r} />
+          <Lacunas resp={r} label={label} />
         </>
       );
     }
@@ -110,7 +115,7 @@ function Result({ text, language, label }: { text: string; language: "json" | "t
   );
 }
 
-function Lacunas({ resp }: { resp: TranslateResponse }) {
+function Lacunas({ resp, label }: { resp: TranslateResponse; label: Label }) {
   const steps = (resp.lacunas ?? []).filter((s) => s.lacunas.length > 0);
   if (steps.length === 0) return null;
   return (
@@ -131,7 +136,7 @@ function Lacunas({ resp }: { resp: TranslateResponse }) {
           s.lacunas.map((l, i) => (
             <tr key={`${s.from}-${s.to}-${i}`}>
               <td>
-                {s.from.join(".")} → {s.to.join(".")}
+                {label(s.from.join("."))} → {label(s.to.join("."))}
               </td>
               <td>
                 {l.type}

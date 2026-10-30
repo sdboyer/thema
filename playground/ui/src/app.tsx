@@ -13,6 +13,7 @@ import {
   lineageInput,
   shareWarnBytes,
 } from "./state/session";
+import { bindSummary, byKind, isHistory, tipFile, versionLabel } from "./state/tip";
 import { Tour } from "./tour/Tour";
 import { Diagnostics } from "./ui/Diagnostics";
 import { DocLink, hasDoc } from "./ui/docs";
@@ -128,7 +129,7 @@ export function App() {
     } else {
       const r = await thema.call("decompile", { normal: session.normal, path: session.path || undefined });
       if (!r.ok) return showFailure("This lineage cannot be written as version files.", r.diagnostics);
-      update((s) => ({ ...s, form: "authoring", name: r.name ?? s.name, files: r.files ?? [], activeFile: 0 }));
+      update((s) => ({ ...s, form: "authoring", name: r.name ?? s.name, files: byKind(r.files ?? []), activeFile: 0 }));
     }
     setNotice(null);
   };
@@ -143,7 +144,7 @@ export function App() {
   const formatFile = async () => {
     if (!thema || session.form !== "authoring") return;
     const f = session.files[session.activeFile];
-    if (!f) return;
+    if (!f || isHistory(f.path)) return;
     const r = await thema.call("format", { file: f });
     if (!r.ok) return showFailure(`${f.path} cannot be formatted.`, r.diagnostics);
     update((s) => {
@@ -167,6 +168,8 @@ export function App() {
   const bindDiagnostics = bound?.diagnostics ?? [];
   const flagged = useMemo(() => filesOf(bindDiagnostics), [bindDiagnostics]);
   const versions = bound?.versions ?? [];
+  const tip = bound?.tip;
+  const label = (v: string) => versionLabel(v, tip);
   const lineageOK = !!bound?.ok;
 
   // The lineage editor's current file.
@@ -174,6 +177,8 @@ export function App() {
     session.form === "authoring"
       ? session.files[session.activeFile] ?? { path: "", text: "" }
       : session.normal;
+  // A version under history/ is cut: it is shown, never edited.
+  const frozen = session.form === "authoring" && isHistory(lin.path);
   const setLinText = (text: string) =>
     update((s) => {
       if (s.form === "authoring") {
@@ -271,7 +276,7 @@ export function App() {
                   Lineage{" "}
                   <input value={session.name} size={12} onInput={(e) => update((s) => ({ ...s, name: (e.target as HTMLInputElement).value }))} />
                 </label>
-                <button onClick={formatFile} title="Lay out this file in the authoring form's layout">
+                <button onClick={formatFile} disabled={frozen} title={frozen ? "A version under history/ never changes" : "Lay out this file in the authoring form's layout"}>
                   Format
                 </button>
               </>
@@ -287,38 +292,45 @@ export function App() {
               </label>
             )}
             <span class={`bind-status ${lineageOK ? "ok" : "failed"}`}>
-              {bound === null ? "binding…" : lineageOK ? `binds: ${versions.join(", ")}` : `${bindDiagnostics.length} diagnostics`}
+              {bound === null ? "binding…" : lineageOK ? bindSummary(versions, tip) : `${bindDiagnostics.length} diagnostics`}
             </span>
             <DocLink topic="bind" />
           </div>
           {session.form === "authoring" ? (
+            // The files are fixed: the tip is the one an author edits, and the
+            // versions under history/ are cut. Cutting is not the playground's.
             <Tabs
-              label="version files"
+              label="lineage files"
               names={session.files.map((f) => f.path)}
               active={session.activeFile}
               flagged={flagged}
               onSelect={(i) => update((s) => ({ ...s, activeFile: i }))}
-              onAdd={() =>
-                update((s) => {
-                  const path = nextVersionFile(s.files.map((f) => f.path));
-                  s.files = [...s.files, { path, text: "Schema: {\n}\n" }];
-                  s.activeFile = s.files.length - 1;
-                  return s;
-                })
-              }
-              onRename={(i, path) => update((s) => ({ ...s, files: s.files.map((f, j) => (j === i ? { ...f, path } : f)) }))}
-              onRemove={(i) =>
-                update((s) => ({ ...s, files: s.files.filter((_, j) => j !== i), activeFile: Math.max(0, Math.min(s.activeFile, s.files.length - 2)) }))
-              }
+              frozen={isHistory}
+              frozenLabel="history (frozen)"
             />
           ) : (
             <Tabs label="normal form" names={[session.normal.path]} active={0} flagged={flagged} onSelect={() => {}} />
           )}
-          <Editor text={lin.text} language="cue" onChange={setLinText} markers={markersFor(bindDiagnostics, lin.path, lin.text)} label={`Lineage file ${lin.path}`} />
+          {frozen && (
+            <p class="frozen-note" role="note">
+              {lin.path} is frozen: a version under history/ is cut and never changes. Edit {tipFile}
+              {tip ? `, the ${tip.label}` : ""}.
+            </p>
+          )}
+          <div class={`lineage-editor ${frozen ? "frozen" : ""}`}>
+            <Editor
+              text={lin.text}
+              language="cue"
+              onChange={frozen ? undefined : setLinText}
+              readOnly={frozen}
+              markers={markersFor(bindDiagnostics, lin.path, lin.text)}
+              label={`Lineage file ${lin.path}${frozen ? " (frozen)" : ""}`}
+            />
+          </div>
         </section>
 
         <section class="work" aria-label="Operations and results">
-          <OpBar session={session} versions={versions} update={update} onRun={run} running={running} disabled={!lineageOK} />
+          <OpBar session={session} versions={versions} label={label} update={update} onRun={run} running={running} disabled={!lineageOK} />
 
           {usesData && (
             <>
@@ -373,7 +385,7 @@ export function App() {
               ) : (
                 <Diagnostics diagnostics={bindDiagnostics} onOpen={openFile} empty={bound ? "The lineage binds." : "Binding…"} />
               ))}
-            {panel === "result" && (outcome ? <Output outcome={outcome} onOpen={openFile} /> : <p class="muted">Run an operation to see its result.</p>)}
+            {panel === "result" && (outcome ? <Output outcome={outcome} onOpen={openFile} label={label} /> : <p class="muted">Run an operation to see its result.</p>)}
             {panel === "normal" && (
               <div class="result">
                 <Editor text={bound?.normal ?? ""} language="cue" readOnly label="The lineage in the normal form" />
@@ -390,20 +402,21 @@ export function App() {
 interface OpBarProps {
   session: Session;
   versions: string[];
+  label: (version: string) => string;
   update: (f: (s: Session) => Session) => void;
   onRun: () => void;
   running: boolean;
   disabled: boolean;
 }
 
-function OpBar({ session, versions, update, onRun, running, disabled }: OpBarProps) {
+function OpBar({ session, versions, label, update, onRun, running, disabled }: OpBarProps) {
   const setArg = (k: keyof Session["args"], v: string) => update((s) => ({ ...s, args: { ...s.args, [k]: v } }));
   const versionSelect = (k: "version" | "from" | "to", none: string) => (
     <select value={session.args[k]} onChange={(e) => setArg(k, (e.target as HTMLSelectElement).value)} aria-label={k}>
       <option value="">{none}</option>
       {versions.map((v) => (
         <option key={v} value={v}>
-          {v}
+          {label(v)}
         </option>
       ))}
     </select>
@@ -456,29 +469,14 @@ function fromExample(s: Session, ex: GetExampleResponse): Session {
   const l = ex.lineage;
   const next: Session = { ...s, data: ex.data.length > 0 ? ex.data : [{ filename: "data.json", text: "{}\n" }], activeData: 0, activeFile: 0 };
   if (l.files && l.files.length > 0) {
-    // The newest version file first: it is the one an author edits.
-    const files = [...l.files].sort((a, b) => (a.path.startsWith("history/") ? 1 : 0) - (b.path.startsWith("history/") ? 1 : 0));
-    return { ...next, form: "authoring", name: l.name ?? "lineage", files };
+    // The tip first: it is the one an author edits.
+    return { ...next, form: "authoring", name: l.name ?? "lineage", files: byKind(l.files) };
   }
   return { ...next, form: "normal", normal: l.normal ?? s.normal, path: l.path ?? "" };
 }
 
 function dataLanguage(filename: string): Language {
   return /\.ya?ml$/.test(filename) ? "yaml" : "json";
-}
-
-// nextVersionFile names a new version file after the latest one: the next
-// minor version.
-function nextVersionFile(paths: string[]): string {
-  let major = 0;
-  let minor = -1;
-  for (const p of paths) {
-    const m = /(\d+)\.(\d+)\.thema$/.exec(p);
-    if (!m) continue;
-    const [a, b] = [Number(m[1]), Number(m[2])];
-    if (a > major || (a === major && b > minor)) [major, minor] = [a, b];
-  }
-  return `${major}.${minor + 1}.thema`;
 }
 
 function nextDataFile(names: string[]): string {

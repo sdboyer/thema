@@ -29,9 +29,12 @@ func (s *Session) Bind(req BindRequest) BindResponse {
 	if e.err != nil {
 		return BindResponse{Result: failed(e.err), Normal: e.normal}
 	}
-	resp := BindResponse{Result: ok(), Name: e.lin.Name(), Normal: e.normal}
+	resp := BindResponse{Result: failed(e.pending), Name: e.lin.Name(), Normal: e.normal}
 	for _, sch := range e.lin.All() {
 		resp.Versions = append(resp.Versions, sch.Version().String())
+	}
+	if e.tip != nil {
+		resp.Tip = &TipInfo{Version: e.tip.Version.String(), Clean: e.tip.Clean, Provisional: !e.tip.Clean, Label: e.tip.String()}
 	}
 	return resp
 }
@@ -60,16 +63,17 @@ func (s *Session) bind(in LineageInput) cached {
 		Help("send the authoring form's files, or one normal-form file").Err()}
 }
 
-// bindAuthoring compiles and binds a lineage in the authoring form. Its
-// normal form is reported even when binding fails, since that is often what
-// the author needs to see.
+// bindAuthoring compiles and binds a lineage in the authoring form with its
+// tip, on the development path: the tip is what the author edits. Its normal
+// form is reported even when binding fails, since that is often what the
+// author needs to see.
 func (s *Session) bindAuthoring(name string, files []File) cached {
 	if name == "" {
 		return cached{err: diag.New(diag.E0802).Headline("the authoring form's lineage has no name").
 			Help("a lineage in the authoring form is named by its directory; send its name").Err()}
 	}
 	ctx := s.rt.Context()
-	c, err := authoring.Compile(ctx, name, authoringFiles(files))
+	c, err := authoring.CompileDevelopment(ctx, name, authoringFiles(files))
 	if err != nil {
 		return cached{err: err}
 	}
@@ -77,13 +81,8 @@ func (s *Session) bindAuthoring(name string, files []File) cached {
 	if err != nil {
 		return cached{err: diag.InternalErr(err)}
 	}
-	vocab := authoring.Vocabulary(c)
-	v := ctx.BuildFile(c.File)
-	if err = v.Err(); err != nil {
-		return cached{normal: normal, err: diag.Convert(err, diag.Context{Op: diag.OpCompile, Vocabulary: vocab, Generic: diag.E0112})}
-	}
-	lin, err := thema.BindLineage(v, s.rt, thema.WithVocabulary(vocab))
-	return cached{lin: lin, raw: v, normal: normal, err: err}
+	lin, err := authoring.BindDevelopment(s.rt, c)
+	return cached{lin: lin, raw: ctx.BuildFile(c.File), normal: normal, err: err, tip: c.Tip, pending: c.Pending}
 }
 
 func authoringFiles(files []File) []authoring.File {

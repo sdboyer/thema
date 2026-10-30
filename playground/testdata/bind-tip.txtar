@@ -1,0 +1,88 @@
+#op: bind
+A lineage in the authoring form is bound with its tip, which is the newest
+version at the version it cuts as. The tip removes a field without writing a
+ForwardLens, so that lens is missing: the lineage binds, with a warning for
+each lens the tip's edge lacks.
+-- ship/history/0.0.thema --
+Schema: {
+	name: string
+	crew: int
+}
+-- ship/tip.thema --
+Schema: {
+	name: string
+}
+-- out/response.json --
+{
+  "ok": true,
+  "diagnostics": [
+    {
+      "code": "E1001",
+      "severity": "warning",
+      "headline": "tip.thema has no ForwardLens, and one cannot be derived",
+      "primary": {
+        "file": "tip.thema",
+        "line": 1,
+        "col": 1,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "translating from 0.0 to tip needs it; until tip.thema writes it, that translation fails (E1002)"
+        },
+        {
+          "pos": {
+            "file": "tip.thema",
+            "line": 1,
+            "col": 1,
+            "origin": "user"
+          },
+          "label": "0.0 declares crew and tip does not, and nothing maps it: write \u003cfield\u003e: v0_0.crew to move it, or crew: _drop"
+        }
+      ],
+      "help": [
+        "write ForwardLens: {v0_0: _, tip: {...}} in tip.thema"
+      ]
+    },
+    {
+      "code": "E1001",
+      "severity": "warning",
+      "headline": "tip.thema has no BackwardLens, and one cannot be derived",
+      "primary": {
+        "file": "tip.thema",
+        "line": 1,
+        "col": 1,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "translating from tip to 0.0 needs it; until tip.thema writes it, that translation fails (E1002)"
+        },
+        {
+          "pos": {
+            "file": "tip.thema",
+            "line": 1,
+            "col": 1,
+            "origin": "user"
+          },
+          "label": "tip.thema has no BackwardLens, and 0.0 requires crew: write BackwardLens: {tip: _, v0_0: {crew: \u003cmapping\u003e}}"
+        }
+      ],
+      "help": [
+        "write BackwardLens: {tip: _, v0_0: {...}} in tip.thema"
+      ]
+    }
+  ],
+  "name": "ship",
+  "versions": [
+    "0.0",
+    "1.0"
+  ],
+  "normal": "name: \"ship\"\nschemas: {\n\t\"0\": {\n\t\t\"0\": {\n\t\t\tschema: {\n\t\t\t\tname: string\n\t\t\t\tcrew: int\n\t\t\t}\n\t\t}\n\t}\n\t\"1\": {\n\t\t\"0\": {\n\t\t\tschema: {\n\t\t\t\tname: string\n\t\t\t}\n\t\t}\n\t}\n}\nlenses: {}\n",
+  "tip": {
+    "version": "1.0",
+    "clean": false,
+    "provisional": true,
+    "label": "tip (cuts as 1.0)"
+  }
+}

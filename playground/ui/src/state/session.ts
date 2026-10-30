@@ -43,7 +43,8 @@ export function emptySession(): Session {
   return {
     form: "authoring",
     name: "ship",
-    files: [{ path: "0.0.thema", text: "Schema: {\n\tname: string\n}\n" }],
+    // A lineage with no history yet: its tip cuts as 0.0.
+    files: [{ path: "tip.thema", text: "Schema: {\n\tname: string\n}\n" }],
     normal: { path: "lineage.cue", text: 'name: "ship"\nschemas: {\n\t"0": {\n\t\t"0": {\n\t\t\tschema: {\n\t\t\t\tname: string\n\t\t\t}\n\t\t}\n\t}\n}\n' },
     path: "",
     data: [{ filename: "data.json", text: '{\n  "name": "Argo"\n}\n' }],

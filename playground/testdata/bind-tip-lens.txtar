@@ -1,0 +1,54 @@
+#op: translate
+A tip with lenses on its edge, naming its instance tip, translates like any
+version: here back from the tip to 0.0, through its BackwardLens.
+-- request.json --
+{"from": "1.0", "to": "0.0"}
+-- ship/history/0.0.thema --
+Schema: {
+	name: string
+	crew: int
+}
+-- ship/tip.thema --
+Schema: {
+	name: string
+}
+
+ForwardLens: {
+	v0_0: _
+	tip: {
+		crew: _drop
+	}
+}
+
+BackwardLens: {
+	tip: _
+	v0_0: {
+		crew: len(tip.name)
+	}
+}
+-- data.json --
+{"name": "Argo"}
+-- out/response.json --
+{
+  "ok": true,
+  "diagnostics": [],
+  "from": "1.0",
+  "to": "0.0",
+  "output": {
+    "name": "Argo",
+    "crew": 4
+  },
+  "lacunas": [
+    {
+      "from": [
+        1,
+        0
+      ],
+      "to": [
+        0,
+        0
+      ],
+      "lacunas": []
+    }
+  ]
+}

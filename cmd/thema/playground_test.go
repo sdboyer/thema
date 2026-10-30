@@ -24,9 +24,11 @@ func writeExamplesDir(t *testing.T) string {
 	t.Helper()
 	dir := filepath.Join(t.TempDir(), "lineages")
 	files := map[string]string{
-		"pets/cat/0.0.thema":   "Schema: {\n\tlives: int\n}\n",
-		"pets/cat/example.cue": "category: \"Pets\"\nsummary: \"A cat.\"\n",
-		"wip/draft/0.0.thema":  "Schema: {\n\tx: int\n}\n",
+		"pets/cat/history/0.0.thema":  "Schema: {\n\tlives: int\n}\n",
+		"pets/cat/tip.thema":          "Schema: {\n\tlives: int\n}\n",
+		"pets/cat/example.cue":        "category: \"Pets\"\nsummary: \"A cat.\"\n",
+		"wip/draft/history/0.0.thema": "Schema: {\n\tx: int\n}\n",
+		"wip/draft/tip.thema":         "Schema: {\n\tx: int\n}\n",
 	}
 	for name, text := range files {
 		p := filepath.Join(dir, filepath.FromSlash(name))

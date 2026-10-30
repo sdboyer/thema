@@ -62,8 +62,12 @@ lenses: {
       "text": "Schema: {\n\tname: string\n}\n"
     },
     {
-      "path": "1.0.thema",
+      "path": "history/1.0.thema",
       "text": "Schema: {\n\tname: string\n\tcrew: int\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {\n\t\tcrew: 1\n\t}\n\tlacunas: {\n\t\tcrew: [{\n\t\t\ttype:    Placeholder\n\t\t\tmessage: \"crew is a placeholder\"\n\t\t}]\n\t}\n}\n"
+    },
+    {
+      "path": "tip.thema",
+      "text": "Schema: {\n\tname: string\n\tcrew: int\n}\n"
     }
   ]
 }

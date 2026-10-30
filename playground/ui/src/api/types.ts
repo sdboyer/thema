@@ -10,9 +10,9 @@
 // source: types.go
 
 /**
- * File is one named text: a version file of the authoring form, relative to
- * the lineage's directory (1.0.thema, history/0.0.thema), or a normal-form
- * .cue file.
+ * File is one named text: a file of the authoring form, relative to the
+ * lineage's directory (tip.thema, history/0.0.thema), or a normal-form .cue
+ * file.
  */
 export interface File {
   path: string;
@@ -82,11 +82,43 @@ export interface BindRequest {
 /**
  * BindResponse is a bound lineage: its name, its versions in order, and its
  * normal form as text (for the authoring form, what the files compile to).
+ * The playground binds a lineage in the authoring form with its tip, on the
+ * development path: the tip is the file being edited, and binding the
+ * history alone would ignore every edit. Tip describes it, and the
+ * diagnostics carry a warning (E1001) for each lens the tip's edge lacks.
  */
 export interface BindResponse extends Result {
   name?: string;
   versions?: string[];
   normal?: string;
+  tip?: TipInfo;
+}
+/**
+ * TipInfo describes the tip of a lineage in the authoring form.
+ */
+export interface TipInfo {
+  /**
+   * Version is the version the tip cuts as, derived by the compatibility
+   * check against the newest version under history/; when the tip is
+   * clean, the newest version, which it equals.
+   */
+  version: string;
+  /**
+   * Clean says whether the tip equals the newest version under history/,
+   * with no lenses: there is nothing to cut.
+   */
+  clean: boolean;
+  /**
+   * Provisional says whether the lineage's versions end with the tip's:
+   * it is not clean, and an instance of that version is an instance of the
+   * tip, not of a version that was cut.
+   */
+  provisional: boolean;
+  /**
+   * Label is the tip as tools show it: "tip (cuts as 2.1)", or "tip
+   * (clean at 2.0)".
+   */
+  label: string;
 }
 /**
  * ValidateRequest validates a data document against one schema. An empty
@@ -184,7 +216,8 @@ export interface CodegenResponse extends Result {
   output?: string;
 }
 /**
- * CompileRequest compiles authoring files to the normal form.
+ * CompileRequest compiles authoring files to the normal form, with the tip,
+ * as the playground binds them.
  */
 export interface CompileRequest {
   name: string;
@@ -204,14 +237,15 @@ export interface DecompileRequest {
   path?: string;
 }
 /**
- * DecompileResponse is the lineage's name and its version files.
+ * DecompileResponse is the lineage's name and its files: its versions under
+ * history/, and a clean tip.
  */
 export interface DecompileResponse extends Result {
   name?: string;
   files?: File[];
 }
 /**
- * FormatRequest lays out one version file in the authoring form's layout.
+ * FormatRequest lays out one file of the authoring form in its layout.
  */
 export interface FormatRequest {
   file: File;

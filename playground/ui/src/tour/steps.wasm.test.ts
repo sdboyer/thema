@@ -5,7 +5,8 @@ import { beforeAll, describe, expect, it } from "vitest";
 import type { Thema } from "../api/client";
 import type { DataInput, File, LineageInput } from "../api/types";
 import { haveThema, realThema } from "../test/realThema";
-import { type Step, data, lensLine, minorDefault, minorFile, steps } from "./steps";
+import { bindSummary } from "../state/tip";
+import { type Step, data, lensFix, majorLens, minorDefault, minorFile, steps } from "./steps";
 
 const step = (id: string): Step => {
   const s = steps.find((x) => x.id === id);
@@ -29,7 +30,10 @@ describe.skipIf(!haveThema())("the tour, against thema", () => {
     expect(text).toContain(what);
     return text.replace(what, "");
   };
-  const withMinor = () => [...ship, { path: "1.1.thema", text: minorFile }];
+  const withMinor = () => edit(ship, "tip.thema", () => minorFile);
+  const withMajor = () => edit(withMinor(), "tip.thema", (s) => remove(s, minorDefault));
+  const withLens = (lens: string) => edit(withMajor(), "tip.thema", (s) => s + lens);
+  const summary = (b: { versions?: string[]; tip?: Parameters<typeof bindSummary>[1] }) => bindSummary(b.versions ?? [], b.tip);
 
   beforeAll(async () => {
     t = await realThema();
@@ -40,10 +44,12 @@ describe.skipIf(!haveThema())("the tour, against thema", () => {
     ship = (await t.call("example", { id: ex!.id })).lineage.files!;
   }, 60000);
 
-  it("starts from a lineage that binds 0.0 and 1.0", async () => {
+  it("starts from a lineage that binds 0.0 and 1.0, with a clean tip", async () => {
+    expect(ship.map((f) => f.path).sort()).toEqual(["history/0.0.thema", "history/1.0.thema", "tip.thema"]);
     const b = await t.call("bind", { lineage: lineage(ship) });
     expect(b.versions).toEqual(["0.0", "1.0"]);
-    expect(step("lineage").see).toContain("binds: 0.0, 1.0");
+    expect(b.tip!.clean).toBe(true);
+    expect(step("lineage").see).toContain(summary(b));
   });
 
   it("validates", async () => {
@@ -70,23 +76,12 @@ describe.skipIf(!haveThema())("the tour, against thema", () => {
     expect(r.lacunas!.flatMap((s) => s.lacunas.map((l) => l.type))).toEqual(["DroppedField"]);
   });
 
-  it("refuses the lens without its line", async () => {
-    const files = edit(ship, "1.0.thema", (s) => remove(s, `${lensLine}\n`));
-    const b = await t.call("bind", { lineage: lineage(files) });
-    expect(b.ok).toBe(false);
-    expect(codes(b)[0]).toBe(named(step("lens-check"))[0]);
-  });
-
-  it("binds the minor version", async () => {
+  it("binds the tip as a minor version", async () => {
     const b = await t.call("bind", { lineage: lineage(withMinor()) });
+    expect(b.ok).toBe(true);
     expect(b.versions).toEqual(["0.0", "1.0", "1.1"]);
-    expect(step("minor").see).toContain(`binds: ${b.versions!.join(", ")}`);
-  });
-
-  it("refuses the minor version without its default", async () => {
-    const files = edit(withMinor(), "1.1.thema", (s) => remove(s, minorDefault));
-    const b = await t.call("bind", { lineage: lineage(files) });
-    expect(codes(b)).toEqual(named(step("compat-check")));
+    expect(b.tip!.provisional).toBe(true);
+    expect(step("minor").see).toContain(summary(b));
   });
 
   it("hydrates and dehydrates", async () => {
@@ -110,9 +105,28 @@ describe.skipIf(!haveThema())("the tour, against thema", () => {
     expect(r.output).toBe(step("codegen").result);
   });
 
+  it("binds the tip without its default as a major version, warning of its missing lens", async () => {
+    const b = await t.call("bind", { lineage: lineage(withMajor()) });
+    expect(b.ok).toBe(true);
+    expect(step("major").see).toContain(summary(b));
+    expect(codes(b)).toEqual(named(step("major")));
+    expect(b.diagnostics.map((d) => d.severity)).toEqual(["warning"]);
+    const r = await t.call("translate", { lineage: lineage(withMajor()), data: doc(data.v1), from: "1.0", to: "2.0" });
+    expect(r.ok).toBe(false);
+  });
+
+  it("checks the tip's lens, and binds it once it writes size", async () => {
+    const empty = await t.call("bind", { lineage: lineage(withLens(majorLens)) });
+    expect(empty.ok).toBe(false);
+    expect(codes(empty)[0]).toBe(named(step("lens-check"))[0]);
+    const fixed = await t.call("bind", { lineage: lineage(withLens(majorLens.replace("tip: {}", `tip: {${lensFix}}`))) });
+    expect(fixed.diagnostics).toEqual([]);
+    expect(summary(fixed)).toBe("binds: 0.0, 1.0, tip (cuts as 2.0)");
+  });
+
   it("compiles to a normal form with the implied lenses written out", async () => {
-    const r = await t.call("compile", { name: "ship", files: withMinor() });
-    expect(r.normal).toContain('"1.1->1.0"');
+    const r = await t.call("compile", { name: "ship", files: withLens(majorLens.replace("tip: {}", `tip: {${lensFix}}`)) });
+    expect(r.normal).toContain('"2.0->1.0"');
     expect(r.normal).toContain("@thema(derived)");
   });
 

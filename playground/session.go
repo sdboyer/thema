@@ -35,6 +35,7 @@ import (
 	"cuelang.org/go/cue/cuecontext"
 
 	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/authoring"
 	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/internal/util"
 )
@@ -261,6 +262,10 @@ type cached struct {
 	raw    cue.Value
 	normal string
 	err    error
+	// tip is the tip of a lineage in the authoring form, and pending the
+	// warnings its development bind tolerated.
+	tip     *authoring.Tip
+	pending error
 }
 
 func newLineageCache(size int) *lineageCache {

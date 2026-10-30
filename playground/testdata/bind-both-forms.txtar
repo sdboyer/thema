@@ -2,7 +2,7 @@
 #raw: true
 A lineage is given in exactly one form.
 -- request.json --
-{"lineage": {"name": "ship", "files": [{"path": "0.0.thema", "text": "Schema: {\n\ta: int\n}\n"}], "normal": {"path": "lineage.cue", "text": "name: \"ship\"\n"}}}
+{"lineage": {"name": "ship", "files": [{"path": "history/0.0.thema", "text": "Schema: {\n\ta: int\n}\n"}, {"path": "tip.thema", "text": "Schema: {\n\ta: int\n}\n"}], "normal": {"path": "lineage.cue", "text": "name: \"ship\"\n"}}}
 -- out/response.json --
 {
   "ok": false,
