@@ -77,8 +77,12 @@ func (f Finding) diagnostic(vocab diag.Vocabulary) *diag.Error {
 	} else {
 		b.At(f.Pos)
 	}
+	help := text.help
+	if f.Help != "" {
+		help = f.Help
+	}
 	return b.Notef(token.NoPos, "%s %s (Cap'n Proto rule %s)", term, diag.RewriteFor(vocab, addr, f.Detail), f.Rule).
-		Help(text.help).
+		Help(help).
 		Err()
 }
 

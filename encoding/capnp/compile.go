@@ -139,6 +139,9 @@ type Finding struct {
 	Detail  string
 	// Pos is the author's position for the finding: the value at Path.
 	Pos token.Pos
+	// Help says what to do where the rule's own advice does not fit the
+	// finding; empty for the rule's.
+	Help string
 }
 
 func (f Finding) String() string {

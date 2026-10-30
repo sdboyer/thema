@@ -5,8 +5,10 @@
 # a field whose nested type's name another field's derives (kindKA beside
 # kind with an alternative tagged k: "a", whose struct is KindKA).
 # Alternatives are in rule-name-collision-alternatives.
-# A label whose name is the reserved extras is renamed instead (extras2): it
-# collides with the compiler's field, not the author's.
+# A label whose name is the reserved extras, the field every struct holds for
+# undeclared data, is reported too (extras, and in.Ex_tras, which sanitizes
+# to extras): renaming it would leave a reader no way to tell it is the
+# author's.
 -- in.cue --
 import "github.com/sdboyer/thema"
 
@@ -19,10 +21,13 @@ schemas: "0": "0": schema: {
 	kind: {k: "a", n: int8} | {k: "b", s: string}
 	kindKA: {x: string}
 	extras: string
+	in: {Ex_tras: string}
 }
 lenses: {}
 -- out/capnp --
 rejected
 schema 0.0: ab collides: the label "a_b" and the label "ab" are both named ab in Cap'n Proto, which drops underscores and joins words in camel case; the names in one struct must differ (rule name-collision) @ /in.cue:7:2
+schema 0.0: extras collides: the label "extras" is named extras in Cap'n Proto, the name of the field every struct reserves for undeclared data (rule name-collision) @ /in.cue:11:2
+schema 0.0: in.Ex_tras collides: the label "Ex_tras" is named extras in Cap'n Proto, the name of the field every struct reserves for undeclared data (rule name-collision) @ /in.cue:12:7
 schema 0.0: kindKA collides: the type of kind and the type of kindKA are both named KindKA in Cap'n Proto, which drops underscores and joins words in camel case; the names in one struct must differ (rule name-collision) @ /in.cue:10:2
 schema 0.0: values collides: the value "x_y" and the value "xy" are both named xy in Cap'n Proto, which drops underscores and joins words in camel case; the names in one struct must differ (rule name-collision) @ /in.cue:8:2

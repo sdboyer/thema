@@ -2,7 +2,7 @@
 # same; a struct of a lone [string]: T pattern to List(Entry) with key and
 # value; nested structs to nested struct nodes named after the field, each
 # with its extras field; an empty struct to a struct with only extras. Labels
-# are sanitized to capnp names; a label colliding with extras is renamed.
+# are sanitized to capnp names.
 -- in.cue --
 import "github.com/sdboyer/thema"
 
@@ -34,7 +34,6 @@ schemas: "0": "0": schema: {
 	"kebab-case": string
 	"1starts":  string
 	snake_case: string
-	extras:     string
 }
 lenses: {}
 -- out/capnp --
@@ -64,7 +63,6 @@ struct CollectionsV0 @0x8897a4e818553256 {
   kebabCase @18 :Text;
   v1starts @19 :Text;
   snakecase @20 :Text;
-  extras2 @21 :Text;
   struct StructsItem @0xdbf66abcab6e8547 {
     extras @0 :Data;
     a @1 :Text;
@@ -125,7 +123,7 @@ struct CollectionsV0 @0x8897a4e818553256 {
   }
 }
 -- out/capnp/layout --
-struct CollectionsV0 @0x8897a4e818553256: data=0 ptrs=22
+struct CollectionsV0 @0x8897a4e818553256: data=0 ptrs=21
   extras @0: data off=0
   strings @1: List(text) off=1
   ints @2: List(uint8) off=2
@@ -147,7 +145,6 @@ struct CollectionsV0 @0x8897a4e818553256: data=0 ptrs=22
   kebabCase @18: text off=18
   v1starts @19: text off=19
   snakecase @20: text off=20
-  extras2 @21: text off=21
 struct CollectionsV0.Empty @0xe4a1379d75fd6ffc: data=0 ptrs=1
   extras @0: data off=0
 struct CollectionsV0.EmptyElemsItem @0xdf328f818b8a7fd7: data=0 ptrs=1
