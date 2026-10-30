@@ -2,7 +2,7 @@
 
 This is the reference for the authoring form: the files a lineage author writes, and the language lenses are written in. For a guided introduction to lineages, start with the [overview](overview.md) and the [authoring tutorial](authoring.md), which show the normal form that every thema tool consumes. The authoring form compiles to that normal form, and decompiles back from it, without loss. What translation then does with each field of an instance is defined in [translation](translation.md).
 
-Every `thema` command that takes a lineage with `-l` accepts a lineage's directory in this form, `thema lineage fmt -l <dir>` lays out its files in place, and `thema lineage tip -l <dir>` reports the version its tip cuts as. In Go, `load.AuthoringLineage` loads, compiles and binds a directory in one call, and the `authoring` package exposes the pieces: the files, the compiled normal form, the tip, the decompiler and the formatter.
+Every `thema` command that takes a lineage with `-l` accepts a lineage's directory in this form, `thema lineage fmt -l <dir>` lays out its files in place, and `thema lineage tip -l <dir>` reports the version its tip cuts as. In Go, `load.AuthoringLineage` loads, compiles and binds a directory in one call, `load.AuthoringCollection` does the same for a [collection](#collections) of them, and the `authoring` package exposes the pieces: the files, the compiled normal form, the tip, the decompiler and the formatter.
 
 ## Files
 
@@ -69,6 +69,31 @@ BackwardLens: {
 - `BackwardLens` maps instances of this version to the previous one. Every version after the first has one. It is derived from the forward lens unless written, as described under [the backward lens](#the-backward-lens).
 
 Each of the three is written as a block in braces. The file has no package clause. It may import CUE's standard packages for its `Schema`'s constraints, such as `strings.MinRunes(1)` or `time.Format(time.RFC3339)`; it imports nothing else, and only what the `Schema` uses, since a lens calls the `strings` functions without an import. A standard constraint is written alone, `name: strings.MinRunes(1)`, since it already says the value is a string.
+
+## Collections
+
+A collection is a directory of lineages, such as the set of objects one API or one service serves. Each of its immediate subdirectories is a lineage's directory, laid out as above, and named for its lineage:
+
+```
+fleet/
+  ship/
+    tip.thema
+    history/
+      0.0.thema
+      1.0.thema
+  boat/
+    tip.thema
+    history/
+      0.0.thema
+```
+
+- **Flat.** A subdirectory is a lineage when it holds a version file, its `tip.thema` at its top or a frozen version under its `history/`. Any other subdirectory is not part of the collection, and nothing beneath it is read: a lineage two levels down is not in it.
+- **Names are directories.** A lineage's name is its directory's, so two lineages of a collection never share one. The name must still be a valid lineage name (`E0137`).
+- **Other files are left alone.** Files at the top of the collection, such as a README, are not read, and neither are files in a lineage's directory that are not version files, such as the playground's `example.cue`. A version file at the top of the collection makes the directory a lineage's, not a collection's (`E0624`).
+- **Each lineage stands alone.** A lineage is read, compiled and bound on its own, and one that fails does not keep the others from binding. In Go, `load.AuthoringCollection` binds every lineage's history and `load.DevelopmentCollection` binds each with its tip. Both return a `load.Collection`: the lineages that bound, by name, and the error of each that did not, by name, positioned in that lineage's files. The call itself fails only when the directory is not a collection: it does not exist (`E0601`), is not a directory (`E0623`), or is a lineage's directory (`E0624`). `authoring.LoadCollection` reads a collection's files without compiling them.
+- **No links.** A lineage's schemas cannot refer to another lineage of the collection, as they cannot refer to anything outside their own lineage. What a link between lineages would mean, and how it would version, is open ([#40](https://github.com/sdboyer/thema/issues/40)).
+
+`thema playground examples <dir>` reads `<dir>` as a collection, and offers each lineage with an `example.cue` as an example.
 
 ## Lenses
 
