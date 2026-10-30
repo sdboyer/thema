@@ -36,6 +36,12 @@ func TestUndeclaredFields(t *testing.T) {
 		{"recursive definition, undeclared deep", `{#Node: {v: int, next?: #Node}, root: #Node}`, `{root: {v: 1, next: {v: 2, x: 3}}}`, []string{"root.next.x"}},
 		{"conjunction with defaulted disjunction", `_ & (*{a: int} | {b: string})`, `{b: "x"}`, nil},
 		{"conjunction with defaulted disjunction, undeclared", `_ & (*{a: int} | {b: string})`, `{b: "x", z: 1}`, []string{"z"}},
+		// Reached through a reference, a disjunction's alternatives are those
+		// of the value referred to (as a lineage's schema is, at
+		// schemas.x.y.schema).
+		{"reference to defaulted disjunction", `{#H: *{a: int} | {b: string}, w: #H}`, `{w: {b: "x"}}`, nil},
+		{"conjunction with reference to defaulted disjunction", `{_d: *{a: int} | {b: string}, v: _ & _d}`, `{v: {b: "x"}}`, nil},
+		{"conjunction with reference to defaulted disjunction, undeclared", `{_d: *{a: int} | {b: string}, v: _ & _d}`, `{v: {b: "x", z: 1}}`, []string{"v.z"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			var got []string

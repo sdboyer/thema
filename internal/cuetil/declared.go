@@ -84,6 +84,13 @@ func alternatives(sch cue.Value, depth int) []cue.Value {
 		return []cue.Value{sch}
 	}
 	op, args := sch.Expr()
+	if op == cue.SelectorOp {
+		// A reference (x.schema, #D): its alternatives are those of the value
+		// it refers to, which Expr does not look through.
+		if d := cue.Dereference(sch); d != sch {
+			return alternatives(d, depth+1)
+		}
+	}
 	switch op {
 	case cue.OrOp:
 		var out []cue.Value

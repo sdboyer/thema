@@ -315,7 +315,7 @@ lenses: {
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.1-withOptional->0.0.json --
 {"init":"some string","optional":32}
 {"init":"some string"}
-[{"from":[0,1],"to":[0,0],"lacunas":[]}]
+[{"from":[0,1],"to":[0,0],"lacunas":[{"sourceFields":[{"path":"optional","value":32}],"type":"DroppedField","message":"optional set aside: 0.0 does not declare it in the instance, which it does not leave open"}]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.1-withOptional->0.1.json --
 {"init":"some string","optional":32}
 {"init":"some string","optional":32}
@@ -343,11 +343,11 @@ lenses: {
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.2-withoutOptional->0.0.json --
 {"init":"some string","withDefault":"foo"}
 {"init":"some string"}
-[{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
+[{"from":[0,2],"to":[0,1],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"foo"}],"type":"DroppedField","message":"withDefault set aside: 0.1 does not declare it in the instance, which it does not leave open"}]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.2-withoutOptional->0.1.json --
 {"init":"some string","withDefault":"foo"}
 {"init":"some string"}
-[{"from":[0,2],"to":[0,1],"lacunas":[]}]
+[{"from":[0,2],"to":[0,1],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"foo"}],"type":"DroppedField","message":"withDefault set aside: 0.1 does not declare it in the instance, which it does not leave open"}]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.2-withoutOptional->0.2.json --
 {"init":"some string","withDefault":"foo"}
 {"init":"some string","withDefault":"foo"}
@@ -371,11 +371,11 @@ lenses: {
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.2-withOptional->0.0.json --
 {"init":"some string","optional":32,"withDefault":"bar"}
 {"init":"some string"}
-[{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
+[{"from":[0,2],"to":[0,1],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bar"}],"type":"DroppedField","message":"withDefault set aside: 0.1 does not declare it in the instance, which it does not leave open"}]},{"from":[0,1],"to":[0,0],"lacunas":[{"sourceFields":[{"path":"optional","value":32}],"type":"DroppedField","message":"optional set aside: 0.0 does not declare it in the instance, which it does not leave open"}]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.2-withOptional->0.1.json --
 {"init":"some string","optional":32,"withDefault":"bar"}
 {"init":"some string","optional":32}
-[{"from":[0,2],"to":[0,1],"lacunas":[]}]
+[{"from":[0,2],"to":[0,1],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bar"}],"type":"DroppedField","message":"withDefault set aside: 0.1 does not declare it in the instance, which it does not leave open"}]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.2-withOptional->0.2.json --
 {"init":"some string","optional":32,"withDefault":"bar"}
 {"init":"some string","optional":32,"withDefault":"bar"}
@@ -399,11 +399,11 @@ lenses: {
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withoutOptional->0.0.json --
 {"init":"some string","withDefault":"baz"}
 {"init":"some string"}
-[{"from":[0,3],"to":[0,2],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"baz"}],"targetFields":[{"path":"withDefault","value":"foo"}],"type":"LossyFieldMapping","message":"withDefault was \"baz\", which 0.2 does not have; \"foo\", its default, was substituted"}]},{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
+[{"from":[0,3],"to":[0,2],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"baz"}],"targetFields":[{"path":"withDefault","value":"foo"}],"type":"LossyFieldMapping","message":"withDefault was \"baz\", which 0.2 does not have; \"foo\", its default, was substituted"}]},{"from":[0,2],"to":[0,1],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"foo"}],"type":"DroppedField","message":"withDefault set aside: 0.1 does not declare it in the instance, which it does not leave open"}]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withoutOptional->0.1.json --
 {"init":"some string","withDefault":"baz"}
 {"init":"some string"}
-[{"from":[0,3],"to":[0,2],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"baz"}],"targetFields":[{"path":"withDefault","value":"foo"}],"type":"LossyFieldMapping","message":"withDefault was \"baz\", which 0.2 does not have; \"foo\", its default, was substituted"}]},{"from":[0,2],"to":[0,1],"lacunas":[]}]
+[{"from":[0,3],"to":[0,2],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"baz"}],"targetFields":[{"path":"withDefault","value":"foo"}],"type":"LossyFieldMapping","message":"withDefault was \"baz\", which 0.2 does not have; \"foo\", its default, was substituted"}]},{"from":[0,2],"to":[0,1],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"foo"}],"type":"DroppedField","message":"withDefault set aside: 0.1 does not declare it in the instance, which it does not leave open"}]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withoutOptional->0.2.json --
 {"init":"some string","withDefault":"baz"}
 {"init":"some string","withDefault":"foo"}
@@ -427,11 +427,11 @@ lenses: {
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withOptional->0.0.json --
 {"init":"some string","optional":32,"withDefault":"baz"}
 {"init":"some string"}
-[{"from":[0,3],"to":[0,2],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"baz"}],"targetFields":[{"path":"withDefault","value":"foo"}],"type":"LossyFieldMapping","message":"withDefault was \"baz\", which 0.2 does not have; \"foo\", its default, was substituted"}]},{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
+[{"from":[0,3],"to":[0,2],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"baz"}],"targetFields":[{"path":"withDefault","value":"foo"}],"type":"LossyFieldMapping","message":"withDefault was \"baz\", which 0.2 does not have; \"foo\", its default, was substituted"}]},{"from":[0,2],"to":[0,1],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"foo"}],"type":"DroppedField","message":"withDefault set aside: 0.1 does not declare it in the instance, which it does not leave open"}]},{"from":[0,1],"to":[0,0],"lacunas":[{"sourceFields":[{"path":"optional","value":32}],"type":"DroppedField","message":"optional set aside: 0.0 does not declare it in the instance, which it does not leave open"}]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withOptional->0.1.json --
 {"init":"some string","optional":32,"withDefault":"baz"}
 {"init":"some string","optional":32}
-[{"from":[0,3],"to":[0,2],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"baz"}],"targetFields":[{"path":"withDefault","value":"foo"}],"type":"LossyFieldMapping","message":"withDefault was \"baz\", which 0.2 does not have; \"foo\", its default, was substituted"}]},{"from":[0,2],"to":[0,1],"lacunas":[]}]
+[{"from":[0,3],"to":[0,2],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"baz"}],"targetFields":[{"path":"withDefault","value":"foo"}],"type":"LossyFieldMapping","message":"withDefault was \"baz\", which 0.2 does not have; \"foo\", its default, was substituted"}]},{"from":[0,2],"to":[0,1],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"foo"}],"type":"DroppedField","message":"withDefault set aside: 0.1 does not declare it in the instance, which it does not leave open"}]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-0.3-withOptional->0.2.json --
 {"init":"some string","optional":32,"withDefault":"baz"}
 {"init":"some string","optional":32,"withDefault":"foo"}
@@ -452,42 +452,14 @@ lenses: {
 {"init":"some string","optional":32,"withDefault":"baz"}
 {"toObj":{"init":"some string"},"optional":32,"withDefault":"baz"}
 [{"from":[0,3],"to":[1,0],"lacunas":[]},{"from":[1,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[2,0],"lacunas":[]}]
--- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->0.0.json --
-{"renamed":"some string","optional":32,"withDefault":"bar"}
-{"init":"some string"}
-[{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
--- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->0.1.json --
-{"renamed":"some string","optional":32,"withDefault":"bar"}
-{"init":"some string","optional":32}
-[{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]}]
--- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->0.2.json --
-{"renamed":"some string","optional":32,"withDefault":"bar"}
-{"init":"some string","optional":32,"withDefault":"bar"}
-[{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]}]
--- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->0.3.json --
-{"renamed":"some string","optional":32,"withDefault":"bar"}
-{"init":"some string","optional":32,"withDefault":"bar"}
-[{"from":[1,0],"to":[0,3],"lacunas":[]}]
--- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->1.0.json --
-{"renamed":"some string","optional":32,"withDefault":"bar"}
-{"renamed":"some string","optional":32,"withDefault":"bar"}
-[]
--- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->1.1.json --
-{"renamed":"some string","optional":32,"withDefault":"bar"}
-{"renamed":"some string","optional":32,"withDefault":"bar"}
-[{"from":[1,0],"to":[1,1],"lacunas":[]}]
--- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->2.0.json --
-{"renamed":"some string","optional":32,"withDefault":"bar"}
-{"toObj":{"init":"some string"},"optional":32,"withDefault":"bar"}
-[{"from":[1,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[2,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withoutOptional->0.0.json --
 {"renamed":"some string","withDefault":"foo"}
 {"init":"some string"}
-[{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
+[{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"foo"}],"type":"DroppedField","message":"withDefault set aside: 0.1 does not declare it in the instance, which it does not leave open"}]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withoutOptional->0.1.json --
 {"renamed":"some string","withDefault":"foo"}
 {"init":"some string"}
-[{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]}]
+[{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"foo"}],"type":"DroppedField","message":"withDefault set aside: 0.1 does not declare it in the instance, which it does not leave open"}]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withoutOptional->0.2.json --
 {"renamed":"some string","withDefault":"foo"}
 {"init":"some string","withDefault":"foo"}
@@ -508,14 +480,42 @@ lenses: {
 {"renamed":"some string","withDefault":"foo"}
 {"toObj":{"init":"some string"},"withDefault":"foo"}
 [{"from":[1,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[2,0],"lacunas":[]}]
+-- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->0.0.json --
+{"renamed":"some string","optional":32,"withDefault":"bar"}
+{"init":"some string"}
+[{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bar"}],"type":"DroppedField","message":"withDefault set aside: 0.1 does not declare it in the instance, which it does not leave open"}]},{"from":[0,1],"to":[0,0],"lacunas":[{"sourceFields":[{"path":"optional","value":32}],"type":"DroppedField","message":"optional set aside: 0.0 does not declare it in the instance, which it does not leave open"}]}]
+-- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->0.1.json --
+{"renamed":"some string","optional":32,"withDefault":"bar"}
+{"init":"some string","optional":32}
+[{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bar"}],"type":"DroppedField","message":"withDefault set aside: 0.1 does not declare it in the instance, which it does not leave open"}]}]
+-- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->0.2.json --
+{"renamed":"some string","optional":32,"withDefault":"bar"}
+{"init":"some string","optional":32,"withDefault":"bar"}
+[{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]}]
+-- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->0.3.json --
+{"renamed":"some string","optional":32,"withDefault":"bar"}
+{"init":"some string","optional":32,"withDefault":"bar"}
+[{"from":[1,0],"to":[0,3],"lacunas":[]}]
+-- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->1.0.json --
+{"renamed":"some string","optional":32,"withDefault":"bar"}
+{"renamed":"some string","optional":32,"withDefault":"bar"}
+[]
+-- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->1.1.json --
+{"renamed":"some string","optional":32,"withDefault":"bar"}
+{"renamed":"some string","optional":32,"withDefault":"bar"}
+[{"from":[1,0],"to":[1,1],"lacunas":[]}]
+-- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.0-withOptional->2.0.json --
+{"renamed":"some string","optional":32,"withDefault":"bar"}
+{"toObj":{"init":"some string"},"optional":32,"withDefault":"bar"}
+[{"from":[1,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[2,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withoutOptional->0.0.json --
 {"renamed":"some string","withDefault":"bing"}
 {"init":"some string"}
-[{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
+[{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bar"}],"type":"DroppedField","message":"withDefault set aside: 0.1 does not declare it in the instance, which it does not leave open"}]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withoutOptional->0.1.json --
 {"renamed":"some string","withDefault":"bing"}
 {"init":"some string"}
-[{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]}]
+[{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bar"}],"type":"DroppedField","message":"withDefault set aside: 0.1 does not declare it in the instance, which it does not leave open"}]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withoutOptional->0.2.json --
 {"renamed":"some string","withDefault":"bing"}
 {"init":"some string","withDefault":"bar"}
@@ -539,11 +539,11 @@ lenses: {
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withOptional->0.0.json --
 {"renamed":"some string","optional":32,"withDefault":"bing"}
 {"init":"some string"}
-[{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
+[{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bar"}],"type":"DroppedField","message":"withDefault set aside: 0.1 does not declare it in the instance, which it does not leave open"}]},{"from":[0,1],"to":[0,0],"lacunas":[{"sourceFields":[{"path":"optional","value":32}],"type":"DroppedField","message":"optional set aside: 0.0 does not declare it in the instance, which it does not leave open"}]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withOptional->0.1.json --
 {"renamed":"some string","optional":32,"withDefault":"bing"}
 {"init":"some string","optional":32}
-[{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]}]
+[{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bar"}],"type":"DroppedField","message":"withDefault set aside: 0.1 does not declare it in the instance, which it does not leave open"}]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-1.1-withOptional->0.2.json --
 {"renamed":"some string","optional":32,"withDefault":"bing"}
 {"init":"some string","optional":32,"withDefault":"bar"}
@@ -567,11 +567,11 @@ lenses: {
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withoutOptional->0.0.json --
 {"toObj":{"init":"some string"},"withDefault":"bing"}
 {"init":"some string"}
-[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
+[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bar"}],"type":"DroppedField","message":"withDefault set aside: 0.1 does not declare it in the instance, which it does not leave open"}]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withoutOptional->0.1.json --
 {"toObj":{"init":"some string"},"withDefault":"bing"}
 {"init":"some string"}
-[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]}]
+[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bar"}],"type":"DroppedField","message":"withDefault set aside: 0.1 does not declare it in the instance, which it does not leave open"}]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withoutOptional->0.2.json --
 {"toObj":{"init":"some string"},"withDefault":"bing"}
 {"init":"some string","withDefault":"bar"}
@@ -595,11 +595,11 @@ lenses: {
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withOptional->0.0.json --
 {"toObj":{"init":"some string"},"optional":32,"withDefault":"bing"}
 {"init":"some string"}
-[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]},{"from":[0,1],"to":[0,0],"lacunas":[]}]
+[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bar"}],"type":"DroppedField","message":"withDefault set aside: 0.1 does not declare it in the instance, which it does not leave open"}]},{"from":[0,1],"to":[0,0],"lacunas":[{"sourceFields":[{"path":"optional","value":32}],"type":"DroppedField","message":"optional set aside: 0.0 does not declare it in the instance, which it does not leave open"}]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withOptional->0.1.json --
 {"toObj":{"init":"some string"},"optional":32,"withDefault":"bing"}
 {"init":"some string","optional":32}
-[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[]}]
+[{"from":[2,0],"to":[1,1],"lacunas":[]},{"from":[1,1],"to":[1,0],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bing"}],"targetFields":[{"path":"withDefault","value":"bar"}],"type":"LossyFieldMapping","message":"withDefault was \"bing\", which 1.0 does not have; \"bar\", its default, was substituted"}]},{"from":[1,0],"to":[0,3],"lacunas":[]},{"from":[0,3],"to":[0,2],"lacunas":[]},{"from":[0,2],"to":[0,1],"lacunas":[{"sourceFields":[{"path":"withDefault","value":"bar"}],"type":"DroppedField","message":"withDefault set aside: 0.1 does not declare it in the instance, which it does not leave open"}]}]
 -- out/core/instance/translate/TestInstance_Translate/lineage/basic-multiversion-2.0-withOptional->0.2.json --
 {"toObj":{"init":"some string"},"optional":32,"withDefault":"bing"}
 {"init":"some string","optional":32,"withDefault":"bar"}
