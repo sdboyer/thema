@@ -198,7 +198,8 @@ Converting between the forms:
 
 - In Go, the `authoring` package compiles (`authoring.Compile`, and `authoring.CompileDevelopment` with the tip), decompiles (`authoring.Decompile`) and formats (`authoring.Format`). `load.AuthoringLineage` loads, compiles and binds a directory in one call; `load.DevelopmentLineage` does the same with the tip.
 - `thema lineage fmt -l <dir>` lays out a directory's version files in place, in the authoring form's [layout](../authoring-form.md#layout). It does not bind the lineage.
-- Every CLI command that takes `-l` accepts a `.cue` file, a directory holding a CUE package, or a directory in the authoring form.
+- `thema lineage compile -l <dir>` writes a directory's history, compiled, to its [`lineage.cue`](../authoring-form.md#lineagecue), the normal form that a collection keeps beside each lineage for CUE to import; in Go, `authoring.GenerateLineageFile`.
+- Every CLI command that takes `-l` accepts a `.cue` file, a directory holding a CUE package, or a directory in the authoring form. A directory with version files is read in the authoring form, even when it also holds its `lineage.cue`.
 - In the playground, "Show as normal form" compiles the version files, with the tip, to the normal form, and "Show as version files" decompiles the normal form to version files and a clean tip. Decompiling requires the lineage to bind.
 
 ## Binding
