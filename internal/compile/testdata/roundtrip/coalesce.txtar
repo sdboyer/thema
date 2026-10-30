@@ -1,4 +1,4 @@
-orelse: an optional source field feeding a required target field, with a
+coalesce: an optional source field feeding a required target field, with a
 constant fallback and with a reference fallback, and a lacuna on the fallback.
 -- ship/history/0.0.thema --
 Schema: {
@@ -16,8 +16,8 @@ Schema: {
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		nick: _orelse(v0_0.nick, v0_0.name)
-		rank: _orelse(v0_0.rank, 0)
+		nick: _coalesce(v0_0.nick, v0_0.name)
+		rank: _coalesce(v0_0.rank, 0)
 	}
 	lacunas: {
 		rank: [{
@@ -38,8 +38,8 @@ Schema: {
 ForwardLens: {
 	v0_0: _
 	v1_0: {
-		nick: _orelse(v0_0.nick, v0_0.name)
-		rank: _orelse(v0_0.rank, 0)
+		nick: _coalesce(v0_0.nick, v0_0.name)
+		rank: _coalesce(v0_0.rank, 0)
 	}
 	lacunas: {
 		rank: [{

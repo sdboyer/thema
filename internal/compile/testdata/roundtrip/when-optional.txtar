@@ -21,7 +21,7 @@ ForwardLens: {
 	v0_0: _
 	v1_0: {
 		name:  v0_0.name
-		count: _orelse(v0_0.count, 0)
+		count: _coalesce(v0_0.count, 0)
 	}
 	lacunas: {
 		name: [{
@@ -54,7 +54,7 @@ ForwardLens: {
 	v0_0: _
 	v1_0: {
 		name:  v0_0.name
-		count: _orelse(v0_0.count, 0)
+		count: _coalesce(v0_0.count, 0)
 	}
 	lacunas: {
 		name: [{

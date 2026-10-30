@@ -62,10 +62,18 @@ The examples the playground offers.
       "binds": true
     },
     {
+      "id": "authoring/coalesce",
+      "title": "coalesce",
+      "category": "Authoring form",
+      "summary": "coalesce: an optional source field feeding a required target field, with a constant fallback and with a reference fallback, and a lacuna on the fallback.",
+      "kind": "authoring",
+      "binds": true
+    },
+    {
       "id": "authoring/computed",
       "title": "computed",
       "category": "Authoring form",
-      "summary": "Computed mappings: arithmetic, a strings function and a comparison over fields 0.0 always has, a computed value over an optional field written only where it is present, and orelse over a computed primary.",
+      "summary": "Computed mappings: arithmetic, a strings function and a comparison over fields 0.0 always has, a computed value over an optional field written only where it is present, and coalesce over a computed primary.",
       "kind": "authoring",
       "binds": true
     },
@@ -81,7 +89,7 @@ The examples the playground offers.
       "id": "authoring/lacunas",
       "title": "lacunas",
       "category": "Authoring form",
-      "summary": "lacunas: several lacunas on one mapping, a lacuna with its own when, and a key nested like the mapping it describes. count's first lacuna applies when the orelse fallback does, its second under the author's condition; name's applies under a condition over a field 0.0 always has, a guard the totality proof accepts as a boolean it can evaluate. The backward lens is wholly derived.",
+      "summary": "lacunas: several lacunas on one mapping, a lacuna with its own when, and a key nested like the mapping it describes. count's first lacuna applies when the coalesce fallback does, its second under the author's condition; name's applies under a condition over a field 0.0 always has, a guard the totality proof accepts as a boolean it can evaluate. The backward lens is wholly derived.",
       "kind": "authoring",
       "binds": true
     },
@@ -98,14 +106,6 @@ The examples the playground offers.
       "title": "nested",
       "category": "Authoring form",
       "summary": "A nested restructure: a field moves into a struct that embeds its source, and an untouched sibling struct is copied whole.",
-      "kind": "authoring",
-      "binds": true
-    },
-    {
-      "id": "authoring/orelse",
-      "title": "orelse",
-      "category": "Authoring form",
-      "summary": "orelse: an optional source field feeding a required target field, with a constant fallback and with a reference fallback, and a lacuna on the fallback.",
       "kind": "authoring",
       "binds": true
     },
