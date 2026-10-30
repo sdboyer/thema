@@ -151,9 +151,37 @@ edge 1.0 -> 0.0
   union #6: source members [], target members [1]
 checks
   1.0 UnionWritesV1.w: (((type(x) == map) && (!("k" in x) || (x["k"] == "a")) && (("x" in x) && (type(x["x"]) == string)) && (x.all(k1, k1 in ["k", "x"]))) || ((type(x) == map) && (!("k" in x) || (x["k"] == "b")) && (("n" in x) && ((type(x["n"]) == int) && (x["n"] >= -128) && (x["n"] <= 127))) && (x.all(k1, k1 in ["k", "n"]))))
+-- out/capnp/fate --
+version 0.0
+  struct (root) UnionWritesV0 closed: r, s
+  struct r UnionWritesV0.RKA closed: k, x
+  struct r UnionWritesV0.RKB closed: k, n
+version 1.0
+  struct (root) UnionWritesV1 closed: r, w
+  struct r UnionWritesV1.RKA closed: k, x
+  struct r UnionWritesV1.RKB closed: k, n
+  struct r UnionWritesV1.RKC closed: k
+  struct w UnionWritesV1.WKA closed: k, x
+  struct w UnionWritesV1.WKB closed: k, n
+edge 0.0 -> 1.0
+  read r
+  read s
+  reader r <- r
+  reader w.x <- s
+  copy r <- r
+  copy w.x <- s
+edge 1.0 -> 0.0
+  read r.k
+  read r
+  read r.k
+  read r
+  read r.k
+  reader r <- r
+  reader r <- r
+  copy r <- r
 -- out/capnp/artifact --
-sha256 f2cdea6e23aa3ab31ccf6d150e884f687ca3ef0ec6adf3580161dc85018775e4
-9872 bytes
+sha256 4411092f630a6f35f8575cddc2c2643ed67213aa3bea3b4790b6fc0e0f008b9a
+13408 bytes
 -- out/capnp/layout --
 struct UnionWritesV0 @0xd40f296d2285da69: data=1 ptrs=3
   extras @0: data off=0

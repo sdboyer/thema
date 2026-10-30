@@ -158,9 +158,67 @@ edge 0.3 -> 0.2
 checks
   0.1 NestedV0.Inner.c: (type(x) == string)
   0.3 NestedV0M2.Inner.d: (type(x) == string)
+-- out/capnp/fate --
+version 0.0
+  struct (root) NestedV0 closed: inner, elems, mapped
+  struct inner NestedV0.Inner closed: a
+  struct elems[_] NestedV0.ElemsItem closed: n
+  struct mapped[_] NestedV0.MappedEntry.Value closed: b
+version 0.1
+  struct (root) NestedV0 closed: inner, elems, mapped
+  struct inner NestedV0.Inner closed: a, c
+  struct elems[_] NestedV0.ElemsItem closed: n
+  struct mapped[_] NestedV0.MappedEntry.Value closed: b
+version 0.2
+  struct (root) NestedV0M2 closed: inner, elems, mapped
+  struct inner NestedV0M2.Inner closed: a, c
+  struct elems[_] NestedV0M2.ElemsItem closed: n
+  struct mapped[_] NestedV0M2.MappedEntry.Value closed: b
+version 0.3
+  struct (root) NestedV0M2 closed: inner, elems, mapped
+  struct inner NestedV0M2.Inner closed: a, c, d
+  struct elems[_] NestedV0M2.ElemsItem closed: n
+  struct mapped[_] NestedV0M2.MappedEntry.Value closed: b
+edge 0.1 -> 0.0
+  read inner.a
+  read elems
+  read mapped
+  reader inner.a <- inner.a
+  reader elems <- elems
+  reader mapped <- mapped
+  copy inner.a <- inner.a
+  copy elems <- elems
+  copy mapped <- mapped
+edge 0.2 -> 0.1
+  read inner
+  read elems[_].n
+  read elems[_].n
+  read elems[_].n
+  read mapped
+  reader inner <- inner
+  reader elems <- elems[_].n
+  reader elems <- elems[_].n
+  reader elems <- elems[_].n
+  reader mapped <- mapped
+  copy inner <- inner
+  copy mapped <- mapped
+edge 0.3 -> 0.2
+  read inner.a
+  read inner.c
+  read inner.c
+  read elems
+  read mapped
+  reader inner.a <- inner.a
+  reader inner.c <- inner.c
+  reader elems <- elems
+  reader mapped <- mapped
+  copy inner.a <- inner.a
+  copy inner.c <- inner.c
+  copy elems <- elems
+  copy mapped <- mapped
 -- out/capnp/artifact --
-sha256 75de77217718404c4110a2b6d8ea6e8042cb50969eec113b6983cfd6723408cb
-8792 bytes
+sha256 3e72689a77a9d45b69b9694821ba4bba34ad945478e2e0ce602e9957425b5539
+15008 bytes
 -- out/capnp/layout --
 struct NestedV0 @0xc2ff6bbcf9df5063: data=0 ptrs=4
   extras @0: data off=0

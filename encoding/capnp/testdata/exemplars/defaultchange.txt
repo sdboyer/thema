@@ -69,6 +69,24 @@ edge 1.0 -> 0.0
   cel lacuna target field 0.0: out_aunion
     out_aunion = result aunion :string
 
+-- fate --
+version 0.0
+  struct (root) DefaultchangeV0 closed: aunion
+version 1.0
+  struct (root) DefaultchangeV1 closed: aunion
+edge 0.0 -> 1.0
+  read aunion
+  read aunion
+  read aunion
+  reader aunion <- aunion
+  named aunion (lacuna 0, field 0)
+edge 1.0 -> 0.0
+  read aunion
+  read aunion
+  read aunion
+  reader aunion <- aunion
+  named aunion (lacuna 0, field 0)
+
 -- artifact --
-sha256 0976133f48c43fb0d9da4d11c47e7a78b2eebb31a6492638c7754382777b7346
-5816 bytes
+sha256 10a2250b47c20328a7d465b99c25207264f316557feeb5461dd246b9e8c8470f
+8200 bytes

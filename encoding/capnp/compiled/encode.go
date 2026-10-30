@@ -86,6 +86,7 @@ func (e *encoder) artifact(a wire.Artifact, c *Compiled) {
 		e.synver(w.NewVersion, [2]uint{v.Major, v.Minor})
 		e.check(w.SetId(v.ID))
 		w.SetRoot(v.Root)
+		e.structs(w, v.Structs)
 	}
 	ns, err := a.NewNodes(n32(len(c.Nodes)))
 	e.check(err)
@@ -105,6 +106,61 @@ func (e *encoder) artifact(a wire.Artifact, c *Compiled) {
 		w.SetNode(ck.Node)
 		e.check(w.SetLabel(ck.Label))
 		e.check(w.SetSource(ck.Source))
+	}
+	ms, err := a.NewMessages(n32(len(c.Messages)))
+	e.check(err)
+	for i, m := range c.Messages {
+		w := ms.At(i)
+		w.SetCause(enum[wire.AsideCause](m.Cause))
+		w.SetForm(enum[wire.MessageForm](m.Form))
+		e.check(w.SetType(string(m.Type)))
+		e.check(w.SetText(m.Text))
+	}
+}
+
+func (e *encoder) structs(w wire.Version, ss []StructShape) {
+	ws, err := w.NewStructs(n32(len(ss)))
+	e.check(err)
+	for i, s := range ss {
+		x := ws.At(i)
+		e.path(x.NewPath, s.Path)
+		x.SetNode(s.Node)
+		ls, lerr := x.NewLabels(n32(len(s.Labels)))
+		e.check(lerr)
+		for j, l := range s.Labels {
+			e.check(ls.Set(j, l))
+		}
+		x.SetOpen(s.Open)
+	}
+}
+
+func (e *encoder) fate(w wire.Edge, f *Fate) {
+	x, err := w.NewFate()
+	e.check(err)
+	rs, err := x.NewReads(n32(len(f.Reads)))
+	e.check(err)
+	for i, r := range f.Reads {
+		e.path(rs.At(i).NewSteps, r)
+	}
+	e.pairs(x.NewReaders, f.Readers)
+	e.pairs(x.NewCopies, f.Copies)
+	ns, err := x.NewNamed(n32(len(f.Named)))
+	e.check(err)
+	for i, n := range f.Named {
+		y := ns.At(i)
+		e.path(y.NewPath, n.Path)
+		y.SetLacuna(u32(n.Lacuna))
+		y.SetField(u32(n.Field))
+	}
+}
+
+func (e *encoder) pairs(newer func(int32) (wire.PathPair_List, error), ps []PathPair) {
+	ws, err := newer(n32(len(ps)))
+	e.check(err)
+	for i, p := range ps {
+		w := ws.At(i)
+		e.path(w.NewResult, p.Result)
+		e.path(w.NewInput, p.Input)
 	}
 }
 
@@ -234,6 +290,9 @@ func (e *encoder) edge(w wire.Edge, ed *Edge) {
 			y.SetRole(enum[wire.VarRole](v.Role))
 			e.check(y.SetType(v.Type))
 		}
+	}
+	if ed.Fate != nil {
+		e.fate(w, ed.Fate)
 	}
 	if len(ed.Unions) == 0 {
 		// Left null: an edge without union writes encodes as it did before
@@ -496,6 +555,7 @@ func (d *decoder) artifact(a wire.Artifact) *Compiled {
 		c.Versions = append(c.Versions, Version{
 			Major: uint(sv.Major()), Minor: uint(sv.Minor()),
 			ID: d.str(w.Id()), Root: w.Root(),
+			Structs: d.structs(w.Structs()),
 		})
 	}
 	ns, err := a.Nodes()
@@ -517,7 +577,61 @@ func (d *decoder) artifact(a wire.Artifact) *Compiled {
 			Label: d.str(w.Label()), Source: d.str(w.Source()),
 		})
 	}
+	ms, err := a.Messages()
+	d.check(err)
+	for i := 0; i < ms.Len(); i++ {
+		w := ms.At(i)
+		c.Messages = append(c.Messages, AsideMessage{
+			Cause: AsideCause(w.Cause() + 1), Form: MessageForm(w.Form() + 1),
+			Type: lacuna.Type(d.str(w.Type())), Text: d.str(w.Text()),
+		})
+	}
 	return c
+}
+
+func (d *decoder) structs(ws wire.StructShape_List, err error) []StructShape {
+	d.check(err)
+	var out []StructShape
+	for i := 0; i < ws.Len(); i++ {
+		x := ws.At(i)
+		s := StructShape{Path: d.path(x.Path()), Node: x.Node(), Open: x.Open()}
+		ls, lerr := x.Labels()
+		d.check(lerr)
+		for j := 0; j < ls.Len(); j++ {
+			s.Labels = append(s.Labels, d.str(ls.At(j)))
+		}
+		out = append(out, s)
+	}
+	return out
+}
+
+func (d *decoder) fate(x wire.Fate, err error) *Fate {
+	d.check(err)
+	f := &Fate{}
+	rs, rerr := x.Reads()
+	d.check(rerr)
+	for i := 0; i < rs.Len(); i++ {
+		f.Reads = append(f.Reads, d.path(rs.At(i).Steps()))
+	}
+	f.Readers = d.pairs(x.Readers())
+	f.Copies = d.pairs(x.Copies())
+	ns, nerr := x.Named()
+	d.check(nerr)
+	for i := 0; i < ns.Len(); i++ {
+		y := ns.At(i)
+		f.Named = append(f.Named, Named{Path: d.path(y.Path()), Lacuna: int(y.Lacuna()), Field: int(y.Field())})
+	}
+	return f
+}
+
+func (d *decoder) pairs(ws wire.PathPair_List, err error) []PathPair {
+	d.check(err)
+	var out []PathPair
+	for i := 0; i < ws.Len(); i++ {
+		w := ws.At(i)
+		out = append(out, PathPair{Result: d.path(w.Result()), Input: d.path(w.Input())})
+	}
+	return out
 }
 
 func (d *decoder) synver(w wire.SynVer, err error) [2]uint {
@@ -634,6 +748,9 @@ func (d *decoder) edge(w wire.Edge) *Edge {
 			c.Vars = append(c.Vars, Var{Name: d.str(y.Name()), Path: d.path(y.Path()), Role: VarRole(y.Role() + 1), Type: d.str(y.Type())})
 		}
 		ed.CEL = append(ed.CEL, c)
+	}
+	if w.HasFate() {
+		ed.Fate = d.fate(w.Fate())
 	}
 	us, uerr := w.Unions()
 	d.check(uerr)

@@ -86,9 +86,38 @@ edge 0.2 -> 0.1
     out.m <- in.m
     out.s <- in.s
   }
+-- out/capnp/fate --
+version 0.0
+  struct (root) IntWideningV0 closed: n, m, s
+version 0.1
+  struct (root) IntWideningV0 closed: n, m, s
+version 0.2
+  struct (root) IntWideningV0M2 closed: n, m, s
+edge 0.1 -> 0.0
+  read n
+  read m
+  read m
+  read m
+  read s
+  reader n <- n
+  reader m <- m
+  reader s <- s
+  copy n <- n
+  copy s <- s
+edge 0.2 -> 0.1
+  read n
+  read n
+  read n
+  read m
+  read s
+  reader n <- n
+  reader m <- m
+  reader s <- s
+  copy m <- m
+  copy s <- s
 -- out/capnp/artifact --
-sha256 9db9464d030a9fb77ffb5ff37db9152958fa1286ce4f9cc9ae8bb07a6cab4621
-3864 bytes
+sha256 bd2118e86a3f4f98ed97b3069a419b5f4d7be7d44c01fa3d6a3093c2a28e20ae
+7128 bytes
 -- out/capnp/layout --
 struct IntWideningV0 @0x9b4c01baf7cab4fe: data=1 ptrs=2
   extras @0: data off=0

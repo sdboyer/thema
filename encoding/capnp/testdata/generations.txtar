@@ -269,9 +269,89 @@ checks
   1.1 StabilityV1.Inner.c: (type(x) == string)
   1.1 StabilityV1.later: ((type(x) == int) && (x >= -32768) && (x <= 32767))
   2.0 StabilityV2.label: (type(x) == string)
+-- out/capnp/fate --
+version 0.0
+  struct (root) StabilityV0 closed: n, color, inner, opt
+  struct inner StabilityV0.Inner closed: a
+version 0.1
+  struct (root) StabilityV0M1 closed: n, color, inner, opt, added
+  struct inner StabilityV0M1.Inner closed: a, b
+version 1.0
+  struct (root) StabilityV1 closed: count, color, kind, inner
+  struct inner StabilityV1.Inner closed: a, b
+version 1.1
+  struct (root) StabilityV1 closed: count, color, kind, inner, later
+  struct inner StabilityV1.Inner closed: a, b, c
+version 2.0
+  struct (root) StabilityV2 closed: count, label
+edge 0.1 -> 0.0
+  read n
+  read n
+  read n
+  read color
+  read color
+  read color
+  read inner.a
+  read opt
+  read opt
+  reader n <- n
+  reader color <- color
+  reader inner.a <- inner.a
+  reader opt <- opt
+  copy inner.a <- inner.a
+  copy opt <- opt
+edge 0.1 -> 1.0
+  read n
+  read color
+  read inner
+  reader count <- n
+  reader color <- color
+  reader inner <- inner
+  copy count <- n
+  copy color <- color
+  copy inner <- inner
+edge 1.0 -> 0.1
+  read count
+  read color
+  read inner
+  reader n <- count
+  reader color <- color
+  reader inner <- inner
+  copy n <- count
+  copy color <- color
+  copy inner <- inner
+edge 1.1 -> 1.0
+  read count
+  read color
+  read color
+  read color
+  read inner.a
+  read inner.b
+  read inner.b
+  reader count <- count
+  reader color <- color
+  reader inner.a <- inner.a
+  reader inner.b <- inner.b
+  copy count <- count
+  copy inner.a <- inner.a
+  copy inner.b <- inner.b
+edge 1.1 -> 2.0
+  read count
+  read inner.a
+  reader count <- count
+  reader label <- inner.a
+  copy count <- count
+  copy label <- inner.a
+edge 2.0 -> 1.1
+  read count
+  read label
+  reader count <- count
+  reader inner.a <- label
+  copy count <- count
+  copy inner.a <- label
 -- out/capnp/artifact --
-sha256 bada99b15d293785471f400e4591dc0dc6e63f703f3a05f37074f3203d5220e2
-13960 bytes
+sha256 3e940e8c4088d264b31e09a4f7e5f42f0cba2cc5559503b26cfc09c0d82607ac
+21168 bytes
 -- out/capnp/layout --
 struct StabilityV0 @0xb7bdbd0fbc7dbac3: data=2 ptrs=2
   extras @0: data off=0

@@ -39,8 +39,9 @@ func compileOpts() []Option {
 // render writes what the goldens record of a compilation: the .capnp text,
 // or the rejection's verdict and findings; and, for a compilation, the
 // sections named "programs" (each edge's program, the CEL rendering of its
-// expressions and the extras checks; omitted where a lineage has neither)
-// and, where the tool ran, "layout" (the decoded layout). section returns
+// expressions and the extras checks; omitted where a lineage has neither),
+// "fate" (each version's structs and each lens's fate), "artifact" and,
+// where the tool ran, "layout" (the decoded layout). section returns
 // the writer for a named section; nil skips them.
 func render(t testing.TB, c *Compiled, err error, schema io.Writer, section func(name string) io.Writer) {
 	t.Helper()
@@ -64,6 +65,7 @@ func render(t testing.TB, c *Compiled, err error, schema io.Writer, section func
 	if progs := describePrograms(c); progs != "" {
 		_, _ = io.WriteString(section("programs"), progs)
 	}
+	_, _ = io.WriteString(section("fate"), describeFate(c))
 	_, _ = io.WriteString(section("artifact"), roundTrip(t, c))
 	if c.Layout != nil {
 		desc, err := describeLayout(c.Layout)
@@ -171,10 +173,12 @@ func asResult(err error, res *Result) bool {
 // TestGoldens runs the corpus in testdata/*.txtar: each archive holds a
 // lineage in in.cue and records in out/capnp the schema it compiles to, or
 // the verdict and findings of its rejection, and in out/capnp/layout the
-// layout the capnp tool computed. The archive comment says what the case
-// exercises and which rule it belongs to. Set THEMA_UPDATE_GOLDEN=1 to
-// rewrite the outputs, then review the diff: a moved ordinal or ID is a
-// change to every artifact already compiled.
+// layout the capnp tool computed. Where the lineage has examples,
+// out/capnp/translate records Go's translation of each one step either way,
+// which an engine running the artifact must reproduce. The archive comment
+// says what the case exercises and which rule it belongs to. Set
+// THEMA_UPDATE_GOLDEN=1 to rewrite the outputs, then review the diff: a moved
+// ordinal or ID is a change to every artifact already compiled.
 func TestGoldens(t *testing.T) {
 	test := vanilla.TxTarTest{
 		Root:    "./testdata",
@@ -182,6 +186,7 @@ func TestGoldens(t *testing.T) {
 		ThemaFS: thema.CueJointFS,
 	}
 	rt := thema.NewRuntime(cuecontext.New())
+	matched := map[string]bool{}
 	test.Run(t, func(tc *vanilla.Test) {
 		lin, err := bindlin.BindTxtarLineage(tc, rt)
 		if err != nil {
@@ -190,7 +195,11 @@ func TestGoldens(t *testing.T) {
 		c, err := Compile(lin, compileOpts()...)
 		render(tc, c, err, tc, tc.Writer)
 		lintFindings(tc, err)
+		if tr := describeTranslations(tc, lin, matched); tr != "" {
+			_, _ = io.WriteString(tc.Writer("translate"), tr)
+		}
 	})
+	checkAsideCoverage(t, matched)
 }
 
 // TestCorpus compiles every lineage of the repository's lineage corpus
@@ -317,7 +326,7 @@ func TestStability(t *testing.T) {
 		t.Fatalf("the extended lineage has %d nodes, the base %d", len(ext.Nodes), len(base.Nodes))
 	}
 	for i, v := range base.Versions {
-		if ext.Versions[i] != v {
+		if !cmp.Equal(ext.Versions[i], v) {
 			t.Errorf("version %d is %+v in the base and %+v extended", i, v, ext.Versions[i])
 		}
 	}

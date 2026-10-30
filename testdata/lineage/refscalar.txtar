@@ -125,6 +125,9 @@ struct RefscalarV0 @0xf3f9ab121666190e {
   extras @0 :Data;
   aBaz @1 :Text;
 }
+-- out/encoding/capnp/fate --
+version 0.0
+  struct (root) RefscalarV0 closed: aBaz
 -- out/encoding/capnp/artifact --
-sha256 90767589405d8a7b6106381a20fb636f157dace6b1f9e945a611d3b646b282dc
-760 bytes
+sha256 c10b022bda98c8757758f582d445e9335d8a51a4c53469de0730594ecdf8353a
+2432 bytes

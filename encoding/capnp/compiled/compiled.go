@@ -2,8 +2,9 @@
 // struct and enum nodes the compiler (encoding/capnp) emits, how each maps
 // back to the lineage's labels and values, the versions and which struct each
 // is, the .capnp text and the layout the capnp tool computed for it, each
-// lens's program with its expressions rendered to CEL, and the extras
-// acceptance checks.
+// lens's program with its expressions rendered to CEL, the extras
+// acceptance checks, and what translation reads around each step for the
+// fields a program does not write.
 //
 // Encode serializes the model as the artifact message wire/compiled.capnp
 // declares, and Decode reads one back; the meta-schema is a published
@@ -15,7 +16,10 @@
 // consulted to decide what a lineage means.
 package compiled
 
-import "github.com/sdboyer/thema/internal/lensir"
+import (
+	"github.com/sdboyer/thema/internal/lensir"
+	"github.com/sdboyer/thema/lacuna"
+)
 
 // Compiled is a lineage compiled to Cap'n Proto.
 type Compiled struct {
@@ -45,12 +49,19 @@ type Compiled struct {
 	// its data is read in place. Edges are ordered by source version, then
 	// target.
 	Edges []*Edge
-	// Checks are the extras acceptance checks (#48): for each label a version
-	// newly declares at a struct that the version before also had, a CEL
-	// predicate deciding whether an extra carried under that label by the
-	// earlier version's data is an instance of the new field. Ordered by
-	// version, node and label.
+	// Checks are the acceptance checks (#48): for each label a version
+	// declares where undeclared data could arrive under that name, a CEL
+	// predicate deciding whether the arriving value is an instance of the
+	// field. That is every label a version newly declares at a struct the
+	// version before also had, and every label a version declares at a
+	// struct whose counterpart in an adjacent version (at the same path, or
+	// the input of a struct the step's lens copies whole) is open and does not
+	// declare it. Ordered by version.
 	Checks []*Check
+	// Messages are the templates of the lacunas translation raises by
+	// itself, for the fields no program writes and translation does not
+	// carry; the text is Go's (docs/reference/lacunas.md, Set-aside fields).
+	Messages []AsideMessage
 }
 
 // Node returns the node with the given ID, or nil.
@@ -82,6 +93,101 @@ type Edge struct {
 	// disjunction (a Copy's Alts, a Wrap's Alt) to the members of the
 	// compiled unions, in the order the writes appear.
 	Unions []UnionWrite
+	// Fate is what translation reads of the step's lens to decide the fate of
+	// the fields its program does not write. nil for a step with no lens: a
+	// synthesized edge.
+	Fate *Fate
+}
+
+// Fate is what translation reads of a lens, from the lens itself (never from
+// data, nor from its program), to decide what becomes of the fields its
+// program does not write (docs/capnp.md, What the engine does around each
+// step). Paths are within the lens's input or result; a list's open element,
+// read through a comprehension, is Any.
+type Fate struct {
+	// Reads are the input paths the lens's result reads, directly or through
+	// lets, aliases and helper fields.
+	Reads []lensir.Path
+	// Readers pair each read input path with a result field that copies the
+	// value there or computes from it. A read with no reader is one only a
+	// comprehension's clauses make.
+	Readers []PathPair
+	// Copies pair each result field whose contents come whole from one value
+	// of the input, by a move or an embedding, with that input path.
+	Copies []PathPair
+	// Named are the input paths the lens's lacunas name in their
+	// sourceFields: translation raises no lacuna of its own for these.
+	Named []Named
+}
+
+// A PathPair relates a path of a lens's result to a path of its input.
+type PathPair struct {
+	Result, Input lensir.Path
+}
+
+// A Named is a source path a lacuna of the lens names, as the program's
+// field reference Field of lacuna Lacuna does, under that reference's guard.
+type Named struct {
+	Path          lensir.Path
+	Lacuna, Field int
+}
+
+// AsideCause is why translation did not carry a field no program writes.
+type AsideCause int
+
+// The causes.
+const (
+	// AsideClosed: the target does not declare the field, and its struct
+	// there is closed.
+	AsideClosed AsideCause = iota + 1
+	// AsideNowhere: the result has no struct at the field's parent path.
+	AsideNowhere
+	// AsideWritten: the target declares the field, and the program wrote its
+	// own value for it.
+	AsideWritten
+	// AsideUnwritten: both versions declare the field, and the lens neither
+	// maps nor writes it.
+	AsideUnwritten
+	// AsideLost: the lens reads the field, none of the result fields that
+	// read it was written, and it could not be carried.
+	AsideLost
+	// AsideLossy: the value is not an instance of the field the target
+	// declares for it.
+	AsideLossy
+)
+
+func (c AsideCause) String() string {
+	return [...]string{"", "closed", "nowhere", "written", "unwritten", "lost", "lossy"}[c]
+}
+
+// MessageForm is which form of a message a template is.
+type MessageForm int
+
+// The forms.
+const (
+	// OneField names one field.
+	OneField MessageForm = iota + 1
+	// SeveralFields names several fields of one struct.
+	SeveralFields
+	// MovedField names a field and the path in the target it was moved to.
+	MovedField
+)
+
+func (f MessageForm) String() string {
+	return [...]string{"", "one", "several", "moved"}[f]
+}
+
+// An AsideMessage is the template of the message of a lacuna translation
+// raises by itself. Text holds placeholders: {fields}, the paths of the
+// fields set aside, comma-separated; {field} and {target}, a field's path in
+// the source and in the target; {from} and {to}, the step's versions; and
+// {struct}, the parent path in the step's result, or "the instance" at the
+// root. Paths are rendered as CUE renders a path.
+type AsideMessage struct {
+	Cause AsideCause
+	Form  MessageForm
+	Type  lacuna.Type
+	Text  string
 }
 
 // A UnionWrite is one Copy or Wrap of a program whose IR names alternatives
@@ -178,9 +284,9 @@ type Var struct {
 	Type string
 }
 
-// A Check is one extras acceptance check: whether an extra carried under
-// Label by data of the version before Version is an instance of the field
-// that Version newly declares at the struct Node.
+// A Check is one acceptance check: whether a value arriving as undeclared
+// data under Label is an instance of the field that Version declares at the
+// struct Node.
 type Check struct {
 	Version [2]uint
 	Node    uint64
@@ -200,6 +306,26 @@ type Version struct {
 	// through. Successive minors share a root while they are capnp-append-
 	// compatible.
 	Root uint64
+	// Structs are the structs the version's schema declares, at any depth,
+	// root first, then depth-first in declaration order.
+	Structs []StructShape
+}
+
+// A StructShape is one struct a version's schema declares: what translation
+// reads of it to decide whether undeclared data has a place there.
+type StructShape struct {
+	// Path is the struct's path in an instance; a list's element and a map's
+	// value are Any. The struct alternatives of one disjunction share a path.
+	Path lensir.Path
+	// Node is the struct node it is read through.
+	Node uint64
+	// Labels are the labels the version declares in the struct, in
+	// declaration order. A node is shared by the minors of a generation;
+	// these are this version's.
+	Labels []string
+	// Open reports whether the author left the struct open (...), so that it
+	// carries undeclared data.
+	Open bool
 }
 
 // NodeKind is what a Node declares.

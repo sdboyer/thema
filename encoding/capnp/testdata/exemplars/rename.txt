@@ -29,6 +29,26 @@ edge 1.0 -> 0.0
 checks
   1.0 RenameV1.after: (type(x) == string)
 
+-- fate --
+version 0.0
+  struct (root) RenameV0 closed: before, unchanged
+version 1.0
+  struct (root) RenameV1 closed: after, unchanged
+edge 0.0 -> 1.0
+  read before
+  read unchanged
+  reader after <- before
+  reader unchanged <- unchanged
+  copy after <- before
+  copy unchanged <- unchanged
+edge 1.0 -> 0.0
+  read after
+  read unchanged
+  reader before <- after
+  reader unchanged <- unchanged
+  copy before <- after
+  copy unchanged <- unchanged
+
 -- artifact --
-sha256 2e9733be75981f79502e4d12a12fd2caa6c141965830b87076e64b4b706c7455
-2400 bytes
+sha256 690a9a7f37cbfcc716d2f98095befe3486c8228b2e87699fe12cf5fa508ba318
+5216 bytes

@@ -115,6 +115,9 @@ struct OnenoneV0 @0xa5ccc0fdf0da6463 {
   extras @0 :Data;
   foo @1 :Text;
 }
+-- out/encoding/capnp/fate --
+version 0.0
+  struct (root) OnenoneV0 closed: foo
 -- out/encoding/capnp/artifact --
-sha256 3aba25a1b7fbae6eaa4616c69538b5b5e0b6d50833acedf2a699ff4f5a4f8a13
-736 bytes
+sha256 563cddeb3ed310cc23ac6240670e3d1c6546c800408d2252db1dbf5565eb0d50
+2408 bytes

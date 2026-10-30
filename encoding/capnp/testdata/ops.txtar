@@ -242,9 +242,77 @@ checks
   1.0 OpsV1.both: (type(x) == bool)
   1.0 OpsV1.either: (type(x) == bool)
   1.0 OpsV1.fits: (type(x) == bool)
+-- out/capnp/fate --
+version 0.0
+  struct (root) OpsV0 closed: a, b, s, xs, flag
+version 1.0
+  struct (root) OpsV1 closed: sum, diff, prod, neg, q, r, dv, md, msg, has, pre, suf, trim, n, cnt, rep, cmp, both, either, fits
+edge 0.0 -> 1.0
+  read a
+  read b
+  read a
+  read b
+  read a
+  read b
+  read a
+  read a
+  read a
+  read a
+  read a
+  read a
+  read s
+  read s
+  read s
+  read s
+  read s
+  read s
+  read xs
+  read s
+  read a
+  read b
+  read flag
+  read a
+  read flag
+  read a
+  read a
+  reader sum <- a
+  reader sum <- b
+  reader diff <- a
+  reader diff <- b
+  reader prod <- a
+  reader prod <- b
+  reader neg <- a
+  reader q <- a
+  reader r <- a
+  reader dv <- a
+  reader md <- a
+  reader msg <- a
+  reader msg <- s
+  reader has <- s
+  reader pre <- s
+  reader suf <- s
+  reader trim <- s
+  reader n <- s
+  reader cnt <- xs
+  reader rep <- s
+  reader cmp <- a
+  reader cmp <- b
+  reader both <- flag
+  reader both <- a
+  reader either <- flag
+  reader either <- a
+  reader fits <- a
+  named a (lacuna 0, field 0)
+edge 1.0 -> 0.0
+  read msg
+  read has
+  reader s <- msg
+  reader flag <- has
+  copy s <- msg
+  copy flag <- has
 -- out/capnp/artifact --
-sha256 aca3a8d780be506d93a819786c513dca0c72a4312b4c5729cb17f0a413e59cee
-16472 bytes
+sha256 68039fc414db2648cf632fcb50256678fc6529b9227f4131da64d19d7a8bbc86
+22416 bytes
 -- out/capnp/layout --
 struct OpsV0 @0xfadb30d3473861a3: data=2 ptrs=3
   extras @0: data off=0

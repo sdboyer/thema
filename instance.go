@@ -104,16 +104,30 @@ func (i *Instance) AsSuccessor() (*Instance, lacuna.TranslationLacunas, error) {
 	// A minor version upgrade needs no lens: backwards compatibility means the
 	// data is already an instance of the successor. Validate rather than assume
 	// it, so that a compatibility break the compat check missed fails here
-	// instead of yielding an invalid instance.
+	// instead of yielding an invalid instance. Fields the schema does not
+	// declare are carried as in any step (see carry): the successor may set
+	// some aside, which is never an error.
 	nsch := i.Schema().Successor()
 	if nsch.Version()[0] == i.Schema().Version()[0] {
-		ni, err := nsch.Validate(i.raw)
+		ctx := i.rt().Context()
+		decl, extras, err := takeExtras(ctx, i.raw, i.sch.(*schemaDef).def)
 		if err != nil {
+			return nil, nil, diag.InternalErr(err)
+		}
+		if _, err = nsch.Validate(decl); err != nil {
 			// The diagnostics say what the successor rejects; they are the
 			// whole story, since no lens was involved.
 			return nil, nil, err
 		}
-		return ni, lacuna.TranslationLacunas{{From: lacuna.SyntacticVersion(i.Schema().Version()), To: lacuna.SyntacticVersion(nsch.Version()), Lacunas: []lacuna.Lacuna{}}}, nil
+		raw, lacs, err := carry(ctx, decl, nil, nsch.(*schemaDef), i.Schema().Version(), extras)
+		if err != nil {
+			return nil, nil, err
+		}
+		ni, err := nsch.Validate(raw)
+		if err != nil {
+			return nil, nil, err
+		}
+		return ni, lacuna.TranslationLacunas{{From: lacuna.SyntacticVersion(i.Schema().Version()), To: lacuna.SyntacticVersion(nsch.Version()), Lacunas: append([]lacuna.Lacuna{}, lacs...)}}, nil
 	}
 	return i.Translate(i.sch.Successor().Version())
 }
@@ -194,12 +208,23 @@ func (inst *TypedInstance[T]) ValueP() T {
 // all those schema changes are established as backwards compatible by Thema's
 // lineage invariants. In such cases, the lens is referred to as implicit, as
 // the lineage author does not write it, with translation relying on simple
-// unification. Lacunas cannot be emitted from such translations.
+// unification. Lacunas cannot be emitted from such translations, save for
+// fields that are set aside (below).
 //
 // Forward translation across major versions (e.g. 0.0 to 1.0), and all reverse
 // translation regardless of sequence boundaries (e.g. 1.1 to either 1.0
 // or 0.0), is nontrivial and relies on explicitly defined lenses, which
 // introduce room for lacunas and author judgment.
+//
+// Fields an instance holds under an open struct (...) that its schema does not
+// declare are not a lens's to translate, nor are the fields the source schema
+// declares that a step's lens leaves alone. Around each step, translation
+// carries them: each follows its struct, to where the lens moved or embedded
+// it whole or else to its own path, and is placed there where the target struct is open,
+// or promoted into a field the target declares, and the lens does not write,
+// if the value is an instance of it. A field that is not placed is set aside,
+// with a lacuna. Such fields never make translation fail; see
+// docs/invariants.md, "Fields no lens maps".
 //
 // Thema translation is non-invertible by design. That is, Thema does not seek
 // to generally guarantee that translating an instance from 0.0->1.0->0.0 will
@@ -219,10 +244,137 @@ func (i *Instance) Translate(to SyntacticVersion) (*Instance, lacuna.Translation
 		panic(fmt.Sprintf("no schema in lineage with version %v, cannot translate", to))
 	}
 
+	from := i.Schema().Version()
+	if from == to {
+		raw, out, kerr := i.kernelStep(i.raw, from, to)
+		if kerr != nil {
+			return nil, nil, kerr
+		}
+		inst, verr := newsch.Validate(raw)
+		if verr != nil {
+			return nil, nil, verr
+		}
+		var lac lacuna.TranslationLacunas
+		if derr := out.LookupPath(cue.MakePath(cue.Str("steps"))).Decode(&lac); derr != nil {
+			return nil, nil, diag.Convert(derr, i.Schema().Lineage().(*baseLineage).translateContext(out))
+		}
+		return inst, lac, nil
+	}
+
+	// The kernel's Translate runs one step at a time, so that around each
+	// step the fields no lens touches can be carried (see carry).
+	lac := lacuna.TranslationLacunas{}
+	data, sch := i.raw, i.sch.(*schemaDef)
+	for sch.Version() != to {
+		next := sch.successor()
+		if to.Less(sch.Version()) {
+			next = sch.predecessor()
+		}
+		raw, step, serr := i.translateStep(data, sch, next)
+		if serr != nil {
+			return nil, nil, serr
+		}
+		lac = append(lac, step)
+		data, sch = raw, next
+	}
+
+	// Ensure the result is a valid instance of the target schema. The kernel
+	// closes each step's result against its target, and carrying places only
+	// what keeps it an instance, so this holds whenever the steps evaluated;
+	// the diagnostics are about the result as data.
+	inst, err := newsch.Validate(data)
+	if err != nil {
+		return nil, nil, err
+	}
+	return inst, lac, nil
+}
+
+// translateStep translates data, an instance of from, to the adjacent version
+// to: through the kernel's Translate, without the fields from does not
+// declare, which are then carried, as are the fields from declares, to does
+// not, and the step's lens does not map (see carry).
+func (i *Instance) translateStep(data cue.Value, from, to *schemaDef) (cue.Value, lacuna.TranslationStep, error) {
+	ctx := i.rt().Context()
+	decl, fields, err := takeExtras(ctx, data, from.def)
+	if err != nil {
+		return cue.Value{}, lacuna.TranslationStep{}, diag.InternalErr(err)
+	}
+	raw, out, err := i.kernelStep(decl, from.Version(), to.Version())
+	if err != nil {
+		return cue.Value{}, lacuna.TranslationStep{}, err
+	}
+	lin := i.Schema().Lineage().(*baseLineage)
+	var steps lacuna.TranslationLacunas
+	if err = out.LookupPath(cue.MakePath(cue.Str("steps"))).Decode(&steps); err != nil {
+		return cue.Value{}, lacuna.TranslationStep{}, diag.Convert(err, lin.translateContext(out))
+	}
+	if len(steps) != 1 {
+		return cue.Value{}, lacuna.TranslationStep{}, diag.InternalErr(fmt.Errorf("translating %s to %s took %d steps", from.Version(), to.Version(), len(steps)))
+	}
+	step := steps[0]
+
+	var lens *stepLens
+	if from.Version()[0] != to.Version()[0] || to.Version().Less(from.Version()) {
+		if lens, err = i.stepLens(out, from.Version(), to.Version()); err != nil {
+			return cue.Value{}, lacuna.TranslationStep{}, diag.InternalErr(err)
+		}
+	}
+	fields = takeFields(ctx, data, fields, lens, raw, from.def, to.def)
+	raw, lacs, err := carry(ctx, raw, lens, to, from.Version(), fields)
+	if err != nil {
+		return cue.Value{}, lacuna.TranslationStep{}, err
+	}
+	step.Lacunas = append(step.Lacunas, lacs...)
+	return raw, step, nil
+}
+
+// stepLens reads the lens of the edge from->to, as the step whose kernel
+// output is out evaluated it. What the lens reads and copies is read from the
+// lineage's lens, so it depends only on what the lens is; what it wrote, from
+// the step.
+func (i *Instance) stepLens(out cue.Value, from, to SyntacticVersion) (*stepLens, error) {
+	lens := out.LookupPath(cue.MakePath(cue.Str("steps"), cue.Index(0), cue.Hid("_lens", util.ThemaPackageID)))
+	declared := i.Schema().Lineage().Underlying().LookupPath(cue.MakePath(cue.Str("lenses"), cue.Str(lid(from, to).String())))
+	syn, err := cuetil.ParseLens(declared, lensParam(from), lensParam(to))
+	if err != nil {
+		return nil, err
+	}
+	sl := &stepLens{
+		result:  lens.LookupPath(cue.MakePath(cue.Str(lensParam(to)))),
+		reads:   syn.InputReads(),
+		readers: syn.Readers(),
+		copies:  syn.Copies(),
+	}
+	lacs, err := lens.LookupPath(cue.MakePath(cue.Str("lacunas"))).List()
+	if err != nil {
+		return nil, err
+	}
+	for lacs.Next() {
+		refs, err := lacs.Value().LookupPath(cue.MakePath(cue.Str("sourceFields"))).List()
+		if err != nil {
+			continue
+		}
+		for refs.Next() {
+			s, err := refs.Value().LookupPath(cue.MakePath(cue.Str("path"))).String()
+			if err != nil {
+				continue
+			}
+			if p := cue.ParsePath(s); p.Err() == nil {
+				sl.named = append(sl.named, p)
+			}
+		}
+	}
+	return sl, nil
+}
+
+// kernelStep runs the kernel's Translate on data, an instance of from, to the
+// version to, and returns its result, checked to be concrete and to hold only
+// what each lens may write, and the kernel's output.
+func (i *Instance) kernelStep(data cue.Value, from, to SyntacticVersion) (cue.Value, cue.Value, error) {
 	out, err := cueArgs{
-		"inst": i.raw,
+		"inst": data,
 		"to":   to,
-		"from": i.Schema().Version(),
+		"from": from,
 		"lin":  i.Schema().Lineage().Underlying(),
 	}.call("Translate", i.rt())
 	if err != nil {
@@ -232,7 +384,7 @@ func (i *Instance) Translate(to SyntacticVersion) (*Instance, lacuna.Translation
 
 	lin := i.Schema().Lineage().(*baseLineage)
 	if out.Err() != nil {
-		return nil, nil, diag.Convert(out.Err(), lin.translateContext(out))
+		return cue.Value{}, cue.Value{}, diag.Convert(out.Err(), lin.translateContext(out))
 	}
 
 	// Attempt to evaluate Translate result to remove intermediate structures created by Translate.
@@ -243,26 +395,13 @@ func (i *Instance) Translate(to SyntacticVersion) (*Instance, lacuna.Translation
 	if _, err = json.Marshal(raw); err != nil {
 		ctx := lin.translateContext(out)
 		ctx.Generic = diag.E0307
-		return nil, nil, diag.Convert(err, ctx)
+		return cue.Value{}, cue.Value{}, diag.Convert(err, ctx)
 	}
 
 	if err = i.checkLensResultFields(out); err != nil {
-		return nil, nil, err
+		return cue.Value{}, cue.Value{}, err
 	}
-
-	// Ensure the result is a valid instance of the target schema. The kernel
-	// closes each step's result against its target, so this holds whenever
-	// the steps evaluated; the diagnostics are about the result as data.
-	inst, err := newsch.Validate(raw)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	var lac lacuna.TranslationLacunas
-	if err := out.LookupPath(cue.MakePath(cue.Str("steps"))).Decode(&lac); err != nil {
-		return nil, nil, diag.Convert(err, lin.translateContext(out))
-	}
-	return inst, lac, nil
+	return raw, out, nil
 }
 
 // checkLensResultFields checks that each lens applied by a CUE Translate (whose

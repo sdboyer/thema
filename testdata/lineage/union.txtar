@@ -937,6 +937,11 @@ struct UnionV0 @0x8992c2314e0dea37 {
     }
   }
 }
+-- out/encoding/capnp/fate --
+version 0.0
+  struct (root) UnionV0 closed: theUnion, optionalUnion, mapUnion, listUnion, mapList, mapChained, mapListChained, doubleList, mapDoubleList, mapTripleList, emptyStructs, nestedStruct
+  struct emptyStructs[_][_] UnionV0.EmptyStructsItemItem open: 
+  struct nestedStruct UnionV0.NestedStruct closed: structUnion, mapUnion, listUnion
 -- out/encoding/capnp/artifact --
-sha256 0ce92b074a3407e6172eaeaebd2653b5a8b913aded77cfcaf54c20558d446f84
-12192 bytes
+sha256 5abe29e53aee7c928afff0626b8b70bd8df87a79d8147d1faf8e9c59517aa1c3
+14376 bytes

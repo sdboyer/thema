@@ -73,9 +73,14 @@ struct FormsV0 @0xfc2db4c40e2a9973 {
     a @1 :Text;
   }
 }
+-- out/capnp/fate --
+version 0.0
+  struct (root) FormsV0 closed: req, opt, def, optDef, optStruct, defStruct, defList, optList, defUnion, optUnion, optNull, defNull
+  struct optStruct FormsV0.OptStruct closed: a
+  struct defStruct FormsV0.DefStruct closed: a
 -- out/capnp/artifact --
-sha256 c4e80438e82801c0103efcbbbf0f585fee9eba72c52f66c7d99ab7b3f173046c
-4240 bytes
+sha256 c6b7e1e5453601f9070c116f26284af3a64bf23f554806b1fe7b224abad9bf79
+6296 bytes
 -- out/capnp/layout --
 struct FormsV0 @0xfc2db4c40e2a9973: data=2 ptrs=11
   extras @0: data off=0
