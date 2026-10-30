@@ -2,7 +2,7 @@
 
 This page is the reference for generating code from a lineage. Each generator except Go reads one schema of the lineage at a time. The Go generator reads the whole lineage, and binds one schema to a Go type only when asked to. The `thema lineage gen` command generates OpenAPI, JSON Schema and Go bindings. The `encoding/*` Go packages generate all four. The browser playground generates OpenAPI, JSON Schema and TypeScript. Every generator accepts a lineage in either the [authoring form](../authoring-form.md) or the normal form, except where its **Limits** say otherwise.
 
-The examples use the `ship` lineage from the playground's tour, with a minor version `1.1` added:
+The examples use the `ship` lineage from the playground's tour, with its tip a minor version, `1.1`:
 
 ```cue
 // history/0.0.thema
@@ -16,7 +16,7 @@ Schema: {
 	secondfield: int
 }
 
-// 1.1.thema
+// tip.thema, which cuts as 1.1
 Schema: {
 	firstfield:  string
 	secondfield: int

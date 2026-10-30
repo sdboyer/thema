@@ -4,7 +4,7 @@ A lens writes only what its target declares.
 Schema: {
 	a!: string
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	a!: int
 	...
@@ -17,9 +17,14 @@ ForwardLens: {
 		extra: v0_0.a
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	a!: int
+	...
+}
 -- out/error --
 error[E0341]: 1.0 does not declare extra
-  --> 1.0.thema:10:3
+  --> history/1.0.thema:10:3
    |
 10 |         extra: v0_0.a
    |         ^^^^^

@@ -2,7 +2,7 @@
 #raw: true
 A version file in the authoring form's one layout.
 -- request.json --
-{"file": {"path": "1.0.thema", "text": "Schema: {name: string, crew: int}\n"}}
+{"file": {"path": "tip.thema", "text": "Schema: {name: string, crew: int}\n"}}
 -- out/response.json --
 {
   "ok": true,

@@ -37,10 +37,26 @@ type File struct {
 	Text []byte
 }
 
+// The layout of a lineage's directory: the tip at its top, and the frozen
+// versions under history/.
+const (
+	// TipFile is the tip: the version being worked on. Its version is never
+	// written; it is derived against the newest frozen version.
+	TipFile = "tip" + Ext
+	// HistoryDir holds the frozen versions, one <major>.<minor>.thema each.
+	HistoryDir = "history"
+	// TipParam is the name a lens on the edge into the tip gives the tip's
+	// instance, in place of a version's v<major>_<minor>: the tip has no
+	// version to name it by until it is cut.
+	TipParam = "tip"
+)
+
 // Load reads the authoring files of the lineage in dir: every file with [Ext]
-// in dir and in dir/history. The lineage's name is dir's base name.
+// in dir and in dir/history. The lineage's name is dir's base name. Whether
+// the files are laid out as a lineage is for the compiler to say, so that
+// every misplaced file is reported with the others.
 func Load(fsys fs.FS, dir string) (name string, files []File, err error) {
-	for _, d := range []string{dir, path.Join(dir, "history")} {
+	for _, d := range []string{dir, path.Join(dir, HistoryDir)} {
 		ents, err := fs.ReadDir(fsys, d)
 		if err != nil {
 			if d != dir && errors.Is(err, fs.ErrNotExist) {
@@ -63,13 +79,56 @@ func Load(fsys fs.FS, dir string) (name string, files []File, err error) {
 	return path.Base(dir), files, nil
 }
 
-// versionFile matches a version file's path: <major>.<minor>.thema, at the top
-// of the lineage's directory or under history/.
-var versionFile = regexp.MustCompile(`^(?:history/)?(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\` + Ext + `$`)
+// versionFile matches a frozen version's path: history/<major>.<minor>.thema.
+var versionFile = regexp.MustCompile(`^` + HistoryDir + `/(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\` + Ext + `$`)
+
+// misplacedVersion matches a version file at the top of the lineage's
+// directory, where only the tip belongs.
+var misplacedVersion = regexp.MustCompile(`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\` + Ext + `$`)
+
+// splitLayout sorts a lineage's files into its history and its tip, which is nil
+// when there is no tip.thema. Every file that is neither is an error.
+func splitLayout(files []File) (history []File, tip *File, err error) {
+	var errs cerrors.Error
+	for _, f := range files {
+		switch {
+		case f.Path == TipFile:
+			if tip != nil {
+				errs = cerrors.Append(errs, diag.New(diag.E0204).
+					Headlinef("the lineage has two %s", TipFile).
+					Help("a lineage has one tip").
+					Err())
+				continue
+			}
+			tip = &f
+		case versionFile.MatchString(f.Path):
+			history = append(history, f)
+		case misplacedVersion.MatchString(f.Path):
+			errs = cerrors.Append(errs, diag.New(diag.E0148).
+				Headlinef("%s is a numbered version at the top of the lineage's directory", f.Path).
+				Note(token.NoPos, "the top of the lineage's directory holds only the tip, "+TipFile+"; numbered versions are frozen, and live under "+HistoryDir+"/").
+				Helpf("move it to %s/%s", HistoryDir, f.Path).
+				Err())
+		default:
+			errs = cerrors.Append(errs, diag.New(diag.E0101).
+				Headlinef("%s is not a version file", f.Path).
+				Helpf("a lineage's directory holds its tip, %s, and its frozen versions under %s/, each named <major>.<minor>%s", TipFile, HistoryDir, Ext).
+				Err())
+		}
+	}
+	if errs != nil {
+		return nil, nil, errs
+	}
+	return history, tip, nil
+}
 
 // A version is one parsed version file.
 type version struct {
-	v    thema.SyntacticVersion
+	// v is the version's number: from its file name for a frozen version,
+	// and derived for the tip.
+	v thema.SyntacticVersion
+	// tip marks the tip, whose lenses name its instance TipParam.
+	tip  bool
 	path string
 	file *ast.File
 	tf   *token.File
@@ -77,6 +136,15 @@ type version struct {
 	schema, forward, backward *ast.Field
 	// imports are the file's imports, each of one of CUE's builtin packages.
 	imports []*ast.ImportSpec
+}
+
+// param is the name the version's lenses give its instance: v0_0 for 0.0,
+// and TipParam for the tip.
+func (v *version) param() string {
+	if v.tip {
+		return TipParam
+	}
+	return paramName(v.v)
 }
 
 // header is the position of the start of the file, where constructs the file
@@ -115,24 +183,20 @@ func (v *version) schemaField() *ast.Field {
 	return &f
 }
 
-// parseVersion parses one version file. Its name gives its version; its
-// contents are at most a schema, a forward block and a backward block.
-func parseVersion(f File) (*version, error) {
-	m := versionFile.FindStringSubmatch(f.Path)
-	if m == nil {
-		return nil, diag.New(diag.E0101).
-			Headlinef("%s is not a version file", f.Path).
-			Helpf("a version file is named <major>.<minor>%s, in the lineage's directory or its history directory", Ext).
-			Err()
-	}
+// parseVersion parses one version file: a frozen version, whose name gives
+// its version, or the tip, whose version is derived later. Its contents are at
+// most a schema, a forward block and a backward block.
+func parseVersion(f File, tip bool) (*version, error) {
 	af, err := parser.ParseFile(f.Path, f.Text, parser.ParseComments)
 	if err != nil {
 		return nil, diag.Convert(err, diag.Context{Op: diag.OpCompile, Generic: diag.E0102})
 	}
-	v := &version{path: f.Path, file: af, tf: af.Pos().File()}
-	major, _ := strconv.ParseUint(m[1], 10, 64)
-	minor, _ := strconv.ParseUint(m[2], 10, 64)
-	v.v = thema.SV(uint(major), uint(minor))
+	v := &version{path: f.Path, tip: tip, file: af, tf: af.Pos().File()}
+	if m := versionFile.FindStringSubmatch(f.Path); m != nil {
+		major, _ := strconv.ParseUint(m[1], 10, 64)
+		minor, _ := strconv.ParseUint(m[2], 10, 64)
+		v.v = thema.SV(uint(major), uint(minor))
+	}
 
 	const only = "a version file has only Schema, ForwardLens and BackwardLens"
 	fields := []string{fieldSchema, fieldForward, fieldBackward}
@@ -190,7 +254,7 @@ func parseVersion(f File) (*version, error) {
 			}
 			if name != fieldSchema {
 				if _, ok := d.Value.(*ast.StructLit); !ok {
-					report(diag.E0107, d.Value.Pos(), "%s is not a struct", name).Helpf("a lens block is {v<from>: _, v<to>: {...}}")
+					report(diag.E0107, d.Value.Pos(), "%s is not a struct", name).Helpf("a lens block is {v<from>: _, v<to>: {...}}, naming the tip's instance %s", TipParam)
 					continue
 				}
 			}
@@ -248,14 +312,14 @@ func noShorthand(f *ast.Field) cerrors.Error {
 		Err()
 }
 
-// parseVersions parses every file and orders the versions, which must be
+// parseVersions parses the frozen versions and orders them, which must be
 // contiguous: each the next minor version of its predecessor, or the first
-// version of the next major.
+// version of the next major. There may be none.
 func parseVersions(files []File) ([]*version, error) {
 	var errs cerrors.Error
 	var vs []*version
 	for _, f := range files {
-		v, err := parseVersion(f)
+		v, err := parseVersion(f, false)
 		if err != nil {
 			errs = cerrors.Append(errs, cerrors.Promote(err, ""))
 			continue
@@ -264,12 +328,6 @@ func parseVersions(files []File) ([]*version, error) {
 	}
 	if errs != nil {
 		return nil, errs
-	}
-	if len(vs) == 0 {
-		return nil, diag.New(diag.E0110).
-			Headline("the lineage has no version files").
-			Helpf("a lineage is a directory of version files, <major>.<minor>%s, starting at 0.0%s", Ext, Ext).
-			Err()
 	}
 	sort.Slice(vs, func(i, j int) bool { return vs[i].v.Less(vs[j].v) })
 	for i, v := range vs {
@@ -280,7 +338,7 @@ func parseVersions(files []File) ([]*version, error) {
 				return nil, diag.New(diag.E0204).At(v.header()).
 					Headlinef("%s and %s both declare version %s", vs[i-1].path, v.path, v.v).
 					Note(vs[i-1].header(), "the other is here").
-					Help("a version has one file, at the top of the lineage's directory or under history/").
+					Helpf("a version has one file, under %s/", HistoryDir).
 					Err()
 			}
 			if v.v[0] == prev[0] {
@@ -295,8 +353,27 @@ func parseVersions(files []File) ([]*version, error) {
 			if i == 0 {
 				b.Headlinef("%s is not the first version: a lineage starts at 0.0", v.path)
 			}
-			return nil, b.Helpf("rename the file %s%s, or add the versions between", want, Ext).Err()
+			return nil, b.Helpf("rename the file %s/%s%s, or add the versions between", HistoryDir, want, Ext).Err()
 		}
 	}
 	return vs, nil
+}
+
+// noHistory is the error for a lineage with no frozen versions, on a path
+// that reads only history/.
+func noHistory() error {
+	return diag.New(diag.E0110).
+		Headlinef("the lineage has no versions under %s/", HistoryDir).
+		Notef(token.NoPos, "binding reads the frozen versions under %s/ and ignores the tip; a lineage whose only version is its tip binds only on the development path", HistoryDir).
+		Helpf("cut the tip to %s/0.0%s", HistoryDir, Ext).
+		Err()
+}
+
+// noTip is the error for a lineage with no tip, on a path that needs it.
+func noTip() error {
+	return diag.New(diag.E0149).
+		Headlinef("the lineage has no %s", TipFile).
+		Notef(token.NoPos, "the tip is the version being worked on, and is always present: after a cut it equals the newest version in %s/", HistoryDir).
+		Helpf("add %s, starting from a copy of the newest version's Schema", TipFile).
+		Err()
 }

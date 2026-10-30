@@ -4,7 +4,7 @@ lists deep. The issue's example, with closed schemas.
 Schema: close({
 	s!: [...close({f!: [...close({n!: string})]})]
 })
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: close({
 	s!: [...close({f!: [...close({m!: string})]})]
 })
@@ -22,13 +22,17 @@ BackwardLens: {
 		s: _each(v1_0.s, {f: _each(_item.f, {n: _item.m})})
 	}
 }
+-- ship/tip.thema --
+Schema: close({s!: [...close({f!: [...close({m!: string})]})]})
 -- data/0.0/two.json --
 {"s": [{"f": [{"n": "a"}, {"n": "b"}]}, {"f": []}]}
 -- data/1.0/one.json --
 {"s": [{"f": [{"m": "a"}]}]}
 -- out/bind --
 ok
--- out/decompiled/1.0.thema --
+-- out/decompiled/history/0.0.thema --
+Schema: close({s!: [...close({f!: [...close({n!: string})]})]})
+-- out/decompiled/history/1.0.thema --
 Schema: close({s!: [...close({f!: [...close({m!: string})]})]})
 
 ForwardLens: {
@@ -44,8 +48,8 @@ BackwardLens: {
 		s: _each(v1_0.s, {f: _each(_item.f, {n: _item.m})})
 	}
 }
--- out/decompiled/history/0.0.thema --
-Schema: close({s!: [...close({f!: [...close({n!: string})]})]})
+-- out/decompiled/tip.thema --
+Schema: close({s!: [...close({f!: [...close({m!: string})]})]})
 -- out/normal.cue --
 name: "ship"
 schemas: {

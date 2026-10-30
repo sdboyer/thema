@@ -12,9 +12,9 @@ import (
 // types.ts, generated from this file, is how the frontend sees them. Versions
 // are strings, "0.0"; only lacunas keep thema's [major, minor] pairs.
 
-// File is one named text: a version file of the authoring form, relative to
-// the lineage's directory (1.0.thema, history/0.0.thema), or a normal-form
-// .cue file.
+// File is one named text: a file of the authoring form, relative to the
+// lineage's directory (tip.thema, history/0.0.thema), or a normal-form .cue
+// file.
 type File struct {
 	Path string `json:"path"`
 	Text string `json:"text"`
@@ -69,11 +69,35 @@ type BindRequest struct {
 
 // BindResponse is a bound lineage: its name, its versions in order, and its
 // normal form as text (for the authoring form, what the files compile to).
+//
+// The playground binds a lineage in the authoring form with its tip, on the
+// development path: the tip is the file being edited, and binding the
+// history alone would ignore every edit. Tip describes it, and the
+// diagnostics carry a warning (E1001) for each lens the tip's edge lacks.
 type BindResponse struct {
 	Result   `tstype:",extends"`
 	Name     string   `json:"name,omitempty"`
 	Versions []string `json:"versions,omitempty"`
 	Normal   string   `json:"normal,omitempty"`
+	Tip      *TipInfo `json:"tip,omitempty"`
+}
+
+// TipInfo describes the tip of a lineage in the authoring form.
+type TipInfo struct {
+	// Version is the version the tip cuts as, derived by the compatibility
+	// check against the newest version under history/; when the tip is
+	// clean, the newest version, which it equals.
+	Version string `json:"version"`
+	// Clean says whether the tip equals the newest version under history/,
+	// with no lenses: there is nothing to cut.
+	Clean bool `json:"clean"`
+	// Provisional says whether the lineage's versions end with the tip's:
+	// it is not clean, and an instance of that version is an instance of the
+	// tip, not of a version that was cut.
+	Provisional bool `json:"provisional"`
+	// Label is the tip as tools show it: "tip (cuts as 2.1)", or "tip
+	// (clean at 2.0)".
+	Label string `json:"label"`
 }
 
 // ValidateRequest validates a data document against one schema. An empty
@@ -165,7 +189,8 @@ type CodegenResponse struct {
 	Output  string `json:"output,omitempty"`
 }
 
-// CompileRequest compiles authoring files to the normal form.
+// CompileRequest compiles authoring files to the normal form, with the tip,
+// as the playground binds them.
 type CompileRequest struct {
 	Name  string `json:"name"`
 	Files []File `json:"files"`
@@ -183,14 +208,15 @@ type DecompileRequest struct {
 	Path   string `json:"path,omitempty"`
 }
 
-// DecompileResponse is the lineage's name and its version files.
+// DecompileResponse is the lineage's name and its files: its versions under
+// history/, and a clean tip.
 type DecompileResponse struct {
 	Result `tstype:",extends"`
 	Name   string `json:"name,omitempty"`
 	Files  []File `json:"files,omitempty"`
 }
 
-// FormatRequest lays out one version file in the authoring form's layout.
+// FormatRequest lays out one file of the authoring form in its layout.
 type FormatRequest struct {
 	File File `json:"file"`
 }

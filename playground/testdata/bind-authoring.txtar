@@ -5,7 +5,7 @@ form.
 Schema: {
 	name: string
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	name: string
 	crew: int
@@ -24,6 +24,11 @@ ForwardLens: {
 		}]
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	name: string
+	crew: int
+}
 -- out/response.json --
 {
   "ok": true,
@@ -33,5 +38,11 @@ ForwardLens: {
     "0.0",
     "1.0"
   ],
-  "normal": "name: \"ship\"\nschemas: {\n\t\"0\": {\n\t\t\"0\": {\n\t\t\tschema: {\n\t\t\t\tname: string\n\t\t\t}\n\t\t}\n\t}\n\t\"1\": {\n\t\t\"0\": {\n\t\t\tschema: {\n\t\t\t\tname: string\n\t\t\t\tcrew: int\n\t\t\t}\n\t\t}\n\t}\n}\nlenses: {\n\t\"0.0-\u003e1.0\": {\n\t\tv0_0: _\n\t\tv1_0: {\n\t\t\tname: v0_0.name\n\t\t\tcrew: 1\n\t\t}\n\t\tlacunas: [{\n\t\t\ttargetFields: [{\n\t\t\t\tpath:  \"crew\"\n\t\t\t\tvalue: v1_0.crew\n\t\t\t}]\n\t\t\tmessage: \"crew is a placeholder\"\n\t\t\ttype:    \"Placeholder\"\n\t\t}]\n\t}\n\t\"1.0-\u003e0.0\": {\n\t\tv1_0: _\n\t\tv0_0: {\n\t\t\tname: v1_0.name\n\t\t}\n\t\tlacunas: [{\n\t\t\t@thema(derived)\n\t\t\tsourceFields: [{\n\t\t\t\tpath:  \"crew\"\n\t\t\t\tvalue: v1_0.crew\n\t\t\t}]\n\t\t\tmessage: \"crew has no equivalent in 0.0 and was dropped\"\n\t\t\ttype:    \"DroppedField\"\n\t\t}]\n\t}\n}\n"
+  "normal": "name: \"ship\"\nschemas: {\n\t\"0\": {\n\t\t\"0\": {\n\t\t\tschema: {\n\t\t\t\tname: string\n\t\t\t}\n\t\t}\n\t}\n\t\"1\": {\n\t\t\"0\": {\n\t\t\tschema: {\n\t\t\t\tname: string\n\t\t\t\tcrew: int\n\t\t\t}\n\t\t}\n\t}\n}\nlenses: {\n\t\"0.0-\u003e1.0\": {\n\t\tv0_0: _\n\t\tv1_0: {\n\t\t\tname: v0_0.name\n\t\t\tcrew: 1\n\t\t}\n\t\tlacunas: [{\n\t\t\ttargetFields: [{\n\t\t\t\tpath:  \"crew\"\n\t\t\t\tvalue: v1_0.crew\n\t\t\t}]\n\t\t\tmessage: \"crew is a placeholder\"\n\t\t\ttype:    \"Placeholder\"\n\t\t}]\n\t}\n\t\"1.0-\u003e0.0\": {\n\t\tv1_0: _\n\t\tv0_0: {\n\t\t\tname: v1_0.name\n\t\t}\n\t\tlacunas: [{\n\t\t\t@thema(derived)\n\t\t\tsourceFields: [{\n\t\t\t\tpath:  \"crew\"\n\t\t\t\tvalue: v1_0.crew\n\t\t\t}]\n\t\t\tmessage: \"crew has no equivalent in 0.0 and was dropped\"\n\t\t\ttype:    \"DroppedField\"\n\t\t}]\n\t}\n}\n",
+  "tip": {
+    "version": "1.0",
+    "clean": true,
+    "provisional": false,
+    "label": "tip (clean at 1.0)"
+  }
 }

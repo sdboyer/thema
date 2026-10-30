@@ -52,6 +52,8 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0145](E0145.md) | error | a lens refers to another lens of the lineage |
 | [E0146](E0146.md) | error | a reference cannot be resolved statically |
 | [E0147](E0147.md) | error | a version file imports a package its Schema does not use |
+| [E0148](E0148.md) | error | a numbered version file is at the top of the lineage's directory, not under history/ |
+| [E0149](E0149.md) | error | the lineage's directory has no tip.thema |
 | [E0201](E0201.md) | error | the first schema is not version 0.0 |
 | [E0202](E0202.md) | error | a schema's version does not follow its predecessor's |
 | [E0203](E0203.md) | error | a major version declares no schemas |
@@ -191,3 +193,6 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0901](E0901.md) | error | thema failed internally |
 | [E0902](E0902.md) | error | CUE reported an error thema does not recognize |
 | [E0903](E0903.md) | error | thema reported an error that has no code |
+| [E1001](E1001.md) | warning | a lens on the edge into the tip is missing |
+| [E1002](E1002.md) | error | a translation needs a lens the tip does not have yet |
+| [E1003](E1003.md) | error | the tip is not clean: it differs from the newest version in history/ |

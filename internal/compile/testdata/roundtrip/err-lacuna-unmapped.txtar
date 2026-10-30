@@ -5,7 +5,7 @@ the drop.
 Schema: {
 	firstfield: string
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	firstfield:  string
 	secondfield: int
@@ -34,9 +34,14 @@ BackwardLens: {
 		}]
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	firstfield:  string
+	secondfield: int
+}
 -- out/error --
 error[E0412]: lacunas.secondfeild: ForwardLens has no mapping keyed secondfeild
-  --> 1.0.thema:12:17
+  --> history/1.0.thema:12:17
    |
 12 |         secondfeild: [{
    |                       ^

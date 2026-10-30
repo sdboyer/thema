@@ -27,4 +27,29 @@ describe("Output", () => {
     expect(cell.querySelector("a.doc-link")!.getAttribute("href")).toBe(`${docsBase}reference/lacunas.md#droppedfield`);
     expect(root.querySelector(".lacunas caption a.doc-link")!.getAttribute("href")).toBe(`${docsBase}reference/lacunas.md`);
   });
+
+  it("reads versions through the label it is given", () => {
+    const root = document.createElement("div");
+    const label = (v: string) => (v === "1.1" ? "tip (cuts as 1.1)" : v);
+    render(
+      <Output
+        onOpen={() => {}}
+        label={label}
+        outcome={{
+          op: "translate",
+          resp: {
+            ok: true,
+            diagnostics: [],
+            from: "1.1",
+            to: "1.0",
+            output: { firstfield: "hello" },
+            lacunas: [{ from: [1, 1], to: [1, 0], lacunas: [{ type: "DroppedField", message: "gone", sourceFields: [{ path: "size", value: "large" }] }] }],
+          },
+        }}
+      />,
+      root,
+    );
+    expect(root.querySelector(".status")!.textContent).toBe("Translated from tip (cuts as 1.1) to 1.0, with 1 lacuna.");
+    expect(root.querySelector(".lacunas td")!.textContent).toBe("tip (cuts as 1.1) → 1.0");
+  });
 });

@@ -19,7 +19,7 @@ import (
 // An authoring directory, as an external module would hold one.
 var shipDir = fstest.MapFS{
 	"lineages/ship/history/0.0.thema": {Data: []byte("Schema: {\n\tfirstfield: string\n}\n")},
-	"lineages/ship/1.0.thema": {Data: []byte(`Schema: {
+	"lineages/ship/history/1.0.thema": {Data: []byte(`Schema: {
 	firstfield:  string
 	secondfield: int
 }
@@ -37,6 +37,7 @@ ForwardLens: {
 	}
 }
 `)},
+	"lineages/ship/tip.thema": {Data: []byte("Schema: {\n\tfirstfield:  string\n\tsecondfield: int\n}\n")},
 }
 
 func TestAuthoringLineage(t *testing.T) {
@@ -71,7 +72,8 @@ func TestAuthoringLineage(t *testing.T) {
 func TestAuthoringLineageErrorPosition(t *testing.T) {
 	bad := fstest.MapFS{
 		"ship/history/0.0.thema": {Data: []byte("Schema: {\n\ta: string\n}\n")},
-		"ship/1.0.thema":         {Data: []byte("Schema: {\n\tb: int\n}\n")},
+		"ship/history/1.0.thema": {Data: []byte("Schema: {\n\tb: int\n}\n")},
+		"ship/tip.thema":         {Data: []byte("Schema: {\n\tb: int\n}\n")},
 	}
 	_, err := AuthoringLineage(bad, "ship", thema.NewRuntime(cuecontext.New()))
 	if err == nil {
@@ -79,12 +81,12 @@ func TestAuthoringLineageErrorPosition(t *testing.T) {
 	}
 	var found bool
 	for _, e := range cerrors.Errors(err) {
-		if e.Position().Filename() == "1.0.thema" {
+		if e.Position().Filename() == "history/1.0.thema" {
 			found = true
 		}
 	}
 	if !found {
-		t.Errorf("no error positioned in 1.0.thema:\n%s", cerrors.Details(err, nil))
+		t.Errorf("no error positioned in history/1.0.thema:\n%s", cerrors.Details(err, nil))
 	}
 }
 
@@ -93,7 +95,7 @@ func TestAuthoringLineageErrorPosition(t *testing.T) {
 func TestAuthoringLineageVocabulary(t *testing.T) {
 	narrowing := fstest.MapFS{
 		"ship/history/0.0.thema": {Data: []byte("Schema: {\n\ta: int32\n}\n")},
-		"ship/1.0.thema": {Data: []byte(`Schema: {
+		"ship/history/1.0.thema": {Data: []byte(`Schema: {
 	a: int32 & >=0
 }
 
@@ -111,6 +113,7 @@ BackwardLens: {
 	}
 }
 `)},
+		"ship/tip.thema": {Data: []byte("Schema: {\n\ta: int32 & >=0\n}\n")},
 	}
 	_, err := AuthoringLineage(narrowing, "ship", thema.NewRuntime(cuecontext.New()))
 	if err == nil {
@@ -130,7 +133,8 @@ BackwardLens: {
 // A name an open struct admits through its ... is not one it declares, so a
 // field one version declares and the other only admits is added or removed,
 // as between closed structs: no implicit copy produces it, and the derived
-// backward lens drops it with a DroppedField lacuna (#158, #159).
+// backward lens drops it with a DroppedField lacuna (#158, #159). These
+// lineages have no tip.thema, which binding the history does not read.
 func TestAuthoringOpenStructs(t *testing.T) {
 	const (
 		first = "history/0.0.thema"
@@ -163,13 +167,13 @@ ForwardLens: {
 		translations []translation
 	}{
 		"open target, added field": {
-			files: map[string]string{first: open, "1.0.thema": addedRequired},
+			files: map[string]string{first: open, "history/1.0.thema": addedRequired},
 			translations: []translation{
 				{thema.SV(1, 0), thema.SV(0, 0), `{a: "x", b: false}`, axOut, []lacuna.Type{lacuna.DroppedField}},
 			},
 		},
 		"open target, written drop": {
-			files: map[string]string{first: open, "1.0.thema": addedRequired + `
+			files: map[string]string{first: open, "history/1.0.thema": addedRequired + `
 BackwardLens: {
 	v1_0: _
 	v0_0: {
@@ -190,7 +194,7 @@ BackwardLens: {
 			},
 		},
 		"open source, added optional field": {
-			files: map[string]string{first: open, "1.0.thema": "Schema: {\n\ta!: string\n\tb?: bool\n\t...\n}\n"},
+			files: map[string]string{first: open, "history/1.0.thema": "Schema: {\n\ta!: string\n\tb?: bool\n\t...\n}\n"},
 			translations: []translation{
 				{thema.SV(0, 0), thema.SV(1, 0), ax, axOut, nil},
 				{thema.SV(1, 0), thema.SV(0, 0), `{a: "x", b: true}`, axOut, []lacuna.Type{lacuna.DroppedField}},
@@ -198,7 +202,7 @@ BackwardLens: {
 			},
 		},
 		"open, removed optional field": {
-			files: map[string]string{first: "Schema: {\n\ta!: string\n\tb?: string\n\t...\n}\n", "0.1.thema": open},
+			files: map[string]string{first: "Schema: {\n\ta!: string\n\tb?: string\n\t...\n}\n", "history/0.1.thema": open},
 			translations: []translation{
 				{thema.SV(0, 0), thema.SV(0, 1), `{a: "x", b: "y"}`, `{"a":"x","b":"y"}`, nil},
 				{thema.SV(0, 1), thema.SV(0, 0), ax, axOut, nil},

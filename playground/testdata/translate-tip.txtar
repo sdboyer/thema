@@ -1,0 +1,53 @@
+#op: translate
+#raw: false
+Translating into the tip needs the ForwardLens it does not write yet: the
+translation fails with E1002, not with a lens error.
+-- request.json --
+{"from": "0.0", "to": "1.0"}
+-- ship/history/0.0.thema --
+Schema: {
+	name: string
+	crew: int
+}
+-- ship/tip.thema --
+Schema: {
+	name: string
+}
+-- data.json --
+{"name": "Argo", "crew": 50}
+-- out/response.json --
+{
+  "ok": false,
+  "diagnostics": [
+    {
+      "code": "E1002",
+      "severity": "error",
+      "headline": "translating from 0.0 to 1.0 needs the ForwardLens in tip.thema, which is not written yet",
+      "path": [
+        "lenses",
+        "0.0-\u003e1.0"
+      ],
+      "address": {
+        "from": [
+          0,
+          0
+        ],
+        "kind": "lens",
+        "to": [
+          1,
+          0
+        ]
+      },
+      "notes": [
+        {
+          "label": "1.0 is provisional: the schema in tip.thema, which is still being worked on, and whose lenses may not be written yet"
+        }
+      ],
+      "help": [
+        "write the ForwardLens in tip.thema"
+      ]
+    }
+  ],
+  "from": "0.0",
+  "to": "1.0"
+}

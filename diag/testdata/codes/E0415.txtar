@@ -8,7 +8,7 @@ Schema: {
 		title: string
 	}]
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	items: [...{
 		name: string
@@ -38,6 +38,10 @@ BackwardLens: {
 		})
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	items: [...{name: string}]
+}
 -- out/json --
 {
   "diagnostics": [
@@ -46,7 +50,7 @@ BackwardLens: {
       "severity": "error",
       "headline": "lacunas.items: a lacuna on _each needs when: <condition>",
       "primary": {
-        "file": "1.0.thema",
+        "file": "history/1.0.thema",
         "line": 15,
         "col": 11,
         "offset": 159,
@@ -62,7 +66,7 @@ BackwardLens: {
 }
 -- out/text --
 error[E0415]: lacunas.items: a lacuna on _each needs when: <condition>
-  --> 1.0.thema:15:11
+  --> history/1.0.thema:15:11
    |
 15 |         items: [{
    |                 ^

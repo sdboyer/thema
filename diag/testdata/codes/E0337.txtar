@@ -7,7 +7,7 @@ Schema: {
 		title: string
 	}]
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	items: [...{
 		name: string
@@ -20,6 +20,10 @@ ForwardLens: {
 		items: _each(v0_0.items)
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	items: [...{name: string}]
+}
 -- out/json --
 {
   "diagnostics": [
@@ -28,7 +32,7 @@ ForwardLens: {
       "severity": "error",
       "headline": "_each takes two arguments: _each(v0_0.<list>, {...})",
       "primary": {
-        "file": "1.0.thema",
+        "file": "history/1.0.thema",
         "line": 10,
         "col": 10,
         "offset": 88,
@@ -44,7 +48,7 @@ ForwardLens: {
 }
 -- out/text --
 error[E0337]: _each takes two arguments: _each(v0_0.<list>, {...})
-  --> 1.0.thema:10:10
+  --> history/1.0.thema:10:10
    |
 10 |         items: _each(v0_0.items)
    |                ^^^^^

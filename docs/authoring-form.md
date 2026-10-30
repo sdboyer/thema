@@ -2,24 +2,38 @@
 
 This is the reference for the authoring form: the files a lineage author writes, and the language lenses are written in. For a guided introduction to lineages, start with the [overview](overview.md) and the [authoring tutorial](authoring.md), which show the normal form that every thema tool consumes. The authoring form compiles to that normal form, and decompiles back from it, without loss. What translation then does with each field of an instance is defined in [translation](translation.md).
 
-Every `thema` command that takes a lineage with `-l` accepts a lineage's directory in this form, and `thema lineage fmt -l <dir>` lays out its files in place. In Go, `load.AuthoringLineage` loads, compiles and binds a directory in one call, and the `authoring` package exposes the pieces: the files, the compiled normal form, the decompiler and the formatter.
+Every `thema` command that takes a lineage with `-l` accepts a lineage's directory in this form, `thema lineage fmt -l <dir>` lays out its files in place, and `thema lineage tip -l <dir>` reports the version its tip cuts as. In Go, `load.AuthoringLineage` loads, compiles and binds a directory in one call, and the `authoring` package exposes the pieces: the files, the compiled normal form, the tip, the decompiler and the formatter.
 
 ## Files
 
-A lineage is a directory. The directory's base name is the lineage's name, and it holds one file per schema version:
+A lineage is a directory. The directory's base name is the lineage's name. It holds the lineage's history, one file per version that has been cut, and its tip, the version being worked on:
 
 ```
 ship/
-  1.0.thema
+  tip.thema
   history/
     0.0.thema
     0.1.thema
+    1.0.thema
 ```
 
-- A version file is named `<major>.<minor>.thema`. The current version sits at the top of the directory; every earlier version sits under `history/`.
+- A version that has been cut is named `history/<major>.<minor>.thema`. Data has been written against it, so it never changes. A numbered file at the top of the directory is an error (`E0148`) that says to move it under `history/`.
 - Versions are contiguous from `0.0`: each file is either the next minor version of the one before it, or the next major version with minor `0`.
 - Only files ending in `.thema` are read; anything else in the directory is left alone. The playground uses this to keep an `example.cue` beside a lineage that it offers as an example (see `thema playground examples --help`).
 - Whether a version is minor or major is not the author's call. thema checks each version against the one before it under the [backwards compatibility](invariants.md#backwards-compatibility) rules. A file named as a minor version must be compatible with its predecessor, and a file named as a major version must not be. A file named the wrong way is an error that says which version number it should have.
+
+### The tip
+
+`tip.thema` is the one file an author edits. The development path requires one, and decompiling writes one. It is written like any version file, and its version is never written down: thema derives it by checking the tip against the newest version under `history/`. If the tip is backwards compatible with that version, it is the next minor version, and otherwise the next major version. With no history at all, it is `0.0`. Tools show it as `tip (cuts as 2.1)`.
+
+- The tip's lenses are its edge to the newest version in history. In them, the tip's instance is named `tip`, since it has no version number yet: `ForwardLens: {v1_0: _, tip: {...}}` and `BackwardLens: {tip: _, v1_0: {...}}`. `tip` names nothing in a file under `history/`, and a tip's lens that names its instance by a version number is an error (`E0111`).
+- A tip is *clean* when its `Schema` equals the newest version's, and it declares no lenses. Formatting, comments and field order do not count. A clean tip has nothing to cut, and tools show it as `tip (clean at 2.0)`. `thema lineage tip -l <dir> --check-clean` fails with `E1003` for a tip that is not clean, for CI to check that the tip was cut before merging; in Go, `authoring.CheckClean`.
+- Cutting a tip writes it to `history/` at its derived version. It is not yet automated.
+
+A lineage is read in one of two ways:
+
+- **The history alone.** This is what is published and served: `load.AuthoringLineage`, `authoring.Compile`, and every CLI command by default. The tip is not read, and a directory without one loads.
+- **With the tip, for development.** `load.DevelopmentLineage`, `authoring.CompileDevelopment` with `authoring.BindDevelopment`, the CLI's `--tip` flag, and the playground bind the tip as the newest version, at the version it cuts as. Unless the tip is clean, that version is *provisional*: it is the tip, and may still change. A directory with no `tip.thema` is an error (`E0149`). While the tip is being written, a lens its edge needs but does not write yet is not an error but a warning (`E1001`). The lineage still binds, and a translation that needs the missing lens fails with `E1002`. A lens the tip does write is checked as any other. Each of these errors unwraps to `thema/errors.ErrProvisional`.
 
 A version file holds at most three fields. A field is a name, a colon and a value; a block is a value written in braces, holding fields of its own.
 

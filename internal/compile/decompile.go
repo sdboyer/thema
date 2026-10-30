@@ -26,6 +26,10 @@ import (
 // derivation would produce are omitted. A lens outside that subset is an
 // error naming its edge; nothing is approximated.
 //
+// Every version is decompiled to its file under history/, and the tip is
+// clean: tip.thema holds the newest version's schema and no lenses, as just
+// after that version was cut.
+//
 // lin is the lineage value, as compiled or as loaded; it need not be bound.
 func Decompile(lin cue.Value) (name string, files []File, err error) {
 	name, files, err = decompile(lin)
@@ -84,12 +88,16 @@ func decompile(lin cue.Value) (name string, files []File, err error) {
 		if err != nil {
 			return "", nil, err
 		}
-		p := fmt.Sprintf("%s%s", v.v, Ext)
-		if i < len(vs)-1 {
-			p = "history/" + p
-		}
-		files = append(files, File{Path: p, Text: []byte(text)})
+		files = append(files, File{Path: fmt.Sprintf("%s/%s%s", HistoryDir, v.v, Ext), Text: []byte(text)})
 	}
+	// The tip a lineage has just after its newest version was cut: that
+	// version's schema, with no lenses.
+	newest := vs[len(vs)-1]
+	text, err := versionText(newest, thema.SyntacticVersion{}, nil, nil)
+	if err != nil {
+		return "", nil, err
+	}
+	files = append(files, File{Path: TipFile, Text: []byte(text)})
 	return name, files, nil
 }
 

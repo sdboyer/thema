@@ -4,7 +4,7 @@ compatible change, so the entries are refused.
 Schema: {
 	a: string
 }
--- ship/0.1.thema --
+-- ship/history/0.1.thema --
 Schema: {
 	a:  string
 	b?: int
@@ -16,9 +16,14 @@ ForwardLens: {
 		b: 1
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	a:  string
+	b?: int
+}
 -- out/error --
-error[E0355]: 0.1.thema is backward compatible with 0.0, so it has no ForwardLens
- --> 0.1.thema:6:1
+error[E0355]: history/0.1.thema is backward compatible with 0.0, so it has no ForwardLens
+ --> history/0.1.thema:6:1
   |
 6 | ForwardLens: {
   | ^^^^^^^^^^^

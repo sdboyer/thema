@@ -1,0 +1,52 @@
+#op: clean
+The tip is not clean: its schema differs from that of the newest version
+under `history/`. A clean tip equals the last version cut, with no lenses of
+its own; CI checks it to assert that the tip was cut before merging. The tip
+says which version it would be cut as.
+-- ship/history/0.0.thema --
+Schema: {
+	a: string
+}
+-- ship/tip.thema --
+Schema: {
+	a:  string
+	b?: int
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E1003",
+      "severity": "error",
+      "headline": "the Schema in tip.thema differs from the one in history/0.0.thema",
+      "primary": {
+        "file": "tip.thema",
+        "line": 1,
+        "col": 1,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "the tip cuts as 0.1"
+        }
+      ],
+      "help": [
+        "cut the tip to history/0.1.thema, or make its Schema equal history/0.0.thema's"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E1003]: the Schema in tip.thema differs from the one in history/0.0.thema
+ --> tip.thema:1:1
+  |
+1 | Schema: {
+  | ^^^^^^
+  |
+  = note: the tip cuts as 0.1
+  = help: cut the tip to history/0.1.thema, or make its Schema equal history/0.0.thema's

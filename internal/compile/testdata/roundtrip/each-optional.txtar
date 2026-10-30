@@ -9,7 +9,7 @@ Schema: {
 		legacy?: string
 	}]
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	l?: [...{u!: string}]
 }
@@ -29,6 +29,10 @@ BackwardLens: {
 	v0_0: {
 		l: _each(v1_0.l, {t: _item.u})
 	}
+}
+-- ship/tip.thema --
+Schema: {
+	l?: [...{u!: string}]
 }
 -- data/0.0/present.json --
 {"l": [{"t": "a", "legacy": "x"}, {"t": "b"}]}
@@ -40,7 +44,14 @@ BackwardLens: {
 {}
 -- out/bind --
 ok
--- out/decompiled/1.0.thema --
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	l?: [...{
+		t!:      string
+		legacy?: string
+	}]
+}
+-- out/decompiled/history/1.0.thema --
 Schema: {
 	l?: [...{u!: string}]
 }
@@ -61,12 +72,9 @@ BackwardLens: {
 		l: _each(v1_0.l, {t: _item.u})
 	}
 }
--- out/decompiled/history/0.0.thema --
+-- out/decompiled/tip.thema --
 Schema: {
-	l?: [...{
-		t!:      string
-		legacy?: string
-	}]
+	l?: [...{u!: string}]
 }
 -- out/normal.cue --
 name: "ship"

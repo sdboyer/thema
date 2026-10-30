@@ -5,7 +5,7 @@ under.
 Schema: {
 	aunion: *"foo" | "bar" | "baz"
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	aunion: "foo" | *"bar" | "baz"
 }
@@ -36,9 +36,13 @@ BackwardLens: {
 		}]
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	aunion: "foo" | *"bar" | "baz"
+}
 -- out/error --
 error[E0420]: lacunas.aunion: a lacuna on a _match applies when its [_] arm does, and this _match has none: say when it applies with when: <condition>
-  --> 1.0.thema:11:12
+  --> history/1.0.thema:11:12
    |
 11 |         aunion: [{
    |                  ^

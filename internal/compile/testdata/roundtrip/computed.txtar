@@ -9,7 +9,7 @@ Schema: {
 	tag?:   string
 	count?: int32
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	name:   string
 	label:  string
@@ -46,9 +46,26 @@ BackwardLens: {
 		height: 0
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	name:  string
+	label: string
+	area:  int64
+	wide:  bool
+	tag?:  string
+	total: int64
+}
 -- out/bind --
 ok
--- out/decompiled/1.0.thema --
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	name:   string
+	width:  int32
+	height: int32
+	tag?:   string
+	count?: int32
+}
+-- out/decompiled/history/1.0.thema --
 Schema: {
 	name:  string
 	label: string
@@ -85,13 +102,14 @@ BackwardLens: {
 		height: 0
 	}
 }
--- out/decompiled/history/0.0.thema --
+-- out/decompiled/tip.thema --
 Schema: {
-	name:   string
-	width:  int32
-	height: int32
-	tag?:   string
-	count?: int32
+	name:  string
+	label: string
+	area:  int64
+	wide:  bool
+	tag?:  string
+	total: int64
 }
 -- out/normal.cue --
 import "strings"

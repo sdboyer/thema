@@ -6,7 +6,7 @@ Schema: {
 	name:   string
 	count?: int
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	name:  string
 	count: int
@@ -25,9 +25,14 @@ ForwardLens: {
 		}]
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	name:  string
+	count: int
+}
 -- out/error --
 error[E0423]: this condition tests the presence of v0_0.count, which it also reads
-  --> 1.0.thema:15:13
+  --> history/1.0.thema:15:13
    |
 15 |             when:    v0_0.count != _|_ && v0_0.count > 1000
    |                      ^^^^

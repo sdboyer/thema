@@ -8,7 +8,7 @@ Schema: {
 		title?: string
 	}]
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	items: [...{
 		name: string
@@ -40,6 +40,10 @@ BackwardLens: {
 		})
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	items: [...{name: string}]
+}
 -- out/json --
 {
   "diagnostics": [
@@ -48,7 +52,7 @@ BackwardLens: {
       "severity": "error",
       "headline": "lacunas.items.name: a lacuna on a mapping inside _each is not supported yet; a DroppedField lacuna on a _drop refines the _drop's",
       "primary": {
-        "file": "1.0.thema",
+        "file": "history/1.0.thema",
         "line": 16,
         "col": 11,
         "offset": 193,
@@ -64,7 +68,7 @@ BackwardLens: {
 }
 -- out/text --
 error[E0413]: lacunas.items.name: a lacuna on a mapping inside _each is not supported yet; a DroppedField lacuna on a _drop refines the _drop's
-  --> 1.0.thema:16:11
+  --> history/1.0.thema:16:11
    |
 16 |             name: [{
    |                    ^

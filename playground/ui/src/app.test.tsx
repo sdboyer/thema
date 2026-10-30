@@ -30,11 +30,24 @@ const fakeThema: Thema = {
           ok: true,
           diagnostics: [],
           example: { id: "authoring/ship", title: "ship", category: "c", summary: "", kind: "authoring", binds: true },
-          lineage: { name: "ship", files: [{ path: "0.0.thema", text: "Schema: {\n\tname: string\n}\n" }] },
+          lineage: {
+            name: "ship",
+            files: [
+              { path: "history/0.0.thema", text: "Schema: {\n\tname: string\n}\n" },
+              { path: "tip.thema", text: "Schema: {\n\tname: string\n\tcrew: *1 | int\n}\n" },
+            ],
+          },
           data: [],
         };
       case "bind":
-        return { ok: true, diagnostics: [], name: "ship", versions: ["0.0"], normal: "" };
+        return {
+          ok: true,
+          diagnostics: [],
+          name: "ship",
+          versions: ["0.0", "0.1"],
+          normal: "",
+          tip: { version: "0.1", clean: false, provisional: true, label: "tip (cuts as 0.1)" },
+        };
       default:
         return { ok: true, diagnostics: [] };
     }
@@ -146,6 +159,81 @@ describe("App", () => {
     await act(async () => root.querySelector<HTMLButtonElement>(".tour .close")!.click());
     expect(root.querySelector(".tour")).toBeNull();
     render(null, root);
+  });
+
+  describe("with a tip and history", () => {
+    const fileTabs = (root: HTMLElement) => root.querySelector<HTMLElement>('[aria-label="lineage files"]')!;
+    const tabNamed = (root: HTMLElement, name: string) =>
+      [...fileTabs(root).querySelectorAll<HTMLButtonElement>('[role="tab"]')].find((b) => b.textContent === name)!;
+    const lineageView = (root: HTMLElement) => EditorView.findFromDOM(root.querySelector<HTMLElement>(".lineage .cm-editor")!)!;
+    const waitBound = async (root: HTMLElement) => {
+      for (let i = 0; i < 40 && !root.querySelector(".bind-status")!.textContent!.startsWith("binds"); i++) {
+        await act(async () => {
+          await new Promise((r) => setTimeout(r, 25));
+        });
+      }
+    };
+
+    it("opens the tip, and groups history apart from it, frozen", async () => {
+      const root = await mount();
+      const tabs = fileTabs(root);
+      expect(tabs.querySelector('.tab.active [role="tab"]')!.textContent).toBe("tip.thema");
+      const group = tabs.querySelector(".tab-group.frozen")!;
+      expect(group.getAttribute("aria-label")).toBe("history (frozen)");
+      expect([...group.querySelectorAll('[role="tab"]')].map((b) => b.textContent)).toEqual(["history/0.0.thema"]);
+      expect(group.contains(tabNamed(root, "tip.thema"))).toBe(false);
+      render(null, root);
+    });
+
+    it("offers no way to add, rename or remove a file", async () => {
+      const root = await mount();
+      const prompt = vi.spyOn(window, "prompt").mockReturnValue("history/9.9.thema");
+      for (const name of ["tip.thema", "history/0.0.thema"]) {
+        await act(async () => {
+          tabNamed(root, name).dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+        });
+      }
+      expect(prompt).not.toHaveBeenCalled();
+      prompt.mockRestore();
+      expect(fileTabs(root).querySelector(".close, .add")).toBeNull();
+      expect([...fileTabs(root).querySelectorAll('[role="tab"]')].map((b) => b.textContent)).toEqual(["tip.thema", "history/0.0.thema"]);
+      render(null, root);
+    });
+
+    it("shows a history file read-only, and the tip editable", async () => {
+      const root = await mount();
+      const format = [...root.querySelectorAll<HTMLButtonElement>(".lineage button")].find((b) => b.textContent === "Format")!;
+      expect(lineageView(root).state.readOnly).toBe(false);
+      expect(root.querySelector(".frozen-note")).toBeNull();
+      expect(format.disabled).toBe(false);
+
+      await act(async () => tabNamed(root, "history/0.0.thema").click());
+      await waitBound(root);
+      expect(lineageView(root).state.doc.toString()).not.toContain("crew");
+      expect(lineageView(root).state.readOnly).toBe(true);
+      expect(root.querySelector(".lineage-editor.frozen")).not.toBeNull();
+      expect(root.querySelector(".frozen-note")!.textContent).toContain("history/0.0.thema is frozen");
+      expect(root.querySelector(".frozen-note")!.textContent).toContain("tip (cuts as 0.1)");
+      expect(format.disabled).toBe(true);
+
+      await act(async () => tabNamed(root, "tip.thema").click());
+      expect(lineageView(root).state.readOnly).toBe(false);
+      expect(root.querySelector(".frozen-note")).toBeNull();
+      render(null, root);
+    });
+
+    it("shows the tip's version as the tip wherever versions are shown", async () => {
+      const root = await mount();
+      await waitBound(root);
+      expect(root.querySelector(".bind-status")!.textContent).toBe("binds: 0.0, tip (cuts as 0.1)");
+      const options = [...root.querySelectorAll<HTMLOptionElement>('select[aria-label="version"] option')];
+      expect(options.map((o) => [o.value, o.textContent])).toEqual([
+        ["", "latest"],
+        ["0.0", "0.0"],
+        ["0.1", "tip (cuts as 0.1)"],
+      ]);
+      render(null, root);
+    });
   });
 
   describe("with a host's examples", () => {

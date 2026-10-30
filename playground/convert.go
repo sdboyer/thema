@@ -7,13 +7,14 @@ import (
 	"github.com/sdboyer/thema/diag"
 )
 
-// Compile compiles authoring files to the normal form, without binding it.
+// Compile compiles authoring files to the normal form, with the tip, as the
+// playground binds them, without binding it.
 func (s *Session) Compile(req CompileRequest) CompileResponse {
 	if req.Name == "" {
 		return CompileResponse{Result: failed(diag.New(diag.E0802).Headline("the authoring form's lineage has no name").
 			Help("a lineage in the authoring form is named by its directory; send its name").Err())}
 	}
-	c, err := authoring.Compile(s.rt.Context(), req.Name, authoringFiles(req.Files))
+	c, err := authoring.CompileDevelopment(s.rt.Context(), req.Name, authoringFiles(req.Files))
 	if err != nil {
 		return CompileResponse{Result: failed(err)}
 	}
@@ -21,7 +22,7 @@ func (s *Session) Compile(req CompileRequest) CompileResponse {
 	if err != nil {
 		return CompileResponse{Result: failed(diag.InternalErr(err))}
 	}
-	return CompileResponse{Result: ok(), Normal: normal}
+	return CompileResponse{Result: failed(c.Pending), Normal: normal}
 }
 
 // Decompile recovers the authoring files of a normal-form lineage. The
@@ -43,11 +44,11 @@ func (s *Session) Decompile(req DecompileRequest) DecompileResponse {
 	return resp
 }
 
-// Format lays out one version file in the authoring form's layout.
+// Format lays out one file of the authoring form in its layout.
 func (s *Session) Format(req FormatRequest) FormatResponse {
 	path := req.File.Path
 	if path == "" {
-		path = "0.0.thema"
+		path = authoring.TipFile
 	}
 	// Parsed under its path first, so that a syntax error points into the
 	// file; Format parses without one.

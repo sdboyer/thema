@@ -4,8 +4,10 @@
 // # The authoring form
 //
 // A lineage is a directory, whose base name is the lineage's name, holding one
-// file per version: <major>.<minor>.thema, at the top of the directory or
-// under history/. Each file is CUE syntax with at most three fields:
+// file per version that has been cut, history/<major>.<minor>.thema, and its
+// tip, tip.thema, the version being worked on. A numbered file at the top of
+// the directory is an error (E0148). Each file is CUE syntax with at most
+// three fields:
 //
 //	Schema: {...}
 //	ForwardLens:  {v0_0: _, v1_0: {...}, lacunas: {...}}   // from the previous version to this one
@@ -70,6 +72,23 @@
 // fields is written only where they are present, so a target field that
 // requires it takes _coalesce(<expression>, fallback), which uses the fallback
 // where any of them is absent.
+//
+// # The tip
+//
+// The tip's version is never written: readTip derives it by the
+// compatibility check against the newest version under history/, the next
+// minor version or the next major one, or 0.0 with no history. In its lenses
+// the tip's instance is named tip (TipParam), which compiles to the name of
+// the version it cuts as; tip names nothing in a file under history/. A tip is
+// clean when its schema's canonical form (internal/contenthash) equals the
+// newest version's and it declares no lenses.
+//
+// Compile reads the history alone, which is what is published; the tip is
+// not read. CompileDevelopment reads the tip too, appending it as the newest
+// version unless it is clean, and records a lens the tip's edge needs and
+// does not write as Pending (E1001) rather than failing: thema.BindLineage,
+// given the provisional option through internal/provisional, then tolerates
+// the missing lens, and translating across it fails with E1002.
 //
 // # Layout
 //

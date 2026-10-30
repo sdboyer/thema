@@ -5,7 +5,7 @@ at compile, in the authoring form's terms, rather than at bind.
 Schema: {
 	tags: [...string] | null
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	tags: {
 		[string]: string
@@ -16,9 +16,15 @@ ForwardLens: {
 	v0_0: _
 	v1_0: {}
 }
+-- ship/tip.thema --
+Schema: {
+	tags: {
+		[string]: string
+	}
+}
 -- out/error --
-error[E0358]: the ForwardLens in 1.0.thema would copy v0_0.tags into tags, which does not accept every value of it
- --> 1.0.thema:7:1
+error[E0358]: the ForwardLens in history/1.0.thema would copy v0_0.tags into tags, which does not accept every value of it
+ --> history/1.0.thema:7:1
   |
 7 | ForwardLens: {
   | ^^^^^^^^^^^

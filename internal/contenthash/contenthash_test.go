@@ -11,13 +11,17 @@ import (
 	"testing/fstest"
 
 	"cuelang.org/go/cue"
+	"cuelang.org/go/cue/build"
 	"cuelang.org/go/cue/cuecontext"
 	"github.com/google/go-cmp/cmp"
 	"golang.org/x/tools/txtar"
 
+	"cuelang.org/go/cue/load"
+
+	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/internal/embedreg"
 	"github.com/sdboyer/thema/internal/envvars"
 	"github.com/sdboyer/thema/internal/util"
-	tload "github.com/sdboyer/thema/load"
 )
 
 func compileLineage(t *testing.T, src string) cue.Value {
@@ -228,6 +232,28 @@ func TestLensFormConstruction(t *testing.T) {
 	}
 }
 
+// loadModule loads the package at the root of the CUE module example.com/p in
+// fsys, serving thema's CUE module from the copy embedded in thema. It is
+// what thema's load package does, done here because load imports the
+// authoring form's compiler, which imports this package.
+func loadModule(t *testing.T, fsys fstest.MapFS) *build.Instance {
+	t.Helper()
+	root := filepath.Join(util.Prefix, "example.com", "p")
+	overlay := make(map[string]load.Source)
+	if err := util.ToOverlay(root, fsys, overlay); err != nil {
+		t.Fatal(err)
+	}
+	cfg := &load.Config{Overlay: overlay, ModuleRoot: root, Module: "example.com/p", Dir: root, Package: "p", DataFiles: true}
+	if err := embedreg.Configure(cfg, thema.CueJointFS); err != nil {
+		t.Fatal(err)
+	}
+	inst := load.Instances(nil, cfg)[0]
+	if inst.Err != nil {
+		t.Fatal(inst.Err)
+	}
+	return inst
+}
+
 // TestGoldens records the canonical forms and IDs of every version of the
 // lineages in testdata/*.txtar. Each archive holds a CUE module's files (its
 // cue.mod/module.cue is supplied), whose package p declares the lineage as lin;
@@ -259,10 +285,7 @@ func TestGoldens(t *testing.T) {
 					fs[f.Name] = &fstest.MapFile{Data: f.Data}
 				}
 			}
-			insts, err := tload.InstancesWithThema(fs, ".")
-			if err != nil {
-				t.Fatal(err)
-			}
+			insts := loadModule(t, fs)
 			v := cuecontext.New().BuildInstance(insts)
 			if verr := v.Err(); verr != nil {
 				t.Fatal(verr)

@@ -7,7 +7,7 @@ be total.
 Schema: {
 	t!: "a"
 }
--- ship/0.1.thema --
+-- ship/history/0.1.thema --
 Schema: {
 	t!: "a" | "b"
 }
@@ -24,10 +24,18 @@ BackwardLens: {
 			when:    v0_1.t == "b"
 		}]
 	}
+}
+-- ship/tip.thema --
+Schema: {
+	t!: "a" | "b"
 }
 -- out/bind --
 ok
--- out/decompiled/0.1.thema --
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	t!: "a"
+}
+-- out/decompiled/history/0.1.thema --
 Schema: {
 	t!: "a" | "b"
 }
@@ -45,9 +53,9 @@ BackwardLens: {
 		}]
 	}
 }
--- out/decompiled/history/0.0.thema --
+-- out/decompiled/tip.thema --
 Schema: {
-	t!: "a"
+	t!: "a" | "b"
 }
 -- out/normal.cue --
 name: "ship"

@@ -6,7 +6,7 @@ arm implies no condition, so a lacuna on it must say when it applies with
 Schema: {
 	aunion: *"foo" | "bar" | "baz"
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	aunion: "foo" | *"bar" | "baz"
 }
@@ -37,6 +37,10 @@ BackwardLens: {
 		}]
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	aunion: "foo" | *"bar" | "baz"
+}
 -- out/json --
 {
   "diagnostics": [
@@ -45,7 +49,7 @@ BackwardLens: {
       "severity": "error",
       "headline": "lacunas.aunion: a lacuna on a _match applies when its [_] arm does, and this _match has none: say when it applies with when: <condition>",
       "primary": {
-        "file": "1.0.thema",
+        "file": "history/1.0.thema",
         "line": 11,
         "col": 12,
         "offset": 150,
@@ -61,7 +65,7 @@ BackwardLens: {
 }
 -- out/text --
 error[E0420]: lacunas.aunion: a lacuna on a _match applies when its [_] arm does, and this _match has none: say when it applies with when: <condition>
-  --> 1.0.thema:11:12
+  --> history/1.0.thema:11:12
    |
 11 |         aunion: [{
    |                  ^

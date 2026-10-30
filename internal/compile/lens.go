@@ -206,7 +206,10 @@ type edge struct {
 	// values.
 	S, T   cue.Value
 	sv, tv thema.SyntacticVersion
-	dir    direction
+	// tip is the version the tip is compiled as, on an edge into the tip.
+	// Messages name it tip, as the author does.
+	tip *thema.SyntacticVersion
+	dir direction
 	// identity is set for the forward edge of a minor version, which has no
 	// lens: an instance is already an instance of its minor successor. The
 	// edge is assembled only for derivation, so a source field the target
@@ -230,6 +233,23 @@ type edge struct {
 	// each is set for the sub-edge compiling an each body.
 	each *eachScope
 	errs cerrors.Error
+}
+
+// nameOf names version v in a message: its number, or tip for the tip's.
+func (e *edge) nameOf(v thema.SyntacticVersion) string {
+	if e.tip != nil && *e.tip == v {
+		return TipParam
+	}
+	return v.String()
+}
+
+// paramOf is the name the author gives an instance of v in a lens: v0_0, or
+// tip for the tip's.
+func (e *edge) paramOf(v thema.SyntacticVersion) string {
+	if e.tip != nil && *e.tip == v {
+		return TipParam
+	}
+	return paramName(v)
 }
 
 // key is the lacunas key of an entry of e: its target path, under the lists'
@@ -412,7 +432,7 @@ func (e *edge) parseCoalesce(x *ast.CallExpr, en *entry, b *body) {
 		return
 	}
 	if len(optional) == 0 {
-		e.errf(diag.E0348, x.Args[0].Pos(), "%s always has every field %s reads, so _coalesce's fallback could never apply: write %s: %s", e.sv, exprText(x.Args[0]), en.target, exprText(x.Args[0]))
+		e.errf(diag.E0348, x.Args[0].Pos(), "%s always has every field %s reads, so _coalesce's fallback could never apply: write %s: %s", e.nameOf(e.sv), exprText(x.Args[0]), en.target, exprText(x.Args[0]))
 		return
 	}
 	en.kind, en.computed, en.reads, en.optional, en.fallback = kindCoalesce, x.Args[0], reads, optional, fb
@@ -675,7 +695,7 @@ func (e *edge) condition(x ast.Expr) (ast.Expr, bool) {
 	if p, isRef := e.refPath(x); isRef {
 		switch {
 		case !lookup(e.S, p).Exists():
-			e.errf(diag.E0340, pos, "%s does not declare %s", e.sv, p)
+			e.errf(diag.E0340, pos, "%s does not declare %s", e.nameOf(e.sv), p)
 			return nil, false
 		case e.optional(e.S, p):
 			e.unbind(rootIdent(x))
@@ -732,7 +752,7 @@ func (e *edge) expression(x ast.Expr, inCondition bool) (reads, optional []cue.P
 			if p, isRef := e.refPath(n.X); isRef {
 				switch {
 				case !lookup(e.S, p).Exists():
-					e.errf(diag.E0340, n.X.Pos(), "%s does not declare %s", e.sv, p)
+					e.errf(diag.E0340, n.X.Pos(), "%s does not declare %s", e.nameOf(e.sv), p)
 					ok = false
 				case inCondition && n.Op == token.NEQ:
 					e.errs = cerrors.Append(e.errs, diag.New(diag.E0423).At(n.Pos()).
@@ -748,7 +768,7 @@ func (e *edge) expression(x ast.Expr, inCondition bool) (reads, optional []cue.P
 		case *ast.SelectorExpr:
 			if p, isRef := e.refPath(n); isRef {
 				if !lookup(e.S, p).Exists() {
-					e.errf(diag.E0340, n.Pos(), "%s does not declare %s", e.sv, p)
+					e.errf(diag.E0340, n.Pos(), "%s does not declare %s", e.nameOf(e.sv), p)
 					ok = false
 				} else {
 					read(p)
@@ -994,11 +1014,11 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 		switch en.kind {
 		case kindDrop:
 			if !lookup(e.S, en.source).Exists() {
-				e.errf(diag.E0340, en.pos, "%s does not declare %s, so there is nothing to drop", e.sv, en.source)
+				e.errf(diag.E0340, en.pos, "%s does not declare %s, so there is nothing to drop", e.nameOf(e.sv), en.source)
 				continue
 			}
 			if t := lookup(e.T, en.target); t.Exists() && e.required(e.T, en.target) {
-				e.errf(diag.E0342, en.pos, "%s requires %s; dropping it would leave it absent", e.tv, en.target)
+				e.errf(diag.E0342, en.pos, "%s requires %s; dropping it would leave it absent", e.nameOf(e.tv), en.target)
 				continue
 			}
 			dropped[en.source.String()] = true
@@ -1007,7 +1027,7 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 			e.dropLacuna(out, en)
 		case kindMove:
 			if !lookup(e.S, en.source).Exists() {
-				e.errf(diag.E0340, en.expr.Pos(), "%s does not declare %s", e.sv, en.source)
+				e.errf(diag.E0340, en.expr.Pos(), "%s does not declare %s", e.nameOf(e.sv), en.source)
 				continue
 			}
 			if !e.place(root, en) {
@@ -1021,7 +1041,7 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 			}
 			if e.optional(e.S, en.source) {
 				if e.required(e.T, en.target) {
-					e.errf(diag.E0343, en.pos, "%s is optional in %s and %s requires %s: write _coalesce(%s.%s, <fallback>) to say what to use when it is absent", en.source, e.sv, e.tv, en.target, e.root, en.source)
+					e.errf(diag.E0343, en.pos, "%s is optional in %s and %s requires %s: write _coalesce(%s.%s, <fallback>) to say what to use when it is absent", en.source, e.nameOf(e.sv), e.nameOf(e.tv), en.target, e.root, en.source)
 					continue
 				}
 				root.has(en.target).present = []cue.Path{en.source}
@@ -1059,7 +1079,7 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 			if len(en.optional) > 0 {
 				if e.required(e.T, en.target) {
 					e.errs = cerrors.Append(e.errs, diag.New(diag.E0343).At(en.pos).
-						Headlinef("%s reads %s, which %s may omit, and %s requires %s", exprText(en.computed), e.inputRefs(en.optional), e.sv, e.tv, en.target).
+						Headlinef("%s reads %s, which %s may omit, and %s requires %s", exprText(en.computed), e.inputRefs(en.optional), e.nameOf(e.sv), e.nameOf(e.tv), en.target).
 						Helpf("write _coalesce(%s, <fallback>) to say what to use when it is absent", exprText(en.computed)).
 						Err())
 					continue
@@ -1078,7 +1098,7 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 			optional := e.optional(e.S, en.source)
 			if optional && e.required(e.T, en.target) {
 				e.errs = cerrors.Append(e.errs, diag.New(diag.E0343).At(en.pos).
-					Headlinef("%s is optional in %s and %s requires %s, which _each cannot produce where it is absent", en.source, e.sv, e.tv, en.target).
+					Headlinef("%s is optional in %s and %s requires %s, which _each cannot produce where it is absent", en.source, e.nameOf(e.sv), e.nameOf(e.tv), en.target).
 					Note(token.NoPos, "an _each over a list the source may omit is written only where the list is present, and _each has no fallback").
 					Err())
 				continue
@@ -1196,7 +1216,7 @@ func (e *edge) instance(x ast.Expr, tpath cue.Path) bool {
 	lit := e.ctx.BuildExpr(x)
 	if err := lookup(e.T, tpath).Unify(lit).Validate(); err != nil {
 		e.errs = cerrors.Append(e.errs, diag.New(diag.E0344).At(x.Pos()).
-			Headlinef("%s is not an instance of %s's %s", exprText(x), e.tv, tpath).
+			Headlinef("%s is not an instance of %s's %s", exprText(x), e.nameOf(e.tv), tpath).
 			Cause(err).
 			Err())
 		return false
@@ -1209,21 +1229,21 @@ func (e *edge) instance(x ast.Expr, tpath cue.Path) bool {
 func (e *edge) checkCoalesce(en *entry) bool {
 	if en.computed == nil {
 		if !lookup(e.S, en.source).Exists() {
-			e.errf(diag.E0340, en.expr.Pos(), "%s does not declare %s", e.sv, en.source)
+			e.errf(diag.E0340, en.expr.Pos(), "%s does not declare %s", e.nameOf(e.sv), en.source)
 			return false
 		}
 		if !e.optional(e.S, en.source) {
-			e.errf(diag.E0348, en.expr.Pos(), "%s always has %s, so _coalesce's fallback could never apply: write %s: %s.%s", e.sv, en.source, en.target, e.root, en.source)
+			e.errf(diag.E0348, en.expr.Pos(), "%s always has %s, so _coalesce's fallback could never apply: write %s: %s.%s", e.nameOf(e.sv), en.source, en.target, e.root, en.source)
 			return false
 		}
 	}
 	if p, ok := e.refPath(en.fallback); ok {
 		if !lookup(e.S, p).Exists() {
-			e.errf(diag.E0340, en.fallback.Pos(), "%s does not declare %s", e.sv, p)
+			e.errf(diag.E0340, en.fallback.Pos(), "%s does not declare %s", e.nameOf(e.sv), p)
 			return false
 		}
 		if e.optional(e.S, p) {
-			e.errf(diag.E0349, en.fallback.Pos(), "%s is optional in %s, so it cannot be _coalesce's fallback: the fallback must always exist", p, e.sv)
+			e.errf(diag.E0349, en.fallback.Pos(), "%s is optional in %s, so it cannot be _coalesce's fallback: the fallback must always exist", p, e.nameOf(e.sv))
 			return false
 		}
 		return true
@@ -1236,7 +1256,7 @@ func (e *edge) checkCoalesce(en *entry) bool {
 // or passes through to a target that accepts it.
 func (e *edge) checkMatch(en *entry) bool {
 	if !lookup(e.S, en.source).Exists() {
-		e.errf(diag.E0340, en.expr.Pos(), "%s does not declare %s", e.sv, en.source)
+		e.errf(diag.E0340, en.expr.Pos(), "%s does not declare %s", e.nameOf(e.sv), en.source)
 		return false
 	}
 	seen := make(map[string]bool)
@@ -1262,7 +1282,7 @@ func (e *edge) checkMatch(en *entry) bool {
 	if !finite {
 		if err := tv.Subsume(sv, cue.Raw()); err != nil {
 			e.errs = cerrors.Append(e.errs, diag.New(diag.E0351).At(en.expr.Pos()).
-				Headlinef("_match on %s is not exhaustive: %s's %s may hold values no arm matches and %s's %s does not accept", en.source, e.sv, en.source, e.tv, en.target).
+				Headlinef("_match on %s is not exhaustive: %s's %s may hold values no arm matches and %s's %s does not accept", en.source, e.nameOf(e.sv), en.source, e.nameOf(e.tv), en.target).
 				Help("add a [_] arm").Err())
 			return false
 		}
@@ -1274,7 +1294,7 @@ func (e *edge) checkMatch(en *entry) bool {
 		}
 		if tv.Unify(a).Validate() != nil {
 			e.errs = cerrors.Append(e.errs, diag.New(diag.E0351).At(en.expr.Pos()).
-				Headlinef("_match on %s is not exhaustive: %s's %s may be %s, which no arm matches and %s's %s does not accept", en.source, e.sv, en.source, fmtv(a), e.tv, en.target).
+				Headlinef("_match on %s is not exhaustive: %s's %s may be %s, which no arm matches and %s's %s does not accept", en.source, e.nameOf(e.sv), en.source, fmtv(a), e.nameOf(e.tv), en.target).
 				Helpf("add an arm for %s, or a [_] arm", fmtv(a)).Err())
 			return false
 		}
@@ -1372,11 +1392,11 @@ func isTypeIdent(name string) bool {
 func (e *edge) compileEach(en *entry, out *compiledLens) bool {
 	sl, tl := lookup(e.S, en.source), lookup(e.T, en.target)
 	if !sl.Exists() {
-		e.errf(diag.E0340, en.expr.Pos(), "%s does not declare %s", e.sv, en.source)
+		e.errf(diag.E0340, en.expr.Pos(), "%s does not declare %s", e.nameOf(e.sv), en.source)
 		return false
 	}
 	if sl.IncompleteKind() != cue.ListKind || tl.IncompleteKind() != cue.ListKind {
-		e.errf(diag.E0353, en.expr.Pos(), "_each maps a list to a list; %s's %s and %s's %s must both be lists", e.sv, en.source, e.tv, en.target)
+		e.errf(diag.E0353, en.expr.Pos(), "_each maps a list to a list; %s's %s and %s's %s must both be lists", e.nameOf(e.sv), en.source, e.nameOf(e.tv), en.target)
 		return false
 	}
 	selem, telem := sl.LookupPath(cue.MakePath(cue.AnyIndex)), tl.LookupPath(cue.MakePath(cue.AnyIndex))
@@ -1384,7 +1404,7 @@ func (e *edge) compileEach(en *entry, out *compiledLens) bool {
 		e.errf(diag.E0353, en.expr.Pos(), "_each maps the elements of open lists ([...T]); a fixed-length list is not supported")
 		return false
 	}
-	sub := &edge{ctx: e.ctx, S: selem, T: telem, sv: e.sv, tv: e.tv, dir: e.dir, file: e.file, written: e.written, blockPos: en.pos, root: rootItem,
+	sub := &edge{ctx: e.ctx, S: selem, T: telem, sv: e.sv, tv: e.tv, tip: e.tip, dir: e.dir, file: e.file, written: e.written, blockPos: en.pos, root: rootItem,
 		lacunas: e.lacunas, imports: e.imports, each: &eachScope{list: en.source, target: en.target, n: out.nlets, optional: e.optional(e.S, en.source), parent: e.each}}
 	subOut := &compiledLens{nlets: out.nlets}
 	if en.item != nil {
@@ -1426,11 +1446,11 @@ func (e *edge) eachCopy(en *entry, out *compiledLens) {
 	}
 	switch {
 	case !lookup(e.S, p).Exists():
-		e.errf(diag.E0340, pos, "%s does not declare %s", e.sv, elem)
+		e.errf(diag.E0340, pos, "%s does not declare %s", e.nameOf(e.sv), elem)
 		return
 	case e.optional(e.S, p):
 		e.errs = cerrors.Append(e.errs, diag.New(diag.E0343).At(pos).
-			Headlinef("%s is optional in %s, and each element of %s's %s needs a value", elem, e.sv, e.tv, en.target).
+			Headlinef("%s is optional in %s, and each element of %s's %s needs a value", elem, e.nameOf(e.sv), e.nameOf(e.tv), en.target).
 			Note(token.NoPos, "an _each whose body copies a field writes one element per source element, so the field must be present in every one").
 			Err())
 		return
@@ -1439,13 +1459,13 @@ func (e *edge) eachCopy(en *entry, out *compiledLens) {
 		b := diag.New(diag.E0359).At(pos).
 			Headlinef("the %s in %s copies %s into the elements of %s, which do not accept every value of it", e.dir, e.file, elem, en.target).
 			Helpf("copy into %s a field whose values its elements accept, or map them with a struct of mappings", en.target)
-		r := strings.NewReplacer("the prior schema", e.sv.String(), "the new schema", e.tv.String())
+		r := strings.NewReplacer("the prior schema", e.nameOf(e.sv), "the new schema", e.nameOf(e.tv))
 		for _, f := range fs {
 			subject := en.target.String() + "[]"
 			if sels := f.Path.Selectors(); len(sels) > 0 {
 				subject += "." + f.Path.String()
 			}
-			b.Notef(token.NoPos, "%s in %s %s (copying %s; compatibility rule %s)", subject, e.tv, r.Replace(f.Detail), item, f.Rule)
+			b.Notef(token.NoPos, "%s in %s %s (copying %s; compatibility rule %s)", subject, e.nameOf(e.tv), r.Replace(f.Detail), item, f.Rule)
 		}
 		e.errs = cerrors.Append(e.errs, b.Err())
 		return
@@ -1473,7 +1493,7 @@ func (e *edge) eachCopy(en *entry, out *compiledLens) {
 // declares its path and nothing else produces it.
 func (e *edge) place(root *node, en *entry) bool {
 	if !lookup(e.T, en.target).Exists() {
-		e.errf(diag.E0341, en.pos, "%s does not declare %s", e.tv, en.target)
+		e.errf(diag.E0341, en.pos, "%s does not declare %s", e.nameOf(e.tv), en.target)
 		return false
 	}
 	n := root.has(en.target)
@@ -1528,7 +1548,7 @@ func (e *edge) fill(n *node, tbase cue.Path, b *body, consumed, dropped map[stri
 				continue
 			}
 			if e.optional(e.S, spath) && e.required(e.T, tpath) {
-				e.errf(diag.E0343, lookup(e.T, tpath).Pos(), "%s is optional in %s and required in %s: write %s: _coalesce(%s.%s, <fallback>) to say what to use when it is absent", spath, e.sv, e.tv, tpath, e.root, spath)
+				e.errf(diag.E0343, lookup(e.T, tpath).Pos(), "%s is optional in %s and required in %s: write %s: _coalesce(%s.%s, <fallback>) to say what to use when it is absent", spath, e.nameOf(e.sv), e.nameOf(e.tv), tpath, e.root, spath)
 				continue
 			}
 			c := n.child(name)
@@ -1576,13 +1596,13 @@ func (e *edge) copyMisfit(code diag.Code, p token.Pos, spath, tpath cue.Path, fs
 	b := diag.New(code).At(p)
 	if code == diag.E0358 {
 		b.Headlinef("the %s in %s would copy %s.%s into %s, which does not accept every value of it", e.dir, e.file, e.root, spath, tpath)
-		b.Notef(token.NoPos, "both %s and %s declare %s, so a lens that does not map it copies it", e.sv, e.tv, tpath)
+		b.Notef(token.NoPos, "both %s and %s declare %s, so a lens that does not map it copies it", e.nameOf(e.sv), e.nameOf(e.tv), tpath)
 		b.Helpf("map %s in the %s: a _match, a computed value, or a constant", tpath, e.dir)
 	} else {
 		b.Headlinef("the %s in %s moves %s.%s into %s, which does not accept every value of it", e.dir, e.file, e.root, spath, tpath)
 		b.Helpf("map %s from a value it accepts: a _match, or a computed value", tpath)
 	}
-	r := strings.NewReplacer("the prior schema", e.sv.String(), "the new schema", e.tv.String())
+	r := strings.NewReplacer("the prior schema", e.nameOf(e.sv), "the new schema", e.nameOf(e.tv))
 	for _, f := range fs {
 		// The checker's sentence describes the target's value, against the
 		// source's ("is now X, which does not accept every value of the prior Y").
@@ -1594,7 +1614,7 @@ func (e *edge) copyMisfit(code diag.Code, p token.Pos, spath, tpath cue.Path, fs
 		if code == diag.E0358 {
 			verb = "copying"
 		}
-		b.Notef(token.NoPos, "%s in %s %s (%s %s.%s; compatibility rule %s)", subject, e.tv, r.Replace(f.Detail), verb, e.root, spath, f.Rule)
+		b.Notef(token.NoPos, "%s in %s %s (%s %s.%s; compatibility rule %s)", subject, e.nameOf(e.tv), r.Replace(f.Detail), verb, e.root, spath, f.Rule)
 	}
 	e.errs = cerrors.Append(e.errs, b.Err())
 }
@@ -1603,10 +1623,10 @@ func (e *edge) copyMisfit(code diag.Code, p token.Pos, spath, tpath cue.Path, fs
 // lens block the author must add it to, or at the file when there is none.
 func (e *edge) unproduced(tpath cue.Path) {
 	if e.written {
-		e.errf(diag.E0346, e.blockPos, "%s produces nothing for %s, which %s requires: add %s: <mapping> to %s", e.dir, tpath, e.tv, tpath, paramName(e.tv))
+		e.errf(diag.E0346, e.blockPos, "%s produces nothing for %s, which %s requires: add %s: <mapping> to %s", e.dir, tpath, e.nameOf(e.tv), tpath, e.paramOf(e.tv))
 		return
 	}
-	e.errf(diag.E0346, e.blockPos, "%s has no %s, and %s requires %s: write %s: {%s: _, %s: {%s: <mapping>}}", e.file, e.dir, e.tv, tpath, e.dir, paramName(e.sv), paramName(e.tv), tpath)
+	e.errf(diag.E0346, e.blockPos, "%s has no %s, and %s requires %s: write %s: {%s: _, %s: {%s: <mapping>}}", e.file, e.dir, e.nameOf(e.tv), tpath, e.dir, e.paramOf(e.sv), e.paramOf(e.tv), tpath)
 }
 
 // unmapped applies the direction's rule to every source field the target does
@@ -1622,7 +1642,7 @@ func (e *edge) unmapped(b *body, consumed map[string]bool, out *compiledLens) {
 				// No lens: the instance keeps it, and its successor admits it.
 				continue
 			}
-			e.errf(diag.E0347, e.blockPos, "%s declares %s and %s does not, and nothing maps it: write <field>: %s.%s to move it, or %s: _drop", e.sv, spath, e.tv, e.root, spath, spath)
+			e.errf(diag.E0347, e.blockPos, "%s declares %s and %s does not, and nothing maps it: write <field>: %s.%s to move it, or %s: _drop", e.nameOf(e.sv), spath, e.nameOf(e.tv), e.root, spath, spath)
 		case backward:
 			en := entry{kind: kindDrop, source: spath, target: spath, pos: lookup(e.S, spath).Pos(), derived: true}
 			out.effective = append(out.effective, en)
@@ -1719,7 +1739,7 @@ func (e *edge) emitLeaf(name string, c *node) []ast.Decl {
 			ttype, ok := e.targetType(en)
 			if !ok {
 				e.errs = cerrors.Append(e.errs, diag.New(diag.E0352).At(en.expr.Pos()).
-					Headlinef("_match on %s: %s's %s is not a self-contained type", en.source, e.tv, en.target).
+					Headlinef("_match on %s: %s's %s is not a self-contained type", en.source, e.nameOf(e.tv), en.target).
 					Note(token.NoPos, "a value no arm matches passes through where the target accepts it, which cannot be tested against a type that refers to other fields").
 					Help("match every value with an arm, or add a [_] arm").
 					Err())

@@ -6,7 +6,7 @@ Schema: {
 	before:    string
 	unchanged: string
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	after:     string
 	unchanged: string
@@ -18,6 +18,11 @@ ForwardLens: {
 		after: "x"
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	after:     string
+	unchanged: string
+}
 -- out/json --
 {
   "diagnostics": [
@@ -26,7 +31,7 @@ ForwardLens: {
       "severity": "error",
       "headline": "0.0 declares before and 1.0 does not, and nothing maps it: write <field>: v0_0.before to move it, or before: _drop",
       "primary": {
-        "file": "1.0.thema",
+        "file": "history/1.0.thema",
         "line": 6,
         "col": 1,
         "offset": 51,
@@ -42,7 +47,7 @@ ForwardLens: {
 }
 -- out/text --
 error[E0347]: 0.0 declares before and 1.0 does not, and nothing maps it: write <field>: v0_0.before to move it, or before: _drop
- --> 1.0.thema:6:1
+ --> history/1.0.thema:6:1
   |
 6 | ForwardLens: {
   | ^^^^^^^^^^^

@@ -7,7 +7,7 @@ bool.
 Schema: {
 	boolish: "true" | "false" | bool | string
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	properbool: bool
 }
@@ -35,26 +35,34 @@ BackwardLens: {
 		boolish: v1_0.properbool
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	properbool: bool
+}
 -- out/bind --
-error[E0382]: properbool in the ForwardLens in 1.0.thema is not total for some instance
- --> 1.0.thema:5:1
+error[E0382]: properbool in the ForwardLens in history/1.0.thema is not total for some instance
+ --> history/1.0.thema:5:1
   |
 5 | ForwardLens: {
   | ^^^^^^^^^^^
   |
-  = note: properbool in the ForwardLens in 1.0.thema is required by 1.0.thema, and is written only under (v0_0.boolish & "false") != _|_; (v0_0.boolish & "true" | "false") == _|_ && (v0_0.boolish & bool) != _|_; (v0_0.boolish & "true" | "false") == _|_ && (v0_0.boolish & bool) == _|_; (v0_0.boolish & "true") != _|_, which the checker cannot show cover every instance; write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field
-  = note: a lens must be total: every instance of the schema in history/0.0.thema must translate to an instance of the schema in 1.0.thema (totality rule unknown-exhaustive)
+  = note: properbool in the ForwardLens in history/1.0.thema is required by history/1.0.thema, and is written only under (v0_0.boolish & "false") != _|_; (v0_0.boolish & "true" | "false") == _|_ && (v0_0.boolish & bool) != _|_; (v0_0.boolish & "true" | "false") == _|_ && (v0_0.boolish & bool) == _|_; (v0_0.boolish & "true") != _|_, which the checker cannot show cover every instance; write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field
+  = note: a lens must be total: every instance of the schema in history/0.0.thema must translate to an instance of the schema in history/1.0.thema (totality rule unknown-exhaustive)
   = help: write the mapping in a form the checker can follow, or add a lacuna where it cannot decide
 
-error[E0369]: properbool in the ForwardLens in 1.0.thema is not total for some instance
- --> 1.0.thema:8:3
+error[E0369]: properbool in the ForwardLens in history/1.0.thema is not total for some instance
+ --> history/1.0.thema:8:3
   |
 8 |         properbool: _match(v0_0.boolish, {
   |         ^^^^^^^^^^
   |
-  = note: properbool in the ForwardLens in 1.0.thema is written as true and as false, and the two unify, so one may reject the other's value; write the field once
-  = note: a lens must be total: every instance of the schema in history/0.0.thema must translate to an instance of the schema in 1.0.thema (totality rule write-conflict)
--- out/decompiled/1.0.thema --
+  = note: properbool in the ForwardLens in history/1.0.thema is written as true and as false, and the two unify, so one may reject the other's value; write the field once
+  = note: a lens must be total: every instance of the schema in history/0.0.thema must translate to an instance of the schema in history/1.0.thema (totality rule write-conflict)
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	boolish: "true" | "false" | bool | string
+}
+-- out/decompiled/history/1.0.thema --
 Schema: {
 	properbool: bool
 }
@@ -82,9 +90,9 @@ BackwardLens: {
 		boolish: v1_0.properbool
 	}
 }
--- out/decompiled/history/0.0.thema --
+-- out/decompiled/tip.thema --
 Schema: {
-	boolish: "true" | "false" | bool | string
+	properbool: bool
 }
 -- out/normal.cue --
 name: "ship"

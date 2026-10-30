@@ -7,7 +7,7 @@ Schema: {
 	kind: "a" | "b"
 	x:    int
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	kind: int
 }
@@ -21,6 +21,10 @@ ForwardLens: {
 		})
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	kind: int
+}
 -- out/json --
 {
   "diagnostics": [
@@ -29,7 +33,7 @@ ForwardLens: {
       "severity": "error",
       "headline": "a _match arm's value must be a constant",
       "primary": {
-        "file": "1.0.thema",
+        "file": "history/1.0.thema",
         "line": 9,
         "col": 9,
         "offset": 93,
@@ -41,7 +45,7 @@ ForwardLens: {
       "severity": "error",
       "headline": "0.0 declares x and 1.0 does not, and nothing maps it: write <field>: v0_0.x to move it, or x: _drop",
       "primary": {
-        "file": "1.0.thema",
+        "file": "history/1.0.thema",
         "line": 5,
         "col": 1,
         "offset": 24,
@@ -57,14 +61,14 @@ ForwardLens: {
 }
 -- out/text --
 error[E0338]: a _match arm's value must be a constant
- --> 1.0.thema:9:9
+ --> history/1.0.thema:9:9
   |
 9 |             "a": v0_0.x
   |                  ^^^^
   |
 
 error[E0347]: 0.0 declares x and 1.0 does not, and nothing maps it: write <field>: v0_0.x to move it, or x: _drop
- --> 1.0.thema:5:1
+ --> history/1.0.thema:5:1
   |
 5 | ForwardLens: {
   | ^^^^^^^^^^^

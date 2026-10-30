@@ -19,6 +19,7 @@ import (
 	cjson "cuelang.org/go/encoding/json"
 
 	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/authoring"
 	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/internal/compile"
 	"github.com/sdboyer/thema/internal/diagdocs"
@@ -297,22 +298,7 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 	// compile, the normal form is bound with the authoring vocabulary and
 	// bind's diagnostics are reported instead.
 	"compile": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {
-		dirs, _ := a.Directives()
-		name := dirs["name"]
-		var files []compile.File
-		for _, f := range a.Inputs() {
-			dir, rest, ok := strings.Cut(f.Name, "/")
-			if !ok {
-				continue
-			}
-			if name == "" {
-				name = dir
-			}
-			files = append(files, compile.File{Path: rest, Text: f.Data})
-		}
-		if name == "" {
-			t.Fatal("compile needs authoring files under the lineage's directory")
-		}
+		name, files := authoringFiles(t, a)
 		ctx := cuecontext.New()
 		c, err := compile.Compile(ctx, name, files)
 		if err != nil {
@@ -321,6 +307,74 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 		_, err = thema.BindLineage(ctx.BuildFile(c.File), thema.NewRuntime(ctx), thema.WithVocabulary(compile.Vocabulary(c)))
 		if err == nil {
 			t.Fatal("the authoring files compiled and bound")
+		}
+		return diag.Diagnostics(err)
+	},
+	// develop: compile the authoring files under the archive's one directory
+	// with their tip (compile.CompileDevelopment) and bind the result on the
+	// development path, reporting what fails, or else the warnings the
+	// development path tolerated (Compiled.Pending).
+	"develop": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {
+		name, files := authoringFiles(t, a)
+		ctx := cuecontext.New()
+		c, err := compile.CompileDevelopment(ctx, name, files)
+		if err != nil {
+			return diag.Diagnostics(err)
+		}
+		if _, err := authoring.BindDevelopment(thema.NewRuntime(ctx), c); err != nil {
+			return diag.Diagnostics(err)
+		}
+		if c.Pending == nil {
+			t.Fatal("the lineage bound on the development path with nothing pending")
+		}
+		return diag.Diagnostics(c.Pending)
+	},
+	// develop-translate: bind the authoring files on the development path,
+	// validate data.json against #from and translate it to #to.
+	"develop-translate": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {
+		dirs, _ := a.Directives()
+		name, files := authoringFiles(t, a)
+		ctx := cuecontext.New()
+		c, err := compile.CompileDevelopment(ctx, name, files)
+		if err != nil {
+			t.Fatalf("the authoring files do not compile: %v", err)
+		}
+		lin, err := authoring.BindDevelopment(thema.NewRuntime(ctx), c)
+		if err != nil {
+			t.Fatalf("the lineage does not bind on the development path: %v", err)
+		}
+		from, err := thema.ParseSyntacticVersion(dirs["from"])
+		if err != nil {
+			t.Fatal(err)
+		}
+		to, err := thema.ParseSyntacticVersion(dirs["to"])
+		if err != nil {
+			t.Fatal(err)
+		}
+		text, ok := a.File("data.json")
+		if !ok {
+			t.Fatal("develop-translate needs data.json")
+		}
+		expr, err := cjson.Extract("data.json", []byte(text))
+		if err != nil {
+			t.Fatal(err)
+		}
+		inst, err := thema.SchemaP(lin, from).Validate(ctx.BuildExpr(expr))
+		if err != nil {
+			t.Fatalf("data.json is not an instance of %s: %v", from, err)
+		}
+		_, _, err = inst.Translate(to)
+		if err == nil {
+			t.Fatal("the instance translated")
+		}
+		return diag.Diagnostics(err)
+	},
+	// clean: check that the authoring files' tip is clean (compile.CheckClean).
+	"clean": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {
+		_, files := authoringFiles(t, a)
+		err := compile.CheckClean(cuecontext.New(), files)
+		if err == nil {
+			t.Fatal("the tip is clean")
 		}
 		return diag.Diagnostics(err)
 	},
@@ -491,6 +545,29 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 		}
 		return ds
 	},
+}
+
+// authoringFiles returns the archive's authoring files: those under its one
+// directory, whose name is the lineage's unless #name gives it.
+func authoringFiles(t *testing.T, a *diagtest.Archive) (string, []compile.File) {
+	t.Helper()
+	dirs, _ := a.Directives()
+	name := dirs["name"]
+	var files []compile.File
+	for _, f := range a.Inputs() {
+		dir, rest, ok := strings.Cut(f.Name, "/")
+		if !ok {
+			continue
+		}
+		if name == "" {
+			name = dir
+		}
+		files = append(files, compile.File{Path: rest, Text: f.Data})
+	}
+	if name == "" {
+		t.Fatal("the operation needs authoring files under the lineage's directory")
+	}
+	return name, files
 }
 
 var (

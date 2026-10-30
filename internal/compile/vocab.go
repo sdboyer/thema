@@ -18,11 +18,22 @@ import (
 // lenses, input and result. Pass it to thema.BindLineage as
 // thema.WithVocabulary.
 func Vocabulary(c *Compiled) diag.Vocabulary {
-	return vocab{paths: c.paths}
+	return vocab{paths: c.paths, tip: c.provisional}
 }
 
 type vocab struct {
 	paths map[thema.SyntacticVersion]string
+	// tip is the version the tip was compiled as, on the development path.
+	tip *thema.SyntacticVersion
+}
+
+// param is the name the author gives an instance of ver in a lens: its
+// version's, or TipParam for the tip's.
+func (v vocab) param(ver diag.Version) string {
+	if v.tip != nil && *v.tip == thema.SyntacticVersion(ver) {
+		return TipParam
+	}
+	return paramName(thema.SyntacticVersion(ver))
 }
 
 func (v vocab) file(ver diag.Version) string {
@@ -60,13 +71,13 @@ func (v vocab) Path(a diag.Address) []string {
 		return []string{file, block}
 	case diag.AddrLensInput:
 		file, block := v.lens(a)
-		return []string{file, block, paramName(thema.SyntacticVersion(a.From))}
+		return []string{file, block, v.param(a.From)}
 	case diag.AddrLensResult:
 		file, block := v.lens(a)
-		return []string{file, block, paramName(thema.SyntacticVersion(a.To))}
+		return []string{file, block, v.param(a.To)}
 	case diag.AddrLensResultField:
 		file, block := v.lens(a)
-		return append([]string{file, block, paramName(thema.SyntacticVersion(a.To))}, field...)
+		return append([]string{file, block, v.param(a.To)}, field...)
 	case diag.AddrLacuna:
 		file, block := v.lens(a)
 		return []string{file, block, fieldLacunas}
@@ -93,7 +104,7 @@ func (v vocab) Term(a diag.Address) string {
 		return fmt.Sprintf("the %s in %s", block, file)
 	case diag.AddrLensInput:
 		file, block := v.lens(a)
-		return fmt.Sprintf("%s, the input of the %s in %s", paramName(thema.SyntacticVersion(a.From)), block, file)
+		return fmt.Sprintf("%s, the input of the %s in %s", v.param(a.From), block, file)
 	case diag.AddrLensResult:
 		file, block := v.lens(a)
 		return fmt.Sprintf("the body of the %s in %s", block, file)
@@ -126,7 +137,7 @@ func (v vocab) Rewrite(a diag.Address, sentence string) string {
 	if i := strings.LastIndex(sentence, "; "); i >= 0 && strings.Contains(sentence[i:], "_|_") {
 		sentence = sentence[:i]
 	}
-	param := paramName(thema.SyntacticVersion(a.From))
+	param := v.param(a.From)
 	r := strings.NewReplacer(
 		"input.", param+".",
 		"an input field", "a field of "+param,
@@ -163,11 +174,11 @@ func compatDiag(f compat.Finding, prev, curr *version) *diag.Error {
 	b.Notef(token.NoPos, "%s is named as minor version %s of %s, so every instance of %s must be an instance of it (compatibility rule %s)", curr.path, curr.v, prev.v, prev.v, f.Rule)
 	if f.ViaResidual {
 		b.Notef(token.NoPos, "%s does not declare %s by name, but accepts it through ... or a pattern, so an instance may already hold any value there", prev.path, f.Path)
-		b.Helpf("declare it as %s?: _ to accept what %s accepted, or rename the file %s%s", f.Path, prev.v, major, Ext)
+		b.Helpf("declare it as %s?: _ to accept what %s accepted, or rename the file %s/%s%s", f.Path, prev.v, HistoryDir, major, Ext)
 	} else if f.Verdict == compat.Unknown {
-		b.Helpf("change the schema so the checker can decide, or rename the file %s%s", major, Ext)
+		b.Helpf("change the schema so the checker can decide, or rename the file %s/%s%s", HistoryDir, major, Ext)
 	} else {
-		b.Helpf("make the change compatible, or rename the file %s%s", major, Ext)
+		b.Helpf("make the change compatible, or rename the file %s/%s%s", HistoryDir, major, Ext)
 	}
 	return b.Err()
 }
