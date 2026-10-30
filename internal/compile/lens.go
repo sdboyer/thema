@@ -304,6 +304,31 @@ func (e *edge) errf(code diag.Code, p token.Pos, format string, args ...any) {
 	e.errs = cerrors.Append(e.errs, diag.New(code).At(p).Headlinef(format, args...).Err())
 }
 
+// undeclared reports, under code, that the source version (code E0340) or
+// the target version (E0341) does not declare the path p, which a mapping
+// reads or writes at pos. Where p is, or lies beneath, a key that only a
+// pattern constraint matches, it says so, and how to declare the key: only a
+// field with a predictable name is declared (docs/translation.md, A4), and a
+// lens reads or writes such a key only with the struct that holds it, copied
+// whole. name names p as the headline does.
+func (e *edge) undeclared(code diag.Code, pos token.Pos, p cue.Path, name, format string, args ...any) {
+	b := diag.New(code).At(pos).Headlinef(format, args...)
+	sch, v, verb := e.S, e.sv, "reads"
+	if code == diag.E0341 {
+		sch, v, verb = e.T, e.tv, "writes"
+	}
+	if k, ok := cuetil.PatternKey(e.ctx, sch, p); ok {
+		key := strings.TrimSuffix(name, strings.TrimPrefix(p.String(), k.String()))
+		b.Notef(token.NoPos, "only a pattern constraint of %s matches %s, and a pattern constraint declares no field", v, key)
+		if code == diag.E0341 {
+			b.Helpf("a lens %s only fields declared by name: declare %s in %s, or copy the struct that holds it whole", verb, key, v)
+		} else {
+			b.Helpf("a lens %s only fields declared by name: declare %s as an optional field in a new minor version, for the values instances carry there to land in, then map from it in the lens from that version", verb, key)
+		}
+	}
+	e.errs = cerrors.Append(e.errs, b.Err())
+}
+
 // parseBody reads an authored lens body into b. tbase is the target path the
 // body's fields are under, sbase the source path they copy from.
 func (e *edge) parseBody(lit *ast.StructLit, tbase, sbase cue.Path, b *body) {
@@ -687,7 +712,7 @@ func (e *edge) condition(x ast.Expr) (ast.Expr, bool) {
 	if p, isRef := e.refPath(x); isRef {
 		switch {
 		case !lookup(e.S, p).Exists():
-			e.errf(diag.E0340, pos, "%s does not declare %s", e.sv, p)
+			e.undeclared(diag.E0340, pos, p, p.String(), "%s does not declare %s", e.sv, p)
 			return nil, false
 		case e.optional(e.S, p):
 			e.unbind(rootIdent(x))
@@ -744,7 +769,7 @@ func (e *edge) expression(x ast.Expr, inCondition bool) (reads, optional []cue.P
 			if p, isRef := e.refPath(n.X); isRef {
 				switch {
 				case !lookup(e.S, p).Exists():
-					e.errf(diag.E0340, n.X.Pos(), "%s does not declare %s", e.sv, p)
+					e.undeclared(diag.E0340, n.X.Pos(), p, p.String(), "%s does not declare %s", e.sv, p)
 					ok = false
 				case inCondition && n.Op == token.NEQ:
 					e.errs = cerrors.Append(e.errs, diag.New(diag.E0423).At(n.Pos()).
@@ -760,7 +785,7 @@ func (e *edge) expression(x ast.Expr, inCondition bool) (reads, optional []cue.P
 		case *ast.SelectorExpr:
 			if p, isRef := e.refPath(n); isRef {
 				if !lookup(e.S, p).Exists() {
-					e.errf(diag.E0340, n.Pos(), "%s does not declare %s", e.sv, p)
+					e.undeclared(diag.E0340, n.Pos(), p, p.String(), "%s does not declare %s", e.sv, p)
 					ok = false
 				} else {
 					read(p)
@@ -1033,7 +1058,7 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 		switch en.kind {
 		case kindDrop:
 			if !lookup(e.S, en.source).Exists() {
-				e.errf(diag.E0340, en.pos, "%s does not declare %s, so there is nothing to drop", e.sv, en.source)
+				e.undeclared(diag.E0340, en.pos, en.source, en.source.String(), "%s does not declare %s, so there is nothing to drop", e.sv, en.source)
 				continue
 			}
 			if t := lookup(e.T, en.target); t.Exists() && e.required(e.T, en.target) {
@@ -1046,7 +1071,7 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 			e.dropLacuna(out, en)
 		case kindMove:
 			if !lookup(e.S, en.source).Exists() {
-				e.errf(diag.E0340, en.expr.Pos(), "%s does not declare %s", e.sv, en.source)
+				e.undeclared(diag.E0340, en.expr.Pos(), en.source, en.source.String(), "%s does not declare %s", e.sv, en.source)
 				continue
 			}
 			if !e.place(root, en) {
@@ -1257,7 +1282,7 @@ func (e *edge) instance(x ast.Expr, tpath cue.Path) bool {
 func (e *edge) checkCoalesce(en *entry) bool {
 	if en.computed == nil {
 		if !lookup(e.S, en.source).Exists() {
-			e.errf(diag.E0340, en.expr.Pos(), "%s does not declare %s", e.sv, en.source)
+			e.undeclared(diag.E0340, en.expr.Pos(), en.source, en.source.String(), "%s does not declare %s", e.sv, en.source)
 			return false
 		}
 		if !e.optional(e.S, en.source) {
@@ -1267,7 +1292,7 @@ func (e *edge) checkCoalesce(en *entry) bool {
 	}
 	if p, ok := e.refPath(en.fallback); ok {
 		if !lookup(e.S, p).Exists() {
-			e.errf(diag.E0340, en.fallback.Pos(), "%s does not declare %s", e.sv, p)
+			e.undeclared(diag.E0340, en.fallback.Pos(), p, p.String(), "%s does not declare %s", e.sv, p)
 			return false
 		}
 		if e.optional(e.S, p) {
@@ -1284,7 +1309,7 @@ func (e *edge) checkCoalesce(en *entry) bool {
 // or passes through to a target that accepts it.
 func (e *edge) checkMatch(en *entry) bool {
 	if !lookup(e.S, en.source).Exists() {
-		e.errf(diag.E0340, en.expr.Pos(), "%s does not declare %s", e.sv, en.source)
+		e.undeclared(diag.E0340, en.expr.Pos(), en.source, en.source.String(), "%s does not declare %s", e.sv, en.source)
 		return false
 	}
 	seen := make(map[string]bool)
@@ -1420,7 +1445,7 @@ func isTypeIdent(name string) bool {
 func (e *edge) compileEach(en *entry, out *compiledLens) bool {
 	sl, tl := lookup(e.S, en.source), lookup(e.T, en.target)
 	if !sl.Exists() {
-		e.errf(diag.E0340, en.expr.Pos(), "%s does not declare %s", e.sv, en.source)
+		e.undeclared(diag.E0340, en.expr.Pos(), en.source, en.source.String(), "%s does not declare %s", e.sv, en.source)
 		return false
 	}
 	if sl.IncompleteKind() != cue.ListKind || tl.IncompleteKind() != cue.ListKind {
@@ -1474,7 +1499,7 @@ func (e *edge) eachCopy(en *entry, out *compiledLens) {
 	}
 	switch {
 	case !lookup(e.S, p).Exists():
-		e.errf(diag.E0340, pos, "%s does not declare %s", e.sv, elem)
+		e.undeclared(diag.E0340, pos, p, elem, "%s does not declare %s", e.sv, elem)
 		return
 	case e.optional(e.S, p):
 		e.errs = cerrors.Append(e.errs, diag.New(diag.E0343).At(pos).
@@ -1521,7 +1546,7 @@ func (e *edge) eachCopy(en *entry, out *compiledLens) {
 // declares its path and nothing else produces it.
 func (e *edge) place(root *node, en *entry) bool {
 	if !lookup(e.T, en.target).Exists() {
-		e.errf(diag.E0341, en.pos, "%s does not declare %s", e.tv, en.target)
+		e.undeclared(diag.E0341, en.pos, en.target, en.target.String(), "%s does not declare %s", e.tv, en.target)
 		return false
 	}
 	n := root.has(en.target)
