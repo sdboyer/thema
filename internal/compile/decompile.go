@@ -9,8 +9,10 @@ import (
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/ast"
+	"cuelang.org/go/cue/ast/astutil"
 	"cuelang.org/go/cue/format"
 	"cuelang.org/go/cue/literal"
+	"cuelang.org/go/cue/parser"
 	"cuelang.org/go/cue/token"
 
 	"github.com/sdboyer/thema"
@@ -61,7 +63,7 @@ func decompile(lin cue.Value) (name string, files []File, err error) {
 			fkey, bkey := edgeKey(prev.v, v.v), edgeKey(v.v, prev.v)
 			var fwdEntries []dentry
 			if l, ok := lenses[fkey]; ok {
-				fwd, err = decompileLens(l, fkey, prev.v, v.v)
+				fwd, err = decompileLens(l, fkey, prev.v, v.v, prev.schema)
 				if err != nil {
 					return "", nil, err
 				}
@@ -71,7 +73,7 @@ func decompile(lin cue.Value) (name string, files []File, err error) {
 			if !ok {
 				return "", nil, fmt.Errorf("no lens at %s", bkey)
 			}
-			bwd, err = decompileLens(l, bkey, v.v, prev.v)
+			bwd, err = decompileLens(l, bkey, v.v, prev.v, v.schema)
 			if err != nil {
 				return "", nil, err
 			}
@@ -172,7 +174,10 @@ type dentry struct {
 // declared lacunas in list order, keyed by full path; only the lens's body
 // holds them, not an each body's.
 type dbody struct {
-	root    string
+	root string
+	// src is the schema of the version the lens takes, against which a
+	// drop's condition is compared with the one derivation implies.
+	src     cue.Value
 	entries []dentry
 	lacunas []dlacuna
 	// item is the path within the element an each body copies, where the
@@ -197,7 +202,7 @@ type branch struct {
 }
 
 // decompileLens reads the mappings of the lens at key, from sv to tv.
-func decompileLens(l cue.Value, key string, sv, tv thema.SyntacticVersion) (*dbody, error) {
+func decompileLens(l cue.Value, key string, sv, tv thema.SyntacticVersion, src cue.Value) (*dbody, error) {
 	// The whole lens is exported, so that references to input stay references
 	// (exported alone, result's references to it would become a generated let).
 	n, err := cueview.Documented(l)
@@ -228,7 +233,7 @@ func decompileLens(l cue.Value, key string, sv, tv thema.SyntacticVersion) (*dbo
 	if result == nil {
 		return nil, fmt.Errorf("lens %s is outside the authoring form: its result is not a struct literal", key)
 	}
-	b := &dbody{root: paramName(sv)}
+	b := &dbody{root: paramName(sv), src: src}
 	if werr := b.walk(result.Elts, cue.MakePath(), key); werr != nil {
 		return nil, werr
 	}
@@ -646,7 +651,7 @@ func (b *dbody) lacuna(x ast.Expr, lets map[string]ast.Expr, key string, tv them
 	if !ok {
 		return fmt.Errorf("lens %s is outside the authoring form: a lacuna that is not a struct literal", key)
 	}
-	var derived, setAside bool
+	var derived bool
 	var typ, msg string
 	var cond ast.Expr
 	var sources, targets []ast.Expr
@@ -655,7 +660,6 @@ func (b *dbody) lacuna(x ast.Expr, lets map[string]ast.Expr, key string, tv them
 		case *ast.Attribute:
 			if k, body := d.Split(); k == "thema" {
 				derived = derived || strings.TrimSpace(body) == "derived"
-				setAside = setAside || strings.TrimSpace(body) == "setaside"
 			}
 		case *ast.Field:
 			name, _, _ := ast.LabelName(d.Label)
@@ -686,14 +690,6 @@ func (b *dbody) lacuna(x ast.Expr, lets map[string]ast.Expr, key string, tv them
 		return fmt.Errorf("lens %s: %w", key, err)
 	}
 
-	if setAside {
-		// Values set aside where the struct they go into is not written:
-		// Compile derives the lacuna again from the mappings.
-		if typ != lacunaDropped || len(tgtPaths) != 0 {
-			return fmt.Errorf("lens %s is outside the authoring form: a set-aside lacuna of type %s", key, typ)
-		}
-		return nil
-	}
 	if derived {
 		if typ != lacunaDropped || len(srcPaths) != 1 || len(tgtPaths) != 0 {
 			return fmt.Errorf("lens %s is outside the authoring form: a derived lacuna of type %s", key, typ)
@@ -801,7 +797,7 @@ func (b *dbody) when(en *dentry, cond ast.Expr) (when ast.Expr, structural bool)
 	if cond == nil {
 		return nil, en.kind != kindEach
 	}
-	if en.kind == kindDrop && b.dropsContainer(en.source, cond) {
+	if en.kind == kindDrop && (b.dropsContainer(en.source, cond) || b.dropsDerived(en.source, cond)) {
 		return nil, true
 	}
 	if en.kind == kindCoalesce && en.computed != nil {
@@ -888,6 +884,29 @@ func (b *dbody) dropsContainer(p cue.Path, cond ast.Expr) bool {
 	}
 	ts, ok := b.tests(h.cond)
 	return ok && len(ts) == 1 && ts[0].operand == nil && ts[0].present && ts[0].path.String() == p.String()
+}
+
+// dropsDerived reports whether cond is the condition derivation implies for a
+// drop of p (edge.dropCondition): one that compares fields with what the
+// source fills by itself, which no shape alone tells from an author's when.
+func (b *dbody) dropsDerived(p cue.Path, cond ast.Expr) bool {
+	want := (&edge{S: b.src, root: b.root}).dropCondition(token.NoPos, p)
+	return want != nil && layoutFree(want) == layoutFree(cond)
+}
+
+// layoutFree is the text of x without its comments and line breaks, which an
+// exported condition has and a derived one does not. x is not changed.
+func layoutFree(x ast.Expr) string {
+	c, err := parser.ParseExpr("", exprText(x))
+	if err != nil {
+		return exprText(x)
+	}
+	astutil.Apply(c, func(cur astutil.Cursor) bool {
+		ast.SetComments(cur.Node(), nil)
+		ast.SetRelPos(cur.Node(), token.NoRelPos)
+		return true
+	}, nil)
+	return exprText(c)
 }
 
 // headSyntax is [if cond {then}, els][0], as written.

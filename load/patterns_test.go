@@ -43,9 +43,11 @@ func TestAuthoringPatternKeys(t *testing.T) {
 				first: "Schema: {\n\tlabels: [string]: string\n\ta: string\n}\n",
 				tip:   "Schema: {\n\tlabels: [string]: string\n\ta: int\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {\n\t\ta: 1\n\t}\n}\n\nBackwardLens: {\n\tv1_0: _\n\tv0_0: {\n\t\ta: \"x\"\n\t}\n}\n",
 			},
+			// Each lens writes its own a without referring to the source's,
+			// so the source's a is set aside (B6).
 			translations: []translation{
-				{from: thema.SV(0, 0), to: thema.SV(1, 0), data: `{labels: {env: "prod"}, a: "y"}`, want: `{"labels":{"env":"prod"},"a":1}`},
-				{from: thema.SV(1, 0), to: thema.SV(0, 0), data: `{labels: {env: "prod"}, a: 2}`, want: `{"labels":{"env":"prod"},"a":"x"}`},
+				{from: thema.SV(0, 0), to: thema.SV(1, 0), data: `{labels: {env: "prod"}, a: "y"}`, want: `{"labels":{"env":"prod"},"a":1}`, lacunas: []lacuna.Type{lacuna.DroppedField}},
+				{from: thema.SV(1, 0), to: thema.SV(0, 0), data: `{labels: {env: "prod"}, a: 2}`, want: `{"labels":{"env":"prod"},"a":"x"}`, lacunas: []lacuna.Type{lacuna.DroppedField}},
 			},
 		},
 		"reads a key": {

@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"cuelang.org/go/cue"
-	"cuelang.org/go/pkg/encoding/json"
 
 	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/internal/cuetil"
@@ -119,7 +118,7 @@ func (i *Instance) AsSuccessor() (*Instance, lacuna.TranslationLacunas, error) {
 			// whole story, since no lens was involved.
 			return nil, nil, err
 		}
-		raw, lacs, err := carry(ctx, decl, nil, nsch.(*schemaDef), i.Schema().Version(), extras)
+		raw, lacs, err := carry(ctx, decl, nil, i.sch.(*schemaDef).def, nsch.(*schemaDef), i.Schema().Version(), extras)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -321,7 +320,7 @@ func (i *Instance) translateStep(data cue.Value, from, to *schemaDef) (cue.Value
 		}
 	}
 	fields = takeFields(ctx, data, fields, lens, raw, from.def, to.def)
-	raw, lacs, err := carry(ctx, raw, lens, to, from.Version(), fields)
+	raw, lacs, err := carry(ctx, raw, lens, from.def, to, from.Version(), fields)
 	if err != nil {
 		return cue.Value{}, lacuna.TranslationStep{}, err
 	}
@@ -341,10 +340,9 @@ func (i *Instance) stepLens(out cue.Value, from, to SyntacticVersion) (*stepLens
 		return nil, err
 	}
 	sl := &stepLens{
-		result:  lens.LookupPath(cue.MakePath(cue.Str(lensParam(to)))),
-		reads:   syn.InputReads(),
-		readers: syn.Readers(),
-		copies:  syn.Copies(),
+		result: lens.LookupPath(cue.MakePath(cue.Str(lensParam(to)))),
+		reads:  syn.InputReads(),
+		copies: syn.Copies(),
 	}
 	lacs, err := lens.LookupPath(cue.MakePath(cue.Str("lacunas"))).List()
 	if err != nil {
@@ -392,8 +390,7 @@ func (i *Instance) kernelStep(data cue.Value, from, to SyntacticVersion) (cue.Va
 	// Otherwise, all the Translate results are non-concrete, which leads to undesired effects.
 	raw, _ := out.LookupPath(cue.MakePath(cue.Str("result"), cue.Str("result"))).Default()
 
-	// Check that the result is concrete by trying to marshal/export it as JSON
-	if _, err = json.Marshal(raw); err != nil {
+	if err = raw.Validate(cue.Concrete(true)); err != nil {
 		ctx := lin.translateContext(out)
 		ctx.Generic = diag.E0307
 		return cue.Value{}, cue.Value{}, diag.Convert(err, ctx)
