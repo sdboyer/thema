@@ -8,6 +8,8 @@ import (
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/ast"
+	"cuelang.org/go/cue/literal"
+	"cuelang.org/go/cue/token"
 
 	"github.com/sdboyer/thema/internal/cueview"
 )
@@ -466,4 +468,374 @@ func sortedKeys(m map[string]*LensField) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+// InputReads returns the paths within the lens's input that its result reads:
+// every reference into the input the result's syntax makes, directly or
+// through lets, aliases and other fields, such as hidden helpers. A read
+// through a comprehension's value (for x in input.l {x.a}) is of the list's
+// open element, cue.AnyIndex (l[_].a); iterating a list is not itself a read
+// of it. A selection the syntax cannot follow, such as a computed index, reads
+// the whole value it selects from. The empty path is the whole input.
+//
+// Like [LensSyntax.Result], the answer depends only on what the lens is: it is
+// read from the lens's syntax, never from data.
+func (ls *LensSyntax) InputReads() []cue.Path {
+	r := &inputReads{ls: ls, walked: map[ast.Node]bool{}, visiting: map[ast.Node]bool{}}
+	for _, f := range ls.resultFields {
+		r.walk(f.Value)
+	}
+	return r.out
+}
+
+// A Copy is a field of a lens's result whose contents come from one value of
+// the lens's input as a whole: the field at Result holds the input's value at
+// Input, with anything the lens writes beneath it.
+type Copy struct {
+	Result, Input cue.Path
+}
+
+// Copies returns the fields of the lens's result whose contents come from one
+// value of its input as a whole: a move (info: v0_0.meta), an embedding
+// (info: {v0_0.meta, x: 1}), or either with mappings beneath it (info:
+// v0_0.meta & {x: v0_0.y}). The value is a reference into the input, however
+// indirect (lets, aliases, other fields), and struct literals: every
+// reference, in every declaration of the field, refers to the same input
+// path. A field assembled from parts of several input values, or computed, is
+// not a copy. Fields are followed through struct literals, beneath copies
+// too; lists, and the values a comprehension over a list yields, are not
+// followed.
+//
+// Like [LensSyntax.InputReads], the answer depends only on what the lens is.
+func (ls *LensSyntax) Copies() []Copy {
+	var out []Copy
+	var walk func(values []ast.Expr, at cue.Path, root bool)
+	walk = func(values []ast.Expr, at cue.Path, root bool) {
+		var refs []cue.Path
+		other := false
+		fields := map[string][]ast.Expr{}
+		var order []string
+		var visit func(x ast.Expr)
+		var decls func(elts []ast.Decl)
+		visit = func(x ast.Expr) {
+			switch e := x.(type) {
+			case *ast.BinaryExpr:
+				if e.Op == token.AND {
+					visit(e.X)
+					visit(e.Y)
+					return
+				}
+			case *ast.ParenExpr:
+				visit(e.X)
+				return
+			}
+			r := &inputReads{ls: ls, walked: map[ast.Node]bool{}, visiting: map[ast.Node]bool{}}
+			if p, ok, exact := r.resolve(x); ok {
+				if exact {
+					refs = append(refs, p)
+				} else {
+					other = true
+				}
+				return
+			}
+			for _, c := range ls.t.Conjuncts(x) {
+				if ls.fromInput(c) {
+					other = true
+					continue
+				}
+				switch e := c.Expr.(type) {
+				case *ast.StructLit:
+					decls(e.Elts)
+				case *ast.Ident:
+					// _, or a type, which adds no data of its own.
+					other = other || !isLiteral(e)
+				default:
+					other = true
+				}
+			}
+		}
+		decls = func(elts []ast.Decl) {
+			for _, d := range elts {
+				switch e := d.(type) {
+				case *ast.Field:
+					name, isIdent, err := ast.LabelName(e.Label)
+					if err != nil || (isIdent && strings.HasPrefix(name, "_")) || (isIdent && strings.HasPrefix(name, "#")) {
+						// Not data: a dynamic label, or a hidden field or definition.
+						continue
+					}
+					if _, ok := fields[name]; !ok {
+						order = append(order, name)
+					}
+					fields[name] = append(fields[name], e.Value)
+				case *ast.Comprehension:
+					if s, ok := e.Value.(*ast.StructLit); ok {
+						decls(s.Elts)
+					}
+				case *ast.EmbedDecl:
+					visit(e.Expr)
+				case ast.Expr:
+					// An embedding beside a comprehension (see FieldDecls).
+					visit(e)
+				}
+			}
+		}
+		for _, v := range values {
+			visit(v)
+		}
+		if !root && !other && len(refs) > 0 {
+			same := true
+			for _, r := range refs[1:] {
+				same = same && r.String() == refs[0].String()
+			}
+			if same {
+				out = append(out, Copy{Result: at, Input: refs[0]})
+			}
+		}
+		for _, name := range order {
+			walk(fields[name], appendPath(at, cue.Str(name)), false)
+		}
+	}
+	var roots []ast.Expr
+	for _, f := range ls.resultFields {
+		roots = append(roots, f.Value)
+	}
+	walk(roots, cue.MakePath(), true)
+	return out
+}
+
+// A Reader is a field of a lens's result that reads a path of the lens's
+// input: it copies the value there, or computes from it.
+type Reader struct {
+	Result, Input cue.Path
+}
+
+// Readers returns, for each path of its input the lens's result reads, the
+// fields of the result that read it: the fields whose origin is copied or
+// computed (see [LensField]), with their reads resolved as [LensSyntax.InputReads]
+// resolves them. Fields are followed through struct literals, a
+// comprehension's fields included; a value that is not a struct literal, such
+// as a list or a reference to a helper struct, is one reader of everything it
+// reads. A comprehension's clauses only decide whether its fields exist, so
+// what they read has no reader; nor does what a lacuna reads.
+//
+// Like [LensSyntax.InputReads], the answer depends only on what the lens is.
+func (ls *LensSyntax) Readers() []Reader {
+	var out []Reader
+	var walk func(values []ast.Expr, at cue.Path)
+	walk = func(values []ast.Expr, at cue.Path) {
+		fields := map[string][]ast.Expr{}
+		var order []string
+		read := func(ps ...cue.Path) {
+			for _, p := range ps {
+				out = append(out, Reader{Result: at, Input: p})
+			}
+		}
+		var visit func(x ast.Expr)
+		var decls func(elts []ast.Decl)
+		visit = func(x ast.Expr) {
+			switch e := x.(type) {
+			case *ast.BinaryExpr:
+				if e.Op == token.AND {
+					visit(e.X)
+					visit(e.Y)
+					return
+				}
+			case *ast.ParenExpr:
+				visit(e.X)
+				return
+			case *ast.StructLit:
+				decls(e.Elts)
+				return
+			}
+			r := &inputReads{ls: ls, walked: map[ast.Node]bool{}, visiting: map[ast.Node]bool{}}
+			if p, ok, _ := r.resolve(x); ok {
+				read(p)
+			}
+			// What resolving walked: the reads of whatever x refers to that is
+			// not a chain into the input.
+			read(r.out...)
+		}
+		decls = func(elts []ast.Decl) {
+			for _, d := range elts {
+				switch e := d.(type) {
+				case *ast.Field:
+					name, isIdent, err := ast.LabelName(e.Label)
+					if err != nil || (isIdent && strings.HasPrefix(name, "_")) || (isIdent && strings.HasPrefix(name, "#")) {
+						// Not data: a dynamic label, or a hidden field or definition.
+						continue
+					}
+					if _, ok := fields[name]; !ok {
+						order = append(order, name)
+					}
+					fields[name] = append(fields[name], e.Value)
+				case *ast.Comprehension:
+					if s, ok := e.Value.(*ast.StructLit); ok {
+						decls(s.Elts)
+					}
+				case *ast.EmbedDecl:
+					visit(e.Expr)
+				case ast.Expr:
+					// An embedding beside a comprehension (see FieldDecls).
+					visit(e)
+				}
+			}
+		}
+		for _, v := range values {
+			visit(v)
+		}
+		for _, name := range order {
+			walk(fields[name], appendPath(at, cue.Str(name)))
+		}
+	}
+	var roots []ast.Expr
+	for _, f := range ls.resultFields {
+		roots = append(roots, f.Value)
+	}
+	walk(roots, cue.MakePath())
+	return out
+}
+
+type inputReads struct {
+	ls       *LensSyntax
+	walked   map[ast.Node]bool
+	visiting map[ast.Node]bool
+	out      []cue.Path
+}
+
+// walk records the reads of every reference within n.
+func (r *inputReads) walk(n ast.Node) {
+	if n == nil || r.walked[n] {
+		return
+	}
+	r.walked[n] = true
+	ast.Walk(n, func(n ast.Node) bool {
+		switch x := n.(type) {
+		case *ast.Field:
+			switch x.Label.(type) {
+			case *ast.Ident, *ast.BasicLit:
+			default:
+				// A dynamic label is computed.
+				r.walk(x.Label)
+			}
+			r.walk(x.Value)
+			return false
+		case *ast.LetClause:
+			// Read where it is referenced.
+			return false
+		case *ast.ForClause:
+			// Iterating is not a read; the value variable's uses are.
+			r.resolve(x.Source)
+			return false
+		case *ast.Ident, *ast.SelectorExpr, *ast.IndexExpr, *ast.ParenExpr:
+			if p, ok, _ := r.resolve(x.(ast.Expr)); ok {
+				r.out = append(r.out, p)
+			}
+			return false
+		}
+		return true
+	}, nil)
+}
+
+// resolve returns the input path x reads, if x is a chain of selections rooted
+// in the input. exact is false where a selection could not be followed; the
+// path is then the value selected from. Whatever x refers to that is not such
+// a chain is walked for its own reads.
+func (r *inputReads) resolve(x ast.Expr) (p cue.Path, ok, exact bool) {
+	switch e := x.(type) {
+	case *ast.ParenExpr:
+		return r.resolve(e.X)
+	case *ast.SelectorExpr:
+		base, ok, exact := r.resolve(e.X)
+		if !ok || !exact {
+			return base, ok, exact
+		}
+		name, _, err := ast.LabelName(e.Sel)
+		if err != nil {
+			return base, true, false
+		}
+		return appendPath(base, cue.Str(name)), true, true
+	case *ast.IndexExpr:
+		r.walk(e.Index)
+		base, ok, exact := r.resolve(e.X)
+		if !ok || !exact {
+			return base, ok, exact
+		}
+		if lit, isLit := e.Index.(*ast.BasicLit); isLit {
+			switch lit.Kind {
+			case token.INT:
+				if i, err := strconv.Atoi(lit.Value); err == nil {
+					return appendPath(base, cue.Index(i)), true, true
+				}
+			case token.STRING:
+				if s, err := literal.Unquote(lit.Value); err == nil {
+					return appendPath(base, cue.Str(s)), true, true
+				}
+			}
+		}
+		return base, true, false
+	case *ast.Ident:
+		return r.ident(e)
+	}
+	r.walk(x)
+	return cue.Path{}, false, false
+}
+
+func (r *inputReads) ident(id *ast.Ident) (cue.Path, bool, bool) {
+	if r.visiting[id] {
+		// A reference cycle.
+		return cue.Path{}, false, false
+	}
+	r.visiting[id] = true
+	defer delete(r.visiting, id)
+
+	switch n := id.Node.(type) {
+	case *ast.LetClause:
+		return r.resolve(n.Expr)
+	case *ast.Alias:
+		return r.resolve(n.Expr)
+	case *ast.Field:
+		// A postfix alias of a field.
+		return r.field(n)
+	case ast.Expr:
+		parent := r.ls.t.Parent(n)
+		if fc, ok := parent.(*ast.ForClause); ok {
+			if fc.Value != n {
+				// A comprehension's key is a label or an index, not data.
+				return cue.Path{}, false, false
+			}
+			base, ok, exact := r.resolve(fc.Source)
+			if !ok || !exact {
+				return base, ok, exact
+			}
+			return appendPath(base, cue.AnyIndex), true, true
+		}
+		if f, ok := parent.(*ast.Field); ok && f.Value == n {
+			return r.field(f)
+		}
+		r.walk(n)
+	}
+	// Predeclared identifiers and imported packages read nothing.
+	return cue.Path{}, false, false
+}
+
+// field returns the input path a reference to f reads: the input itself, a
+// field within its declaration, or whatever f's value reads.
+func (r *inputReads) field(f *ast.Field) (cue.Path, bool, bool) {
+	for _, in := range r.ls.inputs {
+		if f == in {
+			return cue.MakePath(), true, true
+		}
+		if r.ls.t.Within(f, in) {
+			var sels []cue.Selector
+			for n := ast.Node(f); n != nil && n != in; n = r.ls.t.Parent(n) {
+				if fld, ok := n.(*ast.Field); ok {
+					if name, _, err := ast.LabelName(fld.Label); err == nil {
+						sels = append([]cue.Selector{cue.Str(name)}, sels...)
+					}
+				}
+			}
+			return cue.MakePath(sels...), true, true
+		}
+	}
+	return r.resolve(f.Value)
 }

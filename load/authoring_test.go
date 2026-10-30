@@ -129,15 +129,23 @@ BackwardLens: {
 
 // A name an open struct admits through its ... is not one it declares, so a
 // field one version declares and the other only admits is added or removed,
-// as between closed structs: no implicit copy produces it, and the derived
-// backward lens drops it with a DroppedField lacuna (#158, #159).
+// as between closed structs: no implicit copy produces it (#159). What an
+// instance holds under an open struct that no lens maps, translation carries
+// wherever the target struct is open, promotes into a field the target
+// declares when the value is an instance of it and the lens does not write it,
+// and otherwise sets aside with a lacuna (#158, #193). The derived backward lens leaves such a
+// field to translation; a written _drop still drops it.
 func TestAuthoringOpenStructs(t *testing.T) {
 	const (
 		first = "history/0.0.thema"
 		open  = "Schema: {\n\ta!: string\n\t...\n}\n"
 		ax    = `{a: "x"}`
 		// ax, as Translate's result marshals it.
-		axOut = `{"a":"x"}`
+		axOut  = `{"a":"x"}`
+		abf    = `{a: "x", b: false}`
+		abt    = `{a: "x", b: true}`
+		abfOut = `{"a":"x","b":false}`
+		abtOut = `{"a":"x","b":true}`
 	)
 	const addedRequired = `Schema: {
 	a!: string
@@ -157,15 +165,31 @@ ForwardLens: {
 		data     string
 		want     string
 		lacunas  []lacuna.Type
+		// back, if set, is the result of translating want back to from,
+		// which must raise no lacuna.
+		back string
 	}
 	for name, c := range map[string]struct {
 		files        map[string]string
 		translations []translation
+		// err, if set, is the code loading the lineage fails with.
+		err diag.Code
 	}{
 		"open target, added field": {
 			files: map[string]string{first: open, "1.0.thema": addedRequired},
 			translations: []translation{
-				{thema.SV(1, 0), thema.SV(0, 0), `{a: "x", b: false}`, axOut, []lacuna.Type{lacuna.DroppedField}},
+				// Backward, b is carried as a field 0.0 does not declare (#158).
+				{from: thema.SV(1, 0), to: thema.SV(0, 0), data: abf, want: abfOut},
+				// Forward, the lens writes b, and its value stands: a b the
+				// instance held is set aside, whatever its value.
+				{from: thema.SV(0, 0), to: thema.SV(1, 0), data: abf, want: abtOut, lacunas: []lacuna.Type{lacuna.DroppedField}},
+				{from: thema.SV(0, 0), to: thema.SV(1, 0), data: `{a: "x", b: "s"}`, want: abtOut, lacunas: []lacuna.Type{lacuna.DroppedField}},
+				// The same b as the lens's loses nothing.
+				{from: thema.SV(0, 0), to: thema.SV(1, 0), data: abt, want: abtOut},
+				// Without a b, the lens's b stands, and is carried back.
+				{from: thema.SV(0, 0), to: thema.SV(1, 0), data: ax, want: abtOut, back: abtOut},
+				// A field neither declares rides along both ways.
+				{from: thema.SV(0, 0), to: thema.SV(1, 0), data: `{a: "x", z: 1}`, want: `{"a":"x","b":true,"z":1}`, back: `{"a":"x","b":true,"z":1}`},
 			},
 		},
 		"open target, written drop": {
@@ -185,24 +209,44 @@ BackwardLens: {
 }
 `},
 			translations: []translation{
-				{thema.SV(1, 0), thema.SV(0, 0), `{a: "x", b: false}`, axOut, []lacuna.Type{lacuna.LossyFieldMapping, lacuna.DroppedField}},
-				{thema.SV(1, 0), thema.SV(0, 0), `{a: "x", b: true}`, axOut, []lacuna.Type{lacuna.DroppedField}},
+				{from: thema.SV(1, 0), to: thema.SV(0, 0), data: abf, want: axOut, lacunas: []lacuna.Type{lacuna.LossyFieldMapping, lacuna.DroppedField}},
+				{from: thema.SV(1, 0), to: thema.SV(0, 0), data: abt, want: axOut, lacunas: []lacuna.Type{lacuna.DroppedField}},
 			},
 		},
 		"open source, added optional field": {
 			files: map[string]string{first: open, "1.0.thema": "Schema: {\n\ta!: string\n\tb?: bool\n\t...\n}\n"},
 			translations: []translation{
-				{thema.SV(0, 0), thema.SV(1, 0), ax, axOut, nil},
-				{thema.SV(1, 0), thema.SV(0, 0), `{a: "x", b: true}`, axOut, []lacuna.Type{lacuna.DroppedField}},
-				{thema.SV(1, 0), thema.SV(0, 0), ax, axOut, nil},
+				{from: thema.SV(0, 0), to: thema.SV(1, 0), data: ax, want: axOut},
+				// A b that is a bool is promoted; one that is not maps lossily
+				// to the b 1.0 declares, which stays absent (#159).
+				{from: thema.SV(0, 0), to: thema.SV(1, 0), data: abt, want: abtOut, back: abtOut},
+				{from: thema.SV(0, 0), to: thema.SV(1, 0), data: `{a: "x", b: "x"}`, want: axOut, lacunas: []lacuna.Type{lacuna.LossyFieldMapping}},
+				{from: thema.SV(1, 0), to: thema.SV(0, 0), data: abt, want: abtOut},
+				{from: thema.SV(1, 0), to: thema.SV(0, 0), data: ax, want: axOut},
+			},
+		},
+		"open source, closed target": {
+			files: map[string]string{first: open, "1.0.thema": "Schema: {\n\ta!: string\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {}\n}\n"},
+			translations: []translation{
+				{from: thema.SV(0, 0), to: thema.SV(1, 0), data: `{a: "x", z: 1, y: "s"}`, want: axOut, lacunas: []lacuna.Type{lacuna.DroppedField}},
 			},
 		},
 		"open, removed optional field": {
 			files: map[string]string{first: "Schema: {\n\ta!: string\n\tb?: string\n\t...\n}\n", "0.1.thema": open},
 			translations: []translation{
-				{thema.SV(0, 0), thema.SV(0, 1), `{a: "x", b: "y"}`, `{"a":"x","b":"y"}`, nil},
-				{thema.SV(0, 1), thema.SV(0, 0), ax, axOut, nil},
+				{from: thema.SV(0, 0), to: thema.SV(0, 1), data: `{a: "x", b: "y"}`, want: `{"a":"x","b":"y"}`, back: `{"a":"x","b":"y"}`},
+				{from: thema.SV(0, 1), to: thema.SV(0, 0), data: ax, want: axOut},
 			},
+		},
+		// Going forward, a field the new version removes must still be moved
+		// or dropped, however open the new version is: a forgotten rename
+		// must not ride along under its old name.
+		"open target, removed field unmapped": {
+			files: map[string]string{
+				first:       "Schema: {\n\tbefore: string\n\t...\n}\n",
+				"1.0.thema": "Schema: {\n\tafter: string\n\t...\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {\n\t\tafter: \"x\"\n\t}\n}\n",
+			},
+			err: diag.E0347,
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -212,15 +256,22 @@ BackwardLens: {
 			}
 			ctx := cuecontext.New()
 			lin, err := AuthoringLineage(dir, "ship", thema.NewRuntime(ctx))
+			if c.err != "" {
+				if !hasCode(err, c.err) {
+					t.Fatalf("loading: got %v, want %s", err, c.err)
+				}
+				return
+			}
 			if err != nil {
 				t.Fatal(cerrors.Details(err, nil))
 			}
-			for _, tr := range c.translations {
-				inst, err := thema.SchemaP(lin, tr.from).Validate(ctx.CompileString(tr.data))
+			translate := func(from, to thema.SyntacticVersion, data string) (string, []lacuna.Type) {
+				t.Helper()
+				inst, err := thema.SchemaP(lin, from).Validate(ctx.CompileString(data))
 				if err != nil {
 					t.Fatal(err)
 				}
-				out, lac, err := inst.Translate(tr.to)
+				out, lac, err := inst.Translate(to)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -228,17 +279,37 @@ BackwardLens: {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if string(got) != tr.want {
-					t.Errorf("%s %s -> %s: got %s, want %s", tr.data, tr.from, tr.to, got, tr.want)
-				}
 				var types []lacuna.Type
 				for _, l := range lac.AsList() {
 					types = append(types, l.Type)
 				}
+				return string(got), types
+			}
+			for _, tr := range c.translations {
+				got, types := translate(tr.from, tr.to, tr.data)
+				if got != tr.want {
+					t.Errorf("%s %s -> %s: got %s, want %s", tr.data, tr.from, tr.to, got, tr.want)
+				}
 				if fmt.Sprint(types) != fmt.Sprint(tr.lacunas) {
 					t.Errorf("%s %s -> %s: got lacunas %v, want %v", tr.data, tr.from, tr.to, types, tr.lacunas)
+				}
+				if tr.back == "" {
+					continue
+				}
+				back, types := translate(tr.to, tr.from, got)
+				if back != tr.back || len(types) > 0 {
+					t.Errorf("%s %s -> %s -> %s: got %s with lacunas %v, want %s with none", tr.data, tr.from, tr.to, tr.from, back, types, tr.back)
 				}
 			}
 		})
 	}
+}
+
+func hasCode(err error, code diag.Code) bool {
+	for _, d := range diag.Diagnostics(err) {
+		if d.Code == code {
+			return true
+		}
+	}
+	return false
 }
