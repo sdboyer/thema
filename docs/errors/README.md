@@ -188,8 +188,12 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0712](E0712.md) | error | a value in a schema accepts any value, which has no Cap'n Proto type |
 | [E0713](E0713.md) | error | a disjunction in a schema has no discriminant for a Cap'n Proto union |
 | [E0714](E0714.md) | error | two names in one struct of a schema have the same Cap'n Proto name |
+| [E0715](E0715.md) | error | a lens uses a construct the Cap'n Proto compiler cannot carry |
+| [E0716](E0716.md) | error | a lens computes a value CEL, the compiled lens language, does not compute the same way |
+| [E0717](E0717.md) | error | a field a version adds has a constraint the compiled artifact cannot check on earlier data |
 | [E0730](E0730.md) | error | a struct in a schema has pattern constraints the Cap'n Proto compiler does not carry |
 | [E0731](E0731.md) | error | a closed list in a schema has elements with no one Cap'n Proto type |
+| [E0732](E0732.md) | error | a lens writes an alternative of a disjunction the Cap'n Proto compiler cannot place in a union |
 | [E0801](E0801.md) | error | the playground request is malformed |
 | [E0802](E0802.md) | error | the playground request gives the lineage in neither form, or in both |
 | [E0803](E0803.md) | error | a version in the playground request is not a version |

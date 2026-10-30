@@ -1,7 +1,13 @@
 // Package compiled is the Go model of a lineage compiled to Cap'n Proto: the
 // struct and enum nodes the compiler (encoding/capnp) emits, how each maps
 // back to the lineage's labels and values, the versions and which struct each
-// is, the .capnp text and the layout the capnp tool computed for it.
+// is, the .capnp text and the layout the capnp tool computed for it, each
+// lens's program with its expressions rendered to CEL, and the extras
+// acceptance checks.
+//
+// Encode serializes the model as the artifact message wire/compiled.capnp
+// declares, and Decode reads one back; the meta-schema is a published
+// language (compiled-artifact in .thresh/thresh.cue).
 //
 // This package does not depend on CUE, and must not come to: it is the form
 // an engine that never links CUE loads (#90), and the artifact serializes. A
@@ -31,6 +37,20 @@ type Compiled struct {
 	// Nodes are every struct and enum node, root structs in version order and
 	// nested nodes depth-first in declaration order beneath their parent.
 	Nodes []*Node
+	// Edges are the steps between versions that a translation runs a program
+	// for: every lens the lineage declares, with its program and the CEL
+	// renderings of the program's expressions, and a synthesized identity
+	// copy for each forward minor step whose versions are read through
+	// different structs. A forward minor step within one struct has no edge:
+	// its data is read in place. Edges are ordered by source version, then
+	// target.
+	Edges []*Edge
+	// Checks are the extras acceptance checks (#48): for each label a version
+	// newly declares at a struct that the version before also had, a CEL
+	// predicate deciding whether an extra carried under that label by the
+	// earlier version's data is an instance of the new field. Ordered by
+	// version, node and label.
+	Checks []*Check
 }
 
 // Node returns the node with the given ID, or nil.
@@ -41,6 +61,133 @@ func (c *Compiled) Node(id uint64) *Node {
 		}
 	}
 	return nil
+}
+
+// An Edge is one step a translation runs a program for.
+type Edge struct {
+	// From and To are the step's versions, as [major, minor].
+	From, To [2]uint
+	// Synthesized marks a program thema derived rather than one compiled from
+	// a lens the lineage declares: the identity copy of a forward minor step
+	// across a change of struct.
+	Synthesized bool
+	// Program is the step's program (internal/lensir): what it writes into
+	// its result and from what, and the lacunas it declares.
+	Program *lensir.Program
+	// CEL holds the CEL rendering of each expression of the program: every
+	// Computed node's expression, and each lacuna's condition, message and
+	// field values. Ordered as the program declares them.
+	CEL []CEL
+	// Unions lowers each write of the program that names an alternative of a
+	// disjunction (a Copy's Alts, a Wrap's Alt) to the members of the
+	// compiled unions, in the order the writes appear.
+	Unions []UnionWrite
+}
+
+// A UnionWrite is one Copy or Wrap of a program whose IR names alternatives
+// of a disjunction, lowered to the members of the unions that hold them: a
+// copy becomes one copy per source member, setting the target member its
+// alternative lands in; a wrap sets one target member.
+type UnionWrite struct {
+	// Node is the copy or wrap, numbered as [CEL].Node: its index in a
+	// pre-order walk of the program's result.
+	Node int
+	// Source holds, for each of a copy's Alts in order, the ordinal of the
+	// member of the source field's union that holds the alternative copied
+	// from. nil where the source is not a union, and for a wrap.
+	Source []uint16
+	// Target holds, for each of a copy's Alts in order, the ordinal of the
+	// member of the target field's union to set; for a wrap, the one member
+	// it writes.
+	Target []uint16
+}
+
+// CELRole says which expression of a program a CEL rendering is of.
+type CELRole int
+
+// The roles of a CEL rendering.
+const (
+	// ComputedValue is the expression of the Computed node at Node.
+	ComputedValue CELRole = iota + 1
+	// LacunaWhen is the condition of the lacuna at Lacuna.
+	LacunaWhen
+	// LacunaMessage is the message of the lacuna at Lacuna.
+	LacunaMessage
+	// LacunaSourceField is the value of source field Field of the lacuna at
+	// Lacuna.
+	LacunaSourceField
+	// LacunaTargetField is the value of target field Field of the lacuna at
+	// Lacuna.
+	LacunaTargetField
+)
+
+func (r CELRole) String() string {
+	return [...]string{"", "computed", "lacuna when", "lacuna message", "lacuna source field", "lacuna target field"}[r]
+}
+
+// A CEL is the CEL rendering of one expression of a program.
+type CEL struct {
+	Role CELRole
+	// Node is the index of the Computed node in a pre-order walk of the
+	// program's Result, where nested nodes (a Wrap's children, a Branch's or
+	// Head's arms, an Each's body, a Table's entries) are counted where they
+	// appear.
+	Node int
+	// Lacuna is the index of the lacuna in the program's Lacunas.
+	Lacuna int
+	// Field is the index of the field reference in the lacuna's source or
+	// target fields.
+	Field int
+	// Source is the CEL expression text. It reads the variables in Vars and
+	// nothing else.
+	Source string
+	// Vars are the variables Source reads, in order of first use.
+	Vars []Var
+}
+
+// VarRole says what a CEL variable stands for.
+type VarRole int
+
+// The roles of a CEL variable.
+const (
+	// ValueVar is the value of the input at Path.
+	ValueVar VarRole = iota + 1
+	// PresentVar is whether the input has a value at Path: the field is not
+	// unset.
+	PresentVar
+	// WhichVar is the name of the union member the input holds at Path.
+	WhichVar
+	// ResultVar is the value of the result at Path, which another node of the
+	// program writes.
+	ResultVar
+)
+
+func (r VarRole) String() string {
+	return [...]string{"", "value", "present", "which", "result"}[r]
+}
+
+// A Var is a variable a CEL expression reads.
+type Var struct {
+	// Name is the variable's name in the expression.
+	Name string
+	// Path is the input or result path the variable stands for.
+	Path lensir.Path
+	Role VarRole
+	// Type is the variable's CEL type, as cel-go spells it (int, string,
+	// bool, bytes, null_type, list(T), dyn).
+	Type string
+}
+
+// A Check is one extras acceptance check: whether an extra carried under
+// Label by data of the version before Version is an instance of the field
+// that Version newly declares at the struct Node.
+type Check struct {
+	Version [2]uint
+	Node    uint64
+	Label   string
+	// Source is a CEL expression over the variable x, the extra's value,
+	// typed dyn, that is true where the extra is an instance of the field.
+	Source string
 }
 
 // A Version is one schema version of the lineage.

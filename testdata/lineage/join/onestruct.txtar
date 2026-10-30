@@ -182,3 +182,6 @@ struct OnestructV0 @0x9277e31c8cd8dd82 {
     defLitField @1 :Text;
   }
 }
+-- out/encoding/capnp/artifact --
+sha256 1193e0a8e3c0c1ff0741d76496c0fbfff496ef05a3a3628a2888240fe3816217
+1248 bytes

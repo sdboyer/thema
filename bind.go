@@ -834,7 +834,7 @@ func (ml *maybeLineage) checkLensTotality() error {
 		}
 		edge := lensir.Edge{From: lacuna.SyntacticVersion(from), To: lacuna.SyntacticVersion(to)}
 		if res.Program == nil {
-			ml.programErr = errors.Join(ml.programErr, fmt.Errorf("lens %s has no program: %w", edge, res.ProgramErr))
+			ml.programErr = errors.Join(ml.programErr, &lensir.NoProgramError{Edge: edge, Err: res.ProgramErr})
 			continue
 		}
 		res.Program.Edge = edge

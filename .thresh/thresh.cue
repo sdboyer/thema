@@ -66,6 +66,23 @@ seams: "capnp-verdicts": {
 	]
 }
 
+// The compiled-lineage artifact's meta-schema is a published language: an
+// engine that never links CUE (#90) reads artifacts by it, and artifacts
+// already written are read by every later version of it. A field may be
+// appended, never renumbered, retyped or removed. thresh's published-language
+// kind reads only version tuples, which a .capnp file has none of
+// (sdboyer/thresh#6), so it is declared as a kernel to fire on touch.
+seams: "compiled-artifact": {
+	kind:  "shared-kernel"
+	paths: ["encoding/capnp/compiled/wire/compiled.capnp"]
+	consult: [
+		"every artifact already written: a renumbered, retyped or removed field misreads it",
+		"the generated bindings in encoding/capnp/compiled/wire (go generate) and Encode/Decode in encoding/capnp/compiled/encode.go, which must follow the schema",
+		"the artifact digests recorded in encoding/capnp/testdata (out/capnp/artifact), which change with the schema",
+		"docs/capnp.md, Artifact",
+	]
+}
+
 // The compiler and the decompiler are inverses on the canonical subset of the
 // normal form, and the round-trip fixtures prove it in both directions. A
 // change to what either emits or recognizes owes the other the same change.

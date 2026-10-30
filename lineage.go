@@ -181,14 +181,12 @@ func BindLineage(v cue.Value, rt *Runtime, opts ...BindOption) (Lineage, error) 
 // target-neutral form of the lens (internal/lensir) that binding built as a
 // by-product of proving the lens total, for backends such as encoding/capnp
 // to render. A lens using a construct the IR does not yet carry binds, but
-// has no program, and the error says so.
+// has no program: the programs are then those of the other lenses, and the
+// error joins a [lensir.NoProgramError] for each lens without one.
 func LensPrograms(lin Lineage) (lensir.Programs, error) {
 	isValidLineage(lin)
 	tlin := lin.(*baseLineage)
-	if tlin.programErr != nil {
-		return nil, tlin.programErr
-	}
-	return tlin.programs, nil
+	return tlin.programs, tlin.programErr
 }
 
 // VersionID returns the content-hash identity of version v of lin

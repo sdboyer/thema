@@ -37,6 +37,10 @@ type vtype struct {
 	enum []string
 	// union holds a discriminated disjunction's alternatives.
 	union []vmember
+	// alts maps each alternative of the disjunction, numbered as
+	// compat.Branches lists them (as a lens program numbers them, see
+	// lensir.Alt), to the member of union that holds it.
+	alts []int
 }
 
 // A vstruct is one version's view of a struct.
@@ -169,7 +173,7 @@ func (w *walker) isMap(v cue.Value) (cue.Value, bool) {
 			continue
 		}
 		n++
-		if sel.Pattern().Subsume(w.ctx.CompileString("string"), cue.Raw()) != nil {
+		if sel.Pattern().Subsume(w.ctx.CompileString(kindString), cue.Raw()) != nil {
 			return cue.Value{}, false
 		}
 		pat = it.Value()
@@ -346,8 +350,8 @@ func (w *walker) mapOf(val cue.Value, p cue.Path) *vtype {
 
 // kindNames name the alternative of each kind in a union.
 var kindNames = map[cue.Kind]string{
-	cue.NullKind: "null", cue.BoolKind: "bool", cue.IntKind: "int", cue.StringKind: "string",
-	cue.BytesKind: "bytes", cue.StructKind: "struct", cue.ListKind: "list",
+	cue.NullKind: kindNull, cue.BoolKind: "bool", cue.IntKind: "int", cue.StringKind: kindString,
+	cue.BytesKind: kindBytes, cue.StructKind: "struct", cue.ListKind: kindList,
 }
 
 // disjunction maps a value with several alternatives. Alternatives of one
@@ -359,9 +363,10 @@ func (w *walker) disjunction(v cue.Value, brs []cue.Value, p cue.Path) *vtype {
 	type group struct {
 		kind cue.Kind
 		brs  []cue.Value
+		idx  []int
 	}
 	var groups []*group
-	for _, b := range brs {
+	for bi, b := range brs {
 		k := b.IncompleteKind()
 		if k == cue.TopKind {
 			w.add(p, Rejected, RuleTop, fmt.Sprintf("is %s, whose alternative _ has no type", fmtv(v)), posOf(v))
@@ -387,14 +392,19 @@ func (w *walker) disjunction(v cue.Value, brs []cue.Value, p cue.Path) *vtype {
 			groups = append(groups, g)
 		}
 		g.brs = append(g.brs, b)
+		g.idx = append(g.idx, bi)
 	}
 
 	var members []vmember
+	alts := make([]int, len(brs))
 	for _, g := range groups {
 		if g.kind == cue.StructKind && len(g.brs) > 1 {
 			tags, ok := w.tags(v, g.brs, p)
 			if !ok {
 				return bad
+			}
+			for j, bi := range g.idx {
+				alts[bi] = len(members) + j
 			}
 			members = append(members, tags...)
 			continue
@@ -410,6 +420,9 @@ func (w *walker) disjunction(v cue.Value, brs []cue.Value, p cue.Path) *vtype {
 		if g.kind == cue.NullKind {
 			m.typ = nil
 		}
+		for _, bi := range g.idx {
+			alts[bi] = len(members)
+		}
 		members = append(members, m)
 	}
 	names := newScope()
@@ -420,7 +433,7 @@ func (w *walker) disjunction(v cue.Value, brs []cue.Value, p cue.Path) *vtype {
 			return bad
 		}
 	}
-	return &vtype{union: members}
+	return &vtype{union: members, alts: alts}
 }
 
 // memberWhat says which alternative a union member holds, for a collision.
@@ -567,7 +580,7 @@ func literalOf(v cue.Value) (lensir.Literal, bool) {
 func litText(l lensir.Literal) string {
 	switch l.Kind {
 	case lensir.Null:
-		return "null"
+		return kindNull
 	case lensir.Bool:
 		return fmt.Sprint(l.Bool)
 	case lensir.Int:
@@ -642,4 +655,19 @@ func fmtv(v cue.Value) string {
 
 func appendPath(p cue.Path, sel cue.Selector) cue.Path {
 	return cue.MakePath(append(append([]cue.Selector(nil), p.Selectors()...), sel)...)
+}
+
+// lookup finds the value at p beneath v, whether each field on the way is
+// regular or optional: a plain string selector does not find an optional
+// field, and the lineage's paths do not say which form a field has.
+func lookup(v cue.Value, p cue.Path) cue.Value {
+	sels := p.Selectors()
+	conv := make([]cue.Selector, len(sels))
+	for i, sel := range sels {
+		if sel.Type() == cue.StringLabel {
+			sel = sel.Optional()
+		}
+		conv[i] = sel
+	}
+	return v.LookupPath(cue.MakePath(conv...))
 }

@@ -6,6 +6,11 @@ capnp-append-compatible with the one before it, with ordinals and type IDs
 derived from the lineage's history so that appending a version never moves
 one. The schema text is deterministic, and the `capnp` tool's layout of it
 (the `CodeGeneratorRequest` of `capnp compile -o-`) is embedded in the result.
+Beside the schema, the result carries every lens as its program (the lens IR,
+`internal/lensir`) with each expression rendered to CEL, and an acceptance
+check for every label a version newly declares (#48); the whole is serialized
+as a Cap'n Proto message of its own, the artifact, for an engine that never
+links CUE (#90). `thema lineage gen capnp` prints the schema or the artifact.
 
 The compiler consumes the normal form only: each version's schema, read
 through the CUE API the way the compatibility checker reads it (field forms
@@ -97,9 +102,11 @@ Starting a new generation:
   within a size does not;
 - any of these inside a nested struct, a list element or a map value.
 
-Each version records its root struct. A later part of this work (#89) adds
-copy programs for the minor steps that cross a generation, so that a reader
-of the earlier struct can be given the later data.
+Each version records its root struct. A forward minor step whose versions are
+read through different structs gets a synthesized edge whose program is the
+identity copy (`out <- in`), so that a reader of the earlier struct can be
+given the later data; a forward minor step within one struct has no edge, its
+data being read in place.
 
 ## Identity
 
@@ -120,6 +127,86 @@ path, so a caller that compiles lineages from several modules supplies one.
 Each version also carries its content hash (`thema.VersionID`), independent of
 the namespace.
 
+## Lens programs and CEL
+
+Every lens the lineage declares becomes an edge of the result, carrying the
+program binding built for it (`thema.LensPrograms`): the nodes that write the
+result (copies, constants, struct and list literals, `for` over a list,
+conditional branches, lookup tables, computed expressions) and the lacunas it
+declares. The compiler never reads a lens's CUE; a lens using a construct the
+IR does not carry has no program, and the lineage is rejected
+(`lens-no-program`).
+
+A program names the alternatives of a disjunction of structs or lists where
+it writes one: a copy into one pairs each source alternative it carries with
+the target alternative that accepts it (`Copy.Alts`), and a struct literal of
+one alternative says which (`Wrap.Alt`), each numbered as the schema declares
+the alternatives. The type mapping makes such a disjunction a union, so the
+compiler lowers each of these writes to union members, by ordinal, in the
+edge's `unions`: for a copy, per pair, the source member holding the source
+alternative (none where the source is not a union) and the target member to
+set, so that the engine copies per discriminant; for a literal, the target
+member it sets. It finds the members by walking the path through the version's
+structs, list elements, map values and union boxes, and through a union only
+beneath a literal that names that union's alternative. A write it cannot place
+that way, such as a copy whose source lies beneath another disjunction, leaves
+the verdict unknown (`unknown-union-write`).
+
+What a backend without an expression language cannot run, the expressions,
+is rendered to [CEL](https://cel.dev) and type-checked with cel-go against
+the type of the field it writes: each computed node's expression, each
+lacuna's condition and message, and the value of each field a lacuna reports.
+An expression reads variables named for the input or result path it reads
+(`in_a`, `out_neg`), each declared with its role and CEL type: the value at
+the path, whether the path is present (`in_a_present`, for optional fields),
+which union member it holds (`in_kind_which`), or the result at the path. CUE
+and CEL disagree on some operations; the renderer rewrites what has a faithful
+rendering and refuses the rest (`cel-unrenderable`):
+
+| CUE | CEL | Why |
+|---|---|---|
+| `quo(a, b)`, `rem(a, b)` | `a / b`, `a % b` | CEL's integer division truncates, as these do |
+| `div(a, b)`, `mod(a, b)` | `(a - ((a % b + b) % b)) / b`, `(a % b + b) % b` | floored, written in terms of truncation |
+| `a / b` on integers | refused | a float in CUE; use `quo` or `div` |
+| `len(s)` on a string | `size(bytes(s))` | CUE counts bytes, CEL's `size` counts code points |
+| `len(l)`, `len(b)` on a list or bytes | `size(x)` | |
+| `"a=\(x)"` | `"a=" + string(x)` | |
+| `strings.Contains/HasPrefix/HasSuffix/TrimSpace/Join/Split` | `contains/startsWith/endsWith/trim/join/split` | agree on every input |
+| `strings.SliceRunes(s, i, j)` | `s.substring(i, j)` | both count code points |
+| `strings.Replace(s, a, b, -1)`, `(s, a, b, n)` | `s.replace(a, b)`, `s.replace(a, b, n)` | |
+| `strings.ToUpper/ToLower/ToTitle` | refused | CUE maps case per Unicode, CEL per ASCII |
+| `strings.Index/LastIndex/IndexByte` | refused | CUE counts bytes, CEL code points |
+| `(p & T) != _|_` | the test of `T` on the input's compiled type: bounds for an integer, equality or membership for constants, the member for a union | |
+| a float literal | refused | floats are outside the compiled target |
+
+## Extras checks
+
+Data validated open may carry fields its version did not declare, which
+travel in each struct's `extras`. When a later version declares one of those
+labels at a struct the version before also had, the extra is promoted into
+the field only if it is an instance of it. For each such label the result
+carries a check: a CEL predicate over `x`, the extra's value typed `dyn`,
+rendered from the field's constraint (a type test with its bounds or regular
+expressions, an equality or membership for constants, element-wise for a
+list, field-wise and closed for a struct, `||` across alternatives). A
+constraint the renderer cannot express, such as a validator call
+(`strings.MinRunes(1)`), rejects the lineage (`extras-check-unrenderable`).
+
+## Artifact
+
+`compiled.Encode` serializes the result as the message
+`encoding/capnp/compiled/wire/compiled.capnp` declares (an unpacked,
+single-segment Cap'n Proto message; `compiled.Decode` reads it back): the
+namespace and lineage name, the schema text and the tool's layout, the
+versions with their content hashes and root structs, every node with how its
+fields map back to the lineage's labels and values, every edge with its
+program, its CEL and its writes into unions, and the checks. Nothing in it is specific to Go, and the Go
+model it round-trips through (`encoding/capnp/compiled`) does not depend on
+CUE. The meta-schema is a published language (`compiled-artifact` in
+`.thresh/thresh.cue`): a field may be appended, never renumbered, retyped or
+removed. The goldens record each case's artifact digest, without the layout,
+whose bytes carry the tool's version.
+
 ## Verdicts and rules
 
 The walk gives each path of each version one of three verdicts: **compilable**
@@ -128,10 +215,12 @@ its paths: rejected if any path is, else unknown if any is, else compilable.
 Every finding reads
 
     schema <version>: <path> <detail> (rule <name>)
+    lens <edge>: <path> <detail> (rule <name>)
 
 for example
 
     schema 0.0: anint is int, an integer with no finite bounds; capnp integers are sized (int32, uint8, >=0 & <=100) (rule int-unbounded)
+    lens 0.0->1.0: up calls strings.ToUpper, whose CEL counterpart changes ASCII only (rule cel-unrenderable)
 
 | Rule | Code | Rejected when | What to do |
 |---|---|---|---|
@@ -140,15 +229,20 @@ for example
 | `top` | [E0712](errors/E0712.md) | a value is `_`, including as a list element (`[...]`), a map value, or a disjunction alternative | declare the type |
 | `disjunction-undiscriminated` | [E0713](errors/E0713.md) | no value decides the alternative: several non-constant alternatives of one kind (`=~"^a" \| =~"^b"`, `int8 \| int16`, `[...string] \| [...int8]`), a constant beside the open type of its kind (`"a" \| string`), or struct alternatives with no label that holds a distinct constant in each (`{a: string} \| {b: string}`, `{kind: string, …} \| {kind: string, …}`) | give struct alternatives a tag field with a distinct constant in each, make the alternatives of distinct kinds, or make them all constants |
 | `name-collision` | [E0714](errors/E0714.md) | two labels, enum values or tagged alternatives of one struct sanitize to the same capnp name (`a_b` and `ab`; `"x_y" \| "xy"`; a field `kindKA` beside a field `kind` whose alternative tagged `"a"` is the struct `KindKA`), or a label sanitizes to `extras`, which every struct reserves for undeclared data | rename one of them so the names differ once underscores are dropped; rename a label named `extras` |
+| `lens-no-program` | [E0715](errors/E0715.md) | a lens uses a construct the IR does not carry, so it has no program (a list literal inside an expression) | write the lens in the forms the lens language proves |
+| `cel-unrenderable` | [E0716](errors/E0716.md) | an expression of a lens has no faithful CEL rendering (the refused rows of the table above), or its rendering does not type-check | use the rewritable operation (`quo` for `/`, `strings.Contains` for `strings.Index`) |
+| `extras-check-unrenderable` | [E0717](errors/E0717.md) | a label a version newly declares has a constraint the acceptance check cannot express: a validator call, a pattern constraint, `_` | constrain the field with types, bounds, regular expressions and constants |
 
 | Rule | Code | Unknown when | What to do |
 |---|---|---|---|
 | `unknown-pattern-labels` | [E0730](errors/E0730.md) | a struct has pattern constraints other than a lone `[string]: T` beside no declared field: a regular expression, a pattern beside declared fields, several patterns, a narrower key type | declare the fields, or move the map to its own field |
+| `unknown-union-write` | [E0732](errors/E0732.md) | a lens writes an alternative of a disjunction at a path the compiler cannot place among the compiled unions: a copy whose source lies beneath another disjunction, selected only by a test above it | copy from a field that is not beneath a disjunction |
 | `unknown-list-heterogeneous` | [E0731](errors/E0731.md) | a closed list's elements do not all map to one type (`[string, int8]`) | capnp has no tuple; use a struct |
 
 Every rule has a recorded case in `encoding/capnp/testdata`, which also
 records the schema each accepted shape compiles to, the generation each
-transition produces, and the layout the capnp tool computes for it.
+transition produces, each edge's program and CEL, the checks, the artifact's
+digest, and the layout the capnp tool computes for it.
 
 ## Stability of verdicts, ordinals and IDs
 

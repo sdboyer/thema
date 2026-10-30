@@ -74,6 +74,9 @@ struct EnumsV0 @0xb6ab4bbff19a8c44 {
     y @1;
   }
 }
+-- out/capnp/artifact --
+sha256 bd155f2d02e2e49e1543fa3bc4f8996db89d875a56774bbf2d32b2723a39aeb0
+4120 bytes
 -- out/capnp/layout --
 struct EnumsV0 @0xb6ab4bbff19a8c44: data=2 ptrs=2
   extras @0: data off=0

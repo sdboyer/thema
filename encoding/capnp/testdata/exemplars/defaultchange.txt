@@ -22,3 +22,53 @@ struct DefaultchangeV1 @0xdc3719805cec86e2 {
     baz @2;
   }
 }
+
+-- programs --
+edge 0.0 -> 1.0
+  out: {
+    if in.aunion == "foo" {
+      out.aunion = "bar"
+    }
+    if in.aunion != "foo" {
+      out.aunion <- in.aunion
+    }
+  }
+  lacuna ChangedDefault {
+    when in.aunion == "foo"
+    source aunion = in.aunion
+    target aunion = out.aunion
+    message "aunion was the source default, \"foo\", and was changed to the target default, \"bar\""
+  }
+  cel lacuna when 0: (in_aunion == "foo")
+    in_aunion = value aunion :string
+  cel lacuna message 0: "aunion was the source default, \"foo\", and was changed to the target default, \"bar\""
+  cel lacuna source field 0.0: in_aunion
+    in_aunion = value aunion :string
+  cel lacuna target field 0.0: out_aunion
+    out_aunion = result aunion :string
+edge 1.0 -> 0.0
+  out: {
+    if in.aunion == "bar" {
+      out.aunion = "foo"
+    }
+    if in.aunion != "bar" {
+      out.aunion <- in.aunion
+    }
+  }
+  lacuna ChangedDefault {
+    when in.aunion == "bar"
+    source aunion = in.aunion
+    target aunion = out.aunion
+    message "aunion was the source default, \"bar\", and was changed to the target default, \"foo\""
+  }
+  cel lacuna when 0: (in_aunion == "bar")
+    in_aunion = value aunion :string
+  cel lacuna message 0: "aunion was the source default, \"bar\", and was changed to the target default, \"foo\""
+  cel lacuna source field 0.0: in_aunion
+    in_aunion = value aunion :string
+  cel lacuna target field 0.0: out_aunion
+    out_aunion = result aunion :string
+
+-- artifact --
+sha256 0976133f48c43fb0d9da4d11c47e7a78b2eebb31a6492638c7754382777b7346
+5816 bytes

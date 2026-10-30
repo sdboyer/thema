@@ -1,6 +1,7 @@
 package capnp
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"os"
@@ -11,6 +12,7 @@ import (
 
 	"cuelang.org/go/cue/cuecontext"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/diag"
@@ -18,6 +20,7 @@ import (
 	"github.com/sdboyer/thema/exemplars"
 	"github.com/sdboyer/thema/internal/diagtest"
 	"github.com/sdboyer/thema/internal/envvars"
+	"github.com/sdboyer/thema/internal/lensir"
 	"github.com/sdboyer/thema/internal/txtartest/bindlin"
 	"github.com/sdboyer/thema/internal/txtartest/vanilla"
 )
@@ -34,9 +37,12 @@ func compileOpts() []Option {
 }
 
 // render writes what the goldens record of a compilation: the .capnp text,
-// or the rejection's verdict and findings; and, where the tool ran, the
-// decoded layout.
-func render(t testing.TB, c *Compiled, err error, schema io.Writer, layout func() io.Writer) {
+// or the rejection's verdict and findings; and, for a compilation, the
+// sections named "programs" (each edge's program, the CEL rendering of its
+// expressions and the extras checks; omitted where a lineage has neither)
+// and, where the tool ran, "layout" (the decoded layout). section returns
+// the writer for a named section; nil skips them.
+func render(t testing.TB, c *Compiled, err error, schema io.Writer, section func(name string) io.Writer) {
 	t.Helper()
 	var b strings.Builder
 	if err != nil {
@@ -52,13 +58,89 @@ func render(t testing.TB, c *Compiled, err error, schema io.Writer, layout func(
 		b.WriteString(c.Schema)
 	}
 	_, _ = io.WriteString(schema, b.String()) // the writer is the test's golden buffer
-	if err == nil && layout != nil && c.Layout != nil {
+	if err != nil || section == nil {
+		return
+	}
+	if progs := describePrograms(c); progs != "" {
+		_, _ = io.WriteString(section("programs"), progs)
+	}
+	_, _ = io.WriteString(section("artifact"), roundTrip(t, c))
+	if c.Layout != nil {
 		desc, err := describeLayout(c.Layout)
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, _ = io.WriteString(layout(), desc)
+		_, _ = io.WriteString(section("layout"), desc)
 	}
+}
+
+// roundTrip encodes the compilation as the artifact, decodes it back and
+// expects the same Compiled; it returns the digest and size of the artifact
+// without its layout (whose bytes carry the capnp tool's version), which the
+// goldens record so that any change to the artifact's bytes is loud.
+func roundTrip(t testing.TB, c *Compiled) string {
+	t.Helper()
+	b, err := compiled.Encode(c)
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+	got, err := compiled.Decode(b)
+	if err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if diff := cmp.Diff(c, got, cmpopts.EquateEmpty()); diff != "" {
+		t.Errorf("artifact does not round-trip (-compiled +decoded):\n%s", diff)
+	}
+	if c.Layout != nil {
+		bare := *c
+		bare.Layout = nil
+		if b, err = compiled.Encode(&bare); err != nil {
+			t.Fatalf("encode: %v", err)
+		}
+	}
+	sum := sha256.Sum256(b)
+	return fmt.Sprintf("sha256 %x\n%d bytes\n", sum, len(b))
+}
+
+// describePrograms renders the edges and checks of a compilation: each
+// edge's program as lensir prints it, then the CEL rendering of each of its
+// expressions with the variables it reads, then its writes into unions by
+// member ordinal, then the extras checks.
+func describePrograms(c *Compiled) string {
+	var b strings.Builder
+	for _, e := range c.Edges {
+		fmt.Fprintf(&b, "edge %d.%d -> %d.%d", e.From[0], e.From[1], e.To[0], e.To[1])
+		if e.Synthesized {
+			b.WriteString(" (synthesized)")
+		}
+		b.WriteString("\n")
+		for _, line := range strings.Split(strings.TrimRight(lensir.Print(e.Program), "\n"), "\n") {
+			b.WriteString("  " + line + "\n")
+		}
+		for _, x := range e.CEL {
+			switch x.Role {
+			case compiled.ComputedValue:
+				fmt.Fprintf(&b, "  cel %s #%d: %s\n", x.Role, x.Node, x.Source)
+			case compiled.LacunaSourceField, compiled.LacunaTargetField:
+				fmt.Fprintf(&b, "  cel %s %d.%d: %s\n", x.Role, x.Lacuna, x.Field, x.Source)
+			default:
+				fmt.Fprintf(&b, "  cel %s %d: %s\n", x.Role, x.Lacuna, x.Source)
+			}
+			for _, v := range x.Vars {
+				fmt.Fprintf(&b, "    %s = %s %s :%s\n", v.Name, v.Role, v.Path, v.Type)
+			}
+		}
+		for _, u := range e.Unions {
+			fmt.Fprintf(&b, "  union #%d: source members %v, target members %v\n", u.Node, u.Source, u.Target)
+		}
+	}
+	if len(c.Checks) > 0 {
+		b.WriteString("checks\n")
+		for _, ck := range c.Checks {
+			fmt.Fprintf(&b, "  %d.%d %s.%s: %s\n", ck.Version[0], ck.Version[1], c.Node(ck.Node).Name, ck.Label, ck.Source)
+		}
+	}
+	return b.String()
 }
 
 // lintFindings checks that every finding of a failed compilation is a
@@ -106,7 +188,7 @@ func TestGoldens(t *testing.T) {
 			tc.Fatalf("bind: %+v", err)
 		}
 		c, err := Compile(lin, compileOpts()...)
-		render(tc, c, err, tc, func() io.Writer { return tc.Writer("layout") })
+		render(tc, c, err, tc, tc.Writer)
 		lintFindings(tc, err)
 	})
 }
@@ -126,7 +208,7 @@ func TestCorpus(t *testing.T) {
 			tc.Fatalf("bind: %+v", err)
 		}
 		c, err := Compile(lin, WithoutLayout())
-		render(tc, c, err, tc, nil)
+		render(tc, c, err, tc, tc.Writer)
 		lintFindings(tc, err)
 	})
 }
@@ -145,7 +227,10 @@ func TestExemplars(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var b strings.Builder
 			c, err := Compile(all[name], WithoutLayout())
-			render(t, c, err, &b, nil)
+			render(t, c, err, &b, func(name string) io.Writer {
+				fmt.Fprintf(&b, "\n-- %s --\n", name)
+				return &b
+			})
 			golden := filepath.Join("testdata", "exemplars", name+".txt")
 			if envvars.UpdateGoldenFiles {
 				if err = os.MkdirAll(filepath.Dir(golden), 0o750); err != nil {
