@@ -318,3 +318,77 @@ func TestGoldens(t *testing.T) {
 		})
 	}
 }
+
+// What thema contributes to a lineage is not hashed: a lineage has the same IDs
+// whether its author unified thema.Lineage in, embedded it in the lineage's
+// package, re-exported a lineage that does, or left it out. Each case is the
+// same lineage, declared in package p of a module or in its package ship and
+// re-exported from p.
+func TestVersionIDAuthored(t *testing.T) {
+	const body = `name: "ship"
+schemas: {
+	"0": "0": schema: {a: string, n: int & <=10}
+	"1": "0": schema: {b: string}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: b: v0_0.a
+		lacunas: [thema.Lacuna & {
+			sourceFields: [{path: "n", value: v0_0.n}]
+			message: "n is dropped"
+			type:    thema.LacunaTypes.DroppedField
+		}]
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {a: v1_0.b, n: 0}
+	}
+}
+`
+	const imp = "import \"github.com/sdboyer/thema\"\n\n"
+	const in = "in.cue"
+	ship := "package ship\n\n" + imp + body
+	load := func(t *testing.T, files map[string]string, path string) cue.Value {
+		t.Helper()
+		fs := fstest.MapFS{"cue.mod/module.cue": {Data: []byte(util.ModuleFile("example.com/p"))}}
+		for n, text := range files {
+			fs[n] = &fstest.MapFile{Data: []byte(text)}
+		}
+		insts, err := tload.InstancesWithThema(fs, ".")
+		if err != nil {
+			t.Fatal(err)
+		}
+		v := cuecontext.New().BuildInstance(insts)
+		if err := v.Err(); err != nil {
+			t.Fatal(err)
+		}
+		return v.LookupPath(cue.ParsePath(path))
+	}
+	plain := load(t, map[string]string{in: "package p\n\n" + imp + "lin: {\n" + body + "}\n"}, "lin")
+	for name, c := range map[string]struct {
+		files map[string]string
+		path  string
+	}{
+		"unified":  {files: map[string]string{in: "package p\n\n" + imp + "lin: thema.Lineage & {\n" + body + "}\n"}, path: "lin"},
+		"embedded": {files: map[string]string{in: "package p\n\n" + imp + "thema.Lineage\n\n" + body}, path: ""},
+		"reexported": {files: map[string]string{
+			"ship/ship.cue":  ship,
+			"ship/embed.cue": "package ship\n\n" + imp + "thema.Lineage\n",
+			in:               "package p\n\nimport \"example.com/p/ship\"\n\nflagship: ship\n",
+		}, path: "flagship"},
+		"reexported-unified": {files: map[string]string{
+			"ship/ship.cue": ship,
+			in:              "package p\n\n" + imp + "import \"example.com/p/ship\"\n\nflagship: thema.Lineage & ship\n",
+		}, path: "flagship"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			lin := load(t, c.files, c.path)
+			for _, ver := range []Version{{0, 0}, {1, 0}} {
+				if got, want := mustID(t, lin, ver), mustID(t, plain, ver); got != want {
+					t.Errorf("%s: ID %s, want %s, the ID of the lineage with nothing of thema's in it", ver, got, want)
+				}
+			}
+		})
+	}
+}

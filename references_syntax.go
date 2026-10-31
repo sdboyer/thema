@@ -401,9 +401,12 @@ func (s *refSyntax) dangling(id *ast.Ident) {
 	}
 
 	// The lineage's own label, as a field of the struct that holds it, or its
-	// path from the root of the file.
-	lsels := lin.Path().Selectors()
-	if n := len(lsels); n > 0 {
+	// path from the root of the file, in any root it is declared in: the text
+	// is the author's, written where the lineage is declared, which need not
+	// be where it was bound (placement.go).
+	for _, lp := range s.w.rc.placed.paths() {
+		lsels := lp.Selectors()
+		n := len(lsels)
 		if selName(lsels[n-1]) == head {
 			s.inLineage(text, labels)
 			return

@@ -1,0 +1,18 @@
+A version named as a minor version that is not backward compatible with its
+predecessor, which no loading path may admit.
+-- normal.cue --
+name: "ship"
+schemas: "0": {
+	"0": schema: {a: int, b: int & >=a}
+	"1": schema: {a: int, b: int & >a}
+}
+lenses: "0.1->0.0": {
+	v0_1: _
+	v0_0: {a: v0_1.a, b: v0_1.b}
+}
+-- out/verdict --
+# bind
+E0230 b in schema 0.1 is constrained by a in both schemas, differently; the checker cannot compare constraints between fields
+# ids
+0.0 fe31066181c1b5e278b2aa22476bf8db1e5d12cb8bb0ff395e864d20ea53fae2:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
+0.1 5e39a960098f6165b744b2a57f6bcd607dab4fd5e60e68f019579ee0a6a7bcdb:6f66d0c110af34e3c536edda93266a7ea292d7fed6b98650716953a8922e304e

@@ -1,0 +1,24 @@
+A lens that refers to a schema of the lineage, which is invalid however the
+lineage was loaded (ref-lens-to-schema).
+-- normal.cue --
+name: "ship"
+schemas: {
+	"0": "0": schema: {a: string}
+	"1": "0": schema: {b: string}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: b: schemas["0"]["0"].schema.a
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: a: v1_0.b
+	}
+}
+-- out/verdict --
+# bind
+E0144 v1_0.b in lens 0.0->1.0 refers to schemas["0"]["0"].schema.a, a schema
+# ids
+0.0 aadcdae8dad7410a3def2eeb62ed7592f4d507691df7f94aea504af56ed53601:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
+1.0 4b560eed3ac96740d1afa1e3bb3abcd1c967f6df2db05dd95d519fb331fc579e:c0d15de42b0ad916911f3a48e184f9a1104dc3f39e0446330b60fef36f2c292e
