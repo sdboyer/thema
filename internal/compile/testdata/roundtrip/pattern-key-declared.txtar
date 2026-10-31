@@ -1,0 +1,121 @@
+A key that only a pattern constraint matches is undeclared data
+(docs/translation.md, A4). 0.1 declares labels.env optional, so the values
+instances carry there land in it, and the lens from 0.1 maps it. The implicit
+copy of labels copies the map whole, keys and all, and the derived backward
+lens copies it back; the derived backward lens from 0.1 leaves labels.env,
+which 0.0 does not declare by name, to translation, which carries it under
+0.0's pattern.
+-- ship/history/0.0.thema --
+Schema: {
+	labels: [string]: string
+}
+-- ship/history/0.1.thema --
+Schema: {
+	labels: {
+		env?: string
+		[string]: string
+	}
+}
+-- ship/1.0.thema --
+Schema: {
+	labels: [string]: string
+	env:    string
+}
+
+ForwardLens: {
+	v0_1: _
+	v1_0: {
+		env: _coalesce(v0_1.labels.env, "none")
+	}
+}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+Schema: {
+	labels: {
+		[string]: string
+	}
+	env: string
+}
+
+ForwardLens: {
+	v0_1: _
+	v1_0: {
+		env: _coalesce(v0_1.labels.env, "none")
+	}
+}
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	labels: {
+		[string]: string
+	}
+}
+-- out/decompiled/history/0.1.thema --
+Schema: {
+	labels: {
+		env?:     string
+		[string]: string
+	}
+}
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				labels: [string]: string
+			}
+		}
+		"1": {
+			schema: {
+				labels: {
+					env?:     string
+					[string]: string
+				}
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				labels: [string]: string
+				env: string
+			}
+		}
+	}
+}
+lenses: {
+	"0.1->0.0": {
+		v0_1: _
+		v0_0: {
+			labels: {}
+		}
+	}
+	"0.1->1.0": {
+		v0_1: _
+		v1_0: {
+			labels: {}
+			if v0_1.labels.env != _|_ {
+				env: v0_1.labels.env
+			}
+			if v0_1.labels.env == _|_ {
+				env: "none"
+			}
+		}
+	}
+	"1.0->0.1": {
+		v1_0: _
+		v0_1: {
+			labels: v1_0.labels
+		}
+		lacunas: [{
+			@thema(derived)
+			sourceFields: [{
+				path:  "env"
+				value: v1_0.env
+			}]
+			message: "env has no equivalent in 0.1 and was dropped"
+			type:    "DroppedField"
+		}]
+	}
+}

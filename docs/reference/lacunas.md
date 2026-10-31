@@ -172,9 +172,10 @@ Any other field not carried is set aside, with a `DroppedField` for each struct 
 
 | Cause | Message |
 |---|---|
-| the target schema does not declare the field, and its struct there is closed | `<fields> set aside: <version> does not declare them in <struct>, which it does not leave open` |
+| the target schema does not declare the field, and its struct there is closed, with no pattern constraint matching the field's name | `<fields> set aside: <version> does not declare them in <struct>, which it does not leave open` |
+| the target schema does not declare the field, a pattern constraint of its struct there matches its name, and its value is not an instance of what the pattern constrains it to | `<fields> set aside: the pattern constraint of <version> in <struct> does not accept their values` |
 | the step's result has no struct at the field's parent path: the lens removed it, or a list the lens shortened has no element there | `<fields> set aside: translating from <version> to <version> produces no <struct> to carry them in` |
-| the target schema declares the field, and the lens wrote its own value for it: an undeclared field, or a declared one the lens doesn't refer to | `<fields> set aside: the lens from <version> to <version> writes its own values for them` |
+| the lens wrote its own value for the field: one the target schema declares (an undeclared field of the source, or a declared one the lens doesn't refer to), or one beneath a struct the lens copied whole, such as a key under a pattern constraint | `<fields> set aside: the lens from <version> to <version> writes its own values for them` |
 | the target schema declares a field the source declares, and the lens neither maps nor writes it | `<fields> set aside: the lens from <version> to <version> neither maps nor writes them` |
 
 - `<fields>` lists the fields' paths, comma-separated, and `<struct>` is the parent path in the step's result, or `the instance` at the root. For a single field the message reads `it` and `its value`.

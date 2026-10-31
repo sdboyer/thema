@@ -18,15 +18,19 @@ import (
 // maps"). Around each step, translation takes from the instance:
 //
 //   - its extras: the fields its schema does not declare, which an open
-//     struct's ... admitted;
+//     struct's ... admitted, or a pattern constraint matched (only a field
+//     with a predictable name is declared: docs/translation.md, A4);
 //   - for a step with a lens, the fields its schema declares that the lens
 //     leaves alone: it refers to neither them nor anything that holds them,
 //     anywhere (a mapping, a condition, a struct or arm it does not write for
 //     this instance), and no lacuna it lists names them. A value the lens
 //     refers to has an effect on the target, so it is the lens's.
 //
-// The lens runs on the instance without its extras, since a lens reads and
-// writes only declared fields. Then:
+// The lens runs on the instance without the extras an open struct's ...
+// admitted, since a lens reads and writes only declared fields. The keys a
+// pattern constraint matched stay, as part of the value of the named field
+// that holds them, which a lens may copy whole; bind refuses a lens that
+// reads or writes one of them by name. Then:
 //
 //   - An extra follows its struct: where the lens takes the contents of a
 //     struct of its result from one struct of its input as a whole (info:
@@ -35,10 +39,12 @@ import (
 //     within a list, element i is taken to be element i, so only the extras
 //     of elements past the result's length have nowhere to go.
 //   - An extra is placed at its path if the result is still an instance of
-//     the target with it: carried where the target's struct is open and does
-//     not declare it, promoted, over any default, where the target declares
-//     it and the value is an instance of what it declares. Where the lens
-//     writes a field the target declares, the lens's value stands.
+//     the target with it: carried where the target's struct is open, or has a
+//     pattern constraint that accepts it, and does not declare it; promoted,
+//     over any default, where the target declares it and the value is an
+//     instance of what it declares. Where the lens writes the field, as a
+//     field the target declares or with the struct it copies whole, the
+//     lens's value stands.
 //   - A field the source declares and the lens leaves alone is placed the
 //     same way where the target does not declare it. Where the target
 //     declares it, the field is not copied: the lens did not write it, or
@@ -95,6 +101,10 @@ const (
 	// asideUnwritten: the target declares the field, and the lens neither
 	// maps nor writes it.
 	asideUnwritten
+	// asideRejected: the target does not declare the field, a pattern
+	// constraint of its struct there matches its name, and its value is not
+	// an instance of what the pattern constrains it to.
+	asideRejected
 )
 
 // stepLens is what translation reads of a step's lens. A step without a lens
@@ -193,10 +203,17 @@ func (l *stepLens) targets(p cue.Path) []cue.Path {
 	return out
 }
 
-// takeExtras returns data without the fields sch does not declare, and those
-// fields. The fields are found as bind finds undeclared data
-// (cuetil.UndeclaredFields): by name, at every depth, an open struct's ...
-// declaring nothing.
+// takeExtras returns the fields of data sch does not declare, and data without
+// those an open struct's ... admitted. The fields are found as bind finds
+// undeclared data (cuetil.UndeclaredFields): by name, at every depth, neither
+// an open struct's ... nor a pattern constraint declaring anything.
+//
+// A key a pattern constraint matches (cuetil.PatternKey) stays in the data the
+// lens runs on, as part of the value of the named field that holds it: a lens
+// that copies the field whole copies its keys with it (docs/translation.md,
+// A4), and the instance stays one that its schema's other constraints, such as
+// struct.MinFields, accept. A lens never addresses such a key itself; bind
+// refuses one that does.
 func takeExtras(ctx *cue.Context, data, sch cue.Value) (cue.Value, []taken, error) {
 	paths := cuetil.UndeclaredFields(ctx, data, sch)
 	if len(paths) == 0 {
@@ -207,9 +224,16 @@ func takeExtras(ctx *cue.Context, data, sch cue.Value) (cue.Value, []taken, erro
 		return cue.Value{}, nil, err
 	}
 	out := make([]taken, 0, len(paths))
+	stripped := false
 	for _, p := range paths {
 		out = append(out, taken{path: p, value: data.LookupPath(p)})
-		x = withoutAt(x, p.Selectors())
+		if _, ok := cuetil.PatternKey(ctx, sch, p); ok {
+			continue
+		}
+		x, stripped = withoutAt(x, p.Selectors()), true
+	}
+	if !stripped {
+		return data, out, nil
 	}
 	return ctx.BuildExpr(x), out, nil
 }
@@ -383,8 +407,11 @@ func carry(ctx *cue.Context, result cue.Value, lens *stepLens, from cue.Value, t
 				continue
 			}
 			declared := cuetil.DeclaresPath(ctx, to.def, dest)
-			if declared && lens.wrote(dest) {
-				// The lens's value stands. Nothing is lost if it is the same.
+			if lens.wrote(dest) {
+				// The lens's value stands, whether the target declares the
+				// field or the lens copied it with the struct holding it, as
+				// it copies the keys under a pattern constraint. Nothing is
+				// lost if it is the same.
 				if result.LookupPath(dest).Equals(f.value) {
 					continue
 				}
@@ -403,7 +430,11 @@ func carry(ctx *cue.Context, result cue.Value, lens *stepLens, from cue.Value, t
 				continue
 			}
 			if !declared {
-				if err := aside(f, parent, asideClosed); err != nil {
+				cause := asideClosed
+				if k, ok := cuetil.PatternKey(ctx, to.def, dest); ok && k.String() == dest.String() {
+					cause = asideRejected
+				}
+				if err := aside(f, parent, cause); err != nil {
 					return cue.Value{}, nil, err
 				}
 				continue
@@ -482,6 +513,8 @@ func asideMessage(refs []lacuna.FieldRef, parent cue.Path, cause asideCause, fro
 		return fmt.Sprintf("%s set aside: the lens from %s to %s writes %s for %s", subject, fromV, toV, pick("its own value", "its own values"), pick("it", "them"))
 	case asideUnwritten:
 		return fmt.Sprintf("%s set aside: the lens from %s to %s neither maps nor writes %s", subject, fromV, toV, pick("it", "them"))
+	case asideRejected:
+		return fmt.Sprintf("%s set aside: the pattern constraint of %s in %s does not accept %s", subject, toV, where, pick("its value", "their values"))
 	}
 	return fmt.Sprintf("%s set aside: translating from %s to %s produces no %s to carry %s in", subject, fromV, toV, where, pick("it", "them"))
 }

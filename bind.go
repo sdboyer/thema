@@ -662,8 +662,10 @@ func (ml *maybeLineage) checkLensResults() error {
 		}
 		if len(paths) > 0 {
 			b := ml.diag(diag.E0305).AtValue(lens.LookupPath(resultPath)).Addr(resultA).
-				Headlinef("%s writes %s, which %s does not declare", ml.term(resultA), strings.Join(paths, ", "), ml.term(schemaAddr(to))).
-				Help("a lens writes only fields its target schema declares, however open the schema is written")
+				Headlinef("%s writes %s, which %s does not declare", ml.term(resultA), strings.Join(paths, ", "), ml.term(schemaAddr(to)))
+			if !patternKeys(b, ctx, tsch.def, ml.term(schemaAddr(to)), "writes", paths) {
+				b.Help("a lens writes only fields its target schema declares, however open the schema is written")
+			}
 			errs = append(errs, b.Err())
 		}
 	}
@@ -749,7 +751,10 @@ func (ml *maybeLineage) checkLacunas() error {
 						continue
 					}
 					if err := checkFieldRefPath(ml.rt.Context(), path, side.sch); err != nil {
-						fail(diag.E0404, pathv, "names %s in %s[%d], which %s does not declare", path, side.field, j, ml.term(schemaAddr(side.sch.v)))
+						b := ml.diag(diag.E0404).AtValue(pathv).Addr(lacA).
+							Headlinef("%s names %s in %s[%d], which %s does not declare", ml.term(lacA), path, side.field, j, ml.term(schemaAddr(side.sch.v)))
+						patternKeys(b, ml.rt.Context(), side.sch.def, ml.term(schemaAddr(side.sch.v)), "names", []string{path})
+						errs = append(errs, b.Err())
 					}
 				}
 			}
