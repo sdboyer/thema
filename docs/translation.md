@@ -156,6 +156,22 @@ Today on main:
 
 - **F5.** `{}` translates to the wildcard arm's constant, and raises the wildcard's lacuna.
 
+### How a lacuna is written
+
+Every implementation writes a lacuna's field references the same way, so that two implementations that raise the same lacuna produce the same bytes.
+
+| Rule | Case | Outcome | Main |
+|---|---|---|---|
+| F6 | A field reference's `value` | JSON-shaped data: `null`, a boolean, a number, a string, a list or an object. An object's keys are ordered by the Unicode code points of their labels (`{"10": 1, "9": 2, "Z": 3, "a": 4, "a-b": 5, "b": 6, "é": 7}`), whatever order the instance held them in. A list's elements keep their order. | yes |
+| F7 | A field reference's `path` | A CUE path, in the form CUE prints one. Labels are joined by `.` (`meta.owner`). A list index is `[i]`, written right after the list (`items[0].name`). A label that is not a CUE identifier, or that starts with `_` or `#`, is a double-quoted CUE string, with `"` and `\` escaped: `"a-b".c`, `"1a"`, `"_x"`, `""`, `"x\"y"`. An identifier is letters, including any Unicode letter, digits, `_` and `$`, not starting with a digit; it is never quoted, a keyword included: `é`, `$a`, `for`. | for the paths the authoring form derives, yes, except inside `_each`; for a path a lens lists, no |
+
+`TestLacunaEncoding` holds Go to F6 and to the forms of F7.
+
+Today on main:
+
+- **F6.** Go decodes a value into Go data and encodes it with `encoding/json`, which orders an object's keys this way.
+- **F7.** A derived `DroppedField` outside `_each` names its field as CUE prints the path. A path a lens lists is reported as the lens writes it, and [E0405](errors/E0405.md) requires only that it parse as a CUE path, so `"a".b` is reported as written, not as `a.b`. A derived drop inside an `_each` body, of a label that is not an identifier, fails to build: the authoring compiler writes the quoted label into the path's string literal unescaped.
+
 ## Steps and direction
 
 | Rule | Case | Outcome | Main |
