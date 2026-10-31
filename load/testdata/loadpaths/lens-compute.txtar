@@ -1,0 +1,52 @@
+A lens that computes fields from the instance it takes, and a backward lens
+that writes a constant.
+-- ship/history/0.0.thema --
+Schema: {
+	name: string
+	size: int
+}
+-- ship/1.0.thema --
+Schema: {
+	name: string
+	big:  bool
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		big:  v0_0.size > 10
+		size: _drop
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		size: 0
+	}
+}
+-- out/verdict --
+# bind
+ok
+# ids
+0.0 12d267a8d0a551aef4e14eebf59d534b01f91b701b59fbd4350140e206278ae4:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
+1.0 7d31830e767590d973e68521409ae068d56553fc971d6dc5dcfb0603f64f9298:5d7ccf24571e61d95ae6c775d16a49f0a9dbf44ba7d9f89b3d99a70641808d2f
+# programs
+lens 0.0->1.0
+out: {
+  out.name <- in.name
+  out.big = in.size > 10
+}
+lacuna DroppedField {
+  source size = in.size
+  message "size has no equivalent in 1.0 and was dropped"
+}
+lens 1.0->0.0
+out: {
+  out.name <- in.name
+  out.size = 0
+}
+lacuna DroppedField {
+  source big = in.big
+  message "big has no equivalent in 0.0 and was dropped"
+}

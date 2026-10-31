@@ -2,6 +2,7 @@ package embedreg_test
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -95,5 +96,26 @@ func TestRejectsFS(t *testing.T) {
 	cfg := &load.Config{FS: thema.CueJointFS}
 	if err := embedreg.Configure(cfg, thema.CueJointFS); err == nil {
 		t.Fatal("expected an error when cfg.FS is set")
+	}
+}
+
+// thema's module is its package's files and its cue.mod, at Root or at
+// RuntimeRoot. A module whose path extends thema's is loaded beneath
+// RuntimeRoot, and its files are the author's.
+func TestKernelPath(t *testing.T) {
+	for _, c := range []struct {
+		file string
+		want bool
+	}{
+		{filepath.Join(embedreg.Root(), "lineage.cue"), true},
+		{filepath.Join(embedreg.RuntimeRoot(), "lineage.cue"), true},
+		{filepath.Join(embedreg.Root(), "cue.mod", "module.cue"), true},
+		{filepath.Join(embedreg.RuntimeRoot(), "exemplars", "rename.cue"), false},
+		{filepath.Join(embedreg.RuntimeRoot(), "fleet", "ship", "ship.cue"), false},
+		{filepath.Join(embedreg.RuntimeRoot()+"x", "lineage.cue"), false},
+	} {
+		if _, got := embedreg.KernelPath(c.file); got != c.want {
+			t.Errorf("KernelPath(%q): %v, want %v", c.file, got, c.want)
+		}
 	}
 }
