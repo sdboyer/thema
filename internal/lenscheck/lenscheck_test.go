@@ -121,6 +121,9 @@ func render(r Result) string {
 	fmt.Fprintln(&b, r.Verdict())
 	for _, f := range r.Findings {
 		fmt.Fprintf(&b, "%s @ %s\n", f, f.Pos)
+		if f.Help != "" {
+			fmt.Fprintf(&b, "  help: %s\n", f.Help)
+		}
 	}
 	return b.String()
 }

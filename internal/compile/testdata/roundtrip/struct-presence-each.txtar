@@ -1,6 +1,7 @@
 Inside an _each body, a struct filled from inside and outside an optional
 struct of the element is written only where every field it requires is
-satisfied, and a value it would have held is set aside, per element.
+satisfied, per element. A value it would have held raises no lacuna: the
+lens refers to it.
 -- ship/history/0.0.thema --
 Schema: {
 	items: [...{
@@ -129,10 +130,6 @@ lenses: {
 	}
 	"1.0->0.0": {
 		v1_0: _
-		let _d_0 = [for i, _item in v1_0.items if _item.b != _|_ && _item.q == _|_ {
-			path:  "items[\(i)].b"
-			value: _item.b
-		}]
 		v0_0: {
 			items: [for _item in v1_0.items {
 				if _item.q != _|_ {
@@ -145,13 +142,6 @@ lenses: {
 				}
 			}]
 		}
-		lacunas: [{
-			@thema(setaside)
-			condition:    len(_d_0) > 0
-			sourceFields: _d_0
-			message:      "items[].b was dropped: items[].q in 0.0 is written only with items[].q.a"
-			type:         "DroppedField"
-		}]
 	}
 }
 -- out/translate/0.0/mixed->1.0 --
@@ -159,4 +149,4 @@ lenses: {
 []
 -- out/translate/1.0/mixed->0.0 --
 {"items":[{},{"q":{"a":1,"b":3}},{}]}
-[{"sourceFields":[{"path":"items[0].b","value":2}],"type":"DroppedField","message":"items[].b was dropped: items[].q in 0.0 is written only with items[].q.a"}]
+[]

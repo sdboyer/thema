@@ -175,6 +175,9 @@ type Finding struct {
 	Verdict Verdict
 	Rule    Rule
 	Detail  string
+	// Help, where set, says what the author can do about the finding, beyond
+	// what its rule's row in docs/invariants.md says.
+	Help string
 	// Pos is the author's position for the finding: the result field, the
 	// comprehension it is declared in, or the lacuna field.
 	Pos token.Pos
@@ -433,6 +436,37 @@ func (w *walker) inputRef(p cue.Path) string {
 	return rootRef(w.from, p)
 }
 
+// sourceUndeclared is the finding that the lens, at subj, does what (reads,
+// copies, ...) to the input path p, which the source schema does not declare.
+func (w *walker) sourceUndeclared(subj, what string, p cue.Path, pos token.Pos) Finding {
+	clause, help := w.undeclaredInput(p)
+	return Finding{Path: subj, Verdict: NotTotal, Rule: RuleSourceUndeclared, Pos: pos, Help: help,
+		Detail: fmt.Sprintf("%s %s, which the source schema does not declare%s", what, w.inputRef(p), clause)}
+}
+
+// undeclaredInput says more about the input path p, which the source schema
+// does not declare, where p is, or lies beneath, a key that only a pattern
+// constraint matches: a clause to end the finding's detail with, and how the
+// author can declare the key. A lens neither reads nor writes such a key
+// (docs/translation.md, A4).
+func (w *walker) undeclaredInput(p cue.Path) (clause, help string) {
+	k, ok := cuetil.PatternKey(w.ctx, w.source, p)
+	if !ok {
+		return "", ""
+	}
+	return patternClause(k, p, w.inputRef),
+		fmt.Sprintf("a lens reads only fields declared by name: declare %s as an optional field in a new minor version of the source schema, for the values instances carry there to land in, then map from it in the lens from that version", k)
+}
+
+// patternClause says that key, which p is or lies beneath, is matched only by
+// a pattern constraint; ref names a path as the finding does.
+func patternClause(key, p cue.Path, ref func(cue.Path) string) string {
+	if key.String() == p.String() {
+		return ": only a pattern constraint matches it"
+	}
+	return ": only a pattern constraint matches " + ref(key)
+}
+
 // rootRef names the path p beneath the lens field root. The open element of
 // a list is written items[_], as a lens reads it.
 func rootRef(root string, p cue.Path) string {
@@ -583,8 +617,7 @@ func (w *walker) hiddenConjunct(c cueview.Conjunct, q cue.Path, gs []pattern, po
 		}
 		w.record(&write{q: q, patterns: gs, kind: copyW, src: p, text: w.inputRef(p), pos: pos})
 		if !w.lookupSource(p, gs).declared {
-			w.add(Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleSourceUndeclared,
-				Detail: fmt.Sprintf("copies %s, which the source schema does not declare", w.inputRef(p)), Pos: pos})
+			w.add(w.sourceUndeclared(w.subject(q), "copies", p, pos))
 		}
 		return
 	}
@@ -820,8 +853,7 @@ func (w *walker) copy(q, p cue.Path, gs []pattern, pos token.Pos) {
 	src := w.lookupSource(p, gs)
 	subj := w.subject(q)
 	if !src.declared {
-		w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleSourceUndeclared,
-			Detail: fmt.Sprintf("copies %s, which the source schema does not declare", w.inputRef(p)), Pos: pos})
+		w.add(w.sourceUndeclared(subj, "copies", p, pos))
 		return
 	}
 	if !src.present {
@@ -1291,8 +1323,7 @@ func (w *walker) each(comp *ast.Comprehension, q cue.Path, gs []pattern, pos tok
 	src := w.lookupSource(p, gs)
 	switch {
 	case !src.declared:
-		w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleSourceUndeclared,
-			Detail: fmt.Sprintf("maps the elements of %s, which the source schema does not declare", w.inputRef(p)), Pos: pos})
+		w.add(w.sourceUndeclared(subj, "maps the elements of", p, pos))
 		return
 	case !src.present:
 		w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleSourceAbsent,
@@ -1602,8 +1633,14 @@ func (w *walker) descendTarget(root cue.Value, q cue.Path, from int) targetLooku
 		}
 		next, _, ok := cuetil.DeclaredChild(w.ctx, cur, sels[i])
 		if !ok {
-			return targetLookup{finding: &Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleTargetUndeclared,
-				Detail: "is not declared by the target schema"}}
+			f := &Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleTargetUndeclared,
+				Detail: "is not declared by the target schema"}
+			if k, ok := cuetil.PatternKey(w.ctx, cur, cue.MakePath(sels[i:]...)); ok {
+				key := cue.MakePath(append(sels[:i:i], k.Selectors()...)...)
+				f.Detail += patternClause(key, q, w.subject)
+				f.Help = fmt.Sprintf("a lens writes only fields declared by name: declare %s in the target schema to write it, or copy the struct that holds it whole", key)
+			}
+			return targetLookup{finding: f}
 		}
 		cur = next
 	}
@@ -1705,11 +1742,8 @@ func presentIn(parent cue.Value, sel, csel cue.Selector) (string, bool) {
 		}
 		return fmt.Sprintf("is an element the list need not have (its length is %s)", fmtv(parent.Len())), false
 	}
-	switch csel.ConstraintType() {
-	case cue.OptionalConstraint:
+	if csel.ConstraintType() == cue.OptionalConstraint {
 		return "is optional in the source schema", false
-	case cue.PatternConstraint:
-		return fmt.Sprintf("is accepted by the source schema only through the pattern constraint %s, so an instance need not have it", csel), false
 	}
 	return "", true
 }
@@ -2255,8 +2289,7 @@ func (w *walker) lacunaInputs(subj string, x ast.Expr, gs []pattern, pos token.P
 		src := w.lookupSource(p, gs)
 		switch {
 		case !src.declared:
-			w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleSourceUndeclared,
-				Detail: fmt.Sprintf("reads %s, which the source schema does not declare", w.inputRef(p)), Pos: pos})
+			w.add(w.sourceUndeclared(subj, "reads", p, pos))
 		case !src.present:
 			w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleSourceAbsent,
 				Detail: fmt.Sprintf("reads %s, which may be absent when the lacuna applies: %s; %s", w.inputRef(p), src.why, w.absent(p)), Pos: pos})

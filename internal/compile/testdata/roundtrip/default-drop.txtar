@@ -1,0 +1,171 @@
+A minor version adds a defaulted field, a struct of defaults and a list. The
+backward lens drops each with a derived lacuna that applies only where the
+field holds more than 0.1 fills by itself: a default dropped loses nothing,
+since it and absence are the same information. The struct's condition
+compares each of its fields with its fill, so it grows with the schema.
+nested has an optional struct with a default inside, which could be compared
+with its fill only under a presence test nested in the condition, which the
+lens checker does not prove: nested is compared with {} alone.
+-- ship/history/0.0.thema --
+Schema: {
+	firstfield: string
+}
+-- ship/0.1.thema --
+Schema: {
+	firstfield: string
+	count:      *0 | int
+	kind:       *"a" | "b"
+	opts: {
+		level: *1 | int
+		tag?:  string
+	}
+	nested: {
+		inner?: {
+			on: *false | bool
+		}
+	}
+	tags: [...string]
+}
+-- data/0.1/defaults.json --
+{"firstfield": "x"}
+-- data/0.1/defaults-written.json --
+{"firstfield": "x", "count": 0, "kind": "a", "opts": {"level": 1}, "nested": {}, "tags": []}
+-- data/0.1/count.json --
+{"firstfield": "x", "count": 3}
+-- data/0.1/level.json --
+{"firstfield": "x", "opts": {"level": 2}}
+-- data/0.1/tag.json --
+{"firstfield": "x", "opts": {"tag": "t"}}
+-- data/0.1/inner-default.json --
+{"firstfield": "x", "nested": {"inner": {"on": false}}}
+-- data/0.1/tags.json --
+{"firstfield": "x", "tags": ["t"]}
+-- out/bind --
+ok
+-- out/decompiled/0.1.thema --
+Schema: {
+	firstfield: string
+	count:      *0 | int
+	kind:       *"a" | "b"
+	opts: {
+		level: *1 | int
+		tag?:  string
+	}
+	nested: {
+		inner?: {
+			on: *false | bool
+		}
+	}
+	tags: [...string]
+}
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	firstfield: string
+}
+-- out/normal.cue --
+name: "ship"
+schemas:
+	"0": {
+		"0": {
+			schema: {
+				firstfield: string
+			}
+		}
+		"1": {
+			schema: {
+				firstfield: string
+				count:      *0 | int
+				kind:       *"a" | "b"
+				opts: {
+					level: *1 | int
+					tag?:  string
+				}
+				nested: {
+					inner?: {
+						on: *false | bool
+					}
+				}
+				tags: [...string]
+			}
+		}
+	}
+lenses:
+	"0.1->0.0": {
+		v0_1: _
+		v0_0: {
+			firstfield: v0_1.firstfield
+		}
+		lacunas: [
+			{
+				@thema(derived)
+				condition: v0_1.count != 0
+				sourceFields: [{
+					path:  "count"
+					value: v0_1.count
+				}]
+				message: "count has no equivalent in 0.0 and was dropped"
+				type:    "DroppedField"
+			},
+			{
+				@thema(derived)
+				condition: v0_1.kind != "a"
+				sourceFields: [{
+					path:  "kind"
+					value: v0_1.kind
+				}]
+				message: "kind has no equivalent in 0.0 and was dropped"
+				type:    "DroppedField"
+			},
+			{
+				@thema(derived)
+				condition: v0_1.opts.level != 1 || v0_1.opts.tag != _|_
+				sourceFields: [{
+					path:  "opts"
+					value: v0_1.opts
+				}]
+				message: "opts has no equivalent in 0.0 and was dropped"
+				type:    "DroppedField"
+			},
+			{
+				@thema(derived)
+				condition: len(v0_1.nested) > 0
+				sourceFields: [{
+					path:  "nested"
+					value: v0_1.nested
+				}]
+				message: "nested has no equivalent in 0.0 and was dropped"
+				type:    "DroppedField"
+			},
+			{
+				@thema(derived)
+				condition: len(v0_1.tags) > 0
+				sourceFields: [{
+					path:  "tags"
+					value: v0_1.tags
+				}]
+				message: "tags has no equivalent in 0.0 and was dropped"
+				type:    "DroppedField"
+			}
+		]
+	}
+-- out/translate/0.1/count->0.0 --
+{"firstfield":"x"}
+[{"sourceFields":[{"path":"count","value":3}],"type":"DroppedField","message":"count has no equivalent in 0.0 and was dropped"}]
+-- out/translate/0.1/defaults->0.0 --
+{"firstfield":"x"}
+[]
+-- out/translate/0.1/defaults-written->0.0 --
+{"firstfield":"x"}
+[]
+-- out/translate/0.1/inner-default->0.0 --
+{"firstfield":"x"}
+[{"sourceFields":[{"path":"nested","value":{"inner":{"on":false}}}],"type":"DroppedField","message":"nested has no equivalent in 0.0 and was dropped"}]
+-- out/translate/0.1/level->0.0 --
+{"firstfield":"x"}
+[{"sourceFields":[{"path":"opts","value":{"level":2}}],"type":"DroppedField","message":"opts has no equivalent in 0.0 and was dropped"}]
+-- out/translate/0.1/tag->0.0 --
+{"firstfield":"x"}
+[{"sourceFields":[{"path":"opts","value":{"level":1,"tag":"t"}}],"type":"DroppedField","message":"opts has no equivalent in 0.0 and was dropped"}]
+-- out/translate/0.1/tags->0.0 --
+{"firstfield":"x"}
+[{"sourceFields":[{"path":"tags","value":["t"]}],"type":"DroppedField","message":"tags has no equivalent in 0.0 and was dropped"}]

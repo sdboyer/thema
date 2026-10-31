@@ -1,0 +1,26 @@
+# lens result writes a key that only a pattern constraint of its target matches
+#issue: 197
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "lensResultPatternKey"
+	schemas: {
+		"0": "0": {
+			schema: {labels: [string]: string}
+		}
+		"0": "1": {
+			schema: {labels: [string]: string, env?: string}
+		}
+	}
+	lenses: {
+		"0.1->0.0": {
+			v0_1: _
+			v0_0: {labels: {env: "prod"}}
+		}
+	}
+}
+-- expect --
+bind fail declare labels.env by name in schema 0.0

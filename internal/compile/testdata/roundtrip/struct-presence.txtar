@@ -2,7 +2,8 @@ A target struct filled from inside and outside an optional source struct is
 written where any of its content is, and only where every field it requires
 is satisfied. 1.0 moves b out of q. Backward, q is written where 1.0 has q,
 and a 1.0 instance with b but no q has nothing for q's required a: q is not
-written, and b is set aside with a DroppedField.
+written. b raises no lacuna: the lens refers to it, so it has an effect on
+the target.
 -- ship/history/0.0.thema --
 Schema: {
 	q?: {
@@ -108,16 +109,6 @@ lenses: {
 				}
 			}
 		}}
-		lacunas: [{
-			@thema(setaside)
-			condition: v1_0.b != _|_ && v1_0.q == _|_
-			sourceFields: [if v1_0.b != _|_ {
-				path:  "b"
-				value: v1_0.b
-			}]
-			message: "b was dropped: q in 0.0 is written only with q.a"
-			type:    "DroppedField"
-		}]
 	}
 }
 -- out/translate/0.0/a->1.0 --
@@ -134,7 +125,7 @@ lenses: {
 []
 -- out/translate/1.0/b->0.0 --
 {}
-[{"sourceFields":[{"path":"b","value":2}],"type":"DroppedField","message":"b was dropped: q in 0.0 is written only with q.a"}]
+[]
 -- out/translate/1.0/q->0.0 --
 {"q":{"a":1}}
 []

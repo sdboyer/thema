@@ -22,6 +22,17 @@ conjuncts a value came from. Expect to build small, purpose-specific inspection
 code, and confirm hypotheses with a standalone reproduction before changing
 thema's CUE or Go.
 
+**Decide on the `cue.Value`, never on a Go copy of it.** Every question thema
+asks about a value (presence, equality, concreteness, kind, defaults, openness)
+is answered with `cue.Value`'s own methods: `Exists`, `Equals`, `Validate`,
+`IncompleteKind`, `Default`, `Fields`, `LookupPath`, and so on. Never `Decode` a
+value, marshal it to JSON, or rebuild it as Go (`map[string]any`, `any`, structs
+that mirror CUE's type system) in order to inspect it. A Go copy has already lost
+what thema's rules turn on: absence versus `null`, defaults, constraints versus
+regular fields. Decoding belongs only where a value leaves thema: the lacuna
+records, the typed Go API (`TypedInstance.Value`, `AssignableTo`), and serialized
+output.
+
 `internal/cueview` names the ways thema turns a value into syntax or text; see
 the `cue-views` and `cueview-goldens` seams.
 

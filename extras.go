@@ -18,17 +18,19 @@ import (
 // maps"). Around each step, translation takes from the instance:
 //
 //   - its extras: the fields its schema does not declare, which an open
-//     struct's ... admitted;
+//     struct's ... admitted, or a pattern constraint matched (only a field
+//     with a predictable name is declared: docs/translation.md, A4);
 //   - for a step with a lens, the fields its schema declares that the lens
-//     leaves alone: it reads neither them nor anything that holds them, and no
-//     lacuna it lists names them;
-//   - for a step with a lens, the fields its schema declares that the lens
-//     reads, where none of the result fields that read them (that copy them,
-//     or compute from them) was written for the instance: such as a field the
-//     lens moves into a struct it writes only when another field is present.
+//     leaves alone: it refers to neither them nor anything that holds them,
+//     anywhere (a mapping, a condition, a struct or arm it does not write for
+//     this instance), and no lacuna it lists names them. A value the lens
+//     refers to has an effect on the target, so it is the lens's.
 //
-// The lens runs on the instance without its extras, since a lens reads and
-// writes only declared fields. Then:
+// The lens runs on the instance without the extras an open struct's ...
+// admitted, since a lens reads and writes only declared fields. The keys a
+// pattern constraint matched stay, as part of the value of the named field
+// that holds them, which a lens may copy whole; bind refuses a lens that
+// reads or writes one of them by name. Then:
 //
 //   - An extra follows its struct: where the lens takes the contents of a
 //     struct of its result from one struct of its input as a whole (info:
@@ -37,14 +39,16 @@ import (
 //     within a list, element i is taken to be element i, so only the extras
 //     of elements past the result's length have nowhere to go.
 //   - An extra is placed at its path if the result is still an instance of
-//     the target with it: carried where the target's struct is open and does
-//     not declare it, promoted, over any default, where the target declares
-//     it and the value is an instance of what it declares. Where the lens
-//     writes a field the target declares, the lens's value stands.
-//   - A field the source declares and the lens leaves alone, or reads to no
-//     effect, is placed the same way where the target does not declare it.
-//     Where the target declares it, the field is not copied: the lens did not
-//     write it.
+//     the target with it: carried where the target's struct is open, or has a
+//     pattern constraint that accepts it, and does not declare it; promoted,
+//     over any default, where the target declares it and the value is an
+//     instance of what it declares. Where the lens writes the field, as a
+//     field the target declares or with the struct it copies whole, the
+//     lens's value stands.
+//   - A field the source declares and the lens leaves alone is placed the
+//     same way where the target does not declare it. Where the target
+//     declares it, the field is not copied: the lens did not write it, or
+//     wrote its own value for it.
 //
 // A field not placed is dropped with a lacuna: a LossyFieldMapping for a value
 // not an instance of the field the target declares for it, otherwise a
@@ -74,9 +78,9 @@ const (
 	// takenUnwritten: both schemas declare the field, and the lens neither
 	// maps nor writes it.
 	takenUnwritten
-	// takenLost: the source schema declares the field, the lens reads it, and
-	// none of the result fields that read it was written for this instance.
-	takenLost
+	// takenOverwritten: both schemas declare the field, and the lens writes
+	// its own value for it without referring to it.
+	takenOverwritten
 )
 
 // Why a taken field was set aside with a DroppedField. Each struct gets one
@@ -91,14 +95,16 @@ const (
 	// carry it in.
 	asideNowhere
 	// asideWritten: the target declares the field, and the lens wrote its own
-	// value for it.
+	// value for it: an extra, or a field the source declares and the lens
+	// does not refer to.
 	asideWritten
 	// asideUnwritten: the target declares the field, and the lens neither
 	// maps nor writes it.
 	asideUnwritten
-	// asideLost: the lens reads the field, but wrote none of the result
-	// fields that read it, and it could not be carried.
-	asideLost
+	// asideRejected: the target does not declare the field, a pattern
+	// constraint of its struct there matches its name, and its value is not
+	// an instance of what the pattern constrains it to.
+	asideRejected
 )
 
 // stepLens is what translation reads of a step's lens. A step without a lens
@@ -107,11 +113,8 @@ type stepLens struct {
 	// result is the lens's own result, before translation closes it against
 	// the target: what the lens wrote.
 	result cue.Value
-	// reads are the input paths its result reads.
+	// reads are the input paths its result refers to, anywhere.
 	reads []cue.Path
-	// readers are the fields of its result that read each of those paths:
-	// that copy the value there, or compute from it.
-	readers []cuetil.Reader
 	// named are the input paths any lacuna it lists names in its
 	// sourceFields, whether or not the lacuna applies (a written _drop is a
 	// DroppedField lacuna).
@@ -130,19 +133,15 @@ func (l *stepLens) wrote(p cue.Path) bool {
 type readFate int
 
 const (
-	// unread: nothing reads or names the value, anything holding it, or
+	// unread: nothing refers to or names the value, anything holding it, or
 	// anything beneath it.
 	unread readFate = iota
 	// readBeneath: whether the value is carried is decided beneath it.
 	readBeneath
-	// readCarried: a lacuna the lens lists names the value or something
-	// holding it, a result field that reads it was written for this
-	// instance, or it is read only by a comprehension's clauses, which
-	// decide whether fields exist rather than carry it.
+	// readCarried: the lens refers to the value or something holding it, or
+	// a lacuna it lists names one of them. Wherever the reference is, the
+	// value has an effect on the target.
 	readCarried
-	// readLost: result fields read the value, and none of them was written
-	// for this instance.
-	readLost
 )
 
 // read returns how the lens treats the value at the input path p.
@@ -169,31 +168,13 @@ func (l *stepLens) read(p cue.Path) readFate {
 			beneath = true
 		}
 	}
-	if !covered {
-		if beneath {
-			return readBeneath
-		}
-		return unread
-	}
-	readers := false
-	for _, r := range l.readers {
-		if len(r.Input.Selectors()) > np || !pathsOverlap(r.Input, p) {
-			continue
-		}
-		if l.wrote(r.Result) {
-			return readCarried
-		}
-		readers = true
-	}
 	switch {
+	case covered:
+		return readCarried
 	case beneath:
-		// What holds the value went unwritten, or only a clause read it:
-		// what is beneath it may still be carried.
 		return readBeneath
-	case readers:
-		return readLost
 	}
-	return readCarried
+	return unread
 }
 
 // targets returns the paths in the step's result the extra at p goes to: the
@@ -222,10 +203,17 @@ func (l *stepLens) targets(p cue.Path) []cue.Path {
 	return out
 }
 
-// takeExtras returns data without the fields sch does not declare, and those
-// fields. The fields are found as bind finds undeclared data
-// (cuetil.UndeclaredFields): by name, at every depth, an open struct's ...
-// declaring nothing.
+// takeExtras returns the fields of data sch does not declare, and data without
+// those an open struct's ... admitted. The fields are found as bind finds
+// undeclared data (cuetil.UndeclaredFields): by name, at every depth, neither
+// an open struct's ... nor a pattern constraint declaring anything.
+//
+// A key a pattern constraint matches (cuetil.PatternKey) stays in the data the
+// lens runs on, as part of the value of the named field that holds it: a lens
+// that copies the field whole copies its keys with it (docs/translation.md,
+// A4), and the instance stays one that its schema's other constraints, such as
+// struct.MinFields, accept. A lens never addresses such a key itself; bind
+// refuses one that does.
 func takeExtras(ctx *cue.Context, data, sch cue.Value) (cue.Value, []taken, error) {
 	paths := cuetil.UndeclaredFields(ctx, data, sch)
 	if len(paths) == 0 {
@@ -236,9 +224,16 @@ func takeExtras(ctx *cue.Context, data, sch cue.Value) (cue.Value, []taken, erro
 		return cue.Value{}, nil, err
 	}
 	out := make([]taken, 0, len(paths))
+	stripped := false
 	for _, p := range paths {
 		out = append(out, taken{path: p, value: data.LookupPath(p)})
-		x = withoutAt(x, p.Selectors())
+		if _, ok := cuetil.PatternKey(ctx, sch, p); ok {
+			continue
+		}
+		x, stripped = withoutAt(x, p.Selectors()), true
+	}
+	if !stripped {
+		return data, out, nil
 	}
 	return ctx.BuildExpr(x), out, nil
 }
@@ -247,11 +242,13 @@ func takeExtras(ctx *cue.Context, data, sch cue.Value) (cue.Value, []taken, erro
 // from does not declare, as takeExtras found them) and, for a step with a
 // lens, the fields of data that from declares and the lens leaves alone:
 // those to does not declare and result, the step's result, does not have
-// (takenUnmapped), and those to declares and the lens did not write
-// (takenUnwritten), and those it reads but wrote nothing that carries for this
-// instance (takenLost). List elements are taken as fields are. A field the
-// lens carries is the lens's. A field holding one the lens reads, or one both
-// schemas declare and the lens wrote, is descended into.
+// (takenUnmapped), those to declares and the lens did not write
+// (takenUnwritten), and those to declares and the lens wrote its own value
+// for (takenOverwritten). List elements are taken as fields are. A field the
+// lens refers to is the lens's. A field holding one the lens refers to, or a
+// struct or list both schemas declare and the lens wrote one of, is descended
+// into. A field the step's result holds unchanged at its own path is not
+// lost.
 func takeFields(ctx *cue.Context, data cue.Value, extras []taken, lens *stepLens, result, from, to cue.Value) []taken {
 	if lens == nil {
 		return extras
@@ -302,19 +299,21 @@ func takeFields(ctx *cue.Context, data cue.Value, extras []taken, lens *stepLens
 				continue
 			}
 			fate := lens.read(q)
-			switch fate {
-			case readCarried:
+			if fate == readCarried {
 				walk(c.value, q, true)
-				continue
-			case readLost:
-				if !hasDataPath(result, q) || !result.LookupPath(q).Equals(c.value) {
-					out = append(out, taken{path: q, value: c.value, kind: takenLost})
-				}
 				continue
 			}
 			declared := cuetil.DeclaresPath(ctx, to, q)
-			if fate == readBeneath || (declared && lens.wrote(q)) {
+			if fate == readBeneath {
 				walk(c.value, q, false)
+				continue
+			}
+			if declared && lens.wrote(q) {
+				if sameContainer(c.value, lens.result.LookupPath(q)) {
+					walk(c.value, q, false)
+				} else if !result.LookupPath(q).Equals(c.value) {
+					out = append(out, taken{path: q, value: c.value, kind: takenOverwritten})
+				}
 				continue
 			}
 			switch {
@@ -330,9 +329,9 @@ func takeFields(ctx *cue.Context, data cue.Value, extras []taken, lens *stepLens
 }
 
 // carry places each field of fields in result, an instance of to's schema
-// produced by the step from version fromV through lens, and returns the
-// result and the lacunas for the fields not placed.
-func carry(ctx *cue.Context, result cue.Value, lens *stepLens, to *schemaDef, fromV SyntacticVersion, fields []taken) (cue.Value, []lacuna.Lacuna, error) {
+// produced by the step from version fromV, whose schema is from, through
+// lens, and returns the result and the lacunas for the fields not placed.
+func carry(ctx *cue.Context, result cue.Value, lens *stepLens, from cue.Value, to *schemaDef, fromV SyntacticVersion, fields []taken) (cue.Value, []lacuna.Lacuna, error) {
 	if len(fields) == 0 {
 		return result, nil, nil
 	}
@@ -363,7 +362,7 @@ func carry(ctx *cue.Context, result cue.Value, lens *stepLens, to *schemaDef, fr
 		return lacuna.FieldRef{Path: f.path.String(), Value: val}, nil
 	}
 	aside := func(f taken, parent cue.Path, cause asideCause) error {
-		if isEmpty(f.value) {
+		if isEmpty(f.value) || (f.kind != takenExtra && fillsAt(ctx, f.value, from, f.path)) {
 			return nil
 		}
 		r, err := ref(f)
@@ -383,29 +382,13 @@ func carry(ctx *cue.Context, result cue.Value, lens *stepLens, to *schemaDef, fr
 
 	placed := false
 	for _, f := range fields {
-		if f.kind == takenUnwritten {
-			if err := aside(f, parentOf(f.path), asideUnwritten); err != nil {
-				return cue.Value{}, nil, err
+		switch f.kind {
+		case takenUnwritten, takenOverwritten:
+			cause := asideUnwritten
+			if f.kind == takenOverwritten {
+				cause = asideWritten
 			}
-			continue
-		}
-		if f.kind == takenLost {
-			// Carried as a field the target does not declare, where it can be:
-			// then it is not lost. Never into a field the target declares,
-			// which is the lens's to write.
-			parent := parentOf(f.path)
-			if isStructLit(lookupSyntax(rx, parent.Selectors())) && !cuetil.DeclaresPath(ctx, to.def, f.path) {
-				vx, verr := dataSyntax(f.value)
-				if verr != nil {
-					return cue.Value{}, nil, diag.InternalErr(verr)
-				}
-				cand := withAt(rx, f.path.Selectors(), vx)
-				if closed.Unify(ctx.BuildExpr(cand)).Validate(cue.Concrete(true)) == nil {
-					rx, placed = cand, true
-					continue
-				}
-			}
-			if err := aside(f, parent, asideLost); err != nil {
+			if err := aside(f, parentOf(f.path), cause); err != nil {
 				return cue.Value{}, nil, err
 			}
 			continue
@@ -424,8 +407,11 @@ func carry(ctx *cue.Context, result cue.Value, lens *stepLens, to *schemaDef, fr
 				continue
 			}
 			declared := cuetil.DeclaresPath(ctx, to.def, dest)
-			if declared && lens.wrote(dest) {
-				// The lens's value stands. Nothing is lost if it is the same.
+			if lens.wrote(dest) {
+				// The lens's value stands, whether the target declares the
+				// field or the lens copied it with the struct holding it, as
+				// it copies the keys under a pattern constraint. Nothing is
+				// lost if it is the same.
 				if result.LookupPath(dest).Equals(f.value) {
 					continue
 				}
@@ -444,7 +430,11 @@ func carry(ctx *cue.Context, result cue.Value, lens *stepLens, to *schemaDef, fr
 				continue
 			}
 			if !declared {
-				if err := aside(f, parent, asideClosed); err != nil {
+				cause := asideClosed
+				if k, ok := cuetil.PatternKey(ctx, to.def, dest); ok && k.String() == dest.String() {
+					cause = asideRejected
+				}
+				if err := aside(f, parent, cause); err != nil {
 					return cue.Value{}, nil, err
 				}
 				continue
@@ -523,10 +513,16 @@ func asideMessage(refs []lacuna.FieldRef, parent cue.Path, cause asideCause, fro
 		return fmt.Sprintf("%s set aside: the lens from %s to %s writes %s for %s", subject, fromV, toV, pick("its own value", "its own values"), pick("it", "them"))
 	case asideUnwritten:
 		return fmt.Sprintf("%s set aside: the lens from %s to %s neither maps nor writes %s", subject, fromV, toV, pick("it", "them"))
-	case asideLost:
-		return fmt.Sprintf("%s set aside: the lens from %s to %s reads %s, but wrote nothing that carries %s for this instance", subject, fromV, toV, pick("it", "them"), pick("it", "them"))
+	case asideRejected:
+		return fmt.Sprintf("%s set aside: the pattern constraint of %s in %s does not accept %s", subject, toV, where, pick("its value", "their values"))
 	}
 	return fmt.Sprintf("%s set aside: translating from %s to %s produces no %s to carry %s in", subject, fromV, toV, where, pick("it", "them"))
+}
+
+// sameContainer reports whether a and b are both structs, or both lists.
+func sameContainer(a, b cue.Value) bool {
+	k := a.IncompleteKind()
+	return (k == cue.StructKind || k == cue.ListKind) && k == b.IncompleteKind()
 }
 
 // isEmpty reports whether v is an empty struct or list.
@@ -540,6 +536,56 @@ func isEmpty(v cue.Value) bool {
 		return err == nil && n == 0
 	}
 	return false
+}
+
+// fillsAt reports whether v, the value at p of an instance of sch, is what sch
+// fills there by itself where an instance omits it. Such a value and absence
+// are the same information, so setting it aside loses nothing. Whether the
+// instance wrote it or the schema filled it is not asked.
+func fillsAt(ctx *cue.Context, v, sch cue.Value, p cue.Path) bool {
+	var sel cue.Selector
+	for _, x := range p.Selectors() {
+		d, _ := sch.Default()
+		next, s, ok := cuetil.DeclaredChild(ctx, d, x)
+		if !ok {
+			return false
+		}
+		sch, sel = next, s
+	}
+	return fills(ctx, v, sch, sel)
+}
+
+// fills reports whether v is what sch, declared with sel, fills by itself: a
+// struct each of whose fields fills, an empty list, or the default (or
+// constant) of a regular field. An optional, required or pattern field fills
+// nothing, so a value it holds is more than its fill.
+func fills(ctx *cue.Context, v, sch cue.Value, sel cue.Selector) bool {
+	switch v.IncompleteKind() {
+	case cue.ListKind:
+		return isEmpty(v)
+	case cue.StructKind:
+		d, _ := sch.Default()
+		iter, err := v.Fields()
+		if err != nil {
+			return false
+		}
+		for iter.Next() {
+			s, ssel, ok := cuetil.DeclaredChild(ctx, d, iter.Selector())
+			if !ok || !fills(ctx, iter.Value(), s, ssel) {
+				return false
+			}
+		}
+		return true
+	}
+	if !sel.IsString() || sel.ConstraintType() != 0 {
+		return false
+	}
+	d, _ := sch.Default()
+	if d.Validate(cue.Concrete(true)) != nil {
+		return false
+	}
+	vd, _ := v.Default()
+	return d.Equals(vd)
 }
 
 func parentOf(p cue.Path) cue.Path {

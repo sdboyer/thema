@@ -586,7 +586,8 @@ func (w *cycleWalker) rel(p cue.Path) string {
 
 // checkLensResults statically checks each CUE lens against its schemas, with its
 // input standing for any instance of its source schema (closed, so references to
-// fields the source can't have are errors). The lens's input must accept every
+// fields the source can't have are errors, and with its required fields present,
+// as they are in every instance). The lens's input must accept every
 // instance of the source schema, and its result must be consistent with the
 // target schema and build only fields the target declares. This catches at bind
 // time what would otherwise fail only when a matching instance is translated.
@@ -633,7 +634,7 @@ func (ml *maybeLineage) checkLensResults() error {
 			continue
 		}
 
-		result := lens.FillPath(inputPath, source).LookupPath(resultPath)
+		result := lens.FillPath(inputPath, cuetil.RequiredPresent(source)).LookupPath(resultPath)
 		if err := result.Unify(cuetil.CloseRecursive(ctx, tsch.def)).Validate(); err != nil {
 			// The totality checker usually knows the rule behind the conflict,
 			// and names the mapping; prefer its account when it has one.
@@ -662,8 +663,10 @@ func (ml *maybeLineage) checkLensResults() error {
 		}
 		if len(paths) > 0 {
 			b := ml.diag(diag.E0305).AtValue(lens.LookupPath(resultPath)).Addr(resultA).
-				Headlinef("%s writes %s, which %s does not declare", ml.term(resultA), strings.Join(paths, ", "), ml.term(schemaAddr(to))).
-				Help("a lens writes only fields its target schema declares, however open the schema is written")
+				Headlinef("%s writes %s, which %s does not declare", ml.term(resultA), strings.Join(paths, ", "), ml.term(schemaAddr(to)))
+			if !patternKeys(b, ctx, tsch.def, ml.term(schemaAddr(to)), "writes", paths) {
+				b.Help("a lens writes only fields its target schema declares, however open the schema is written")
+			}
 			errs = append(errs, b.Err())
 		}
 	}
@@ -749,7 +752,10 @@ func (ml *maybeLineage) checkLacunas() error {
 						continue
 					}
 					if err := checkFieldRefPath(ml.rt.Context(), path, side.sch); err != nil {
-						fail(diag.E0404, pathv, "names %s in %s[%d], which %s does not declare", path, side.field, j, ml.term(schemaAddr(side.sch.v)))
+						b := ml.diag(diag.E0404).AtValue(pathv).Addr(lacA).
+							Headlinef("%s names %s in %s[%d], which %s does not declare", ml.term(lacA), path, side.field, j, ml.term(schemaAddr(side.sch.v)))
+						patternKeys(b, ml.rt.Context(), side.sch.def, ml.term(schemaAddr(side.sch.v)), "names", []string{path})
+						errs = append(errs, b.Err())
 					}
 				}
 			}
