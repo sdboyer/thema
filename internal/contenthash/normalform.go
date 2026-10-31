@@ -4,8 +4,12 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"cuelang.org/go/cue"
+
+	"github.com/sdboyer/thema/internal/cuetil"
+	"github.com/sdboyer/thema/internal/embedreg"
 )
 
 // This file is the only code in the package that knows the shape of the normal
@@ -49,6 +53,60 @@ func parseEdge(key string) (from, to Version, ok bool) {
 		n[i] = uint(u)
 	}
 	return Version{n[0], n[1]}, Version{n[2], n[3]}, true
+}
+
+// maxAuthoredDepth bounds how far authored follows a chain of references to
+// where the lineage is declared (a: ship, b: a, lin: b).
+const maxAuthoredDepth = 16
+
+// authored returns the lineage as its author declared it: lin without what
+// thema contributes. An author may unify thema.Lineage in or embed it
+// (lin: thema.Lineage & {...}, or a file of the lineage's package that
+// embeds it), re-export a lineage that does (flagship: thema.Lineage & ship,
+// or flagship: ship where ship embeds it), or not mention it at all, and
+// thema unifies it in Go where it binds. Which of these happened is how the
+// lineage was written or loaded, not what it is, and would otherwise be
+// hashed: thema.Lineage constrains every schema and lens, so its constraints
+// show in every export.
+//
+// The lineage's conjuncts are split, a reference among them is followed to the
+// value it names, and what thema contributes is dropped: a reference into
+// thema's package, or a conjunct declared in thema's own CUE. The rest are
+// unified again. A lineage with nothing of thema's in it is returned as it is.
+func authored(lin cue.Value) cue.Value {
+	parts, dropped := authoredParts(lin, 0)
+	if !dropped || len(parts) == 0 {
+		return lin
+	}
+	v := parts[0]
+	for _, p := range parts[1:] {
+		v = v.Unify(p)
+	}
+	return v
+}
+
+func authoredParts(v cue.Value, depth int) (parts []cue.Value, dropped bool) {
+	for _, c := range cuetil.AppendSplit(v, cue.AndOp, nil) {
+		if embedreg.IsKernel(c.Pos()) {
+			dropped = true
+			continue
+		}
+		if root, p := c.ReferencePath(); root.Exists() && p.Err() == nil {
+			if bi := root.BuildInstance(); bi != nil {
+				if path, _, _ := strings.Cut(bi.ImportPath, "@"); path == themaImportPath {
+					dropped = true
+					continue
+				}
+			}
+			if depth < maxAuthoredDepth {
+				ps, d := authoredParts(root.LookupPath(p), depth+1)
+				parts, dropped = append(parts, ps...), dropped || d
+				continue
+			}
+		}
+		parts = append(parts, c)
+	}
+	return parts, dropped
 }
 
 // versionSchema returns the schema of version v in the lineage lin, unified

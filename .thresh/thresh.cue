@@ -277,6 +277,32 @@ seams: "playground-api": {
 	]
 }
 
+// What a lineage reports, bind's verdict, its diagnostics, its version IDs and
+// its lens programs, is a function of the lineage, not of how it was loaded:
+// compiled from the authoring form, loaded as a package through an overlay or
+// an fs.FS, imported, or re-exported under another name. Every analysis that
+// reads references, positions or import paths can embed an assumption about
+// the CUE around the lineage, and placement.go is the one place that says
+// where a lineage is declared. The load-paths corpus loads each lineage along
+// every path and requires the same result (#217).
+seams: "load-independence": {
+	kind:    "shared-kernel"
+	purpose: "a reference, a position or an ID is judged by the lineage's own structure, never by the package, import, file or filesystem it was loaded through"
+	paths: [
+		"placement.go",
+		"references.go",
+		"references_syntax.go",
+		"internal/contenthash/normalform.go",
+		"load/testdata/loadpaths/*.txtar",
+	]
+	consult: [
+		"TestLoadPaths in load and its corpus (load/testdata/loadpaths): every loading path gives the same verdict, diagnostics, IDs and programs, and the paths loading the same text the same positions; a new way of loading a lineage is a new row in loadPaths",
+		"placement.go: a reference is inside the lineage when it resolves under a root the lineage is declared in, found from the lineage's own conjuncts, never by comparing file names, package paths or the lineage's path in the root it was bound under",
+		"internal/embedreg KernelPath, which says what is thema's own CUE by file: only thema's package files and cue.mod, never an author's module loaded beneath thema's path",
+		"the loading paths pending #212: the normal form generated beside the authoring files, loaded by the collection loader, and load.Configure's FS mode",
+	]
+}
+
 // --- choke-point ------------------------------------------------------------------
 
 // BindLineage is the sole verification choke point (see docs/go-mapping.md).

@@ -49,6 +49,18 @@ type baseLineage struct {
 	programErr error
 }
 
+// isLineageDef reports whether v is a reference to thema.Lineage: to the field
+// Lineage of thema's package, not to any field the author happened to name
+// Lineage.
+func isLineageDef(v cue.Value) bool {
+	root, path := v.ReferencePath()
+	if path.String() != "Lineage" {
+		return false
+	}
+	bi := root.BuildInstance()
+	return bi != nil && isThemaPackage(bi.ImportPath)
+}
+
 // BindLineage takes a raw [cue.Value], checks that it correctly follows Thema's
 // invariants, such as translatability and backwards compatibility version
 // numbering. If these checks succeed, a [Lineage] is returned.
@@ -75,8 +87,7 @@ func BindLineage(v cue.Value, rt *Runtime, opts ...BindOption) (Lineage, error) 
 	if vlist := cuetil.AppendSplit(orig, cue.AndOp, nil); len(vlist) > 1 {
 		others := make([]cue.Value, 0, len(vlist))
 		for _, av := range vlist {
-			_, path := av.ReferencePath()
-			if path.String() != "Lineage" {
+			if !isLineageDef(av) {
 				others = append(others, av)
 			}
 		}

@@ -1,0 +1,12 @@
+A schema whose references form a cycle, which no loading path may admit.
+-- ship/history/0.0.thema --
+Schema: {
+	a: b
+	b: a
+}
+-- out/verdict --
+# bind
+E0133 the schema in history/0.0.thema has a reference cycle: b -> a -> b
+E0133 the schema in history/0.0.thema has a reference cycle: a -> b -> a
+# ids
+0.0 bd5f4010fa9ca221b8a9318cab57a420b89fc8b233679809f228303d3b21013f:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a

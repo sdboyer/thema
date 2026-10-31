@@ -1,0 +1,42 @@
+# a lineage declared at a field of another package and re-exported here under
+# another name, whose lens names a schema by the lineage's label in a pending
+# comprehension, which only the lens's syntax shows. The label is the one the
+# lineage has where it is declared, so the reference is to a schema of the
+# lineage (rule ref-lens-to-schema), not to something outside it
+#issue: 217
+-- in.cue --
+import "example.com/m/ship"
+
+lin: ship.shipLineage
+-- ship/ship.cue --
+package ship
+
+import "github.com/sdboyer/thema"
+
+shipLineage: thema.Lineage & {
+	name: "refLensComprehensionReexported"
+	schemas: {
+		"0": "0": schema: {a?: string}
+		"1": "0": schema: {b?: string}
+	}
+	lenses: {
+		"0.0->1.0": {
+			v0_0: _
+			v1_0: {
+				if v0_0.a != _|_ {
+					b: shipLineage.schemas["0"]["0"].schema.a
+				}
+			}
+		}
+		"1.0->0.0": {
+			v1_0: _
+			v0_0: {
+				if v1_0.b != _|_ {
+					a: v1_0.b
+				}
+			}
+		}
+	}
+}
+-- expect --
+bind fail ref-lens-to-schema

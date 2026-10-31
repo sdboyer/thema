@@ -29,7 +29,7 @@ lin: {
     {
       "code": "E0140",
       "severity": "error",
-      "headline": "a in schema 0.1 refers to lin.schemas[\"0\"][\"0\"].schema.a, a schema in the lineage",
+      "headline": "a in schema 0.1 refers to schemas[\"0\"][\"0\"].schema.a, a schema in the lineage",
       "path": [
         "schemas",
         "0",
@@ -67,7 +67,7 @@ lin: {
   }
 }
 -- out/text --
-error[E0140]: a in schema 0.1 refers to lin.schemas["0"]["0"].schema.a, a schema in the lineage
+error[E0140]: a in schema 0.1 refers to schemas["0"]["0"].schema.a, a schema in the lineage
  --> lineage.cue:8:16
   |
 8 |             schema: {a: lin.schemas["0"]["0"].schema.a, b?: int}

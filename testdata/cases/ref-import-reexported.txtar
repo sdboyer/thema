@@ -1,0 +1,27 @@
+# a lineage that is the whole of another package of the author's module,
+# re-exported here, whose schema refers to a third package of the module: the
+# package the lineage is declared in is part of it, and the third package is
+# still an import (rule ref-import)
+#issue: 217
+-- in.cue --
+import "example.com/m/ship"
+
+lin: ship
+-- ship/ship.cue --
+package ship
+
+import (
+	"github.com/sdboyer/thema"
+	"example.com/m/common"
+)
+
+thema.Lineage
+
+name: "refImportReexported"
+schemas: "0": "0": schema: {name: common.#Name}
+-- common/common.cue --
+package common
+
+#Name: string
+-- expect --
+bind fail ref-import

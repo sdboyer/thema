@@ -21,7 +21,7 @@ lin: {
     {
       "code": "E0146",
       "severity": "error",
-      "headline": "n in schema 0.0 refers to lin[...], which thema cannot resolve statically",
+      "headline": "n in schema 0.0 refers to the lineage[...], which thema cannot resolve statically",
       "path": [
         "schemas",
         "0",
@@ -59,7 +59,7 @@ lin: {
   }
 }
 -- out/text --
-error[E0146]: n in schema 0.0 refers to lin[...], which thema cannot resolve statically
+error[E0146]: n in schema 0.0 refers to the lineage[...], which thema cannot resolve statically
  --> lineage.cue:5:27
   |
 5 |             schema: {a: string, n: lin[a]}

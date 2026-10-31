@@ -120,6 +120,21 @@ looks up moves inside the lens. Two versions that share a declaration are
 not sealed separately, which is the point: editing the shared declaration
 edits the published version too.
 
+**What is inside the lineage is the lineage's to say, not the loader's.** A
+lineage reaches thema compiled from the authoring form, loaded as a package,
+imported, or re-exported from another package under another name, and the
+evaluator resolves a reference in whichever package it shares the lineage's
+value with. thema places a reference by where the lineage is declared: the
+value it was bound as, and every value that value is a reference to, each in
+the package that declares it. It never decides by file, package or import
+path. A lineage that is another package re-exported (`flagship: ship`), or a
+reference to a value beside it (`lin: _impl`), refers to its own body as it
+does where it is declared, and a package it imports is still an import. A
+finding spells a reference inside the lineage from the lineage
+(`schemas["0"]["0"].schema.a`), so it reads the same wherever the lineage
+sits. Verdicts, findings and version IDs are the same along every path, which
+the repository's load-paths corpus (`load/testdata/loadpaths`) checks.
+
 The rules start from the conservative side. Referring to another lineage, or
 to a package of the author's own module, is a goal, not an error in
 principle: a disciplined account of what such a reference means for a
