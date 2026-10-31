@@ -2,6 +2,7 @@ package thema
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -236,6 +237,28 @@ func (ml *maybeLineage) compatDiag(f compat.Finding, prev, curr *schemaDef) *dia
 	return b.Err()
 }
 
+// patternKeys explains, on b, which says that a lens writes or names paths
+// that sch (called term) does not declare, those paths that are, or lie
+// beneath, a key that only a pattern constraint matches (cuetil.PatternKey).
+// Only a field with a predictable name is declared (docs/translation.md, A4):
+// a lens writes such a key only by copying the struct that holds it whole,
+// and names it nowhere. It reports whether any path was such a key.
+func patternKeys(b *diag.B, ctx *cue.Context, sch cue.Value, term, verb string, paths []string) bool {
+	var keys []string
+	for _, s := range paths {
+		if k, ok := cuetil.PatternKey(ctx, sch, cue.ParsePath(s)); ok && !slices.Contains(keys, k.String()) {
+			keys = append(keys, k.String())
+		}
+	}
+	if len(keys) == 0 {
+		return false
+	}
+	list := strings.Join(keys, ", ")
+	b.Notef(token.NoPos, "only a pattern constraint of %s matches %s, and a pattern constraint declares no field", term, list)
+	b.Helpf("a lens %s only fields declared by name: declare %s by name in %s", verb, list, term)
+	return true
+}
+
 // statement puts a checker's sentence in the headline when it fits, and
 // otherwise makes it a note under a shorter headline.
 func statement(b *diag.B, sentence, short string) {
@@ -254,6 +277,9 @@ func (ml *maybeLineage) totalityDiag(f lenscheck.Finding, from, to SyntacticVers
 	b := ml.diag(code).Addr(addr).At(f.Pos)
 	statement(b, ml.term(addr)+" "+diag.RewriteFor(ml.vocab(), addr, f.Detail), ml.term(addr)+" is not total for some instance")
 	b.Notef(token.NoPos, "a lens must be total: every instance of %s must translate to an instance of %s (totality rule %s)", ml.term(schemaAddr(from)), ml.term(schemaAddr(to)), f.Rule)
+	if f.Help != "" {
+		b.Help(diag.RewriteFor(ml.vocab(), addr, f.Help))
+	}
 	if f.Verdict == lenscheck.Unknown {
 		b.Help("write the mapping in a form the checker can follow, or add a lacuna where it cannot decide")
 	}

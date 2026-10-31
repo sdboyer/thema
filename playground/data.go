@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"reflect"
 	"strings"
 
 	"cuelang.org/go/cue"
@@ -139,29 +138,15 @@ func (s *Session) hydrate(req HydrateRequest, f func(*thema.Instance) *thema.Ins
 		return HydrateResponse{Result: failed(err)}
 	}
 	resp := HydrateResponse{Version: inst.Schema().Version().String()}
-	before, err := marshal(inst.Underlying())
+	after := f(inst).Underlying()
+	resp.Output, err = marshal(after)
 	if err != nil {
 		resp.Result = failed(err)
 		return resp
 	}
-	resp.Output, err = marshal(f(inst).Underlying())
-	if err != nil {
-		resp.Result = failed(err)
-		return resp
-	}
-	resp.Changed = !sameJSON(before, resp.Output)
+	resp.Changed = !after.Equals(inst.Underlying())
 	resp.Result = ok()
 	return resp
-}
-
-// sameJSON reports whether two JSON documents hold the same value, whatever
-// the order of their fields.
-func sameJSON(a, b []byte) bool {
-	var va, vb any
-	if json.Unmarshal(a, &va) != nil || json.Unmarshal(b, &vb) != nil {
-		return bytes.Equal(a, b)
-	}
-	return reflect.DeepEqual(va, vb)
 }
 
 // marshal renders a concrete value as indented JSON.

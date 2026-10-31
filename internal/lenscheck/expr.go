@@ -336,8 +336,13 @@ func newExprCtx(subj string, gs []pattern, pos token.Pos) *exprCtx {
 }
 
 func (w *walker) fail(c *exprCtx, verdict Verdict, rule Rule, detail string) {
+	w.failWith(c, Finding{Path: c.subj, Verdict: verdict, Rule: rule, Detail: detail, Pos: c.pos})
+}
+
+// failWith is fail, with the finding f.
+func (w *walker) failWith(c *exprCtx, f Finding) {
 	c.failed = true
-	w.add(Finding{Path: c.subj, Verdict: verdict, Rule: rule, Detail: detail, Pos: c.pos})
+	w.add(f)
 }
 
 // computed proves the computed expression x written at q: a head
@@ -572,7 +577,7 @@ func (w *walker) operand(x ast.Expr, c *exprCtx) (shape, bool) {
 			c.paths[p.String()]++
 			src := w.lookupSource(p, c.gs)
 			if !src.declared {
-				w.fail(c, NotTotal, RuleSourceUndeclared, fmt.Sprintf("reads %s, which the source schema does not declare", w.inputRef(p)))
+				w.failWith(c, w.sourceUndeclared(c.subj, "reads", p, c.pos))
 				return shape{}, false
 			}
 			if !src.present && !c.hidden {
@@ -786,7 +791,7 @@ func (w *walker) length(x ast.Expr, c *exprCtx) (shape, bool) {
 		c.resolved[x] = operandRes{alts: []operandAlt{{input: &p}}}
 		switch {
 		case !src.declared:
-			w.fail(c, NotTotal, RuleSourceUndeclared, fmt.Sprintf("reads %s, which the source schema does not declare", w.inputRef(p)))
+			w.failWith(c, w.sourceUndeclared(c.subj, "reads", p, c.pos))
 			return shape{}, false
 		case !src.present && !c.hidden:
 			w.fail(c, NotTotal, RuleSourceAbsent, fmt.Sprintf("reads %s, which may be absent: %s; %s", w.inputRef(p), src.why, w.absent(p)))
@@ -925,7 +930,7 @@ func (w *walker) forLength(fc *ast.ForClause, gs []pattern, c *exprCtx) (*interv
 	src := w.lookupSource(p, gs)
 	switch {
 	case !src.declared:
-		w.fail(c, NotTotal, RuleSourceUndeclared, fmt.Sprintf("takes the length of a list built over %s, which the source schema does not declare", w.inputRef(p)))
+		w.failWith(c, w.sourceUndeclared(c.subj, "takes the length of a list built over", p, c.pos))
 		return nil, false
 	case !src.present:
 		w.fail(c, NotTotal, RuleSourceAbsent, fmt.Sprintf("takes the length of a list built over %s, which may be absent: %s", w.inputRef(p), src.why))
@@ -1224,8 +1229,7 @@ func (w *walker) table(t table, q cue.Path, gs []pattern, pos token.Pos) {
 	src := w.lookupSource(p, gs)
 	switch {
 	case !src.declared:
-		w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleSourceUndeclared,
-			Detail: fmt.Sprintf("indexes a table by %s, which the source schema does not declare", w.inputRef(p)), Pos: pos})
+		w.add(w.sourceUndeclared(subj, "indexes a table by", p, pos))
 		return
 	case !src.present:
 		w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleSourceAbsent,

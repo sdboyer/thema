@@ -132,7 +132,7 @@ A derived lacuna has:
 
 - `sourceFields`: the dropped field. No `targetFields`.
 - `message`: `<path> has no equivalent in <version> and was dropped`, where `<version>` is the lens's target version: `meta.team has no equivalent in 0.0 and was dropped`.
-- `condition`: that the field is present, when the source schema has it as optional. Otherwise none, so it always applies.
+- `condition`: that the field is present, when the source schema has it as optional, and that it holds more than the source fills by itself: other than its default, for a struct other than what its fields fill (each defaulted field compared with its default), for a struct or list not empty. An open struct is compared with `{}` alone, since a condition can't tell its undeclared fields from its defaults; so is a struct with an optional field holding a struct or a list, since comparing that field with its fill needs a presence test inside the condition, which the lens checker does not prove. A field with nothing to compare and that the source always has has no condition, so it always applies. A value equal to its fill and absence are the same information ([translation](../translation.md)).
 
 A drop inside an `_each` body derives one lacuna for the whole list. Its message is `<list>[].<path> has no equivalent in <version> and was dropped`, its `sourceFields` name each element that had the field, as `<list>[<i>].<path>`, and its condition is that at least one element had it.
 
@@ -158,7 +158,7 @@ lacunas: [{
 
 ## Set-aside fields
 
-Translation, not a lens, emits lacunas for the fields no lens maps that it does not carry ([fields no lens maps](../invariants.md#fields-no-lens-maps)): fields an instance holds that the step's source schema does not declare, fields it declares that the step's lens leaves alone, and fields the lens reads where no result field that reads them was written for the instance. A lacuna the lens lists for a field takes the place of any translation would emit for it.
+Translation, not a lens, emits lacunas for the fields no lens maps that it does not carry ([fields no lens maps](../invariants.md#fields-no-lens-maps)): fields an instance holds that the step's source schema does not declare, and fields it declares that the step's lens leaves alone: it refers to nothing at them or above them, anywhere. A field the lens refers to is the lens's, whether or not anything that refers to it is written for the instance. A lacuna the lens lists for a field takes the place of any translation would emit for it.
 
 A value that is not an instance of a field the target declares, where the lens does not write that field, is not carried, and emits one `LossyFieldMapping`:
 
@@ -168,15 +168,15 @@ A value that is not an instance of a field the target declares, where the lens d
 
 `LossyFieldMapping`, not `DroppedField`: the source field maps to the target field of that name, as values that are instances of it show by being promoted into it. This one value does not survive the mapping.
 
-Any other field not carried is set aside, with a `DroppedField` for each struct and cause:
+Any other field not carried is set aside, with a `DroppedField` for each struct and cause. A declared field that holds only what the source fills by itself, its default or a struct of defaults, is set aside with none:
 
 | Cause | Message |
 |---|---|
-| the target schema does not declare the field, and its struct there is closed | `<fields> set aside: <version> does not declare them in <struct>, which it does not leave open` |
+| the target schema does not declare the field, and its struct there is closed, with no pattern constraint matching the field's name | `<fields> set aside: <version> does not declare them in <struct>, which it does not leave open` |
+| the target schema does not declare the field, a pattern constraint of its struct there matches its name, and its value is not an instance of what the pattern constrains it to | `<fields> set aside: the pattern constraint of <version> in <struct> does not accept their values` |
 | the step's result has no struct at the field's parent path: the lens removed it, or a list the lens shortened has no element there | `<fields> set aside: translating from <version> to <version> produces no <struct> to carry them in` |
-| the target schema declares the field, and the lens wrote its own value for it | `<fields> set aside: the lens from <version> to <version> writes its own values for them` |
+| the lens wrote its own value for the field: one the target schema declares (an undeclared field of the source, or a declared one the lens doesn't refer to), or one beneath a struct the lens copied whole, such as a key under a pattern constraint | `<fields> set aside: the lens from <version> to <version> writes its own values for them` |
 | the target schema declares a field the source declares, and the lens neither maps nor writes it | `<fields> set aside: the lens from <version> to <version> neither maps nor writes them` |
-| the lens reads the field, none of the result fields that read it was written for the instance, and it could not be carried | `<fields> set aside: the lens from <version> to <version> reads them, but wrote nothing that carries them for this instance` |
 
 - `<fields>` lists the fields' paths, comma-separated, and `<struct>` is the parent path in the step's result, or `the instance` at the root. For a single field the message reads `it` and `its value`.
 - `sourceFields` names each field set aside and its value, in the order the instance holds them. There are no `targetFields`: the lacuna applies because the fields were set aside.
