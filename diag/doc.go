@@ -15,7 +15,7 @@
 //
 //  1. Author's vocabulary only (lint). A headline, note or help uses the terms
 //     of the form the author wrote: for authoring files, version file, schema,
-//     ForwardLens, BackwardLens, mapping, lacunas, drop/orelse/match/each and
+//     ForwardLens, BackwardLens, mapping, lacunas, drop/coalesce/match/each and
 //     v0_0; for the normal form, schemas, lenses, input, result and lacunas.
 //     Never the kernel's or the pipeline's: _accum, steps, Translate.out,
 //     Lineage., or a path into thema's own CUE. A [Vocabulary] renders an

@@ -18,7 +18,7 @@ ForwardLens: {
 	v0_0: _
 	v1_0: {
 		items: _each(v0_0.items, {
-			name: _orelse(_item.title, "untitled")
+			name: _coalesce(_item.title, "untitled")
 		})
 	}
 	lacunas: {

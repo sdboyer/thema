@@ -1,0 +1,25 @@
+coalesce over a computed primary that reads only fields 0.0 always has: the
+fallback could never apply.
+-- ship/history/0.0.thema --
+Schema: {
+	count: int32
+}
+-- ship/1.0.thema --
+Schema: {
+	total: int64
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		total: _coalesce(v0_0.count * 2, 0)
+		count: _drop
+	}
+}
+-- out/error --
+error[E0348]: 0.0 always has every field v0_0.count * 2 reads, so _coalesce's fallback could never apply: write total: v0_0.count * 2
+ --> 1.0.thema:8:20
+  |
+8 |         total: _coalesce(v0_0.count * 2, 0)
+  |                          ^^^^
+  |

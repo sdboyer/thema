@@ -8,10 +8,12 @@ import (
 // sch does not declare.
 //
 // A field is declared if sch has a field of that name (regular, optional or
-// required), or a pattern constraint (e.g. [=~"^x"]: T) matching its name. An
-// open struct's ... declares nothing: unlike closedness, this reports fields that
-// sch merely tolerates. Where sch is a disjunction, data needs to match only one
-// of its branches.
+// required). Only a field with a predictable name is declared: a name that a
+// pattern constraint (e.g. [string]: T) matches is not, nor is one an open
+// struct's ... admits. Unlike closedness, this reports fields that sch merely
+// tolerates. A field a pattern matches is reported whole, with what its value
+// holds, as is any other undeclared field (see [PatternKey]). Where sch is a
+// disjunction, data needs to match only one of its branches.
 //
 // Hidden fields follow closedness: one sch does not declare is not data and is
 // not checked; beneath one it declares, fields are checked as anywhere else.
@@ -84,6 +86,13 @@ func alternatives(sch cue.Value, depth int) []cue.Value {
 		return []cue.Value{sch}
 	}
 	op, args := sch.Expr()
+	if op == cue.SelectorOp {
+		// A reference (x.schema, #D): its alternatives are those of the value
+		// it refers to, which Expr does not look through.
+		if d := cue.Dereference(sch); d != sch {
+			return alternatives(d, depth+1)
+		}
+	}
 	switch op {
 	case cue.OrOp:
 		var out []cue.Value
@@ -147,23 +156,15 @@ func (w walker) undeclaredIn(data, sch cue.Value, p cue.Path, b *LensField) []cu
 	return nil
 }
 
-// schemaFields returns the regular fields sch declares, by name, and its pattern
-// constraints.
-func schemaFields(sch cue.Value) (map[string]cue.Value, []cue.Selector, []cue.Value, error) {
+// schemaFields returns the fields sch declares, by name.
+func schemaFields(sch cue.Value) (map[string]cue.Value, error) {
 	fields := make(map[string]cue.Value)
-	var patterns []cue.Selector
-	var patternVals []cue.Value
-	siter, err := sch.Fields(cue.Optional(true), cue.Patterns(true))
+	siter, err := sch.Fields(cue.Optional(true))
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 	for siter.Next() {
 		sel := siter.Selector()
-		if sel.ConstraintType() == cue.PatternConstraint {
-			patterns = append(patterns, sel)
-			patternVals = append(patternVals, siter.Value())
-			continue
-		}
 		if sel.IsString() {
 			fv := siter.Value()
 			if fv.IncompleteKind() == cue.BottomKind {
@@ -176,11 +177,11 @@ func schemaFields(sch cue.Value) (map[string]cue.Value, []cue.Selector, []cue.Va
 			fields[sel.Unquoted()] = fv
 		}
 	}
-	return fields, patterns, patternVals, nil
+	return fields, nil
 }
 
 func (w walker) undeclaredInStruct(data, sch cue.Value, p cue.Path, b *LensField) []cue.Path {
-	fields, patterns, patternVals, err := schemaFields(sch)
+	fields, err := schemaFields(sch)
 	if err != nil {
 		// Not a struct-kinded schema; disagreements of kind are not this function's concern.
 		return nil
@@ -213,17 +214,7 @@ func (w walker) undeclaredInStruct(data, sch cue.Value, p cue.Path, b *LensField
 			found = append(found, w.undeclared(diter.Value(), fsch, fp, cb)...)
 			continue
 		}
-		matched := false
-		for i, pat := range patterns {
-			if pat.Pattern().Unify(w.ctx.Encode(name)).Err() == nil {
-				found = append(found, w.undeclared(diter.Value(), patternVals[i], fp, cb)...)
-				matched = true
-				break
-			}
-		}
-		if !matched {
-			found = append(found, fp)
-		}
+		found = append(found, fp)
 	}
 	return found
 }
@@ -233,10 +224,10 @@ func appendPath(p cue.Path, sel cue.Selector) cue.Path {
 }
 
 // DeclaresPath reports whether sch declares a field at path p, by the same rules
-// as [UndeclaredFields]: a field of that name (regular, optional or required) or a
-// matching pattern constraint at each step. An open struct's ... declares
-// nothing, and _ declares everything beneath it. Where sch is a disjunction, any
-// alternative declaring the path suffices.
+// as [UndeclaredFields]: a field of that name (regular, optional or required) at
+// each step. A pattern constraint matching a name declares nothing, nor does an
+// open struct's ..., and _ declares everything beneath it. Where sch is a
+// disjunction, any alternative declaring the path suffices.
 func DeclaresPath(ctx *cue.Context, sch cue.Value, p cue.Path) bool {
 	sels := p.Selectors()
 	if len(sels) == 0 {
@@ -255,11 +246,11 @@ func DeclaresPath(ctx *cue.Context, sch cue.Value, p cue.Path) bool {
 
 // DeclaredChild returns the schema sch declares for the child sel, if any, by
 // the rules of [DeclaresPath]: a field of that name (regular, optional or
-// required), or a pattern constraint matching it. The selector returned is the
-// one sch declares it with, so that its constraint type tells a required or
-// defaulted field from an optional one, and a named field from a label a
-// pattern merely accepts (a pattern constraint). For an index into a list, the
-// element at that index, or the list's open element type (cue.AnyIndex).
+// required); a pattern constraint matching it declares nothing (see
+// [PatternKey]). The selector returned is the one sch declares it with, so
+// that its constraint type tells a required or defaulted field from an
+// optional one. For an index into a list, the element at that index, or the
+// list's open element type (cue.AnyIndex).
 //
 // Where sch is a disjunction, the caller chooses the alternative: see
 // cuetil.alternatives and compat.Branches.
@@ -274,21 +265,13 @@ func DeclaredChild(ctx *cue.Context, sch cue.Value, sel cue.Selector) (cue.Value
 		}
 		return cue.Value{}, cue.Selector{}, false
 	case sel.IsString():
-		iter, err := sch.Fields(cue.Optional(true), cue.Patterns(true))
+		iter, err := sch.Fields(cue.Optional(true))
 		if err != nil {
 			return cue.Value{}, cue.Selector{}, false
 		}
 		name := sel.Unquoted()
-		var pattern cue.Value
-		var patsel cue.Selector
 		for iter.Next() {
 			s := iter.Selector()
-			if s.ConstraintType() == cue.PatternConstraint {
-				if !pattern.Exists() && s.Pattern().Unify(ctx.Encode(name)).Err() == nil {
-					pattern, patsel = iter.Value(), s
-				}
-				continue
-			}
 			if s.IsString() && s.Unquoted() == name {
 				v := iter.Value()
 				if v.IncompleteKind() == cue.BottomKind {
@@ -299,7 +282,68 @@ func DeclaredChild(ctx *cue.Context, sch cue.Value, sel cue.Selector) (cue.Value
 				return v, s, true
 			}
 		}
-		return pattern, patsel, pattern.Exists()
 	}
 	return cue.Value{}, cue.Selector{}, false
+}
+
+// PatternKey returns the shortest prefix of p whose last step sch accepts only
+// through a pattern constraint: each step before it is a field sch declares
+// (see [DeclaresPath]), and its last is a name no field declares that a
+// pattern constraint of its parent matches, as env in labels.env where sch
+// declares labels: [string]: string. Such a key is undeclared data: a lens
+// neither reads nor writes it, and translation carries it like a field an
+// open struct's ... admits. ok is false where p has no such prefix: every step
+// is declared, or one is neither declared nor matched by a pattern, or lies
+// beneath _, which declares everything. Where sch is a disjunction, the
+// alternatives that declare a step are followed, and a step none declares is
+// a key where one of them has a pattern matching it.
+func PatternKey(ctx *cue.Context, sch cue.Value, p cue.Path) (cue.Path, bool) {
+	cur := []cue.Value{sch}
+	sels := p.Selectors()
+	for i, sel := range sels {
+		var next []cue.Value
+		matched := false
+		for _, v := range cur {
+			if v.IncompleteKind() == cue.TopKind {
+				return cue.Path{}, false
+			}
+			for _, alt := range alternatives(v, 0) {
+				if alt.IncompleteKind() == cue.TopKind {
+					return cue.Path{}, false
+				}
+				if child, _, ok := DeclaredChild(ctx, alt, sel); ok {
+					next = append(next, child)
+					continue
+				}
+				matched = matched || patternMatches(ctx, alt, sel)
+			}
+		}
+		if len(next) == 0 {
+			if matched {
+				return cue.MakePath(sels[:i+1]...), true
+			}
+			return cue.Path{}, false
+		}
+		cur = next
+	}
+	return cue.Path{}, false
+}
+
+// patternMatches reports whether a pattern constraint of sch matches the
+// field name sel.
+func patternMatches(ctx *cue.Context, sch cue.Value, sel cue.Selector) bool {
+	if !sel.IsString() {
+		return false
+	}
+	iter, err := sch.Fields(cue.Patterns(true))
+	if err != nil {
+		return false
+	}
+	name := ctx.Encode(sel.Unquoted())
+	for iter.Next() {
+		if s := iter.Selector(); s.ConstraintType() == cue.PatternConstraint && s.Pattern().Unify(name).Err() == nil {
+			return true
+		}
+	}
+	return false
 }

@@ -89,7 +89,7 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0332](E0332.md) | error | a mapping has an attribute |
 | [E0333](E0333.md) | error | a lens body or its lacunas declare a hidden field or a definition |
 | [E0334](E0334.md) | error | a nested body embeds something other than a path into the source instance |
-| [E0335](E0335.md) | error | an _orelse is not _orelse(source path, fallback) |
+| [E0335](E0335.md) | error | a _coalesce is not _coalesce(source path, fallback) |
 | [E0336](E0336.md) | error | a _match is not _match(source path, arms) |
 | [E0337](E0337.md) | error | an _each is not _each(source list, body) |
 | [E0338](E0338.md) | error | a _match's arms are not constant arms with at most one catch-all |
@@ -101,8 +101,8 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0345](E0345.md) | error | a lens maps a target field twice |
 | [E0346](E0346.md) | error | a lens produces nothing for a field its target version requires |
 | [E0347](E0347.md) | error | a field the source version has and the target lacks is neither mapped nor dropped |
-| [E0348](E0348.md) | error | an _orelse reads a field the source version always has |
-| [E0349](E0349.md) | error | an _orelse's fallback may itself be absent |
+| [E0348](E0348.md) | error | a _coalesce reads a field the source version always has |
+| [E0349](E0349.md) | error | a _coalesce's fallback may itself be absent |
 | [E0350](E0350.md) | error | a _match has two arms for one value |
 | [E0351](E0351.md) | error | a _match is not exhaustive |
 | [E0352](E0352.md) | error | a _match passes values through to a target the lens cannot test them against |

@@ -1,0 +1,22 @@
+# A read of a key that only a pattern constraint matches. Only a field with a
+# predictable name is declared (docs/translation.md, A4), so a lens reads no
+# key under a pattern, beneath it or in a condition; it copies labels whole.
+-- source.cue --
+labels: [string]: {v: string}
+-- target.cue --
+tags: [string]: {v: string}
+env?: string
+deep?: string
+-- lens.cue --
+v0_0: _
+v1_0: {
+	tags: v0_0.labels
+	env:  v0_0.labels.env.v
+	if v0_0.labels.prod != _|_ {deep: "prod"}
+}
+-- out --
+not total
+v1_0 is under the pattern v0_0.labels.prod != _|_, but the source schema does not declare v0_0.labels.prod: only a pattern constraint matches it (rule source-undeclared) @ lens.cue:5:2
+  help: a lens reads only fields declared by name: declare labels.prod as an optional field in a new minor version of the source schema, for the values instances carry there to land in, then map from it in the lens from that version
+v1_0.env copies v0_0.labels.env.v, which the source schema does not declare: only a pattern constraint matches v0_0.labels.env (rule source-undeclared) @ lens.cue:4:8
+  help: a lens reads only fields declared by name: declare labels.env as an optional field in a new minor version of the source schema, for the values instances carry there to land in, then map from it in the lens from that version

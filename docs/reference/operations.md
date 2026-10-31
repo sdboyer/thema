@@ -108,6 +108,17 @@ A translation passes through every version between the two, one step per pair of
 
 Each step's result is closed against its target schema and is the next step's input. Before the first step, the data is unified with its own schema, so lenses see the schema's defaults for fields the data omits. As a result, the output holds the defaults of non-optional fields the data omitted, as [hydrate](#hydrate) would fill them. A step's lacunas are those of its lens whose condition held for the instance that lens took, as described under [emission](lacunas.md#emission).
 
+**Fields no lens maps.** Data an open struct (`...`) admits without declaring it, keys a pattern constraint matches (only a field with a predictable name is declared), and declared fields a lens leaves alone, are translated by the same rule at every step, minor or major, forward or backward ([invariants](../invariants.md#fields-no-lens-maps)):
+
+- the lens runs on the instance without the fields an open struct admits; keys under a pattern stay, as part of the value of the named field holding them, which the lens may copy whole, though it never reads or writes a key by name;
+- each such field follows its struct: to the struct whose contents the lens takes from it as a whole (a move, an embedding, or either with mappings beneath it), or otherwise to its own path, element `i` of a list to element `i`. It is **carried** there where the target's struct is open or has a pattern constraint that accepts it, and **promoted** into a field the target declares where the value is an instance of it and the lens does not write that field; a value that is not an instance emits a `LossyFieldMapping`;
+- a field the source schema declares and the lens leaves alone, or reads where no result field that reads it was written for the instance, is carried at its own path where the target does not declare it, and set aside where the target declares it;
+- any field not placed is **set aside**: dropped, with a `DroppedField` lacuna per struct and cause ([set-aside fields](lacunas.md#set-aside-fields)), unless the lens lists a lacuna for it or it is an empty struct or list.
+
+For example, with `0.0` as `{a!: string, ...}` and `1.0` as `{a!: string, b?: bool, ...}`, translating `{a: "x", b: true, z: 1}` to `1.0` promotes `b` and carries `z`; translating `{a: "x", b: "s"}` emits a `LossyFieldMapping` for `b`. Back from `1.0`, a `b` the backward lens does not map is carried into `0.0`. Were `1.0`'s `b` written by its forward lens, the lens's `b` would stand, and a `b` the instance held would be set aside. Fields never make a translation fail.
+
+Go's `Translate` defines this behavior; the kernel's CUE `Translate`, evaluated alone, does not carry or set aside anything ([#198](https://github.com/sdboyer/thema/issues/198)).
+
 **Takes**
 
 - A lineage and one data document.
@@ -152,7 +163,7 @@ Success prints a JSON object with `from`, `to`, `result` and `lacunas`, and exit
 **Go**
 
 - `thema.Instance.Translate(to thema.SyntacticVersion) (*thema.Instance, lacuna.TranslationLacunas, error)`. It panics when the lineage has no schema `to`; check with `thema.Lineage.Schema` first.
-- `thema.Instance.AsSuccessor` and `thema.Instance.AsPredecessor` translate one step, to the next or previous version. `AsSuccessor` to the next minor version validates the instance against the successor and returns one step with no lacunas.
+- `thema.Instance.AsSuccessor` and `thema.Instance.AsPredecessor` translate one step, to the next or previous version. `AsSuccessor` to the next minor version validates the instance, without the fields its schema does not declare, against the successor, carries those fields as any step does, and returns one step whose lacunas are those of any field it did not carry.
 - Playground: `playground.Session.Translate`, operation name `translate`.
 
 ## hydrate

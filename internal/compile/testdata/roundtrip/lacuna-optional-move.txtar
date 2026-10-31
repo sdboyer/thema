@@ -1,0 +1,249 @@
+Lacunas on mappings from optional fields. Each mapping is written only where
+the instance has what it reads, so the lacuna's targetFields value is written
+under the same presence test: dimension moves size, area computes from w and
+h. A when that reads an optional field concerns only the instances that have
+it. A lacuna without a when applies where its mapping writes: label's where
+tag is present, area's second where both w and h are. An instance with none
+of them raises no lacuna.
+-- ship/history/0.0.thema --
+Schema: {
+	size?: int
+	w?:    int32
+	h?:    int32
+	tag?:  string
+}
+-- ship/1.0.thema --
+Schema: {
+	dimension?: int
+	area?:      int
+	label?:     string
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		dimension: v0_0.size
+		area:      v0_0.w * v0_0.h
+		label:     v0_0.tag
+	}
+	lacunas: {
+		dimension: [{
+			type:    LossyFieldMapping
+			message: "large sizes are clamped"
+			when:    v0_0.size > 100
+		}]
+		area: [{
+			type:    PrecisionLoss
+			message: "large areas are rounded"
+			when:    v0_0.w > 10
+		}, {
+			type:    LossyFieldMapping
+			message: "areas are approximate"
+		}]
+		label: [{
+			type:    LossyFieldMapping
+			message: "labels are truncated downstream"
+		}]
+	}
+}
+-- data/0.0/absent.json --
+{}
+-- data/0.0/small.json --
+{"size": 5, "w": 2, "h": 3, "tag": "t"}
+-- data/0.0/large.json --
+{"size": 500, "w": 20, "h": 3}
+-- data/0.0/partial.json --
+{"w": 20}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+Schema: {
+	dimension?: int
+	area?:      int
+	label?:     string
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		dimension: v0_0.size
+		area:      v0_0.w * v0_0.h
+		label:     v0_0.tag
+	}
+	lacunas: {
+		dimension: [{
+			type:    LossyFieldMapping
+			message: "large sizes are clamped"
+			when:    v0_0.size > 100
+		}]
+		area: [{
+			type:    PrecisionLoss
+			message: "large areas are rounded"
+			when:    v0_0.w > 10
+		}, {
+			type:    LossyFieldMapping
+			message: "areas are approximate"
+		}]
+		label: [{
+			type:    LossyFieldMapping
+			message: "labels are truncated downstream"
+		}]
+	}
+}
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	size?: int
+	w?:    int32
+	h?:    int32
+	tag?:  string
+}
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				size?: int
+				w?:    int32
+				h?:    int32
+				tag?:  string
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				dimension?: int
+				area?:      int
+				label?:     string
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			if v0_0.size != _|_ {
+				dimension: v0_0.size
+			}
+			if v0_0.w != _|_ && v0_0.h != _|_ {
+				area: v0_0.w * v0_0.h
+			}
+			if v0_0.tag != _|_ {
+				label: v0_0.tag
+			}
+		}
+		lacunas: [
+			{
+				condition: [
+					if v0_0.size != _|_ {
+						v0_0.size > 100
+					},
+					false
+				][
+					0]
+				sourceFields: [if v0_0.size != _|_ {
+					path:  "size"
+					value: v0_0.size
+				}]
+				targetFields: [if v0_0.size != _|_ {
+					path:  "dimension"
+					value: v1_0.dimension
+				}]
+				message: "large sizes are clamped"
+				type:    "LossyFieldMapping"
+			},
+			{
+				condition: [
+					if v0_0.w != _|_ {
+						v0_0.w > 10
+					},
+					false
+				][
+					0]
+				sourceFields: [
+					if v0_0.w != _|_ {
+						path:  "w"
+						value: v0_0.w
+					},
+					if v0_0.h != _|_ {
+						path:  "h"
+						value: v0_0.h
+					}
+				]
+				targetFields: [if v0_0.w != _|_ && v0_0.h != _|_ {
+					path:  "area"
+					value: v1_0.area
+				}]
+				message: "large areas are rounded"
+				type:    "PrecisionLoss"
+			},
+			{
+				condition: v0_0.w != _|_ && v0_0.h != _|_
+				sourceFields: [
+					if v0_0.w != _|_ {
+						path:  "w"
+						value: v0_0.w
+					},
+					if v0_0.h != _|_ {
+						path:  "h"
+						value: v0_0.h
+					}
+				]
+				targetFields: [if v0_0.w != _|_ && v0_0.h != _|_ {
+					path:  "area"
+					value: v1_0.area
+				}]
+				message: "areas are approximate"
+				type:    "LossyFieldMapping"
+			},
+			{
+				condition: v0_0.tag != _|_
+				sourceFields: [if v0_0.tag != _|_ {
+					path:  "tag"
+					value: v0_0.tag
+				}]
+				targetFields: [if v0_0.tag != _|_ {
+					path:  "label"
+					value: v1_0.label
+				}]
+				message: "labels are truncated downstream"
+				type:    "LossyFieldMapping"
+			}
+		]
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			if v1_0.dimension != _|_ {
+				size: v1_0.dimension
+			}
+			if v1_0.label != _|_ {
+				tag: v1_0.label
+			}
+		}
+		lacunas: [{
+			@thema(derived)
+			condition: v1_0.area != _|_
+			sourceFields: [{
+				path:  "area"
+				value: v1_0.area
+			}]
+			message: "area has no equivalent in 0.0 and was dropped"
+			type:    "DroppedField"
+		}]
+	}
+}
+-- out/translate/0.0/absent->1.0 --
+{}
+[]
+-- out/translate/0.0/large->1.0 --
+{"dimension":500,"area":60}
+[{"sourceFields":[{"path":"size","value":500}],"targetFields":[{"path":"dimension","value":500}],"type":"LossyFieldMapping","message":"large sizes are clamped"},{"sourceFields":[{"path":"w","value":20},{"path":"h","value":3}],"targetFields":[{"path":"area","value":60}],"type":"PrecisionLoss","message":"large areas are rounded"},{"sourceFields":[{"path":"w","value":20},{"path":"h","value":3}],"targetFields":[{"path":"area","value":60}],"type":"LossyFieldMapping","message":"areas are approximate"}]
+-- out/translate/0.0/partial->1.0 --
+{}
+[{"sourceFields":[{"path":"w","value":20}],"type":"PrecisionLoss","message":"large areas are rounded"}]
+-- out/translate/0.0/small->1.0 --
+{"dimension":5,"area":6,"label":"t"}
+[{"sourceFields":[{"path":"w","value":2},{"path":"h","value":3}],"targetFields":[{"path":"area","value":6}],"type":"LossyFieldMapping","message":"areas are approximate"},{"sourceFields":[{"path":"tag","value":"t"}],"targetFields":[{"path":"label","value":"t"}],"type":"LossyFieldMapping","message":"labels are truncated downstream"}]

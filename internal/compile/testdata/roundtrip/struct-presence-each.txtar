@@ -1,0 +1,152 @@
+Inside an _each body, a struct filled from inside and outside an optional
+struct of the element is written only where every field it requires is
+satisfied, per element. A value it would have held raises no lacuna: the
+lens refers to it.
+-- ship/history/0.0.thema --
+Schema: {
+	items: [...{
+		q?: {
+			a!: int
+			b?: int
+		}
+	}]
+}
+-- ship/1.0.thema --
+Schema: {
+	items: [...{
+		q?: {
+			a!: int
+		}
+		b?: int
+	}]
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		items: _each(v0_0.items, {
+			b: _item.q.b
+		})
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		items: _each(v1_0.items, {
+			q: {
+				b: _item.b
+			}
+		})
+	}
+}
+-- data/1.0/mixed.json --
+{"items": [{"b": 2}, {"q": {"a": 1}, "b": 3}, {}]}
+-- data/0.0/mixed.json --
+{"items": [{"q": {"a": 1, "b": 2}}, {}]}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+Schema: {
+	items: [...{
+		q?: {
+			a!: int
+		}
+		b?: int
+	}]
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		items: _each(v0_0.items, {b: _item.q.b})
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		items: _each(
+			v1_0.items,
+			{
+				q: {
+					b: _item.b
+				}
+			},
+		)
+	}
+}
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	items: [...{
+		q?: {
+			a!: int
+			b?: int
+		}
+	}]
+}
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				items: [...{
+					q?: {
+						a!: int
+						b?: int
+					}
+				}]
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				items: [...{
+					q?: {
+						a!: int
+					}
+					b?: int
+				}]
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			items: [for _item in v0_0.items {
+				if _item.q != _|_ {
+					q:
+						a: _item.q.a
+				}
+				if _item.q.b != _|_ {
+					b: _item.q.b
+				}
+			}]
+		}
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			items: [for _item in v1_0.items {
+				if _item.q != _|_ {
+					q: {
+						a: _item.q.a
+						if _item.b != _|_ {
+							b: _item.b
+						}
+					}
+				}
+			}]
+		}
+	}
+}
+-- out/translate/0.0/mixed->1.0 --
+{"items":[{"q":{"a":1},"b":2},{}]}
+[]
+-- out/translate/1.0/mixed->0.0 --
+{"items":[{},{"q":{"a":1,"b":3}},{}]}
+[]
