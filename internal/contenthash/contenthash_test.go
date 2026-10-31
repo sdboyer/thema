@@ -1,4 +1,4 @@
-package contenthash
+package contenthash_test
 
 import (
 	"crypto/sha256"
@@ -15,6 +15,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"golang.org/x/tools/txtar"
 
+	"github.com/sdboyer/thema/internal/contenthash"
 	"github.com/sdboyer/thema/internal/envvars"
 	"github.com/sdboyer/thema/internal/util"
 	tload "github.com/sdboyer/thema/load"
@@ -29,18 +30,18 @@ func compileLineage(t *testing.T, src string) cue.Value {
 	return v.LookupPath(cue.ParsePath("lin"))
 }
 
-func mustID(t *testing.T, lin cue.Value, v Version) ID {
+func mustID(t *testing.T, lin cue.Value, v contenthash.Version) contenthash.ID {
 	t.Helper()
-	id, err := VersionID(lin, v)
+	id, err := contenthash.VersionID(lin, v)
 	if err != nil {
 		t.Fatalf("%s: %v", v, err)
 	}
 	return id
 }
 
-func mustLensForm(t *testing.T, lin cue.Value, v Version) string {
+func mustLensForm(t *testing.T, lin cue.Value, v contenthash.Version) string {
 	t.Helper()
-	f, err := LensForm(lin, v)
+	f, err := contenthash.LensForm(lin, v)
 	if err != nil {
 		t.Fatalf("%s: %v", v, err)
 	}
@@ -49,10 +50,10 @@ func mustLensForm(t *testing.T, lin cue.Value, v Version) string {
 
 // versions lists the versions of lin's schemas, in key order: by major, then
 // minor.
-func versions(t *testing.T, lin cue.Value) []Version {
+func versions(t *testing.T, lin cue.Value) []contenthash.Version {
 	t.Helper()
-	var out []Version
-	majors, err := lin.LookupPath(pathSchemas).Fields()
+	var out []contenthash.Version
+	majors, err := lin.LookupPath(cue.MakePath(cue.Str("schemas"))).Fields()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +63,7 @@ func versions(t *testing.T, lin cue.Value) []Version {
 			t.Fatal(err)
 		}
 		for minors.Next() {
-			var v Version
+			var v contenthash.Version
 			for i, s := range []string{majors.Selector().Unquoted(), minors.Selector().Unquoted()} {
 				n, err := strconv.ParseUint(s, 10, 64)
 				if err != nil {
@@ -110,20 +111,20 @@ func TestLensFormEdge(t *testing.T) {
 
 	// The first version has no edge into it: its lens form is that of no
 	// lenses, a constant.
-	if got := mustLensForm(t, lin, Version{0, 0}); got != "{}" {
+	if got := mustLensForm(t, lin, contenthash.Version{0, 0}); got != "{}" {
 		t.Errorf("0.0: lens form %q, want {}", got)
 	}
-	if got, want := mustID(t, lin, Version{0, 0}).Lens, Digest(sha256.Sum256([]byte("{}"))); got != want {
+	if got, want := mustID(t, lin, contenthash.Version{0, 0}).Lens, contenthash.Digest(sha256.Sum256([]byte("{}"))); got != want {
 		t.Errorf("0.0: lens digest %s, want sha256(\"{}\") %s", got, want)
 	}
 
 	// A minor version's forward lens is implicit: only the backward one is
 	// hashed.
-	minor := mustLensForm(t, lin, Version{0, 1})
+	minor := mustLensForm(t, lin, contenthash.Version{0, 1})
 	if strings.Contains(minor, "forward") || !strings.Contains(minor, "backward") {
 		t.Errorf("0.1: want only a backward lens:\n%s", minor)
 	}
-	major := mustLensForm(t, lin, Version{1, 0})
+	major := mustLensForm(t, lin, contenthash.Version{1, 0})
 	if !strings.Contains(major, "forward") || !strings.Contains(major, "backward") {
 		t.Errorf("1.0: want a forward and a backward lens:\n%s", major)
 	}
@@ -140,12 +141,12 @@ func TestLensFormEdge(t *testing.T) {
 func TestLensFix(t *testing.T) {
 	buggy := compileLineage(t, lineage(`{a: v1_0.a, b: v1_0.b}`))
 	fixed := compileLineage(t, lineage(`{a: v1_0.a, if v1_0.b > 0 {b: v1_0.b}}`))
-	for _, v := range []Version{{0, 0}, {0, 1}, {1, 0}} {
+	for _, v := range []contenthash.Version{{0, 0}, {0, 1}, {1, 0}} {
 		b, f := mustID(t, buggy, v), mustID(t, fixed, v)
 		if b.Schema != f.Schema {
 			t.Errorf("%s: schema digest changed with a lens", v)
 		}
-		if changed := b.Lens != f.Lens; changed != (v == Version{1, 0}) {
+		if changed := b.Lens != f.Lens; changed != (v == contenthash.Version{1, 0}) {
 			t.Errorf("%s: lens digest changed: %v", v, changed)
 		}
 	}
@@ -158,7 +159,7 @@ func TestLensFormMissing(t *testing.T) {
 	schemas: {"0": {"0": {schema: {a: string}}}, "1": {"0": {schema: {b: string}}}}
 	lenses: {"1.0->0.0": {v1_0: _, v0_0: {a: v1_0.b}}}
 }`)
-	got := mustLensForm(t, lin, Version{1, 0})
+	got := mustLensForm(t, lin, contenthash.Version{1, 0})
 	if strings.Contains(got, "forward") || !strings.Contains(got, "backward") {
 		t.Errorf("want only the backward lens:\n%s", got)
 	}
@@ -187,7 +188,7 @@ func TestIDPositionIndependent(t *testing.T) {
 		"2.0->1.0": {v2_0: _, v1_0: {a: v2_0.b}}
 	}
 }`)
-	if ida, idb := mustID(t, a, Version{1, 0}), mustID(t, b, Version{2, 0}); ida != idb {
+	if ida, idb := mustID(t, a, contenthash.Version{1, 0}), mustID(t, b, contenthash.Version{2, 0}); ida != idb {
 		t.Errorf("a 1.0 %s != b 2.0 %s", ida, idb)
 	}
 }
@@ -200,7 +201,7 @@ func TestLensFormConstruction(t *testing.T) {
 	schemas: {"0": {"0": {schema: {a: string, b: int}}, "1": {schema: {a: string, b: int, c?: int}}}}
 	lenses: {"0.1->0.0": {v0_1: _, `+lens+`}}
 }`)
-		return mustLensForm(t, lin, Version{0, 1})
+		return mustLensForm(t, lin, contenthash.Version{0, 1})
 	}
 	base := form(`v0_0: {a: v0_1.a, b: v0_1.b}`)
 	for name, c := range map[string]struct {
@@ -273,7 +274,7 @@ func TestGoldens(t *testing.T) {
 			var order []string
 			for _, ver := range versions(t, lin) {
 				id := mustID(t, lin, ver)
-				sch, err := SchemaForm(lin, ver)
+				sch, err := contenthash.SchemaForm(lin, ver)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -384,7 +385,7 @@ lenses: {
 	} {
 		t.Run(name, func(t *testing.T) {
 			lin := load(t, c.files, c.path)
-			for _, ver := range []Version{{0, 0}, {1, 0}} {
+			for _, ver := range []contenthash.Version{{0, 0}, {1, 0}} {
 				if got, want := mustID(t, lin, ver), mustID(t, plain, ver); got != want {
 					t.Errorf("%s: ID %s, want %s, the ID of the lineage with nothing of thema's in it", ver, got, want)
 				}

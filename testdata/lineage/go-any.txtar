@@ -378,3 +378,7 @@ no lenses
     "value"
   ]
 }
+-- out/encoding/capnp --
+rejected
+schema 0.0: structVal.inner is int, an integer with no finite bounds; capnp integers are sized (int32, uint8, >=0 & <=100) (rule int-unbounded) @ /in.cue:13:33
+schema 0.0: structVal.innerOptional is _, which has no type (rule top) @ /in.cue:14:17

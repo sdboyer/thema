@@ -567,3 +567,8 @@ lens 0.3->0.2
     "init"
   ]
 }
+-- out/encoding/capnp --
+rejected
+schema 0.1: optional is int, an integer with no finite bounds; capnp integers are sized (int32, uint8, >=0 & <=100) (rule int-unbounded) @ /in.cue:15:13
+schema 0.2: optional is int, an integer with no finite bounds; capnp integers are sized (int32, uint8, >=0 & <=100) (rule int-unbounded) @ /in.cue:21:13
+schema 0.3: optional is int, an integer with no finite bounds; capnp integers are sized (int32, uint8, >=0 & <=100) (rule int-unbounded) @ /in.cue:28:13

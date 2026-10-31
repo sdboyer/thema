@@ -524,3 +524,11 @@ no lenses
     "kindString"
   ]
 }
+-- out/encoding/capnp --
+rejected
+schema 0.0: kindFloat.simpleFloat32 is float32, a number that may be a float; floats are outside the compiled target (rule float) @ /in.cue:14:5
+schema 0.0: kindFloat.simpleFloat64 is float64, a number that may be a float; floats are outside the compiled target (rule float) @ /in.cue:13:5
+schema 0.0: kindFloat.withNull32 has the alternative float32, a number that may be a float; floats are outside the compiled target (rule float) @ /in.cue:16:5
+schema 0.0: kindFloat.withNull64 has the alternative float64, a number that may be a float; floats are outside the compiled target (rule float) @ /in.cue:15:5
+schema 0.0: kindInt.simpleInt is int, an integer with no finite bounds; capnp integers are sized (int32, uint8, >=0 & <=100) (rule int-unbounded) @ /in.cue:19:5
+schema 0.0: kindInt.withNull is int, an integer with no finite bounds; capnp integers are sized (int32, uint8, >=0 & <=100) (rule int-unbounded) @ /in.cue:22:18

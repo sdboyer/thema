@@ -2132,3 +2132,9 @@ no lenses
     "stringWithLength"
   ]
 }
+-- out/encoding/capnp --
+rejected
+schema 0.0: nullableIntWithDefault is int, an integer with no finite bounds; capnp integers are sized (int32, uint8, >=0 & <=100) (rule int-unbounded) @ /in.cue:25:34
+schema 0.0: nullableIntWithNoDefault is int, an integer with no finite bounds; capnp integers are sized (int32, uint8, >=0 & <=100) (rule int-unbounded) @ /in.cue:24:36
+schema 0.0: someFloat32 is float32, a number that may be a float; floats are outside the compiled target (rule float) @ /in.cue:21:10
+schema 0.0: someFloat64 is float64, a number that may be a float; floats are outside the compiled target (rule float) @ /in.cue:22:10

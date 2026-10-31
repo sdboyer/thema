@@ -1,0 +1,75 @@
+#op: capnp
+The compiler carries a map as a lone [string]: T on a struct declaring no
+other field. Pattern constraints of any other form (a regular expression, a
+pattern beside declared fields, several patterns) are ones it does not carry
+yet; the schema is valid.
+-- lineage.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				ports: {
+					home: string
+					[string]: string
+				}
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0730",
+      "severity": "error",
+      "headline": "ports in schema 0.0 has pattern constraints the Cap'n Proto compiler does not carry",
+      "path": [
+        "schemas",
+        "0",
+        "0",
+        "schema",
+        "ports"
+      ],
+      "address": {
+        "field": [
+          "ports"
+        ],
+        "kind": "schemaField",
+        "version": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 6,
+        "col": 5,
+        "offset": 58,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "ports in schema 0.0 has pattern constraints [string] beside its fields; the compiler carries only a lone [string]: T on a struct declaring no other field (Cap'n Proto rule unknown-pattern-labels)"
+        }
+      ],
+      "help": [
+        "declare the fields, or move the map to a field of its own"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0730]: ports in schema 0.0 has pattern constraints the Cap'n Proto compiler does not carry
+ --> lineage.cue:6:5
+  |
+6 |                 ports: {
+  |                 ^^^^^
+  |
+  = note: ports in schema 0.0 has pattern constraints [string] beside its fields; the compiler carries only a lone [string]: T on a struct declaring no other field (Cap'n Proto rule unknown-pattern-labels)
+  = help: declare the fields, or move the map to a field of its own

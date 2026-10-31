@@ -1,0 +1,29 @@
+# rule unknown-pattern-labels: the compiler carries a struct of a lone
+# [string]: T pattern and nothing else as a map. Any other pattern (a regexp,
+# a pattern beside declared fields, a non-string key type, two patterns) is
+# a shape it does not read, and the verdict is unknown rather than rejected.
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+thema.Lineage
+name: "patternLabels"
+schemas: "0": "0": schema: {
+	regexp:      [=~"^x"]: string
+	beside: {
+		declared: string
+		[string]: string
+	}
+	two: {
+		[=~"^a"]: string
+		[=~"^b"]: int8
+	}
+	narrower: [string & =~"^[a-z]+$"]: bool
+	ok:          [string]: int8
+}
+lenses: {}
+-- out/capnp --
+unknown
+schema 0.0: beside has pattern constraints [string] beside its fields; the compiler carries only a lone [string]: T on a struct declaring no other field (rule unknown-pattern-labels) @ /in.cue:7:2
+schema 0.0: narrower has pattern constraints [=~"^[a-z]+$"] beside its fields; the compiler carries only a lone [string]: T on a struct declaring no other field (rule unknown-pattern-labels) @ /in.cue:15:2
+schema 0.0: regexp has pattern constraints [=~"^x"] beside its fields; the compiler carries only a lone [string]: T on a struct declaring no other field (rule unknown-pattern-labels) @ /in.cue:6:2
+schema 0.0: two has pattern constraints [=~"^a"], [=~"^b"] beside its fields; the compiler carries only a lone [string]: T on a struct declaring no other field (rule unknown-pattern-labels) @ /in.cue:11:2

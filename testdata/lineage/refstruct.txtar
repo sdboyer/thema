@@ -444,3 +444,6 @@ no lenses
     "disj"
   ]
 }
+-- out/encoding/capnp --
+rejected
+schema 0.0: disj is { run: string dat: int32 } | { one: string two: string }, whose struct alternatives share no label holding a distinct constant in each; no discriminant can be derived from a value (rule disjunction-undiscriminated) @ /in.cue:9:4

@@ -6,6 +6,7 @@ import (
 	"cuelang.org/go/cue"
 
 	"github.com/sdboyer/thema/diag"
+	"github.com/sdboyer/thema/internal/contenthash"
 	"github.com/sdboyer/thema/internal/cuetil"
 	"github.com/sdboyer/thema/internal/lensir"
 )
@@ -199,6 +200,27 @@ func LensPrograms(lin Lineage) (lensir.Programs, error) {
 		return nil, tlin.programErr
 	}
 	return tlin.programs, nil
+}
+
+// VersionID returns the content-hash identity of version v of lin
+// (internal/contenthash): the digests of v's schema and of the lenses on the
+// edge into it, written <schema>:<lens>. It is computed over the lineage as
+// its author wrote it, not unified with thema.Lineage, so it identifies the
+// version by its content, not its position.
+func VersionID(lin Lineage, v SyntacticVersion) (string, error) {
+	isValidLineage(lin)
+	tlin := lin.(*baseLineage)
+	if !synvExists(tlin.allv, v) {
+		return "", diag.New(diag.E0240).
+			Headlinef("lineage %s has no schema %s", tlin.name, v).
+			Helpf("its versions are %s", versionList(tlin.allv)).
+			Err()
+	}
+	id, err := contenthash.VersionID(tlin.raw, contenthash.Version(v))
+	if err != nil {
+		return "", err
+	}
+	return id.String(), nil
 }
 
 func isValidLineage(lin Lineage) {

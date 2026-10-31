@@ -20,6 +20,7 @@ import (
 
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/diag"
+	"github.com/sdboyer/thema/encoding/capnp"
 	"github.com/sdboyer/thema/internal/compile"
 	"github.com/sdboyer/thema/internal/diagdocs"
 	"github.com/sdboyer/thema/internal/diagtest"
@@ -382,6 +383,23 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 		}
 		if _, err = lin.Schema(sv); err == nil {
 			t.Fatalf("the lineage has schema %s", sv)
+		}
+		return diag.Diagnostics(err)
+	},
+	// capnp: bind lineage.cue and compile it to Cap'n Proto, without the
+	// capnp tool's layout, and report what does not compile.
+	"capnp": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {
+		ctx := cuecontext.New()
+		src, ok := a.File("lineage.cue")
+		if !ok {
+			t.Fatal("capnp needs lineage.cue")
+		}
+		lin, err := thema.BindLineage(ctx.CompileString(src, cue.Filename("lineage.cue")), thema.NewRuntime(ctx))
+		if err != nil {
+			t.Fatalf("lineage.cue does not bind: %v", err)
+		}
+		if _, err = capnp.Compile(lin, capnp.WithoutLayout()); err == nil {
+			t.Fatal("the lineage compiled")
 		}
 		return diag.Diagnostics(err)
 	},

@@ -1,0 +1,2 @@
+rejected
+schema 0.1: rootfield.branchthree is {branchthreeinner: int} | {branchthreeinner: string}, whose struct alternatives share no label holding a distinct constant in each; no discriminant can be derived from a value (rule disjunction-undiscriminated) @ /github.com/sdboyer/thema/exemplars/disjunct.cue:30:7
