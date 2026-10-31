@@ -586,7 +586,8 @@ func (w *cycleWalker) rel(p cue.Path) string {
 
 // checkLensResults statically checks each CUE lens against its schemas, with its
 // input standing for any instance of its source schema (closed, so references to
-// fields the source can't have are errors). The lens's input must accept every
+// fields the source can't have are errors, and with its required fields present,
+// as they are in every instance). The lens's input must accept every
 // instance of the source schema, and its result must be consistent with the
 // target schema and build only fields the target declares. This catches at bind
 // time what would otherwise fail only when a matching instance is translated.
@@ -633,7 +634,7 @@ func (ml *maybeLineage) checkLensResults() error {
 			continue
 		}
 
-		result := lens.FillPath(inputPath, source).LookupPath(resultPath)
+		result := lens.FillPath(inputPath, cuetil.RequiredPresent(source)).LookupPath(resultPath)
 		if err := result.Unify(cuetil.CloseRecursive(ctx, tsch.def)).Validate(); err != nil {
 			// The totality checker usually knows the rule behind the conflict,
 			// and names the mapping; prefer its account when it has one.
