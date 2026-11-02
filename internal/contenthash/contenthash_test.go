@@ -113,8 +113,8 @@ func TestLensFormEdge(t *testing.T) {
 	if got := mustLensForm(t, lin, Version{0, 0}); got != "{}" {
 		t.Errorf("0.0: lens form %q, want {}", got)
 	}
-	if got, want := mustID(t, lin, Version{0, 0}).Lens, Digest(sha256.Sum256([]byte("{}"))); got != want {
-		t.Errorf("0.0: lens digest %s, want sha256(\"{}\") %s", got, want)
+	if got, want := mustID(t, lin, Version{0, 0}).Lens.Sum, sha256.Sum256([]byte("{}")); got != want {
+		t.Errorf("0.0: lens digest %x, want sha256(\"{}\") %x", got, want)
 	}
 
 	// A minor version's forward lens is implicit: only the backward one is
