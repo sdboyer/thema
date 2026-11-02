@@ -71,6 +71,17 @@ func report(err error) int {
 	return 1
 }
 
+// warn writes the diagnostics in err, warnings of an operation that
+// succeeded, to stderr as text, where they stay apart from the command's
+// output in either format.
+func warn(err error) {
+	if err == nil {
+		return
+	}
+	cwd, _ := os.Getwd()
+	diag.Render(os.Stderr, diag.From(err, diag.Context{}), diag.RenderOptions{Source: readSource, Rel: cwd})
+}
+
 // inlineSources holds text that was read from somewhere diagnostics cannot
 // reread, such as data on stdin, under the name its positions carry.
 var inlineSources = map[string][]byte{}
@@ -136,6 +147,7 @@ var allCmds = []*cobra.Command{
 	initLineageJSONSchemaCmd,
 	lineageBumpCmd,
 	fmtLineageCmd,
+	tipLineageCmd,
 	genLineageCmd,
 	genTSTypesLineageCmd,
 	genGoBindingsLineageCmd,

@@ -4,7 +4,7 @@ path in it: a computed body is not accepted yet.
 Schema: close({
 	u!: [...close({id!: string})]
 })
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: close({
 	u!: [...string]
 })
@@ -15,9 +15,11 @@ ForwardLens: {
 		u: _each(v0_0.u, "id-" + _item.id)
 	}
 }
+-- ship/tip.thema --
+Schema: close({u!: [...string]})
 -- out/error --
 error[E0337]: _each's body "id-" + _item.id is neither a struct of mappings over _item nor a copy of it
- --> 1.0.thema:8:20
+ --> history/1.0.thema:8:20
   |
 8 |         u: _each(v0_0.u, "id-" + _item.id)
   |                          ^^^^^

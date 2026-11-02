@@ -3,7 +3,7 @@ A version file with an import, a package clause and a stray field.
 Schema: {
 	a: string
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 package ship
 
 import "strings"
@@ -21,9 +21,20 @@ ForwardLens: {
 		b: 1
 	}
 }
+-- ship/tip.thema --
+package ship
+
+import "strings"
+
+Schema: {
+	a: string
+	b: int
+}
+
+extra: 1
 -- out/error --
-error[E0103]: 1.0.thema has a package clause
- --> 1.0.thema:1:1
+error[E0103]: history/1.0.thema has a package clause
+ --> history/1.0.thema:1:1
   |
 1 | package ship
   | ^^^^^^^
@@ -31,15 +42,15 @@ error[E0103]: 1.0.thema has a package clause
   = help: a version file is not a CUE package; remove the clause
 
 error[E0105]: extra is not a field of a version file
-  --> 1.0.thema:10:1
+  --> history/1.0.thema:10:1
    |
 10 | extra: 1
    | ^^^^^
    |
    = help: a version file has only Schema, ForwardLens and BackwardLens
 
-error[E0147]: 1.0.thema imports strings, which its Schema does not use
- --> 1.0.thema:3:8
+error[E0147]: history/1.0.thema imports strings, which its Schema does not use
+ --> history/1.0.thema:3:8
   |
 3 | import "strings"
   |        ^^^^^^^^^

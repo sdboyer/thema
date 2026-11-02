@@ -30,14 +30,14 @@ const ExampleFile = "example.cue"
 // for the register-examples operation, so that a host can offer a directory
 // of lineages without writing their records by hand.
 //
-// Every directory beneath root, or root itself, that holds a version file is
-// a lineage in the authoring form, and with its history/ is one example when
-// it holds an [ExampleFile] too; nothing beneath it is another. A lineage
-// without one is not an example, so a tree of lineages can hold some that
-// are not offered; when none is an example, the error lists them. An
-// example's ID is its directory's path relative to root, or root's name when
-// root is the lineage. Whether it binds is found by binding it, and its data
-// documents are its schemas' examples.
+// Every directory beneath root, or root itself, that holds a version file, as
+// its tip or under its history/, is a lineage in the authoring form, and is
+// one example when it holds an [ExampleFile] too; nothing beneath it is
+// another. A lineage without one is not an example, so a tree of lineages
+// can hold some that are not offered; when none is an example, the error
+// lists them. An example's ID is its directory's path relative to root, or
+// root's name when root is the lineage. Whether it binds is found by binding
+// it, and its data documents are its schemas' examples.
 //
 // Each problem found is a diagnostic in the error, and no examples are
 // returned with one.
@@ -97,15 +97,18 @@ func WalkExamples(fsys fs.FS, root string) (RegisterExamplesRequest, error) {
 	return req, nil
 }
 
-// holdsVersionFile says whether dir holds a version file of its own.
+// holdsVersionFile says whether dir holds a version file of its own: its tip,
+// at its top, or a frozen version under its history/.
 func holdsVersionFile(fsys fs.FS, dir string) bool {
-	ents, err := fs.ReadDir(fsys, dir)
-	if err != nil {
-		return false
-	}
-	for _, e := range ents {
-		if !e.IsDir() && strings.HasSuffix(e.Name(), authoring.Ext) {
-			return true
+	for _, d := range []string{dir, path.Join(dir, authoring.HistoryDir)} {
+		ents, err := fs.ReadDir(fsys, d)
+		if err != nil {
+			continue
+		}
+		for _, e := range ents {
+			if !e.IsDir() && strings.HasSuffix(e.Name(), authoring.Ext) {
+				return true
+			}
 		}
 	}
 	return false

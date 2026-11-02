@@ -14,7 +14,19 @@ Schema: close({
 		x?: int
 	})
 })
--- ship/0.1.thema --
+-- ship/history/0.1.thema --
+Schema: close({
+	a!: string
+	q?: close({
+		x?: int
+		y?: bool
+	})
+	o?: close({
+		e?: bool
+	})
+	l?: [...int]
+})
+-- ship/tip.thema --
 Schema: close({
 	a!: string
 	q?: close({
@@ -38,7 +50,12 @@ Schema: close({
 {"a": "x", "q": {"x": 1, "y": true}, "o": {"e": true}, "l": [1]}
 -- out/bind --
 ok
--- out/decompiled/0.1.thema --
+-- out/decompiled/history/0.0.thema --
+Schema: close({
+	a!: string
+	q?: close({x?: int})
+})
+-- out/decompiled/history/0.1.thema --
 Schema: close({
 	a!: string
 	q?: close({
@@ -48,10 +65,15 @@ Schema: close({
 	o?: close({e?: bool})
 	l?: [...int]
 })
--- out/decompiled/history/0.0.thema --
+-- out/decompiled/tip.thema --
 Schema: close({
 	a!: string
-	q?: close({x?: int})
+	q?: close({
+		x?: int
+		y?: bool
+	})
+	o?: close({e?: bool})
+	l?: [...int]
 })
 -- out/normal.cue --
 name: "ship"

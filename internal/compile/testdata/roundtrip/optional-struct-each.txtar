@@ -14,7 +14,7 @@ Schema: {
 		}
 	}]
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	items: [...{
 		q?: {
@@ -41,13 +41,33 @@ BackwardLens: {
 		items: _each(v1_0.items, {})
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	items: [...{
+		q?: {
+			x?: int
+		}
+	}]
+}
 -- data/0.0/items.json --
 {"items": [{}, {"q": {}, "o": {}}, {"q": {"x": 1, "y": 2}, "o": {"e": true}}]}
 -- data/1.0/items.json --
 {"items": [{}, {"q": {}}, {"q": {"x": 1}}]}
 -- out/bind --
 ok
--- out/decompiled/1.0.thema --
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	items: [...{
+		q?: {
+			x?: int
+			y?: int
+		}
+		o?: {
+			e?: bool
+		}
+	}]
+}
+-- out/decompiled/history/1.0.thema --
 Schema: {
 	items: [
 		...{
@@ -76,17 +96,15 @@ BackwardLens: {
 		items: _each(v1_0.items, {})
 	}
 }
--- out/decompiled/history/0.0.thema --
+-- out/decompiled/tip.thema --
 Schema: {
-	items: [...{
-		q?: {
-			x?: int
-			y?: int
-		}
-		o?: {
-			e?: bool
-		}
-	}]
+	items: [
+		...{
+			q?: {
+				x?: int
+			}
+		},
+	]
 }
 -- out/normal.cue --
 name: "ship"

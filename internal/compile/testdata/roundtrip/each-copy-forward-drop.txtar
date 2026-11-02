@@ -9,7 +9,7 @@ that have it.
 Schema: close({
 	u!: [...close({id!: string, is_enabled!: bool, note?: string})]
 })
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: close({
 	u!: [...string]
 })
@@ -27,6 +27,8 @@ BackwardLens: {
 		u: _each(v1_0.u, {id: _item, is_enabled: true})
 	}
 }
+-- ship/tip.thema --
+Schema: close({u!: [...string]})
 -- data/0.0/empty.json --
 {"u": []}
 -- data/0.0/two.json --
@@ -35,7 +37,15 @@ BackwardLens: {
 {"u": ["a", "b"]}
 -- out/bind --
 ok
--- out/decompiled/1.0.thema --
+-- out/decompiled/history/0.0.thema --
+Schema: close({
+	u!: [...close({
+		id!:         string
+		is_enabled!: bool
+		note?:       string
+	})]
+})
+-- out/decompiled/history/1.0.thema --
 Schema: close({u!: [...string]})
 
 ForwardLens: {
@@ -54,14 +64,8 @@ BackwardLens: {
 		})
 	}
 }
--- out/decompiled/history/0.0.thema --
-Schema: close({
-	u!: [...close({
-		id!:         string
-		is_enabled!: bool
-		note?:       string
-	})]
-})
+-- out/decompiled/tip.thema --
+Schema: close({u!: [...string]})
 -- out/normal.cue --
 name: "ship"
 schemas: {

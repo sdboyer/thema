@@ -1,17 +1,22 @@
 #op: compile
 A lens block is a struct: `{v<from>: _, v<to>: {...}}`, declaring the instance
 the lens takes and the body that produces the instance it returns.
--- ship/0.0.thema --
+-- ship/history/0.0.thema --
 Schema: {
 	a: string
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	a: string
 	b: int
 }
 
 ForwardLens: 5
+-- ship/tip.thema --
+Schema: {
+	a: string
+	b: int
+}
 -- out/json --
 {
   "diagnostics": [
@@ -20,14 +25,14 @@ ForwardLens: 5
       "severity": "error",
       "headline": "ForwardLens is not a struct",
       "primary": {
-        "file": "1.0.thema",
+        "file": "history/1.0.thema",
         "line": 6,
         "col": 14,
         "offset": 45,
         "origin": "user"
       },
       "help": [
-        "a lens block is {v<from>: _, v<to>: {...}}"
+        "a lens block is {v<from>: _, v<to>: {...}}, naming the tip's instance tip"
       ]
     }
   ],
@@ -39,9 +44,9 @@ ForwardLens: 5
 }
 -- out/text --
 error[E0107]: ForwardLens is not a struct
- --> 1.0.thema:6:14
+ --> history/1.0.thema:6:14
   |
 6 | ForwardLens: 5
   |              ^
   |
-  = help: a lens block is {v<from>: _, v<to>: {...}}
+  = help: a lens block is {v<from>: _, v<to>: {...}}, naming the tip's instance tip

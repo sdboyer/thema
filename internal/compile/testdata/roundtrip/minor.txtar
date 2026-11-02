@@ -5,21 +5,31 @@ on the field being present.
 Schema: {
 	firstfield: string
 }
--- ship/0.1.thema --
+-- ship/history/0.1.thema --
 Schema: {
 	firstfield:  string
 	secondfield?: int
 }
--- out/bind --
-ok
--- out/decompiled/0.1.thema --
+-- ship/tip.thema --
 Schema: {
 	firstfield:   string
 	secondfield?: int
 }
+-- out/bind --
+ok
 -- out/decompiled/history/0.0.thema --
 Schema: {
 	firstfield: string
+}
+-- out/decompiled/history/0.1.thema --
+Schema: {
+	firstfield:   string
+	secondfield?: int
+}
+-- out/decompiled/tip.thema --
+Schema: {
+	firstfield:   string
+	secondfield?: int
 }
 -- out/normal.cue --
 name: "ship"

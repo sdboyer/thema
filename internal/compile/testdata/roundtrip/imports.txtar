@@ -10,7 +10,7 @@ import "strings"
 Schema: {
 	name: strings.MinRunes(1)
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 import (
 	"strings"
 	"time"
@@ -34,39 +34,61 @@ ForwardLens: {
 			message: "0.0 has no creation time"
 		}]
 	}
+}
+-- ship/tip.thema --
+import (
+	"strings"
+	"time"
+)
+
+Schema: {
+	name:    strings.MinRunes(1)
+	label:   string
+	created: time.Format(time.RFC3339)
 }
 -- out/bind --
 ok
--- out/decompiled/1.0.thema --
-import (
-	"strings"
-	"time"
-)
-
-Schema: {
-	name:    strings.MinRunes(1)
-	label:   string
-	created: time.Format(time.RFC3339)
-}
-
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		label:   strings.ToUpper(v0_0.name)
-		created: "1970-01-01T00:00:00Z"
-	}
-	lacunas: {
-		created: [{
-			type:    Placeholder
-			message: "0.0 has no creation time"
-		}]
-	}
-}
 -- out/decompiled/history/0.0.thema --
 import "strings"
 
 Schema: {
 	name: strings.MinRunes(1)
+}
+-- out/decompiled/history/1.0.thema --
+import (
+	"strings"
+	"time"
+)
+
+Schema: {
+	name:    strings.MinRunes(1)
+	label:   string
+	created: time.Format(time.RFC3339)
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		label:   strings.ToUpper(v0_0.name)
+		created: "1970-01-01T00:00:00Z"
+	}
+	lacunas: {
+		created: [{
+			type:    Placeholder
+			message: "0.0 has no creation time"
+		}]
+	}
+}
+-- out/decompiled/tip.thema --
+import (
+	"strings"
+	"time"
+)
+
+Schema: {
+	name:    strings.MinRunes(1)
+	label:   string
+	created: time.Format(time.RFC3339)
 }
 -- out/normal.cue --
 import (

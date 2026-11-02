@@ -3,7 +3,7 @@ A constant that is not an instance of the target field's type.
 Schema: {
 	a: string
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	a: string
 	b: int
@@ -15,9 +15,14 @@ ForwardLens: {
 		b: "one"
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	a: string
+	b: int
+}
 -- out/error --
 error[E0344]: "one" is not an instance of 1.0's b
- --> 1.0.thema:9:6
+ --> history/1.0.thema:9:6
   |
 3 |     b: int
   |        --- here

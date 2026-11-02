@@ -6,7 +6,7 @@ and total accepts only non-negative ones.
 Schema: {
 	count: int
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	total: int & >=0
 }
@@ -17,15 +17,19 @@ ForwardLens: {
 		total: v0_0.count
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	total: int & >=0
+}
 -- out/json --
 {
   "diagnostics": [
     {
       "code": "E0359",
       "severity": "error",
-      "headline": "the ForwardLens in 1.0.thema moves v0_0.count into total, which does not accept every value of it",
+      "headline": "the ForwardLens in history/1.0.thema moves v0_0.count into total, which does not accept every value of it",
       "primary": {
-        "file": "1.0.thema",
+        "file": "history/1.0.thema",
         "line": 8,
         "col": 10,
         "offset": 73,
@@ -48,8 +52,8 @@ ForwardLens: {
   }
 }
 -- out/text --
-error[E0359]: the ForwardLens in 1.0.thema moves v0_0.count into total, which does not accept every value of it
- --> 1.0.thema:8:10
+error[E0359]: the ForwardLens in history/1.0.thema moves v0_0.count into total, which does not accept every value of it
+ --> history/1.0.thema:8:10
   |
 8 |         total: v0_0.count
   |                ^^^^

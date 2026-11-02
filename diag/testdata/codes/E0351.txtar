@@ -6,7 +6,7 @@ value of an enum is none of these.
 Schema: {
 	kind: "a" | "b" | "c"
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	kind: "a" | "b"
 }
@@ -19,6 +19,10 @@ ForwardLens: {
 		})
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	kind: "a" | "b"
+}
 -- out/json --
 {
   "diagnostics": [
@@ -27,7 +31,7 @@ ForwardLens: {
       "severity": "error",
       "headline": "_match on kind is not exhaustive: 0.0's kind may be \"c\", which no arm matches and 1.0's kind does not accept",
       "primary": {
-        "file": "1.0.thema",
+        "file": "history/1.0.thema",
         "line": 8,
         "col": 9,
         "offset": 71,
@@ -46,7 +50,7 @@ ForwardLens: {
 }
 -- out/text --
 error[E0351]: _match on kind is not exhaustive: 0.0's kind may be "c", which no arm matches and 1.0's kind does not accept
- --> 1.0.thema:8:9
+ --> history/1.0.thema:8:9
   |
 8 |         kind: _match(v0_0.kind, {
   |               ^^^^^^

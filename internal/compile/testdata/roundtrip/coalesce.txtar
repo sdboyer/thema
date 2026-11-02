@@ -6,7 +6,7 @@ Schema: {
 	nick?: string
 	rank?: int
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	name: string
 	nick: string
@@ -25,34 +25,46 @@ ForwardLens: {
 			message: "rank was absent; 0 is a placeholder"
 		}]
 	}
+}
+-- ship/tip.thema --
+Schema: {
+	name: string
+	nick: string
+	rank: int
 }
 -- out/bind --
 ok
--- out/decompiled/1.0.thema --
-Schema: {
-	name: string
-	nick: string
-	rank: int
-}
-
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		nick: _coalesce(v0_0.nick, v0_0.name)
-		rank: _coalesce(v0_0.rank, 0)
-	}
-	lacunas: {
-		rank: [{
-			type:    Placeholder
-			message: "rank was absent; 0 is a placeholder"
-		}]
-	}
-}
 -- out/decompiled/history/0.0.thema --
 Schema: {
 	name:  string
 	nick?: string
 	rank?: int
+}
+-- out/decompiled/history/1.0.thema --
+Schema: {
+	name: string
+	nick: string
+	rank: int
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		nick: _coalesce(v0_0.nick, v0_0.name)
+		rank: _coalesce(v0_0.rank, 0)
+	}
+	lacunas: {
+		rank: [{
+			type:    Placeholder
+			message: "rank was absent; 0 is a placeholder"
+		}]
+	}
+}
+-- out/decompiled/tip.thema --
+Schema: {
+	name: string
+	nick: string
+	rank: int
 }
 -- out/normal.cue --
 name: "ship"

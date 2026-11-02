@@ -4,7 +4,7 @@ Authoring files compile to the normal form, unbound.
 Schema: {
 	name: string
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	name: string
 	crew: int
@@ -22,6 +22,11 @@ ForwardLens: {
 			message: "crew is a placeholder"
 		}]
 	}
+}
+-- ship/tip.thema --
+Schema: {
+	name: string
+	crew: int
 }
 -- out/response.json --
 {

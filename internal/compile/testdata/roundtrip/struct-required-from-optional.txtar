@@ -10,7 +10,7 @@ Schema: {
 		y?: int
 	}
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	q: {
 		x?: int
@@ -23,6 +23,12 @@ ForwardLens: {
 		q: {
 			y: _drop
 		}
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	q: {
+		x?: int
 	}
 }
 -- data/0.0/absent.json --
@@ -37,7 +43,14 @@ ForwardLens: {
 {"q": {"x": 1}}
 -- out/bind --
 ok
--- out/decompiled/1.0.thema --
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	q?: {
+		x?: int
+		y?: int
+	}
+}
+-- out/decompiled/history/1.0.thema --
 Schema: {
 	q: {
 		x?: int
@@ -52,11 +65,10 @@ ForwardLens: {
 		}
 	}
 }
--- out/decompiled/history/0.0.thema --
+-- out/decompiled/tip.thema --
 Schema: {
-	q?: {
+	q: {
 		x?: int
-		y?: int
 	}
 }
 -- out/normal.cue --

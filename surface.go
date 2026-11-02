@@ -160,6 +160,10 @@ type bindOption func(c *bindConfig)
 // Internal bind-time configuration options.
 type bindConfig struct {
 	vocab diag.Vocabulary
+	// provisional is the lineage's newest version when it is provisional:
+	// the tip, bound on the authoring layer's development path. Only
+	// internal/provisional sets it; see provisional.go.
+	provisional *SyntacticVersion
 }
 
 // WithVocabulary makes [BindLineage] describe the lineage, in its diagnostics,

@@ -7,7 +7,12 @@ Schema: {
 	name: string
 	kind: string
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
+Schema: {
+	name: string
+	kind: "a" | "b"
+}
+-- ship/tip.thema --
 Schema: {
 	name: string
 	kind: "a" | "b"
@@ -18,9 +23,9 @@ Schema: {
     {
       "code": "E0358",
       "severity": "error",
-      "headline": "the ForwardLens in 1.0.thema would copy v0_0.kind into kind, which does not accept every value of it",
+      "headline": "the ForwardLens in history/1.0.thema would copy v0_0.kind into kind, which does not accept every value of it",
       "primary": {
-        "file": "1.0.thema",
+        "file": "history/1.0.thema",
         "line": 1,
         "col": 1,
         "origin": "user"
@@ -45,8 +50,8 @@ Schema: {
   }
 }
 -- out/text --
-error[E0358]: the ForwardLens in 1.0.thema would copy v0_0.kind into kind, which does not accept every value of it
- --> 1.0.thema:1:1
+error[E0358]: the ForwardLens in history/1.0.thema would copy v0_0.kind into kind, which does not accept every value of it
+ --> history/1.0.thema:1:1
   |
 1 | Schema: {
   | ^^^^^^

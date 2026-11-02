@@ -7,7 +7,7 @@ is absent.
 Schema: {
 	a: string
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	b: string
 }
@@ -19,6 +19,10 @@ ForwardLens: {
 		b: x
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	b: string
+}
 -- out/json --
 {
   "diagnostics": [
@@ -27,7 +31,7 @@ ForwardLens: {
       "severity": "error",
       "headline": "let is not allowed in a lens body",
       "primary": {
-        "file": "1.0.thema",
+        "file": "history/1.0.thema",
         "line": 8,
         "col": 3,
         "offset": 59,
@@ -39,7 +43,7 @@ ForwardLens: {
       "severity": "error",
       "headline": "x is not defined in a lens; an expression refers to v0_0, to len, quo, rem, div, mod and to the strings functions",
       "primary": {
-        "file": "1.0.thema",
+        "file": "history/1.0.thema",
         "line": 9,
         "col": 6,
         "offset": 79,
@@ -51,7 +55,7 @@ ForwardLens: {
       "severity": "error",
       "headline": "0.0 declares a and 1.0 does not, and nothing maps it: write <field>: v0_0.a to move it, or a: _drop",
       "primary": {
-        "file": "1.0.thema",
+        "file": "history/1.0.thema",
         "line": 5,
         "col": 1,
         "offset": 24,
@@ -67,21 +71,21 @@ ForwardLens: {
 }
 -- out/text --
 error[E0330]: let is not allowed in a lens body
- --> 1.0.thema:8:3
+ --> history/1.0.thema:8:3
   |
 8 |         let x = v0_0.a
   |         ^^^
   |
 
 error[E0418]: x is not defined in a lens; an expression refers to v0_0, to len, quo, rem, div, mod and to the strings functions
- --> 1.0.thema:9:6
+ --> history/1.0.thema:9:6
   |
 9 |         b: x
   |            ^
   |
 
 error[E0347]: 0.0 declares a and 1.0 does not, and nothing maps it: write <field>: v0_0.a to move it, or a: _drop
- --> 1.0.thema:5:1
+ --> history/1.0.thema:5:1
   |
 5 | ForwardLens: {
   | ^^^^^^^^^^^

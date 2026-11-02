@@ -1,0 +1,62 @@
+#op: develop-translate
+#from: 0.0
+#to: 1.0
+Translating into the tip needs the `ForwardLens` on the edge into it, which
+`tip.thema` does not write and cannot be derived (E1001). The development path
+bound the lineage without it; the translation that needs it fails, and says
+which lens to write. Translating out of the tip, through the derived
+`BackwardLens`, works.
+-- ship/history/0.0.thema --
+Schema: {
+	a: string
+	b: int
+}
+-- ship/tip.thema --
+Schema: {
+	a: string
+}
+-- data.json --
+{"a": "x", "b": 1}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E1002",
+      "severity": "error",
+      "headline": "translating from 0.0 to 1.0 needs the ForwardLens in tip.thema, which is not written yet",
+      "path": [
+        "tip.thema",
+        "ForwardLens"
+      ],
+      "address": {
+        "from": [
+          0,
+          0
+        ],
+        "kind": "lens",
+        "to": [
+          1,
+          0
+        ]
+      },
+      "notes": [
+        {
+          "label": "1.0 is provisional: the schema in tip.thema, which is still being worked on, and whose lenses may not be written yet"
+        }
+      ],
+      "help": [
+        "write the ForwardLens in tip.thema"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E1002]: translating from 0.0 to 1.0 needs the ForwardLens in tip.thema, which is not written yet
+  |
+  = note: 1.0 is provisional: the schema in tip.thema, which is still being worked on, and whose lenses may not be written yet
+  = help: write the ForwardLens in tip.thema

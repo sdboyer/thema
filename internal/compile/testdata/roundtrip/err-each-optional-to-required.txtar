@@ -5,7 +5,7 @@ fallback to say what to write instead.
 Schema: {
 	l?: [...{t!: string}]
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	l!: [...{u!: string}]
 }
@@ -23,9 +23,13 @@ BackwardLens: {
 		l: _each(v1_0.l, {t: _item.u})
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	l!: [...{u!: string}]
+}
 -- out/error --
 error[E0343]: l is optional in 0.0 and 1.0 requires l, which _each cannot produce where it is absent
- --> 1.0.thema:8:3
+ --> history/1.0.thema:8:3
   |
 8 |         l: _each(v0_0.l, {u: _item.t})
   |         ^

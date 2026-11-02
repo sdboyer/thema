@@ -3,7 +3,11 @@
 A directory of lineages offers the playground the ones with an example.cue
 beside their version files, and a directory with none offers nothing, which
 is a mistake: the notes list the lineages it holds without one.
--- lineages/wip/draft/0.0.thema --
+-- lineages/wip/draft/history/0.0.thema --
+Schema: {
+	x: int
+}
+-- lineages/wip/draft/tip.thema --
 Schema: {
 	x: int
 }

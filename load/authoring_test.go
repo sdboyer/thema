@@ -19,7 +19,7 @@ import (
 // An authoring directory, as an external module would hold one.
 var shipDir = fstest.MapFS{
 	"lineages/ship/history/0.0.thema": {Data: []byte("Schema: {\n\tfirstfield: string\n}\n")},
-	"lineages/ship/1.0.thema": {Data: []byte(`Schema: {
+	"lineages/ship/history/1.0.thema": {Data: []byte(`Schema: {
 	firstfield:  string
 	secondfield: int
 }
@@ -37,7 +37,11 @@ ForwardLens: {
 	}
 }
 `)},
+	"lineages/ship/tip.thema": {Data: []byte("Schema: {\n\tfirstfield:  string\n\tsecondfield: int\n}\n")},
 }
+
+// history10 is the second frozen version file the tests write.
+const history10 = "history/1.0.thema"
 
 func TestAuthoringLineage(t *testing.T) {
 	ctx := cuecontext.New()
@@ -71,7 +75,8 @@ func TestAuthoringLineage(t *testing.T) {
 func TestAuthoringLineageErrorPosition(t *testing.T) {
 	bad := fstest.MapFS{
 		"ship/history/0.0.thema": {Data: []byte("Schema: {\n\ta: string\n}\n")},
-		"ship/1.0.thema":         {Data: []byte("Schema: {\n\tb: int\n}\n")},
+		"ship/history/1.0.thema": {Data: []byte("Schema: {\n\tb: int\n}\n")},
+		"ship/tip.thema":         {Data: []byte("Schema: {\n\tb: int\n}\n")},
 	}
 	_, err := AuthoringLineage(bad, "ship", thema.NewRuntime(cuecontext.New()))
 	if err == nil {
@@ -79,12 +84,12 @@ func TestAuthoringLineageErrorPosition(t *testing.T) {
 	}
 	var found bool
 	for _, e := range cerrors.Errors(err) {
-		if e.Position().Filename() == "1.0.thema" {
+		if e.Position().Filename() == history10 {
 			found = true
 		}
 	}
 	if !found {
-		t.Errorf("no error positioned in 1.0.thema:\n%s", cerrors.Details(err, nil))
+		t.Errorf("no error positioned in history/1.0.thema:\n%s", cerrors.Details(err, nil))
 	}
 }
 
@@ -93,7 +98,7 @@ func TestAuthoringLineageErrorPosition(t *testing.T) {
 func TestAuthoringLineageVocabulary(t *testing.T) {
 	narrowing := fstest.MapFS{
 		"ship/history/0.0.thema": {Data: []byte("Schema: {\n\ta: int32\n}\n")},
-		"ship/1.0.thema": {Data: []byte(`Schema: {
+		"ship/history/1.0.thema": {Data: []byte(`Schema: {
 	a: int32 & >=0
 }
 
@@ -111,6 +116,7 @@ BackwardLens: {
 	}
 }
 `)},
+		"ship/tip.thema": {Data: []byte("Schema: {\n\ta: int32 & >=0\n}\n")},
 	}
 	_, err := AuthoringLineage(narrowing, "ship", thema.NewRuntime(cuecontext.New()))
 	if err == nil {
@@ -133,7 +139,7 @@ BackwardLens: {
 func TestAuthoringRequiredConcrete(t *testing.T) {
 	fsys := fstest.MapFS{
 		"ship/history/0.0.thema": {Data: []byte("Schema: {\n\tk!: \"U\"\n}\n")},
-		"ship/0.1.thema":         {Data: []byte("Schema: {\n\tk!: \"U\"\n\te?: string\n}\n")},
+		"ship/history/0.1.thema": {Data: []byte("Schema: {\n\tk!: \"U\"\n\te?: string\n}\n")},
 	}
 	ctx := cuecontext.New()
 	lin, err := AuthoringLineage(fsys, "ship", thema.NewRuntime(ctx))
@@ -176,7 +182,8 @@ func TestAuthoringRequiredConcrete(t *testing.T) {
 // wherever the target struct is open, promotes into a field the target
 // declares when the value is an instance of it and the lens does not write it,
 // and otherwise sets aside with a lacuna (#158, #193). The derived backward lens leaves such a
-// field to translation; a written _drop still drops it.
+// field to translation; a written _drop still drops it. These lineages have
+// no tip.thema, which binding the history does not read.
 func TestAuthoringOpenStructs(t *testing.T) {
 	const (
 		first = "history/0.0.thema"
@@ -218,7 +225,7 @@ ForwardLens: {
 		err diag.Code
 	}{
 		"open target, added field": {
-			files: map[string]string{first: open, "1.0.thema": addedRequired},
+			files: map[string]string{first: open, history10: addedRequired},
 			translations: []translation{
 				// Backward, b is carried as a field 0.0 does not declare (#158).
 				{from: thema.SV(1, 0), to: thema.SV(0, 0), data: abf, want: abfOut},
@@ -235,7 +242,7 @@ ForwardLens: {
 			},
 		},
 		"open target, written drop": {
-			files: map[string]string{first: open, "1.0.thema": addedRequired + `
+			files: map[string]string{first: open, history10: addedRequired + `
 BackwardLens: {
 	v1_0: _
 	v0_0: {
@@ -256,7 +263,7 @@ BackwardLens: {
 			},
 		},
 		"open source, added optional field": {
-			files: map[string]string{first: open, "1.0.thema": "Schema: {\n\ta!: string\n\tb?: bool\n\t...\n}\n"},
+			files: map[string]string{first: open, history10: "Schema: {\n\ta!: string\n\tb?: bool\n\t...\n}\n"},
 			translations: []translation{
 				{from: thema.SV(0, 0), to: thema.SV(1, 0), data: ax, want: axOut},
 				// A b that is a bool is promoted; one that is not maps lossily
@@ -268,13 +275,13 @@ BackwardLens: {
 			},
 		},
 		"open source, closed target": {
-			files: map[string]string{first: open, "1.0.thema": "Schema: {\n\ta!: string\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {}\n}\n"},
+			files: map[string]string{first: open, history10: "Schema: {\n\ta!: string\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {}\n}\n"},
 			translations: []translation{
 				{from: thema.SV(0, 0), to: thema.SV(1, 0), data: `{a: "x", z: 1, y: "s"}`, want: axOut, lacunas: []lacuna.Type{lacuna.DroppedField}},
 			},
 		},
 		"open, removed optional field": {
-			files: map[string]string{first: "Schema: {\n\ta!: string\n\tb?: string\n\t...\n}\n", "0.1.thema": open},
+			files: map[string]string{first: "Schema: {\n\ta!: string\n\tb?: string\n\t...\n}\n", "history/0.1.thema": open},
 			translations: []translation{
 				{from: thema.SV(0, 0), to: thema.SV(0, 1), data: `{a: "x", b: "y"}`, want: `{"a":"x","b":"y"}`, back: `{"a":"x","b":"y"}`},
 				{from: thema.SV(0, 1), to: thema.SV(0, 0), data: ax, want: axOut},
@@ -285,8 +292,8 @@ BackwardLens: {
 		// must not ride along under its old name.
 		"open target, removed field unmapped": {
 			files: map[string]string{
-				first:       "Schema: {\n\tbefore: string\n\t...\n}\n",
-				"1.0.thema": "Schema: {\n\tafter: string\n\t...\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {\n\t\tafter: \"x\"\n\t}\n}\n",
+				first:     "Schema: {\n\tbefore: string\n\t...\n}\n",
+				history10: "Schema: {\n\tafter: string\n\t...\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {\n\t\tafter: \"x\"\n\t}\n}\n",
 			},
 			err: diag.E0347,
 		},

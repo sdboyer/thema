@@ -1,8 +1,13 @@
 #op: compile
-A lineage's directory holds one file per version, named `<major>.<minor>.thema`,
-at the top of the directory or under `history/`. A `.thema` file with any other
-name is not a version file, and there is nothing to compile it as.
--- ship/0.0.thema --
+A lineage's directory holds its tip, `tip.thema`, at the top, and its frozen
+versions under `history/`, each named `<major>.<minor>.thema`. A `.thema` file
+with any other name or place is not a version file, and there is nothing to
+compile it as.
+-- ship/history/0.0.thema --
+Schema: {
+	a: string
+}
+-- ship/tip.thema --
 Schema: {
 	a: string
 }
@@ -19,7 +24,7 @@ Schema: {
       "severity": "error",
       "headline": "v1.thema is not a version file",
       "help": [
-        "a version file is named <major>.<minor>.thema, in the lineage's directory or its history directory"
+        "a lineage's directory holds its tip, tip.thema, and its frozen versions under history/, each named <major>.<minor>.thema"
       ]
     }
   ],
@@ -32,4 +37,4 @@ Schema: {
 -- out/text --
 error[E0101]: v1.thema is not a version file
   |
-  = help: a version file is named <major>.<minor>.thema, in the lineage's directory or its history directory
+  = help: a lineage's directory holds its tip, tip.thema, and its frozen versions under history/, each named <major>.<minor>.thema

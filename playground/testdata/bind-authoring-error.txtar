@@ -5,7 +5,7 @@ in the authoring form's terms, and its normal form is still returned.
 Schema: {
 	a: int32
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	a: int32 & >=0
 }
@@ -23,6 +23,10 @@ BackwardLens: {
 		a: v1_0.a
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	a: int32 & >=0
+}
 -- out/response.json --
 {
   "ok": false,
@@ -30,7 +34,7 @@ BackwardLens: {
     {
       "code": "E0367",
       "severity": "error",
-      "headline": "a in the ForwardLens in 1.0.thema is v0_0.a * 2, which may be as low as -4294967296, where 1.0.thema requires \u003e=0",
+      "headline": "a in the ForwardLens in history/1.0.thema is v0_0.a * 2, which may be as low as -4294967296, where history/1.0.thema requires \u003e=0",
       "path": [
         "lenses",
         "0.0-\u003e1.0",
@@ -52,7 +56,7 @@ BackwardLens: {
         ]
       },
       "primary": {
-        "file": "1.0.thema",
+        "file": "history/1.0.thema",
         "line": 8,
         "col": 6,
         "offset": 67,
@@ -60,7 +64,7 @@ BackwardLens: {
       },
       "notes": [
         {
-          "label": "a lens must be total: every instance of the schema in history/0.0.thema must translate to an instance of the schema in 1.0.thema (totality rule computed-narrowed)"
+          "label": "a lens must be total: every instance of the schema in history/0.0.thema must translate to an instance of the schema in history/1.0.thema (totality rule computed-narrowed)"
         }
       ]
     }

@@ -6,7 +6,7 @@ elements to map.
 Schema: {
 	name: string
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	names: [...string]
 }
@@ -19,6 +19,10 @@ ForwardLens: {
 		})
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	names: [...string]
+}
 -- out/json --
 {
   "diagnostics": [
@@ -27,7 +31,7 @@ ForwardLens: {
       "severity": "error",
       "headline": "_each maps a list to a list; 0.0's name and 1.0's names must both be lists",
       "primary": {
-        "file": "1.0.thema",
+        "file": "history/1.0.thema",
         "line": 8,
         "col": 10,
         "offset": 75,
@@ -43,7 +47,7 @@ ForwardLens: {
 }
 -- out/text --
 error[E0353]: _each maps a list to a list; 0.0's name and 1.0's names must both be lists
- --> 1.0.thema:8:10
+ --> history/1.0.thema:8:10
   |
 8 |         names: _each(v0_0.name, {
   |                ^^^^^

@@ -4,7 +4,7 @@ target list needs a value, and a copy body has no fallback.
 Schema: close({
 	u!: [...close({id?: string})]
 })
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: close({
 	u!: [...string]
 })
@@ -15,9 +15,11 @@ ForwardLens: {
 		u: _each(v0_0.u, _item.id)
 	}
 }
+-- ship/tip.thema --
+Schema: close({u!: [...string]})
 -- out/error --
 error[E0343]: u[].id is optional in 0.0, and each element of 1.0's u needs a value
- --> 1.0.thema:8:20
+ --> history/1.0.thema:8:20
   |
 8 |         u: _each(v0_0.u, _item.id)
   |                          ^^^^^

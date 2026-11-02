@@ -11,7 +11,7 @@ Schema: {
 		}
 	}]
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	items: [...{
 		q?: {
@@ -40,13 +40,31 @@ BackwardLens: {
 		})
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	items: [...{
+		q?: {
+			a!: int
+		}
+		b?: int
+	}]
+}
 -- data/1.0/mixed.json --
 {"items": [{"b": 2}, {"q": {"a": 1}, "b": 3}, {}]}
 -- data/0.0/mixed.json --
 {"items": [{"q": {"a": 1, "b": 2}}, {}]}
 -- out/bind --
 ok
--- out/decompiled/1.0.thema --
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	items: [...{
+		q?: {
+			a!: int
+			b?: int
+		}
+	}]
+}
+-- out/decompiled/history/1.0.thema --
 Schema: {
 	items: [...{
 		q?: {
@@ -76,13 +94,13 @@ BackwardLens: {
 		)
 	}
 }
--- out/decompiled/history/0.0.thema --
+-- out/decompiled/tip.thema --
 Schema: {
 	items: [...{
 		q?: {
 			a!: int
-			b?: int
 		}
+		b?: int
 	}]
 }
 -- out/normal.cue --

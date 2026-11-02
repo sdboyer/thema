@@ -1,6 +1,7 @@
 package thema
 
 import (
+	"fmt"
 	"sort"
 
 	"cuelang.org/go/cue"
@@ -46,6 +47,12 @@ type baseLineage struct {
 	// reads both.
 	programs   lensir.Programs
 	programErr error
+
+	// provisional is the newest version when it is provisional, and missing
+	// the lenses its edge lacks; see provisional.go. Both are unset for every
+	// lineage bound without internal/provisional's option.
+	provisional *SyntacticVersion
+	missing     map[lensID]bool
 }
 
 // isLineageDef reports whether v is a reference to thema.Lineage: to the field
@@ -124,11 +131,12 @@ func BindLineage(v cue.Value, rt *Runtime, opts ...BindOption) (Lineage, error) 
 	}
 
 	ml := &maybeLineage{
-		rt:   rt,
-		orig: orig,
-		raw:  raw,
-		uni:  uni,
-		cfg:  cfg,
+		rt:      rt,
+		orig:    orig,
+		raw:     raw,
+		uni:     uni,
+		cfg:     cfg,
+		missing: make(map[lensID]bool),
 	}
 
 	if err := ml.checkExists(cfg); err != nil {
@@ -145,6 +153,9 @@ func BindLineage(v cue.Value, rt *Runtime, opts ...BindOption) (Lineage, error) 
 	}
 	if err := ml.checkGoValidity(cfg); err != nil {
 		return nil, err
+	}
+	if cfg.provisional != nil && *cfg.provisional != ml.allv[len(ml.allv)-1] {
+		return nil, diag.InternalErr(fmt.Errorf("the provisional version %s is not the lineage's newest, %s", *cfg.provisional, ml.allv[len(ml.allv)-1]))
 	}
 	if err := ml.checkSchemaShapes(); err != nil {
 		return nil, err
@@ -179,6 +190,10 @@ func BindLineage(v cue.Value, rt *Runtime, opts ...BindOption) (Lineage, error) 
 		vocab:      ml.vocab(),
 		programs:   ml.programs,
 		programErr: ml.programErr,
+	}
+	if cfg.provisional != nil {
+		lin.provisional = cfg.provisional
+		lin.missing = ml.missing
 	}
 
 	for _, sch := range lin.allsch {

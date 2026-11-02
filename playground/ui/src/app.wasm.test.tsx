@@ -32,7 +32,7 @@ async function waitFor(f: () => boolean, ms = 20000) {
 }
 
 describe.skipIf(!haveThema())("App with thema", () => {
-  it("loads the default example, binds it, and rebinds an edit typed in a burst", async () => {
+  it("loads the default example, binds it, and rebinds an edit to the tip typed in a burst", async () => {
     await realThema();
     const { App } = await import("./app");
     const root = document.createElement("div");
@@ -41,10 +41,11 @@ describe.skipIf(!haveThema())("App with thema", () => {
       render(<App />, root);
     });
     await waitFor(() => root.querySelector(".bind-status")?.textContent?.startsWith("binds") ?? false);
-    expect(root.querySelector(".bind-status")!.textContent).toBe("binds: 0.0, 1.0");
+    expect(root.querySelector(".bind-status")!.textContent).toBe("binds: 0.0, 1.0 · tip (clean at 1.0)");
 
     const view = EditorView.findFromDOM(root.querySelector<HTMLElement>(".lineage .cm-editor")!)!;
-    const at = view.state.doc.toString().indexOf("secondfield: -1") + "secondfield: -1".length;
+    expect(view.state.readOnly).toBe(false);
+    const at = view.state.doc.toString().indexOf("secondfield: int") + "secondfield: int".length;
     // As a user would: End and Enter through the keymap's commands, then
     // type faster than the page's effects run, which wait for a frame.
     await act(async () => {
@@ -52,16 +53,26 @@ describe.skipIf(!haveThema())("App with thema", () => {
       cursorLineEnd(view);
       insertNewlineAndIndent(view);
     });
-    for (const ch of "bogus: 1") {
+    for (const ch of "bogus: int") {
       view.dispatch(view.state.replaceSelection(ch));
       await Promise.resolve();
       await Promise.resolve();
     }
-    await waitFor(() => root.querySelector(".bind-status")?.textContent?.includes("diagnostics") ?? false);
-    expect(view.state.doc.toString()).toContain("secondfield: -1\n\t\tbogus: 1");
+    // A new required field: the tip is a major version, with no ForwardLens.
+    await waitFor(() => root.querySelector(".bind-status")?.textContent?.includes("cuts as 2.0") ?? false);
+    expect(view.state.doc.toString()).toContain("secondfield: int\n\tbogus: int");
+    expect(root.querySelector(".bind-status")!.textContent).toBe("binds: 0.0, 1.0, tip (cuts as 2.0)");
     const panel = root.querySelector(".panel")!.textContent!;
-    expect(panel).toContain("E0341");
+    expect(panel).toContain("E1001");
     expect(panel).toContain("bogus");
+
+    // A history file opens read-only, with the tip's version beside it.
+    const tab = [...root.querySelectorAll<HTMLButtonElement>('.tab-group.frozen [role="tab"]')].find((b) => b.textContent === "history/1.0.thema")!;
+    await act(async () => tab.click());
+    const frozen = EditorView.findFromDOM(root.querySelector<HTMLElement>(".lineage .cm-editor")!)!;
+    expect(frozen.state.doc.toString()).toContain("ForwardLens");
+    expect(frozen.state.readOnly).toBe(true);
+    expect(root.querySelector(".frozen-note")!.textContent).toContain("tip (cuts as 2.0)");
     render(null, root);
   }, 60000);
 

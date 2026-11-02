@@ -6,7 +6,12 @@ with no file.
 Schema: {
 	a: string
 }
--- ship/0.2.thema --
+-- ship/history/0.2.thema --
+Schema: {
+	a:  string
+	b?: int
+}
+-- ship/tip.thema --
 Schema: {
 	a:  string
 	b?: int
@@ -17,15 +22,15 @@ Schema: {
     {
       "code": "E0205",
       "severity": "error",
-      "headline": "0.2.thema skips a version: after 0.0 comes 0.1",
+      "headline": "history/0.2.thema skips a version: after 0.0 comes 0.1",
       "primary": {
-        "file": "0.2.thema",
+        "file": "history/0.2.thema",
         "line": 1,
         "col": 1,
         "origin": "user"
       },
       "help": [
-        "rename the file 0.1.thema, or add the versions between"
+        "rename the file history/0.1.thema, or add the versions between"
       ]
     }
   ],
@@ -36,10 +41,10 @@ Schema: {
   }
 }
 -- out/text --
-error[E0205]: 0.2.thema skips a version: after 0.0 comes 0.1
- --> 0.2.thema:1:1
+error[E0205]: history/0.2.thema skips a version: after 0.0 comes 0.1
+ --> history/0.2.thema:1:1
   |
 1 | Schema: {
   | ^^^^^^
   |
-  = help: rename the file 0.1.thema, or add the versions between
+  = help: rename the file history/0.1.thema, or add the versions between

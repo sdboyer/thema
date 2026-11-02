@@ -5,7 +5,7 @@ and to nothing else. A bare name that is neither is undefined.
 Schema: {
 	a: string
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	a: string
 	b: int
@@ -24,6 +24,11 @@ ForwardLens: {
 		}]
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	a: string
+	b: int
+}
 -- out/json --
 {
   "diagnostics": [
@@ -32,7 +37,7 @@ ForwardLens: {
       "severity": "error",
       "headline": "threshold is not defined in a lens; an expression refers to v0_0, to len, quo, rem, div, mod and to the strings functions",
       "primary": {
-        "file": "1.0.thema",
+        "file": "history/1.0.thema",
         "line": 15,
         "col": 13,
         "offset": 164,
@@ -48,7 +53,7 @@ ForwardLens: {
 }
 -- out/text --
 error[E0418]: threshold is not defined in a lens; an expression refers to v0_0, to len, quo, rem, div, mod and to the strings functions
-  --> 1.0.thema:15:13
+  --> history/1.0.thema:15:13
    |
 15 |             when:    threshold > 1
    |                      ^^^^^^^^^

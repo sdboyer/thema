@@ -5,7 +5,7 @@ only what its target declares, however open the author wrote the schema.
 Schema: {
 	a: string
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	b: string
 }
@@ -17,6 +17,10 @@ ForwardLens: {
 		nope: v0_0.a
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	b: string
+}
 -- out/json --
 {
   "diagnostics": [
@@ -25,7 +29,7 @@ ForwardLens: {
       "severity": "error",
       "headline": "1.0 does not declare nope",
       "primary": {
-        "file": "1.0.thema",
+        "file": "history/1.0.thema",
         "line": 9,
         "col": 3,
         "offset": 74,
@@ -41,7 +45,7 @@ ForwardLens: {
 }
 -- out/text --
 error[E0341]: 1.0 does not declare nope
- --> 1.0.thema:9:3
+ --> history/1.0.thema:9:3
   |
 9 |         nope: v0_0.a
   |         ^^^^

@@ -1,0 +1,37 @@
+#op: develop
+The lineage has no `tip.thema`. The tip is the version being worked on, and is
+always present: after a cut it equals the newest version under `history/`. The
+development path, which binds the tip, and the clean check, which compares it
+with the history, need it; binding the history alone does not read it.
+-- ship/history/0.0.thema --
+Schema: {
+	a: string
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0149",
+      "severity": "error",
+      "headline": "the lineage has no tip.thema",
+      "notes": [
+        {
+          "label": "the tip is the version being worked on, and is always present: after a cut it equals the newest version in history/"
+        }
+      ],
+      "help": [
+        "add tip.thema, starting from a copy of the newest version's Schema"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0149]: the lineage has no tip.thema
+  |
+  = note: the tip is the version being worked on, and is always present: after a cut it equals the newest version in history/
+  = help: add tip.thema, starting from a copy of the newest version's Schema

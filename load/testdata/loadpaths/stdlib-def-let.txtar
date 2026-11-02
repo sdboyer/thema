@@ -11,7 +11,7 @@ Schema: {
 	count: int & <=limit
 	tag:   string & strings.MaxRunes(4)
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 import "strings"
 
 Schema: {
@@ -29,6 +29,17 @@ ForwardLens: {
 		label: strings.ToUpper(v0_0.name)
 		nick:  _drop
 	}
+}
+-- ship/tip.thema --
+import "strings"
+
+Schema: {
+	#Name: string
+	name:  #Name
+	label: string
+	let limit = 10
+	count: int & <=limit
+	tag:   string & strings.MaxRunes(4)
 }
 -- out/verdict --
 # bind

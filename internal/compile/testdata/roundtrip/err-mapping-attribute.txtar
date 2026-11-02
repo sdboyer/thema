@@ -4,7 +4,7 @@ declared in the lens's lacunas field, keyed by the mapping.
 Schema: {
 	firstfield: string
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	firstfield:  string
 	secondfield: int
@@ -16,9 +16,14 @@ ForwardLens: {
 		secondfield: -1 @lacuna(Placeholder, "-1 is a placeholder")
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	firstfield:  string
+	secondfield: int
+}
 -- out/error --
 error[E0332]: a mapping has no attributes; a lacuna is declared in the lens's lacunas field, keyed by the mapping
- --> 1.0.thema:9:19
+ --> history/1.0.thema:9:19
   |
 9 |         secondfield: -1 @lacuna(Placeholder, "-1 is a placeholder")
   |                         ^

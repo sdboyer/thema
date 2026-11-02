@@ -22,8 +22,8 @@ var fmtLineageCmd = &cobra.Command{
 	Short: "Format a lineage's authoring files",
 	Long: `Format a lineage's authoring files, in place.
 
-Every version file of the lineage in the directory given by -l, at its top
-level and under history/, is rewritten in the authoring form's one layout:
+Every file of the lineage in the directory given by -l, its tip.thema and the
+versions under history/, is rewritten in the authoring form's one layout:
 every block keeps its braces, and every field has its own line. Files already
 in that layout are left untouched; the ones rewritten are listed.
 `,
@@ -42,7 +42,7 @@ func (fc *fmtCommand) run(cmd *cobra.Command, _ []string) error {
 	}
 	if !isAuthoringDir(abs) {
 		return diag.New(diag.E0110).Headlinef("%s holds no version file, so it is not a lineage in the authoring form", fc.dir).
-			Helpf("a lineage in the authoring form is a directory of %s files, such as 0.0%s", "*"+authoring.Ext, authoring.Ext).
+			Helpf("a lineage in the authoring form is a directory holding %s and its frozen versions under %s/, such as %s/0.0%s", authoring.TipFile, authoring.HistoryDir, authoring.HistoryDir, authoring.Ext).
 			Err()
 	}
 	_, files, err := authoring.Load(os.DirFS(filepath.Dir(abs)), filepath.Base(abs))

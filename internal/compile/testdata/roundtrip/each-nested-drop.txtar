@@ -15,7 +15,7 @@ Schema: {
 		}]
 	}]
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	steps: [...{
 		title: string
@@ -58,13 +58,33 @@ BackwardLens: {
 		})
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	steps: [...{
+		title: string
+		fields?: [...{
+			name:  string
+			hint?: string
+		}]
+	}]
+}
 -- data/0.0/mixed.json --
 {"steps": [{"title": "a", "fields": [{"label": "x", "legacy": "old"}, {"label": "y"}]}, {"title": "b"}, {"title": "c", "fields": [{"label": "z", "legacy": "older"}]}]}
 -- data/1.0/hinted.json --
 {"steps": [{"title": "a"}, {"title": "b", "fields": [{"name": "x"}, {"name": "y", "hint": "h"}]}]}
 -- out/bind --
 ok
--- out/decompiled/1.0.thema --
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	steps: [...{
+		title: string
+		fields?: [...{
+			label:   string
+			legacy?: string
+		}]
+	}]
+}
+-- out/decompiled/history/1.0.thema --
 Schema: {
 	steps: [...{
 		title: string
@@ -106,13 +126,13 @@ BackwardLens: {
 		steps: _each(v1_0.steps, {fields: _each(_item.fields, {label: _item.name})})
 	}
 }
--- out/decompiled/history/0.0.thema --
+-- out/decompiled/tip.thema --
 Schema: {
 	steps: [...{
 		title: string
 		fields?: [...{
-			label:   string
-			legacy?: string
+			name:  string
+			hint?: string
 		}]
 	}]
 }

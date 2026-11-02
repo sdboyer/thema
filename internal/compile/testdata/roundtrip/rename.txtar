@@ -5,7 +5,7 @@ Schema: {
 	before:    string
 	unchanged: string
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	after:     string
 	unchanged: string
@@ -16,10 +16,20 @@ ForwardLens: {
 	v1_0: {
 		after: v0_0.before
 	}
+}
+-- ship/tip.thema --
+Schema: {
+	after:     string
+	unchanged: string
 }
 -- out/bind --
 ok
--- out/decompiled/1.0.thema --
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	before:    string
+	unchanged: string
+}
+-- out/decompiled/history/1.0.thema --
 Schema: {
 	after:     string
 	unchanged: string
@@ -31,9 +41,9 @@ ForwardLens: {
 		after: v0_0.before
 	}
 }
--- out/decompiled/history/0.0.thema --
+-- out/decompiled/tip.thema --
 Schema: {
-	before:    string
+	after:     string
 	unchanged: string
 }
 -- out/normal.cue --

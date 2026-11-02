@@ -4,7 +4,11 @@ Each lineage a playground deployment offers as an example has an example.cue
 beside its version files, describing it: a category, the group it is listed
 in, and optionally a title and a summary, each a string. Nothing else may be
 in it.
--- lineages/pets/cat/0.0.thema --
+-- lineages/pets/cat/history/0.0.thema --
+Schema: {
+	lives: int
+}
+-- lineages/pets/cat/tip.thema --
 Schema: {
 	lives: int
 }

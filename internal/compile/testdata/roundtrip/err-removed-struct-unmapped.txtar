@@ -9,7 +9,7 @@ Schema: {
 		team?:  string
 	}
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	name: string
 }
@@ -20,9 +20,13 @@ ForwardLens: {
 		name: v0_0.name
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	name: string
+}
 -- out/error --
 error[E0347]: 0.0 declares meta and 1.0 does not, and nothing maps it: write <field>: v0_0.meta to move it, or meta: _drop
- --> 1.0.thema:5:1
+ --> history/1.0.thema:5:1
   |
 5 | ForwardLens: {
   | ^^^^^^^^^^^

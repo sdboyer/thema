@@ -2,11 +2,11 @@
 A version file has at most three fields: schema, ForwardLens and BackwardLens.
 Anything else is usually a typo; when the name is close to one of the three,
 the help names it.
--- ship/0.0.thema --
+-- ship/history/0.0.thema --
 Schema: {
 	a: string
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 scehma: {
 	a: string
 	b: int
@@ -18,6 +18,11 @@ ForwardLens: {
 		b: 1
 	}
 }
+-- ship/tip.thema --
+scehma: {
+	a: string
+	b: int
+}
 -- out/json --
 {
   "diagnostics": [
@@ -26,7 +31,7 @@ ForwardLens: {
       "severity": "error",
       "headline": "scehma is not a field of a version file",
       "primary": {
-        "file": "1.0.thema",
+        "file": "history/1.0.thema",
         "line": 1,
         "col": 1,
         "origin": "user"
@@ -38,9 +43,9 @@ ForwardLens: {
     {
       "code": "E0108",
       "severity": "error",
-      "headline": "1.0.thema declares no Schema",
+      "headline": "history/1.0.thema declares no Schema",
       "primary": {
-        "file": "1.0.thema",
+        "file": "history/1.0.thema",
         "line": 1,
         "col": 1,
         "origin": "user"
@@ -58,15 +63,15 @@ ForwardLens: {
 }
 -- out/text --
 error[E0105]: scehma is not a field of a version file
- --> 1.0.thema:1:1
+ --> history/1.0.thema:1:1
   |
 1 | scehma: {
   | ^^^^^^
   |
   = help: did you mean Schema?
 
-error[E0108]: 1.0.thema declares no Schema
- --> 1.0.thema:1:1
+error[E0108]: history/1.0.thema declares no Schema
+ --> history/1.0.thema:1:1
   |
 1 | scehma: {
   | ^^^^^^

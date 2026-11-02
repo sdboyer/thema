@@ -4,7 +4,7 @@ must say so.
 Schema: {
 	kind: string
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	kind: int
 }
@@ -18,9 +18,13 @@ ForwardLens: {
 		})
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	kind: int
+}
 -- out/error --
 error[E0414]: the [_] arm collapses every unmatched value into one: declare what is lost in lacunas: {kind: [{type: Type, message: "..."}]}
-  --> 1.0.thema:10:4
+  --> history/1.0.thema:10:4
    |
 10 |             [_]: 0
    |             ^

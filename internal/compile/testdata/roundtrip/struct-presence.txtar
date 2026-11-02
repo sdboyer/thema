@@ -11,7 +11,7 @@ Schema: {
 		b?: int
 	}
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	q?: {
 		a!: int
@@ -24,6 +24,13 @@ ForwardLens: {
 	v1_0: {
 		b: v0_0.q.b
 	}
+}
+-- ship/tip.thema --
+Schema: {
+	q?: {
+		a!: int
+	}
+	b?: int
 }
 -- data/0.0/absent.json --
 {}
@@ -41,7 +48,14 @@ ForwardLens: {
 {"q": {"a": 1}}
 -- out/bind --
 ok
--- out/decompiled/1.0.thema --
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	q?: {
+		a!: int
+		b?: int
+	}
+}
+-- out/decompiled/history/1.0.thema --
 Schema: {
 	q?: {
 		a!: int
@@ -55,12 +69,12 @@ ForwardLens: {
 		b: v0_0.q.b
 	}
 }
--- out/decompiled/history/0.0.thema --
+-- out/decompiled/tip.thema --
 Schema: {
 	q?: {
 		a!: int
-		b?: int
 	}
+	b?: int
 }
 -- out/normal.cue --
 name: "ship"

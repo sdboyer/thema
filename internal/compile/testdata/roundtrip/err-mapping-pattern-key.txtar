@@ -5,7 +5,7 @@ no key under a pattern by name.
 Schema: {
 	labels: [string]: string
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	labels: [string]: string
 	env:    string
@@ -17,9 +17,14 @@ ForwardLens: {
 		env: _coalesce(v0_0.labels.env, "none")
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	labels: [string]: string
+	env:    string
+}
 -- out/error --
 error[E0340]: 0.0 does not declare labels.env
- --> 1.0.thema:9:8
+ --> history/1.0.thema:9:8
   |
 9 |         env: _coalesce(v0_0.labels.env, "none")
   |              ^^^^^^^^^

@@ -5,17 +5,17 @@ tab-indented line and a multibyte character before the marked token.
   "code": "E0340",
   "severity": "error",
   "headline": "the mapping for naïve reads v0_0.missing, which schema 0.0 does not declare",
-  "primary": {"file": "1.0.thema", "line": 7, "col": 11, "origin": "user"},
+  "primary": {"file": "history/1.0.thema", "line": 7, "col": 11, "origin": "user"},
   "notes": [
-    {"pos": {"file": "0.0.thema", "line": 2, "col": 2, "origin": "user"}, "label": "schema 0.0 declares only naïve"}
+    {"pos": {"file": "history/0.0.thema", "line": 2, "col": 2, "origin": "user"}, "label": "schema 0.0 declares only naïve"}
   ],
   "help": ["read a field schema 0.0 declares, or write a constant"]
 }]
--- 0.0.thema --
+-- history/0.0.thema --
 schema: {
 	naïve: string
 }
--- 1.0.thema --
+-- history/1.0.thema --
 schema: {
 	naïve: string
 }
@@ -27,12 +27,12 @@ ForwardLens: {
 }
 -- out/text --
 error[E0340]: the mapping for naïve reads v0_0.missing, which schema 0.0 does not declare
- --> 1.0.thema:7:11
+ --> history/1.0.thema:7:11
   |
 7 |         naïve: v0_0.missing
   |                ^^^^
   |
- ::: 0.0.thema:2:2
+ ::: history/0.0.thema:2:2
   |
 2 |     naïve: string
   |     ----- schema 0.0 declares only naïve

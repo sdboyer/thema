@@ -243,6 +243,9 @@ func (i *Instance) Translate(to SyntacticVersion) (*Instance, lacuna.Translation
 	if err != nil {
 		panic(fmt.Sprintf("no schema in lineage with version %v, cannot translate", to))
 	}
+	if merr := i.Schema().Lineage().(*baseLineage).missingLens(i.Schema().Version(), to); merr != nil {
+		return nil, nil, merr
+	}
 
 	from := i.Schema().Version()
 	if from == to {

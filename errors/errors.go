@@ -92,3 +92,16 @@ var (
 	// version was malformed.
 	ErrMalformedSyntacticVersion = errors.New("not a valid syntactic version")
 )
+
+// Development states. A lineage's tip is a provisional version, which only
+// the development bind path (load.DevelopmentLineage) binds. The states that
+// path tolerates, and the errors it reports about them, unwrap to
+// ErrProvisional and to nothing else: none is an error in the lineage, and
+// none can arise from BindLineage.
+var (
+	// ErrProvisional indicates a state of a provisional version that the
+	// development bind path tolerates: a lens missing on the edge into the
+	// tip, a translation that needs such a lens, a tip that differs from the
+	// newest frozen version.
+	ErrProvisional = errors.New("provisional version")
+)

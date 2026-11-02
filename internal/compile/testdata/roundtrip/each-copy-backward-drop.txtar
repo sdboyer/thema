@@ -9,7 +9,7 @@ Schema: close({
 	u!: [...string]
 	s!: [...close({f!: [...string]})]
 })
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: close({
 	u!: [...close({id!: string, enabled!: bool, note?: string})]
 	s!: [...close({f!: [...close({id!: string, note?: string})]})]
@@ -30,6 +30,20 @@ BackwardLens: {
 		s: _each(v1_0.s, {f: _each(_item.f, _item.id)})
 	}
 }
+-- ship/tip.thema --
+Schema: close({
+	u!: [...close({
+		id!:      string
+		enabled!: bool
+		note?:    string
+	})]
+	s!: [...close({
+		f!: [...close({
+			id!:   string
+			note?: string
+		})]
+	})]
+})
 -- data/0.0/two.json --
 {"u": ["a", "b"], "s": [{"f": ["c"]}]}
 -- data/1.0/empty.json --
@@ -38,7 +52,12 @@ BackwardLens: {
 {"u": [{"id": "a", "enabled": true}, {"id": "b", "enabled": false, "note": "x"}], "s": [{"f": []}, {"f": [{"id": "c"}, {"id": "d", "note": "y"}]}]}
 -- out/bind --
 ok
--- out/decompiled/1.0.thema --
+-- out/decompiled/history/0.0.thema --
+Schema: close({
+	u!: [...string]
+	s!: [...close({f!: [...string]})]
+})
+-- out/decompiled/history/1.0.thema --
 Schema: close({
 	u!: [...close({
 		id!:      string
@@ -71,10 +90,19 @@ BackwardLens: {
 		s: _each(v1_0.s, {f: _each(_item.f, _item.id)})
 	}
 }
--- out/decompiled/history/0.0.thema --
+-- out/decompiled/tip.thema --
 Schema: close({
-	u!: [...string]
-	s!: [...close({f!: [...string]})]
+	u!: [...close({
+		id!:      string
+		enabled!: bool
+		note?:    string
+	})]
+	s!: [...close({
+		f!: [...close({
+			id!:   string
+			note?: string
+		})]
+	})]
 })
 -- out/normal.cue --
 name: "ship"

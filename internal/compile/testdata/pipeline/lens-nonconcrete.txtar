@@ -11,7 +11,20 @@ schema: {
 	title: string
 	count?: int
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
+schema: {
+	title: string
+	count: int & <10
+}
+
+forward: {
+	count: from.count
+}
+
+backward: {
+	count: to.count
+}
+-- ship/tip.thema --
 schema: {
 	title: string
 	count: int & <10
@@ -28,7 +41,7 @@ backward: {
 {"title": "a"}
 -- out/error --
 count in the result of lens 0.0->1.0 is not total for some instance:
-    ship/1.0.thema:7:9
+    ship/history/1.0.thema:7:9
 -- out/positions --
 count in the result of lens 0.0->1.0 is not total for some instance
-	authored ship/1.0.thema:7:9
+	authored ship/history/1.0.thema:7:9

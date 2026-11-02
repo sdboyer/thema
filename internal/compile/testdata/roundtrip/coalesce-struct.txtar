@@ -8,7 +8,7 @@ Schema: {
 		a!: int
 	}
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	q: {
 		a!: int
@@ -29,6 +29,12 @@ ForwardLens: {
 		}]
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	q: {
+		a!: int
+	}
+}
 -- data/0.0/absent.json --
 {}
 -- data/0.0/q.json --
@@ -37,7 +43,13 @@ ForwardLens: {
 {"q": {"a": 3}}
 -- out/bind --
 ok
--- out/decompiled/1.0.thema --
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	q?: {
+		a!: int
+	}
+}
+-- out/decompiled/history/1.0.thema --
 Schema: {
 	q: {
 		a!: int
@@ -56,9 +68,9 @@ ForwardLens: {
 		}]
 	}
 }
--- out/decompiled/history/0.0.thema --
+-- out/decompiled/tip.thema --
 Schema: {
-	q?: {
+	q: {
 		a!: int
 	}
 }

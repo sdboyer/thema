@@ -5,7 +5,7 @@ Schema: close({
 	tags!: [...string]
 	s!: [...close({f!: [...close({id!: string})]})]
 })
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: close({
 	labels!: [...string]
 	s!: [...close({g!: [...string]})]
@@ -26,13 +26,23 @@ BackwardLens: {
 		s: _each(v1_0.s, {f: _each(_item.g, {id: _item})})
 	}
 }
+-- ship/tip.thema --
+Schema: close({
+	labels!: [...string]
+	s!:      [...close({g!: [...string]})]
+})
 -- data/0.0/some.json --
 {"tags": ["x"], "s": [{"f": [{"id": "a"}, {"id": "b"}]}, {"f": []}]}
 -- data/1.0/some.json --
 {"labels": ["x"], "s": [{"g": ["a", "b"]}, {"g": []}]}
 -- out/bind --
 ok
--- out/decompiled/1.0.thema --
+-- out/decompiled/history/0.0.thema --
+Schema: close({
+	tags!: [...string]
+	s!:    [...close({f!: [...close({id!: string})]})]
+})
+-- out/decompiled/history/1.0.thema --
 Schema: close({
 	labels!: [...string]
 	s!:      [...close({g!: [...string]})]
@@ -53,10 +63,10 @@ BackwardLens: {
 		s:    _each(v1_0.s, {f: _each(_item.g, {id: _item})})
 	}
 }
--- out/decompiled/history/0.0.thema --
+-- out/decompiled/tip.thema --
 Schema: close({
-	tags!: [...string]
-	s!:    [...close({f!: [...close({id!: string})]})]
+	labels!: [...string]
+	s!:      [...close({g!: [...string]})]
 })
 -- out/normal.cue --
 name: "ship"

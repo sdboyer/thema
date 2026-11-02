@@ -8,7 +8,7 @@ Schema: {
 		y?: int
 	}
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	o?: {
 		x?: int
@@ -24,9 +24,16 @@ ForwardLens: {
 		}
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	o?: {
+		x?: int
+		z!: int
+	}
+}
 -- out/error --
 error[E0346]: ForwardLens produces nothing for o.z, which 1.0 requires: add o.z: <mapping> to v1_0
- --> 1.0.thema:8:1
+ --> history/1.0.thema:8:1
   |
 8 | ForwardLens: {
   | ^^^^^^^^^^^

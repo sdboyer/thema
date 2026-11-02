@@ -5,7 +5,7 @@ computed or pattern label is not one.
 Schema: {
 	a: string
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	b: string
 }
@@ -16,6 +16,10 @@ ForwardLens: {
 		"\("b")": v0_0.a
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	b: string
+}
 -- out/json --
 {
   "diagnostics": [
@@ -24,7 +28,7 @@ ForwardLens: {
       "severity": "error",
       "headline": "a mapping's key is a plain field name",
       "primary": {
-        "file": "1.0.thema",
+        "file": "history/1.0.thema",
         "line": 8,
         "col": 3,
         "offset": 59,
@@ -36,7 +40,7 @@ ForwardLens: {
       "severity": "error",
       "headline": "ForwardLens produces nothing for b, which 1.0 requires: add b: <mapping> to v1_0",
       "primary": {
-        "file": "1.0.thema",
+        "file": "history/1.0.thema",
         "line": 5,
         "col": 1,
         "offset": 24,
@@ -48,7 +52,7 @@ ForwardLens: {
       "severity": "error",
       "headline": "0.0 declares a and 1.0 does not, and nothing maps it: write <field>: v0_0.a to move it, or a: _drop",
       "primary": {
-        "file": "1.0.thema",
+        "file": "history/1.0.thema",
         "line": 5,
         "col": 1,
         "offset": 24,
@@ -64,21 +68,21 @@ ForwardLens: {
 }
 -- out/text --
 error[E0331]: a mapping's key is a plain field name
- --> 1.0.thema:8:3
+ --> history/1.0.thema:8:3
   |
 8 |         "\("b")": v0_0.a
   |         ^^^^
   |
 
 error[E0346]: ForwardLens produces nothing for b, which 1.0 requires: add b: <mapping> to v1_0
- --> 1.0.thema:5:1
+ --> history/1.0.thema:5:1
   |
 5 | ForwardLens: {
   | ^^^^^^^^^^^
   |
 
 error[E0347]: 0.0 declares a and 1.0 does not, and nothing maps it: write <field>: v0_0.a to move it, or a: _drop
- --> 1.0.thema:5:1
+ --> history/1.0.thema:5:1
   |
 5 | ForwardLens: {
   | ^^^^^^^^^^^

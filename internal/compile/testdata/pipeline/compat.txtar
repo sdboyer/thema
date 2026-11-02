@@ -11,7 +11,15 @@ not at either schema.
 schema: {
 	title: string
 }
--- ship/0.1.thema --
+-- ship/history/0.1.thema --
+schema: {
+	title: int
+}
+
+backward: {
+	title: "untitled"
+}
+-- ship/tip.thema --
 schema: {
 	title: int
 }
@@ -21,7 +29,7 @@ backward: {
 }
 -- out/error --
 title in schema 0.1 was string and is now int:
-    ship/0.1.thema:2:9
+    ship/history/0.1.thema:2:9
 -- out/positions --
 title in schema 0.1 was string and is now int
-	authored ship/0.1.thema:2:9
+	authored ship/history/0.1.thema:2:9

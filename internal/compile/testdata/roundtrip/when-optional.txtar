@@ -9,7 +9,7 @@ Schema: {
 	count?:     int
 	flag?:      bool
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	name:       string
 	deprecated: bool
@@ -39,45 +39,59 @@ ForwardLens: {
 			when:    v0_0.count > 1000
 		}]
 	}
+}
+-- ship/tip.thema --
+Schema: {
+	name:       string
+	deprecated: bool
+	count:      int
+	flag?:      bool
 }
 -- out/bind --
 ok
--- out/decompiled/1.0.thema --
-Schema: {
-	name:       string
-	deprecated: bool
-	count:      int
-	flag?:      bool
-}
-
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		name:  v0_0.name
-		count: _coalesce(v0_0.count, 0)
-	}
-	lacunas: {
-		name: [{
-			type:    AmbiguousMapping
-			message: "flagged records were renamed by hand"
-			when:    v0_0.flag
-		}, {
-			type:    LossyFieldMapping
-			message: "deprecated records are archived"
-			when:    v0_0.deprecated
-		}]
-		count: [{
-			type:    PrecisionLoss
-			message: "counts above 1000 are rounded downstream"
-			when:    v0_0.count > 1000
-		}]
-	}
-}
 -- out/decompiled/history/0.0.thema --
 Schema: {
 	name:       string
 	deprecated: bool
 	count?:     int
+	flag?:      bool
+}
+-- out/decompiled/history/1.0.thema --
+Schema: {
+	name:       string
+	deprecated: bool
+	count:      int
+	flag?:      bool
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		name:  v0_0.name
+		count: _coalesce(v0_0.count, 0)
+	}
+	lacunas: {
+		name: [{
+			type:    AmbiguousMapping
+			message: "flagged records were renamed by hand"
+			when:    v0_0.flag
+		}, {
+			type:    LossyFieldMapping
+			message: "deprecated records are archived"
+			when:    v0_0.deprecated
+		}]
+		count: [{
+			type:    PrecisionLoss
+			message: "counts above 1000 are rounded downstream"
+			when:    v0_0.count > 1000
+		}]
+	}
+}
+-- out/decompiled/tip.thema --
+Schema: {
+	name:       string
+	deprecated: bool
+	count:      int
 	flag?:      bool
 }
 -- out/normal.cue --

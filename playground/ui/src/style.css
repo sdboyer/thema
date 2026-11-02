@@ -116,9 +116,19 @@ section { display: flex; flex-direction: column; min-height: 0; min-width: 0; bo
 .tab .close { color: var(--muted); padding: 0 6px 0 0; }
 .tabs .add { border: none; background: none; color: var(--muted); }
 .flag { color: var(--error); margin-right: 4px; font-size: .7em; vertical-align: middle; }
+/* The versions under history/ are cut: grouped apart from the tip, muted,
+   and never editable. */
+.tab-group.frozen { display: inline-flex; align-items: flex-end; gap: 2px; margin-left: auto; padding-left: 8px; border-left: 1px solid var(--border); }
+.tab-group .group-label { align-self: center; color: var(--muted); font-size: .8em; margin-right: 4px; }
+.tab.frozen { border-style: dashed; }
+.tab.frozen button { color: var(--muted); font-style: italic; }
+.tab.frozen.active button { color: var(--text); }
+.frozen-note { margin: 0; padding: .3rem .75rem; font-size: .85em; color: var(--muted); background: var(--panel); border-bottom: 1px solid var(--border); }
 
 .editor { flex: 1; min-height: 0; overflow: hidden; }
-.lineage .editor { flex: 1; }
+.lineage-editor { flex: 1; min-height: 0; display: flex; }
+.lineage-editor .editor { flex: 1; }
+.lineage-editor.frozen .editor { background: var(--panel); }
 .data-editor { height: 30%; min-height: 8rem; display: flex; }
 .data-editor .editor { flex: 1; }
 /* A result's editor takes whatever height the panel has left after the

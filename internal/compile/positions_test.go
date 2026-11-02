@@ -60,8 +60,8 @@ func TestEvaluatorReportsAuthoredPositions(t *testing.T) {
 // positioning them with token.NewFile. (The experiments setters on token.File
 // and ast.File take a type from CUE's internal packages.)
 func TestPositionsCarrySemantics(t *testing.T) {
-	parsed := parseSource(t, "ship/1.0.thema", "schema: {}\n").file
-	synthetic := token.NewFile("ship/1.0.thema", 0, 100)
+	parsed := parseSource(t, "ship/history/1.0.thema", "schema: {}\n").file
+	synthetic := token.NewFile("ship/history/1.0.thema", 0, 100)
 	synthetic.SetLinesForContent(make([]byte, 100))
 
 	cases := []struct {
@@ -151,7 +151,7 @@ func mustFormat(t *testing.T, n ast.Node) string {
 // so a struct with a positioned Lbrace prints on one line. Formatting the
 // normal form for people to read (#63) means setting RelPos too.
 func TestSetPosOnStructLit(t *testing.T) {
-	src := parseSource(t, "ship/1.0.thema", "forward: {\n\tcount: 1\n}\n")
+	src := parseSource(t, "ship/history/1.0.thema", "forward: {\n\tcount: 1\n}\n")
 	p := src.at("forward: {")
 
 	inner := field("count", num("1"))
@@ -187,7 +187,7 @@ func TestSetPosOnStructLit(t *testing.T) {
 // points nowhere at all. (An unpositioned node is also evaluated with legacy
 // semantics; see TestPositionsCarrySemantics.)
 func TestUnpositionedNodes(t *testing.T) {
-	src := parseSource(t, "ship/1.0.thema", "schema: {\n\ta?: string\n\tb: bytes\n}\n\nforward: {\n}\n")
+	src := parseSource(t, "ship/history/1.0.thema", "schema: {\n\ta?: string\n\tb: bytes\n}\n\nforward: {\n}\n")
 	lens := src.at("forward: {")
 	schema := cue.Filename("schema.cue")
 
@@ -201,13 +201,13 @@ func TestUnpositionedNodes(t *testing.T) {
 			name:       "unpositioned",
 			copy:       token.NoPos,
 			incomplete: nil,
-			conflict:   []string{"schema.cue:1:7", "ship/1.0.thema:3:5"},
+			conflict:   []string{"schema.cue:1:7", "ship/history/1.0.thema:3:5"},
 		},
 		{
 			name:       "at the lens",
 			copy:       lens,
-			incomplete: []string{"ship/1.0.thema:6:1"},
-			conflict:   []string{"schema.cue:1:7", "ship/1.0.thema:3:5", "ship/1.0.thema:6:1"},
+			incomplete: []string{"ship/history/1.0.thema:6:1"},
+			conflict:   []string{"schema.cue:1:7", "ship/history/1.0.thema:3:5", "ship/history/1.0.thema:6:1"},
 		},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -355,7 +355,7 @@ func TestSeparatelyBuiltFiles(t *testing.T) {
 // it resolves, and a conflict through it cites both files.
 func TestCrossFileReferences(t *testing.T) {
 	v0 := parseSource(t, "ship/history/0.0.thema", "#Title: string\n")
-	v1 := parseSource(t, "ship/1.0.thema", "schema: {\n\ttitle: #Title & 1\n}\n")
+	v1 := parseSource(t, "ship/history/1.0.thema", "schema: {\n\ttitle: #Title & 1\n}\n")
 	pkg := func(s *source) ast.Decl { return at(s.header(), &ast.Package{Name: ident("ship")}) }
 	f0 := fileOf(pkg(v0), field("#Title", at(v0.at("string"), ident("string"))))
 	f1 := fileOf(pkg(v1), field("schema", at(v1.at("schema: {"), strct(field("title", &ast.BinaryExpr{
@@ -376,7 +376,7 @@ func TestCrossFileReferences(t *testing.T) {
 		}
 	}
 	err := ctx.BuildInstance(inst).Validate()
-	if got, want := posStrings(err), []string{"ship/1.0.thema:2:9", "ship/1.0.thema:2:18", "ship/history/0.0.thema:1:9"}; !slices.Equal(got, want) {
+	if got, want := posStrings(err), []string{"ship/history/0.0.thema:1:9", "ship/history/1.0.thema:2:9", "ship/history/1.0.thema:2:18"}; !slices.Equal(got, want) {
 		t.Errorf("conflict across files reported at %v, want %v; error:\n%s", got, want, cerrors.Details(err, nil))
 	}
 }
@@ -386,7 +386,7 @@ func TestCrossFileReferences(t *testing.T) {
 // also through evaluation: the evaluated value's syntax, with docs, has the
 // doc comments. Line comments do not survive evaluation.
 func TestCommentsSurviveFormat(t *testing.T) {
-	src := parseSource(t, "ship/1.0.thema", "// A ship.\nschema: {\n\t// Its name.\n\ttitle: string // never empty\n}\n")
+	src := parseSource(t, "ship/history/1.0.thema", "// A ship.\nschema: {\n\t// Its name.\n\ttitle: string // never empty\n}\n")
 	title := field("title", at(src.at("string"), ident("string")))
 	ast.AddComment(title, &ast.CommentGroup{Doc: true, List: []*ast.Comment{{Slash: src.at("// Its"), Text: "// Its name."}}})
 	ast.AddComment(title, &ast.CommentGroup{Line: true, Position: 4, List: []*ast.Comment{{Slash: src.at("// never"), Text: "// never empty"}}})
@@ -431,7 +431,7 @@ schema: {
 // the value was built: a check that finds something in the Tree can't point
 // at it from there, and must look up the cue.Value at the same path instead.
 func TestViewsOfAuthoredValues(t *testing.T) {
-	src := parseSource(t, "ship/1.0.thema", "forward: {\n\tcount: from.count\n}\n")
+	src := parseSource(t, "ship/history/1.0.thema", "forward: {\n\tcount: from.count\n}\n")
 	ctx := cuecontext.New()
 	built := ctx.BuildFile(fileOf(field("lens", at(src.at("forward: {"), strct(
 		field("v0_0", at(src.at("forward: {"), ident("_"))),
@@ -446,7 +446,7 @@ func TestViewsOfAuthoredValues(t *testing.T) {
 			written = append(written, n.Pos().String())
 		}
 	}
-	if want := []string{"ship/1.0.thema:2:9"}; !slices.Equal(written, want) {
+	if want := []string{"ship/history/1.0.thema:2:9"}; !slices.Equal(written, want) {
 		t.Errorf("Written positions %v, want %v", written, want)
 	}
 

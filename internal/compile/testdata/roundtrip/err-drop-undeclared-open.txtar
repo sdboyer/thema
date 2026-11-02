@@ -6,7 +6,7 @@ Schema: {
 	a!: string
 	...
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	a!: string
 	b?: bool
@@ -19,9 +19,15 @@ ForwardLens: {
 		b: _drop
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	a!: string
+	b?: bool
+	...
+}
 -- out/error --
 error[E0340]: 0.0 does not declare b, so there is nothing to drop
-  --> 1.0.thema:10:3
+  --> history/1.0.thema:10:3
    |
 10 |         b: _drop
    |         ^

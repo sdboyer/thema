@@ -8,7 +8,7 @@ Schema: {
 		title: string
 	}]
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	items: [...{
 		name:  string
@@ -33,11 +33,22 @@ BackwardLens: {
 		})
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	items: [...{
+		name:  string
+		hint?: string
+	}]
+}
 -- data/1.0/hinted.json --
 {"items": [{"name": "a", "hint": "h"}, {"name": "b"}]}
 -- out/bind --
 ok
--- out/decompiled/1.0.thema --
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	items: [...{title: string}]
+}
+-- out/decompiled/history/1.0.thema --
 Schema: {
 	items: [...{
 		name:  string
@@ -58,9 +69,12 @@ BackwardLens: {
 		items: _each(v1_0.items, {title: _item.name})
 	}
 }
--- out/decompiled/history/0.0.thema --
+-- out/decompiled/tip.thema --
 Schema: {
-	items: [...{title: string}]
+	items: [...{
+		name:  string
+		hint?: string
+	}]
 }
 -- out/normal.cue --
 name: "ship"

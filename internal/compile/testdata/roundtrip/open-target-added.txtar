@@ -8,7 +8,7 @@ Schema: {
 	a!: string
 	...
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	a!: string
 	b!: bool
@@ -20,10 +20,21 @@ ForwardLens: {
 	v1_0: {
 		b: true
 	}
+}
+-- ship/tip.thema --
+Schema: {
+	a!: string
+	b!: bool
+	...
 }
 -- out/bind --
 ok
--- out/decompiled/1.0.thema --
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	a!: string
+	...
+}
+-- out/decompiled/history/1.0.thema --
 Schema: {
 	a!: string
 	b!: bool
@@ -36,9 +47,10 @@ ForwardLens: {
 		b: true
 	}
 }
--- out/decompiled/history/0.0.thema --
+-- out/decompiled/tip.thema --
 Schema: {
 	a!: string
+	b!: bool
 	...
 }
 -- out/normal.cue --

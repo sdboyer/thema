@@ -6,7 +6,7 @@ beneath it. A value of any other shape is not a lacuna declaration.
 Schema: {
 	a: string
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	a: string
 	b: int
@@ -21,6 +21,11 @@ ForwardLens: {
 		b: 5
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	a: string
+	b: int
+}
 -- out/json --
 {
   "diagnostics": [
@@ -29,7 +34,7 @@ ForwardLens: {
       "severity": "error",
       "headline": "lacunas.b is a list of the mapping's lacunas, or a struct of keys beneath it",
       "primary": {
-        "file": "1.0.thema",
+        "file": "history/1.0.thema",
         "line": 12,
         "col": 6,
         "offset": 93,
@@ -45,7 +50,7 @@ ForwardLens: {
 }
 -- out/text --
 error[E0410]: lacunas.b is a list of the mapping's lacunas, or a struct of keys beneath it
-  --> 1.0.thema:12:6
+  --> history/1.0.thema:12:6
    |
 12 |         b: 5
    |            ^

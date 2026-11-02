@@ -16,7 +16,7 @@ Schema: {
 		[string]: string
 	}
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	labels: [string]: string
 	env:    string
@@ -28,9 +28,27 @@ ForwardLens: {
 		env: _coalesce(v0_1.labels.env, "none")
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	labels: [string]: string
+	env:    string
+}
 -- out/bind --
 ok
--- out/decompiled/1.0.thema --
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	labels: {
+		[string]: string
+	}
+}
+-- out/decompiled/history/0.1.thema --
+Schema: {
+	labels: {
+		env?:     string
+		[string]: string
+	}
+}
+-- out/decompiled/history/1.0.thema --
 Schema: {
 	labels: {
 		[string]: string
@@ -44,18 +62,12 @@ ForwardLens: {
 		env: _coalesce(v0_1.labels.env, "none")
 	}
 }
--- out/decompiled/history/0.0.thema --
+-- out/decompiled/tip.thema --
 Schema: {
 	labels: {
 		[string]: string
 	}
-}
--- out/decompiled/history/0.1.thema --
-Schema: {
-	labels: {
-		env?:     string
-		[string]: string
-	}
+	env: string
 }
 -- out/normal.cue --
 name: "ship"

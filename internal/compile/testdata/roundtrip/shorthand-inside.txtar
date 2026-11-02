@@ -5,7 +5,7 @@ the one layout, with braces, which is also what Format gives the input.
 Schema: {
 	meta: owner: string
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	meta: {
 		owner: string
@@ -17,9 +17,22 @@ ForwardLens: {
 	v0_0: _
 	v1_0: meta: team: "unassigned"
 }
+-- ship/tip.thema --
+Schema: {
+	meta: {
+		owner: string
+		team:  string
+	}
+}
 -- out/bind --
 ok
--- out/decompiled/1.0.thema --
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	meta: {
+		owner: string
+	}
+}
+-- out/decompiled/history/1.0.thema --
 Schema: {
 	meta: {
 		owner: string
@@ -35,10 +48,11 @@ ForwardLens: {
 		}
 	}
 }
--- out/decompiled/history/0.0.thema --
+-- out/decompiled/tip.thema --
 Schema: {
 	meta: {
 		owner: string
+		team:  string
 	}
 }
 -- out/normal.cue --

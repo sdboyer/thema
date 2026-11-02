@@ -10,7 +10,23 @@ lens checker does not prove: nested is compared with {} alone.
 Schema: {
 	firstfield: string
 }
--- ship/0.1.thema --
+-- ship/history/0.1.thema --
+Schema: {
+	firstfield: string
+	count:      *0 | int
+	kind:       *"a" | "b"
+	opts: {
+		level: *1 | int
+		tag?:  string
+	}
+	nested: {
+		inner?: {
+			on: *false | bool
+		}
+	}
+	tags: [...string]
+}
+-- ship/tip.thema --
 Schema: {
 	firstfield: string
 	count:      *0 | int
@@ -42,7 +58,11 @@ Schema: {
 {"firstfield": "x", "tags": ["t"]}
 -- out/bind --
 ok
--- out/decompiled/0.1.thema --
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	firstfield: string
+}
+-- out/decompiled/history/0.1.thema --
 Schema: {
 	firstfield: string
 	count:      *0 | int
@@ -58,9 +78,21 @@ Schema: {
 	}
 	tags: [...string]
 }
--- out/decompiled/history/0.0.thema --
+-- out/decompiled/tip.thema --
 Schema: {
 	firstfield: string
+	count:      *0 | int
+	kind:       *"a" | "b"
+	opts: {
+		level: *1 | int
+		tag?:  string
+	}
+	nested: {
+		inner?: {
+			on: *false | bool
+		}
+	}
+	tags: [...string]
 }
 -- out/normal.cue --
 name: "ship"

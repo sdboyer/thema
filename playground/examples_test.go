@@ -36,7 +36,7 @@ func TestRegisterExamples(t *testing.T) {
 
 	pet := hostExample(petID, "Host", true, normalInput(petNormal))
 	pet.Data = []DataInput{{Filename: "0.0-rex.json", Text: "{\"name\": \"rex\"}\n", Format: "json"}}
-	authoring := hostExample("host/pet-authoring", "Host", true, LineageInput{Name: "pet", Files: []File{{Path: "0.0.thema", Text: petSchema}}})
+	authoring := hostExample("host/pet-authoring", "Host", true, LineageInput{Name: "pet", Files: []File{{Path: "history/0.0.thema", Text: petSchema}, {Path: "tip.thema", Text: petSchema}}})
 	wrongKind := hostExample("host/wrong-kind", "Host", true, normalInput(petNormal))
 	wrongKind.Example.Kind = kindAuthoring
 	untitled := hostExample("host/untitled", "Host", true, normalInput(petNormal))

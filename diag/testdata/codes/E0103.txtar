@@ -2,7 +2,13 @@
 A version file is not a CUE package: it is one version of one lineage, and the
 compiler assembles the lineage from the files. A package clause does not belong
 in it.
--- ship/0.0.thema --
+-- ship/history/0.0.thema --
+package ship
+
+Schema: {
+	a: string
+}
+-- ship/tip.thema --
 package ship
 
 Schema: {
@@ -14,9 +20,9 @@ Schema: {
     {
       "code": "E0103",
       "severity": "error",
-      "headline": "0.0.thema has a package clause",
+      "headline": "history/0.0.thema has a package clause",
       "primary": {
-        "file": "0.0.thema",
+        "file": "history/0.0.thema",
         "line": 1,
         "col": 1,
         "origin": "user"
@@ -33,8 +39,8 @@ Schema: {
   }
 }
 -- out/text --
-error[E0103]: 0.0.thema has a package clause
- --> 0.0.thema:1:1
+error[E0103]: history/0.0.thema has a package clause
+ --> history/0.0.thema:1:1
   |
 1 | package ship
   | ^^^^^^^

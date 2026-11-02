@@ -5,7 +5,7 @@ accepted and Format expands it (see shorthand-inside).
 Schema: meta: {
 	owner: string
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	meta: {
 		owner: string
@@ -16,6 +16,13 @@ Schema: {
 ForwardLens: v1_0: {
 	meta: {
 		team: "unassigned"
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	meta: {
+		owner: string
+		team:  string
 	}
 }
 -- out/error --
@@ -29,7 +36,7 @@ error[E0109]: Schema: meta: ... is CUE's struct shorthand, which a version file'
   = help: write Schema: {meta: ...}
 
 error[E0109]: ForwardLens: v1_0: ... is CUE's struct shorthand, which a version file's ForwardLens does not use
- --> 1.0.thema:8:14
+ --> history/1.0.thema:8:14
   |
 8 | ForwardLens: v1_0: {
   |              ^^^^

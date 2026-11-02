@@ -6,7 +6,7 @@ added, is not one: to refine its lacuna, write the drop.
 Schema: {
 	firstfield: string
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	firstfield:  string
 	secondfield: int
@@ -24,6 +24,11 @@ ForwardLens: {
 		}]
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	firstfield:  string
+	secondfield: int
+}
 -- out/json --
 {
   "diagnostics": [
@@ -32,7 +37,7 @@ ForwardLens: {
       "severity": "error",
       "headline": "lacunas.secondfeild: ForwardLens has no mapping keyed secondfeild",
       "primary": {
-        "file": "1.0.thema",
+        "file": "history/1.0.thema",
         "line": 12,
         "col": 17,
         "offset": 134,
@@ -48,7 +53,7 @@ ForwardLens: {
 }
 -- out/text --
 error[E0412]: lacunas.secondfeild: ForwardLens has no mapping keyed secondfeild
-  --> 1.0.thema:12:17
+  --> history/1.0.thema:12:17
    |
 12 |         secondfeild: [{
    |                       ^

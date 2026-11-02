@@ -4,7 +4,7 @@ a placeholder forward and a refined message on the derived backward drop.
 Schema: {
 	firstfield: string
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	firstfield:  string
 	secondfield: int
@@ -35,10 +35,19 @@ BackwardLens: {
 			message: "secondfield is new in 1.0; 0.0 has nowhere to keep it"
 		}]
 	}
+}
+-- ship/tip.thema --
+Schema: {
+	firstfield:  string
+	secondfield: int
 }
 -- out/bind --
 ok
--- out/decompiled/1.0.thema --
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	firstfield: string
+}
+-- out/decompiled/history/1.0.thema --
 Schema: {
 	firstfield:  string
 	secondfield: int
@@ -70,9 +79,10 @@ BackwardLens: {
 		}]
 	}
 }
--- out/decompiled/history/0.0.thema --
+-- out/decompiled/tip.thema --
 Schema: {
-	firstfield: string
+	firstfield:  string
+	secondfield: int
 }
 -- out/normal.cue --
 name: "ship"

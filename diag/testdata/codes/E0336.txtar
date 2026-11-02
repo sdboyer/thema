@@ -5,7 +5,7 @@ arms, a struct of `value: value` entries with an optional `[_]` catch-all.
 Schema: {
 	kind: "a" | "b"
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	kind: 1 | 2
 }
@@ -16,6 +16,10 @@ ForwardLens: {
 		kind: _match(v0_0.kind)
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	kind: 1 | 2
+}
 -- out/json --
 {
   "diagnostics": [
@@ -24,7 +28,7 @@ ForwardLens: {
       "severity": "error",
       "headline": "_match takes two arguments: _match(v0_0.<path>, {...})",
       "primary": {
-        "file": "1.0.thema",
+        "file": "history/1.0.thema",
         "line": 8,
         "col": 9,
         "offset": 67,
@@ -40,7 +44,7 @@ ForwardLens: {
 }
 -- out/text --
 error[E0336]: _match takes two arguments: _match(v0_0.<path>, {...})
- --> 1.0.thema:8:9
+ --> history/1.0.thema:8:9
   |
 8 |         kind: _match(v0_0.kind)
   |               ^^^^^^

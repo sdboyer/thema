@@ -1,7 +1,7 @@
 #op: compile
 A lens maps between a version and its predecessor. The first version has no
 predecessor, so a lens in its file has nothing to map from.
--- ship/0.0.thema --
+-- ship/history/0.0.thema --
 Schema: {
 	a: string
 }
@@ -12,15 +12,19 @@ ForwardLens: {
 		a: "x"
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	a: string
+}
 -- out/json --
 {
   "diagnostics": [
     {
       "code": "E0354",
       "severity": "error",
-      "headline": "0.0.thema is the first version, and has no previous version to map from",
+      "headline": "history/0.0.thema is the first version, and has no previous version to map from",
       "primary": {
-        "file": "0.0.thema",
+        "file": "history/0.0.thema",
         "line": 5,
         "col": 1,
         "offset": 24,
@@ -38,8 +42,8 @@ ForwardLens: {
   }
 }
 -- out/text --
-error[E0354]: 0.0.thema is the first version, and has no previous version to map from
- --> 0.0.thema:5:1
+error[E0354]: history/0.0.thema is the first version, and has no previous version to map from
+ --> history/0.0.thema:5:1
   |
 5 | ForwardLens: {
   | ^^^^^^^^^^^

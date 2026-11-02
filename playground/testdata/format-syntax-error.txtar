@@ -2,7 +2,7 @@
 #raw: true
 A file that is not CUE syntax is reported at the parser's position.
 -- request.json --
-{"file": {"path": "1.0.thema", "text": "Schema: {name: string\n"}}
+{"file": {"path": "tip.thema", "text": "Schema: {name: string\n"}}
 -- out/response.json --
 {
   "ok": false,
@@ -12,7 +12,7 @@ A file that is not CUE syntax is reported at the parser's position.
       "severity": "error",
       "headline": "a version file is not CUE syntax",
       "primary": {
-        "file": "1.0.thema",
+        "file": "tip.thema",
         "line": 1,
         "col": 23,
         "offset": 22,

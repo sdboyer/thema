@@ -13,20 +13,23 @@ import (
 const walkRoot = "lineages"
 
 // lineages is a tree of lineages in the authoring form: three examples, one
-// of which does not bind; a lineage that is not an example; and a directory
-// that holds no lineage.
+// of which does not bind; a lineage that is not an example, with no tip; and
+// a directory that holds no lineage.
 func lineages() fstest.MapFS {
 	file := func(s string) *fstest.MapFile { return &fstest.MapFile{Data: []byte(s)} }
 	return fstest.MapFS{
 		"lineages/pets/dog/history/0.0.thema":    file("Schema: {\n\tname: string\n}\n"),
-		"lineages/pets/dog/1.0.thema":            file("Schema: {\n\tname:  string\n\tbreed: string\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {\n\t\tbreed: \"unknown\"\n\t}\n}\n"),
+		"lineages/pets/dog/history/1.0.thema":    file("Schema: {\n\tname:  string\n\tbreed: string\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {\n\t\tbreed: \"unknown\"\n\t}\n}\n"),
+		"lineages/pets/dog/tip.thema":            file("Schema: {\n\tname:  string\n\tbreed: string\n}\n"),
 		"lineages/pets/dog/example.cue":          file("// A dog.\ncategory: \"Pets\"\ntitle:    \"Dog\"\nsummary:  \"A dog, and a breed added at 1.0.\"\n"),
 		"lineages/pets/broken/history/0.0.thema": file("Schema: {\n\tname: string\n}\n"),
-		"lineages/pets/broken/0.1.thema":         file("Schema: {\n\tname: int\n}\n"),
+		"lineages/pets/broken/history/0.1.thema": file("Schema: {\n\tname: int\n}\n"),
+		"lineages/pets/broken/tip.thema":         file("Schema: {\n\tname: int\n}\n"),
 		"lineages/pets/broken/example.cue":       file("category: \"Pet errors\"\n"),
-		"lineages/pets/cat/0.0.thema":            file("Schema: {\n\tlives: int\n}\n"),
+		"lineages/pets/cat/history/0.0.thema":    file("Schema: {\n\tlives: int\n}\n"),
+		"lineages/pets/cat/tip.thema":            file("Schema: {\n\tlives: int\n}\n"),
 		"lineages/pets/cat/example.cue":          file("category: \"Pets\"\n"),
-		"lineages/wip/draft/0.0.thema":           file("Schema: {\n\tx: int\n}\n"),
+		"lineages/wip/draft/history/0.0.thema":   file("Schema: {\n\tx: int\n}\n"),
 		"lineages/notes/readme.md":               file("Not a lineage.\n"),
 	}
 }
@@ -52,8 +55,8 @@ func TestWalkExamples(t *testing.T) {
 		t.Fatalf("walked\n%+v\nwant\n%+v", got, want)
 	}
 	dog := req.Examples[2].Lineage
-	if dog.Name != "dog" || len(dog.Files) != 2 || dog.Normal != nil {
-		t.Errorf("pets/dog's lineage is %+v, want its two version files under its name", dog)
+	if dog.Name != "dog" || len(dog.Files) != 3 || dog.Normal != nil {
+		t.Errorf("pets/dog's lineage is %+v, want its tip and two frozen versions under its name", dog)
 	}
 
 	s := newSession(t)

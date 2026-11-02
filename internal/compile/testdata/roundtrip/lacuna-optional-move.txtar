@@ -12,7 +12,7 @@ Schema: {
 	h?:    int32
 	tag?:  string
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	dimension?: int
 	area?:      int
@@ -45,6 +45,12 @@ ForwardLens: {
 			message: "labels are truncated downstream"
 		}]
 	}
+}
+-- ship/tip.thema --
+Schema: {
+	dimension?: int
+	area?:      int
+	label?:     string
 }
 -- data/0.0/absent.json --
 {}
@@ -56,7 +62,14 @@ ForwardLens: {
 {"w": 20}
 -- out/bind --
 ok
--- out/decompiled/1.0.thema --
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	size?: int
+	w?:    int32
+	h?:    int32
+	tag?:  string
+}
+-- out/decompiled/history/1.0.thema --
 Schema: {
 	dimension?: int
 	area?:      int
@@ -90,12 +103,11 @@ ForwardLens: {
 		}]
 	}
 }
--- out/decompiled/history/0.0.thema --
+-- out/decompiled/tip.thema --
 Schema: {
-	size?: int
-	w?:    int32
-	h?:    int32
-	tag?:  string
+	dimension?: int
+	area?:      int
+	label?:     string
 }
 -- out/normal.cue --
 name: "ship"

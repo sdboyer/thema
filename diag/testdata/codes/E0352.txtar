@@ -8,7 +8,7 @@ arm.
 Schema: {
 	kind: "a" | "b" | "c"
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	allowed: [...string]
 	kind:    or(allowed)
@@ -23,6 +23,11 @@ ForwardLens: {
 		})
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	allowed: [...string]
+	kind:    or(allowed)
+}
 -- out/json --
 {
   "diagnostics": [
@@ -31,7 +36,7 @@ ForwardLens: {
       "severity": "error",
       "headline": "_match on kind: 1.0's kind is not a self-contained type",
       "primary": {
-        "file": "1.0.thema",
+        "file": "history/1.0.thema",
         "line": 10,
         "col": 9,
         "offset": 120,
@@ -55,7 +60,7 @@ ForwardLens: {
 }
 -- out/text --
 error[E0352]: _match on kind: 1.0's kind is not a self-contained type
-  --> 1.0.thema:10:9
+  --> history/1.0.thema:10:9
    |
 10 |         kind: _match(v0_0.kind, {
    |               ^^^^^^

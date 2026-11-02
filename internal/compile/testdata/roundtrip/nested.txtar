@@ -11,7 +11,7 @@ Schema: {
 		h: int
 	}
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	meta: {
 		created: string
@@ -29,35 +29,57 @@ ForwardLens: {
 		meta: {
 			owner: v0_0.ownerName
 		}
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	meta: {
+		created: string
+		owner:   string
+	}
+	dims: {
+		w: int
+		h: int
 	}
 }
 -- out/bind --
 ok
--- out/decompiled/1.0.thema --
-Schema: {
-	meta: {
-		created: string
-		owner:   string
-	}
-	dims: {
-		w: int
-		h: int
-	}
-}
-
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		meta: {
-			owner: v0_0.ownerName
-		}
-	}
-}
 -- out/decompiled/history/0.0.thema --
 Schema: {
 	ownerName: string
 	meta: {
 		created: string
+	}
+	dims: {
+		w: int
+		h: int
+	}
+}
+-- out/decompiled/history/1.0.thema --
+Schema: {
+	meta: {
+		created: string
+		owner:   string
+	}
+	dims: {
+		w: int
+		h: int
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		meta: {
+			owner: v0_0.ownerName
+		}
+	}
+}
+-- out/decompiled/tip.thema --
+Schema: {
+	meta: {
+		created: string
+		owner:   string
 	}
 	dims: {
 		w: int
