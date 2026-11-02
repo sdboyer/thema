@@ -20,6 +20,7 @@ func TestAssignable(t *testing.T) {
 	}
 	lins["shapes"] = shapes
 
+	const expand, optional = "expand", "optional"
 	tt := []struct {
 		lineage string
 		version thema.SyntacticVersion
@@ -40,10 +41,10 @@ func TestAssignable(t *testing.T) {
 		{"defaultchange", thema.SV(1, 0), &DefaultchangeV1_0{}, nil},
 		{"disjunct", thema.SV(0, 0), &DisjunctV0_0{}, nil},
 		{"disjunct", thema.SV(0, 1), &DisjunctV0_1{}, nil},
-		{"expand", thema.SV(0, 0), &ExpandV0_0{}, nil},
-		{"expand", thema.SV(0, 1), &ExpandV0_1{}, []string{"optional"}},
-		{"expand", thema.SV(0, 2), &ExpandV0_2{}, []string{"optional"}},
-		{"expand", thema.SV(0, 3), &ExpandV0_3{}, []string{"optional"}},
+		{expand, thema.SV(0, 0), &ExpandV0_0{}, nil},
+		{expand, thema.SV(0, 1), &ExpandV0_1{}, []string{optional}},
+		{expand, thema.SV(0, 2), &ExpandV0_2{}, []string{optional}},
+		{expand, thema.SV(0, 3), &ExpandV0_3{}, []string{optional}},
 		{"narrowing", thema.SV(0, 0), &NarrowingV0_0{}, nil},
 		{"narrowing", thema.SV(1, 0), &NarrowingV1_0{}, nil},
 		{"rename", thema.SV(0, 0), &RenameV0_0{}, nil},

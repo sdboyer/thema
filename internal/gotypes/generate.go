@@ -55,6 +55,7 @@ import (
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/ast"
+	"cuelang.org/go/cue/cuecontext"
 )
 
 // Root is a CUE value to be generated as a named Go type.
@@ -370,10 +371,10 @@ func (g *generator) emitType(val cue.Value, name string, optionalStg optionalStr
 
 	// Note that type references don't get optionalStg,
 	// as @go(,optional=) only affects fields under the current type expression.
-	if done, facts, err := g.emitTypeReference(val); err != nil {
+	if done, refFacts, err := g.emitTypeReference(val); err != nil {
 		return typeFacts{}, err
 	} else if done {
-		return facts, nil
+		return refFacts, nil
 	}
 
 	// Inline types are below.
@@ -558,11 +559,11 @@ func (g *generator) emitStruct(val cue.Value, typeName string, optionalStg optio
 
 		structNote := g.def.note
 		g.def.note = ""
-		facts, err := g.emitType(val, typeName+goName, optionalStg)
+		fieldFacts, err := g.emitType(val, typeName+goName, optionalStg)
 		if err != nil {
-			return facts, err
+			return fieldFacts, err
 		}
-		if !usePointer(facts, optional, optionalStg) {
+		if !usePointer(fieldFacts, optional, optionalStg) {
 			g.def.src[ptrOffset] = ' '
 		}
 
@@ -607,7 +608,7 @@ func (g *generator) emitNullable(val cue.Value, name string, optionalStg optiona
 	case k == cue.BoolKind || k == cue.IntKind || k == cue.FloatKind || k == cue.StringKind:
 		// Several non-null disjuncts of one scalar kind, such as
 		// `null | int | 1`, are that kind.
-		facts, err = g.emitType(val.Context().CompileString(k.String()), name, optionalStg)
+		facts, err = g.emitType(cuecontext.New().CompileString(k.String()), name, optionalStg)
 	default:
 		facts.isNillable = true // interfaces can be nil
 		g.def.printf("any")
@@ -866,7 +867,6 @@ func (g *generator) emitTypeReference(val cue.Value) (bool, typeFacts, error) {
 	for _, candidate := range refCandidates(val) {
 		root, path = candidate.ReferencePath()
 		if root.Exists() {
-			val = candidate
 			break
 		}
 	}
@@ -956,7 +956,7 @@ func refCandidates(val cue.Value) []cue.Value {
 // emitDocs generates the documentation comments attached to the following declaration.
 // It takes a printf function as we emit docs directly in the generated Go code
 // when emitting the top-level Go type definitions.
-func emitDocs(printf func(string, ...any), name string, groups []*ast.CommentGroup) {
+func emitDocs(printf func(string, ...any), _ string, groups []*ast.CommentGroup) {
 	// TODO: place the comment group starting with `// $name ...` first.
 	// TODO: ensure that the Go name is used in the godoc.
 	for i, group := range groups {

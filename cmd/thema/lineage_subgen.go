@@ -420,7 +420,7 @@ prefixed with it.
 `,
 }
 
-func (gc *genCommand) runGoTypes(cmd *cobra.Command, args []string) error {
+func (gc *genCommand) runGoTypes(cmd *cobra.Command, _ []string) error {
 	cfg := &gocode.TypeConfig{PackageName: gc.pkgname}
 	var f []byte
 	var err error

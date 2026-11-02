@@ -44,7 +44,9 @@ func TestGenerateTypes(t *testing.T) {
 			tc.Fatal(err)
 		}
 		typecheck(tc.T, src)
-		tc.Write(src) //nolint:errcheck
+		if _, err := tc.Write(src); err != nil {
+			tc.Fatal(err)
+		}
 	})
 }
 
@@ -112,12 +114,12 @@ func TestGentestGoldens(t *testing.T) {
 			}
 			path := filepath.Join("internal", "gentest", name+"_gen.go")
 			if envvars.UpdateGoldenFiles {
-				if err := os.WriteFile(path, src, 0644); err != nil {
+				if err = os.WriteFile(path, src, 0o600); err != nil {
 					t.Fatal(err)
 				}
 				return
 			}
-			want, err := os.ReadFile(path)
+			want, err := os.ReadFile(path) //nolint:gosec // the golden file this test writes
 			if err != nil {
 				t.Fatalf("%s; set %s=1 to generate it", err, envvars.VarUpdateGolden)
 			}
