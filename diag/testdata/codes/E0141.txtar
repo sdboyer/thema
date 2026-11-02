@@ -18,7 +18,7 @@ lin: {
     {
       "code": "E0141",
       "severity": "error",
-      "headline": "n in schema 0.0 refers to lin.name, which is declared in the lineage outside the schema",
+      "headline": "n in schema 0.0 refers to name, which is declared in the lineage outside the schema",
       "path": [
         "schemas",
         "0",
@@ -56,7 +56,7 @@ lin: {
   }
 }
 -- out/text --
-error[E0141]: n in schema 0.0 refers to lin.name, which is declared in the lineage outside the schema
+error[E0141]: n in schema 0.0 refers to name, which is declared in the lineage outside the schema
  --> lineage.cue:5:27
   |
 5 |             schema: {a: string, n: lin.name}

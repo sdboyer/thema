@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { TipInfo } from "../api/types";
+import type { TipInfo } from "@sdboyer/thema-ui";
 import { bindSummary, byKind, isHistory, isTip, tipLabel, versionLabel } from "./tip";
 
 const cutting: TipInfo = { version: "1.1", clean: false, provisional: true };

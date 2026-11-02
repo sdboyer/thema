@@ -1,6 +1,8 @@
-The written form of open-target-added's backward lens, with the drop's
+open-target-added with b dropped in a written backward lens, with the drop's
 DroppedField lacuna refined. 0.0 admits a b through its ... but does not
-declare one, so the drop leaves nothing absent that 0.0 requires (#158).
+declare one, so the drop leaves nothing absent that 0.0 requires (#158). The
+derived lens would leave b for translation to carry (#193), so the drop is the
+author's, and decompiles as written.
 -- ship/history/0.0.thema --
 Schema: {
 	a!: string

@@ -1,6 +1,6 @@
 // The diagnostics of one operation, as thema says them: code and headline,
 // where, the notes, help, and CUE's own text when there is any.
-import type { Diagnostic, Pos } from "../api/types";
+import type { Diagnostic, Pos } from "./types";
 import { docsURL } from "./markers";
 
 interface Props {

@@ -27,9 +27,13 @@
 // A lineage whose lenses are written in Go has no lens syntax to hash; this
 // package sees only its CUE.
 //
-// The lineage is the lineage as its author wrote it, not unified with
+// The lineage is hashed as its author wrote it, not unified with
 // thema.Lineage, whose kernel constraints would otherwise be hashed with every
-// lens. Only normalform.go knows where in it a version's schema and lenses are.
+// lens. Whether the author unified it in, embedded it, re-exported a lineage
+// that does, or left it to thema is how the lineage was written or loaded, so
+// what thema contributes is set aside before hashing (authored, in
+// normalform.go), and a lineage has the same ID however it reached the hash.
+// Only normalform.go knows where in it a version's schema and lenses are.
 //
 // What the canonical form is, and what it does and doesn't make equal, is
 // described in canonical.go and pinned by the tests and the golden digests in
@@ -82,7 +86,7 @@ func VersionID(lin cue.Value, v Version) (ID, error) {
 // SchemaForm returns the canonical form of version v's schema in the lineage
 // lin, whose digest is the schema part of v's ID.
 func SchemaForm(lin cue.Value, v Version) (string, error) {
-	sch, err := versionSchema(lin, v)
+	sch, err := versionSchema(authored(lin), v)
 	if err != nil {
 		return "", err
 	}
@@ -98,7 +102,7 @@ func SchemaForm(lin cue.Value, v Version) (string, error) {
 // forward and a backward field for the lenses there are, each holding the
 // lens's source, result and lacunas fields.
 func LensForm(lin cue.Value, v Version) (string, error) {
-	fwd, back, err := versionLenses(lin, v)
+	fwd, back, err := versionLenses(authored(lin), v)
 	if err != nil {
 		return "", err
 	}

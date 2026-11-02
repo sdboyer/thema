@@ -3,7 +3,7 @@
 // Needs npm run sync-thema; skipped without it.
 import { beforeAll, describe, expect, it } from "vitest";
 import type { Thema } from "../api/client";
-import type { DataInput, File, LineageInput } from "../api/types";
+import type { DataInput, File, LineageInput } from "@sdboyer/thema-ui";
 import { haveThema, realThema } from "../test/realThema";
 import { bindSummary } from "../state/tip";
 import { type Step, data, lensFix, majorLens, minorDefault, minorFile, steps } from "./steps";

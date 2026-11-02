@@ -5,7 +5,7 @@ import { EditorView } from "@codemirror/view";
 import { render } from "preact";
 import { act } from "preact/test-utils";
 import { describe, expect, it, vi } from "vitest";
-import type { RegisterExamplesRequest } from "./api/types";
+import type { RegisterExamplesRequest } from "@sdboyer/thema-ui";
 import { haveThema, realThema } from "./test/realThema";
 
 // startThema runs thema in-process; the import waits for the call, since

@@ -1,0 +1,43 @@
+# a lineage that is the whole of another package of the author's module,
+# re-exported here under another name: the evaluator shares that package's
+# value, so the schema's reference to its own definition and the lens's to the
+# instance it takes resolve in the declaring package's root, not this one.
+# They are inside the lineage however it was reached; the package it is
+# declared in is not an import of its own (rule ref-import is not met)
+#issue: 217
+-- in.cue --
+import "example.com/m/ship"
+
+lin: ship
+-- ship/ship.cue --
+package ship
+
+import (
+	"strings"
+	"github.com/sdboyer/thema"
+)
+
+thema.Lineage
+
+name: "refOkReexported"
+schemas: {
+	"0": "0": schema: {#Name: string, name: #Name, tag: string & strings.MaxRunes(3)}
+	"1": "0": schema: {name: string, label: string, tag: string & strings.MaxRunes(3)}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {name: v0_0.name, label: v0_0.name, tag: v0_0.tag}
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {name: v1_0.name, tag: v1_0.tag}
+		lacunas: [{
+			sourceFields: [{path: "label", value: v1_0.label}]
+			message: "label is dropped"
+			type:    "DroppedField"
+		}]
+	}
+}
+-- expect --
+bind ok

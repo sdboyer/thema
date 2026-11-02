@@ -1,0 +1,83 @@
+A lineage in the normal form whose schema refers to a definition, a let and a
+sibling field, and whose lens reads the instance through a let and looks up a
+hidden table of its own by a label the instance decides.
+-- normal.cue --
+import "strings"
+
+name: "ship"
+schemas: {
+	"0": "0": schema: {
+		#Kind: "a" | "b"
+		let max = 8
+		kind:  #Kind
+		name:  string & strings.MaxRunes(max)
+		label: string | *name
+	}
+	"1": "0": schema: {
+		kind: "a" | "b"
+		code: int
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		let k = v0_0.kind
+		_codes: {a: 1, b: 2}
+		v1_0: {
+			kind: k
+			code: _codes[k]
+		}
+		lacunas: [{
+			sourceFields: [{path: "name", value: v0_0.name}, {path: "label", value: v0_0.label}]
+			message: "name and label are dropped"
+			type:    "DroppedField"
+		}]
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			kind:  v1_0.kind
+			name:  ""
+			label: ""
+		}
+		lacunas: [{
+			targetFields: [{path: "name", value: v0_0.name}]
+			message: "name is a placeholder"
+			type:    "Placeholder"
+		}]
+	}
+}
+-- out/verdict --
+# bind
+ok
+# ids
+0.0 bc34bc418b9189991bae8df6466a0fd8f5855a6ae9f8c7a1e66e24d7373640e1:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
+1.0 4e16f8d0a0b1703b5286975d20060563473a4d496d76694a6e41b1e726d7946a:7594c8766b1c0552a994908dcabe0af6082416522174fa17c82963721a75ab6a
+# programs
+lens 0.0->1.0
+out: {
+  out.kind <- in.kind
+  out.code = table in.kind {
+    "a" {
+      out.code = 1
+    }
+    "b" {
+      out.code = 2
+    }
+  }
+}
+lacuna DroppedField {
+  source name = in.name
+  source label = in.label
+  message "name and label are dropped"
+}
+lens 1.0->0.0
+out: {
+  out.kind <- in.kind
+  out.name = ""
+  out.label = ""
+}
+lacuna Placeholder {
+  target name = out.name
+  message "name is a placeholder"
+}

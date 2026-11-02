@@ -33,14 +33,22 @@
 //
 // A field both schemas declare, that no entry mentions, is copied. A reference
 // to an optional source field is copied only when present; where the target
-// requires the field, _coalesce says what to use instead. A match's arms map
+// requires the field, _coalesce says what to use instead (for a struct, a struct
+// of constants). A struct the target may omit is written where there is
+// enough data for it: where any of its content is (the source struct it
+// copies counts, so absent stays absent and empty stays empty), and every
+// field it requires is satisfied. Where its content is present and a required
+// field is not, the struct is not written, and no lacuna is derived for what
+// it would have held: the lens refers to those values. A struct the target requires is written always, as {}
+// where the source lacks it. A match's arms map
 // values to constants; a value no arm matches passes through where the target
 // accepts it, else the [_] arm applies, which must have a lacuna; without one,
 // the arms must be exhaustive: every source value matched or accepted. An _each body is a lens body over _item. A field
 // the forward direction's source has and its target lacks must be mapped or
 // dropped. A required target field must be produced. The backward lens is
 // derived from the forward lens (the inverse of each single-use move, and a
-// drop of each field the version added, with a derived lacuna); what the
+// drop of each field the version added, with a derived lacuna; a struct the
+// version added is dropped whole); what the
 // author writes in BackwardLens overrides it. _coalesce, _match and _each have no
 // derived inverse. A minor version, which the compatibility check derives,
 // has no forward lens and its file is usually just its schema.
@@ -54,9 +62,11 @@
 //	}
 //
 // Without a when, a lacuna applies under the condition its mapping implies:
-// always, for a move or a constant; when the fallback is used, for a _coalesce;
-// when the [_] arm applies, for a match; when the field is present, for a
-// drop. A DroppedField lacuna on a drop refines the derived one's message. A
+// always, for a constant; where it is written, for a move or a computed value
+// (when the optional fields it reads are present); when the fallback is used,
+// for a _coalesce; when the [_] arm applies, for a match; when the field is
+// present (and for a struct or a list, not empty), for a drop. A DroppedField
+// lacuna on a drop refines the derived one's message. A
 // when replaces the implied condition. It compares and combines source
 // fields with CUE's operators, len and the integer divisions (quo, rem, div,
 // mod): what the totality proof proves a boolean. A when that reads an

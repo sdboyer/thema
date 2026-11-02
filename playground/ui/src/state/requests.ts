@@ -1,5 +1,5 @@
 // The request each user operation sends, from the session.
-import type { CodegenRequest, HydrateRequest, TranslateRequest, ValidateAnyRequest, ValidateRequest } from "../api/types";
+import type { CodegenRequest, HydrateRequest, TranslateRequest, ValidateAnyRequest, ValidateRequest } from "@sdboyer/thema-ui";
 import { type CodegenOp, type DataOp, type Session, dataFor, lineageInput } from "./session";
 
 export type UserRequest =

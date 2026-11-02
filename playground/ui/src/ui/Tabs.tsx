@@ -1,7 +1,7 @@
 // Tabs over a list of named texts, with adding, renaming and removing. Frozen
 // tabs are grouped after the others and can be opened but never renamed or
 // removed.
-import { DocLink, type Topic } from "./docs";
+import { DocLink, type Topic } from "@sdboyer/thema-ui";
 
 interface Props {
   names: readonly string[];

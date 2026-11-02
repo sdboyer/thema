@@ -1,0 +1,17 @@
+A schema that refers to another package of its module, which is invalid
+however the lineage was loaded (ref-import): the lineage is the package that
+declares it, and a package it imports is not part of it.
+-- normal.cue --
+import "example.com/fleet/common"
+
+name: "ship"
+schemas: "0": "0": schema: {name: common.#Name}
+-- common/common.cue --
+package common
+
+#Name: string
+-- out/verdict --
+# bind
+E0143 name in schema 0.0 refers to #Name, in package "example.com/fleet/common", which is not one of CUE's builtin packages
+# ids
+0.0 c8ad094e15aaff0378491548021da7c03344338f5acaa93c977276646fcbc206:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a

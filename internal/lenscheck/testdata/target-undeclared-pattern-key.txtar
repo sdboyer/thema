@@ -1,0 +1,14 @@
+# A write of a key that only a pattern constraint of the target matches. Only
+# a field with a predictable name is declared (docs/translation.md, A4), so a
+# lens writes such a key only with the struct that holds it, copied whole.
+-- source.cue --
+env: string
+-- target.cue --
+tags: [string]: string
+-- lens.cue --
+v0_0: _
+v1_0: {tags: {env: v0_0.env}}
+-- out --
+not total
+v1_0.tags.env is not declared by the target schema: only a pattern constraint matches it (rule target-undeclared) @ lens.cue:2:20
+  help: a lens writes only fields declared by name: declare tags.env in the target schema to write it, or copy the struct that holds it whole
