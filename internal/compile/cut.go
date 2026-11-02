@@ -64,8 +64,11 @@ func CutFiles(files []File, v thema.SyntacticVersion) (frozen, tip File, err err
 	}
 
 	// The clean tip is built from fresh import specs, so that no comment
-	// attached to an import comes with them, and from the Schema field with
-	// only its doc comment among the comments attached to the field itself.
+	// attached to an import comes with them; every import is one the Schema
+	// uses, under its own name, since compiling the tip refuses any other
+	// (E0147, E0105), and lenses call the strings functions without one. It
+	// takes the Schema field with only its doc comment among the comments
+	// attached to the field itself.
 	clean := &ast.File{}
 	if len(specs) > 0 {
 		decl := &ast.ImportDecl{}
