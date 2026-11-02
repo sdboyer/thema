@@ -7,6 +7,8 @@ import (
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
+
+	"github.com/sdboyer/thema/internal/cuetil"
 )
 
 // TestLookupPathFieldForms pins what cue.Value.LookupPath finds for each form
@@ -75,5 +77,63 @@ func TestLookupOpenStruct(t *testing.T) {
 	}
 	if !lookup(v, cue.ParsePath("declared")).Exists() {
 		t.Error("lookup did not find a declared optional field")
+	}
+}
+
+// TestLookupDisjunction pins that LookupPath finds nothing beneath a
+// disjunction, while lookup looks the rest of the path up in each alternative:
+// a path every alternative declares is declared, with the disjunction of the
+// alternatives' values, or their one value where they agree; a path only some
+// declare is not. A field is optional where any alternative leaves it so, and
+// marked required only where every alternative marks it (#229).
+func TestLookupDisjunction(t *testing.T) {
+	ctx := cuecontext.New()
+	v := ctx.CompileString(`
+top: {method!: "GET", route!: string, n!: int, path!: {id!: string}, q!: {x!: int}} |
+	{method!: "POST", route!: string, n?: int, path!: {id!: string}, q!: {x?: int, y!: int}, body!: {name!: string}}
+nested: req!: top
+`)
+	if got := v.LookupPath(cue.ParsePath("top")).LookupPath(cue.MakePath(cue.Str("route").Optional())); got.Exists() {
+		t.Errorf("LookupPath found route beneath a disjunction: %v", got)
+	}
+	e := &edge{}
+	for _, base := range []struct{ name, prefix string }{{"top", ""}, {"nested", "req."}} {
+		root := v.LookupPath(cue.ParsePath(base.name))
+		at := func(p string) cue.Path { return cue.ParsePath(base.prefix + p) }
+		for _, c := range []struct {
+			path, want string
+		}{
+			{"route", "string"},
+			{"path.id", "string"},
+			{"method", `"GET" | "POST"`},
+		} {
+			got := lookup(root, at(c.path))
+			if !got.Exists() {
+				t.Errorf("%s: lookup did not find %s, which every alternative declares", base.name, c.path)
+				continue
+			}
+			if err := cuetil.Equal(ctx.CompileString("_").Unify(got), ctx.CompileString(c.want)); err != nil {
+				t.Errorf("%s: lookup of %s is %v, want %s", base.name, c.path, got, c.want)
+			}
+		}
+		for _, p := range []string{"body", "body.name"} {
+			if lookup(root, at(p)).Exists() {
+				t.Errorf("%s: lookup found %s, which only one alternative declares", base.name, p)
+			}
+		}
+		if !e.optional(root, at("n")) || !e.optionalAt(root, at("n")) {
+			t.Errorf("%s: n is optional in one alternative, so it is optional", base.name)
+		}
+		if e.marked(root, at("n")) {
+			t.Errorf("%s: n is marked required in only one alternative, so it is not marked", base.name)
+		}
+		if e.optional(root, at("route")) || !e.marked(root, at("route")) {
+			t.Errorf("%s: every alternative requires route, so it is required", base.name)
+		}
+		// q's alternatives differ, so its value is their disjunction, whose
+		// alternatives hold x.
+		if !lookup(root, at("q.x")).Exists() || !e.optional(root, at("q.x")) {
+			t.Errorf("%s: q.x is declared in every alternative of q, and optional in one", base.name)
+		}
 	}
 }
