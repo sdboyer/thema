@@ -40,6 +40,9 @@ func setupLineageCommand(cmd *cobra.Command) {
 
 	cc := new(checkCommand)
 	cc.setup(linCmd)
+
+	cut := new(cutCommand)
+	cut.setup(linCmd)
 }
 
 func toSubpath(subpath string, f *ast.File) (*ast.File, error) {

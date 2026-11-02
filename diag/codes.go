@@ -234,6 +234,7 @@ var Codes = []CodeInfo{
 	{Code: E1001, Severity: SeverityWarning, Title: "a lens on the edge into the tip is missing", Sentinels: []error{terrors.ErrProvisional}},
 	{Code: E1002, Severity: SeverityError, Title: "a translation needs a lens the tip does not have yet", Sentinels: []error{terrors.ErrProvisional}, Positionless: true},
 	{Code: E1003, Severity: SeverityError, Title: "the tip is not clean: it differs from the newest version in history/", Sentinels: []error{terrors.ErrProvisional}},
+	{Code: E1004, Severity: SeverityError, Title: "the tip cannot be cut while a lens on its edge is missing", Sentinels: []error{terrors.ErrProvisional}},
 }
 
 // The codes.
@@ -471,6 +472,7 @@ const (
 	E1001 Code = "E1001" // a lens the edge into the tip needs, which tip.thema does not write and derivation cannot produce
 	E1002 Code = "E1002" // translating across the edge into the tip, where the lens is missing
 	E1003 Code = "E1003" // the tip differs from the newest version in history/, or declares lenses
+	E1004 Code = "E1004" // cutting a tip whose edge still lacks a lens (E1001)
 )
 
 // Lookup returns the declaration of c.

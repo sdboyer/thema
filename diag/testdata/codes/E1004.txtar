@@ -1,0 +1,62 @@
+#op: cut
+The tip removes a field without writing the lenses that say where the
+field goes, and is cut. A version that has been cut never changes, so the
+lenses on the edge into it have to be written before it is: the development
+path tolerates a missing lens as a warning (E1001), and cutting refuses it.
+Each lens still missing is a note. Write the lenses in `tip.thema`, then cut
+it.
+-- ship/history/0.0.thema --
+Schema: {
+	a: string
+	b: int
+}
+-- ship/tip.thema --
+Schema: {
+	a: string
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E1004",
+      "severity": "error",
+      "headline": "the tip cannot be cut as 1.0 while a lens on its edge is missing",
+      "primary": {
+        "file": "tip.thema",
+        "line": 1,
+        "col": 1,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "tip.thema has no ForwardLens, and one cannot be derived"
+        },
+        {
+          "label": "tip.thema has no BackwardLens, and one cannot be derived"
+        },
+        {
+          "label": "a version that has been cut never changes, so the lenses into it are written before it is"
+        }
+      ],
+      "help": [
+        "write the missing lenses in tip.thema, then cut it"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E1004]: the tip cannot be cut as 1.0 while a lens on its edge is missing
+ --> tip.thema:1:1
+  |
+1 | Schema: {
+  | ^^^^^^
+  |
+  = note: tip.thema has no ForwardLens, and one cannot be derived
+  = note: tip.thema has no BackwardLens, and one cannot be derived
+  = note: a version that has been cut never changes, so the lenses into it are written before it is
+  = help: write the missing lenses in tip.thema, then cut it
