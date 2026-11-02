@@ -29,10 +29,15 @@ import (
 // expression tree with Expr(), and every node that is a reference reports,
 // through ReferencePath(), the root it resolves in and its absolute path there.
 // The pair classifies it: a root that is a builtin or thema's package is
-// allowed, another package is ref-import, and in the author's own instance the
-// path is compared with the lineage's and the owner's: within the owner is its
-// own body, under schemas or lenses names another schema or lens, elsewhere in
-// the lineage is lineage meta, and outside the lineage is outside. The
+// allowed; a path under the lineage, in a root the lineage is declared in
+// (placement.go), is compared with the owner's, relative to the lineage:
+// within the owner is its own body, under schemas or lenses names another
+// schema or lens, and elsewhere in the lineage is lineage meta; outside the
+// lineage, a root it is declared in is outside, and another package is
+// ref-import. Which root a reference resolves in is the evaluator's choice,
+// and differs with how the lineage was loaded, so the lineage's own path in
+// the root it was bound under decides nothing, and a reference inside the
+// lineage is spelled from the lineage in a finding. The
 // evaluator has already resolved aliases, selector chains and constant index
 // expressions, so each arrives as a plain path; an index that depends on the
 // instance stays an IndexOp, whose base is classified with the selection
@@ -187,43 +192,16 @@ type refChecker struct {
 	// lin is the lineage as bound: the author's value, with thema.Lineage
 	// unified in where the author did so.
 	lin cue.Value
-	// files are the files the author declared the lineage in: the filenames
-	// of the positions of its conjuncts and of its top-level fields, outside
-	// thema's own CUE.
-	files map[string]bool
+	// placed says where the lineage is declared, to place a reference inside
+	// it or outside it (placement.go).
+	placed *placements
 	// predeclared caches which unresolved identifiers CUE predeclares (int,
 	// string, len, self, ...), asked of the evaluator; see references_syntax.go.
 	predeclared map[string]bool
 }
 
 func newRefChecker(ctx *cue.Context, lin cue.Value) *refChecker {
-	rc := &refChecker{ctx: ctx, lin: lin, files: make(map[string]bool), predeclared: make(map[string]bool)}
-	for _, f := range declaringFiles(lin) {
-		rc.files[f] = true
-	}
-	return rc
-}
-
-// declaringFiles returns the files a value is declared in: the filenames of
-// the positions of its conjuncts and of its top-level fields' conjuncts,
-// outside thema's own CUE. A value thema unified in Go has no position of its
-// own, but its conjuncts and fields keep theirs.
-func declaringFiles(v cue.Value) []string {
-	var files []string
-	note := func(v cue.Value) {
-		for _, c := range cuetil.AppendSplit(v, cue.AndOp, nil) {
-			if pos := c.Pos(); pos.IsValid() && !embedreg.IsKernel(pos) {
-				files = append(files, pos.Filename())
-			}
-		}
-	}
-	note(v)
-	if iter, err := v.Fields(); err == nil {
-		for iter.Next() {
-			note(iter.Value())
-		}
-	}
-	return files
+	return &refChecker{ctx: ctx, lin: lin, placed: placeLineage(lin), predeclared: make(map[string]bool)}
 }
 
 // check returns the references in o that break a rule: those the value shows,
@@ -233,47 +211,6 @@ func (rc *refChecker) check(o refOwner) []refFinding {
 	w.walkValue(o.v, 0)
 	w.walkSyntax()
 	return w.findings
-}
-
-// isAuthorRoot reports whether root, the value a reference resolves in, is the
-// author's own instance: the one that holds the lineage at its path, declared
-// in the lineage's files. Each package is a root of its own, declared in its
-// own files, so a reference into another package resolves in a root whose
-// value at the lineage's path, if any, is declared elsewhere. The lineage
-// value itself cannot be compared with root: it may be a value thema unified
-// in Go from several declarations, and a value's position tells where its
-// first conjunct is, not what it is. The files are matched two ways, as a root
-// knows them differently by how it was built: an instance loaded from files
-// lists them (BuildInstance), and one built from syntax (BuildFile) has only
-// the positions its nodes carry.
-func (rc *refChecker) isAuthorRoot(root cue.Value) bool {
-	at := root.LookupPath(rc.lin.Path())
-	if !at.Exists() {
-		return false
-	}
-	if len(rc.files) == 0 {
-		// A lineage with no positions: nothing more to compare.
-		return true
-	}
-	if bi := root.BuildInstance(); bi != nil {
-		for _, f := range bi.Files {
-			if rc.files[f.Filename] {
-				return true
-			}
-		}
-	}
-	for _, f := range declaringFiles(at) {
-		if rc.files[f] {
-			return true
-		}
-	}
-	return false
-}
-
-// relToLineage returns p, an absolute path in the author's instance under the
-// lineage, relative to the lineage.
-func (rc *refChecker) relToLineage(p cue.Path) cue.Path {
-	return cue.MakePath(p.Selectors()[len(rc.lin.Path().Selectors()):]...)
 }
 
 // refWalker walks one owner's fields, classifying each reference.
@@ -401,17 +338,18 @@ func (w *refWalker) walkContents(v cue.Value, depth int) {
 	}
 }
 
-// resolved is what a reference denotes: a path in a root. The root is the
-// author's instance, a package, or unknown: a value reached by dereferencing
-// a struct the evaluator holds (the base of an embedded reference), which is
-// the author's, since a package would have a build instance of its own.
+// resolved is what a reference denotes: a path in a root. The root is a
+// root the lineage is declared in, a package, or unknown: a value reached by
+// dereferencing a struct the evaluator holds (the base of an embedded
+// reference), which encloses the reference and so lies in the root it is
+// evaluated in.
 type resolved struct {
 	root cue.Value
 	// pkg is the import path of the package root is, if it is one.
 	pkg string
-	// author says root is the author's instance.
-	author bool
-	path   cue.Path
+	// rootless says root is unknown.
+	rootless bool
+	path     cue.Path
 }
 
 // resolve returns what v denotes, if v is a reference. ReferencePath answers
@@ -422,7 +360,7 @@ type resolved struct {
 // a reference itself or a value Dereference reaches.
 func (w *refWalker) resolve(v cue.Value) (resolved, bool) {
 	if root, p := v.ReferencePath(); isRefPath(p) {
-		return w.rooted(root, p), true
+		return rooted(root, p), true
 	}
 	op, args := v.Expr()
 	switch op {
@@ -443,28 +381,38 @@ func (w *refWalker) resolve(v cue.Value) (resolved, bool) {
 	case cue.NoOp:
 		if bi := v.BuildInstance(); bi != nil {
 			// A package, the base of a selection of one of its members.
-			return resolved{root: v, pkg: bi.ImportPath}, true
+			return rooted(v, cue.Path{}), true
 		}
 		d := cue.Dereference(v)
 		if d == v || d.Err() != nil || !d.Exists() || d.Path().Err() != nil {
 			return resolved{}, false
 		}
 		if len(d.Path().Selectors()) == 0 {
-			return w.rooted(d, cue.Path{}), true
+			return rooted(d, cue.Path{}), true
 		}
-		return resolved{author: true, path: d.Path()}, true
+		return resolved{rootless: true, path: d.Path()}, true
 	}
 	return resolved{}, false
 }
 
-// rooted classifies root, the value a reference resolves in.
-func (w *refWalker) rooted(root cue.Value, p cue.Path) resolved {
+// rooted is what a reference resolving to p in root denotes.
+func rooted(root cue.Value, p cue.Path) resolved {
 	r := resolved{root: root, path: p}
 	if bi := root.BuildInstance(); bi != nil {
 		r.pkg = bi.ImportPath
 	}
-	r.author = w.rc.isAuthorRoot(root)
 	return r
+}
+
+// place returns r's path relative to the lineage, if it lies within it, and
+// whether r's root is one the lineage is declared in.
+func (w *refWalker) place(r resolved) (rel cue.Path, inside, declaring bool) {
+	if r.rootless {
+		rel, inside = w.rc.placed.relByPath(r.path)
+		return rel, inside, true
+	}
+	rel, inside = w.rc.placed.rel(r.root, r.path)
+	return rel, inside, inside || w.rc.placed.declares(r.root)
 }
 
 // pathText renders a path as an author writes it: a label that is not an
@@ -519,11 +467,6 @@ func letValue(v cue.Value) (cue.Value, bool) {
 // something further from what it resolves to by a label only an instance
 // decides.
 func (w *refWalker) reference(v cue.Value, r resolved, dynamic bool) {
-	p := r.path
-	expr := pathText(p)
-	if dynamic {
-		expr += "[...]"
-	}
 	pos := v.Pos()
 	if w.usePos.IsValid() {
 		pos = w.usePos
@@ -531,19 +474,24 @@ func (w *refWalker) reference(v cue.Value, r resolved, dynamic bool) {
 	if r.pkg != "" && (compat.IsBuiltinPackage(r.pkg) || isThemaPackage(r.pkg)) {
 		return
 	}
-	if !r.author {
-		if r.pkg != "" {
+	rel, inside, declaring := w.place(r)
+	if !inside {
+		// Outside the lineage, a path is the author's as written in the root
+		// it resolves in, whichever way the lineage was loaded.
+		expr := pathText(r.path)
+		if dynamic {
+			expr += "[...]"
+		}
+		if !declaring && r.pkg != "" {
 			w.add(refImport, expr, r.pkg, w.field, pos)
 			return
 		}
 		w.add(refOutsideLineage, expr, "", w.field, pos)
 		return
 	}
-	if !cuetil.PathHasPrefix(p, w.rc.lin.Path()) {
-		w.add(refOutsideLineage, expr, "", w.field, pos)
-		return
-	}
-	rel := w.rc.relToLineage(p)
+	// Inside, it is named from the lineage: its path in the root it resolves
+	// in depends on where the evaluator placed the lineage.
+	expr := relText(rel, dynamic)
 	if dynamic && cuetil.PathHasPrefix(w.owner.rel, rel) {
 		// Selecting by an unknown label from the lineage, or from a struct
 		// between it and the owner: the owner itself or a sibling, no telling.
@@ -554,6 +502,20 @@ func (w *refWalker) reference(v cue.Value, r resolved, dynamic bool) {
 		return
 	}
 	w.inLineage(rel.Selectors(), dynamic, expr, w.field, pos)
+}
+
+// relText renders a path relative to the lineage, as reference renders it:
+// the lineage itself is "the lineage", and a selection by a label only an
+// instance decides ends in [...].
+func relText(rel cue.Path, dynamic bool) string {
+	text := pathText(rel)
+	if text == "" {
+		text = "the lineage"
+	}
+	if dynamic {
+		text += "[...]"
+	}
+	return text
 }
 
 // inLineage classifies a reference into the lineage, outside the owner, by the

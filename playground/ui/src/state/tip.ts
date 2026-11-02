@@ -1,7 +1,7 @@
 // The two kinds of file in a lineage's directory: tip.thema, the one an
 // author edits, and the versions under history/, which are cut and never
 // change. And how the tip's version reads wherever versions are shown.
-import type { File, TipInfo } from "../api/types";
+import type { File, TipInfo } from "@sdboyer/thema-ui";
 
 export const tipFile = "tip.thema";
 export const historyDir = "history/";

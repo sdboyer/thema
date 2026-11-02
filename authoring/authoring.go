@@ -85,7 +85,7 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 // compiled like any other. A lineage with no tip.thema is an error (E0149).
 // Bind the result with [BindDevelopment].
 func CompileDevelopment(ctx *cue.Context, name string, files []File) (*Compiled, error) {
-	return compile.CompileDevelopment(ctx, name, files)
+	return compile.Development(ctx, name, files)
 }
 
 // BindDevelopment binds a lineage compiled by [CompileDevelopment], with the

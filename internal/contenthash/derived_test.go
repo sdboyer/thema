@@ -72,9 +72,9 @@ func TestLensDigestDerivedDropRenumbered(t *testing.T) {
 		edge string
 		from string
 	}{{published, "0.1->0.0", "0.0"}, {renumbered, "1.1->1.0", "1.0"}} {
-		msg, err := c.lin.LookupPath(cue.MakePath(cue.Str("lenses"), cue.Str(c.edge), cue.Str("lacunas"), cue.Index(0), cue.Str("message"))).String()
-		if err != nil {
-			t.Fatalf("%s: %v", c.edge, err)
+		msg, merr := c.lin.LookupPath(cue.MakePath(cue.Str("lenses"), cue.Str(c.edge), cue.Str("lacunas"), cue.Index(0), cue.Str("message"))).String()
+		if merr != nil {
+			t.Fatalf("%s: %v", c.edge, merr)
 		}
 		if !strings.Contains(msg, c.from) {
 			t.Fatalf("%s's derived lacuna says %q, which does not name %s: the test no longer shows what it means to", c.edge, msg, c.from)

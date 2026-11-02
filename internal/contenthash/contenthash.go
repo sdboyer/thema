@@ -2,10 +2,15 @@
 // from its content: two SHA-256 digests, of its schema and of the lenses on
 // the edge into it, each taken over a canonical form of that content.
 //
-// A version's ID is written <schema>:<lens>, each digest as 64 lowercase hex
-// characters. Hex never contains the separator, so the ID splits unambiguously,
-// and the digest is the bare hash, with no algorithm prefix (sha256:...) whose
-// colon would collide with it.
+// A version's ID is written <schema>:<lens>, each digest as its tag, a dot and
+// 64 lowercase hex characters: g2.<hex> in generation 2. The tag names the generation of the
+// canonical form the digest was taken over, and marks a digest computed with a
+// CUE other than the one that generation was certified against (g2u.<hex>);
+// see Generation and CertifiedCUE. Neither the tag nor hex contains the
+// separators, so the ID splits unambiguously, and the hash is bare, with no
+// algorithm prefix (sha256:...) whose colon would collide with the separator.
+// A digest equals another only when generation, certification and hash all
+// match.
 //
 // The schema digest covers what the schema means for the instances validated
 // against it: the schema unified with the lineage's joinSchema. Not the
@@ -32,9 +37,13 @@
 // A lineage whose lenses are written in Go has no lens syntax to hash; this
 // package sees only its CUE.
 //
-// The lineage is the lineage as its author wrote it, not unified with
+// The lineage is hashed as its author wrote it, not unified with
 // thema.Lineage, whose kernel constraints would otherwise be hashed with every
-// lens. Only normalform.go knows where in it a version's schema and lenses are.
+// lens. Whether the author unified it in, embedded it, re-exported a lineage
+// that does, or left it to thema is how the lineage was written or loaded, so
+// what thema contributes is set aside before hashing (authored, in
+// normalform.go), and a lineage has the same ID however it reached the hash.
+// Only normalform.go knows where in it a version's schema and lenses are.
 //
 // What the canonical form is, and what it does and doesn't make equal, is
 // described in canonical.go and pinned by the tests and the golden digests in
@@ -52,12 +61,24 @@ import (
 	"github.com/sdboyer/thema/internal/cuetil"
 )
 
-// Digest is a SHA-256 digest of a canonical form.
-type Digest [sha256.Size]byte
+// Digest is a SHA-256 digest of a canonical form, with the generation of that
+// form and whether it was computed with the CUE the generation is certified
+// against.
+type Digest struct {
+	Generation int
+	Certified  bool
+	Sum        [sha256.Size]byte
+}
 
-// String returns d as 64 lowercase hex characters.
+// digest returns the digest of the canonical form form, computed by the
+// running binary.
+func digest(form string) Digest {
+	return Digest{Generation: Generation, Certified: certified(), Sum: sha256.Sum256([]byte(form))}
+}
+
+// String returns d as its tag, a dot and 64 lowercase hex characters.
 func (d Digest) String() string {
-	return hex.EncodeToString(d[:])
+	return tag(d.Generation, d.Certified) + "." + hex.EncodeToString(d.Sum[:])
 }
 
 // ID is the identity of a schema version: the digests of its schema and of the
@@ -82,13 +103,13 @@ func VersionID(lin cue.Value, v Version) (ID, error) {
 	if err != nil {
 		return id, err
 	}
-	return ID{Schema: sha256.Sum256([]byte(sch)), Lens: sha256.Sum256([]byte(lens))}, nil
+	return ID{Schema: digest(sch), Lens: digest(lens)}, nil
 }
 
 // SchemaForm returns the canonical form of version v's schema in the lineage
 // lin, whose digest is the schema part of v's ID.
 func SchemaForm(lin cue.Value, v Version) (string, error) {
-	sch, err := versionSchema(lin, v)
+	sch, err := versionSchema(authored(lin), v)
 	if err != nil {
 		return "", err
 	}
@@ -104,7 +125,7 @@ func SchemaForm(lin cue.Value, v Version) (string, error) {
 // forward and a backward field for the lenses there are, each holding the
 // lens's source, result and lacunas fields.
 func LensForm(lin cue.Value, v Version) (string, error) {
-	fwd, back, err := versionLenses(lin, v)
+	fwd, back, err := versionLenses(authored(lin), v)
 	if err != nil {
 		return "", err
 	}
@@ -188,7 +209,7 @@ func lensSyntax(lens cue.Value, from, to Version) (ast.Expr, error) {
 // names the version it drops a field from, which is position; and rewording a
 // message is not a change to a published lens.
 //
-// A message is a field labelled message anywhere in the lacunas, wherever the
+// A message is a field labeled message anywhere in the lacunas, wherever the
 // lacuna is written: a struct in the list, under a comprehension, combined
 // with thema.Lacuna, or bound in a let. The one place a field of that name is
 // not a lacuna's is inside a reported field's value, the instance data a

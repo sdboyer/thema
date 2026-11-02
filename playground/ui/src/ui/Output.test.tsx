@@ -1,6 +1,6 @@
 import { render } from "preact";
 import { describe, expect, it } from "vitest";
-import { docsBase } from "./docs";
+import { docsBase } from "@sdboyer/thema-ui";
 import { Output } from "./Output";
 
 describe("Output", () => {

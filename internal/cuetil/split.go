@@ -2,10 +2,11 @@ package cuetil
 
 import (
 	"fmt"
-	"strings"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/token"
+
+	"github.com/sdboyer/thema/internal/embedreg"
 )
 
 // AppendSplit recursively splits an expression in a single cue.Value by a
@@ -58,13 +59,13 @@ func PrintPosList(v cue.Value) {
 }
 
 // PoslistWithoutThema returns all token.Pos associated with a given cue.Value, omitting
-// any token.Pos that point to thema.
+// any token.Pos that point to thema's own CUE (embedreg.IsKernel), and not
+// those of an author's module whose path merely contains thema's.
 func PoslistWithoutThema(v cue.Value) []token.Pos {
 	vals := AppendSplit(v, cue.AndOp, nil)
 	poslist := make([]token.Pos, 0, len(vals))
 	for _, dval := range vals {
-		// TODO not sure if we should expect os-sensitive path separators here or not
-		if pos := dval.Pos(); pos != token.NoPos && !strings.Contains(pos.Filename(), "github.com/sdboyer/thema") {
+		if pos := dval.Pos(); pos != token.NoPos && !embedreg.IsKernel(pos) {
 			poslist = append(poslist, pos)
 		}
 	}

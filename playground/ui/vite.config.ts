@@ -7,11 +7,16 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   base: "./",
   plugins: [preact()],
+  // The editor components come from the workspace's own source, so the
+  // playground always runs exactly what the package ships.
+  resolve: {
+    conditions: ["source"],
+  },
   build: {
     target: "es2022",
   },
   test: {
     environment: "jsdom",
-    setupFiles: ["src/test/setup.ts"],
+    setupFiles: ["../components/test/setup.ts"],
   },
 });

@@ -4,7 +4,7 @@
 // Each step's claims about thema's answers are held to by steps.wasm.test.ts,
 // against the real thema: the data to paste, the codes named, and the
 // results shown.
-import type { Topic } from "../ui/docs";
+import type { Topic } from "@sdboyer/thema-ui";
 
 export interface Snippet {
   // label says where the snippet goes.

@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/sdboyer/thema/authoring"
 )
 
 // runThema runs the thema CLI in dir with args, by re-executing this test
@@ -36,8 +38,8 @@ func writeTipDir(t *testing.T, tip string) string {
 		t.Fatal(err)
 	}
 	for name, text := range map[string]string{
-		"history/0.0.thema": "Schema: {\n\tname: string\n}\n",
-		"tip.thema":         tip,
+		historyV00:        "Schema: {\n\tname: string\n}\n",
+		authoring.TipFile: tip,
 	} {
 		if err := os.WriteFile(filepath.Join(dir, filepath.FromSlash(name)), []byte(text), 0o600); err != nil {
 			t.Fatal(err)
@@ -45,6 +47,22 @@ func writeTipDir(t *testing.T, tip string) string {
 	}
 	return dir
 }
+
+// Strings the CLI tests repeat.
+const (
+	historyV00    = "history/0.0.thema"
+	minorTipLabel = "tip (cuts as 0.1)\n"
+	tipFlag       = "--tip"
+	v00           = "0.0"
+	lineageCmd    = "lineage"
+	tipName       = "tip"
+	toFlag        = "--to"
+	cutsAsKey     = "cutsAs"
+	fromKey       = "from"
+	toKey         = "to"
+	v01           = "0.1"
+	argo          = `{"name": "Argo"}`
+)
 
 const (
 	cleanTip = "Schema: {\n\tname: string\n}\n"
@@ -61,14 +79,14 @@ func TestLineageTip(t *testing.T) {
 	}{
 		{"clean", cleanTip, false, "tip (clean at 0.0)\n", ""},
 		{"clean, checked", cleanTip, true, "tip (clean at 0.0)\n", ""},
-		{"minor", minorTip, false, "tip (cuts as 0.1)\n", ""},
+		{"minor", minorTip, false, minorTipLabel, ""},
 		{"major", majorTip, false, "tip (cuts as 1.0)\n", ""},
-		{"not clean, checked", minorTip, true, "tip (cuts as 0.1)\n", "E1003"},
+		{"not clean, checked", minorTip, true, minorTipLabel, "E1003"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			dir := writeTipDir(t, c.tip)
-			args := []string{"lineage", "tip", "-l", dir}
+			args := []string{lineageCmd, tipName, "-l", dir}
 			if c.check {
 				args = append(args, "--check-clean")
 			}
@@ -94,22 +112,21 @@ func TestDataTip(t *testing.T) {
 		t.Errorf("without --tip, the history accepts crew: stdout %q", out)
 	}
 
-	out, errOut, err := runThema(t, dir, doc, "data", "validate-any", "-l", dir, "--tip")
+	out, errOut, err := runThema(t, dir, doc, "data", "validate-any", "-l", dir, tipFlag)
 	if err != nil {
 		t.Fatalf("validate-any --tip: %v\n%s", err, errOut)
 	}
-	if out != "tip (cuts as 0.1)\n" {
+	if out != minorTipLabel {
 		t.Errorf("validate-any --tip = %q, want the tip", out)
 	}
 
-	out, errOut, err = runThema(t, dir, doc, "data", "validate", "-l", dir, "--tip", "-v", "tip")
+	out, errOut, err = runThema(t, dir, doc, "data", "validate", "-l", dir, tipFlag, "-v", tipName)
 	if err != nil {
 		t.Fatalf("validate --tip -v tip: %v\n%s\n%s", err, out, errOut)
 	}
-
 }
 
-// thema data translate names the tip "tip" in its JSON, with the version it
+// thema data translate names the tip tipName in its JSON, with the version it
 // cuts as beside it, and prints a translation that does not involve the tip
 // as it would without --tip.
 func TestDataTranslateTip(t *testing.T) {
@@ -119,16 +136,16 @@ func TestDataTranslateTip(t *testing.T) {
 		args      []string
 		want      map[string]any // the output's fields other than result and lacunas
 	}{
-		{"into the tip", `{"name": "Argo"}`, []string{"--tip", "--to", "0.1"},
-			map[string]any{"from": "0.0", "to": "tip", "cutsAs": "0.1"}},
-		{"into the tip, named tip", `{"name": "Argo"}`, []string{"--tip", "--to", "tip"},
-			map[string]any{"from": "0.0", "to": "tip", "cutsAs": "0.1"}},
-		{"out of the tip", `{"name": "Argo", "crew": 3}`, []string{"--tip", "--to", "0.0"},
-			map[string]any{"from": "tip", "to": "0.0", "cutsAs": "0.1"}},
-		{"within the history, with --tip", `{"name": "Argo"}`, []string{"--tip", "--to", "0.0"},
-			map[string]any{"from": "0.0", "to": "0.0"}},
-		{"without --tip", `{"name": "Argo"}`, []string{"--to", "0.0"},
-			map[string]any{"from": "0.0", "to": "0.0"}},
+		{"into the tip", argo, []string{tipFlag, toFlag, v01},
+			map[string]any{fromKey: v00, toKey: tipName, cutsAsKey: v01}},
+		{"into the tip, named tip", argo, []string{tipFlag, toFlag, tipName},
+			map[string]any{fromKey: v00, toKey: tipName, cutsAsKey: v01}},
+		{"out of the tip", `{"name": "Argo", "crew": 3}`, []string{tipFlag, toFlag, v00},
+			map[string]any{fromKey: tipName, toKey: v00, cutsAsKey: v01}},
+		{"within the history, with --tip", argo, []string{tipFlag, toFlag, v00},
+			map[string]any{fromKey: v00, toKey: v00}},
+		{"without --tip", argo, []string{toFlag, v00},
+			map[string]any{fromKey: v00, toKey: v00}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -153,7 +170,7 @@ func TestDataTranslateTip(t *testing.T) {
 // translating into it fails with E1002.
 func TestDataTipMissingLens(t *testing.T) {
 	dir := writeTipDir(t, majorTip)
-	out, errOut, err := runThema(t, dir, `{"name": "Argo"}`, "data", "translate", "-l", dir, "--tip", "--to", "1.0")
+	out, errOut, err := runThema(t, dir, argo, "data", "translate", "-l", dir, tipFlag, toFlag, "1.0")
 	if err == nil {
 		t.Fatalf("translating into the tip succeeded:\n%s", out)
 	}
@@ -169,7 +186,7 @@ func TestDataTipTakesAuthoringForm(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "ship.cue"), []byte(stdinTestLineage), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	_, errOut, err := runThema(t, dir, `{"a": "x"}`, "data", "validate-any", "-l", "ship.cue", "-p", "lin", "--tip")
+	_, errOut, err := runThema(t, dir, `{"a": "x"}`, "data", "validate-any", "-l", "ship.cue", "-p", "lin", tipFlag)
 	if err == nil || !strings.Contains(errOut, "E0620") {
 		t.Errorf("err = %v, stderr:\n%s\nwant E0620", err, errOut)
 	}

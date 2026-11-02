@@ -14,6 +14,13 @@ import (
 	"github.com/sdboyer/thema/load"
 )
 
+// The keys and files of the versions the tests write.
+const (
+	key00     = "0.0"
+	key10     = "1.0"
+	history10 = "history/1.0.thema"
+)
+
 const (
 	ship00 = "Schema: {\n\ta: string\n}\n"
 	ship01 = "Schema: {\n\ta:  string\n\tc?: int\n}\n"
@@ -83,7 +90,7 @@ func revision(t *testing.T, rt *thema.Runtime, name string, files map[string]str
 
 // published is the revision on record: 0.0, 0.1 and 1.0.
 func published() map[string]string {
-	return map[string]string{"0.0": ship00, "0.1": ship01, "1.0": ship10}
+	return map[string]string{key00: ship00, "0.1": ship01, key10: ship10}
 }
 
 func with(files map[string]string, changes map[string]string) map[string]string {
@@ -141,21 +148,21 @@ ForwardLens: {
 		"identical":      {candidate: published()},
 		"appended minor": {candidate: with(published(), map[string]string{"1.1": ship11})},
 		"appended major": {candidate: with(published(), map[string]string{"1.1": ship11, "2.0": ship20})},
-		"comments only":  {candidate: with(published(), map[string]string{"0.0": commented})},
-		"changed schema": {candidate: with(published(), map[string]string{"1.0": changedSchema}), want: []finding{{diag.E0250, "history/1.0.thema"}}},
-		"changed lens":   {candidate: with(published(), map[string]string{"1.0": fixedLens}), want: []finding{{diag.E0251, "history/1.0.thema"}}},
-		"removed":        {candidate: with(published(), map[string]string{"1.0": ""}), want: []finding{{diag.E0252, ""}}},
-		"renamed":        {name: "boat", candidate: published(), want: []finding{{diag.E0254, "history/1.0.thema"}}},
+		"comments only":  {candidate: with(published(), map[string]string{key00: commented})},
+		"changed schema": {candidate: with(published(), map[string]string{key10: changedSchema}), want: []finding{{diag.E0250, history10}}},
+		"changed lens":   {candidate: with(published(), map[string]string{key10: fixedLens}), want: []finding{{diag.E0251, history10}}},
+		"removed":        {candidate: with(published(), map[string]string{key10: ""}), want: []finding{{diag.E0252, ""}}},
+		"renamed":        {name: "boat", candidate: published(), want: []finding{{diag.E0254, history10}}},
 		"inserted": {
-			published: map[string]string{"0.0": ship00, "1.0": strings.Replace(noC, "v0_1", "v0_0", 1)},
-			candidate: map[string]string{"0.0": ship00, "0.1": "Schema: {\n\ta:  string\n\tb?: int\n}\n", "1.0": noC},
+			published: map[string]string{key00: ship00, key10: strings.Replace(noC, "v0_1", "v0_0", 1)},
+			candidate: map[string]string{key00: ship00, "0.1": "Schema: {\n\ta:  string\n\tb?: int\n}\n", key10: noC},
 			// 1.0's derived BackwardLens now copies b to 0.1, where it
 			// dropped it on the way to 0.0.
-			want: []finding{{diag.E0251, "history/1.0.thema"}, {diag.E0253, "history/0.1.thema"}},
+			want: []finding{{diag.E0251, history10}, {diag.E0253, "history/0.1.thema"}},
 		},
 		// Removing 0.1 also changes both of 1.0's lenses: the copies they
 		// imply are of 0.0's fields, not 0.1's.
-		"every violation": {name: "boat", candidate: map[string]string{"0.0": ship00, "1.0": strings.Replace(changedSchema, "v0_1", "v0_0", 1)}, want: []finding{{diag.E0254, "history/1.0.thema"}, {diag.E0252, ""}, {diag.E0250, "history/1.0.thema"}, {diag.E0251, "history/1.0.thema"}, {diag.E0251, "history/1.0.thema"}}},
+		"every violation": {name: "boat", candidate: map[string]string{key00: ship00, key10: strings.Replace(changedSchema, "v0_1", "v0_0", 1)}, want: []finding{{diag.E0254, history10}, {diag.E0252, ""}, {diag.E0250, history10}, {diag.E0251, history10}, {diag.E0251, history10}}},
 	}
 	rt := thema.NewRuntime(cuecontext.New())
 	for name, tt := range tests {
@@ -199,7 +206,7 @@ func TestVersionID(t *testing.T) {
 		return got
 	}
 	pub := revision(t, rt, "ship", published())
-	fixed := revision(t, rt, "ship", with(published(), map[string]string{"1.0": `Schema: {
+	fixed := revision(t, rt, "ship", with(published(), map[string]string{key10: `Schema: {
 	a:  string
 	b:  int
 	c?: int
@@ -212,7 +219,7 @@ ForwardLens: {
 	}
 }
 `}))
-	commented := revision(t, rt, "ship", with(published(), map[string]string{"1.0": "// The ship, with b.\n" + ship10}))
+	commented := revision(t, rt, "ship", with(published(), map[string]string{key10: "// The ship, with b.\n" + ship10}))
 
 	was, now := id(pub, thema.SV(1, 0)), id(fixed, thema.SV(1, 0))
 	if was.Schema != now.Schema || was.Lens == now.Lens {
@@ -224,8 +231,8 @@ ForwardLens: {
 	if a, b := id(pub, thema.SV(0, 0)), id(pub, thema.SV(0, 1)); a.Schema == b.Schema {
 		t.Errorf("0.0 and 0.1 have one schema digest, %s", a.Schema)
 	}
-	if s := was.String(); len(s) != 64+1+64 || s[64] != ':' {
-		t.Errorf("ID %q is not <schema>:<lens>", s)
+	if s, want := was.String(), was.Schema.String()+":"+was.Lens.String(); s != want {
+		t.Errorf("ID %q is not <schema>:<lens>, %q", s, want)
 	}
 }
 

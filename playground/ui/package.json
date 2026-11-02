@@ -21,6 +21,7 @@
     "@codemirror/state": "6.5.0",
     "@codemirror/view": "6.36.1",
     "@lezer/highlight": "1.2.5",
+    "@sdboyer/thema-ui": "0.0.0",
     "preact": "10.29.8"
   },
   "devDependencies": {

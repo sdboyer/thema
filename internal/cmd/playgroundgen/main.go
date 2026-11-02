@@ -6,7 +6,7 @@
 //	go generate ./cmd/thema/playground
 //
 // It needs node, with the frontend's dependencies installed (npm ci in
-// playground/ui). thema.wasm and its loaders go first to playground/ui/public,
+// playground, the workspace of playground/ui and playground/components). thema.wasm and its loaders go first to playground/ui/public,
 // where the frontend's dev server and tests find them, so that one build
 // serves both; the frontend's build then writes the bundle to -out, which is
 // emptied first, and the rest is added:
@@ -60,9 +60,10 @@ func run(out string) error {
 	if out, err = filepath.Abs(out); err != nil {
 		return err
 	}
-	ui := filepath.Join(root, "playground", "ui")
-	if _, err = os.Stat(filepath.Join(ui, "node_modules")); err != nil {
-		return fmt.Errorf("the frontend's dependencies are not installed: run npm ci in %s", ui)
+	ws := filepath.Join(root, "playground")
+	ui := filepath.Join(ws, "ui")
+	if _, err = os.Stat(filepath.Join(ws, "node_modules")); err != nil {
+		return fmt.Errorf("the frontend's dependencies are not installed: run npm ci in %s", ws)
 	}
 
 	// thema's side, beside the frontend's worker: the dev server and the
@@ -104,7 +105,7 @@ func run(out string) error {
 	if err = writeGzip(filepath.Join(out, "thema.wasm.gz"), b); err != nil {
 		return err
 	}
-	if err = copyFile(filepath.Join(out, "types.ts"), filepath.Join(ui, "src", "api", "types.ts")); err != nil {
+	if err = copyFile(filepath.Join(out, "types.ts"), filepath.Join(ws, "components", "src", "types.ts")); err != nil {
 		return err
 	}
 	m := playground.Manifest{ThemaVersion: util.ThemaModuleVersion, WasmSHA256: hex.EncodeToString(sum[:])}

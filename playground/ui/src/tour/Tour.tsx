@@ -1,7 +1,7 @@
 // The tour, as a column beside the playground: every step at once, to follow
 // by hand, with the data to paste and what to expect.
 import { useState } from "preact/hooks";
-import { DocLink } from "../ui/docs";
+import { DocLink } from "@sdboyer/thema-ui";
 import { type Snippet, type Step, steps } from "./steps";
 
 export function Tour({ onClose }: { onClose: () => void }) {

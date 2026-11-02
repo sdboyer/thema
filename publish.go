@@ -14,7 +14,7 @@ import (
 // the SHA-256 digest of the canonical form of its schema (Schema), and that
 // of the lenses on the edge into it (Lens), the forward lens from its
 // predecessor and the backward lens to it. Its String form is
-// <schema>:<lens>, each digest as 64 lowercase hex characters.
+// <schema>:<lens>, each a [Digest]: g2.<64 lowercase hex characters>.
 //
 // The schema digest covers the schema as instances are validated against it,
 // joined with the lineage's joinSchema; the lens digest covers what each lens
@@ -29,8 +29,13 @@ import (
 // was when it was published is read from the published lineage.
 type VersionID = contenthash.ID
 
-// A Digest is one half of a [VersionID]: a SHA-256 digest of a canonical form.
-// Its String form is 64 lowercase hex characters.
+// A Digest is one half of a [VersionID]: a SHA-256 digest of a canonical
+// form, with the generation of that form and whether it was computed with the
+// CUE the generation is certified against. Its String form is the tag, a dot
+// and 64 lowercase hex characters: g2.<hex>, or g2u.<hex> when uncertified.
+// Digests of different generations, or a certified and an uncertified one,
+// are never equal: they differ by how they were computed, which says nothing
+// about the content.
 type Digest = contenthash.Digest
 
 // ID returns the identity of the schema's version. See [VersionID].

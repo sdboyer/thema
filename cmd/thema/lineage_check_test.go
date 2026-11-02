@@ -32,13 +32,13 @@ func writeHistory(t *testing.T, root, name, tip string, history map[string]strin
 // lineage's, never the tip, and positions what it finds in the candidate.
 func TestLineageCheck(t *testing.T) {
 	const (
-		v00 = "Schema: {\n\tname: string\n}\n"
-		// v00Edit's Schema is on its third line, where v00 has its closing
+		ship00 = "Schema: {\n\tname: string\n}\n"
+		// ship00Edit's Schema is on its third line, where ship00 has its closing
 		// brace: the excerpt tells whose file it was read from.
-		v00Edit = "// The ship.\n// Its name may not be empty.\nSchema: {\n\tname: string & !=\"\"\n}\n"
+		ship00Edit = "// The ship.\n// Its name may not be empty.\nSchema: {\n\tname: string & !=\"\"\n}\n"
 	)
 	root := t.TempDir()
-	published := writeHistory(t, filepath.Join(root, "published"), "ship", v00, map[string]string{"0.0": v00})
+	published := writeHistory(t, filepath.Join(root, "published"), "ship", ship00, map[string]string{v00: ship00})
 	cases := []struct {
 		name    string
 		tip     string
@@ -46,10 +46,10 @@ func TestLineageCheck(t *testing.T) {
 		code    string // in stderr, when the check fails
 		excerpt string // in stderr, from the candidate's files
 	}{
-		{name: "identical", tip: v00, history: map[string]string{"0.0": v00}},
-		{name: "appended", tip: minorTip, history: map[string]string{"0.0": v00, "0.1": minorTip}},
-		{name: "a tip that differs", tip: majorTip, history: map[string]string{"0.0": v00}},
-		{name: "changed", tip: v00Edit, history: map[string]string{"0.0": v00Edit}, code: "E0250", excerpt: "3 | Schema: {"},
+		{name: "identical", tip: ship00, history: map[string]string{v00: ship00}},
+		{name: "appended", tip: minorTip, history: map[string]string{v00: ship00, "0.1": minorTip}},
+		{name: "a tip that differs", tip: majorTip, history: map[string]string{v00: ship00}},
+		{name: "changed", tip: ship00Edit, history: map[string]string{v00: ship00Edit}, code: "E0250", excerpt: "3 | Schema: {"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -68,7 +68,7 @@ func TestLineageCheck(t *testing.T) {
 // --published is required, and must bind.
 func TestLineageCheckPublished(t *testing.T) {
 	root := t.TempDir()
-	candidate := writeHistory(t, root, "ship", cleanTip, map[string]string{"0.0": cleanTip})
+	candidate := writeHistory(t, root, "ship", cleanTip, map[string]string{v00: cleanTip})
 	for name, c := range map[string]struct {
 		args []string
 		code string

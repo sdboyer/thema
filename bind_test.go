@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	cerrors "cuelang.org/go/cue/errors"
 )
@@ -77,5 +78,26 @@ func TestLensSyntaxErrorPositions(t *testing.T) {
 				t.Fatalf("no error mentions %q: %s", c.err, cerrors.Details(err, nil))
 			}
 		})
+	}
+}
+
+// thema.Lineage is recognized by what it is, a field of thema's package, not
+// by its name: an author's own field called Lineage, unified into the lineage,
+// is the author's, and thema still unifies its own Lineage in.
+func TestBindAuthorFieldNamedLineage(t *testing.T) {
+	ctx := cuecontext.New()
+	v := ctx.CompileString(`
+Lineage: {name: string}
+lin: Lineage & {
+	name: "ship"
+	schemas: "0": "0": schema: {a: string}
+}
+`).LookupPath(cue.ParsePath("lin"))
+	lin, err := BindLineage(v, NewRuntime(ctx))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !lin.Underlying().LookupPath(cue.ParsePath("joinSchema")).Exists() {
+		t.Error("the bound lineage was not unified with thema.Lineage: the author's field named Lineage was taken for it")
 	}
 }

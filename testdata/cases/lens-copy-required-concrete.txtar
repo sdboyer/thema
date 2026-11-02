@@ -1,0 +1,57 @@
+# a lens copies required fields whose values are concrete: a single-value
+# enum, a number and a bool, a required constant in a struct and in the
+# elements of an open and a fixed-length list, and a required closed struct of
+# constants. Every instance has them, so a copy is an instance of the target,
+# and the instance translates across the step and back.
+#issue: 154
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+)
+
+lin: thema.Lineage & {
+	name: "lensCopyRequiredConcrete"
+	schemas: {
+		"0": "0": {
+			schema: {
+				k!: "U"
+				i!: 1
+				b!: true
+				n: {k!: "U"}
+				l: [...{k!: "U"}]
+				f: [{k!: "U"}]
+				c!: close({a: "U"})
+			}
+		}
+		"0": "1": {
+			schema: {
+				k!: "U"
+				i!: 1
+				b!: true
+				n: {k!: "U"}
+				l: [...{k!: "U"}]
+				f: [{k!: "U"}]
+				c!: close({a: "U"})
+				e?: string
+			}
+		}
+	}
+	lenses: {
+		"0.1->0.0": {
+			v0_1: _
+			v0_0: {
+				k: v0_1.k
+				i: v0_1.i
+				b: v0_1.b
+				n: k: v0_1.n.k
+				l: [for x in v0_1.l {k: x.k}]
+				f: [{k: v0_1.f[0].k}]
+				c: v0_1.c
+			}
+		}
+	}
+}
+-- expect --
+bind ok
+translate 0.0 0.1 ok {k: "U", i: 1, b: true, n: {k: "U"}, l: [{k: "U"}], f: [{k: "U"}], c: {a: "U"}}
+translate 0.1 0.0 ok {k: "U", i: 1, b: true, n: {k: "U"}, l: [{k: "U"}], f: [{k: "U"}], c: {a: "U"}, e: "x"}

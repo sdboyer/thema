@@ -121,8 +121,8 @@ func TestDevelopmentLineageMissingLens(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := inst.Translate(thema.SV(1, 0)); err != nil {
-		t.Errorf("translating within the history: %v", err)
+	if _, _, terr := inst.Translate(thema.SV(1, 0)); terr != nil {
+		t.Errorf("translating within the history: %v", terr)
 	}
 	_, _, err = inst.Translate(thema.SV(2, 0))
 	if got := strings.Join(codesOf(err), ","); got != "E1002" {
