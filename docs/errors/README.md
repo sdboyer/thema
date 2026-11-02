@@ -202,3 +202,4 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E1001](E1001.md) | warning | a lens on the edge into the tip is missing |
 | [E1002](E1002.md) | error | a translation needs a lens the tip does not have yet |
 | [E1003](E1003.md) | error | the tip is not clean: it differs from the newest version in history/ |
+| [E1004](E1004.md) | error | the tip cannot be cut while a lens on its edge is missing |

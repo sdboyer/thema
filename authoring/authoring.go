@@ -8,8 +8,8 @@
 // alone: what binds is what was cut. The development path, [CompileDevelopment]
 // and [BindDevelopment], adds the tip as a provisional newest version, at the
 // version it would be cut as, and tolerates the lenses its edge does not have
-// yet. [ReadTip] derives that version, and [CheckClean] checks that the tip
-// was cut.
+// yet. [ReadTip] derives that version, [CutTip] cuts the tip to history/ at
+// it, and [CheckClean] checks that the tip was cut.
 //
 // The common cases, loading a lineage's directory and binding it, are one
 // call each: [github.com/sdboyer/thema/load.AuthoringLineage] and

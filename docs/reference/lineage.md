@@ -198,8 +198,9 @@ A lineage is written in one of two forms.
 
 Converting between the forms:
 
-- In Go, the `authoring` package compiles (`authoring.Compile`, and `authoring.CompileDevelopment` with the tip), decompiles (`authoring.Decompile`) and formats (`authoring.Format`). `load.AuthoringLineage` loads, compiles and binds a directory in one call; `load.DevelopmentLineage` does the same with the tip.
+- In Go, the `authoring` package compiles (`authoring.Compile`, and `authoring.CompileDevelopment` with the tip), decompiles (`authoring.Decompile`), formats (`authoring.Format`) and cuts the tip (`authoring.CutTip`). `load.AuthoringLineage` loads, compiles and binds a directory in one call; `load.DevelopmentLineage` does the same with the tip.
 - `thema lineage fmt -l <dir>` lays out a directory's version files in place, in the authoring form's [layout](../authoring-form.md#layout). It does not bind the lineage.
+- `thema lineage cut -l <dir> [--dry-run]` cuts the tip to `history/` at the version it cuts as, writing the frozen version and the clean tip in place; with `--dry-run` it prints them and writes nothing. In Go, `authoring.CutTip(rt *thema.Runtime, name string, files []authoring.File) (*authoring.Cut, error)` returns the files after the cut, for the caller to write. A tip whose edge still lacks a lens is not cut (`E1004`), and a clean tip has nothing to cut ([The tip](../authoring-form.md#the-tip)).
 - Every CLI command that takes `-l` accepts a `.cue` file, a directory holding a CUE package, or a directory in the authoring form.
 - In the playground, "Show as normal form" compiles the version files, with the tip, to the normal form, and "Show as version files" decompiles the normal form to version files and a clean tip. Decompiling requires the lineage to bind.
 
@@ -233,7 +234,7 @@ Binding takes a lineage in the normal form, checks that it satisfies every invar
 
 Where step 8 finds a result that is not an instance of its target, and the totality proof can name the rule broken, the totality finding is reported in place of `E0304`. The rules behind steps 5, 10 and 11 are stated in [invariants](../invariants.md): [Schema constructs](../invariants.md#schema-constructs), [Backwards compatibility](../invariants.md#backwards-compatibility), [References](../invariants.md#references) and [Lens totality](../invariants.md#lens-totality). Every code is listed in [Error codes](../errors/README.md).
 
-A lineage in the authoring form is checked by the compiler before it is bound: the files, their version numbering, whether each version is minor or major, and each lens's mappings and lacunas (`E0101`–`E0112`, `E0148`–`E0150`, `E0204`–`E0206`, `E0330`–`E0357`, `E0410`–`E0423`). Binding then runs every step above on the compiled normal form. On the development path, the tip's missing lenses and its cleanness are reported as `E1001`–`E1003`.
+A lineage in the authoring form is checked by the compiler before it is bound: the files, their version numbering, whether each version is minor or major, and each lens's mappings and lacunas (`E0101`–`E0112`, `E0148`–`E0150`, `E0204`–`E0206`, `E0330`–`E0357`, `E0410`–`E0423`). Binding then runs every step above on the compiled normal form. On the development path, the tip's missing lenses and its cleanness are reported as `E1001`–`E1003`, and cutting a tip that still lacks a lens as `E1004`.
 
 **Options.**
 

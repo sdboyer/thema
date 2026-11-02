@@ -380,6 +380,15 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 		}
 		return diag.Diagnostics(err)
 	},
+	// cut: cut the authoring files' tip (authoring.CutTip).
+	"cut": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {
+		name, files := authoringFiles(t, a)
+		_, err := authoring.CutTip(thema.NewRuntime(cuecontext.New()), name, files)
+		if err == nil {
+			t.Fatal("the tip was cut")
+		}
+		return diag.Diagnostics(err)
+	},
 	// decompile: bind lineage.cue and decompile it to the authoring form.
 	"decompile": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {
 		ctx := cuecontext.New()
