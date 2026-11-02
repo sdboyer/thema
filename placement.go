@@ -239,3 +239,50 @@ func declaringFiles(v cue.Value) []string {
 	}
 	return files
 }
+
+// narrowings returns the conjuncts of lin that narrow its joinSchema from
+// outside the lineage's text (docs/invariants.md, References). The lineage's
+// text is the conjuncts that declare its schemas; a joinSchema written in one
+// of them is the lineage's own. Any other conjunct that sets a joinSchema
+// narrows it: a struct at the use (request & {joinSchema: X}), a field held
+// elsewhere (request & _narrow), or a definition the lineage is unified with
+// (#Op: headers: thema.Lineage & {joinSchema: X}). References are followed to
+// the conjuncts they are made of, as placements are. A lineage that declares
+// no schemas has no text to tell a narrowing from, and nothing narrows it.
+func narrowings(lin cue.Value) []cue.Value {
+	var out []cue.Value
+	declared := false
+	var walk func(v cue.Value, depth int)
+	walk = func(v cue.Value, depth int) {
+		if depth > maxPlacementDepth {
+			return
+		}
+		for _, c := range cuetil.AppendSplit(v, cue.AndOp, nil) {
+			if kernelPos(c) {
+				continue
+			}
+			if root, p := c.ReferencePath(); root.Exists() && p.Err() == nil {
+				if inst := root.BuildInstance(); inst == nil || !isThemaPackage(inst.ImportPath) {
+					walk(root.LookupPath(p), depth+1)
+				}
+				continue
+			}
+			switch {
+			case declaresSchemas(c):
+				declared = true
+			case c.LookupPath(cue.MakePath(cue.Str(labelJoinSchema))).Exists():
+				out = append(out, c)
+			}
+		}
+	}
+	walk(lin, 0)
+	if !declared {
+		return nil
+	}
+	return out
+}
+
+// declaresSchemas reports whether v declares a lineage's schemas.
+func declaresSchemas(v cue.Value) bool {
+	return v.LookupPath(cue.MakePath(cue.Str(labelSchemas))).Exists()
+}

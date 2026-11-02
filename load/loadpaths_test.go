@@ -9,8 +9,12 @@ import (
 	"testing/fstest"
 
 	"cuelang.org/go/cue"
+	"cuelang.org/go/cue/ast"
 	"cuelang.org/go/cue/cuecontext"
+	"cuelang.org/go/cue/format"
+	"cuelang.org/go/cue/literal"
 	"cuelang.org/go/cue/load"
+	"cuelang.org/go/cue/parser"
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/sdboyer/thema"
@@ -50,6 +54,13 @@ import (
 // another package of the lineage's module (common/common.cue), for a lineage
 // that imports one; only the paths that load a module can load it. out/verdict
 // records the result every path gave; regenerate it with THEMA_UPDATE_GOLDEN=1.
+//
+// An archive may also hold narrowing.cue: a struct that narrows the lineage's
+// joinSchema where package fleet uses it (lin: ship & {joinSchema: ...}),
+// with the imports it needs. A narrowed use is a lineage of its own, so such
+// an archive is loaded only along the narrowed paths, which apply the
+// narrowing at the use in each way it can be applied, and they must agree
+// with one another (docs/invariants.md, References).
 //
 // A path is added as one more row in loadPaths. Two are pending #212: the
 // normal form generated beside the authoring files (normalized.gen.cue) loaded
@@ -109,6 +120,10 @@ type lpFixture struct {
 	text string
 	// module holds the module's other files, by path from its root.
 	module map[string]string
+	// narrowing is the expression that narrows the lineage at its use, and
+	// narrowingImports the packages it imports, if the archive narrows it.
+	narrowing        string
+	narrowingImports []string
 }
 
 func readLPFixture(t *testing.T, a *diagtest.Archive) lpFixture {
@@ -121,6 +136,8 @@ func readLPFixture(t *testing.T, a *diagtest.Archive) lpFixture {
 			files = append(files, authoring.File{Path: name, Text: f.Data})
 		case f.Name == "normal.cue":
 			fx.text = "package " + lpPackage + "\n\n" + string(f.Data)
+		case f.Name == "narrowing.cue":
+			fx.narrowing, fx.narrowingImports = readNarrowing(t, f.Data)
 		default:
 			fx.module[f.Name] = string(f.Data)
 		}
@@ -142,6 +159,45 @@ func readLPFixture(t *testing.T, a *diagtest.Archive) lpFixture {
 	return fx
 }
 
+// readNarrowing returns the expression narrowing.cue embeds, and the
+// packages it imports.
+func readNarrowing(t *testing.T, data []byte) (string, []string) {
+	t.Helper()
+	f, err := parser.ParseFile("narrowing.cue", data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var imports []string
+	for spec := range f.ImportSpecs() {
+		path, uerr := literal.Unquote(spec.Path.Value)
+		if uerr != nil {
+			t.Fatal(uerr)
+		}
+		imports = append(imports, path)
+	}
+	var expr ast.Expr
+	for _, d := range f.Decls {
+		switch d := d.(type) {
+		case *ast.ImportDecl:
+		case *ast.EmbedDecl:
+			if expr != nil {
+				t.Fatal("narrowing.cue embeds more than one expression")
+			}
+			expr = d.Expr
+		default:
+			t.Fatalf("narrowing.cue declares %T; it holds imports and one expression", d)
+		}
+	}
+	if expr == nil {
+		t.Fatal("narrowing.cue embeds no expression")
+	}
+	text, err := format.Node(expr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(text), imports
+}
+
 // A loadPath is one way a lineage reaches BindLineage.
 type loadPath struct {
 	name string
@@ -153,6 +209,9 @@ type loadPath struct {
 	// module says the path loads the lineage from a module, which can hold
 	// the other packages a lineage imports.
 	module bool
+	// narrowed says the path narrows the lineage where package fleet uses
+	// it, and loads only archives that hold a narrowing.
+	narrowed bool
 	// load returns the lineage value to bind.
 	load func(t *testing.T, ctx *cue.Context, fx lpFixture) cue.Value
 }
@@ -286,11 +345,81 @@ var loadPaths = []loadPath{
 			}, "fleet", "flagship")
 		},
 	},
+	{
+		// Narrowed where package fleet uses it.
+		name: "narrowed", narrowed: true, module: true,
+		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
+			return narrowedLoad(t, ctx, fx, nil, "flagship: ship & %s")
+		},
+	},
+	{
+		// Narrowed through a field of package fleet that holds the narrowing.
+		name: "narrowed-field", narrowed: true, module: true,
+		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
+			return narrowedLoad(t, ctx, fx, nil, "_narrow:  %s\nflagship: ship & _narrow")
+		},
+	},
+	{
+		// Narrowed where it is re-exported through a hidden field.
+		name: "narrowed-chain", narrowed: true, module: true,
+		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
+			return narrowedLoad(t, ctx, fx, nil, "_ship:    ship\nflagship: _ship & %s")
+		},
+	},
+	{
+		// Narrowed and unified with thema.Lineage where it is used.
+		name: "narrowed-unified", narrowed: true, module: true,
+		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
+			return narrowedLoad(t, ctx, fx, nil, "flagship: thema.Lineage & ship & %s", "github.com/sdboyer/thema")
+		},
+	},
+	{
+		// Narrowed where it is used, from a package ship that embeds
+		// thema.Lineage.
+		name: "narrowed-embedded", narrowed: true, module: true,
+		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
+			return narrowedLoad(t, ctx, fx, map[string]string{lpPackage + "/lineage.cue": embedLineage}, "flagship: ship & %s")
+		},
+	},
+	{
+		// Narrowed by a definition of package fleet, as a framework narrows
+		// the lineages its declarations hold.
+		name: "narrowed-definition", narrowed: true, module: true,
+		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
+			return narrowedLoad(t, ctx, fx, nil, "#Op: headers: thema.Lineage & %s\nop: #Op & {headers: ship}\nflagship: op.headers", "github.com/sdboyer/thema")
+		},
+	},
+	{
+		// Imported into package fleet, which is the lineage, and narrowed
+		// there: the package embeds the import and the narrowing.
+		name: "narrowed-root", narrowed: true, module: true,
+		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
+			return narrowedLoad(t, ctx, fx, nil, "ship\n%s")
+		},
+	},
+}
+
+// narrowedLoad loads package fleet, which uses the lineage as decl does, with
+// %s in decl standing for the narrowing, and returns the use: flagship, or the
+// package itself when decl declares no flagship.
+func narrowedLoad(t *testing.T, ctx *cue.Context, fx lpFixture, extra map[string]string, decl string, imports ...string) cue.Value {
+	t.Helper()
+	files := map[string]string{fleetFile: fleet(fmt.Sprintf(decl, fx.narrowing), append(imports, fx.narrowingImports...)...)}
+	for name, text := range extra {
+		files[name] = text
+	}
+	path := ""
+	if strings.Contains(decl, "flagship:") {
+		path = "flagship"
+	}
+	return overlayLoad(t, ctx, fx, files, "fleet", path)
 }
 
 // loads reports whether p can load fx.
 func (p loadPath) loads(fx lpFixture) bool {
 	switch {
+	case p.narrowed != (fx.narrowing != ""):
+		return false
 	case p.compiled:
 		return fx.compiled != nil
 	case len(fx.module) > 0:

@@ -1,0 +1,18 @@
+# a lineage narrowed where it is used: its joinSchema is unified in from
+# outside the lineage's text, beside a reference to the lineage, and may refer
+# to what is declared beside the use (rule ref-outside-lineage is not met).
+# Keeping the narrowing consistent is whatever composes the lineage's job
+#issue: 238
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+request: thema.Lineage & {
+	name: "request_headers"
+	schemas: "0": "0": schema: authorization?: =~"^Bearer "
+}
+
+#RequestHeaders: {[=~"^[!#$%&'*+.^_`|~0-9a-z-]+$"]: string, ...}
+consumes: "application/json"
+lin: request & {joinSchema: #RequestHeaders & {"content-type"?: consumes}}
+-- expect --
+bind ok

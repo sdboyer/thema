@@ -1,0 +1,17 @@
+# a narrowed lineage whose own joinSchema refers outside it: only what the
+# narrowing unifies in may refer out of the lineage, and the joinSchema the
+# lineage writes is refused as it is unnarrowed (rule ref-outside-lineage)
+#issue: 238
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+#Outside: {authorization?: string, ...}
+request: thema.Lineage & {
+	name: "request_headers"
+	joinSchema: #Outside
+	schemas: "0": "0": schema: authorization?: =~"^Bearer "
+}
+
+lin: request & {joinSchema: {"content-type"?: string, ...}}
+-- expect --
+bind fail error[E0142]: joinSchema refers to #Outside

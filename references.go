@@ -2,6 +2,7 @@ package thema
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -105,6 +106,11 @@ type refOwner struct {
 	// takes is the name of the field a lens binds the instance it takes to
 	// (cuetil.LensParam), for the lens rule's wording.
 	takes string
+	// narrowing holds, for the joinSchema, its declarations in conjuncts that
+	// narrow the lineage from outside its text (narrowings). A reference out
+	// of the lineage is admitted in them; one into it is classified as
+	// anywhere else.
+	narrowing []cue.Value
 }
 
 // refFinding is one reference that breaks a rule.
@@ -208,7 +214,7 @@ func newRefChecker(ctx *cue.Context, lin cue.Value) *refChecker {
 // in field order, then those only the syntax shows (pending comprehensions).
 func (rc *refChecker) check(o refOwner) []refFinding {
 	w := &refWalker{rc: rc, owner: o, seen: make(map[string]bool)}
-	w.walkValue(o.v, 0)
+	w.walkOwner()
 	w.walkSyntax()
 	return w.findings
 }
@@ -226,6 +232,43 @@ type refWalker struct {
 	// usePos, when valid, positions findings at the field using a let, while
 	// the let's value is walked.
 	usePos token.Pos
+	// outsideOK admits references out of the lineage, while a declaration
+	// that narrows the lineage is walked.
+	outsideOK bool
+}
+
+// walkOwner walks the owner's value. The owner is the conjunction of its
+// declarations; those that narrow the lineage (o.narrowing) are walked with
+// references out of the lineage admitted. A declaration is a field in the
+// author's text, and is matched with the conjunct of the owner it gives by
+// its position, the field's: an owner with several declarations is their
+// conjunction, one conjunct each, and an owner with one is that declaration's
+// value, whose own conjuncts are expressions within it. The owner is walked
+// as the lineage holds it, not split from the lineage's conjuncts, so that
+// every reference resolves as it does in the lineage: a conjunct split from a
+// lineage that is a root no longer resolves in that root.
+func (w *refWalker) walkOwner() {
+	narrowed := make(map[token.Pos]bool, len(w.owner.narrowing))
+	for _, n := range w.owner.narrowing {
+		if pos := n.Pos(); pos.IsValid() {
+			narrowed[pos] = true
+		}
+	}
+	op, args := w.owner.v.Expr()
+	if op == cue.AndOp && slices.ContainsFunc(args, func(a cue.Value) bool { return narrowed[a.Pos()] }) {
+		for _, a := range args {
+			if kernelPos(a) {
+				continue
+			}
+			w.outsideOK = narrowed[a.Pos()]
+			w.walkValue(a, 1)
+		}
+		w.outsideOK = false
+		return
+	}
+	w.outsideOK = narrowed[w.owner.v.Pos()]
+	w.walkValue(w.owner.v, 0)
+	w.outsideOK = false
 }
 
 func (w *refWalker) add(rule refRule, expr, pkg string, field []string, pos token.Pos) {
@@ -475,6 +518,9 @@ func (w *refWalker) reference(v cue.Value, r resolved, dynamic bool) {
 		return
 	}
 	rel, inside, declaring := w.place(r)
+	if !inside && w.outsideOK {
+		return
+	}
 	if !inside {
 		// Outside the lineage, a path is the author's as written in the root
 		// it resolves in, whichever way the lineage was loaded.

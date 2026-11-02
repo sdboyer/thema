@@ -1,0 +1,21 @@
+A lineage narrowed where package fleet uses it: the narrowing refers to a
+definition in another package of the module and to nothing of the lineage's,
+and is admitted however it is applied, since the unification happens outside
+the lineage's text (#238). The narrowed use is a lineage of its own, and its
+schema digests cover the narrowing.
+-- normal.cue --
+name: "ship"
+schemas: "0": "0": schema: {authorization?: =~"^Bearer "}
+-- narrowing.cue --
+import "example.com/fleet/common"
+
+{joinSchema: common.#Headers & {"content-type"?: "application/json"}}
+-- common/common.cue --
+package common
+
+#Headers: {[=~"^[a-z-]+$"]: string, ...}
+-- out/verdict --
+# bind
+ok
+# ids
+0.0 g2.bddfdd419c4f885cf41bd0339d3144052ef3c207817cff8c1d9c3bd2a734e6e9:g2.44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a

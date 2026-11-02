@@ -796,7 +796,11 @@ func (ml *maybeLineage) checkReferences() error {
 	}
 	// thema's default joinSchema is _, which joins nothing and is not the author's.
 	if rel := cue.MakePath(cue.Str(labelJoinSchema)); ml.raw.LookupPath(rel).IncompleteKind() != cue.TopKind {
-		check(refOwner{name: labelJoinSchema, addr: diag.Address{Kind: diag.AddrJoinSchema}, v: ml.raw.LookupPath(rel), rel: rel})
+		var narrowing []cue.Value
+		for _, c := range narrowings(ml.raw) {
+			narrowing = append(narrowing, c.LookupPath(rel))
+		}
+		check(refOwner{name: labelJoinSchema, addr: diag.Address{Kind: diag.AddrJoinSchema}, v: ml.raw.LookupPath(rel), rel: rel, narrowing: narrowing})
 	}
 	if len(errs) > 0 {
 		return diag.Join(errs...)

@@ -1,0 +1,26 @@
+# a package that is a lineage by embedding another package's lineage, and
+# narrows it: the embedded package declares the lineage, and the package's own
+# joinSchema narrows it, referring to a third package
+#issue: 238
+-- in.cue --
+import (
+	"example.com/m/ship"
+	"example.com/m/hdr"
+)
+
+ship
+joinSchema: hdr.#H
+-- ship/ship.cue --
+package ship
+
+import "github.com/sdboyer/thema"
+
+thema.Lineage
+name: "ship"
+schemas: "0": "0": schema: authorization?: =~"^Bearer "
+-- hdr/hdr.cue --
+package hdr
+
+#H: {[=~"^[a-z-]+$"]: string, ...}
+-- expect --
+bind ok
