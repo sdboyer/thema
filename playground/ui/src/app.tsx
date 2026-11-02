@@ -5,20 +5,21 @@ import {
   type ExampleInfo,
   type GetExampleResponse,
   type Language,
+  type Outcome,
   Diagnostics,
   DocLink,
   Editor,
+  OpBar,
+  Output,
+  Tabs,
   filesOf,
-  hasDoc,
+  isCodegen,
   markersFor,
 } from "@sdboyer/thema-ui";
 import { type Thema, fetchHostExamples, startThema } from "./api/client";
-import { argsOf, isCodegen, requestFor } from "./state/requests";
+import { requestFor } from "./state/requests";
 import {
   type Session,
-  type UserOp,
-  codegenOps,
-  dataOps,
   decodeShare,
   emptySession,
   encodeShare,
@@ -27,8 +28,6 @@ import {
 } from "./state/session";
 import { bindSummary, byKind, isHistory, tipFile, tipLabel, versionLabel } from "./state/tip";
 import { Tour } from "./tour/Tour";
-import { type Outcome, Output } from "./ui/Output";
-import { Tabs } from "./ui/Tabs";
 
 // bindDelay is how long the page waits after an edit before binding.
 const bindDelay = 300;
@@ -338,7 +337,17 @@ export function App() {
         </section>
 
         <section class="work" aria-label="Operations and results">
-          <OpBar session={session} versions={versions} label={label} update={update} onRun={run} running={running} disabled={!lineageOK} />
+          <OpBar
+            op={session.op}
+            args={session.args}
+            versions={versions}
+            label={label}
+            onOp={(op) => update((s) => ({ ...s, op }))}
+            onArgs={(args) => update((s) => ({ ...s, args }))}
+            onRun={run}
+            running={running}
+            disabled={lineageOK ? undefined : "The lineage must bind first"}
+          />
 
           {usesData && (
             <>
@@ -403,71 +412,6 @@ export function App() {
         </section>
         {touring && <Tour onClose={() => setTouring(false)} />}
       </main>
-    </div>
-  );
-}
-
-interface OpBarProps {
-  session: Session;
-  versions: string[];
-  label: (version: string) => string;
-  update: (f: (s: Session) => Session) => void;
-  onRun: () => void;
-  running: boolean;
-  disabled: boolean;
-}
-
-function OpBar({ session, versions, label, update, onRun, running, disabled }: OpBarProps) {
-  const setArg = (k: keyof Session["args"], v: string) => update((s) => ({ ...s, args: { ...s.args, [k]: v } }));
-  const versionSelect = (k: "version" | "from" | "to", none: string) => (
-    <select value={session.args[k]} onChange={(e) => setArg(k, (e.target as HTMLSelectElement).value)} aria-label={k}>
-      <option value="">{none}</option>
-      {versions.map((v) => (
-        <option key={v} value={v}>
-          {label(v)}
-        </option>
-      ))}
-    </select>
-  );
-  const args = argsOf(session.op);
-  const opButton = (o: UserOp) => (
-    <span key={o} class="op">
-      <button aria-pressed={session.op === o} onClick={() => update((s) => ({ ...s, op: o }))}>
-        {o}
-      </button>
-      {hasDoc(o) && <DocLink topic={o} />}
-    </span>
-  );
-  return (
-    <div class="ops">
-      <div class="bar" role="toolbar" aria-label="Operations">
-        <span class="op-group" role="group" aria-label="On data">
-          {dataOps.map(opButton)}
-        </span>
-        <span class="op-group" role="group" aria-label="Code generation">
-          {codegenOps.map(opButton)}
-        </span>
-      </div>
-      <div class="bar op-args">
-        {args.includes("version") && (
-          <label>schema {versionSelect("version", isCodegen(session.op) || session.op === "validate" ? "latest" : "any that accepts it")}</label>
-        )}
-        {args.includes("from") && <label>from {versionSelect("from", "the data's")}</label>}
-        {args.includes("to") && <label>to {versionSelect("to", "choose")}</label>}
-        {args.includes("format") && (
-          <label>
-            as{" "}
-            <select value={session.args.format} onChange={(e) => setArg("format", (e.target as HTMLSelectElement).value)} aria-label="format">
-              <option value="">{session.op === "openapi" ? "YAML" : "JSON"}</option>
-              <option value="json">JSON</option>
-              <option value="yaml">YAML</option>
-            </select>
-          </label>
-        )}
-        <button class="primary" onClick={onRun} disabled={disabled || running} title={disabled ? "The lineage must bind first" : undefined}>
-          {running ? "Running…" : "Run"}
-        </button>
-      </div>
     </div>
   );
 }
