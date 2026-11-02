@@ -1,0 +1,24 @@
+# a lineage narrowed by a framework's definition that also writes a joinSchema
+# of its own, beside its schemas, referring outside it: the definition's
+# narrowing may, and the lineage's own joinSchema is refused as it is
+# unnarrowed (rule ref-outside-lineage)
+#issue: 238
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+	"example.com/m/hdr"
+)
+
+#Outside: {authorization?: string, ...}
+#Op: headers: thema.Lineage & {name: "h", joinSchema: hdr.#RequestHeaders}
+op: #Op & {headers: {
+	joinSchema: #Outside
+	schemas: "0": "0": schema: authorization?: string
+}}
+lin: op.headers
+-- hdr/hdr.cue --
+package hdr
+
+#RequestHeaders: {[=~"^[a-z-]+$"]: string, ...}
+-- expect --
+bind fail error[E0142]: joinSchema refers to #Outside

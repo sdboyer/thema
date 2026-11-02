@@ -11,9 +11,10 @@ import (
 // cueview view it is built on, where a version's schema and lenses are found,
 // or a CUE upgrade that changes how values are evaluated or exported. The
 // golden digests in testdata fail on any of these; that failure is the prompt
-// to bump. Two digests of different generations are not comparable: they
+// to bump. Generation 2 dropped lacuna messages from the lens form. Two
+// digests of different generations are not comparable: they
 // differ by generation, which says nothing about their content.
-const Generation = 1
+const Generation = 2
 
 // CertifiedCUE is the version of cuelang.org/go that Generation's golden
 // digests were recorded against, and that go.mod requires (a lockstep test

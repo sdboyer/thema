@@ -135,6 +135,44 @@ finding spells a reference inside the lineage from the lineage
 sits. Verdicts, findings and version IDs are the same along every path, which
 the repository's load-paths corpus (`load/testdata/loadpaths`) checks.
 
+**A joinSchema unified in where a lineage is used is not the lineage's
+text.** A tool that composes lineages into a larger declaration may narrow a
+lineage's `joinSchema` where it uses it:
+
+```cue
+headers: request & {joinSchema: #RequestHeaders & {"content-type"?: consumes}}
+```
+
+What such a narrowing refers to is the composition's to keep consistent, not
+the lineage author's, so a reference in it that leaves the lineage is allowed:
+`#RequestHeaders` beside the use, `consumes`, or a definition in another
+package. The line is drawn at the lineage's text, which is the struct (or
+structs) declaring its `schemas`, found by following the lineage's value
+through the references it is made of. A `joinSchema` written there is the
+lineage's own and follows every rule here. A `joinSchema` set by any other
+conjunct of the lineage narrows it, wherever that conjunct is written: a
+struct at the use, a field holding the narrowing (`request & _narrow`), or a
+definition a framework unifies the lineage with:
+
+```cue
+#Op: headers: thema.Lineage & {name: "h", joinSchema: hdr.#RequestHeaders}
+op: #Op & {headers: {schemas: "0": "0": schema: authorization?: string}}
+```
+
+A reference from a narrowing into the lineage follows the rules as anywhere
+else, so a narrowing that reads one of the lineage's schemas is refused
+(`ref-sibling-schema`). Where a `joinSchema` comes from is all that is asked,
+so one written in a struct of its own and unified beside the lineage's text,
+in the same file, narrows it as a composer's would: the two are not told
+apart. A package that embeds another package's lineage and sets a
+`joinSchema` narrows it, but the package is then the lineage, and its own
+fields are declared in the lineage (`ref-lineage-meta`). Each narrowed use is
+a lineage of its own: its schemas are the ones validated against, so their
+version IDs cover the narrowing, and differently narrowed uses of one
+lineage have different schema digests and the same lens digests.
+The load-paths corpus applies a narrowing at the use in each way it can be
+applied and requires the same result from each.
+
 The rules start from the conservative side. Referring to another lineage, or
 to a package of the author's own module, is a goal, not an error in
 principle: a disciplined account of what such a reference means for a

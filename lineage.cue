@@ -35,7 +35,12 @@ Lineage: {
 	// All Thema schemas must be struct-kinded. Consequently, if a lineage defines
 	// a joinSchema, it must be a struct containing at least one field.
 	//
-	// A lineage's joinSchema must never change as the lineage evolves.
+	// A lineage's joinSchema must never change as the lineage evolves.*
+	//
+	// * TODO: a lineage narrowed where it is used (#238) is a distinct
+	// lineage value, with the joinSchema its use unifies in. How this rule
+	// relates to narrowings, such as one that widens from one use to the
+	// next, is unsettled.
 
 	//	joinSchema?: struct.MinFields(1)
 	joinSchema: _

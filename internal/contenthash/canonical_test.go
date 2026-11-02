@@ -1,6 +1,7 @@
 package contenthash
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 	"testing"
@@ -257,7 +258,7 @@ func TestSchemaFormEntry(t *testing.T) {
 	}
 }
 
-var idPattern = regexp.MustCompile(`^g1\.[0-9a-f]{64}:g1\.[0-9a-f]{64}$`)
+var idPattern = regexp.MustCompile(fmt.Sprintf(`^g%[1]d\.[0-9a-f]{64}:g%[1]d\.[0-9a-f]{64}$`, Generation))
 
 func TestIDString(t *testing.T) {
 	v := cuecontext.New().CompileString(`lin: schemas: "0": "0": schema: {a: int}`)
@@ -266,6 +267,6 @@ func TestIDString(t *testing.T) {
 		t.Fatal(err)
 	}
 	if s := id.String(); !idPattern.MatchString(s) {
-		t.Errorf("ID %s is not g1.<64 hex>:g1.<64 hex>", s)
+		t.Errorf("ID %s is not g%[2]d.<64 hex>:g%[2]d.<64 hex>", s, Generation)
 	}
 }
