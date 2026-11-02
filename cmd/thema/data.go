@@ -153,13 +153,13 @@ func (dc *dataCommand) runValidateAny(cmd *cobra.Command, args []string) error {
 	if dc.lla.dl.sch != nil {
 		_, reterr = dc.lla.dl.sch.Validate(dc.datval)
 		if reterr == nil {
-			fmt.Fprintf(cmd.OutOrStdout(), "%s\n", dc.lla.dl.versionLabel(dc.lla.dl.sch.Version()))
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", dc.lla.dl.versionLabel(dc.lla.dl.sch.Version()))
 			return nil
 		}
 	}
 	inst := dc.lla.dl.lin.ValidateAny(dc.datval)
 	if inst != nil {
-		fmt.Fprintf(cmd.OutOrStdout(), "%s\n", dc.lla.dl.versionLabel(inst.Schema().Version()))
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", dc.lla.dl.versionLabel(inst.Schema().Version()))
 		return nil
 	}
 

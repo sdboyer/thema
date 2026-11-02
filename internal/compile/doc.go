@@ -94,7 +94,7 @@
 // newest version's and it declares no lenses.
 //
 // Compile reads the history alone, which is what is published; the tip is
-// not read. CompileDevelopment reads the tip too, appending it as the newest
+// not read. Development reads the tip too, appending it as the newest
 // version unless it is clean, and records a lens the tip's edge needs and
 // does not write as Pending (E1001) rather than failing: thema.BindLineage,
 // given the provisional option through internal/provisional, then tolerates

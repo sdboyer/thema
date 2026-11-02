@@ -2,6 +2,7 @@ package compile
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
@@ -12,10 +13,16 @@ import (
 	terrors "github.com/sdboyer/thema/errors"
 )
 
+// The codes the tip tests expect.
+const (
+	codeNumberedTip = "E0111"
+	codeOlderParent = "E0150"
+)
+
 // files builds a lineage's files from path, text pairs.
 func files(pairs ...string) []File {
 	var fs []File
-	for i := 0; i < len(pairs); i += 2 {
+	for i := 0; i+1 < len(pairs); i += 2 {
 		fs = append(fs, File{Path: pairs[i], Text: []byte(pairs[i+1])})
 	}
 	return fs
@@ -52,16 +59,16 @@ func TestTipLayout(t *testing.T) {
 		{"a history lens naming the tip", files(
 			"history/0.0.thema", v00,
 			"history/1.0.thema", v10+"\nForwardLens: {\n\tv0_0: _\n\ttip: {crew: 1}\n}\n",
-			TipFile, v10), false, []string{"E0111"}},
+			TipFile, v10), false, []string{codeNumberedTip}},
 		{"a tip lens naming its version", files(
 			"history/0.0.thema", v00,
-			TipFile, v10+"\nForwardLens: {\n\tv0_0: _\n\tv1_0: {crew: 1}\n}\n"), true, []string{"E0111"}},
+			TipFile, v10+"\nForwardLens: {\n\tv0_0: _\n\tv1_0: {crew: 1}\n}\n"), true, []string{codeNumberedTip}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			var err error
 			if c.dev {
-				_, err = CompileDevelopment(ctx, "ship", c.files)
+				_, err = Development(ctx, "ship", c.files)
 			} else {
 				_, err = Compile(ctx, "ship", c.files)
 			}
@@ -162,10 +169,10 @@ func TestCheckCleanReportsEachDifference(t *testing.T) {
 	}
 }
 
-func TestCompileDevelopment(t *testing.T) {
+func TestDevelopment(t *testing.T) {
 	ctx := cuecontext.New()
 	t.Run("a clean tip adds no version", func(t *testing.T) {
-		c, err := CompileDevelopment(ctx, "ship", files("history/0.0.thema", v00, TipFile, v00))
+		c, err := Development(ctx, "ship", files("history/0.0.thema", v00, TipFile, v00))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -177,7 +184,7 @@ func TestCompileDevelopment(t *testing.T) {
 		}
 	})
 	t.Run("a tip adds its version, provisionally", func(t *testing.T) {
-		c, err := CompileDevelopment(ctx, "ship", files("history/0.0.thema", v00, TipFile, v01))
+		c, err := Development(ctx, "ship", files("history/0.0.thema", v00, TipFile, v01))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -192,7 +199,7 @@ func TestCompileDevelopment(t *testing.T) {
 		}
 	})
 	t.Run("a major tip without its ForwardLens is pending", func(t *testing.T) {
-		c, err := CompileDevelopment(ctx, "ship", files("history/0.0.thema", v00, TipFile, v10))
+		c, err := Development(ctx, "ship", files("history/0.0.thema", v00, TipFile, v10))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -209,7 +216,7 @@ func TestCompileDevelopment(t *testing.T) {
 		}
 	})
 	t.Run("the tip's lenses name it tip", func(t *testing.T) {
-		c, err := CompileDevelopment(ctx, "ship", files("history/0.0.thema", v00,
+		c, err := Development(ctx, "ship", files("history/0.0.thema", v00,
 			TipFile, v10+"\nForwardLens: {\n\tv0_0: _\n\ttip: {crew: len(v0_0.name)}\n}\n"))
 		if err != nil {
 			t.Fatal(err)
@@ -226,7 +233,7 @@ func TestCompileDevelopment(t *testing.T) {
 		}
 	})
 	t.Run("a written but wrong tip lens is an error, not pending", func(t *testing.T) {
-		_, err := CompileDevelopment(ctx, "ship", files("history/0.0.thema", v00,
+		_, err := Development(ctx, "ship", files("history/0.0.thema", v00,
 			TipFile, v10+"\nForwardLens: {\n\tv0_0: _\n\ttip: {}\n}\n"))
 		if err == nil {
 			t.Fatal("no error")
@@ -272,15 +279,7 @@ func TestDecompileWritesTip(t *testing.T) {
 }
 
 func equalVersions(a, b []thema.SyntacticVersion) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
+	return slices.Equal(a, b)
 }
 
 // A lens of the tip that names a version at the parent's end, other than the
@@ -296,25 +295,25 @@ func TestTipLensStaleParent(t *testing.T) {
 	}{
 		{"forward, against an older parent",
 			v10 + "\nForwardLens: {\n\tv0_0: _\n\ttip: {crew: 1}\n}\n",
-			"E0150", "ForwardLens in tip.thema names v0_0, but the tip's parent is 0.1",
+			codeOlderParent, "ForwardLens in tip.thema names v0_0, but the tip's parent is 0.1",
 			"declare v0_1: _ in place of v0_0, and review the mappings against 0.1's schema"},
 		{"backward, against an older parent",
 			v01 + "\nBackwardLens: {\n\ttip: _\n\tv0_0: {crew: _drop}\n}\n",
-			"E0150", "BackwardLens in tip.thema names v0_0, but the tip's parent is 0.1",
+			codeOlderParent, "BackwardLens in tip.thema names v0_0, but the tip's parent is 0.1",
 			"name the body v0_1 in place of v0_0, and review its mappings against 0.1's schema"},
 		{"forward, naming neither end, against an older parent",
 			v10 + "\nForwardLens: {\n\tv0_0: _\n\tv1_0: {crew: 1}\n}\n",
-			"E0150", "ForwardLens in tip.thema names v0_0, but the tip's parent is 0.1", ""},
+			codeOlderParent, "ForwardLens in tip.thema names v0_0, but the tip's parent is 0.1", ""},
 		{"forward, numbering the tip",
 			v10 + "\nForwardLens: {\n\tv0_1: _\n\tv1_0: {crew: 1}\n}\n",
-			"E0111", "ForwardLens names the tip's instance v1_0, which has no version yet", ""},
+			codeNumberedTip, "ForwardLens names the tip's instance v1_0, which has no version yet", ""},
 		{"backward, numbering the tip",
 			v01 + "\nBackwardLens: {\n\tv0_2: _\n\tv0_1: {}\n}\n",
-			"E0111", "BackwardLens names the tip's instance v0_2, which has no version yet", ""},
+			codeNumberedTip, "BackwardLens names the tip's instance v0_2, which has no version yet", ""},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			_, err := CompileDevelopment(ctx, "ship", withTip(c.tip))
+			_, err := Development(ctx, "ship", withTip(c.tip))
 			ds := diag.From(err, diag.Context{})
 			if len(ds) != 1 {
 				t.Fatalf("%d diagnostics, want 1: %v", len(ds), err)

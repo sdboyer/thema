@@ -27,10 +27,10 @@ type Compiled struct {
 	// and bind it with thema.BindLineage, passing [Vocabulary] so that its
 	// diagnostics name the author's files and lenses.
 	File *ast.File
-	// Versions are the lineage's versions in order. From CompileDevelopment,
+	// Versions are the lineage's versions in order. From Development,
 	// the last is the tip's, unless the tip is clean.
 	Versions []thema.SyntacticVersion
-	// Tip is the lineage's tip as CompileDevelopment found it. Compile, which
+	// Tip is the lineage's tip as Development found it. Compile, which
 	// ignores the tip, leaves it nil.
 	Tip *Tip
 	// Pending holds what the development path tolerates on the edge into the
@@ -73,14 +73,14 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 	return compileVersions(ctx, name, vs)
 }
 
-// CompileDevelopment compiles the lineage name with its tip, for the
+// Development compiles the lineage name with its tip, for the
 // development path. The tip becomes the newest version, at the version it
 // cuts as (see [Tip]); a clean tip adds nothing, and the result is the
 // history's. The normal form leaves out each lens on the edge into the tip
 // that tip.thema does not write and derivation cannot produce, and reports it
 // in Pending, as a warning: the edge is still being written. A lens the tip
 // does write is compiled like any other, and its errors are errors.
-func CompileDevelopment(ctx *cue.Context, name string, files []File) (*Compiled, error) {
+func Development(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 	history, tipFile, err := splitLayout(files)
 	if err != nil {
 		return nil, err
@@ -97,9 +97,9 @@ func CompileDevelopment(ctx *cue.Context, name string, files []File) (*Compiled,
 		return nil, err
 	}
 	if tip.Clean {
-		c, err := compileVersions(ctx, name, vs)
-		if err != nil {
-			return nil, err
+		c, cerr := compileVersions(ctx, name, vs)
+		if cerr != nil {
+			return nil, cerr
 		}
 		c.Tip = tip
 		return c, nil

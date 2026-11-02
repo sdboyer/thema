@@ -311,13 +311,13 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 		return diag.Diagnostics(err)
 	},
 	// develop: compile the authoring files under the archive's one directory
-	// with their tip (compile.CompileDevelopment) and bind the result on the
+	// with their tip (compile.Development) and bind the result on the
 	// development path, reporting what fails, or else the warnings the
 	// development path tolerated (Compiled.Pending).
 	"develop": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {
 		name, files := authoringFiles(t, a)
 		ctx := cuecontext.New()
-		c, err := compile.CompileDevelopment(ctx, name, files)
+		c, err := compile.Development(ctx, name, files)
 		if err != nil {
 			return diag.Diagnostics(err)
 		}
@@ -335,7 +335,7 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 		dirs, _ := a.Directives()
 		name, files := authoringFiles(t, a)
 		ctx := cuecontext.New()
-		c, err := compile.CompileDevelopment(ctx, name, files)
+		c, err := compile.Development(ctx, name, files)
 		if err != nil {
 			t.Fatalf("the authoring files do not compile: %v", err)
 		}

@@ -13,7 +13,7 @@ import (
 // reachable only through internal/provisional, which load.DevelopmentLineage
 // calls. BindLineage called with any option a caller can construct binds a
 // complete lineage, as it always has.
-func init() {
+func init() { //nolint:gochecknoinits // the only way to hand internal/provisional an option without exporting one
 	provisional.Option = func(v [2]uint) any {
 		sv := SyntacticVersion(v)
 		return BindOption(func(c *bindConfig) {

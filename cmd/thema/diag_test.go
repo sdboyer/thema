@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/sdboyer/thema/authoring"
 )
 
 // A diagnostic about a lineage in the authoring form, run from outside its
@@ -19,7 +21,7 @@ func TestAuthoringDiagnosticExcerpt(t *testing.T) {
 		t.Fatal(err)
 	}
 	files := map[string]string{
-		"history/0.0.thema": "Schema: {\n\ta: int32\n}\n",
+		historyV00: "Schema: {\n\ta: int32\n}\n",
 		"history/1.0.thema": `Schema: {
 	a: int32 & >=0
 }
@@ -38,7 +40,7 @@ BackwardLens: {
 	}
 }
 `,
-		"tip.thema": "Schema: {\n\ta: int32 & >=0\n}\n",
+		authoring.TipFile: "Schema: {\n\ta: int32 & >=0\n}\n",
 	}
 	for name, text := range files {
 		if err := os.WriteFile(filepath.Join(dir, filepath.FromSlash(name)), []byte(text), 0o600); err != nil {

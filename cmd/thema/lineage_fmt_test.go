@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/sdboyer/thema/authoring"
 )
 
 // writeAuthoringDir writes a two-version lineage in the authoring form to a
@@ -17,9 +19,9 @@ func writeAuthoringDir(t *testing.T) string {
 		t.Fatal(err)
 	}
 	files := map[string]string{
-		"history/0.0.thema": "Schema: {\n\tbefore: string\n}\n",
+		historyV00:          "Schema: {\n\tbefore: string\n}\n",
 		"history/1.0.thema": "Schema: {after: string}\nForwardLens: {v0_0: _, v1_0: {after: v0_0.before}}\n",
-		"tip.thema":         "Schema: {\n\tafter: string\n}\n",
+		authoring.TipFile:   "Schema: {\n\tafter: string\n}\n",
 	}
 	for name, text := range files {
 		if err := os.WriteFile(filepath.Join(dir, filepath.FromSlash(name)), []byte(text), 0o600); err != nil {
@@ -35,7 +37,7 @@ func TestLineageFmt(t *testing.T) {
 	dir := writeAuthoringDir(t)
 	var out bytes.Buffer
 	rootCmd.SetOut(&out)
-	rootCmd.SetArgs([]string{"lineage", "fmt", "-l", dir})
+	rootCmd.SetArgs([]string{lineageCmd, "fmt", "-l", dir})
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +67,7 @@ func TestLineageFmtComments(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(dir, "history"), 0o750); err != nil {
 		t.Fatal(err)
 	}
-	for name, text := range map[string]string{"history/0.0.thema": inLayout, "tip.thema": outOfLayout} {
+	for name, text := range map[string]string{historyV00: inLayout, authoring.TipFile: outOfLayout} {
 		if err := os.WriteFile(filepath.Join(dir, filepath.FromSlash(name)), []byte(text), 0o600); err != nil {
 			t.Fatal(err)
 		}
@@ -73,7 +75,7 @@ func TestLineageFmtComments(t *testing.T) {
 	fmtOnce := func() string {
 		var out bytes.Buffer
 		rootCmd.SetOut(&out)
-		rootCmd.SetArgs([]string{"lineage", "fmt", "-l", dir})
+		rootCmd.SetArgs([]string{lineageCmd, "fmt", "-l", dir})
 		if err := rootCmd.Execute(); err != nil {
 			t.Fatal(err)
 		}
@@ -82,7 +84,7 @@ func TestLineageFmtComments(t *testing.T) {
 	if got, want := fmtOnce(), "tip.thema\n"; got != want {
 		t.Errorf("listed %q, want %q", got, want)
 	}
-	for name, want := range map[string]string{"history/0.0.thema": inLayout, "tip.thema": formatted} {
+	for name, want := range map[string]string{historyV00: inLayout, authoring.TipFile: formatted} {
 		got, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(name))) //nolint:gosec // a file this test wrote under t.TempDir()
 		if err != nil {
 			t.Fatal(err)
