@@ -63,7 +63,7 @@ func decompile(lin cue.Value) (name string, files []File, err error) {
 			fkey, bkey := edgeKey(prev.v, v.v), edgeKey(v.v, prev.v)
 			var fwdEntries []dentry
 			if l, ok := lenses[fkey]; ok {
-				fwd, err = decompileLens(l, fkey, prev.v, v.v, prev.schema)
+				fwd, err = decompileLens(l, fkey, prev.v, v.v, prev.schema, v.schema)
 				if err != nil {
 					return "", nil, err
 				}
@@ -73,7 +73,7 @@ func decompile(lin cue.Value) (name string, files []File, err error) {
 			if !ok {
 				return "", nil, fmt.Errorf("no lens at %s", bkey)
 			}
-			bwd, err = decompileLens(l, bkey, v.v, prev.v, v.schema)
+			bwd, err = decompileLens(l, bkey, v.v, prev.v, v.schema, prev.schema)
 			if err != nil {
 				return "", nil, err
 			}
@@ -177,7 +177,11 @@ type dbody struct {
 	root string
 	// src is the schema of the version the lens takes, against which a
 	// drop's condition is compared with the one derivation implies.
-	src     cue.Value
+	src cue.Value
+	// tgt is the schema of the version the lens produces, or in an each body
+	// the target list's element, against which a copy is recognized as one
+	// Compile regenerates.
+	tgt     cue.Value
 	entries []dentry
 	lacunas []dlacuna
 	// item is the path within the element an each body copies, where the
@@ -202,7 +206,7 @@ type branch struct {
 }
 
 // decompileLens reads the mappings of the lens at key, from sv to tv.
-func decompileLens(l cue.Value, key string, sv, tv thema.SyntacticVersion, src cue.Value) (*dbody, error) {
+func decompileLens(l cue.Value, key string, sv, tv thema.SyntacticVersion, src, tgt cue.Value) (*dbody, error) {
 	// The whole lens is exported, so that references to input stay references
 	// (exported alone, result's references to it would become a generated let).
 	n, err := cueview.Documented(l)
@@ -233,7 +237,7 @@ func decompileLens(l cue.Value, key string, sv, tv thema.SyntacticVersion, src c
 	if result == nil {
 		return nil, fmt.Errorf("lens %s is outside the authoring form: its result is not a struct literal", key)
 	}
-	b := &dbody{root: paramName(sv), src: src}
+	b := &dbody{root: paramName(sv), src: src, tgt: tgt}
 	if werr := b.walk(result.Elts, cue.MakePath(), key); werr != nil {
 		return nil, werr
 	}
@@ -337,10 +341,10 @@ func (b *dbody) field(f *ast.Field, tbase cue.Path, key string) error {
 	}
 	en := dentry{target: tpath, expr: f.Value, comments: ast.Comments(f)}
 	if root, p, ok := refPathAny(f.Value); ok && root == b.root {
-		en.kind, en.source, en.implicit = kindMove, p, p.String() == tpath.String()
+		en.kind, en.source, en.implicit = kindMove, p, b.regenerates(p, tpath)
 	} else if isLiteral(f.Value) {
 		en.kind = kindConst
-	} else if each, ok := b.eachOf(f.Value, key); ok {
+	} else if each, ok := b.eachOf(f.Value, key, tpath); ok {
 		var eerr error
 		en.kind, en.source, en.body, eerr = kindEach, each.source, each.body, each.err
 		if eerr != nil {
@@ -371,7 +375,7 @@ type eachSyntax struct {
 // eachOf recognizes [for item in <root>.<list> {...}], whose body is a struct
 // of mappings, or the copy of the element or a path in it, embedded:
 // {_item.id}.
-func (b *dbody) eachOf(x ast.Expr, key string) (eachSyntax, bool) {
+func (b *dbody) eachOf(x ast.Expr, key string, tpath cue.Path) (eachSyntax, bool) {
 	list, ok := x.(*ast.ListLit)
 	if !ok || len(list.Elts) != 1 {
 		return eachSyntax{}, false
@@ -392,7 +396,11 @@ func (b *dbody) eachOf(x ast.Expr, key string) (eachSyntax, bool) {
 	if !ok {
 		return eachSyntax{}, false
 	}
-	body := &dbody{root: rootItem}
+	elem := elementOf(b.tgt, tpath)
+	if !elem.Exists() {
+		return eachSyntax{source: p, err: fmt.Errorf("lens %s is outside the authoring form: %s is mapped from a list and is not an open list", key, tpath)}, true
+	}
+	body := &dbody{root: rootItem, tgt: elem}
 	if len(s.Elts) == 1 {
 		if em, ok := s.Elts[0].(*ast.EmbedDecl); ok {
 			if r, ip, ok := refPathAny(em.Expr); ok && r == rootItem {
@@ -527,7 +535,7 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 			// An each over a list the source may omit, written only where it
 			// is present.
 			ts, ok := b.tests(g.brs[0].cond)
-			if each, isEach := b.eachOf(g.brs[0].field.Value, key); isEach && ok && len(ts) == 1 && ts[0].operand == nil && ts[0].present {
+			if each, isEach := b.eachOf(g.brs[0].field.Value, key, tpath); isEach && ok && len(ts) == 1 && ts[0].operand == nil && ts[0].present {
 				if each.err != nil {
 					return each.err
 				}
@@ -633,7 +641,7 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 			if !ok || root != b.root || p.String() != source.String() {
 				return fmt.Errorf("lens %s is outside the authoring form: the presence test on %s does not test its own reference", key, tpath)
 			}
-			en.kind, en.source, en.expr, en.implicit = kindMove, p, present[0].field.Value, p.String() == tpath.String()
+			en.kind, en.source, en.expr, en.implicit = kindMove, p, present[0].field.Value, b.regenerates(p, tpath)
 			en.present = []cue.Path{p}
 		default:
 			return fmt.Errorf("lens %s is outside the authoring form: the arms of %s", key, tpath)
@@ -1161,7 +1169,9 @@ func stripDerived(entries, fwd []dentry, lacunas []dlacuna, newer, older cue.Val
 	}
 	inverse := make(map[string]string) // backward target -> source
 	for _, en := range fwd {
-		if en.kind == kindMove && uses[en.source.String()] == 1 {
+		// A copy, from a path to itself, has no inverse: the backward lens
+		// copies it, or the author does where Compile does not.
+		if en.kind == kindMove && uses[en.source.String()] == 1 && en.source.String() != en.target.String() {
 			inverse[en.source.String()] = en.target.String()
 		}
 	}
@@ -1182,6 +1192,24 @@ func stripDerived(entries, fwd []dentry, lacunas []dlacuna, newer, older cue.Val
 		out = append(out, en)
 	}
 	return out
+}
+
+// regenerates reports whether a move from source path p into tpath is a copy
+// Compile makes where nothing maps tpath: a move from a path to itself, into
+// a struct whose fields Compile fills. It fills the fields of each struct
+// along tpath from the result, and a disjunction has no fields of its own to
+// fill, so a copy beneath one is the author's.
+func (b *dbody) regenerates(p, tpath cue.Path) bool {
+	if p.String() != tpath.String() {
+		return false
+	}
+	sels := tpath.Selectors()
+	for i := range sels {
+		if _, err := lookup(b.tgt, cue.MakePath(sels[:i]...)).Fields(cue.Optional(true)); err != nil {
+			return false
+		}
+	}
+	return true
 }
 
 // readsUnder reports whether any entry other than a drop reads a source path

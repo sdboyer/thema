@@ -1,0 +1,139 @@
+A lens reads fields of a disjunctive source that every alternative declares
+(#229, repro B). Each read is of every alternative: route and path, which
+both alternatives declare, are copied implicitly, and the lacuna's condition
+reads method, whose value is "GET" | "POST". body, which only the POST
+alternative declares, is not read, and is lost going forward.
+
+The BackwardLens writes into the disjunction: a constant method tells the
+checker which alternative the result is. route and path are written out,
+since Compile fills only a struct, and a disjunction has no fields of its own
+to fill.
+-- ship/history/0.0.thema --
+Schema: {method!: "GET", route!: "/things/{id}", path!: {id!: string}} |
+	{method!: "POST", route!: "/things/{id}", path!: {id!: string}, body!: {name!: string}}
+-- ship/1.0.thema --
+Schema: {method!: "GET", route!: "/things/{id}", path!: {id!: string}}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {method: "GET"}
+	lacunas: method: [{
+		type:    LossyFieldMapping
+		message: "1.0 has no POST; it becomes a GET, without its body"
+		when:    v0_0.method == "POST"
+	}]
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		method: "GET"
+		route:  v1_0.route
+		path:   v1_0.path
+	}
+}
+-- data/0.0/get.json --
+{"method": "GET", "route": "/things/{id}", "path": {"id": "a"}}
+-- data/0.0/post.json --
+{"method": "POST", "route": "/things/{id}", "path": {"id": "b"}, "body": {"name": "n"}}
+-- data/1.0/get.json --
+{"method": "GET", "route": "/things/{id}", "path": {"id": "c"}}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+Schema: {
+	method!: "GET"
+	route!:  "/things/{id}"
+	path!: {
+		id!: string
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		method: "GET"
+	}
+	lacunas: {
+		method: [{
+			type:    LossyFieldMapping
+			message: "1.0 has no POST; it becomes a GET, without its body"
+			when:    v0_0.method == "POST"
+		}]
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		method: "GET"
+		route:  v1_0.route
+		path:   v1_0.path
+	}
+}
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	method!: "GET"
+	route!:  "/things/{id}"
+	path!: {
+		id!: string
+	}
+} | {
+	method!: "POST"
+	route!:  "/things/{id}"
+	path!: {
+		id!: string
+	}
+	body!: {
+		name!: string
+	}
+}
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {method!: "GET", route!: "/things/{id}", path!: {id!: string}} |
+				{method!: "POST", route!: "/things/{id}", path!: {id!: string}, body!: {name!: string}}
+		}
+	}
+	"1": {
+		"0": {schema: {method!: "GET", route!: "/things/{id}", path!: {id!: string}}}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			method: "GET"
+			route:  v0_0.route
+			path:   v0_0.path
+		}
+		lacunas: [{
+			condition: v0_0.method == "POST"
+			targetFields: [{
+				path:  "method"
+				value: v1_0.method
+			}]
+			message: "1.0 has no POST; it becomes a GET, without its body"
+			type:    "LossyFieldMapping"
+		}]
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			method: "GET"
+			route:  v1_0.route
+			path:   v1_0.path
+		}
+	}
+}
+-- out/translate/0.0/get->1.0 --
+{"method":"GET","route":"/things/{id}","path":{"id":"a"}}
+[]
+-- out/translate/0.0/post->1.0 --
+{"method":"GET","route":"/things/{id}","path":{"id":"b"}}
+[{"targetFields":[{"path":"method","value":"GET"}],"type":"LossyFieldMapping","message":"1.0 has no POST; it becomes a GET, without its body"},{"sourceFields":[{"path":"method","value":"POST"}],"type":"DroppedField","message":"method set aside: the lens from 0.0 to 1.0 writes its own value for it"},{"sourceFields":[{"path":"body","value":{"name":"n"}}],"type":"DroppedField","message":"body set aside: 1.0 does not declare it in the instance, which it does not leave open"}]
+-- out/translate/1.0/get->0.0 --
+{"method":"GET","route":"/things/{id}","path":{"id":"c"}}
+[]
