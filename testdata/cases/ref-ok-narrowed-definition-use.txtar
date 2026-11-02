@@ -1,0 +1,20 @@
+# a lineage narrowed by a framework's definition and narrowed again where it
+# is used: neither narrowing is the lineage's text, the struct declaring its
+# schemas, so each may refer outside the lineage
+#issue: 238
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+	"example.com/m/hdr"
+)
+
+#Op: headers: thema.Lineage & {name: "h", joinSchema: hdr.#RequestHeaders}
+op: #Op & {headers: {schemas: "0": "0": schema: authorization?: string}}
+consumes: "application/json"
+lin: op.headers & {joinSchema: "content-type"?: consumes}
+-- hdr/hdr.cue --
+package hdr
+
+#RequestHeaders: {[=~"^[a-z-]+$"]: string, ...}
+-- expect --
+bind ok

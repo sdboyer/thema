@@ -240,51 +240,45 @@ func declaringFiles(v cue.Value) []string {
 	return files
 }
 
-// narrowings returns the conjuncts of lin that narrow a lineage declared
-// elsewhere, rather than declare one (docs/invariants.md, References): in
-// lin: request & {joinSchema: X}, request declares the lineage and
-// {joinSchema: X} narrows it. A conjunct narrows when it sets a joinSchema,
-// declares no schemas, and is unified with a lineage: beside a reference to a
-// value that declares schemas, directly or through references to values that
-// declare none (lin: request & _narrow). What a lineage's own declaration
-// writes, in one struct or in several unified with thema.Lineage, narrows
-// nothing. References are followed to what they declare, as placements are.
+// narrowings returns the conjuncts of lin that narrow its joinSchema from
+// outside the lineage's text (docs/invariants.md, References). The lineage's
+// text is the conjuncts that declare its schemas; a joinSchema written in one
+// of them is the lineage's own. Any other conjunct that sets a joinSchema
+// narrows it: a struct at the use (request & {joinSchema: X}), a field held
+// elsewhere (request & _narrow), or a definition the lineage is unified with
+// (#Op: headers: thema.Lineage & {joinSchema: X}). References are followed to
+// the conjuncts they are made of, as placements are. A lineage that declares
+// no schemas has no text to tell a narrowing from, and nothing narrows it.
 func narrowings(lin cue.Value) []cue.Value {
 	var out []cue.Value
-	var walk func(v cue.Value, beside bool, depth int)
-	walk = func(v cue.Value, beside bool, depth int) {
+	declared := false
+	var walk func(v cue.Value, depth int)
+	walk = func(v cue.Value, depth int) {
 		if depth > maxPlacementDepth {
 			return
 		}
-		var lits, refs []cue.Value
 		for _, c := range cuetil.AppendSplit(v, cue.AndOp, nil) {
 			if kernelPos(c) {
 				continue
 			}
-			root, p := c.ReferencePath()
-			if !root.Exists() || p.Err() != nil {
-				lits = append(lits, c)
+			if root, p := c.ReferencePath(); root.Exists() && p.Err() == nil {
+				if inst := root.BuildInstance(); inst == nil || !isThemaPackage(inst.ImportPath) {
+					walk(root.LookupPath(p), depth+1)
+				}
 				continue
 			}
-			if inst := root.BuildInstance(); inst != nil && isThemaPackage(inst.ImportPath) {
-				continue
-			}
-			target := root.LookupPath(p)
-			refs = append(refs, target)
-			beside = beside || declaresSchemas(target)
-		}
-		for _, c := range lits {
-			if beside && !declaresSchemas(c) && c.LookupPath(cue.MakePath(cue.Str(labelJoinSchema))).Exists() {
+			switch {
+			case declaresSchemas(c):
+				declared = true
+			case c.LookupPath(cue.MakePath(cue.Str(labelJoinSchema))).Exists():
 				out = append(out, c)
 			}
 		}
-		for _, r := range refs {
-			// A lineage's own conjuncts are its declaration, whatever is
-			// beside it here.
-			walk(r, beside && !declaresSchemas(r), depth+1)
-		}
 	}
-	walk(lin, false, 0)
+	walk(lin, 0)
+	if !declared {
+		return nil
+	}
 	return out
 }
 

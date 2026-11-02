@@ -1,0 +1,17 @@
+# a lineage declared in two structs unified with thema.Lineage, one of them
+# holding the joinSchema and the other the schemas: the lineage's text is the
+# struct declaring the schemas, so the other one narrows it, and may refer
+# outside the lineage. Unifying in a joinSchema written beside the lineage is
+# not told apart from a composer's narrowing, which is accepted: the rule
+# refuses a reference written in the joinSchema of the lineage's own text
+#issue: 238
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+#Outside: {authorization?: string, ...}
+lin: thema.Lineage & {joinSchema: #Outside} & {
+	name: "request_headers"
+	schemas: "0": "0": schema: authorization?: =~"^Bearer "
+}
+-- expect --
+bind ok

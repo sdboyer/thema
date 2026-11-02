@@ -382,6 +382,14 @@ var loadPaths = []loadPath{
 		},
 	},
 	{
+		// Narrowed by a definition of package fleet, as a framework narrows
+		// the lineages its declarations hold.
+		name: "narrowed-definition", narrowed: true, module: true,
+		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
+			return narrowedLoad(t, ctx, fx, nil, "#Op: headers: thema.Lineage & %s\nop: #Op & {headers: ship}\nflagship: op.headers", "github.com/sdboyer/thema")
+		},
+	},
+	{
 		// Imported into package fleet, which is the lineage, and narrowed
 		// there: the package embeds the import and the narrowing.
 		name: "narrowed-root", narrowed: true, module: true,
