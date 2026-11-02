@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { argsOf, requestFor } from "./requests";
+import { requestFor } from "./requests";
 import { emptySession, type Session } from "./session";
 
 const with_ = (patch: Partial<Session>): Session => ({ ...emptySession(), ...patch });
@@ -34,13 +34,5 @@ describe("requestFor", () => {
     const s = with_({ op: "typescript", data: [], args: { version: "", from: "", to: "", format: "yaml" } });
     expect(requestFor(s)).toMatchObject({ op: "typescript", req: { format: undefined } });
     expect(requestFor({ ...s, op: "openapi" })).toMatchObject({ op: "openapi", req: { format: "yaml" } });
-  });
-});
-
-describe("argsOf", () => {
-  it("offers what each operation takes", () => {
-    expect(argsOf("translate")).toEqual(["from", "to"]);
-    expect(argsOf("validate-any")).toEqual([]);
-    expect(argsOf("jsonschema")).toEqual(["version", "format"]);
   });
 });

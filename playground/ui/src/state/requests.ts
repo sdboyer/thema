@@ -1,6 +1,15 @@
 // The request each user operation sends, from the session.
-import type { CodegenRequest, HydrateRequest, TranslateRequest, ValidateAnyRequest, ValidateRequest } from "@sdboyer/thema-ui";
-import { type CodegenOp, type DataOp, type Session, dataFor, lineageInput } from "./session";
+import {
+  type CodegenOp,
+  type CodegenRequest,
+  type DataOp,
+  type HydrateRequest,
+  type TranslateRequest,
+  type ValidateAnyRequest,
+  type ValidateRequest,
+  isCodegen,
+} from "@sdboyer/thema-ui";
+import { type Session, dataFor, lineageInput } from "./session";
 
 export type UserRequest =
   | { op: "validate"; req: ValidateRequest }
@@ -30,27 +39,5 @@ export function requestFor(s: Session): UserRequest | string {
     case "hydrate":
     case "dehydrate":
       return { op, req: { lineage, data, version: v(s.args.version) } };
-  }
-}
-
-export function isCodegen(op: string): op is CodegenOp {
-  return op === "openapi" || op === "jsonschema" || op === "typescript";
-}
-
-// The arguments each operation takes, for the panel to offer.
-export function argsOf(op: Session["op"]): ReadonlyArray<"version" | "from" | "to" | "format"> {
-  switch (op) {
-    case "validate":
-    case "hydrate":
-    case "dehydrate":
-    case "typescript":
-      return ["version"];
-    case "validate-any":
-      return [];
-    case "translate":
-      return ["from", "to"];
-    case "openapi":
-    case "jsonschema":
-      return ["version", "format"];
   }
 }

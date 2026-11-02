@@ -1,9 +1,9 @@
 // Tabs over a list of named texts, with adding, renaming and removing. Frozen
 // tabs are grouped after the others and can be opened but never renamed or
 // removed.
-import { DocLink, type Topic } from "@sdboyer/thema-ui";
+import { DocLink, type Topic } from "./docs";
 
-interface Props {
+export interface TabsProps {
   names: readonly string[];
   active: number;
   // flagged names get a mark: the files diagnostics point into.
@@ -20,7 +20,7 @@ interface Props {
   frozenLabel?: string;
 }
 
-export function Tabs({ names, active, flagged, onSelect, onAdd, onRename, onRemove, label, docs, frozen, frozenLabel }: Props) {
+export function Tabs({ names, active, flagged, onSelect, onAdd, onRename, onRemove, label, docs, frozen, frozenLabel }: TabsProps) {
   const isFrozen = (n: string) => !!frozen?.(n);
   const tab = (n: string, i: number) => {
     const fixed = isFrozen(n);

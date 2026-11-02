@@ -1,16 +1,9 @@
 // What an operation returned: its result in its own terms, then its
 // diagnostics.
-import {
-  type CodegenResponse,
-  type HydrateResponse,
-  type TranslateResponse,
-  type ValidateAnyResponse,
-  type ValidateResponse,
-  Diagnostics,
-  DocLink,
-  Editor,
-  lacunaTypeDoc,
-} from "@sdboyer/thema-ui";
+import { Diagnostics } from "./Diagnostics";
+import { DocLink, lacunaTypeDoc } from "./docs";
+import { Editor } from "./Editor";
+import type { CodegenResponse, HydrateResponse, TranslateResponse, ValidateAnyResponse, ValidateResponse } from "./types";
 
 export type Outcome =
   | { op: "validate"; resp: ValidateResponse }
@@ -19,7 +12,7 @@ export type Outcome =
   | { op: "hydrate" | "dehydrate"; resp: HydrateResponse }
   | { op: "openapi" | "jsonschema" | "typescript"; resp: CodegenResponse };
 
-interface Props {
+export interface OutputProps {
   outcome: Outcome;
   onOpen: (file: string) => void;
   // label is how a version reads: the tip's label for the tip's version.
@@ -29,7 +22,7 @@ interface Props {
 type Label = (version: string) => string;
 const plain: Label = (v) => v;
 
-export function Output({ outcome, onOpen, label = plain }: Props) {
+export function Output({ outcome, onOpen, label = plain }: OutputProps) {
   const { resp } = outcome;
   return (
     <div class="output">

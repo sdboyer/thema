@@ -1,27 +1,8 @@
 // The whole of what a user has in the playground, as one serializable value:
 // what a share link carries, and what the page renders.
-import type { DataInput, File, LineageInput } from "@sdboyer/thema-ui";
+import type { DataInput, File, LineageInput, OpArgs, UserOp } from "@sdboyer/thema-ui";
 
 export type Form = "authoring" | "normal";
-
-// The operations a user runs on data or on the lineage. bind runs on its own
-// on every edit; compile, decompile and format are the form controls.
-export type DataOp = "validate" | "validate-any" | "translate" | "hydrate" | "dehydrate";
-export type CodegenOp = "openapi" | "jsonschema" | "typescript";
-export type UserOp = DataOp | CodegenOp;
-
-export const dataOps: readonly DataOp[] = ["validate", "validate-any", "translate", "hydrate", "dehydrate"];
-export const codegenOps: readonly CodegenOp[] = ["openapi", "jsonschema", "typescript"];
-
-export interface Args {
-  // version is the schema for validate, hydrate, dehydrate and code
-  // generation; empty means the latest, or for hydrate the one that accepts
-  // the data.
-  version: string;
-  from: string;
-  to: string;
-  format: string;
-}
 
 export interface Session {
   form: Form;
@@ -32,8 +13,10 @@ export interface Session {
   normal: File;
   path: string;
   data: DataInput[];
+  // The operation a user runs on data or on the lineage. bind runs on its
+  // own on every edit; compile, decompile and format are the form controls.
   op: UserOp;
-  args: Args;
+  args: OpArgs;
   // Which file and data document are open.
   activeFile: number;
   activeData: number;
