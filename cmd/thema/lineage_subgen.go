@@ -86,6 +86,12 @@ func (gc *genCommand) setup(cmd *cobra.Command) {
 	ggb.Flags().BoolVarP(&gc.quiet, "quiet", "q", false, "Do not print generated filename")
 	ggb.Run = gc.run
 
+	ggt := genGoTypesLineageCmd
+	genLineageCmd.AddCommand(ggt)
+	ggt.Flags().StringVarP(&gc.lla.verstr, "version", "v", "", "schema syntactic version to generate. Defaults to every version")
+	ggt.Flags().StringVar(&gc.pkgname, "pkgname", "", "Name for generated Go package. Defaults to lowercase lineage name")
+	ggt.Run = gc.run
+
 	// TODO
 	// genLineageCmd.AddCommand(genTSTypesLineageCmd)
 	// genTSTypesLineageCmd.Flags().StringVarP((*string)(&verstr), "version", "v", "", "schema syntactic version to generate. Defaults to latest")
@@ -115,6 +121,8 @@ func (gc *genCommand) run(cmd *cobra.Command, args []string) {
 		err = gc.runOpenAPI(cmd, args)
 	case "gobindings":
 		err = gc.runGoBindings(cmd, args)
+	case "gotypes":
+		err = gc.runGoTypes(cmd, args)
 	case "tstypes":
 		err = gc.runTSTypes(cmd, args)
 	default:
@@ -398,6 +406,34 @@ func (r rootfind) Modpath() string {
 		return r.cuemodpath
 	}
 	return r.gomodpath
+}
+
+var genGoTypesLineageCmd = &cobra.Command{
+	Use:   "gotypes -l <path> [-p <cue-path>] [-v <synver>] [--pkgname <name>]",
+	Short: "Generate Go types from a lineage",
+	Long: `Generate Go types from a lineage.
+
+Generate a Go file declaring a type for each schema in a lineage, or for the
+schema named with -v, and print it to stdout. The type for version X.Y of
+lineage "name" is NameVX_Y; nested structs and string enums get named types
+prefixed with it.
+`,
+}
+
+func (gc *genCommand) runGoTypes(cmd *cobra.Command, args []string) error {
+	cfg := &gocode.TypeConfig{PackageName: gc.pkgname}
+	var f []byte
+	var err error
+	if gc.lla.verstr == "" {
+		f, err = gocode.GenerateLineageTypes(gc.lin, cfg)
+	} else {
+		f, err = gocode.GenerateTypes(gc.sch, cfg)
+	}
+	if err != nil {
+		return err
+	}
+	_, err = cmd.OutOrStdout().Write(f)
+	return err
 }
 
 var genTSTypesLineageCmd = &cobra.Command{

@@ -191,3 +191,20 @@ func TestDataTipTakesAuthoringForm(t *testing.T) {
 		t.Errorf("err = %v, stderr:\n%s\nwant E0620", err, errOut)
 	}
 }
+
+// thema lineage gen gotypes prints Go types for every schema, or for the one
+// -v names.
+func TestLineageGenGoTypes(t *testing.T) {
+	dir := writeTipDir(t, cleanTip)
+	for _, args := range [][]string{nil, {"-v", v00}} {
+		out, errOut, err := runThema(t, dir, "", append([]string{lineageCmd, "gen", "gotypes", "-l", dir, "--pkgname", "ships"}, args...)...)
+		if err != nil {
+			t.Fatalf("gen gotypes %v: %v\n%s", args, err, errOut)
+		}
+		for _, want := range []string{"package ships\n", "type ShipV0_0 struct {\n\tName string `json:\"name\"`\n}\n"} {
+			if !strings.Contains(out, want) {
+				t.Errorf("gen gotypes %v: output lacks %q:\n%s", args, want, out)
+			}
+		}
+	}
+}
