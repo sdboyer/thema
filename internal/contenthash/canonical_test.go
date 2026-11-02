@@ -257,7 +257,7 @@ func TestSchemaFormEntry(t *testing.T) {
 	}
 }
 
-var idPattern = regexp.MustCompile(`^[0-9a-f]{64}:[0-9a-f]{64}$`)
+var idPattern = regexp.MustCompile(`^g1\.[0-9a-f]{64}:g1\.[0-9a-f]{64}$`)
 
 func TestIDString(t *testing.T) {
 	v := cuecontext.New().CompileString(`lin: schemas: "0": "0": schema: {a: int}`)
@@ -266,6 +266,6 @@ func TestIDString(t *testing.T) {
 		t.Fatal(err)
 	}
 	if s := id.String(); !idPattern.MatchString(s) {
-		t.Errorf("ID %s is not <64 hex>:<64 hex>", s)
+		t.Errorf("ID %s is not g1.<64 hex>:g1.<64 hex>", s)
 	}
 }
