@@ -31,7 +31,7 @@ Five principles hold for every rule below:
 - **Data with no effect on the target always raises a lacuna.** No value that an instance held disappears from a step without either having an effect on the target or a lacuna saying so. Dropping an empty struct or list is not dropping data ([E4](#structs-and-presence)), and neither is dropping a value the source schema fills in by itself (below).
 - **A source value has an effect on the target when the lens refers to it.** The test for losing data is effect, not appearance: whether the value, or an expression computed from it, ends up in the target is not the question. A value the lens refers to anywhere raises no lacuna by itself: in a mapping, in a condition that decides which fields exist, or in a struct or arm the lens doesn't write for this instance. Which arms fire, and which fields are written, for a given instance doesn't enter into it; the answer depends only on what the lens is. A value the lens never refers to, and that translation can't carry, has no effect, and is set aside with a lacuna ([B5, B6](#fields-the-source-declares)). A lens that wants to report a value it refers to lists the lacuna itself.
 - **A lost default loses nothing.** Where the source schema fills a field by itself when an instance omits it, the filled value and absence are the same point of the source's state space. Setting aside a value equal to that fill loses nothing, so it raises no lacuna. A scalar is compared with its default, or the constant the field is fixed to. A struct is compared with what its contents fill from `{}`: under `o?: {x: *1 | int}`, `{o: {x: 1}}` holds no more than `{o: {}}`, which holds no more than absence ([E4](#structs-and-presence)). A list's fill is `[]`. An optional field fills nothing, since a default written on one never reaches an instance ([field forms](invariants.md#field-forms)), so any value it holds is more than its fill. Whether the instance's author wrote the value or the schema filled it is never asked: the two can't be told apart. Only the source schema's fill counts, never the target's, and undeclared data has none ([C](#undeclared-data)).
-- **Direction doesn't matter.** Every rule applies the same way forward and backward ([G3](#steps-and-direction)).
+- **Direction doesn't matter.** Every rule applies the same way forward and backward ([G3](#steps-and-direction)), and every step has a lens both ways ([lenses go in both directions](#lenses-go-in-both-directions)).
 
 One guideline, which settles most cases the rules leave open: **a refusal at bind follows from the target schema; a lacuna follows from the source schema.** A lens is refused when the target requires something it can't produce for some instance (D3, E4). Data the source holds that a step can't deliver to the target is never a reason to refuse; it raises a lacuna (B5, B6, C3 to C5). It is a guideline, not a rule: where a row below says otherwise, the row holds.
 
@@ -181,6 +181,14 @@ Today on main:
 | G3 | Direction | The same rules apply forward and backward. Nothing depends on which way a step goes. | yes, for each rule main implements |
 
 Forward and backward lenses differ only in what the authoring form derives for them. Its rule that a forward lens must account for every field the newer version removes ([E0347](errors/E0347.md)) guards against a forgotten rename. It is an authoring rule, not a translation rule.
+
+### Lenses go in both directions
+
+Every pair of adjacent versions has a lens in each direction, and a lineage cannot declare that it is translated only one way. thema will never add that.
+
+Some consumers do translate only one way. An HTTP API might translate requests only forward, to the version its service implements, and responses only backward, to the version a client asked for. But which direction is needed is not a stable fact about a lineage. A staged rollout, for one, can suddenly flip it. A universal invariant that lenses go both ways keeps thema cleaner, safer and simpler to implement than one that varies with how a lineage is used.
+
+The cost is that some lenses are written and never run. Type checkers have always rejected useful programs for the sake of consistency, clarity and simplicity, and this is the same trade. Forced guidance always carries at least a hint of paternalism. But even when one direction of a lens is never used, the best moment to work out how it would go is while writing the other direction. That is when the author is most likely to have the relevant context in mind.
 
 ## Which implementation defines translation
 
