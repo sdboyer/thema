@@ -86,14 +86,15 @@ func TestInvalidLineages(t *testing.T) {
 	})
 }
 
-func TestIsAppendOnly(t *testing.T) {
+// The append-only corpus: pairs of revisions of a lineage, the published one
+// (#firstLin) and a candidate (#secondLin). Those in valid only append, or
+// are the same lineage written another way; those in invalid change a
+// published schema.
+func TestCheckAppendOnly(t *testing.T) {
 	test := vanilla.TxTarTest{
-		Root:    "./testdata/isappendonly/valid",
-		Name:    "isappendonly",
+		Root:    "./testdata/appendonly/valid",
+		Name:    "appendonly",
 		ThemaFS: CueJointFS,
-		ToDo: map[string]string{
-			"isappendonly/valid/withconstraints": "Subsume doesn't support constraints using built-in validators (see #18)",
-		},
 	}
 
 	ctx := cuecontext.New()
@@ -104,27 +105,26 @@ func TestIsAppendOnly(t *testing.T) {
 			t.Skip("case is tagged #slow, skipping for -short")
 		}
 
-		lin1, err := bindTxtarLineage(tc, rt, "firstLin")
+		published, err := bindTxtarLineage(tc, rt, "firstLin")
 		if err != nil {
-			tc.Fatalf("error binding first lineage: %+v", err)
+			tc.Fatalf("error binding the published lineage: %+v", err)
 		}
 
-		lin2, err := bindTxtarLineage(tc, rt, "secondLin")
+		candidate, err := bindTxtarLineage(tc, rt, "secondLin")
 		if err != nil {
-			tc.Fatalf("error binding second lineage: %+v", err)
+			tc.Fatalf("error binding the candidate lineage: %+v", err)
 		}
 
-		err = IsAppendOnly(lin1, lin2)
-		if err != nil {
-			tc.Fatalf("IsAppendOnly returned an error: %+v", err)
+		if err := CheckAppendOnly(published, candidate); err != nil {
+			tc.Fatalf("CheckAppendOnly returned an error: %+v", diag.Diagnostics(err))
 		}
 	})
 }
 
-func TestIsAppendOnlyFail(t *testing.T) {
+func TestCheckAppendOnlyFail(t *testing.T) {
 	test := vanilla.TxTarTest{
-		Root:    "./testdata/isappendonly/invalid",
-		Name:    "isappendonly-fail",
+		Root:    "./testdata/appendonly/invalid",
+		Name:    "appendonly-fail",
 		ThemaFS: CueJointFS,
 	}
 
@@ -136,17 +136,17 @@ func TestIsAppendOnlyFail(t *testing.T) {
 			t.Skip("case is tagged #slow, skipping for -short")
 		}
 
-		lin1, err := bindTxtarLineage(tc, rt, "firstLin")
+		published, err := bindTxtarLineage(tc, rt, "firstLin")
 		if err != nil {
-			tc.Fatalf("error binding first lineage: %+v", err)
+			tc.Fatalf("error binding the published lineage: %+v", err)
 		}
 
-		lin2, err := bindTxtarLineage(tc, rt, "secondLin")
+		candidate, err := bindTxtarLineage(tc, rt, "secondLin")
 		if err != nil {
-			tc.Fatalf("error binding second lineage: %+v", err)
+			tc.Fatalf("error binding the candidate lineage: %+v", err)
 		}
 
-		err = IsAppendOnly(lin1, lin2)
+		err = CheckAppendOnly(published, candidate)
 		if err == nil {
 			tc.Fatalf("expected error from known invalid updates")
 		}

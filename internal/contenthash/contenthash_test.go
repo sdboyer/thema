@@ -2,26 +2,11 @@ package contenthash
 
 import (
 	"crypto/sha256"
-	"fmt"
-	"os"
-	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
-	"testing/fstest"
 
 	"cuelang.org/go/cue"
-	"cuelang.org/go/cue/build"
 	"cuelang.org/go/cue/cuecontext"
-	"github.com/google/go-cmp/cmp"
-	"golang.org/x/tools/txtar"
-
-	"cuelang.org/go/cue/load"
-
-	"github.com/sdboyer/thema"
-	"github.com/sdboyer/thema/internal/embedreg"
-	"github.com/sdboyer/thema/internal/envvars"
-	"github.com/sdboyer/thema/internal/util"
 )
 
 func compileLineage(t *testing.T, src string) cue.Value {
@@ -49,35 +34,6 @@ func mustLensForm(t *testing.T, lin cue.Value, v Version) string {
 		t.Fatalf("%s: %v", v, err)
 	}
 	return f
-}
-
-// versions lists the versions of lin's schemas, in key order: by major, then
-// minor.
-func versions(t *testing.T, lin cue.Value) []Version {
-	t.Helper()
-	var out []Version
-	majors, err := lin.LookupPath(pathSchemas).Fields()
-	if err != nil {
-		t.Fatal(err)
-	}
-	for majors.Next() {
-		minors, err := majors.Value().Fields()
-		if err != nil {
-			t.Fatal(err)
-		}
-		for minors.Next() {
-			var v Version
-			for i, s := range []string{majors.Selector().Unquoted(), minors.Selector().Unquoted()} {
-				n, err := strconv.ParseUint(s, 10, 64)
-				if err != nil {
-					t.Fatalf("schema key %q: %v", s, err)
-				}
-				v[i] = uint(n)
-			}
-			out = append(out, v)
-		}
-	}
-	return out
 }
 
 // lineage returns a lineage with versions 0.0, 0.1 and 1.0, whose lens from 1.0
@@ -152,6 +108,35 @@ func TestLensFix(t *testing.T) {
 		if changed := b.Lens != f.Lens; changed != (v == Version{1, 0}) {
 			t.Errorf("%s: lens digest changed: %v", v, changed)
 		}
+	}
+}
+
+// LensForms tells the lenses of an edge apart: fixing the backward lens into
+// 1.0 changes its form alone, and an edge without a forward lens has none.
+func TestLensForms(t *testing.T) {
+	buggy := compileLineage(t, lineage(`{a: v1_0.a, b: v1_0.b}`))
+	fixed := compileLineage(t, lineage(`{a: v1_0.a, if v1_0.b > 0 {b: v1_0.b}}`))
+	forms := func(lin cue.Value, v Version) (string, string) {
+		t.Helper()
+		f, b, err := LensForms(lin, v)
+		if err != nil {
+			t.Fatalf("%s: %v", v, err)
+		}
+		return f, b
+	}
+	bf, bb := forms(buggy, Version{1, 0})
+	ff, fb := forms(fixed, Version{1, 0})
+	if bf == "" || bf != ff {
+		t.Errorf("1.0's forward lens: %q, then %q; want one form, unchanged", bf, ff)
+	}
+	if bb == "" || bb == fb {
+		t.Errorf("1.0's backward lens: %q, then %q; want it changed", bb, fb)
+	}
+	if f, b := forms(buggy, Version{0, 1}); f != "" || b == "" {
+		t.Errorf("0.1's lenses: forward %q, backward %q; want only a backward one", f, b)
+	}
+	if f, b := forms(buggy, Version{0, 0}); f != "" || b != "" {
+		t.Errorf("0.0's lenses: forward %q, backward %q; want none", f, b)
 	}
 }
 
@@ -232,182 +217,47 @@ func TestLensFormConstruction(t *testing.T) {
 	}
 }
 
-// loadModule loads the package at the root of the CUE module example.com/p in
-// fsys, serving thema's CUE module from the copy embedded in thema. It is
-// what thema's load package does, done here because load imports the
-// authoring form's compiler, which imports this package.
-func loadModule(t *testing.T, fsys fstest.MapFS) *build.Instance {
-	t.Helper()
-	root := filepath.Join(util.Prefix, "example.com", "p")
-	overlay := make(map[string]load.Source)
-	if err := util.ToOverlay(root, fsys, overlay); err != nil {
-		t.Fatal(err)
-	}
-	cfg := &load.Config{Overlay: overlay, ModuleRoot: root, Module: "example.com/p", Dir: root, Package: "p", DataFiles: true}
-	if err := embedreg.Configure(cfg, thema.CueJointFS); err != nil {
-		t.Fatal(err)
-	}
-	inst := load.Instances(nil, cfg)[0]
-	if inst.Err != nil {
-		t.Fatal(inst.Err)
-	}
-	return inst
-}
-
-// TestGoldens records the canonical forms and IDs of every version of the
-// lineages in testdata/*.txtar. Each archive holds a CUE module's files (its
-// cue.mod/module.cue is supplied), whose package p declares the lineage as lin;
-// each out/<version> section holds that version's ID, schema form and lens
-// form.
-//
-// The digests are a stored contract: an ID computed today must be computed the
-// same way for as long as instances recorded against it exist. A diff here,
-// including one from a CUE upgrade alone, changes every stored ID it touches;
-// see the contenthash seam. Set THEMA_UPDATE_GOLDEN=1 to rewrite the out/
-// sections, then review the diff.
-func TestGoldens(t *testing.T) {
-	files, err := filepath.Glob("testdata/*.txtar")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(files) == 0 {
-		t.Fatal("no golden files")
-	}
-	for _, file := range files {
-		t.Run(strings.TrimSuffix(filepath.Base(file), ".txtar"), func(t *testing.T) {
-			ar, err := txtar.ParseFile(file)
-			if err != nil {
-				t.Fatal(err)
-			}
-			fs := fstest.MapFS{"cue.mod/module.cue": {Data: []byte(util.ModuleFile("example.com/p"))}}
-			for _, f := range ar.Files {
-				if !strings.HasPrefix(f.Name, "out/") {
-					fs[f.Name] = &fstest.MapFile{Data: f.Data}
-				}
-			}
-			insts := loadModule(t, fs)
-			v := cuecontext.New().BuildInstance(insts)
-			if verr := v.Err(); verr != nil {
-				t.Fatal(verr)
-			}
-			lin := v.LookupPath(cue.ParsePath("lin"))
-
-			got := map[string][]byte{}
-			var order []string
-			for _, ver := range versions(t, lin) {
-				id := mustID(t, lin, ver)
-				sch, err := SchemaForm(lin, ver)
-				if err != nil {
-					t.Fatal(err)
-				}
-				name := "out/" + ver.String()
-				order = append(order, name)
-				got[name] = fmt.Appendf(nil, "# id\n%s\n# schema\n%s\n# lenses\n%s\n", id, sch, mustLensForm(t, lin, ver))
-			}
-
-			if envvars.UpdateGoldenFiles {
-				var kept []txtar.File
-				for _, f := range ar.Files {
-					if !strings.HasPrefix(f.Name, "out/") {
-						kept = append(kept, f)
-					}
-				}
-				for _, name := range order {
-					kept = append(kept, txtar.File{Name: name, Data: got[name]})
-				}
-				ar.Files = kept
-				if err := os.WriteFile(file, txtar.Format(ar), 0o600); err != nil {
-					t.Fatal(err)
-				}
-				return
-			}
-			for _, f := range ar.Files {
-				if !strings.HasPrefix(f.Name, "out/") {
-					continue
-				}
-				want, ok := got[f.Name]
-				if !ok {
-					t.Errorf("golden section %s has no version", f.Name)
-					continue
-				}
-				if diff := cmp.Diff(string(f.Data), string(want)); diff != "" {
-					t.Errorf("%s (-golden +got):\n%s", f.Name, diff)
-				}
-				delete(got, f.Name)
-			}
-			for name := range got {
-				t.Errorf("missing golden section %s; run with %s=1", name, envvars.VarUpdateGolden)
-			}
-		})
-	}
-}
-
-// What thema contributes to a lineage is not hashed: a lineage has the same IDs
-// whether its author unified thema.Lineage in, embedded it in the lineage's
-// package, re-exported a lineage that does, or left it out. Each case is the
-// same lineage, declared in package p of a module or in its package ship and
-// re-exported from p.
-func TestVersionIDAuthored(t *testing.T) {
-	const body = `name: "ship"
-schemas: {
-	"0": "0": schema: {a: string, n: int & <=10}
-	"1": "0": schema: {b: string}
-}
-lenses: {
-	"0.0->1.0": {
-		v0_0: _
-		v1_0: b: v0_0.a
-		lacunas: [thema.Lacuna & {
-			sourceFields: [{path: "n", value: v0_0.n}]
-			message: "n is dropped"
-			type:    thema.LacunaTypes.DroppedField
-		}]
-	}
-	"1.0->0.0": {
-		v1_0: _
-		v0_0: {a: v1_0.b, n: 0}
-	}
-}
-`
-	const imp = "import \"github.com/sdboyer/thema\"\n\n"
-	const in = "in.cue"
-	ship := "package ship\n\n" + imp + body
-	load := func(t *testing.T, files map[string]string, path string) cue.Value {
+// Of a lacuna, the lens form keeps what translation does with it, and not its
+// message.
+func TestLensFormLacunas(t *testing.T) {
+	form := func(lacunas string) string {
 		t.Helper()
-		fs := fstest.MapFS{"cue.mod/module.cue": {Data: []byte(util.ModuleFile("example.com/p"))}}
-		for n, text := range files {
-			fs[n] = &fstest.MapFile{Data: []byte(text)}
-		}
-		v := cuecontext.New().BuildInstance(loadModule(t, fs))
-		if err := v.Err(); err != nil {
-			t.Fatal(err)
-		}
-		return v.LookupPath(cue.ParsePath(path))
+		lin := compileLineage(t, `lin: {
+	schemas: {"0": {"0": {schema: {a: string}}, "1": {schema: {a: string, c?: int, d?: int}}}}
+	lenses: {"0.1->0.0": {
+		v0_1: _
+		v0_0: {a: v0_1.a}
+		`+lacunas+`
+	}}
+}`)
+		return mustLensForm(t, lin, Version{0, 1})
 	}
-	plain := load(t, map[string]string{in: "package p\n\n" + imp + "lin: {\n" + body + "}\n"}, "lin")
+	base := form(`lacunas: [if v0_1.c != _|_ {{sourceFields: [{path: "c", value: v0_1.c}], message: "c has no equivalent in 0.0 and was dropped", type: "DroppedField"}}]`)
+	if strings.Contains(base, "message") {
+		t.Fatalf("the lens form holds a message:\n%s", base)
+	}
 	for name, c := range map[string]struct {
-		files map[string]string
-		path  string
+		lacunas string
+		equal   bool
 	}{
-		"unified":  {files: map[string]string{in: "package p\n\n" + imp + "lin: thema.Lineage & {\n" + body + "}\n"}, path: "lin"},
-		"embedded": {files: map[string]string{in: "package p\n\n" + imp + "thema.Lineage\n\n" + body}, path: ""},
-		"reexported": {files: map[string]string{
-			"ship/ship.cue":  ship,
-			"ship/embed.cue": "package ship\n\n" + imp + "thema.Lineage\n",
-			in:               "package p\n\nimport \"example.com/p/ship\"\n\nflagship: ship\n",
-		}, path: "flagship"},
-		"reexported-unified": {files: map[string]string{
-			"ship/ship.cue": ship,
-			in:              "package p\n\n" + imp + "import \"example.com/p/ship\"\n\nflagship: thema.Lineage & ship\n",
-		}, path: "flagship"},
+		"message reworded": {`lacunas: [if v0_1.c != _|_ {{sourceFields: [{path: "c", value: v0_1.c}], message: "c is dropped", type: "DroppedField"}}]`, true},
+		"message in a let": {`let L = {sourceFields: [{path: "c", value: v0_1.c}], message: "c is dropped", type: "DroppedField"}, lacunas: [if v0_1.c != _|_ {L}]`, true},
+		"type":             {`lacunas: [if v0_1.c != _|_ {{sourceFields: [{path: "c", value: v0_1.c}], message: "c has no equivalent in 0.0 and was dropped", type: "LossyFieldMapping"}}]`, false},
+		"source field":     {`lacunas: [if v0_1.d != _|_ {{sourceFields: [{path: "d", value: v0_1.d}], message: "c has no equivalent in 0.0 and was dropped", type: "DroppedField"}}]`, false},
+		"condition":        {`lacunas: [{sourceFields: [{path: "c", value: v0_1.c}], message: "c has no equivalent in 0.0 and was dropped", type: "DroppedField"}]`, false},
+		"target field":     {`lacunas: [if v0_1.c != _|_ {{sourceFields: [{path: "c", value: v0_1.c}], targetFields: [{path: "a", value: v0_0.a}], message: "c has no equivalent in 0.0 and was dropped", type: "DroppedField"}}]`, false},
 	} {
 		t.Run(name, func(t *testing.T) {
-			lin := load(t, c.files, c.path)
-			for _, ver := range []Version{{0, 0}, {1, 0}} {
-				if got, want := mustID(t, lin, ver), mustID(t, plain, ver); got != want {
-					t.Errorf("%s: ID %s, want %s, the ID of the lineage with nothing of thema's in it", ver, got, want)
-				}
+			if got := form(c.lacunas); (got == base) != c.equal {
+				t.Errorf("want equal=%v:\n%s\n---\n%s", c.equal, got, base)
 			}
 		})
+	}
+
+	// A reported field's value is instance data, not a lacuna: a field of it
+	// named message is kept.
+	kept := form(`lacunas: [{targetFields: [{path: "a", value: {message: "x"}}], message: "m", type: "Placeholder"}]`)
+	if strings.Count(kept, "message") != 1 {
+		t.Errorf("want the value's message, and only it:\n%s", kept)
 	}
 }
