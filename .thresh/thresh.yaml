@@ -171,16 +171,16 @@ seams:
 
   playground-api:
     kind: shared-kernel
-    purpose: "The playground's wire format is a contract between the Go side and the frontend in playground/ui, which reads it through the generated types.ts and calls it through thema.wasm's bridge. Both live in this tree, so a change is complete only when the frontend moves in the same change."
+    purpose: "The playground's wire format is a contract between the Go side and the frontend in playground/ui and playground/components, which read it through the generated types.ts and call it through thema.wasm's bridge. Both live in this tree, so a change is complete only when the frontend moves in the same change."
     paths:
       - playground/types.go
-      - playground/ui/src/api/types.ts
+      - playground/components/src/types.ts
       - playground/session.go
       - cmd/thema-wasm/main.go
       - cmd/thema-wasm/thema-fs.js
     consult:
-      - "playground/ui, in the same change: a renamed field, operation or bridge function breaks it; its tests run against this tree's thema.wasm (go generate ./cmd/thema/playground, then npm test in playground/ui)"
-      - "playground/ui/src/api/types.ts, regenerated from the Go types (THEMA_UPDATE_GOLDEN=1 go test ./playground), and the response goldens in playground/testdata"
+      - "playground/ui and playground/components, in the same change: a renamed field, operation or bridge function breaks them; their tests run against this tree's thema.wasm (go generate ./cmd/thema/playground, then npm test in playground)"
+      - "playground/components/src/types.ts, regenerated from the Go types (THEMA_UPDATE_GOLDEN=1 go test ./playground), and the response goldens in playground/testdata; it ships in the @sdboyer/thema-ui package, so downstream tools read the same types"
       - "the release assets a statically hosted playground fetches by tag: thema.wasm, wasm_exec.js, thema-fs.js, types.ts"
 
   load-independence:

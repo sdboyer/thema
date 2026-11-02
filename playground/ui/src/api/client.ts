@@ -24,7 +24,7 @@ import type {
   ValidateAnyResponse,
   ValidateRequest,
   ValidateResponse,
-} from "./types";
+} from "@sdboyer/thema-ui";
 
 // Ops maps each operation to its request and response.
 export interface Ops {

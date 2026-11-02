@@ -1,15 +1,16 @@
 // What an operation returned: its result in its own terms, then its
 // diagnostics.
-import type {
-  CodegenResponse,
-  HydrateResponse,
-  TranslateResponse,
-  ValidateAnyResponse,
-  ValidateResponse,
-} from "../api/types";
-import { Diagnostics } from "./Diagnostics";
-import { DocLink, lacunaTypeDoc } from "./docs";
-import { Editor } from "./Editor";
+import {
+  type CodegenResponse,
+  type HydrateResponse,
+  type TranslateResponse,
+  type ValidateAnyResponse,
+  type ValidateResponse,
+  Diagnostics,
+  DocLink,
+  Editor,
+  lacunaTypeDoc,
+} from "@sdboyer/thema-ui";
 
 export type Outcome =
   | { op: "validate"; resp: ValidateResponse }

@@ -1,6 +1,6 @@
 // The whole of what a user has in the playground, as one serializable value:
 // what a share link carries, and what the page renders.
-import type { DataInput, File, LineageInput } from "../api/types";
+import type { DataInput, File, LineageInput } from "@sdboyer/thema-ui";
 
 export type Form = "authoring" | "normal";
 

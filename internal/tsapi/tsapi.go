@@ -1,7 +1,7 @@
 // Package tsapi generates the TypeScript declarations of the playground's
-// wire format, playground/ui/src/api/types.ts, from the Go types that define
-// it. Go is the source of truth; the file is generated, committed where the
-// frontend imports it, and kept in lockstep by a test in the playground
+// wire format, playground/components/src/types.ts, from the Go types that
+// define it. Go is the source of truth; the file is generated, committed in
+// the package the frontend imports it from, and kept in lockstep by a test in the playground
 // package.
 //
 // The wire format spans three packages: playground's requests and
@@ -52,7 +52,7 @@ var tygoHeader = regexp.MustCompile(`(?m)\A(//[^\n]*\n)+\n*`)
 // tygo renders as any, not anything a response carries.
 var omitted = regexp.MustCompile(`(?s)/\*\*(?:[^*]|\*[^/])*\*/\nexport type (?:Vocabulary|Rewriter) =[^;]*;\n`)
 
-// Generate returns the contents of playground/ui/src/api/types.ts. It must
+// Generate returns the contents of playground/components/src/types.ts. It must
 // run inside thema's module, since it loads the packages' sources.
 func Generate() (string, error) {
 	dir, err := os.MkdirTemp("", "tsapi")

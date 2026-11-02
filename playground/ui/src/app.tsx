@@ -1,6 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
+import {
+  type BindResponse,
+  type Diagnostic,
+  type ExampleInfo,
+  type GetExampleResponse,
+  type Language,
+  Diagnostics,
+  DocLink,
+  Editor,
+  filesOf,
+  hasDoc,
+  markersFor,
+} from "@sdboyer/thema-ui";
 import { type Thema, fetchHostExamples, startThema } from "./api/client";
-import type { BindResponse, Diagnostic, ExampleInfo, GetExampleResponse } from "./api/types";
 import { argsOf, isCodegen, requestFor } from "./state/requests";
 import {
   type Session,
@@ -14,10 +26,6 @@ import {
   shareWarnBytes,
 } from "./state/session";
 import { Tour } from "./tour/Tour";
-import { Diagnostics } from "./ui/Diagnostics";
-import { DocLink, hasDoc } from "./ui/docs";
-import { Editor, type Language } from "./ui/Editor";
-import { filesOf, markersFor } from "./ui/markers";
 import { type Outcome, Output } from "./ui/Output";
 import { Tabs } from "./ui/Tabs";
 
