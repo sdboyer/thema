@@ -1,0 +1,22 @@
+# a lineage narrowed where it is used, by a definition in another package of
+# the author's module: a narrowing may refer to a package as it may to
+# anything outside the lineage (rule ref-import is not met)
+#issue: 238
+-- in.cue --
+import (
+	"github.com/sdboyer/thema"
+	"example.com/m/hdr"
+)
+
+request: thema.Lineage & {
+	name: "request_headers"
+	schemas: "0": "0": schema: authorization?: =~"^Bearer "
+}
+
+lin: request & {joinSchema: hdr.#RequestHeaders}
+-- hdr/hdr.cue --
+package hdr
+
+#RequestHeaders: {[=~"^[!#$%&'*+.^_`|~0-9a-z-]+$"]: string, ...}
+-- expect --
+bind ok

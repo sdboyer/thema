@@ -1,0 +1,14 @@
+# a narrowing that refers into the lineage it narrows, to one of its schemas:
+# a narrowing may refer out of the lineage, and a reference into it follows
+# the rules as anywhere (rule ref-sibling-schema)
+#issue: 238
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+request: thema.Lineage & {
+	name: "request_headers"
+	schemas: "0": "0": schema: authorization?: =~"^Bearer "
+}
+lin: request & {joinSchema: {authorization?: request.schemas["0"]["0"].schema.authorization, ...}}
+-- expect --
+bind fail error[E0140]: authorization in joinSchema refers to schemas["0"]["0"].schema.authorization

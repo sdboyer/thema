@@ -1,0 +1,21 @@
+A lineage whose own joinSchema refers to another package of its module,
+narrowed where package fleet uses it. The narrowing admits references out of
+the lineage only in what it unifies in; the joinSchema the lineage writes is
+refused as it is unnarrowed (ref-import), along every narrowed path.
+-- normal.cue --
+import "example.com/fleet/common"
+
+name: "ship"
+joinSchema: common.#Headers
+schemas: "0": "0": schema: {authorization?: =~"^Bearer "}
+-- narrowing.cue --
+{joinSchema: {"content-type"?: "application/json", ...}}
+-- common/common.cue --
+package common
+
+#Headers: {[=~"^[a-z-]+$"]: string, ...}
+-- out/verdict --
+# bind
+E0143 joinSchema refers to #Headers, in package "example.com/fleet/common", which is not one of CUE's builtin packages
+# ids
+0.0 g1.d3ff708ffd872f1fe5e3d5036a37963e17298b75a38e479232127a2a968bf312:g1.44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a

@@ -1,0 +1,21 @@
+# a package that is a lineage by embedding another package's lineage, and
+# narrows it by a definition declared in the package: the package is the
+# lineage, so the definition is declared in it, outside the joinSchema (rule
+# ref-lineage-meta)
+#issue: 238
+-- in.cue --
+import "example.com/m/ship"
+
+ship
+#H: {[=~"^[a-z-]+$"]: string, ...}
+joinSchema: #H
+-- ship/ship.cue --
+package ship
+
+import "github.com/sdboyer/thema"
+
+thema.Lineage
+name: "ship"
+schemas: "0": "0": schema: authorization?: =~"^Bearer "
+-- expect --
+bind fail error[E0141]: joinSchema refers to #H

@@ -135,6 +135,34 @@ finding spells a reference inside the lineage from the lineage
 sits. Verdicts, findings and version IDs are the same along every path, which
 the repository's load-paths corpus (`load/testdata/loadpaths`) checks.
 
+**A joinSchema unified in where a lineage is used is not the lineage's
+text.** A tool that composes lineages into a larger declaration may narrow a
+lineage's `joinSchema` where it uses it:
+
+```cue
+headers: request & {joinSchema: #RequestHeaders & {"content-type"?: consumes}}
+```
+
+What such a narrowing refers to is the composition's to keep consistent, not
+the lineage author's, so a reference in it that leaves the lineage is allowed:
+`#RequestHeaders` beside the use, `consumes`, or a definition in another
+package. A reference from it into the lineage follows the rules as anywhere
+else, so a narrowing that reads one of the lineage's schemas is refused
+(`ref-sibling-schema`), and the `joinSchema` the lineage itself writes is
+checked as it is unnarrowed. A conjunct narrows the lineage when it sets a
+`joinSchema`, declares no `schemas`, and is unified with a lineage: beside a
+reference to a value that declares `schemas`, written at the use or held in
+a field (`request & _narrow`). A lineage written in several structs unified
+with `thema.Lineage` is declared by all of them, so a `joinSchema` written in
+one of them narrows nothing. A package that embeds another package's lineage
+and sets a `joinSchema` narrows it, but the package is then the lineage, and
+its own fields are declared in the lineage (`ref-lineage-meta`). Each
+narrowed use is a lineage of its own: its schemas are the ones validated
+against, so their version IDs cover the narrowing, and differently narrowed
+uses of one lineage have different schema digests and the same lens digests.
+The load-paths corpus applies a narrowing at the use in each way it can be
+applied and requires the same result from each.
+
 The rules start from the conservative side. Referring to another lineage, or
 to a package of the author's own module, is a goal, not an error in
 principle: a disciplined account of what such a reference means for a

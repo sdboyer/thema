@@ -1,0 +1,16 @@
+# a lineage narrowed through a field that holds the narrowing: the field
+# declares no schemas, so what it unifies in narrows the lineage as a struct
+# written at the use does
+#issue: 238
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+request: thema.Lineage & {
+	name: "request_headers"
+	schemas: "0": "0": schema: authorization?: =~"^Bearer "
+}
+#H: {[=~"^[a-z-]+$"]: string, ...}
+_narrow: joinSchema: #H
+lin: request & _narrow
+-- expect --
+bind ok

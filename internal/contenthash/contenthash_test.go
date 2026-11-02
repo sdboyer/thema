@@ -155,6 +155,31 @@ func TestLensFix(t *testing.T) {
 	}
 }
 
+// Each use of a lineage narrowed where it is used (#238) is a lineage of its
+// own, and its schema digests are of the schemas it validates with: the
+// narrowing is part of them. Lenses are not narrowed, and their digests are
+// the lineage's.
+func TestNarrowedUses(t *testing.T) {
+	v := cuecontext.New().CompileString(`
+_ship: ` + strings.TrimPrefix(lineage(`{a: v1_0.a, b: v1_0.b}`), "lin: ") + `
+json:  _ship & {joinSchema: {a: string, kind?: "json", ...}}
+plain: _ship & {joinSchema: {a: string, kind?: "plain", ...}}
+`)
+	if err := v.Err(); err != nil {
+		t.Fatal(err)
+	}
+	ship, json, plain := v.LookupPath(cue.MakePath(cue.Hid("_ship", "_"))), v.LookupPath(cue.ParsePath("json")), v.LookupPath(cue.ParsePath("plain"))
+	for _, ver := range []Version{{0, 0}, {0, 1}, {1, 0}} {
+		s, j, p := mustID(t, ship, ver), mustID(t, json, ver), mustID(t, plain, ver)
+		if j.Schema == p.Schema || j.Schema == s.Schema || p.Schema == s.Schema {
+			t.Errorf("%s: schema digests of differently narrowed uses are equal: lineage %s, json %s, plain %s", ver, s.Schema, j.Schema, p.Schema)
+		}
+		if j.Lens != s.Lens || p.Lens != s.Lens {
+			t.Errorf("%s: lens digests differ with a narrowing: lineage %s, json %s, plain %s", ver, s.Lens, j.Lens, p.Lens)
+		}
+	}
+}
+
 // A tip under development may lack the lenses its edge needs; its lens form
 // holds the ones it has.
 func TestLensFormMissing(t *testing.T) {

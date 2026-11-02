@@ -1,0 +1,29 @@
+# a package that is a lineage by embedding another package's lineage, and
+# narrows it, where the embedded lineage's own joinSchema refers to a hidden
+# field it declares: that joinSchema is checked as it is unnarrowed (rule
+# ref-lineage-meta)
+#issue: 238
+-- in.cue --
+import (
+	"example.com/m/ship"
+	"example.com/m/hdr"
+)
+
+ship
+joinSchema: hdr.#H
+-- ship/ship.cue --
+package ship
+
+import "github.com/sdboyer/thema"
+
+thema.Lineage
+name: "ship"
+_Ex: {authorization?: string, ...}
+joinSchema: _Ex
+schemas: "0": "0": schema: authorization?: =~"^Bearer "
+-- hdr/hdr.cue --
+package hdr
+
+#H: {[=~"^[a-z-]+$"]: string, ...}
+-- expect --
+bind fail error[E0141]: joinSchema refers to _Ex

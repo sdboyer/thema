@@ -239,3 +239,56 @@ func declaringFiles(v cue.Value) []string {
 	}
 	return files
 }
+
+// narrowings returns the conjuncts of lin that narrow a lineage declared
+// elsewhere, rather than declare one (docs/invariants.md, References): in
+// lin: request & {joinSchema: X}, request declares the lineage and
+// {joinSchema: X} narrows it. A conjunct narrows when it sets a joinSchema,
+// declares no schemas, and is unified with a lineage: beside a reference to a
+// value that declares schemas, directly or through references to values that
+// declare none (lin: request & _narrow). What a lineage's own declaration
+// writes, in one struct or in several unified with thema.Lineage, narrows
+// nothing. References are followed to what they declare, as placements are.
+func narrowings(lin cue.Value) []cue.Value {
+	var out []cue.Value
+	var walk func(v cue.Value, beside bool, depth int)
+	walk = func(v cue.Value, beside bool, depth int) {
+		if depth > maxPlacementDepth {
+			return
+		}
+		var lits, refs []cue.Value
+		for _, c := range cuetil.AppendSplit(v, cue.AndOp, nil) {
+			if kernelPos(c) {
+				continue
+			}
+			root, p := c.ReferencePath()
+			if !root.Exists() || p.Err() != nil {
+				lits = append(lits, c)
+				continue
+			}
+			if inst := root.BuildInstance(); inst != nil && isThemaPackage(inst.ImportPath) {
+				continue
+			}
+			target := root.LookupPath(p)
+			refs = append(refs, target)
+			beside = beside || declaresSchemas(target)
+		}
+		for _, c := range lits {
+			if beside && !declaresSchemas(c) && c.LookupPath(cue.MakePath(cue.Str(labelJoinSchema))).Exists() {
+				out = append(out, c)
+			}
+		}
+		for _, r := range refs {
+			// A lineage's own conjuncts are its declaration, whatever is
+			// beside it here.
+			walk(r, beside && !declaresSchemas(r), depth+1)
+		}
+	}
+	walk(lin, false, 0)
+	return out
+}
+
+// declaresSchemas reports whether v declares a lineage's schemas.
+func declaresSchemas(v cue.Value) bool {
+	return v.LookupPath(cue.MakePath(cue.Str(labelSchemas))).Exists()
+}
