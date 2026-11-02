@@ -4,7 +4,7 @@
 // always matches the CLI serving it.
 //
 // The bundle is generated, not committed. go generate fills dist/, which
-// needs node and the frontend's dependencies (npm ci in playground/ui), and
+// needs node and the frontend's dependencies (npm ci in playground), and
 // a build with the playgroundui tag embeds it:
 //
 //	go generate ./cmd/thema/playground

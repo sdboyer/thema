@@ -3,8 +3,7 @@ import { render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Thema } from "./api/client";
-import type { HostExample, RegisterExamplesRequest, RegisterExamplesResponse } from "./api/types";
-import { docsBase } from "./ui/docs";
+import { type HostExample, type RegisterExamplesRequest, type RegisterExamplesResponse, docsBase } from "@sdboyer/thema-ui";
 
 // A thema that answers like the real one for what the page asks at start
 // and on edits. calls records the operations asked of it; registered is what

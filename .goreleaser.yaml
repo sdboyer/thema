@@ -6,7 +6,7 @@ before:
     # The playground bundle: the frontend in playground/ui and this release's
     # thema.wasm, embedded by the playgroundui tag below.
     - cmd: npm ci
-      dir: playground/ui
+      dir: playground
     - go generate ./cmd/thema/playground
 builds:
   - env:

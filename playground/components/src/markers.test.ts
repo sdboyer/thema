@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Diagnostic } from "../api/types";
+import type { Diagnostic } from "./types";
 import { docsBase } from "./docs";
 import { docsURL, filesOf, markersFor } from "./markers";
 

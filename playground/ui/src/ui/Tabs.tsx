@@ -1,5 +1,5 @@
 // Tabs over a list of named texts, with adding, renaming and removing.
-import { DocLink, type Topic } from "./docs";
+import { DocLink, type Topic } from "@sdboyer/thema-ui";
 
 interface Props {
   names: readonly string[];

@@ -7,7 +7,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { docs, docsBase, lacunaTypeDoc } from "./docs";
 
-const root = resolve(__dirname, "../../../..");
+const root = resolve(__dirname, "../../..");
 const docsDir = resolve(root, "docs");
 
 // anchor is GitHub's id for a Markdown heading.
