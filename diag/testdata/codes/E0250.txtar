@@ -1,0 +1,62 @@
+#op: append-only
+Once a version is published, instances are validated against it as it was
+published, so its schema never changes. Here the candidate's 0.0 narrows
+name, which the published 0.0 left as any string. A change, compatible or not,
+is a new version: here, the tip, cut as 0.1 or 1.0.
+-- candidate/ship/history/0.0.thema --
+Schema: {
+	name: string & !=""
+}
+-- published/ship/history/0.0.thema --
+Schema: {
+	name: string
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0250",
+      "severity": "error",
+      "headline": "the schema in history/0.0.thema is not as published",
+      "path": [
+        "history/0.0.thema",
+        "Schema"
+      ],
+      "address": {
+        "kind": "schema",
+        "version": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "history/0.0.thema",
+        "line": 1,
+        "col": 1,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "a published version never changes: instances were validated against it as it was published"
+        }
+      ],
+      "help": [
+        "restore the schema in history/0.0.thema as it was published, and make the change in a new version"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0250]: the schema in history/0.0.thema is not as published
+ --> history/0.0.thema:1:1
+  |
+1 | Schema: {
+  | ^^^^^^
+  |
+  = note: a published version never changes: instances were validated against it as it was published
+  = help: restore the schema in history/0.0.thema as it was published, and make the change in a new version
