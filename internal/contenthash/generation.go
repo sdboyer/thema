@@ -24,7 +24,9 @@ const CertifiedCUE = "v0.18.0-rc.1"
 
 // linkedCUE returns the version of cuelang.org/go linked into the running
 // binary, following a replace directive, or "" when the build records none
-// (no build info, or a replacement by a local directory).
+// (no build info, or a replacement by a local directory). Test binaries
+// record the build's modules only from Go 1.27, which is why go.mod requires
+// it: under 1.26 every digest computed in a test was uncertified.
 var linkedCUE = sync.OnceValue(func() string {
 	bi, ok := debug.ReadBuildInfo()
 	if !ok {
