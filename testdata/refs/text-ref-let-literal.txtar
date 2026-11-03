@@ -2,13 +2,13 @@
 #expect: E0141
 #spec: docs/invariants.md:116-118, docs/invariants.md:220
 #at: lin.h
-#known/together: #130 the evaluator substitutes a let bound to a literal, so nothing in the value records that the let is declared in the lineage outside the schema.
-#known/fill-text: #130 the evaluator substitutes a let bound to a literal, so nothing in the value records that the let is declared in the lineage outside the schema.
-#known/fill-text-named: #130 the evaluator substitutes a let bound to a literal, so nothing in the value records that the let is declared in the lineage outside the schema.
-#known/fill-use: #130 the evaluator substitutes a let bound to a literal, so nothing in the value records that the let is declared in the lineage outside the schema.
-#known/unify-use-text: #130 the evaluator substitutes a let bound to a literal, so nothing in the value records that the let is declared in the lineage outside the schema.
-#known/unify-text-use: #130 the evaluator substitutes a let bound to a literal, so nothing in the value records that the let is declared in the lineage outside the schema.
-#known/third-root: #130 the evaluator substitutes a let bound to a literal, so nothing in the value records that the let is declared in the lineage outside the schema.
+#known/together: #130 the evaluator substitutes a let bound to a literal, and the reference check does not compare the let's declaration position with the schema's span, so it sees a literal.
+#known/fill-text: #130 the evaluator substitutes a let bound to a literal, and the reference check does not compare the let's declaration position with the schema's span, so it sees a literal.
+#known/fill-text-named: #130 the evaluator substitutes a let bound to a literal, and the reference check does not compare the let's declaration position with the schema's span, so it sees a literal.
+#known/fill-use: #130 the evaluator substitutes a let bound to a literal, and the reference check does not compare the let's declaration position with the schema's span, so it sees a literal.
+#known/unify-use-text: #130 the evaluator substitutes a let bound to a literal, and the reference check does not compare the let's declaration position with the schema's span, so it sees a literal.
+#known/unify-text-use: #130 the evaluator substitutes a let bound to a literal, and the reference check does not compare the let's declaration position with the schema's span, so it sees a literal.
+#known/third-root: #130 the evaluator substitutes a let bound to a literal, and the reference check does not compare the let's declaration position with the schema's span, so it sees a literal.
 -- in.cue --
 import "github.com/sdboyer/thema"
 
