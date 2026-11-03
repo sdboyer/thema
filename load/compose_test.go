@@ -1,6 +1,7 @@
 package load_test
 
 import (
+	"slices"
 	"testing"
 	"testing/fstest"
 
@@ -167,6 +168,56 @@ func TestComposedLabelsCaptureNothing(t *testing.T) {
 		}
 		check(t, cuecontext.New().BuildInstance(inst))
 	})
+}
+
+// A definition closes what it declares, so a lineage composed under one binds
+// where the package declares it a thema.Lineage, and not where nothing does:
+// thema's fields, added at bind, are not allowed in the closed lineage.
+func TestComposedUnderDefinition(t *testing.T) {
+	for _, tc := range []struct {
+		name, use string
+		want      []diag.Code
+	}{
+		{"declared a lineage", "import \"github.com/sdboyer/thema\"\n\n#Op: h: thema.Lineage\n", nil},
+		{"not declared", "#Op: h: _\n", []diag.Code{diag.E0126, diag.E0126}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			text, err := parser.ParseFile("text.cue", "name: \"h\"\nschemas: \"0\": \"0\": schema: {a?: string}\n")
+			if err != nil {
+				t.Fatal(err)
+			}
+			files, err := thema.Compose("m", thema.Placement{Path: cue.ParsePath("#Op.h"), File: text})
+			if err != nil {
+				t.Fatal(err)
+			}
+			cfg := &load.Config{
+				Dir: "/m",
+				Overlay: map[string]load.Source{
+					"/m/cue.mod/module.cue": load.FromString(util.ModuleFile("example.com/m")),
+					"/m/in.cue":             load.FromString("package m\n\n" + tc.use),
+				},
+			}
+			for _, f := range files {
+				cfg.Overlay["/m/"+f.Filename] = load.FromFile(f)
+			}
+			if err = tload.Configure(cfg); err != nil {
+				t.Fatal(err)
+			}
+			inst := load.Instances([]string{"."}, cfg)[0]
+			if inst.Err != nil {
+				t.Fatal(inst.Err)
+			}
+			ctx := cuecontext.New()
+			_, err = thema.BindLineage(ctx.BuildInstance(inst).LookupPath(cue.ParsePath("#Op.h")), thema.NewRuntime(ctx))
+			var got []diag.Code
+			for _, d := range diag.Diagnostics(err) {
+				got = append(got, d.Code)
+			}
+			if !slices.Equal(got, tc.want) {
+				t.Errorf("bind reported %v, want %v", diag.Diagnostics(err), tc.want)
+			}
+		})
+	}
 }
 
 // A lineage composed into the caller's own package, at a field typed by a

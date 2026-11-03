@@ -17,7 +17,9 @@ type Placement struct {
 	// Path is where the file's declarations go: a path of regular field and
 	// definition labels, such as operations.get.query. An empty path declares
 	// them at the top of the package. A definition closes what it declares,
-	// and a lineage under one does not bind today (#270).
+	// so a lineage under one binds only where the package also declares it a
+	// thema.Lineage, as #Op: h: thema.Lineage does: a lineage compiled from
+	// the authoring form does not say so itself.
 	Path cue.Path
 	// File is the CUE to declare at Path, such as a lineage compiled from the
 	// authoring form (authoring.Compiled.File). Its package clause, if any, is
