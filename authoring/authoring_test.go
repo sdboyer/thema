@@ -2,6 +2,7 @@ package authoring_test
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 	"testing/fstest"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/authoring"
 	"github.com/sdboyer/thema/diag"
+	terrors "github.com/sdboyer/thema/errors"
 )
 
 const v00 = "Schema: {\n\tbefore: string\n}\n"
@@ -77,6 +79,127 @@ func TestPieces(t *testing.T) {
 		if !bytes.Equal(f.Text, formatted) {
 			t.Errorf("%s decompiled as\n%s\nwant\n%s", f.Path, f.Text, formatted)
 		}
+	}
+}
+
+// devHistory and devTip are a lineage whose tip removes b and writes no
+// lens for it, so the lenses on its edge are pending (E1001).
+const (
+	devHistory = "Schema: {\n\ta: string\n\tb: int\n}\n"
+	devTip     = "Schema: {\n\ta: string\n}\n"
+)
+
+// A tip whose edge lacks a lens, compiled on the development path, built,
+// and unified with a joinSchema in an enclosing struct, binds as that struct
+// holds it: provisional at the version the tip cuts as, and with the
+// joinSchema applied (#255).
+func TestBindDevelopmentValue(t *testing.T) {
+	ctx := cuecontext.New()
+	rt := thema.NewRuntime(ctx)
+	c, err := authoring.CompileDevelopment(ctx, "query", []authoring.File{
+		{Path: "history/0.0.thema", Text: []byte(devHistory)},
+		{Path: authoring.TipFile, Text: []byte(devTip)},
+	})
+	if err != nil {
+		t.Fatal(cerrors.Details(err, nil))
+	}
+	ds := diag.Diagnostics(c.Pending)
+	if len(ds) == 0 {
+		t.Fatal("want the tip's lenses pending (E1001)")
+	}
+	for _, d := range ds {
+		if d.Code != diag.E1001 {
+			t.Fatalf("want only E1001 pending, got %v", ds)
+		}
+	}
+	tipV, ok := c.Provisional()
+	if !ok {
+		t.Fatal("the tip is not provisional")
+	}
+
+	ops := ctx.CompileString(`operations: get: query: joinSchema: {kind?: "get"}`)
+	at := cue.ParsePath("operations.get.query")
+	v := ops.FillPath(at, ctx.BuildFile(c.File)).LookupPath(at)
+	lin, err := authoring.BindDevelopmentValue(rt, c, v)
+	if err != nil {
+		t.Fatal(cerrors.Details(err, nil))
+	}
+	if got := lin.Latest().Version(); got != tipV {
+		t.Errorf("newest version %s, want the tip's, %s", got, tipV)
+	}
+	if _, verr := lin.Latest().Validate(ctx.CompileString(`{a: "x", kind: "get"}`)); verr != nil {
+		t.Errorf("the joinSchema does not apply to the tip: %v", verr)
+	}
+	if _, verr := lin.Latest().Validate(ctx.CompileString(`{a: "x", kind: "list"}`)); verr == nil {
+		t.Error("the tip accepts a kind the joinSchema rejects")
+	}
+	alone, err := authoring.BindDevelopment(rt, c)
+	if err != nil {
+		t.Fatal(cerrors.Details(err, nil))
+	}
+	if _, verr := alone.Latest().Validate(ctx.CompileString(`{a: "x", kind: "get"}`)); verr == nil {
+		t.Error("the tip bound alone accepts kind, so the joinSchema is not what admits it")
+	}
+	inst, err := lin.First().Validate(ctx.CompileString(`{a: "x", b: 1}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := inst.Translate(tipV); !errors.Is(err, terrors.ErrProvisional) {
+		t.Errorf("translating across the pending lens: want E1002, got %v", err)
+	}
+}
+
+// BindDevelopmentValue binds only the lineage c compiled to: its tolerance
+// of lenses missing from the tip's edge is c's, and applied to another
+// lineage it would tolerate lenses c never reported pending.
+func TestBindDevelopmentValueGuard(t *testing.T) {
+	ctx := cuecontext.New()
+	rt := thema.NewRuntime(ctx)
+	compileDev := func(name, tip string) *authoring.Compiled {
+		t.Helper()
+		c, err := authoring.CompileDevelopment(ctx, name, []authoring.File{
+			{Path: "history/0.0.thema", Text: []byte(devHistory)},
+			{Path: authoring.TipFile, Text: []byte(tip)},
+		})
+		if err != nil {
+			t.Fatal(cerrors.Details(err, nil))
+		}
+		return c
+	}
+	pending := compileDev("query", devTip)
+	// written is the same lineage with the tip's lenses written: nothing is
+	// pending, but its tip is still provisional.
+	written := compileDev("query", devTip+"\nForwardLens: {\n\tv0_0: _\n\ttip: {\n\t\tb: _drop\n\t}\n}\n\nBackwardLens: {\n\ttip: _\n\tv0_0: {\n\t\tb: 0\n\t}\n}\n")
+	if written.Pending != nil {
+		t.Fatalf("want nothing pending: %v", written.Pending)
+	}
+	history, err := authoring.Compile(ctx, "query", []authoring.File{{Path: "history/0.0.thema", Text: []byte(devHistory)}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cases := []struct {
+		name string
+		c    *authoring.Compiled
+		v    cue.Value
+	}{
+		{"another name", compileDev("boat", devTip), ctx.BuildFile(pending.File)},
+		{"another version set", pending, ctx.BuildFile(history.File)},
+		{"a lens compiled and missing", written, ctx.BuildFile(pending.File)},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := authoring.BindDevelopmentValue(rt, tc.c, tc.v)
+			if ds := diag.Diagnostics(err); len(ds) != 1 || ds[0].Code != diag.E0626 {
+				t.Errorf("want E0626, got %v", ds)
+			}
+		})
+	}
+
+	// More lenses than were compiled narrow nothing c tolerates, and the
+	// lineage as compiled always binds.
+	if _, err := authoring.BindDevelopmentValue(rt, pending, ctx.BuildFile(written.File)); err != nil {
+		t.Errorf("a value with every lens compiled, and more: %v", err)
 	}
 }
 

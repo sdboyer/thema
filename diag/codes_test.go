@@ -336,6 +336,27 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 		}
 		return diag.Diagnostics(c.Pending)
 	},
+	// develop-value: compile the authoring files under the archive's one
+	// directory with their tip (compile.Development), and bind value.cue on
+	// the development path as the lineage they compiled to
+	// (authoring.BindDevelopmentValue), reporting what fails.
+	"develop-value": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {
+		name, files := authoringFiles(t, a)
+		ctx := cuecontext.New()
+		c, err := compile.Development(ctx, name, files)
+		if err != nil {
+			t.Fatalf("the authoring files do not compile: %v", err)
+		}
+		text, ok := a.File("value.cue")
+		if !ok {
+			t.Fatal("develop-value needs value.cue")
+		}
+		_, err = authoring.BindDevelopmentValue(thema.NewRuntime(ctx), c, ctx.CompileString(text, cue.Filename("value.cue")))
+		if err == nil {
+			t.Fatal("value.cue bound on the development path")
+		}
+		return diag.Diagnostics(err)
+	},
 	// develop-translate: bind the authoring files on the development path,
 	// validate data.json against #from and translate it to #to.
 	"develop-translate": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {

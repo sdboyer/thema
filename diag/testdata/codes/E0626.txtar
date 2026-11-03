@@ -1,0 +1,56 @@
+#op: develop-value
+A tool that composes lineages into one value binds the tip of one, compiled
+on the development path, as that value holds it, with
+`authoring.BindDevelopmentValue`. The development path tolerates the lenses
+missing from the tip's edge only for the lineage that was compiled with them
+missing. Here the value bound is the history alone, without the tip: it has
+none of the tip's version, so it is not the lineage that was compiled.
+-- ship/history/0.0.thema --
+Schema: {
+	a: string
+	b: int
+}
+-- ship/tip.thema --
+Schema: {
+	a: string
+}
+-- value.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				a: string
+				b: int
+			}
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0626",
+      "severity": "error",
+      "headline": "the lineage to bind on the development path has versions 0.0, where ship was compiled with 0.0, 1.0",
+      "notes": [
+        {
+          "label": "the development path tolerates the lenses missing from the tip's edge because ship was compiled with them missing, so it binds only the lineage ship was compiled to"
+        }
+      ],
+      "help": [
+        "bind the lineage that Compiled.File builds, as the larger value holds it"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0626]: the lineage to bind on the development path has versions 0.0, where ship was compiled with 0.0, 1.0
+  |
+  = note: the development path tolerates the lenses missing from the tip's edge because ship was compiled with them missing, so it binds only the lineage ship was compiled to
+  = help: bind the lineage that Compiled.File builds, as the larger value holds it
