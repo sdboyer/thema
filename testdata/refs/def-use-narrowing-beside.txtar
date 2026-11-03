@@ -4,10 +4,10 @@
 #at: lin.h
 #known/fill-text: #260 the filled text is the lineage's first conjunct, so the lineage is placed at the top of the use's root and #J beside the use reads as declared in the lineage.
 #known/fill-text-named: #260 the filled text is the lineage's first conjunct, so the lineage is placed at the top of the use's root and #J beside the use reads as declared in the lineage.
-#known/fill-use: #261 the use's value under a definition is closed once taken out of its root, so combining it with the text in Go refuses the text's schemas as a field not allowed (E0126).
-#known/unify-use-text: #261 the use's value under a definition is closed once taken out of its root, so combining it with the text in Go refuses the text's schemas as a field not allowed (E0126).
-#known/unify-text-use: #261 the use's value under a definition is closed once taken out of its root, so combining it with the text in Go refuses the text's schemas as a field not allowed (E0126).
-#known/third-root: #261 the use's value under a definition is closed once taken out of its root, so combining it with the text in Go refuses the text's schemas as a field not allowed (E0126).
+#known/fill-use: #270 bind rebuilds the lineage from its conjuncts without thema.Lineage; the use's conjunct, written in a definition, stays closed and has no schemas field (E0126).
+#known/unify-use-text: #270 bind rebuilds the lineage from its conjuncts without thema.Lineage; the use's conjunct, written in a definition, stays closed and has no schemas field (E0126).
+#known/unify-text-use: #270 bind rebuilds the lineage from its conjuncts without thema.Lineage; the use's conjunct, written in a definition, stays closed and has no schemas field (E0126).
+#known/third-root: #270 bind rebuilds the lineage from its conjuncts without thema.Lineage; the use's conjunct, written in a definition, stays closed and has no schemas field (E0126).
 -- in.cue --
 import "github.com/sdboyer/thema"
 
