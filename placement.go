@@ -25,12 +25,14 @@ import (
 // same in each case; what differs is the CUE around it.
 //
 // So the lineage has placements: each root it is declared in, and its path
-// there. The first is where BindLineage was handed it. The others are found
-// from the lineage's own structure: every conjunct of the lineage that is a
-// reference names a value the lineage is made of, declared in a root at a path
-// (a package, flagship: ship; a field, flagship: a; a value in another
-// package, flagship: ship.lin), and that value's own conjuncts may be
-// references in turn. A reference is inside the lineage exactly when it
+// there. The first is the root and path of the value passed to BindLineage,
+// not of the value thema rebuilds from its conjuncts, whose path is that of
+// whichever conjunct came first (#260). The others are found from the
+// lineage's own structure: every conjunct of the lineage that is a reference
+// names a value the lineage is made of, declared in a root at a path (a
+// package, flagship: ship; a field, flagship: a; a value in another package,
+// flagship: ship.lin), and that value's own conjuncts may be references in
+// turn. A reference is inside the lineage exactly when it
 // resolves under one of the placements, in that placement's root. Its path
 // relative to the lineage is then the same whichever placement it resolved in.
 //
@@ -66,14 +68,17 @@ type placements struct {
 	files map[string]bool
 }
 
-func placeLineage(lin cue.Value) *placements {
+// placeLineage finds where lin is declared. lin is the lineage as thema
+// rebuilt it from its conjuncts; at is the value passed to BindLineage, which
+// gives the first placement.
+func placeLineage(lin, at cue.Value) *placements {
 	pl := &placements{lin: lin, files: make(map[string]bool)}
 	for _, f := range declaringFiles(lin) {
 		pl.files[f] = true
 	}
-	own := placement{path: lin.Path()}
+	own := placement{path: at.Path()}
 	if len(own.path.Selectors()) == 0 {
-		own.inst = lin.BuildInstance()
+		own.inst = at.BuildInstance()
 	}
 	pl.add(own)
 	pl.follow(lin, 0)
@@ -121,7 +126,7 @@ func (pl *placements) in(x placement, root cue.Value) bool {
 	if x.inst != nil {
 		return root.BuildInstance() == x.inst
 	}
-	return pl.isOwnRoot(root)
+	return pl.isOwnRoot(root, x.path)
 }
 
 // declares reports whether the lineage is declared in root: whether a reference
@@ -171,17 +176,17 @@ func trimPath(p, prefix cue.Path) cue.Path {
 }
 
 // isOwnRoot reports whether root holds the lineage's own placement when the
-// lineage is not a root itself: whether root holds, at the lineage's path, a
-// value declared in the lineage's files. Each package is a root of its own,
-// declared in its own files, so another package's value at the same path, if
-// any, is declared elsewhere. The lineage value itself cannot be compared with
-// root: it may be a value thema unified in Go from several declarations, and a
-// value's position tells where its first conjunct is, not what it is. The
-// files are matched two ways, as a root knows them differently by how it was
-// built: an instance loaded from files lists them (BuildInstance), and one
-// built from syntax (BuildFile) has only the positions its nodes carry.
-func (pl *placements) isOwnRoot(root cue.Value) bool {
-	at := root.LookupPath(pl.lin.Path())
+// lineage is not a root itself: whether root holds, at p, a value declared in
+// the lineage's files. Each package is a root of its own, declared in its own
+// files, so another package's value at the same path, if any, is declared
+// elsewhere. The lineage value itself cannot be compared with root: it may be
+// a value thema unified in Go from several declarations, and a value's
+// position tells where its first conjunct is, not what it is. The files are
+// matched two ways, as a root knows them differently by how it was built: an
+// instance loaded from files lists them (BuildInstance), and one built from
+// syntax (BuildFile) has only the positions its nodes carry.
+func (pl *placements) isOwnRoot(root cue.Value, p cue.Path) bool {
+	at := root.LookupPath(p)
 	if !at.Exists() {
 		return false
 	}

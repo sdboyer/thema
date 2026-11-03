@@ -206,8 +206,8 @@ type refChecker struct {
 	predeclared map[string]bool
 }
 
-func newRefChecker(ctx *cue.Context, lin cue.Value) *refChecker {
-	return &refChecker{ctx: ctx, lin: lin, placed: placeLineage(lin), predeclared: make(map[string]bool)}
+func newRefChecker(ctx *cue.Context, lin, at cue.Value) *refChecker {
+	return &refChecker{ctx: ctx, lin: lin, placed: placeLineage(lin, at), predeclared: make(map[string]bool)}
 }
 
 // check returns the references in o that break a rule: those the value shows,
