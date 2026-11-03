@@ -136,18 +136,33 @@ func (lla *lineageLoadArgs) dynLoad() (*dynamicLoader, error) {
 		if lla.skipBindLineage {
 			return nil, diag.InternalErr(fmt.Errorf("%s is a lineage in the authoring form, which a command that skips binding does not take", lla.inputLinFilePath))
 		}
-		sourceDirs = append(sourceDirs, filepath.Dir(lla.absInput))
-		fsys, dir := os.DirFS(filepath.Dir(lla.absInput)), filepath.Base(lla.absInput)
+		var name string
+		var files []authoring.File
+		var at authoring.Option
+		if name, files, at, err = loadAuthoring(lla.absInput); err != nil {
+			return nil, err
+		}
 		if lla.tip {
-			dl.dev, err = tload.DevelopmentLineage(fsys, dir, rt)
-			if err != nil {
-				return nil, err
+			c, cerr := authoring.CompileDevelopment(ctx, name, files, at)
+			if cerr != nil {
+				return nil, cerr
 			}
+			lin, berr := authoring.BindDevelopment(rt, c)
+			if berr != nil {
+				return nil, berr
+			}
+			dl.dev = &tload.Development{Lineage: lin, Tip: *c.Tip, Pending: c.Pending}
 			warn(dl.dev.Pending)
 			dl.lin = dl.dev.Lineage
 			return lla.attachSchema(dl)
 		}
-		dl.lin, err = tload.AuthoringLineage(fsys, dir, rt)
+		c, cerr := authoring.Compile(ctx, name, files, at)
+		if cerr != nil {
+			return nil, cerr
+		}
+		// A lineage from Compile has no provisional version, and
+		// BindDevelopment binds it as load.AuthoringLineage does.
+		dl.lin, err = authoring.BindDevelopment(rt, c)
 		if err != nil {
 			return nil, err
 		}

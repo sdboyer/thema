@@ -52,12 +52,11 @@ func (cc *cutCommand) run(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return diag.New(diag.E0601).Headlinef("%s cannot be resolved to a path", cc.dir).Detail(diag.OSReason(err)).Err()
 	}
-	sourceDirs = append(sourceDirs, abs)
-	name, files, err := authoring.Load(os.DirFS(filepath.Dir(abs)), filepath.Base(abs))
+	name, files, at, err := loadAuthoring(abs)
 	if err != nil {
 		return err
 	}
-	cut, err := authoring.CutTip(rt, name, files)
+	cut, err := authoring.CutTip(rt, name, files, at)
 	if err != nil {
 		return err
 	}
