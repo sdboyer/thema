@@ -9,11 +9,13 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	cerrors "cuelang.org/go/cue/errors"
+	"cuelang.org/go/cue/parser"
 
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/authoring"
 	"github.com/sdboyer/thema/diag"
 	terrors "github.com/sdboyer/thema/errors"
+	tload "github.com/sdboyer/thema/load"
 )
 
 const v00 = "Schema: {\n\tbefore: string\n}\n"
@@ -117,10 +119,16 @@ func TestBindDevelopmentValue(t *testing.T) {
 		t.Fatal("the tip is not provisional")
 	}
 
-	ops := ctx.CompileString(`operations: get: query: joinSchema: {kind?: "get"}`)
+	ops, err := parser.ParseFile("ops.cue", `operations: get: query: joinSchema: {kind?: "get"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
 	at := cue.ParsePath("operations.get.query")
-	v := ops.FillPath(at, ctx.BuildFile(c.File)).LookupPath(at)
-	lin, err := authoring.BindDevelopmentValue(rt, c, v)
+	bi, err := tload.ComposedInstance("api", thema.Placement{File: ops}, authoring.Place(at, c))
+	if err != nil {
+		t.Fatal(err)
+	}
+	lin, err := authoring.BindDevelopmentValue(rt, c, ctx.BuildInstance(bi), at)
 	if err != nil {
 		t.Fatal(cerrors.Details(err, nil))
 	}
@@ -189,7 +197,7 @@ func TestBindDevelopmentValueGuard(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := authoring.BindDevelopmentValue(rt, tc.c, tc.v)
+			_, err := authoring.BindDevelopmentValue(rt, tc.c, tc.v, cue.Path{})
 			if ds := diag.Diagnostics(err); len(ds) != 1 || ds[0].Code != diag.E0626 {
 				t.Errorf("want E0626, got %v", ds)
 			}
@@ -198,7 +206,7 @@ func TestBindDevelopmentValueGuard(t *testing.T) {
 
 	// More lenses than were compiled narrow nothing c tolerates, and the
 	// lineage as compiled always binds.
-	if _, err := authoring.BindDevelopmentValue(rt, pending, ctx.BuildFile(written.File)); err != nil {
+	if _, err := authoring.BindDevelopmentValue(rt, pending, ctx.BuildFile(written.File), cue.Path{}); err != nil {
 		t.Errorf("a value with every lens compiled, and more: %v", err)
 	}
 }
@@ -237,9 +245,10 @@ BackwardLens: {
 
 	ctx := cuecontext.New()
 	rt := thema.NewRuntime(ctx)
-	whole := ctx.CompileString("get: _, list: _")
 	compiled := map[string]*authoring.Compiled{}
-	for op, dir := range dirs {
+	var ps []thema.Placement
+	for _, op := range []string{"get", "list"} {
+		dir := dirs[op]
 		name, files, err := authoring.Load(fsys, dir)
 		if err != nil {
 			t.Fatal(err)
@@ -249,11 +258,13 @@ BackwardLens: {
 			t.Fatal(cerrors.Details(err, nil))
 		}
 		compiled[op] = c
-		whole = whole.FillPath(cue.MakePath(cue.Str(op)), ctx.BuildFile(c.File))
+		ps = append(ps, authoring.Place(cue.MakePath(cue.Str(op)), c))
 	}
-	if err := whole.Err(); err != nil {
+	inst, err := tload.ComposedInstance("api", ps...)
+	if err != nil {
 		t.Fatal(err)
 	}
+	whole := ctx.BuildInstance(inst)
 
 	for op, dir := range dirs {
 		lin := whole.LookupPath(cue.MakePath(cue.Str(op)))
@@ -262,15 +273,13 @@ BackwardLens: {
 			t.Errorf("%s: 0.0's a is positioned in %s, want %s", op, got, want)
 		}
 
-		_, err := thema.BindLineage(lin, rt, thema.WithVocabulary(authoring.Vocabulary(compiled[op])))
+		_, err := thema.BindLineage(whole, cue.MakePath(cue.Str(op)), rt, thema.WithVocabulary(authoring.Vocabulary(compiled[op])))
 		ds := diag.Diagnostics(err)
-		if len(ds) == 0 {
-			t.Fatalf("%s: want bind to refuse the forward lens", op)
+		if len(ds) != 1 || ds[0].Code != diag.E0367 {
+			t.Fatalf("%s: want bind to refuse the forward lens (E0367), got %v", op, ds)
 		}
-		for _, d := range ds {
-			if d.Primary == nil || d.Primary.File != dir+"/history/1.0.thema" {
-				t.Errorf("%s: %s %q is positioned at %v, want %s/history/1.0.thema", op, d.Code, d.Headline, d.Primary, dir)
-			}
+		if d := ds[0]; d.Primary == nil || d.Primary.File != dir+"/history/1.0.thema" {
+			t.Errorf("%s: %s %q is positioned at %v, want %s/history/1.0.thema", op, d.Code, d.Headline, d.Primary, dir)
 		}
 	}
 }

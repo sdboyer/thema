@@ -3,12 +3,7 @@
 #spec: docs/invariants.md:116-118, docs/invariants.md:220
 #at: lin.h
 #known/together: #130 the evaluator substitutes a let bound to a literal, and the reference check does not compare the let's declaration position with the schema's span, so it sees a literal.
-#known/fill-text: #130 the evaluator substitutes a let bound to a literal, and the reference check does not compare the let's declaration position with the schema's span, so it sees a literal.
-#known/fill-text-named: #130 the evaluator substitutes a let bound to a literal, and the reference check does not compare the let's declaration position with the schema's span, so it sees a literal.
-#known/fill-use: #130 the evaluator substitutes a let bound to a literal, and the reference check does not compare the let's declaration position with the schema's span, so it sees a literal.
-#known/unify-use-text: #130 the evaluator substitutes a let bound to a literal, and the reference check does not compare the let's declaration position with the schema's span, so it sees a literal.
-#known/unify-text-use: #130 the evaluator substitutes a let bound to a literal, and the reference check does not compare the let's declaration position with the schema's span, so it sees a literal.
-#known/third-root: #130 the evaluator substitutes a let bound to a literal, and the reference check does not compare the let's declaration position with the schema's span, so it sees a literal.
+#known/compose: #130 the evaluator substitutes a let bound to a literal, and the reference check does not compare the let's declaration position with the schema's span, so it sees a literal.
 -- in.cue --
 import "github.com/sdboyer/thema"
 
@@ -16,17 +11,7 @@ lin: h: thema.Lineage & {name: "h"}
 -- text.cue --
 let Kind = "k"
 schemas: "0": "0": schema: {a: string, kind: Kind}
--- out/fill-text-named/bind --
-verdict: ok
--- out/fill-text/bind --
-verdict: ok
--- out/fill-use/bind --
-verdict: ok
--- out/third-root/bind --
+-- out/compose/bind --
 verdict: ok
 -- out/together/bind --
-verdict: ok
--- out/unify-text-use/bind --
-verdict: ok
--- out/unify-use-text/bind --
 verdict: ok

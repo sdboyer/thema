@@ -22,18 +22,18 @@ func BindTxtarLineage(t *vanilla.Test, rt *thema.Runtime) (thema.Lineage, error)
 
 	t.Helper()
 	inst := t.Instance()
-	val := ctx.BuildInstance(inst)
+	root := ctx.BuildInstance(inst)
+	var pp cue.Path
 	if p, ok := t.Value("lineagePath"); ok {
 		t.Log(p)
-		pp := cue.ParsePath(p)
+		pp = cue.ParsePath(p)
 		if len(pp.Selectors()) == 0 {
 			t.Fatalf("%q is not a valid value for the #lineagePath key", p)
 		}
-		val = val.LookupPath(pp)
-		if !val.Exists() {
+		if !root.LookupPath(pp).Exists() {
 			t.Fatalf("path %q specified in #lineagePath does not exist in input cue instance", p)
 		}
 	}
 
-	return thema.BindLineage(val, rt)
+	return thema.BindLineage(root, pp, rt)
 }

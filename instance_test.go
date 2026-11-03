@@ -116,7 +116,7 @@ lenses: {
 	}
 }`
 	linval := rt.Context().CompileString(linstr)
-	lin, err := BindLineage(linval, rt)
+	lin, err := BindLineage(linval, cue.Path{}, rt)
 	require.NoError(t, err)
 
 	// Initialize cue.Value
@@ -157,7 +157,7 @@ func BenchmarkBasicTranslate(b *testing.B) {
 		}
 
 		lval := ctx.BuildInstance(bc.Instance())
-		lin, err := BindLineage(lval, rt)
+		lin, err := BindLineage(lval, cue.Path{}, rt)
 		require.NoError(b, err)
 
 		first, second := lin.First(), lin.First().Successor()

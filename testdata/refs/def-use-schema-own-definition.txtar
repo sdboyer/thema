@@ -2,10 +2,6 @@
 #expect: ok
 #spec: docs/invariants.md:116-118, docs/invariants.md:143-148
 #at: lin.h
-#known/fill-use: #270 bind rebuilds the lineage from its conjuncts without thema.Lineage; the use's conjunct, written in a definition, stays closed and has no schemas field (E0126).
-#known/unify-use-text: #270 bind rebuilds the lineage from its conjuncts without thema.Lineage; the use's conjunct, written in a definition, stays closed and has no schemas field (E0126).
-#known/unify-text-use: #270 bind rebuilds the lineage from its conjuncts without thema.Lineage; the use's conjunct, written in a definition, stays closed and has no schemas field (E0126).
-#known/third-root: #270 bind rebuilds the lineage from its conjuncts without thema.Lineage; the use's conjunct, written in a definition, stays closed and has no schemas field (E0126).
 -- in.cue --
 import "github.com/sdboyer/thema"
 
@@ -13,21 +9,7 @@ import "github.com/sdboyer/thema"
 lin: #Op
 -- text.cue --
 schemas: "0": "0": schema: {#T: string, a?: #T}
--- out/fill-text-named/bind --
+-- out/compose/bind --
 verdict: ok
--- out/fill-text/bind --
-verdict: ok
--- out/fill-use/bind --
-verdict: E0126
-E0126 the lineage is not an instance of thema.Lineage @ :1:1
--- out/third-root/bind --
-verdict: E0126
-E0126 the lineage is not an instance of thema.Lineage @ :1:1
 -- out/together/bind --
 verdict: ok
--- out/unify-text-use/bind --
-verdict: E0126
-E0126 the lineage is not an instance of thema.Lineage @ :1:1
--- out/unify-use-text/bind --
-verdict: E0126
-E0126 the lineage is not an instance of thema.Lineage @ no position

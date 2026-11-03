@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 
+	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 )
 
@@ -33,7 +34,7 @@ const noDefaults = `{"title": "Argo", "crew": 3, "hull": {"material": "oak"}}`
 func TestHydrateDehydrate(t *testing.T) {
 	ctx := cuecontext.New()
 	rt := NewRuntime(ctx)
-	lin, err := BindLineage(ctx.CompileString(hydrateLineage), rt)
+	lin, err := BindLineage(ctx.CompileString(hydrateLineage), cue.Path{}, rt)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -358,9 +358,8 @@ func Lineage(rt *thema.Runtime, opts ...thema.BindOption) (thema.Lineage, error)
 	}
 
 	raw := rt.Context().BuildInstance(inst)
-	raw = raw.LookupPath(cue.ParsePath("lin"))
 
-	return thema.BindLineage(raw, rt, opts...)
+	return thema.BindLineage(raw, cue.ParsePath("lin"), rt, opts...)
 }
 
 var _ thema.LineageFactory = Lineage

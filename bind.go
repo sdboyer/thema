@@ -40,6 +40,11 @@ type maybeLineage struct {
 	// with thema.Lineage
 	orig cue.Value
 
+	// root is the value the caller bound the lineage from, and path the
+	// lineage's path in it: where the lineage's own declarations are.
+	root cue.Value
+	path cue.Path
+
 	rt *Runtime
 
 	// pos of the original input for the lineage
@@ -226,11 +231,26 @@ func (ml *maybeLineage) checkSchemaVersions(prev, curr *schemaDef) error {
 	return nil
 }
 
+// checkRoot refuses a root built in Go. Bind places the lineage's own
+// declarations by the build instance of the root they are in (placement.go),
+// which CUE keeps only for the root of a value it built from files.
+func (ml *maybeLineage) checkRoot() error {
+	// A root CUE failed to build reports its own error in the checks after.
+	if ml.root.Err() != nil || ml.root.BuildInstance() != nil {
+		return nil
+	}
+	return ml.diag(diag.E0152).
+		Headline("a lineage is bound from a value CUE loaded from files, and this one was built in Go").
+		Note(token.NoPos, "bind tells the lineage's own declarations from the CUE around it by the files its root was loaded from; a value made by FillPath or Unify has none").
+		Help("compose separately built lineages into one package with thema.Compose, load it, and bind each lineage from that package's root").
+		Err()
+}
+
 func (ml *maybeLineage) checkExists(cfg *bindConfig) error {
 	// The candidate lineage must exist.
 	if !ml.raw.Exists() {
 		b := ml.diag(diag.E0128)
-		if p := ml.raw.Path().String(); p != "" {
+		if p := ml.path.String(); p != "" {
 			b.Headlinef("there is no value at %s to bind as a lineage", p)
 		} else {
 			b.Headlinef("there is no value to bind as a lineage")
@@ -786,7 +806,7 @@ func (ml *maybeLineage) checkLacunas() error {
 // schemas fail is reported without its lenses: a lens is judged against
 // schemas that mean what they say.
 func (ml *maybeLineage) checkReferences() error {
-	rc := newRefChecker(ml.rt.Context(), ml.raw)
+	rc := newRefChecker(ml.rt.Context(), ml.raw, ml.root, ml.path)
 	var errs []error
 	check := func(o refOwner) {
 		for _, f := range rc.check(o) {

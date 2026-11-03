@@ -39,7 +39,7 @@ func TestValidate(t *testing.T) {
 		req := require.New(tc)
 
 		val := ctx.BuildInstance(tc.Instance())
-		lineage, err := BindLineage(val, rt)
+		lineage, err := BindLineage(val, cue.Path{}, rt)
 		req.NoError(err)
 
 		// The archive's files, by the names their positions carry: the lineage
@@ -211,7 +211,7 @@ schemas: "0": "0": schema: {
 			for _, tc := range cases {
 				t.Run(lname+"/"+cname+"/"+tc.name, func(t *testing.T) {
 					ctx := cuecontext.New()
-					l, err := BindLineage(mklin(ctx), NewRuntime(ctx))
+					l, err := BindLineage(mklin(ctx), cue.Path{}, NewRuntime(ctx))
 					require.NoError(t, err)
 
 					_, err = l.Latest().Validate(mkdata(t, ctx, tc.text, tc.gov))

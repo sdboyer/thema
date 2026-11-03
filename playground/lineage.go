@@ -129,8 +129,10 @@ func (s *Session) bindNormal(f File, path string) cached {
 	} else {
 		v = s.rt.Context().CompileString(f.Text, cue.Filename(f.Path))
 	}
+	root := v
+	var p cue.Path
 	if path != "" {
-		p := cue.ParsePath(path)
+		p = cue.ParsePath(path)
 		if p.Err() != nil {
 			return cached{err: diag.New(diag.E0604).Headlinef("%q is not a CUE path", path).Detail(p.Err().Error()).
 				Help("the lineage's path is a path into the file, such as lin or rename.l").Err()}
@@ -141,7 +143,7 @@ func (s *Session) bindNormal(f File, path string) cached {
 				Help("the lineage's path names the field of the file that holds the lineage").Err()}
 		}
 	}
-	lin, err := thema.BindLineage(v, s.rt)
+	lin, err := thema.BindLineage(root, p, s.rt)
 	return cached{lin: lin, raw: v, normal: f.Text, err: err}
 }
 

@@ -26,11 +26,11 @@ func TestExemplarValidity(t *testing.T) {
 	}
 
 	for iter.Next() {
-		v := iter.Value().LookupPath(cue.ParsePath("l"))
-		name, _ := v.LookupPath(cue.ParsePath("name")).String()
+		p := cue.MakePath(iter.Selector(), cue.Str("l"))
+		name, _ := dirinst.LookupPath(p).LookupPath(cue.ParsePath("name")).String()
 		t.Run("Bind-"+name, func(t *testing.T) {
 			t.Parallel()
-			_, err := thema.BindLineage(v, allrt)
+			_, err := thema.BindLineage(dirinst, p, allrt)
 			if err != nil {
 				// t.Fatal(errors.Details(err, nil))
 				t.Fatalf("%T %+v", err, err)

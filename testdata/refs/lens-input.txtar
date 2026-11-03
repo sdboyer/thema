@@ -15,17 +15,7 @@ lenses: {
 	"1.0->0.0": {v1_0: _, v0_0: {a: v1_0.b}}
 	"0.0->1.0": {v0_0: _, v1_0: {b: v0_0.a}}
 }
--- out/fill-text-named/bind --
-verdict: ok
--- out/fill-text/bind --
-verdict: ok
--- out/fill-use/bind --
-verdict: ok
--- out/third-root/bind --
+-- out/compose/bind --
 verdict: ok
 -- out/together/bind --
-verdict: ok
--- out/unify-text-use/bind --
-verdict: ok
--- out/unify-use-text/bind --
 verdict: ok

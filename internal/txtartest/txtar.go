@@ -333,19 +333,19 @@ func (t *LineageTest) BindLineage(rt *thema.Runtime) thema.Lineage {
 	}
 
 	inst := t.instance()
-	val := ctx.BuildInstance(inst)
+	root := ctx.BuildInstance(inst)
+	var pp cue.Path
 	if p, ok := t.Value("lineagePath"); ok {
-		pp := cue.ParsePath(p)
+		pp = cue.ParsePath(p)
 		if len(pp.Selectors()) == 0 {
 			t.Fatalf("%q is not a valid value for the #lineagePath key", p)
 		}
-		val = val.LookupPath(pp)
-		if !val.Exists() {
+		if !root.LookupPath(pp).Exists() {
 			t.Fatalf("path %q specified in #lineagePath does not exist in input cue instance", p)
 		}
 	}
 
-	lin, err := thema.BindLineage(val, rt)
+	lin, err := thema.BindLineage(root, pp, rt)
 	if err != nil {
 		t.Fatal(err)
 	}

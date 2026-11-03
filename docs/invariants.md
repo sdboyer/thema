@@ -141,9 +141,13 @@ lineage reaches thema compiled from the authoring form, loaded as a package,
 imported, or re-exported from another package under another name, and the
 evaluator resolves a reference in whichever package it shares the lineage's
 value with. thema places a reference by where the lineage is declared: the
-value it was bound as, and every value that value is a reference to, each in
-the package that declares it. It never decides by file, package or import
-path. A lineage that is another package re-exported (`flagship: ship`), or a
+path it was bound at, in the package it was bound from, and every value that
+path is a reference to, each in the package that declares it. It compares the
+loaded packages themselves, never their file names or import paths. A
+lineage is therefore bound from a package CUE loaded from files and a path
+into it; a value built in Go, by `FillPath` or `Unify`, belongs to no loaded
+package, and binding refuses it (`E0152`). Lineages built separately are
+composed into one package of files (`thema.Compose`) and bound from it. A lineage that is another package re-exported (`flagship: ship`), or a
 reference to a value beside it (`lin: _impl`), refers to its own body as it
 does where it is declared, and a package it imports is still an import. A
 finding spells a reference inside the lineage from the lineage

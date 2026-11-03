@@ -71,7 +71,6 @@ func {{ .BaseFactoryFuncName }}(rt *thema.Runtime, opts ...thema.BindOption) (th
 	}
 
 	raw := rt.Context().BuildInstance(inst)
-	{{ if .CUEPath }}raw = raw.LookupPath(cue.ParsePath({{ .CUEPath }})){{ end }}
 
 	// Errors here indicate that:
 	//   - The parsed path does not exist in the loaded CUE file (["github.com/sdboyer/thema/errors".ErrValueNotExist])
@@ -81,7 +80,7 @@ func {{ .BaseFactoryFuncName }}(rt *thema.Runtime, opts ...thema.BindOption) (th
 	//     but is invalid due to the violation of some general Thema invariant -
 	//     for example, declared schemas don't follow backwards compatibility rules,
 	//     lenses are incomplete.
-	return thema.BindLineage(raw, rt)
+	return thema.BindLineage(raw, cue.ParsePath({{ .CUEPath }}), rt)
 }
 
 // type guards

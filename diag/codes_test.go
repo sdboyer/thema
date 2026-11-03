@@ -202,7 +202,7 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 		if !ok {
 			t.Fatal("validate needs lineage.cue")
 		}
-		lin, err := thema.BindLineage(ctx.CompileString(src, cue.Filename("lineage.cue")), rt)
+		lin, err := thema.BindLineage(ctx.CompileString(src, cue.Filename("lineage.cue")), cue.Path{}, rt)
 		if err != nil {
 			t.Fatalf("lineage.cue does not bind: %v", err)
 		}
@@ -246,11 +246,11 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 		if !ok {
 			t.Fatal("bind needs lineage.cue")
 		}
-		v := ctx.CompileString(src, cue.Filename("lineage.cue"))
-		if p, ok := dirs["path"]; ok {
-			v = v.LookupPath(cue.ParsePath(p))
+		var p cue.Path
+		if path, ok := dirs["path"]; ok {
+			p = cue.ParsePath(path)
 		}
-		_, err := thema.BindLineage(v, rt)
+		_, err := thema.BindLineage(ctx.CompileString(src, cue.Filename("lineage.cue")), p, rt)
 		if err == nil {
 			t.Fatal("the lineage bound")
 		}
@@ -266,7 +266,7 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 		if !ok {
 			t.Fatal("translate needs lineage.cue")
 		}
-		lin, err := thema.BindLineage(ctx.CompileString(src, cue.Filename("lineage.cue")), rt)
+		lin, err := thema.BindLineage(ctx.CompileString(src, cue.Filename("lineage.cue")), cue.Path{}, rt)
 		if err != nil {
 			t.Fatalf("lineage.cue does not bind: %v", err)
 		}
@@ -312,7 +312,7 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 		if err != nil {
 			return diag.Diagnostics(err)
 		}
-		_, err = thema.BindLineage(ctx.BuildFile(c.File), thema.NewRuntime(ctx), thema.WithVocabulary(compile.Vocabulary(c)))
+		_, err = thema.BindLineage(ctx.BuildFile(c.File), cue.Path{}, thema.NewRuntime(ctx), thema.WithVocabulary(compile.Vocabulary(c)))
 		if err == nil {
 			t.Fatal("the authoring files compiled and bound")
 		}
@@ -352,7 +352,7 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 		if !ok {
 			t.Fatal("develop-value needs value.cue")
 		}
-		_, err = authoring.BindDevelopmentValue(thema.NewRuntime(ctx), c, ctx.CompileString(text, cue.Filename("value.cue")))
+		_, err = authoring.BindDevelopmentValue(thema.NewRuntime(ctx), c, ctx.CompileString(text, cue.Filename("value.cue")), cue.Path{})
 		if err == nil {
 			t.Fatal("value.cue bound on the development path")
 		}
@@ -424,7 +424,7 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 			t.Fatal("decompile needs lineage.cue")
 		}
 		v := ctx.CompileString(src, cue.Filename("lineage.cue"))
-		if _, err := thema.BindLineage(v, thema.NewRuntime(ctx)); err != nil {
+		if _, err := thema.BindLineage(v, cue.Path{}, thema.NewRuntime(ctx)); err != nil {
 			t.Fatalf("lineage.cue does not bind: %v", err)
 		}
 		_, _, err := compile.Decompile(v)
@@ -477,7 +477,7 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 		if !ok {
 			t.Fatal("schema needs lineage.cue")
 		}
-		lin, err := thema.BindLineage(ctx.CompileString(src, cue.Filename("lineage.cue")), rt)
+		lin, err := thema.BindLineage(ctx.CompileString(src, cue.Filename("lineage.cue")), cue.Path{}, rt)
 		if err != nil {
 			t.Fatalf("lineage.cue does not bind: %v", err)
 		}
@@ -564,6 +564,27 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 			t.Fatalf("%s succeeded", dirs["call"])
 		}
 		return resp.Diagnostics
+	},
+	// bind-filled: compile lineage.cue and holder.cue on their own, fill the
+	// lineage into the holder at #path with FillPath, and bind it from there.
+	"bind-filled": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {
+		ctx := cuecontext.New()
+		src, ok := a.File("lineage.cue")
+		if !ok {
+			t.Fatal("bind-filled needs lineage.cue")
+		}
+		holder, ok := a.File("holder.cue")
+		if !ok {
+			t.Fatal("bind-filled needs holder.cue")
+		}
+		dirs, _ := a.Directives()
+		p := cue.ParsePath(dirs["path"])
+		root := ctx.CompileString(holder, cue.Filename("holder.cue")).FillPath(p, ctx.CompileString(src, cue.Filename("lineage.cue")))
+		_, err := thema.BindLineage(root, p, thema.NewRuntime(ctx))
+		if err == nil {
+			t.Fatal("the filled lineage bound")
+		}
+		return diag.Diagnostics(err)
 	},
 	// compose: compose text.cue into a package named #package at #path
 	// (thema.Compose), and report why it cannot be.

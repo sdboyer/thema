@@ -3,6 +3,7 @@ package authoring
 import (
 	"fmt"
 
+	"cuelang.org/go/cue"
 	cerrors "cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/token"
 
@@ -102,7 +103,7 @@ func bindHistory(rt *thema.Runtime, name string, files []File, opts []Option) (t
 	if err != nil {
 		return nil, err
 	}
-	return thema.BindLineage(rt.Context().BuildFile(c.File), rt, thema.WithVocabulary(Vocabulary(c)))
+	return thema.BindLineage(rt.Context().BuildFile(c.File), cue.Path{}, rt, thema.WithVocabulary(Vocabulary(c)))
 }
 
 // pendingLenses is the E1004 error for a tip whose edge still lacks the

@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 
+	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/errors"
 
@@ -40,7 +41,7 @@ type TestType struct {
 func testLin(linstr string) Lineage {
 	rt := NewRuntime(cuecontext.New())
 	val := rt.Context().CompileString(linstr)
-	lin, err := BindLineage(val, rt)
+	lin, err := BindLineage(val, cue.Path{}, rt)
 	if err != nil {
 		panic(err)
 	}

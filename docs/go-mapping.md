@@ -271,23 +271,22 @@ import (
 //go:embed ship.cue cue.mod/module.cue
 var modFS embed.FS
 
-func loadLineage(rt *thema.Runtime) (cue.Value, error) {
+func loadPackage(rt *thema.Runtime) (cue.Value, error) {
     inst, err := load.InstanceWithThema(modFS, ".")
     if err != nil {
         return cue.Value{}, err
     }
 
-    val := rt.Context().BuildInstance(inst)
-    return val.LookupPath(cue.MakePath(cue.Str("lin"))), nil
+    return rt.Context().BuildInstance(inst), nil
 }
 
 // ShipLineage constructs a Go handle representing the Ship lineage.
 func ShipLineage(rt *thema.Runtime, opts ...thema.BindOption) (thema.Lineage, error) {
-    linval, err := loadLineage(rt)
+    root, err := loadPackage(rt)
     if err != nil {
         return nil, err
     }
-    return thema.BindLineage(linval, rt, opts...)
+    return thema.BindLineage(root, cue.MakePath(cue.Str("lin")), rt, opts...)
 }
 var _ thema.LineageFactory = ShipLineage // Ensure our factory fulfills the type
 ```

@@ -2,32 +2,15 @@
 #expect: E0140
 #spec: docs/invariants.md:178-180, docs/invariants.md:219
 #at: lin.h
-#known/fill-use: #264 the lineage is at the top of a root with no build instance whose files include the use's, so the narrowing's reference into the schemas reads as one to the lineage's own fields outside the joinSchema (E0141, not E0140).
-#known/unify-text-use: #264 the lineage is at the top of a root with no build instance whose files include the use's, so the narrowing's reference into the schemas reads as one to the lineage's own fields outside the joinSchema (E0141, not E0140).
-#known/third-root: #264 the use is filled into the third root as a value, not referred to, so the root the narrowing's reference resolves in is no placement of the lineage and the reference into the schemas reads as leaving it, which a narrowing may do.
 -- in.cue --
 import "github.com/sdboyer/thema"
 
 lin: h: thema.Lineage & {name: "h", joinSchema: {a?: lin.h.schemas["0"]["0"].schema.a, ...}}
 -- text.cue --
 schemas: "0": "0": schema: {a?: string}
--- out/fill-text-named/bind --
+-- out/compose/bind --
 verdict: E0140
 E0140 a in joinSchema refers to schemas["0"]["0"].schema.a, a schema in the lineage @ /m/in.cue:4:54
--- out/fill-text/bind --
-verdict: E0140
-E0140 a in joinSchema refers to schemas["0"]["0"].schema.a, a schema in the lineage @ /m/in.cue:4:54
--- out/fill-use/bind --
-verdict: E0141
-E0141 a in joinSchema refers to lin.h.schemas["0"]["0"].schema.a, which is declared in the lineage outside the joinSchema @ /m/in.cue:4:54
--- out/third-root/bind --
-verdict: ok
 -- out/together/bind --
-verdict: E0140
-E0140 a in joinSchema refers to schemas["0"]["0"].schema.a, a schema in the lineage @ /m/in.cue:4:54
--- out/unify-text-use/bind --
-verdict: E0141
-E0141 a in joinSchema refers to lin.h.schemas["0"]["0"].schema.a, which is declared in the lineage outside the joinSchema @ /m/in.cue:4:54
--- out/unify-use-text/bind --
 verdict: E0140
 E0140 a in joinSchema refers to schemas["0"]["0"].schema.a, a schema in the lineage @ /m/in.cue:4:54

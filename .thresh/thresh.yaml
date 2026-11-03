@@ -194,7 +194,7 @@ seams:
       - load/testdata/loadpaths/*.txtar
     consult:
       - "TestLoadPaths in load and its corpus (load/testdata/loadpaths): every loading path gives the same verdict, diagnostics, IDs and programs, and the paths loading the same text the same positions; a new way of loading a lineage is a new row in loadPaths"
-      - "placement.go: a reference is inside the lineage when it resolves under a root the lineage is declared in, found from the lineage's own conjuncts, never by comparing file names, package paths or the lineage's path in the root it was bound under"
+      - "placement.go: a reference is inside the lineage when it resolves under the path the lineage was bound at, in the package it was bound from, or under a value that path refers to, found from the lineage's own conjuncts; packages are compared as CUE loaded them, never by file names or package paths"
       - "internal/embedreg KernelPath, which says what is thema's own CUE by file: only thema's package files and cue.mod, never an author's module loaded beneath thema's path"
       - "the loading paths pending #212: the normal form generated beside the authoring files, loaded by the collection loader, and load.Configure's FS mode"
 
@@ -232,6 +232,7 @@ seams:
       checkGoValidity: "compat vs declared version delta: needs the compat checker, which closes both schemas and subsumes them in Go; also rejects a major version key with no minors, which struct.MinFields only reports under concrete validation, which abstract schemas never pass"
       checkSchemaVersions: "versions must be contiguous from 0.0: in CUE a skipped version is a missing key, which is only an incomplete reference (unification could still supply it), so validation never reports it"
       checkExists: "presence of required lineage parts before deeper checks"
+      checkRoot: "the value a lineage is bound from must be a root CUE loaded from files: references are placed by the loaded package the lineage was bound from and its path in it, and a value made in Go by FillPath or Unify belongs to no loaded package. How a value was constructed is not something CUE's language can see, so no constraint in lineage.cue can refuse it"
       checkLineageShape: "structural shape checks on the raw lineage value"
       checkNativeValidity: "runs the CUE-native validity pass and surfaces its errors"
       checkLensEdges: "exactly the required lenses exist: needs the bound version list; a missing lens would otherwise surface only when a translation crosses its edge, and an extra one would be silently unused"

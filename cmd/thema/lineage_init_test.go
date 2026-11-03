@@ -91,7 +91,7 @@ func bindNormalForm(t *testing.T, src string) thema.Lineage {
 	if err != nil {
 		t.Fatalf("generated lineage does not load: %s\n%s", err, src)
 	}
-	lin, err := thema.BindLineage(ctx.BuildInstance(binst), rt)
+	lin, err := thema.BindLineage(ctx.BuildInstance(binst), cue.Path{}, rt)
 	if err != nil {
 		t.Fatalf("generated lineage does not bind: %s\n%s", err, src)
 	}

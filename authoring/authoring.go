@@ -133,21 +133,25 @@ func CompileDevelopment(ctx *cue.Context, name string, files []File, opts ...Opt
 // An instance of the tip's version is an instance of the tip, not of any
 // version that was cut: until it is, the tip may change under it.
 func BindDevelopment(rt *thema.Runtime, c *Compiled, opts ...thema.BindOption) (thema.Lineage, error) {
-	return BindDevelopmentValue(rt, c, rt.Context().BuildFile(c.File), opts...)
+	return BindDevelopmentValue(rt, c, rt.Context().BuildFile(c.File), cue.Path{}, opts...)
 }
 
-// BindDevelopmentValue binds v, the lineage c compiled to as it appears in a
-// larger value, on the development path, as [BindDevelopment] binds c alone. v
-// is c.File built and unified with more: a joinSchema, or other constraints
-// of a tool that composes lineages into one value.
+// BindDevelopmentValue binds the lineage at p in root, the lineage c compiled
+// to as it appears in a larger value, on the development path, as
+// [BindDevelopment] binds c alone. root is a package c.File was composed into
+// ([Place] and [github.com/sdboyer/thema.Compose]), where the lineage may be
+// unified with more: a joinSchema, or other constraints of a tool that
+// composes lineages into one value. root is bound from as
+// [github.com/sdboyer/thema.BindLineage] binds from it.
 //
-// The provisional version's tolerance is c's to grant, so v must be c's
-// lineage: v is named as c is, declares exactly c's versions, and declares
+// The provisional version's tolerance is c's to grant, so the lineage at p
+// must be c's: named as c is, declaring exactly c's versions, and declaring
 // every lens c compiled. Anything else is an error (E0626), and nothing is
 // bound. The lenses bind tolerates missing are then those c reports in
-// Compiled.Pending, on the edge into c's provisional version, which is v's
-// newest.
-func BindDevelopmentValue(rt *thema.Runtime, c *Compiled, v cue.Value, opts ...thema.BindOption) (thema.Lineage, error) {
+// Compiled.Pending, on the edge into c's provisional version, which is the
+// lineage's newest.
+func BindDevelopmentValue(rt *thema.Runtime, c *Compiled, root cue.Value, p cue.Path, opts ...thema.BindOption) (thema.Lineage, error) {
+	v := root.LookupPath(p)
 	if err := v.Err(); err != nil {
 		return nil, diag.Convert(err, diag.Context{Op: diag.OpCompile, Vocabulary: Vocabulary(c), Generic: diag.E0112})
 	}
@@ -158,7 +162,7 @@ func BindDevelopmentValue(rt *thema.Runtime, c *Compiled, v cue.Value, opts ...t
 	if p, ok := c.Provisional(); ok {
 		all = append(all, provisional.Option(p).(thema.BindOption))
 	}
-	return thema.BindLineage(v, rt, all...)
+	return thema.BindLineage(root, p, rt, all...)
 }
 
 // compiledFrom checks that v is the lineage c compiled to, as unifying c's

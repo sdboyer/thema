@@ -470,18 +470,18 @@ func loadone(rt *thema.Runtime, binst *build.Instance, pkgpath, cuepath string) 
 
 	v := rt.Underlying().Context().BuildInstance(binst)
 
+	var p cue.Path
 	if cuepath != "" {
-		p := cue.ParsePath(cuepath)
+		p = cue.ParsePath(cuepath)
 		if p.Err() != nil {
 			return nil, diag.New(diag.E0604).Headlinef("%q is not a CUE path", cuepath).Detail(p.Err().Error()).
 				Help("-p takes a path into the package, such as lin or lineages.ship").Err()
 		}
-		v = v.LookupPath(p)
-		if !v.Exists() {
+		if !v.LookupPath(p).Exists() {
 			return nil, diag.New(diag.E0605).Headlinef("there is no value at %s in %s", cuepath, pkgpath).
 				Help("-p names a field of the package that holds the lineage").Err()
 		}
 	}
 
-	return thema.BindLineage(v, rt)
+	return thema.BindLineage(v, p, rt)
 }

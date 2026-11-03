@@ -60,7 +60,7 @@ func TestLensSyntaxErrorPositions(t *testing.T) {
 					break
 				}
 			}
-			_, err := BindLineage(loadLineageValue(t, ctx, src), rt)
+			_, err := BindLineage(loadLineageRoot(t, ctx, src), cue.ParsePath("lin"), rt)
 			if err == nil {
 				t.Fatal("bind succeeded, want an error")
 			}
@@ -86,14 +86,14 @@ func TestLensSyntaxErrorPositions(t *testing.T) {
 // is the author's, and thema still unifies its own Lineage in.
 func TestBindAuthorFieldNamedLineage(t *testing.T) {
 	ctx := cuecontext.New()
-	v := ctx.CompileString(`
+	root := ctx.CompileString(`
 Lineage: {name: string}
 lin: Lineage & {
 	name: "ship"
 	schemas: "0": "0": schema: {a: string}
 }
-`).LookupPath(cue.ParsePath("lin"))
-	lin, err := BindLineage(v, NewRuntime(ctx))
+`)
+	lin, err := BindLineage(root, cue.ParsePath("lin"), NewRuntime(ctx))
 	if err != nil {
 		t.Fatal(err)
 	}
