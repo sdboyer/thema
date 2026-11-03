@@ -44,19 +44,23 @@ func (t Tip) String() string {
 // version it cuts as, and whether it is clean. It checks the layout and the
 // tip's and the newest frozen version's files, not the lineage as a whole;
 // for that, compile it.
-func ReadTip(ctx *cue.Context, files []File) (*Tip, error) {
+func ReadTip(ctx *cue.Context, files []File, opts ...Option) (*Tip, error) {
+	o, err := resolve(opts, files)
+	if err != nil {
+		return nil, err
+	}
 	history, tipFile, err := splitLayout(files)
 	if err != nil {
 		return nil, err
 	}
-	vs, err := parseVersions(history)
+	vs, err := parseVersions(history, o)
 	if err != nil {
 		return nil, err
 	}
 	if tipFile == nil {
 		return nil, noTip()
 	}
-	_, tip, err := readTip(ctx, vs, *tipFile)
+	_, tip, err := readTip(ctx, vs, *tipFile, o)
 	return tip, err
 }
 
@@ -65,19 +69,23 @@ func ReadTip(ctx *cue.Context, files []File) (*Tip, error) {
 // that the history holds everything the tip says. It returns nil for a clean
 // tip and an E1003 diagnostic for each way the tip differs otherwise. CI runs
 // it to assert that the tip was cut before merging.
-func CheckClean(ctx *cue.Context, files []File) error {
+func CheckClean(ctx *cue.Context, files []File, opts ...Option) error {
+	o, err := resolve(opts, files)
+	if err != nil {
+		return err
+	}
 	history, tipFile, err := splitLayout(files)
 	if err != nil {
 		return err
 	}
-	vs, err := parseVersions(history)
+	vs, err := parseVersions(history, o)
 	if err != nil {
 		return err
 	}
 	if tipFile == nil {
 		return noTip()
 	}
-	tv, tip, err := readTip(ctx, vs, *tipFile)
+	tv, tip, err := readTip(ctx, vs, *tipFile, o)
 	if err != nil {
 		return err
 	}
@@ -120,8 +128,8 @@ func CheckClean(ctx *cue.Context, files []File) error {
 
 // readTip parses the tip and derives its version against vs, the frozen
 // versions in order, setting the parsed tip's version to it.
-func readTip(ctx *cue.Context, vs []*version, f File) (*version, *Tip, error) {
-	tv, err := parseVersion(f, true)
+func readTip(ctx *cue.Context, vs []*version, f File, o options) (*version, *Tip, error) {
+	tv, err := parseVersion(f, o.name(f), true)
 	if err != nil {
 		return nil, nil, err
 	}

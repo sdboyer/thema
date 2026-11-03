@@ -202,3 +202,75 @@ func TestBindDevelopmentValueGuard(t *testing.T) {
 		t.Errorf("a value with every lens compiled, and more: %v", err)
 	}
 }
+
+// Two lineages loaded from different directories of one fs.FS, compiled with
+// their files positioned under their directories, and composed into one
+// value, name their own files: in the value, and in bind's diagnostics, though
+// each lineage's files have the same paths within its directory (#254).
+func TestAtComposed(t *testing.T) {
+	// The forward lens computes a value its target may reject, which bind
+	// reports in history/1.0.thema.
+	const partial = `Schema: {
+	a: int32 & >=0
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		a: v0_0.a * 2
+	}
+}
+
+BackwardLens: {
+	v1_0: _
+	v0_0: {
+		a: v1_0.a
+	}
+}
+`
+	fsys := fstest.MapFS{}
+	dirs := map[string]string{"get": "operations/get/query", "list": "operations/list/query"}
+	for _, dir := range dirs {
+		fsys[dir+"/history/0.0.thema"] = &fstest.MapFile{Data: []byte("Schema: {\n\ta: int32\n}\n")}
+		fsys[dir+"/history/1.0.thema"] = &fstest.MapFile{Data: []byte(partial)}
+	}
+
+	ctx := cuecontext.New()
+	rt := thema.NewRuntime(ctx)
+	whole := ctx.CompileString("get: _, list: _")
+	compiled := map[string]*authoring.Compiled{}
+	for op, dir := range dirs {
+		name, files, err := authoring.Load(fsys, dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		c, err := authoring.Compile(ctx, name, files, authoring.At(dir))
+		if err != nil {
+			t.Fatal(cerrors.Details(err, nil))
+		}
+		compiled[op] = c
+		whole = whole.FillPath(cue.MakePath(cue.Str(op)), ctx.BuildFile(c.File))
+	}
+	if err := whole.Err(); err != nil {
+		t.Fatal(err)
+	}
+
+	for op, dir := range dirs {
+		lin := whole.LookupPath(cue.MakePath(cue.Str(op)))
+		a := lin.LookupPath(cue.ParsePath(`schemas."0"."0".schema.a`))
+		if got, want := a.Pos().Filename(), dir+"/history/0.0.thema"; got != want {
+			t.Errorf("%s: 0.0's a is positioned in %s, want %s", op, got, want)
+		}
+
+		_, err := thema.BindLineage(lin, rt, thema.WithVocabulary(authoring.Vocabulary(compiled[op])))
+		ds := diag.Diagnostics(err)
+		if len(ds) == 0 {
+			t.Fatalf("%s: want bind to refuse the forward lens", op)
+		}
+		for _, d := range ds {
+			if d.Primary == nil || d.Primary.File != dir+"/history/1.0.thema" {
+				t.Errorf("%s: %s %q is positioned at %v, want %s/history/1.0.thema", op, d.Code, d.Headline, d.Primary, dir)
+			}
+		}
+	}
+}

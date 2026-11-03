@@ -298,11 +298,16 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 	// compile: compile the authoring files under the archive's one directory,
 	// whose name is the lineage's, and report what fails. When the files
 	// compile, the normal form is bound with the authoring vocabulary and
-	// bind's diagnostics are reported instead.
+	// bind's diagnostics are reported instead. #at positions the files under
+	// a directory (compile.At).
 	"compile": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {
 		name, files := authoringFiles(t, a)
+		var opts []compile.Option
+		if dirs, _ := a.Directives(); dirs["at"] != "" {
+			opts = append(opts, compile.At(dirs["at"]))
+		}
 		ctx := cuecontext.New()
-		c, err := compile.Compile(ctx, name, files)
+		c, err := compile.Compile(ctx, name, files, opts...)
 		if err != nil {
 			return diag.Diagnostics(err)
 		}

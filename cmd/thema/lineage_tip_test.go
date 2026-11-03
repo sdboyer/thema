@@ -101,6 +101,29 @@ func TestLineageTip(t *testing.T) {
 	}
 }
 
+// lineage tip and lineage cut position their diagnostics relative to the
+// working directory, naming the lineage's directory as -l gave it, and show
+// the excerpt from there.
+func TestLineageTipCutPositions(t *testing.T) {
+	// The tip removes name and writes no lens for it, so it is neither clean
+	// nor ready to cut.
+	dir := writeTipDir(t, "Schema: {\n\tcrew: int\n}\n")
+	for _, args := range [][]string{
+		{lineageCmd, tipName, "-l", shipName, "--check-clean"},
+		{lineageCmd, "cut", "-l", shipName},
+	} {
+		_, errOut, err := runThema(t, filepath.Dir(dir), "", args...)
+		if err == nil {
+			t.Fatalf("%v succeeded", args)
+		}
+		for _, want := range []string{"--> ship/tip.thema:", "1 | Schema: {"} {
+			if !strings.Contains(errOut, want) {
+				t.Errorf("%v: stderr lacks %q:\n%s", args, want, errOut)
+			}
+		}
+	}
+}
+
 // thema data reads the history alone, and with --tip the tip too, which -v
 // names tip and the output reports as the tip.
 func TestDataTip(t *testing.T) {

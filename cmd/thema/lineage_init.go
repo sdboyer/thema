@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -194,9 +195,10 @@ func (ic *initCommand) write(cmd *cobra.Command, dir string) error {
 			Help("init creates a new lineage and never overwrites one: give -l a directory that holds no version files").Err()
 	}
 	// The bind's diagnostics point into the tip, which is not on disk yet:
-	// they are rendered from its text.
-	inlineSources[ic.tip.Path] = ic.tip.Text
-	c, err := authoring.CompileDevelopment(ctx, filepath.Base(dir), []authoring.File{ic.tip})
+	// they are rendered from its text, under the name its positions carry.
+	at, _ := positionDir(dir)
+	inlineSources[path.Join(at, ic.tip.Path)] = ic.tip.Text
+	c, err := authoring.CompileDevelopment(ctx, filepath.Base(dir), []authoring.File{ic.tip}, authoring.At(at))
 	if err == nil {
 		_, err = authoring.BindDevelopment(rt, c)
 	}

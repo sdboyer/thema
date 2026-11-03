@@ -1,0 +1,39 @@
+#op: compile
+#at: ../operations/get/query
+A tool that compiles a lineage positions its files under a directory with
+`authoring.At`, so that lineages from different directories, composed into one
+value, name their own files. The directory is a path of the `fs.FS` the
+lineage was loaded from: relative and separated by `/`, with no `.` or `..`
+elements. Here it climbs out of the filesystem with `..`.
+-- query/history/0.0.thema --
+Schema: {
+	a: string
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0625",
+      "severity": "error",
+      "headline": "\"../operations/get/query\" is not a directory to position the lineage's files under",
+      "notes": [
+        {
+          "label": "the directory is a path of an fs.FS: relative and separated by /, with no . or .. elements"
+        }
+      ],
+      "help": [
+        "pass the lineage's directory as a path of its fs.FS, such as operations/get/query"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0625]: "../operations/get/query" is not a directory to position the lineage's files under
+  |
+  = note: the directory is a path of an fs.FS: relative and separated by /, with no . or .. elements
+  = help: pass the lineage's directory as a path of its fs.FS, such as operations/get/query

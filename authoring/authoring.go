@@ -73,12 +73,33 @@ func Load(fsys fs.FS, dir string) (name string, files []File, err error) {
 	return compile.Load(fsys, dir)
 }
 
+// An Option configures how a lineage's files are compiled, by [Compile],
+// [CompileDevelopment], [ReadTip], [CheckClean] and [CutTip].
+type Option = compile.Option
+
+// At positions the lineage's files under dir, the lineage's directory as a
+// path of the fs.FS it was loaded from (fs.ValidPath): history/0.0.thema is
+// positioned as dir/history/0.0.thema in the normal form, and in every
+// diagnostic of compiling, evaluating and binding it. Lineages compiled from
+// different directories and composed into one value then name their own
+// files. Without At, a file is positioned at its File.Path, relative to the
+// lineage's directory. A dir that is not a valid path is an error (E0625).
+//
+// Positions carry how CUE evaluates what they position (the language version
+// and experiments of the file), so a file's name is given as it is parsed,
+// and the normal form cannot be moved under another name afterwards.
+// Positions are not part of a version's content: its ID, and its lenses'
+// programs, are the same with At and without.
+func At(dir string) Option {
+	return compile.At(dir)
+}
+
 // Compile compiles the frozen versions of the lineage name, those under
 // history/, to its normal form. The tip is not read, and need not exist.
 // Errors are positioned in the authoring files, and worded in the authoring
 // form's terms.
-func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
-	return compile.Compile(ctx, name, files)
+func Compile(ctx *cue.Context, name string, files []File, opts ...Option) (*Compiled, error) {
+	return compile.Compile(ctx, name, files, opts...)
 }
 
 // CompileDevelopment compiles the lineage name with its tip, for the
@@ -89,8 +110,8 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 // reported in Compiled.Pending, as an E1001 warning; a lens the tip writes is
 // compiled like any other. A lineage with no tip.thema is an error (E0149).
 // Bind the result with [BindDevelopment].
-func CompileDevelopment(ctx *cue.Context, name string, files []File) (*Compiled, error) {
-	return compile.Development(ctx, name, files)
+func CompileDevelopment(ctx *cue.Context, name string, files []File, opts ...Option) (*Compiled, error) {
+	return compile.Development(ctx, name, files, opts...)
 }
 
 // BindDevelopment binds a lineage compiled by [CompileDevelopment], with the
@@ -209,16 +230,16 @@ func compiledFrom(ctx *cue.Context, c *Compiled, v cue.Value) error {
 // version it cuts as, derived by the compatibility check against the newest
 // version under history/, and whether it is clean. It reads the tip and the
 // newest frozen version, not the lineage as a whole; compile it for that.
-func ReadTip(ctx *cue.Context, files []File) (*Tip, error) {
-	return compile.ReadTip(ctx, files)
+func ReadTip(ctx *cue.Context, files []File, opts ...Option) (*Tip, error) {
+	return compile.ReadTip(ctx, files, opts...)
 }
 
 // CheckClean checks that the tip of the lineage in files is clean: its schema
 // equals that of the newest version under history/, and it declares no
 // lenses. It returns nil for a clean tip, and otherwise an E1003 diagnostic
 // for each way the tip differs. CI runs it to assert that the tip was cut.
-func CheckClean(ctx *cue.Context, files []File) error {
-	return compile.CheckClean(ctx, files)
+func CheckClean(ctx *cue.Context, files []File, opts ...Option) error {
+	return compile.CheckClean(ctx, files, opts...)
 }
 
 // Vocabulary names a compiled lineage's parts in the authoring form's terms:

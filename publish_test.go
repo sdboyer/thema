@@ -110,7 +110,7 @@ func with(files map[string]string, changes map[string]string) map[string]string 
 
 type finding struct {
 	code diag.Code
-	file string // the primary position's file; "" for none
+	file string // the primary position's file in the lineage's directory; "" for none
 }
 
 func TestCheckAppendOnly(t *testing.T) {
@@ -181,7 +181,13 @@ ForwardLens: {
 			for _, d := range ds {
 				f := finding{code: d.Code}
 				if d.Primary != nil {
-					f.file = d.Primary.File
+					// load.AuthoringLineage positions the candidate's files
+					// under its directory, lname.
+					file, ok := strings.CutPrefix(d.Primary.File, lname+"/")
+					if !ok {
+						t.Errorf("%s is positioned at %s, not under the candidate's directory %s", d.Code, d.Primary.File, lname)
+					}
+					f.file = file
 				}
 				got = append(got, f)
 			}

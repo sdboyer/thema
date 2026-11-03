@@ -58,12 +58,16 @@ func (c *Compiled) Provisional() (thema.SyntacticVersion, bool) {
 // Compile compiles the frozen versions of the lineage name, those under
 // history/, to its normal form. The tip is not read: what binds is what was
 // cut. Errors are positioned in the authoring files.
-func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
+func Compile(ctx *cue.Context, name string, files []File, opts ...Option) (*Compiled, error) {
+	o, err := resolve(opts, files)
+	if err != nil {
+		return nil, err
+	}
 	history, _, err := splitLayout(files)
 	if err != nil {
 		return nil, err
 	}
-	vs, err := parseVersions(history)
+	vs, err := parseVersions(history, o)
 	if err != nil {
 		return nil, err
 	}
@@ -80,19 +84,23 @@ func Compile(ctx *cue.Context, name string, files []File) (*Compiled, error) {
 // that tip.thema does not write and derivation cannot produce, and reports it
 // in Pending, as a warning: the edge is still being written. A lens the tip
 // does write is compiled like any other, and its errors are errors.
-func Development(ctx *cue.Context, name string, files []File) (*Compiled, error) {
+func Development(ctx *cue.Context, name string, files []File, opts ...Option) (*Compiled, error) {
+	o, err := resolve(opts, files)
+	if err != nil {
+		return nil, err
+	}
 	history, tipFile, err := splitLayout(files)
 	if err != nil {
 		return nil, err
 	}
-	vs, err := parseVersions(history)
+	vs, err := parseVersions(history, o)
 	if err != nil {
 		return nil, err
 	}
 	if tipFile == nil {
 		return nil, noTip()
 	}
-	tv, tip, err := readTip(ctx, vs, *tipFile)
+	tv, tip, err := readTip(ctx, vs, *tipFile, o)
 	if err != nil {
 		return nil, err
 	}
