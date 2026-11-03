@@ -128,6 +128,8 @@ ol.changed-list button:hover { text-decoration: underline; }
   const swatch = (s) => el("span", { class: "swatch cell s-" + s, text: GLYPH[s], "aria-hidden": "true" });
   const changed = (c) => (c.Transitions || []).length > 0;
   const loud = (c) => changed(c) && LOUD_CHANGE.has(c.Transitions[0]);
+  // regressed and xpass are both a status and a transition; don't repeat the status.
+  const extra = (c) => (c.Transitions || []).filter((t) => t !== c.After).join(", ");
 
   document.getElementById("title").textContent = "Corpus " + D.Dir;
   document.getElementById("range").textContent = D.Range + "  (" + D.Before + " → " + D.After + ")";
@@ -203,8 +205,8 @@ ol.changed-list button:hover { text-decoration: underline; }
       k.Removed ? el("span", { class: "flag", text: "removed " }) : null, k.Name));
     const btns = k.Cells.map((c, j) => {
       const b = el("button", { class: "cell s-" + c.After + (changed(c) ? " changed" : "") + (loud(c) ? " loud" : ""), text: GLYPH[c.After],
-        "aria-label": k.Name + " × " + D.Suites[j].name + ": " + c.After + (changed(c) ? " (" + c.Transitions.join(", ") + ")" : ""),
-        title: k.Name + " × " + D.Suites[j].name + "\n" + c.Before + " → " + c.After + (changed(c) ? "\n" + c.Transitions.join(", ") : "") });
+        "aria-label": k.Name + " × " + D.Suites[j].name + ": " + c.After + (extra(c) ? " (" + extra(c) + ")" : ""),
+        title: k.Name + " × " + D.Suites[j].name + "\n" + c.Before + " → " + c.After + (extra(c) ? "\n" + extra(c) : "") });
       b.dataset.cell = i + ":" + j;
       b.addEventListener("click", () => select(i, j));
       tr.append(el("td", {}, b));
@@ -314,7 +316,7 @@ ol.changed-list button:hover { text-decoration: underline; }
     for (const x of list) {
       ol.append(el("li", {}, el("button", { onclick: () => select(x.i, x.j) },
         swatch(x.c.After), " ", el("span", { class: "mono", text: D.Cases[x.i].Name + " × " + D.Suites[x.j].name }),
-        el("span", { class: "sub", text: "  " + x.c.Before + " → " + x.c.After + ": " + x.c.Transitions.join(", ") }))));
+        el("span", { class: "sub", text: "  " + x.c.Before + " → " + x.c.After + (extra(x.c) ? ": " + extra(x.c) : "") }))));
     }
     detail.replaceChildren(el("h2", { text: "Changed cells" }),
       list.length ? ol : el("p", { class: "empty", text: "No cell changed in this range." }),
