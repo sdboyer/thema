@@ -1,0 +1,32 @@
+#description: A schema in the text uses Kind, a let the text declares beside its schemas and binds to a literal. The let is declared in the lineage outside the schema, so this is ref-lineage-meta, as testdata/known/ref-lineage-let-literal.txtar records.
+#expect: E0141
+#spec: docs/invariants.md:116-118, docs/invariants.md:220
+#at: lin.h
+#known/together: #130 the evaluator substitutes a let bound to a literal, so nothing in the value records that the let is declared in the lineage outside the schema.
+#known/fill-text: #130 the evaluator substitutes a let bound to a literal, so nothing in the value records that the let is declared in the lineage outside the schema.
+#known/fill-text-named: #130 the evaluator substitutes a let bound to a literal, so nothing in the value records that the let is declared in the lineage outside the schema.
+#known/fill-use: #130 the evaluator substitutes a let bound to a literal, so nothing in the value records that the let is declared in the lineage outside the schema.
+#known/unify-use-text: #130 the evaluator substitutes a let bound to a literal, so nothing in the value records that the let is declared in the lineage outside the schema.
+#known/unify-text-use: #130 the evaluator substitutes a let bound to a literal, so nothing in the value records that the let is declared in the lineage outside the schema.
+#known/third-root: #130 the evaluator substitutes a let bound to a literal, so nothing in the value records that the let is declared in the lineage outside the schema.
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: h: thema.Lineage & {name: "h"}
+-- text.cue --
+let Kind = "k"
+schemas: "0": "0": schema: {a: string, kind: Kind}
+-- out/fill-text-named/bind --
+verdict: ok
+-- out/fill-text/bind --
+verdict: ok
+-- out/fill-use/bind --
+verdict: ok
+-- out/third-root/bind --
+verdict: ok
+-- out/together/bind --
+verdict: ok
+-- out/unify-text-use/bind --
+verdict: ok
+-- out/unify-use-text/bind --
+verdict: ok

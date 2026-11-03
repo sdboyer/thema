@@ -1,0 +1,14 @@
+#description: A schema in the text refers to #Color, a definition declared at the top of the use package, outside the lineage. That is ref-outside-lineage.
+#expect: E0142
+#spec: docs/invariants.md:116-118, docs/invariants.md:221
+#at: lin.h
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+#Color: "red" | "blue"
+lin: h: thema.Lineage & {name: "h"}
+-- text.cue --
+schemas: "0": "0": schema: {c?: #Color}
+-- out/together/bind --
+verdict: E0142
+E0142 c in schema 0.0 refers to #Color, which is declared outside the lineage @ /m/text.cue:2:42
