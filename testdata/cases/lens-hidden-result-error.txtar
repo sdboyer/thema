@@ -1,4 +1,5 @@
-# a hidden result field fails to evaluate: not data, but evaluated at translate
+# a hidden result field that fails to evaluate (#107) is refused before the
+# totality walk sees it: a lens result may not declare a hidden field (#250)
 #issue: 107
 -- in.cue --
 import "github.com/sdboyer/thema"
@@ -24,4 +25,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail unknown-op
+bind fail E0151

@@ -1,4 +1,5 @@
-# a field referring to a hidden helper holds what the helper holds, not a copy: only references into input copy
+# a field referring to a hidden helper beside the result holds what the helper
+# holds, not a copy: only references into input copy
 -- in.cue --
 import (
 	"github.com/sdboyer/thema"
@@ -17,9 +18,9 @@ lin: thema.Lineage & {
 	lenses: {
 		"0.1->0.0": {
 			v0_1: _
+			_h: {extra: 2}
 			v0_0: {
 				a: v0_1.a
-				_h: {extra: 2}
 				x: _h
 			}
 		}

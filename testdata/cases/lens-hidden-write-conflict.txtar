@@ -1,6 +1,6 @@
-# lens declares a hidden helper twice with values that may disagree: for
-# {a: 5}, v1_0._h is 5 & 1, an error, though v1_0.b alone would hold. Hidden
-# fields are evaluated, so one value per path covers them (#125).
+# lens declares a hidden helper twice in its result, with values that may
+# disagree (#125): refused before the totality walk sees it, as a lens result
+# may not declare a hidden field (#250)
 #issue: 125
 -- in.cue --
 import "github.com/sdboyer/thema"
@@ -27,4 +27,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail write-conflict
+bind fail E0151

@@ -15,9 +15,8 @@ import (
 // holds, as is any other undeclared field (see [PatternKey]). Where sch is a
 // disjunction, data needs to match only one of its branches.
 //
-// Hidden fields follow closedness: one sch does not declare is not data and is
-// not checked; beneath one it declares, fields are checked as anywhere else.
-// Hidden labels are matched to sch's by name (see [UndeclaredConditionalFields]).
+// A hidden field is not data, and is not checked: a schema declares none, and
+// a lens result holds none (bind refuses both, E0151).
 func UndeclaredFields(ctx *cue.Context, data, sch cue.Value) []cue.Path {
 	w := walker{ctx: ctx}
 	return w.undeclared(data, sch, cue.MakePath(), nil)
@@ -188,20 +187,13 @@ func (w walker) undeclaredInStruct(data, sch cue.Value, p cue.Path, b *LensField
 	}
 
 	var found []cue.Path
-	diter, err := data.Fields(cue.Hidden(true))
+	diter, err := data.Fields()
 	if err != nil {
 		return nil
 	}
 	for diter.Next() {
 		sel := diter.Selector()
 		fp := appendPath(p, sel)
-		if sel.LabelType() == cue.HiddenLabel {
-			cb, through := b.child(sel.String())
-			if fsch, ok := declaredHidden(sch, sel.String()); ok && !through {
-				found = append(found, w.undeclared(diter.Value(), fsch, fp, cb)...)
-			}
-			continue
-		}
 		if !sel.IsString() {
 			continue
 		}

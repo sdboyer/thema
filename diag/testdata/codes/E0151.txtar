@@ -1,0 +1,72 @@
+#op: compile
+A version's ID is computed over its schema and lenses, and must be the same
+however the lineage is loaded. CUE scopes a hidden field (_x) or a hidden
+definition (_#X) to the package it is declared in, and writes its name
+qualified by that package wherever the value is used outside it: the same
+schema would hash one way compiled from its version files, another loaded as
+a package, and another imported (#250). So a schema, the joinSchema, and the
+input, result and lacunas of a lens declare neither. A helper in a schema is a
+definition (#X) or a let; a lens in the normal form keeps its scratch in hidden
+fields beside its input and result, which its ID does not cover.
+-- ship/history/0.0.thema --
+Schema: {
+	_limit: 10
+	count:  int & <=_limit
+}
+-- ship/tip.thema --
+Schema: {
+	_limit: 10
+	count:  int & <=_limit
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0151",
+      "severity": "error",
+      "headline": "the schema in history/0.0.thema declares _limit, a hidden field",
+      "path": [
+        "schemas",
+        "0",
+        "0",
+        "schema"
+      ],
+      "address": {
+        "kind": "schema",
+        "version": [
+          0,
+          0
+        ]
+      },
+      "primary": {
+        "file": "history/0.0.thema",
+        "line": 2,
+        "col": 2,
+        "offset": 11,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "a version's ID must not depend on how its lineage is loaded, and how CUE writes a hidden name depends on the package the lineage was loaded through (#250)"
+        }
+      ],
+      "help": [
+        "write a helper as a definition or a let instead; to declare a data field whose name starts with _, quote it: \"_limit\""
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0151]: the schema in history/0.0.thema declares _limit, a hidden field
+ --> history/0.0.thema:2:2
+  |
+2 |     _limit: 10
+  |     ^^^^^^
+  |
+  = note: a version's ID must not depend on how its lineage is loaded, and how CUE writes a hidden name depends on the package the lineage was loaded through (#250)
+  = help: write a helper as a definition or a let instead; to declare a data field whose name starts with _, quote it: "_limit"

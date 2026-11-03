@@ -1,4 +1,5 @@
-# as lens-hidden-undeclared, built inside a comprehension
+# a lens result may not declare a hidden field (#250), even inside a
+# comprehension that has not fired: its body is part of the lens
 -- in.cue --
 import (
 	"github.com/sdboyer/thema"
@@ -25,5 +26,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind ok
-translate 0.1 0.0 ok {a: "boom"}
+bind fail E0151

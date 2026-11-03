@@ -1,0 +1,9 @@
+A joinSchema that declares a hidden field: every path refuses it (#250).
+#ids: refused
+-- normal.cue --
+name: "ship"
+joinSchema: {_kind: "ship", ...}
+schemas: "0": "0": schema: {name: string}
+-- out/verdict --
+# bind
+E0151 joinSchema declares _kind, a hidden field
