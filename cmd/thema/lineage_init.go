@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	upcue "cuelang.org/go/cue"
 	"cuelang.org/go/cue/ast"
@@ -41,7 +43,7 @@ func (ic *initCommand) setup(cmd *cobra.Command) {
 	initLineageEmptyCmd.RunE = ic.run
 
 	initLineageCmd.AddCommand(initLineageOpenAPICmd)
-	initLineageOpenAPICmd.Flags().StringVar(&ic.srcpath, "src-subpath", "", "Schema path within the OpenAPI document. Default: whole document")
+	initLineageOpenAPICmd.Flags().StringVar(&ic.srcpath, "src-subpath", "", "JSON pointer to one schema within the OpenAPI document (e.g. #/components/schemas/Foo). Default: whole document")
 	initLineageOpenAPICmd.RunE = ic.run
 	initLineageOpenAPICmd.PreRunE = ic.processInput
 
@@ -85,12 +87,17 @@ printed with --stdout.
 }
 
 var initLineageOpenAPICmd = &cobra.Command{
-	Use:   "openapi [<path>] [--src-subpath <path>] [-l <dir>] [--name <name>] [--stdout]",
+	Use:   "openapi [<path>] [--src-subpath <pointer>] [-l <dir>] [--name <name>] [--stdout]",
 	Args:  cobra.MaximumNArgs(1),
 	Short: "Initialize with an OpenAPI v3 schema",
 	Long: `Initialize the lineage with one schema, derived from an OpenAPI v3 document.
 
 An OpenAPI document to be converted for the initial lineage schema must be given as an argument.
+
+The schema is the whole document's components, each a definition, or, with
+--src-subpath, the one schema it points at, such as
+#/components/schemas/Foo, with the components that schema refers to as
+definitions beside it.
 
 The new lineage's tip.thema is written in its directory, given by -l, or
 printed with --stdout.
@@ -305,6 +312,10 @@ func (ic *initCommand) runOpenAPI(cmd *cobra.Command, args []string) {
 		ic.err = err
 		return
 	}
+	if ic.srcpath != "" {
+		ic.err = ic.openAPISchema(v)
+		return
+	}
 	fo, err := openapi.Extract(v, &openapi.Config{})
 	if err != nil {
 		ic.err = err
@@ -329,21 +340,95 @@ func (ic *initCommand) runOpenAPI(cmd *cobra.Command, args []string) {
 		return is
 	}, nil)
 
-	sch := ctx.BuildFile(fo)
-	if ic.srcpath != "" {
-		p := upcue.ParsePath(ic.srcpath)
-		if p.Err() != nil {
-			ic.err = diag.New(diag.E0620).Headlinef("--src-subpath %q is not a CUE path", ic.srcpath).Detail(p.Err().Error()).Err()
-			return
-		}
-		// Eval will do dereferencing for us as needed, but may have other unintended
-		// side effects.
-		sch = sch.LookupPath(p).Eval()
-		if !sch.Exists() {
-			ic.err = diag.New(diag.E0620).Headlinef("there is no value at --src-subpath %s in the converted schema", p.String()).Err()
-			return
-		}
-	}
+	ic.newTip(ctx.BuildFile(fo))
+}
 
-	ic.newTip(sch)
+// openAPISchema makes the tip from the one schema at --src-subpath, a JSON
+// pointer into the OpenAPI document doc.
+//
+// openapi.Extract makes every component schema a definition, #Foo, and
+// nothing done to a cue.Value looked up at #Foo opens it again: it stays
+// recursively closed, and exporting it, as NewTip does, wraps it as
+// {_#def, _#def: ...}. So the schema is extracted on its own, as the root of
+// the result, the way init jsonschema --src-subpath extracts one, and is a
+// regular value. Its openness is the document's: the extraction writes ...
+// for an object that allows other properties, and close() for one that does
+// not. The component schemas it refers to are definitions beside it, named
+// as openapi.Extract names them.
+func (ic *initCommand) openAPISchema(doc upcue.Value) error {
+	frag, ok := strings.CutPrefix(ic.srcpath, "#/")
+	if !ok {
+		return diag.New(diag.E0620).Headlinef("--src-subpath %q is not a JSON pointer into the OpenAPI document", ic.srcpath).
+			Help("point at a schema in the document, such as #/components/schemas/Foo").Err()
+	}
+	at := doc
+	for tok := range json.Pointer("/" + frag).Tokens() {
+		sel := upcue.Str(tok)
+		if at.Kind() == upcue.ListKind {
+			i, err := strconv.Atoi(tok)
+			if err != nil {
+				at = upcue.Value{}
+				break
+			}
+			sel = upcue.Index(i)
+		}
+		at = at.LookupPath(upcue.MakePath(sel))
+	}
+	if !at.Exists() {
+		return diag.New(diag.E0620).Headlinef("there is no value at --src-subpath %s in the OpenAPI document", ic.srcpath).Err()
+	}
+	version, err := openAPIVersion(doc)
+	if err != nil {
+		return err
+	}
+	f, err := jsonschema.Extract(doc, &jsonschema.Config{
+		Root:           ic.srcpath,
+		SingleRoot:     true,
+		MapRef:         openAPIRef,
+		DefaultVersion: version,
+		// As openapi.Extract: OpenAPI 3.0 allows no keyword JSON Schema
+		// does not know.
+		StrictKeywords: version == jsonschema.VersionOpenAPI,
+	})
+	if err != nil {
+		return err
+	}
+	ic.newTip(ctx.BuildFile(f))
+	return ic.err
+}
+
+// openAPIVersion returns the JSON Schema dialect of the schemas in the
+// OpenAPI document doc, as openapi.Extract reads it: 3.0's own, and JSON
+// Schema 2020-12 for 3.1.
+func openAPIVersion(doc upcue.Value) (jsonschema.Version, error) {
+	v, err := doc.LookupPath(upcue.MakePath(upcue.Str("openapi"))).String()
+	switch {
+	case err != nil:
+		return jsonschema.VersionUnknown, diag.New(diag.E0611).Headline("the input declares no OpenAPI version, so it is not an OpenAPI document").
+			Help(`an OpenAPI document declares its version as a string, as in openapi: "3.0.0"`).Err()
+	case strings.HasPrefix(v, "3.0."):
+		return jsonschema.VersionOpenAPI, nil
+	case strings.HasPrefix(v, "3.1."):
+		return jsonschema.VersionDraft2020_12, nil
+	}
+	return jsonschema.VersionUnknown, diag.New(diag.E0611).Headlinef("OpenAPI %s is not a version thema converts", v).
+		Help("thema converts OpenAPI 3.0 and 3.1 documents").Err()
+}
+
+// openAPIRef places the component schema a reference names,
+// #/components/schemas/Foo, at the definition #Foo, as openapi.Extract
+// places it; a name that is not an identifier is a field of #SchemaMap.
+func openAPIRef(loc jsonschema.SchemaLoc) (string, upcue.Path, error) {
+	sels := loc.Path.Selectors()
+	isStr := func(i int, s string) bool {
+		return sels[i].LabelType() == upcue.StringLabel && sels[i].Unquoted() == s
+	}
+	if !loc.IsLocal || len(sels) != 3 || !isStr(0, "components") || !isStr(1, "schemas") || sels[2].LabelType() != upcue.StringLabel {
+		return "", upcue.Path{}, fmt.Errorf("%v: a reference must be to a schema under #/components/schemas/", loc)
+	}
+	name := sels[2].Unquoted()
+	if name == "SchemaMap" || ast.StringLabelNeedsQuoting(name) {
+		return "", upcue.MakePath(upcue.Def("#SchemaMap"), upcue.Str(name)), nil
+	}
+	return "", upcue.MakePath(upcue.Def("#" + name)), nil
 }

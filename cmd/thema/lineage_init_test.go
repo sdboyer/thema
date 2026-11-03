@@ -8,6 +8,7 @@ import (
 	"testing"
 	"testing/fstest"
 
+	"cuelang.org/go/cue"
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/authoring"
 	"github.com/sdboyer/thema/diag"
@@ -193,25 +194,6 @@ schemas: "0": "0": schema: #Foo: {
 }
 `,
 		},
-		{
-			name: "openapi subpath",
-			args: []string{openapiCmd, "--src-subpath", "#Foo", writeInput(t, "oapi.json", initTestOpenAPI)},
-			want: "Schema: {\n\t_#def\n\t_#def: {\n\t\ta!: string\n\t\tb?: int\n\t}\n}\n",
-			normalForm: `package foo
-
-import "github.com/sdboyer/thema"
-
-thema.Lineage
-name: "foo"
-schemas: "0": "0": schema: {
-	_#def
-	_#def: {
-		a!: string
-		b?: int
-	}
-}
-`,
-		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -262,6 +244,88 @@ schemas: "0": "0": schema: {
 				t.Errorf("lineage init --stdout wrote %v (%v)", ents, err)
 			}
 		})
+	}
+}
+
+const initTestOpenAPIRefs = `{
+  "openapi": "3.0.0",
+  "info": {"title": "test", "version": "v1"},
+  "paths": {},
+  "components": {
+    "schemas": {
+      "Foo": {
+        "type": "object",
+        "properties": {
+          "a": {"type": "string"},
+          "closed": {"type": "object", "additionalProperties": false, "properties": {"c": {"type": "string"}}},
+          "bar": {"$ref": "#/components/schemas/Bar"}
+        },
+        "required": ["a"]
+      },
+      "Bar": {"type": "object", "properties": {"z": {"type": "string"}}}
+    }
+  }
+}`
+
+// TestLineageInitOpenAPISubpath checks that init openapi --src-subpath makes
+// the schema it points at the lineage's schema: a regular value, open or
+// closed as the document says, not the definition openapi.Extract makes of a
+// component, which CUE exports wrapped as {_#def, _#def: ...}.
+func TestLineageInitOpenAPISubpath(t *testing.T) {
+	dir := t.TempDir()
+	in := writeInput(t, "oapi.json", initTestOpenAPIRefs)
+	runInit(t, dir, lineageCmd, initName, openapiCmd, in, "--src-subpath", "#/components/schemas/Foo", "-l", initDir)
+	text, err := os.ReadFile(filepath.Join(dir, initDir, authoring.TipFile)) //nolint:gosec // a file under t.TempDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `Schema: {
+	a!:      string
+	closed?: close({c?: string})
+	bar?:    #Bar
+	#Bar: {
+		z?: string
+		...
+	}
+	...
+}
+`
+	if string(text) != want {
+		t.Errorf("lineage init openapi --src-subpath wrote:\n%s\nwant:\n%s", text, want)
+	}
+
+	sch := bindInitDir(t, dir, initDir).Lineage.Latest()
+	v := sch.Underlying().LookupPath(cue.MakePath(cue.Str("schema")))
+	if v.IsClosed() {
+		t.Error("the bound schema is closed; the OpenAPI schema allows other properties")
+	}
+	iter, err := v.Fields(cue.Hidden(true), cue.Definitions(true), cue.Optional(true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fields []string
+	for iter.Next() {
+		fields = append(fields, iter.Selector().String())
+	}
+	if got := strings.Join(fields, ","); got != "a!,closed?,bar?,#Bar" {
+		t.Errorf("the bound schema has fields %s, want a!,closed?,bar?,#Bar", got)
+	}
+
+	for _, tc := range []struct {
+		data  string
+		valid bool
+	}{
+		{`{"a": "x"}`, true},
+		{`{"a": "x", "other": 1}`, true},
+		{`{"a": "x", "bar": {"z": "y", "other": 1}}`, true},
+		{`{"a": "x", "closed": {"c": "y"}}`, true},
+		{`{"a": "x", "closed": {"c": "y", "other": 1}}`, false},
+		{`{}`, false},
+	} {
+		_, err := sch.Validate(ctx.CompileString(tc.data))
+		if (err == nil) != tc.valid {
+			t.Errorf("validating %s: %v, want valid %v", tc.data, err, tc.valid)
+		}
 	}
 }
 
