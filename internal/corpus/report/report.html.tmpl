@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Corpus {{.Dir}}: {{.Range}}</title>
+<style>
+:root {
+  --surface: #fcfcfb; --plane: #f9f9f7; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --hairline: #e1e0d9; --axis: #c3c2b7; --wash: rgba(11,11,11,0.05);
+  --pass: #0ca30c; --known: #fab219; --regressed: #d03b3b; --xpass: #7b5cd6; --na: #eceae4;
+  --on-fill: #ffffff; --on-known: #0b0b0b; --mark: #0b0b0b;
+  --add-bg: rgba(12,163,12,0.14); --del-bg: rgba(208,59,59,0.14);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface: #1a1a19; --plane: #0d0d0d; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --hairline: #2c2c2a; --axis: #383835; --wash: rgba(255,255,255,0.06);
+    --na: #2a2a28; --mark: #f0efec; --add-bg: rgba(12,163,12,0.22); --del-bg: rgba(208,59,59,0.26);
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--plane); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+header { padding: 16px 20px 8px; }
+h1 { font-size: 18px; margin: 0 0 2px; font-weight: 600; }
+.sub { color: var(--ink-2); }
+.bar { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; padding: 8px 20px 12px; border-bottom: 1px solid var(--hairline); }
+.group { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.group-label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; margin-right: 2px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--hairline); background: var(--surface); color: var(--ink);
+  border-radius: 999px; padding: 3px 10px 3px 6px; cursor: pointer; font: inherit; }
+.chip:hover { background: var(--wash); }
+.chip[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.chip .n { font-variant-numeric: tabular-nums; font-weight: 600; }
+.chip.loud .n { color: var(--regressed); }
+.chip.plain { padding-left: 10px; }
+label.toggle { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+button.link { border: 0; background: none; color: var(--ink-2); text-decoration: underline; cursor: pointer; font: inherit; padding: 0; }
+.problems { margin: 10px 20px 0; padding: 8px 12px; border-left: 4px solid var(--regressed); background: var(--surface); }
+.problems ul { margin: 4px 0 0; padding-left: 18px; }
+main { display: flex; gap: 16px; padding: 12px 20px 20px; align-items: flex-start; }
+.matrix-wrap { flex: 1 1 auto; min-width: 0; overflow: auto; max-height: calc(100vh - 150px); background: var(--surface); border: 1px solid var(--hairline); border-radius: 8px; }
+table.matrix { border-collapse: separate; border-spacing: 4px; padding: 6px; }
+.matrix th { font-weight: 500; color: var(--ink-2); }
+.matrix thead th { position: sticky; top: 0; background: var(--surface); z-index: 2; vertical-align: bottom; padding: 4px 0; }
+.matrix thead th.suite { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; text-align: left; font-size: 12px; max-height: 220px; cursor: default; }
+.matrix th.case { position: sticky; left: 0; background: var(--surface); z-index: 1; text-align: right; padding: 0 8px 0 4px; white-space: nowrap; font-size: 12.5px; }
+.matrix thead th.corner { left: 0; z-index: 3; }
+.flag { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.matrix td { padding: 0; }
+.cell { position: relative; display: block; width: 22px; height: 22px; border: 0; border-radius: 4px; padding: 0; cursor: pointer;
+  font: 600 12px/22px system-ui, sans-serif; text-align: center; color: var(--on-fill); }
+.cell.s-pass { background: var(--pass); }
+.cell.s-known { background: var(--known); color: var(--on-known); }
+.cell.s-regressed { background: var(--regressed); }
+.cell.s-xpass { background: var(--xpass); }
+.cell.s-not-applicable { background: var(--na); color: var(--muted); }
+.cell.s-absent { background: transparent; box-shadow: inset 0 0 0 1px var(--axis); color: var(--muted); }
+.cell.changed { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--mark); }
+.cell.changed::after { content: ""; position: absolute; top: -3px; right: -3px; width: 7px; height: 7px; border-radius: 50%; background: var(--mark); box-shadow: 0 0 0 1.5px var(--surface); }
+.cell.dim { opacity: .15; }
+.cell.sel { outline: 2px solid var(--ink); outline-offset: 3px; }
+.cell:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.swatch { display: inline-block; width: 16px; height: 16px; border-radius: 4px; font: 600 11px/16px system-ui, sans-serif; text-align: center; color: var(--on-fill); }
+aside { flex: 0 0 440px; max-width: 440px; position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; background: var(--surface);
+  border: 1px solid var(--hairline); border-radius: 8px; padding: 14px 16px; }
+aside h2 { font-size: 15px; margin: 0 0 4px; }
+aside h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 14px 0 4px; font-weight: 600; }
+aside p { margin: 4px 0; }
+dl.kv { display: grid; grid-template-columns: max-content 1fr; gap: 2px 10px; margin: 6px 0; }
+dl.kv dt { color: var(--muted); }
+dl.kv dd { margin: 0; overflow-wrap: anywhere; }
+.trans { display: inline-block; border: 1px solid var(--hairline); border-radius: 999px; padding: 0 8px; margin: 2px 4px 2px 0; font-size: 12px; }
+.trans.loud { border-color: var(--regressed); color: var(--regressed); font-weight: 600; }
+pre.golden { margin: 4px 0; padding: 8px 0; background: var(--plane); border-radius: 6px; overflow-x: auto; }
+pre.golden div { padding: 0 10px; white-space: pre; }
+pre.golden .add { background: var(--add-bg); }
+pre.golden .del { background: var(--del-bg); }
+.empty { color: var(--muted); }
+ol.changed-list { padding-left: 20px; margin: 4px 0; }
+ol.changed-list li { margin: 2px 0; }
+ol.changed-list button { border: 0; background: none; color: var(--ink); font: inherit; padding: 0; cursor: pointer; text-align: left; }
+ol.changed-list button:hover { text-decoration: underline; }
+@media (max-width: 900px) {
+  main { flex-direction: column; padding: 12px 16px; }
+  header, .bar { padding-left: 16px; padding-right: 16px; }
+  aside { position: static; max-width: none; width: 100%; flex-basis: auto; max-height: none; }
+  .matrix-wrap { max-height: 70vh; width: 100%; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title"></h1>
+  <div class="sub" id="range"></div>
+</header>
+<div class="bar" id="bar"></div>
+<div id="problems"></div>
+<main>
+  <div class="matrix-wrap"><table class="matrix" id="matrix"></table></div>
+  <aside id="detail" aria-live="polite"></aside>
+</main>
+<script id="data" type="application/json">{{.}}</script>
+<script>
+(function () {
+  "use strict";
+  const D = JSON.parse(document.getElementById("data").textContent);
+  const GLYPH = { "pass": "✓", "known": "≈", "regressed": "✗", "xpass": "↑", "not-applicable": "", "absent": "" };
+  const LOUD = new Set(["regressed", "xpass"]);
+  const state = { statuses: new Set(), transitions: new Set(), changedOnly: false, sel: null };
+
+  function el(tag, attrs, ...kids) {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (k === "class") e.className = v;
+      else if (k === "text") e.textContent = v;
+      else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+      else e.setAttribute(k, v);
+    }
+    for (const k of kids) if (k != null) e.append(k);
+    return e;
+  }
+  const swatch = (s) => el("span", { class: "swatch cell s-" + s, text: GLYPH[s], "aria-hidden": "true" });
+  const changed = (c) => (c.Transitions || []).length > 0;
+
+  document.getElementById("title").textContent = "Corpus " + D.Dir;
+  document.getElementById("range").textContent = D.Range + "  (" + D.Before + " → " + D.After + ")";
+
+  // Counts.
+  const statusCount = {}, transCount = {};
+  let changedCount = 0;
+  for (const k of D.Cases) for (const c of k.Cells) {
+    statusCount[c.After] = (statusCount[c.After] || 0) + 1;
+    for (const t of c.Transitions || []) transCount[t] = (transCount[t] || 0) + 1;
+    if (changed(c)) changedCount++;
+  }
+
+  // Summary bar and filters.
+  const bar = document.getElementById("bar");
+  const statusGroup = el("div", { class: "group" }, el("span", { class: "group-label", text: "After" }));
+  for (const s of D.Statuses) {
+    if (!statusCount[s]) continue;
+    const b = el("button", { class: "chip" + (LOUD.has(s) ? " loud" : ""), "aria-pressed": "false", title: "Show only cells that are " + s + " after" },
+      swatch(s), el("span", { text: s }), el("span", { class: "n", text: String(statusCount[s]) }));
+    b.addEventListener("click", () => toggle(state.statuses, s, b));
+    statusGroup.append(b);
+  }
+  bar.append(statusGroup);
+  const transGroup = el("div", { class: "group" }, el("span", { class: "group-label", text: "Changes" }));
+  if (changedCount === 0) transGroup.append(el("span", { class: "empty", text: "no cell changed" }));
+  for (const t of D.Transitions) {
+    if (!transCount[t]) continue;
+    const b = el("button", { class: "chip plain" + (LOUD.has(t) ? " loud" : ""), "aria-pressed": "false", title: "Show only cells that changed this way" },
+      el("span", { text: t }), el("span", { class: "n", text: String(transCount[t]) }));
+    b.addEventListener("click", () => toggle(state.transitions, t, b));
+    transGroup.append(b);
+  }
+  bar.append(transGroup);
+  const only = el("input", { type: "checkbox" });
+  only.addEventListener("change", () => { state.changedOnly = only.checked; apply(); });
+  bar.append(el("label", { class: "toggle" }, only, el("span", { text: "Changed only (" + changedCount + ")" })));
+  bar.append(el("button", { class: "link", text: "Clear filters", onclick: () => {
+    state.statuses.clear(); state.transitions.clear(); state.changedOnly = false; only.checked = false;
+    for (const b of bar.querySelectorAll(".chip")) b.setAttribute("aria-pressed", "false");
+    apply();
+  } }));
+  function toggle(set, v, b) {
+    if (set.has(v)) set.delete(v); else set.add(v);
+    b.setAttribute("aria-pressed", String(set.has(v)));
+    apply();
+  }
+
+  // Problems.
+  const probs = document.getElementById("problems");
+  for (const [label, list] of [[D.After, D.AfterProblems], [D.Before, D.BeforeProblems]]) {
+    if (!list || !list.length) continue;
+    const ul = el("ul");
+    for (const p of list) ul.append(el("li", { class: "mono", text: p }));
+    probs.append(el("div", { class: "problems" }, el("strong", { text: "The corpus in " + label + " breaks its format" }), ul));
+  }
+
+  // Matrix.
+  const table = document.getElementById("matrix");
+  const head = el("tr", {}, el("th", { class: "case corner" }));
+  const cols = [];
+  D.Suites.forEach((s) => {
+    const th = el("th", { class: "suite", title: s.name + "\n\n" + s.description }, s.New ? el("span", { class: "flag", text: "new " }) : null,
+      s.Removed ? el("span", { class: "flag", text: "removed " }) : null, s.name);
+    cols.push(th);
+    head.append(th);
+  });
+  table.append(el("thead", {}, head));
+  const tbody = el("tbody");
+  const rows = [];
+  D.Cases.forEach((k, i) => {
+    const tr = el("tr", {}, el("th", { class: "case", title: k.Description }, k.New ? el("span", { class: "flag", text: "new " }) : null,
+      k.Removed ? el("span", { class: "flag", text: "removed " }) : null, k.Name));
+    const btns = k.Cells.map((c, j) => {
+      const b = el("button", { class: "cell s-" + c.After + (changed(c) ? " changed" : ""), text: GLYPH[c.After],
+        "aria-label": k.Name + " × " + D.Suites[j].name + ": " + c.After + (changed(c) ? " (" + c.Transitions.join(", ") + ")" : ""),
+        title: k.Name + " × " + D.Suites[j].name + "\n" + c.Before + " → " + c.After + (changed(c) ? "\n" + c.Transitions.join(", ") : "") });
+      b.dataset.cell = i + ":" + j;
+      b.addEventListener("click", () => select(i, j));
+      tr.append(el("td", {}, b));
+      return b;
+    });
+    rows.push({ tr, btns });
+    tbody.append(tr);
+  });
+  table.append(tbody);
+
+  function matches(c) {
+    if (state.statuses.size && !state.statuses.has(c.After)) return false;
+    if (state.transitions.size && !(c.Transitions || []).some((t) => state.transitions.has(t))) return false;
+    if (state.changedOnly && !changed(c)) return false;
+    return true;
+  }
+  function apply() {
+    const filtering = state.statuses.size || state.transitions.size || state.changedOnly;
+    const colHit = D.Suites.map(() => false);
+    D.Cases.forEach((k, i) => {
+      let any = false;
+      k.Cells.forEach((c, j) => {
+        const m = matches(c);
+        rows[i].btns[j].classList.toggle("dim", !!filtering && !m);
+        if (m) { any = true; colHit[j] = true; }
+      });
+      rows[i].tr.hidden = !!filtering && !any;
+    });
+    cols.forEach((th, j) => {
+      const hide = !!filtering && !colHit[j];
+      th.hidden = hide;
+      rows.forEach((r) => { r.btns[j].parentElement.hidden = hide; });
+    });
+  }
+
+  // Detail panel.
+  const detail = document.getElementById("detail");
+  function transChips(ts) {
+    return el("div", {}, ...(ts || []).map((t) => el("span", { class: "trans" + (LOUD.has(t) ? " loud" : ""), text: t })));
+  }
+  function knownText(t) { return t ? "#" + t.issue + " " + t.reason : "none"; }
+  function golden(c) {
+    const pre = el("pre", { class: "golden" });
+    if (c.Diff) {
+      for (const l of c.Diff) pre.append(el("div", { class: l.Op === "+" ? "add" : l.Op === "-" ? "del" : "", text: l.Op + " " + l.Text }));
+    } else if (c.Golden) {
+      for (const l of c.Golden.replace(/\n$/, "").split("\n")) pre.append(el("div", { text: l }));
+    } else {
+      return el("p", { class: "empty", text: "No golden: the suite does not run this case." });
+    }
+    return pre;
+  }
+  function select(i, j) {
+    if (state.sel) state.sel.classList.remove("sel");
+    state.sel = rows[i].btns[j];
+    state.sel.classList.add("sel");
+    state.sel.scrollIntoView({ block: "nearest", inline: "nearest" });
+    const k = D.Cases[i], s = D.Suites[j], c = k.Cells[j];
+    detail.replaceChildren(
+      el("h2", { class: "mono", text: k.Name + " × " + s.name }),
+      el("p", {}, swatch(c.Before), " " + c.Before + " → ", swatch(c.After), " " + c.After),
+      changed(c) ? transChips(c.Transitions) : el("p", { class: "empty", text: "Unchanged in this range." }),
+      el("h3", { text: "Case" }),
+      el("p", { text: k.Description || "(no description)" }),
+      el("dl", { class: "kv" },
+        el("dt", { text: "#expect" }), el("dd", { class: "mono", text: k.Expect + (k.ExpectBefore ? "   (was " + k.ExpectBefore + ")" : "") }),
+        el("dt", { text: "#spec" }), el("dd", { class: "mono", text: k.Spec }),
+        el("dt", { text: "#at" }), el("dd", { class: "mono", text: k.At }),
+        el("dt", { text: "#known" }), el("dd", { text: knownText(c.KnownAfter) +
+          (JSON.stringify(c.KnownBefore) !== JSON.stringify(c.KnownAfter) ? "   (was " + knownText(c.KnownBefore) + ")" : "") })),
+      el("h3", { text: "Suite" }),
+      el("p", { text: s.description || "(no description)" }),
+      el("h3", { text: c.Diff ? "Golden (" + D.Before + " → " + D.After + ")" : "Golden" }),
+      golden(c));
+  }
+  function overview() {
+    const list = [];
+    D.Cases.forEach((k, i) => k.Cells.forEach((c, j) => { if (changed(c)) list.push({ i, j, c, sev: D.Transitions.indexOf(c.Transitions[0]) }); }));
+    list.sort((a, b) => a.sev - b.sev);
+    const ol = el("ol", { class: "changed-list" });
+    for (const x of list) {
+      ol.append(el("li", {}, el("button", { onclick: () => select(x.i, x.j) },
+        swatch(x.c.After), " ", el("span", { class: "mono", text: D.Cases[x.i].Name + " × " + D.Suites[x.j].name }),
+        el("span", { class: "sub", text: "  " + x.c.Before + " → " + x.c.After + ": " + x.c.Transitions.join(", ") }))));
+    }
+    detail.replaceChildren(el("h2", { text: "Changed cells" }),
+      list.length ? ol : el("p", { class: "empty", text: "No cell changed in this range." }),
+      el("p", { class: "sub", text: "Click a cell to see its case, its suite and its golden." }));
+  }
+  overview();
+  apply();
+})();
+</script>
+</body>
+</html>
