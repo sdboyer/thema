@@ -94,6 +94,14 @@ func At(dir string) Option {
 	return compile.At(dir)
 }
 
+// Place returns the placement of c's normal form at p, for composing
+// lineages compiled from different directories into one package with
+// [github.com/sdboyer/thema.Compose]. Compile each with [At] its directory,
+// so that each names its own files.
+func Place(p cue.Path, c *Compiled) thema.Placement {
+	return thema.Placement{Path: p, File: c.File}
+}
+
 // Compile compiles the frozen versions of the lineage name, those under
 // history/, to its normal form. The tip is not read, and need not exist.
 // Errors are positioned in the authoring files, and worded in the authoring
