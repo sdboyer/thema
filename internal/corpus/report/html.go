@@ -5,6 +5,8 @@ import (
 	"html/template"
 	"io"
 	"slices"
+
+	"github.com/sdboyer/thema/internal/corpus"
 )
 
 //go:embed report.html.tmpl
@@ -31,7 +33,7 @@ type htmlCase struct {
 
 type htmlCell struct {
 	Before, After           Status
-	KnownBefore, KnownAfter *KnownTag
+	KnownBefore, KnownAfter *corpus.Known
 	Transitions             []Transition
 	// Golden is the golden when it didn't change, and Diff the line diff
 	// when it did.

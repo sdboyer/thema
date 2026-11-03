@@ -15,7 +15,8 @@
 //
 //	#description: what the case is about, in one to three plain sentences.
 //	#expect: ok, or the set of codes bind reports (E0141, or E0140 E0141).
-//	#spec: where the spec decides #expect (docs/invariants.md:116-118).
+//	#spec: where the spec decides #expect, as <path>:<line>[-<line>] citations
+//	       separated by commas (docs/invariants.md:116-118, docs/invariants.md:220).
 //	#known/<suite>: #<issue> why the suite disagrees with #expect today.
 //
 // A corpus may require more directives (the refs corpus requires #at).
@@ -32,7 +33,8 @@
 //
 // # Statuses
 //
-// A cell's status is read from the archive alone, by [CellStatus]:
+// A cell's status is read from the archive alone, by [CellStatus], which the
+// report generator (internal/corpus/report) uses too:
 //
 //   - not-applicable: the case has no section for the suite.
 //   - pass: the section's verdict is #expect.

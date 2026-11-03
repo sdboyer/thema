@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -178,11 +179,17 @@ var knownTag = regexp.MustCompile(`^#(\d+)\s+(\S.*)$`)
 // ReadCase reads the case at path. What is wrong with the case's directives
 // is reported when a corpus runs it, not here.
 func ReadCase(path string) (*Case, error) {
-	ar, err := txtar.ParseFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // a case of the corpus the caller named
 	if err != nil {
 		return nil, err
 	}
-	a := &diagtest.Archive{Path: path, Ar: ar}
+	return ParseCase(path, data), nil
+}
+
+// ParseCase reads a case from its archive's contents; path names the
+// archive. [Case.Problems] says what is wrong with it.
+func ParseCase(path string, data []byte) *Case {
+	a := &diagtest.Archive{Path: path, Ar: txtar.Parse(data)}
 	dirs, _ := a.Directives()
 	c := &Case{
 		Name:        a.Name(),
@@ -193,18 +200,19 @@ func ReadCase(path string) (*Case, error) {
 		ar:          a,
 		directives:  dirs,
 	}
-	if raw, ok := dirs[dirExpect]; ok {
+	if raw := dirs[dirExpect]; raw != "" {
 		v, err := ParseVerdict(raw)
 		if err != nil {
 			c.problems = append(c.problems, fmt.Sprintf("#expect: %v", err))
 		}
 		c.Expect = v
 	}
-	for k, v := range dirs {
+	for _, k := range slices.Sorted(maps.Keys(dirs)) {
 		suite, ok := strings.CutPrefix(k, knownPrefix)
 		if !ok {
 			continue
 		}
+		v := dirs[k]
 		m := knownTag.FindStringSubmatch(v)
 		if m == nil {
 			c.problems = append(c.problems, fmt.Sprintf("#%s: %q must start with the issue that tracks it, as \"#<number> <reason>\"", k, v))
@@ -213,7 +221,7 @@ func ReadCase(path string) (*Case, error) {
 		n, _ := strconv.Atoi(m[1])
 		c.Known[suite] = Known{Issue: n, Reason: m[2]}
 	}
-	return c, nil
+	return c
 }
 
 // Directive returns the value of the case's #key directive, or "".
@@ -225,32 +233,33 @@ func (c *Case) File(name string) (string, bool) { return c.ar.File(name) }
 // Inputs returns the case's files that are not goldens.
 func (c *Case) Inputs() []txtar.File { return c.ar.Inputs() }
 
-func sectionName(suite string) string { return "out/" + suite + "/bind" }
+// SectionFile is the name of suite's golden section in a case's archive.
+func SectionFile(suite string) string { return "out/" + suite + "/bind" }
 
-// checkCase reports what is wrong with c's directives and sections, given
-// the registry, and whether its cells can run.
-func (co Corpus) checkCase(t testing.TB, c *Case) bool {
-	t.Helper()
-	ok := true
-	fail := func(format string, args ...any) {
-		t.Errorf("%s: "+format, append([]any{c.Path}, args...)...)
-		ok = false
-	}
-	for _, key := range append([]string{dirDescription, dirExpect, dirSpec}, co.Require...) {
+var specCitation = regexp.MustCompile(`^[^\s:,]+:\d+(-\d+)?$`)
+
+// Problems returns what is wrong with c as its archive stands, given the
+// suites the corpus registers and the directives it requires beyond
+// description, expect and spec. Directive problems are in the case's
+// comment, which only its author can fix. Section problems are in its out/
+// sections, which running with THEMA_UPDATE_GOLDEN=1 rewrites.
+func (c *Case) Problems(registered, require []string) (directives, sections []string) {
+	for _, key := range append([]string{dirDescription, dirExpect, dirSpec}, require...) {
 		if strings.TrimSpace(c.directives[key]) == "" {
-			fail("the required directive #%s is missing; see %s", key, co.readme())
+			directives = append(directives, fmt.Sprintf("the required directive #%s is missing", key))
 		}
 	}
-	for _, p := range c.problems {
-		fail("%s", p)
+	if c.Spec != "" {
+		for _, cite := range strings.Split(c.Spec, ",") {
+			if cite = strings.TrimSpace(cite); !specCitation.MatchString(cite) {
+				directives = append(directives, fmt.Sprintf("#spec: %q is not <path>:<line>[-<line>]", cite))
+			}
+		}
 	}
-	registered := map[string]bool{}
-	for _, s := range co.Suites {
-		registered[s.Name] = true
-	}
+	directives = append(directives, c.problems...)
 	for _, suite := range slices.Sorted(maps.Keys(c.Known)) {
-		if !registered[suite] {
-			fail("#known/%s names a suite that is not registered; the suites are in %s", suite, filepath.Join(co.Dir, "suites.json"))
+		if !slices.Contains(registered, suite) {
+			directives = append(directives, fmt.Sprintf("#known/%s names a suite that is not registered", suite))
 		}
 	}
 	for _, f := range c.ar.Ar.Files {
@@ -258,17 +267,44 @@ func (co Corpus) checkCase(t testing.TB, c *Case) bool {
 		if !isOut {
 			continue
 		}
-		suite, file, _ := strings.Cut(rest, "/")
+		suite, _, _ := strings.Cut(rest, "/")
 		switch {
-		case !registered[suite]:
-			if !envvars.UpdateGoldenFiles {
-				fail("%s is an orphan: no suite %q is registered; run with %s=1 to remove it", f.Name, suite, envvars.VarUpdateGolden)
+		case !slices.Contains(registered, suite):
+			sections = append(sections, fmt.Sprintf("%s is an orphan: no suite %q is registered", f.Name, suite))
+		case f.Name != SectionFile(suite):
+			sections = append(sections, fmt.Sprintf("%s is not a section the corpus writes; a suite's only section is %s", f.Name, SectionFile(suite)))
+		default:
+			raw, v, err := sectionVerdict(string(f.Data))
+			switch {
+			case err != nil:
+				sections = append(sections, fmt.Sprintf("%s: %v", f.Name, err))
+			case raw != string(v):
+				sections = append(sections, fmt.Sprintf("%s: verdict %q is not sorted and de-duplicated (%q)", f.Name, raw, v))
 			}
-		case file != "bind":
-			fail("%s is not a section the corpus writes; a suite's only section is %s", f.Name, sectionName(suite))
 		}
 	}
-	return ok
+	return directives, sections
+}
+
+// checkCase reports what is wrong with c, given the registry, and whether
+// its cells can run. A problem in its out/ sections does not stop them, and
+// is not reported when the run rewrites the sections.
+func (co Corpus) checkCase(t testing.TB, c *Case) bool {
+	t.Helper()
+	registered := make([]string, 0, len(co.Suites))
+	for _, s := range co.Suites {
+		registered = append(registered, s.Name)
+	}
+	directives, sections := c.Problems(registered, co.Require)
+	for _, p := range directives {
+		t.Errorf("%s: %s; the format is in %s and the suites in %s", c.Path, p, co.readme(), filepath.Join(co.Dir, "suites.json"))
+	}
+	if !envvars.UpdateGoldenFiles {
+		for _, p := range sections {
+			t.Errorf("%s: %s; run with %s=1 to rewrite the out/ sections", c.Path, p, envvars.VarUpdateGolden)
+		}
+	}
+	return len(directives) == 0
 }
 
 func (co Corpus) readme() string { return filepath.Join(co.Dir, "README.md") }
@@ -278,21 +314,22 @@ func (co Corpus) readme() string { return filepath.Join(co.Dir, "README.md") }
 func (co Corpus) cell(t testing.TB, c *Case, s Suite) (string, bool) {
 	t.Helper()
 	known, isKnown := c.Known[s.Name]
-	golden, hasGolden := c.File(sectionName(s.Name))
+	golden, hasGolden := c.File(SectionFile(s.Name))
 	if ok, why := s.applies(c); !ok {
 		if isKnown {
 			t.Errorf("%s: #known/%s is stale: the suite does not apply to this case (%s); remove the tag", c.Path, s.Name, why)
 		}
 		if hasGolden && !envvars.UpdateGoldenFiles {
 			t.Errorf("%s: %s is an orphan: the suite does not apply to this case (%s); run with %s=1 to remove it",
-				c.Path, sectionName(s.Name), why, envvars.VarUpdateGolden)
+				c.Path, SectionFile(s.Name), why, envvars.VarUpdateGolden)
 		}
 		t.Skipf("does not apply: %s", why)
 		return "", false
 	}
 
 	got := Render(bind(t, s, c))
-	status := statusOf(c, s.Name, verdictOfSection(got))
+	_, v, _ := sectionVerdict(got)
+	status := statusOf(c, s.Name, v)
 	header := co.header(c, s, got)
 	diff := ""
 	if hasGolden {
@@ -307,7 +344,7 @@ func (co Corpus) cell(t testing.TB, c *Case, s Suite) (string, bool) {
 		switch {
 		case envvars.UpdateGoldenFiles:
 		case !hasGolden:
-			t.Errorf("%s\nThere is no golden section %s. Run with %s=1 to write it.", header, sectionName(s.Name), envvars.VarUpdateGolden)
+			t.Errorf("%s\nThere is no golden section %s. Run with %s=1 to write it.", header, SectionFile(s.Name), envvars.VarUpdateGolden)
 		case diff != "":
 			t.Errorf("%s\n%s%s", header, instructionRendering, diffNote(diff))
 		}
@@ -378,7 +415,7 @@ func (co Corpus) update(t *testing.T, c *Case, sections map[string]string) {
 	}
 	got := map[string]string{}
 	for name, sec := range sections {
-		got[sectionName(name)] = sec
+		got[SectionFile(name)] = sec
 	}
 	c.ar.Compare(t, got)
 }
@@ -454,9 +491,16 @@ func Render(err error) string {
 	return verdictPrefix + strings.Join(slices.Sorted(maps.Keys(codes)), " ") + "\n" + strings.Join(lines, "\n") + "\n"
 }
 
-func verdictOfSection(section string) Verdict {
+// sectionVerdict reads the verdict on a golden section's first line: as
+// written, and as [ParseVerdict] reads it.
+func sectionVerdict(section string) (string, Verdict, error) {
 	first, _, _ := strings.Cut(section, "\n")
-	return Verdict(strings.TrimPrefix(first, verdictPrefix))
+	raw, ok := strings.CutPrefix(first, verdictPrefix)
+	if !ok {
+		return first, "", fmt.Errorf("the first line is not %q followed by the verdict", verdictPrefix)
+	}
+	v, err := ParseVerdict(raw)
+	return raw, v, err
 }
 
 // Status is the state of one cell: one case run through one suite.
@@ -496,21 +540,28 @@ func (s Status) String() string {
 }
 
 // CellStatus is the status of c's cell for suite, read from the archive
-// alone: its golden section, #expect and #known tags.
+// alone: its golden section, #expect and #known tags. A verdict line is read
+// as [ParseVerdict] reads it, so one whose codes are out of order still
+// agrees with #expect; [Case.Problems] reports it.
 func CellStatus(c *Case, suite string) Status {
-	sec, ok := c.File(sectionName(suite))
+	sec, ok := c.File(SectionFile(suite))
 	if !ok {
 		return StatusNotApplicable
 	}
-	return statusOf(c, suite, verdictOfSection(sec))
+	_, v, _ := sectionVerdict(sec)
+	return statusOf(c, suite, v)
 }
 
+// statusOf is the status of c's cell for suite, given the verdict it got. A
+// verdict that could not be read, on either side, is "" and agrees with
+// nothing.
 func statusOf(c *Case, suite string, got Verdict) Status {
 	_, known := c.Known[suite]
+	agrees := got != "" && got == c.Expect
 	switch {
-	case got == c.Expect && !known:
+	case agrees && !known:
 		return StatusPass
-	case got == c.Expect:
+	case agrees:
 		return StatusXPass
 	case known:
 		return StatusKnown

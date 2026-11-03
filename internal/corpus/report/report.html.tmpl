@@ -240,7 +240,7 @@ ol.changed-list button:hover { text-decoration: underline; }
   function transChips(ts) {
     return el("div", {}, ...(ts || []).map((t) => el("span", { class: "trans" + (LOUD.has(t) ? " loud" : ""), text: t })));
   }
-  function knownText(t) { return t ? "#" + t.issue + " " + t.reason : "none"; }
+  function knownText(t) { return t ? "#" + t.Issue + " " + t.Reason : "none"; }
   function golden(c) {
     const pre = el("pre", { class: "golden" });
     if (c.Diff) {

@@ -3,6 +3,8 @@ package report
 import (
 	"maps"
 	"slices"
+
+	"github.com/sdboyer/thema/internal/corpus"
 )
 
 // Transition is a way a cell changed between the two revisions.
@@ -92,7 +94,7 @@ type Cell struct {
 	Case, Suite   string
 	Before, After Status
 	// KnownBefore and KnownAfter are the #known/<suite> tags, or nil.
-	KnownBefore, KnownAfter *KnownTag
+	KnownBefore, KnownAfter *corpus.Known
 	// GoldenBefore and GoldenAfter are out/<suite>/bind, or empty.
 	GoldenBefore, GoldenAfter string
 	GoldenChanged             bool
@@ -132,12 +134,12 @@ func Build(dir string, rg Range, before, after *Corpus) *Report {
 			shown = kb
 		}
 		info := CaseInfo{
-			Name: name, Description: shown.Description, Expect: shown.Expect,
-			Spec: shown.Spec, At: shown.At, New: kb == nil, Removed: ka == nil,
+			Name: name, Description: shown.Description, Expect: shown.Directive("expect"),
+			Spec: shown.Spec, At: shown.Directive("at"), New: kb == nil, Removed: ka == nil,
 		}
-		expectChanged := kb != nil && ka != nil && kb.expect != ka.expect
+		expectChanged := kb != nil && ka != nil && expectOf(kb) != expectOf(ka)
 		if expectChanged {
-			info.ExpectBefore = kb.Expect
+			info.ExpectBefore = kb.Directive("expect")
 		}
 		r.Cases = append(r.Cases, info)
 
@@ -157,12 +159,23 @@ func Build(dir string, rg Range, before, after *Corpus) *Report {
 	return r
 }
 
-func cellOf(k *Case, suite string) (Status, string, *KnownTag) {
-	var tag *KnownTag
+// expectOf is k's #expect as corpus.ParseVerdict reads it, so that writing
+// the same codes in another order doesn't change it, or as written when it
+// can't be read.
+func expectOf(k *corpus.Case) string {
+	if k.Expect != "" {
+		return string(k.Expect)
+	}
+	return k.Directive("expect")
+}
+
+func cellOf(k *corpus.Case, suite string) (Status, string, *corpus.Known) {
+	var tag *corpus.Known
 	if t, ok := k.Known[suite]; ok {
 		tag = &t
 	}
-	return k.Status(suite), k.Goldens[suite], tag
+	golden, _ := k.File(corpus.SectionFile(suite))
+	return CellStatus(k, suite), golden, tag
 }
 
 func transitions(c Cell, k CaseInfo, s SuiteInfo, expectChanged bool) []Transition {
@@ -220,7 +233,7 @@ func transitions(c Cell, k CaseInfo, s SuiteInfo, expectChanged bool) []Transiti
 	return out
 }
 
-func equalTags(x, y *KnownTag) bool {
+func equalTags(x, y *corpus.Known) bool {
 	if x == nil || y == nil {
 		return x == y
 	}

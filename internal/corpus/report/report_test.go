@@ -15,6 +15,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
+	"github.com/sdboyer/thema/internal/corpus"
 	"github.com/sdboyer/thema/internal/diagtest"
 )
 
@@ -79,11 +80,11 @@ func TestStatus(t *testing.T) {
 		if s.Name == "na" {
 			want = NotApplicable
 		}
-		if got := k.Status(s.Name); got != want {
+		if got := CellStatus(k, s.Name); got != want {
 			t.Errorf("suite %s: status %s, want %s", s.Name, got, want)
 		}
 	}
-	if got, want := k.Known["known"], (KnownTag{Issue: 264, Reason: "the lineage is at the top of a root"}); got != want {
+	if got, want := k.Known["known"], (corpus.Known{Issue: 264, Reason: "the lineage is at the top of a root"}); got != want {
 		t.Errorf("known tag %+v, want %+v", got, want)
 	}
 }
@@ -107,23 +108,48 @@ x
 		"bad.txtar": []byte(bad),
 	})
 	want := []string{
-		`bad.txtar: #expect: "ok E0141" is neither ok nor a set of codes`,
-		`bad.txtar: #known/nope names a suite that suites.json does not declare`,
+		`bad.txtar: #expect: "ok" is not a diagnostic code; write ok alone, or only codes such as E0141`,
+		`bad.txtar: #known/nope names a suite that is not registered`,
 		`bad.txtar: #known/nope tags a suite that does not run this case`,
-		`bad.txtar: #known/s1: "264 no hash" is not #<issue> <reason>`,
+		`bad.txtar: #known/s1: "264 no hash" must start with the issue that tracks it, as "#<number> <reason>"`,
 		`bad.txtar: #known/s2 tags a suite that does not run this case`,
 		`bad.txtar: #spec: "invariants" is not <path>:<line>[-<line>]`,
-		`bad.txtar: no #at`,
-		`bad.txtar: out/s1/bind: the first line is not "verdict: ..."`,
-		`bad.txtar: out/s3/ has no bind section`,
-		`bad.txtar: out/zz/bind names a suite that suites.json does not declare`,
+		`bad.txtar: out/s1/bind: the first line is not "verdict: " followed by the verdict`,
+		`bad.txtar: out/s3/other is not a section the corpus writes; a suite's only section is out/s3/bind`,
+		`bad.txtar: out/zz/bind is an orphan: no suite "zz" is registered`,
+		`bad.txtar: the required directive #at is missing`,
 	}
 	if diff := cmp.Diff(want, c.Problems); diff != "" {
 		t.Errorf("problems (-want +got):\n%s", diff)
 	}
-	// A suite that ran without a readable verdict is never taken to agree.
-	if got := c.Case("bad").Status("s3"); got != Regressed {
-		t.Errorf("s3 is %s, want regressed", got)
+	// A suite that ran without a readable verdict is never taken to agree,
+	// and a cell exists only where its bind section does.
+	for suite, want := range map[string]Status{"s1": Regressed, "s3": NotApplicable} {
+		if got := CellStatus(c.Case("bad"), suite); got != want {
+			t.Errorf("%s is %s, want %s", suite, got, want)
+		}
+	}
+}
+
+// TestRefsCorpus reads testdata/refs as it is on disk: the report must find
+// in it nothing that TestRefs, which runs it, accepts.
+func TestRefsCorpus(t *testing.T) {
+	c, err := Repo{Dir: "."}.Load(WorkingTree, "../../../testdata/refs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.Cases) == 0 || len(c.Suites) == 0 {
+		t.Fatalf("read %d cases and %d suites", len(c.Cases), len(c.Suites))
+	}
+	for _, p := range c.Problems {
+		t.Errorf("problem: %s", p)
+	}
+	for _, k := range c.Cases {
+		for _, s := range c.Suites {
+			if st := CellStatus(k, s.Name); st == Regressed || st == XPass {
+				t.Errorf("%s/%s is %s", k.Name, s.Name, st)
+			}
+		}
 	}
 }
 

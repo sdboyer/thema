@@ -143,6 +143,33 @@ func TestCellStatus(t *testing.T) {
 	}
 }
 
+// TestCellStatusFromArchive checks how CellStatus reads a verdict line that
+// Run would not have written.
+func TestCellStatusFromArchive(t *testing.T) {
+	for _, tc := range []struct {
+		name, known, golden string
+		want                Status
+	}{
+		{name: "unsorted", golden: "verdict: E0141  E0141\n", want: StatusPass},
+		{name: "no-verdict-line", golden: goldenE0141[len("verdict: E0141\n"):], want: StatusRegressed},
+		{name: "no-verdict-line-known", known: "#known/s: #264 a reason.\n", golden: "E0141\n", want: StatusKnown},
+		{name: "undeclared-code", golden: "verdict: E9999\n", want: StatusRegressed},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := writeCase(t, t.TempDir(), header+tc.known, SectionFile("s"), tc.golden)
+			if got := CellStatus(c, "s"); got != tc.want {
+				t.Errorf("CellStatus = %s, want %s", got, tc.want)
+			}
+		})
+	}
+	// An #expect that could not be read agrees with nothing, not even a
+	// verdict line that could not be read either.
+	c := writeCase(t, t.TempDir(), "#description: d\n#expect: E0141 ok\n#spec: docs/invariants.md:1\n", SectionFile("s"), "verdict: E0141 ok\n")
+	if got := CellStatus(c, "s"); got != StatusRegressed {
+		t.Errorf("CellStatus = %s, want regressed", got)
+	}
+}
+
 func TestFailureMessage(t *testing.T) {
 	c := writeCase(t, t.TempDir(), header+"#known/s: #264 a reason naming the mechanism.\n",
 		"out/s/bind", goldenE0141)
@@ -226,8 +253,13 @@ func TestValidation(t *testing.T) {
 		},
 		{
 			name:    "expect-not-a-code",
-			comment: "#description: d\n#expect: ok E0141\n#spec: s\n#at: lin\n",
+			comment: "#description: d\n#expect: ok E0141\n#spec: docs/invariants.md:1\n#at: lin\n",
 			want:    `#expect: "ok" is not a diagnostic code`,
+		},
+		{
+			name:    "spec-not-a-citation",
+			comment: "#description: d\n#expect: ok\n#spec: docs/invariants.md:1, the References section\n#at: lin\n",
+			want:    `#spec: "the References section" is not <path>:<line>[-<line>]`,
 		},
 		{
 			name:    "known-unregistered",
@@ -263,6 +295,18 @@ func TestValidation(t *testing.T) {
 			comment: header + "#at: lin\n",
 			files:   []string{"out/s/verdict", goldenE0141},
 			want:    "out/s/verdict is not a section the corpus writes",
+		},
+		{
+			name:    "section-no-verdict-line",
+			comment: header + "#at: lin\n",
+			files:   []string{SectionFile("s"), "E0141 headline of E0141 @ no position\n"},
+			want:    `out/s/bind: the first line is not "verdict: " followed by the verdict`,
+		},
+		{
+			name:    "section-verdict-unsorted",
+			comment: header + "#at: lin\n",
+			files:   []string{SectionFile("s"), "verdict: E0141 E0140\n"},
+			want:    `out/s/bind: verdict "E0141 E0140" is not sorted and de-duplicated ("E0140 E0141")`,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
