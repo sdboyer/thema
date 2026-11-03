@@ -191,6 +191,7 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0621](E0621.md) | error | an example's example.cue is not valid |
 | [E0622](E0622.md) | error | the examples directory holds no example |
 | [E0623](E0623.md) | error | the directory for a new lineage already holds version files |
+| [E0624](E0624.md) | error | the document is not of an OpenAPI version thema converts |
 | [E0701](E0701.md) | error | generating code from the schema failed |
 | [E0801](E0801.md) | error | the playground request is malformed |
 | [E0802](E0802.md) | error | the playground request gives the lineage in neither form, or in both |

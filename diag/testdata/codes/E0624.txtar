@@ -1,0 +1,40 @@
+#op: cli
+#args: lineage init openapi swagger.json --src-subpath #/definitions/Ship --stdout
+`thema lineage init openapi` converts OpenAPI 3.0 and 3.1 documents, which
+declare their version in an `openapi` field. Here the document is OpenAPI 2,
+Swagger, which declares `swagger: "2.0"` instead, and keeps its schemas under
+`definitions`.
+-- swagger.json --
+{
+  "swagger": "2.0",
+  "info": {"title": "ships", "version": "v1"},
+  "paths": {},
+  "definitions": {
+    "Ship": {
+      "type": "object",
+      "properties": {"name": {"type": "string"}}
+    }
+  }
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0624",
+      "severity": "error",
+      "headline": "the document declares no OpenAPI version, so it is not an OpenAPI document thema converts",
+      "help": [
+        "an OpenAPI 3 document declares its version as a string, as in openapi: \"3.0.0\"; convert an OpenAPI 2 (Swagger) document to OpenAPI 3 first"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0624]: the document declares no OpenAPI version, so it is not an OpenAPI document thema converts
+  |
+  = help: an OpenAPI 3 document declares its version as a string, as in openapi: "3.0.0"; convert an OpenAPI 2 (Swagger) document to OpenAPI 3 first

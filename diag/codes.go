@@ -223,6 +223,7 @@ var Codes = []CodeInfo{
 	{Code: E0621, Severity: SeverityError, Title: "an example's example.cue is not valid", Positionless: true},
 	{Code: E0622, Severity: SeverityError, Title: "the examples directory holds no example", Positionless: true},
 	{Code: E0623, Severity: SeverityError, Title: "the directory for a new lineage already holds version files", Positionless: true},
+	{Code: E0624, Severity: SeverityError, Title: "the document is not of an OpenAPI version thema converts", Positionless: true},
 	{Code: E0701, Severity: SeverityError, Title: "generating code from the schema failed", Positionless: true},
 	{Code: E0801, Severity: SeverityError, Title: "the playground request is malformed", Positionless: true},
 	{Code: E0802, Severity: SeverityError, Title: "the playground request gives the lineage in neither form, or in both", Positionless: true},
@@ -448,6 +449,7 @@ const (
 	E0621 Code = "E0621" // an example.cue that is not CUE, lacks a category, or has another field
 	E0622 Code = "E0622" // an examples directory with no example in it, or not a directory
 	E0623 Code = "E0623" // lineage init into a directory that already holds version files
+	E0624 Code = "E0624" // lineage init openapi: no openapi version, or one other than 3.0 and 3.1
 
 	// E07xx: code generation.
 	E0701 Code = "E0701" // a generator failed on the schema

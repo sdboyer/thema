@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,6 +11,7 @@ import (
 	"cuelang.org/go/cue/ast"
 	"cuelang.org/go/cue/ast/astutil"
 	"cuelang.org/go/cue/build"
+	cerrors "cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/load"
 	"cuelang.org/go/encoding/json"
 	"cuelang.org/go/encoding/jsonschema"
@@ -92,7 +92,8 @@ var initLineageOpenAPICmd = &cobra.Command{
 	Short: "Initialize with an OpenAPI v3 schema",
 	Long: `Initialize the lineage with one schema, derived from an OpenAPI v3 document.
 
-An OpenAPI document to be converted for the initial lineage schema must be given as an argument.
+The OpenAPI 3.0 or 3.1 document is read from <path>, as JSON or YAML by its
+extension, or from stdin, as JSON or else YAML.
 
 The schema is the whole document's components, each a definition, or, with
 --src-subpath, the one schema it points at, such as
@@ -110,7 +111,10 @@ var initLineageJSONSchemaCmd = &cobra.Command{
 	Short: "Initialize with a JSON Schema",
 	Long: `Initialize the lineage with one schema, derived from a JSON Schema document.
 
-A JSON Schema document to be converted for the initial lineage schema must be given as an argument.
+The JSON Schema document is read from <path>, or from stdin. The schema is
+the whole document, or, with --src-subpath, the one schema it points at, such
+as #/$defs/ship, with the schemas that schema refers to as definitions beside
+it.
 
 The new lineage's tip.thema is written in its directory, given by -l, or
 printed with --stdout.
@@ -189,12 +193,21 @@ func (ic *initCommand) write(cmd *cobra.Command, dir string) error {
 		return diag.New(diag.E0623).Headlinef("%s already holds a lineage's version files", displayPath(dir)).
 			Help("init creates a new lineage and never overwrites one: give -l a directory that holds no version files").Err()
 	}
-	sourceDirs = append(sourceDirs, dir)
+	// The bind's diagnostics point into the tip, which is not on disk yet:
+	// they are rendered from its text.
+	inlineSources[ic.tip.Path] = ic.tip.Text
 	c, err := authoring.CompileDevelopment(ctx, filepath.Base(dir), []authoring.File{ic.tip})
-	if err != nil {
-		return err
+	if err == nil {
+		_, err = authoring.BindDevelopment(rt, c)
 	}
-	if _, err = authoring.BindDevelopment(rt, c); err != nil {
+	if err != nil {
+		// The name the bind rejects is the directory's, which the author
+		// gave init, not anything in the tip.
+		for _, e := range cerrors.Errors(err) {
+			if d := diag.Diagnostics(e); len(d) == 1 && d[0].Code == diag.E0137 {
+				diag.AddHelp(e, fmt.Sprintf("the name is the base name of the directory init was given, %s; nothing was written", displayPath(dir)))
+			}
+		}
 		return err
 	}
 	if err = os.MkdirAll(dir, newDirPerm); err != nil {
@@ -235,8 +248,11 @@ func (ic *initCommand) runJSONSchema(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	// The pointer names one schema, as it does for init openapi, not a
+	// location whose every member is a schema.
 	jcfg := &jsonschema.Config{
-		Root: ic.srcpath,
+		Root:       ic.srcpath,
+		SingleRoot: ic.srcpath != "",
 	}
 
 	f, err := jsonschema.Extract(v, jcfg)
@@ -261,43 +277,43 @@ func (ic *initCommand) runJSONSchema(cmd *cobra.Command, args []string) {
 	ic.newTip(sch.Eval())
 }
 
-// expects something else to have already gotten the input from either a file
-// or stdin (as we do with pathOrStdin) and passed it as input param
+// inputToFile parses input, the document processInput read from the file
+// args names or from stdin, as JSON or YAML. A file's format is its
+// extension's. stdin has no extension, and the loader would take it as CUE,
+// so it is tried as JSON, then as YAML, as data validate tries its data.
 func inputToFile(input []byte, args []string) (*ast.File, error) {
 	if len(args) == 0 {
-		args = append(args, "-")
-	}
-
-	cfg := &load.Config{
-		Stdin: bytes.NewBuffer(input),
-	}
-	binsts := load.Instances(args, cfg)
-	bf := binsts[0].OrphanedFiles[0]
-	if bf == nil {
-		return nil, diag.New(diag.E0613).Headline("the input file could not be loaded").Err()
-	}
-
-	var f *ast.File
-	var err error
-	switch bf.Encoding {
-	case build.YAML:
-		f, err = yaml.Extract("input", input)
-	case build.JSON:
-		expr, err := json.Extract("input", input)
-		if err == nil {
-			f = &ast.File{
-				Decls: []ast.Decl{expr},
-			}
+		if f, err := jsonFile(input); err == nil {
+			return f, nil
 		}
-	default:
-		err = diag.New(diag.E0614).Headlinef("%s is not a format thema converts", bf.Encoding).Help("pass an OpenAPI or JSON Schema document as JSON or YAML").Err()
+		if f, err := yaml.Extract("input", input); err == nil {
+			return f, nil
+		}
+		return nil, diag.New(diag.E0611).Headline("the document on stdin is neither JSON nor YAML").
+			Help("pipe an OpenAPI document as JSON or YAML, or pass its path").Err()
 	}
 
+	binsts := load.Instances(args, &load.Config{})
+	if len(binsts[0].OrphanedFiles) == 0 {
+		return nil, diag.New(diag.E0614).Headlinef("%s is not a format thema converts", args[0]).Help("pass an OpenAPI or JSON Schema document as JSON or YAML").Err()
+	}
+	switch bf := binsts[0].OrphanedFiles[0]; bf.Encoding {
+	case build.YAML:
+		return yaml.Extract("input", input)
+	case build.JSON:
+		return jsonFile(input)
+	default:
+		return nil, diag.New(diag.E0614).Headlinef("%s is not a format thema converts", bf.Encoding).Help("pass an OpenAPI or JSON Schema document as JSON or YAML").Err()
+	}
+}
+
+// jsonFile parses input as one JSON value, the file's only declaration.
+func jsonFile(input []byte) (*ast.File, error) {
+	expr, err := json.Extract("input", input)
 	if err != nil {
 		return nil, err
 	}
-
-	return f, nil
+	return &ast.File{Decls: []ast.Decl{expr}}, nil
 }
 
 func (ic *initCommand) runOpenAPI(cmd *cobra.Command, args []string) {
@@ -312,8 +328,13 @@ func (ic *initCommand) runOpenAPI(cmd *cobra.Command, args []string) {
 		ic.err = err
 		return
 	}
+	version, err := openAPIVersion(v)
+	if err != nil {
+		ic.err = err
+		return
+	}
 	if ic.srcpath != "" {
-		ic.err = ic.openAPISchema(v)
+		ic.err = ic.openAPISchema(v, version)
 		return
 	}
 	fo, err := openapi.Extract(v, &openapi.Config{})
@@ -344,7 +365,8 @@ func (ic *initCommand) runOpenAPI(cmd *cobra.Command, args []string) {
 }
 
 // openAPISchema makes the tip from the one schema at --src-subpath, a JSON
-// pointer into the OpenAPI document doc.
+// pointer into the OpenAPI document doc, whose schemas are in the dialect
+// version.
 //
 // openapi.Extract makes every component schema a definition, #Foo, and
 // nothing done to a cue.Value looked up at #Foo opens it again: it stays
@@ -355,7 +377,7 @@ func (ic *initCommand) runOpenAPI(cmd *cobra.Command, args []string) {
 // for an object that allows other properties, and close() for one that does
 // not. The component schemas it refers to are definitions beside it, named
 // as openapi.Extract names them.
-func (ic *initCommand) openAPISchema(doc upcue.Value) error {
+func (ic *initCommand) openAPISchema(doc upcue.Value, version jsonschema.Version) error {
 	frag, ok := strings.CutPrefix(ic.srcpath, "#/")
 	if !ok {
 		return diag.New(diag.E0620).Headlinef("--src-subpath %q is not a JSON pointer into the OpenAPI document", ic.srcpath).
@@ -376,10 +398,6 @@ func (ic *initCommand) openAPISchema(doc upcue.Value) error {
 	}
 	if !at.Exists() {
 		return diag.New(diag.E0620).Headlinef("there is no value at --src-subpath %s in the OpenAPI document", ic.srcpath).Err()
-	}
-	version, err := openAPIVersion(doc)
-	if err != nil {
-		return err
 	}
 	f, err := jsonschema.Extract(doc, &jsonschema.Config{
 		Root:           ic.srcpath,
@@ -404,14 +422,14 @@ func openAPIVersion(doc upcue.Value) (jsonschema.Version, error) {
 	v, err := doc.LookupPath(upcue.MakePath(upcue.Str("openapi"))).String()
 	switch {
 	case err != nil:
-		return jsonschema.VersionUnknown, diag.New(diag.E0611).Headline("the input declares no OpenAPI version, so it is not an OpenAPI document").
-			Help(`an OpenAPI document declares its version as a string, as in openapi: "3.0.0"`).Err()
+		return jsonschema.VersionUnknown, diag.New(diag.E0624).Headline("the document declares no OpenAPI version, so it is not an OpenAPI document thema converts").
+			Help(`an OpenAPI 3 document declares its version as a string, as in openapi: "3.0.0"; convert an OpenAPI 2 (Swagger) document to OpenAPI 3 first`).Err()
 	case strings.HasPrefix(v, "3.0."):
 		return jsonschema.VersionOpenAPI, nil
 	case strings.HasPrefix(v, "3.1."):
 		return jsonschema.VersionDraft2020_12, nil
 	}
-	return jsonschema.VersionUnknown, diag.New(diag.E0611).Headlinef("OpenAPI %s is not a version thema converts", v).
+	return jsonschema.VersionUnknown, diag.New(diag.E0624).Headlinef("the document is OpenAPI %s, a version thema does not convert", v).
 		Help("thema converts OpenAPI 3.0 and 3.1 documents").Err()
 }
 

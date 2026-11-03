@@ -22,6 +22,7 @@ const (
 	initDir   = "foo"
 	initName  = "init"
 	nameFlag  = "--name"
+	stdoutFlg = "--stdout"
 	shipName  = "ship"
 	nestedDir = "a/ship"
 )
@@ -237,7 +238,7 @@ schemas: "0": "0": schema: #Foo: {
 
 			// --stdout prints the same tip, and writes nothing.
 			empty := t.TempDir()
-			if out := runInit(t, empty, append(args, "--stdout")...); out != tc.want {
+			if out := runInit(t, empty, append(args, stdoutFlg)...); out != tc.want {
 				t.Errorf("lineage init %s --stdout printed:\n%s\nwant:\n%s", strings.Join(tc.args, " "), out, tc.want)
 			}
 			if ents, err := os.ReadDir(empty); err != nil || len(ents) != 0 {
@@ -349,8 +350,8 @@ func TestLineageInitDir(t *testing.T) {
 		{name: "current directory", dir: ".", lin: "cwd"},
 		{name: "-l and --name disagree", args: []string{"-l", nestedDir, nameFlag, "boat"}, code: diag.E0620},
 		{name: "--name is a path", args: []string{nameFlag, nestedDir}, code: diag.E0620},
-		{name: "--stdout with -l", args: []string{"--stdout", "-l", shipName}, code: diag.E0620},
-		{name: "--stdout with --name", args: []string{"--stdout", nameFlag, shipName}, code: diag.E0620},
+		{name: "--stdout with -l", args: []string{stdoutFlg, "-l", shipName}, code: diag.E0620},
+		{name: "--stdout with --name", args: []string{stdoutFlg, nameFlag, shipName}, code: diag.E0620},
 		{name: "name not an identifier", args: []string{"-l", "my-ship"}, code: diag.E0137},
 	}
 	for _, tc := range cases {
@@ -425,5 +426,133 @@ func TestLineageInitRefusesLineage(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestLineageInitNameRendered checks that a name init's bind rejects is
+// rendered against the tip init would have written, which is not on disk,
+// with help naming the directory the name came from, and that nothing is
+// written.
+func TestLineageInitNameRendered(t *testing.T) {
+	dir := t.TempDir()
+	out, errOut, err := runThema(t, dir, "", lineageCmd, initName, "empty", "-l", "my-ship")
+	if err == nil {
+		t.Fatalf("lineage init -l my-ship succeeded:\n%s", out)
+	}
+	want := `error[E0137]: the lineage's name is "my-ship", which is not an identifier
+ --> tip.thema:1:1
+  |
+1 | Schema: {}
+  | ^^^^^^
+  |
+  = detail: name: invalid value "my-ship" (out of bound =~"^[A-Za-z][A-Za-z0-9_]*$")
+  = help: a name starts with a letter and continues with letters and digits
+  = help: the name is the base name of the directory init was given, my-ship; nothing was written
+`
+	if errOut != want {
+		t.Errorf("lineage init -l my-ship reported:\n%s\nwant:\n%s", errOut, want)
+	}
+	if ents, err := os.ReadDir(dir); err != nil || len(ents) != 0 {
+		t.Errorf("lineage init -l my-ship wrote %v (%v)", ents, err)
+	}
+}
+
+// TestLineageInitInput checks how init reads its input document: from a
+// file, by its extension, or from stdin, as JSON or YAML; and that it
+// reports an input it cannot convert.
+func TestLineageInitInput(t *testing.T) {
+	const fooSchema = "Schema: {\n\ta!: string\n\tb?: int\n\t...\n}\n"
+	yamlDoc := `openapi: "3.0.0"
+info: {title: test, version: v1}
+paths: {}
+components:
+  schemas:
+    Foo:
+      type: object
+      properties:
+        a: {type: string}
+        b: {type: integer}
+      required: [a]
+`
+	swagger := `{"swagger": "2.0", "info": {"title": "t", "version": "v"}, "paths": {}, "definitions": {}}`
+	unknown := `{"openapi": "4.0.0", "info": {"title": "t", "version": "v"}, "paths": {}}`
+	subpath := []string{"--src-subpath", "#/components/schemas/Foo", stdoutFlg}
+	cases := []struct {
+		name  string
+		args  []string
+		stdin string
+		want  string
+		code  diag.Code
+	}{
+		{name: "stdin JSON", args: subpath, stdin: initTestOpenAPI, want: fooSchema},
+		{name: "stdin YAML", args: subpath, stdin: yamlDoc, want: fooSchema},
+		{name: "YAML file", args: append([]string{writeInput(t, "oapi.yaml", yamlDoc)}, subpath...), want: fooSchema},
+		{name: "stdin neither", args: subpath, stdin: "openapi: [\n", code: diag.E0611},
+		{name: "CUE file", args: append([]string{writeInput(t, "oapi.cue", "openapi: \"3.0.0\"\n")}, subpath...), code: diag.E0614},
+		{name: "no version", args: []string{writeInput(t, "swagger.json", swagger), stdoutFlg}, code: diag.E0624},
+		{name: "no version subpath", args: append([]string{writeInput(t, "swagger.json", swagger)}, subpath...), code: diag.E0624},
+		{name: "unknown version", args: []string{writeInput(t, "v4.json", unknown), stdoutFlg}, code: diag.E0624},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			args := append([]string{lineageCmd, initName, openapiCmd}, tc.args...)
+			if tc.code == "" {
+				out, errOut, err := runThema(t, t.TempDir(), tc.stdin, args...)
+				if err != nil {
+					t.Fatalf("%v\n%s", err, errOut)
+				}
+				if out != tc.want {
+					t.Errorf("printed:\n%s\nwant:\n%s", out, tc.want)
+				}
+				return
+			}
+			out, errOut, err := runThema(t, t.TempDir(), tc.stdin, append(args, "--diag-format", "json")...)
+			if err == nil {
+				t.Fatalf("succeeded:\n%s", out)
+			}
+			var res struct {
+				Diagnostics []diag.Diagnostic `json:"diagnostics"`
+			}
+			if jerr := json.Unmarshal([]byte(out), &res); jerr != nil {
+				t.Fatalf("%v\nstdout:\n%s\nstderr:\n%s", jerr, out, errOut)
+			}
+			if len(res.Diagnostics) != 1 || res.Diagnostics[0].Code != tc.code {
+				t.Errorf("reported %+v, want %s", res.Diagnostics, tc.code)
+			}
+		})
+	}
+}
+
+// TestLineageInitJSONSchemaSubpath checks that init jsonschema --src-subpath
+// makes the one schema it points at the lineage's schema, with the schemas
+// it refers to as definitions beside it, rather than taking each member of
+// that schema to be a schema.
+func TestLineageInitJSONSchemaSubpath(t *testing.T) {
+	doc := `{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "ship": {
+      "type": "object",
+      "properties": {"name": {"type": "string"}, "crew": {"$ref": "#/$defs/person"}},
+      "required": ["name"]
+    },
+    "person": {"type": "object", "properties": {"n": {"type": "string"}}}
+  },
+  "type": "object",
+  "properties": {"a": {"type": "string"}}
+}`
+	dir := t.TempDir()
+	runInit(t, dir, lineageCmd, initName, "jsonschema", writeInput(t, "s.json", doc), "--src-subpath", "#/$defs/ship", "-l", initDir)
+	v := bindInitDir(t, dir, initDir).Lineage.Latest().Underlying().LookupPath(cue.MakePath(cue.Str("schema")))
+	iter, err := v.Fields(cue.Hidden(true), cue.Definitions(true), cue.Optional(true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fields []string
+	for iter.Next() {
+		fields = append(fields, iter.Selector().String())
+	}
+	if got := strings.Join(fields, ","); got != "name!,crew?,#person" {
+		t.Errorf("the bound schema has fields %s, want name!,crew?,#person", got)
 	}
 }
