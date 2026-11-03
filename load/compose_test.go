@@ -200,7 +200,7 @@ func TestComposedUnderDefinition(t *testing.T) {
 			for _, f := range files {
 				cfg.Overlay["/m/"+f.Filename] = load.FromFile(f)
 			}
-			if err := tload.Configure(cfg); err != nil {
+			if err = tload.Configure(cfg); err != nil {
 				t.Fatal(err)
 			}
 			inst := load.Instances([]string{"."}, cfg)[0]
