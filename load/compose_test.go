@@ -106,11 +106,12 @@ func TestComposedImports(t *testing.T) {
 	}
 }
 
-// A placement's path never captures a reference: not its file's own import
-// of the same name, not a builtin another placement refers to, and a keyword
-// label is still a label. The printed files, as a caller writing them to disk
-// would load them, read the same as the syntax.
-func TestComposedLabelsCaptureNothing(t *testing.T) {
+// A placement's path is written as fields its author could have written:
+// another placement and the caller's files can refer to them, and a label at
+// the top of the path binds its name in every file, builtin or not. A
+// keyword label is still a label. The printed files, as a caller writing
+// them to disk would load them, read the same as the syntax.
+func TestComposedLabels(t *testing.T) {
 	parse := func(src string) *ast.File {
 		f, err := parser.ParseFile("p.cue", src)
 		if err != nil {
@@ -119,24 +120,25 @@ func TestComposedLabelsCaptureNothing(t *testing.T) {
 		return f
 	}
 	ps := []thema.Placement{
-		{Path: cue.ParsePath("strings"), File: parse("import \"strings\"\nv: strings.ToUpper(\"q\")\n")},
-		{Path: cue.ParsePath("int"), File: parse("v: 1\n")},
+		{Path: cue.ParsePath("ship"), File: parse("v: 1\n")},
+		{Path: cue.ParsePath("fleet"), File: parse("flagship: ship\n")},
+		{Path: cue.ParsePath("int"), File: parse("w: 2\n")},
 		{Path: cue.ParsePath("c"), File: parse("v: int\n")},
-		{Path: cue.MakePath(cue.Str("import"), cue.Str("x")), File: parse("v: 2\n")},
+		{Path: cue.MakePath(cue.Str("import"), cue.Str("x")), File: parse("v: 3\n")},
 	}
 	check := func(t *testing.T, v cue.Value) {
 		t.Helper()
 		if err := v.Err(); err != nil {
 			t.Fatal(err)
 		}
-		if s, _ := v.LookupPath(cue.ParsePath("strings.v")).String(); s != "Q" {
-			t.Errorf("strings.v = %q, want Q", s)
+		if n, _ := v.LookupPath(cue.ParsePath("fleet.flagship.v")).Int64(); n != 1 {
+			t.Errorf("fleet.flagship.v = %d, want 1", n)
 		}
-		if k := v.LookupPath(cue.ParsePath("c.v")).IncompleteKind(); k != cue.IntKind {
-			t.Errorf("c.v is %v, want int", k)
+		if n, _ := v.LookupPath(cue.ParsePath("c.v.w")).Int64(); n != 2 {
+			t.Errorf("c.v.w = %d, want 2: int is the placement at int", n)
 		}
-		if n, _ := v.LookupPath(cue.MakePath(cue.Str("import"), cue.Str("x"), cue.Str("v"))).Int64(); n != 2 {
-			t.Errorf("import.x.v = %d, want 2", n)
+		if n, _ := v.LookupPath(cue.MakePath(cue.Str("import"), cue.Str("x"), cue.Str("v"))).Int64(); n != 3 {
+			t.Errorf("import.x.v = %d, want 3", n)
 		}
 	}
 

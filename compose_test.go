@@ -50,7 +50,7 @@ import (
 	"strings"
 )
 
-"ops": #Op: "content-type": {
+ops: #Op: "content-type": {
 
 	// the lineage
 	name: "q"
@@ -82,6 +82,7 @@ loud: strings.ToUpper(name)
 
 func TestComposeRefused(t *testing.T) {
 	f, _ := parser.ParseFile("q.cue", "a: 1")
+	imports, _ := parser.ParseFile("i.cue", "import (\n\t\"strings\"\n\ts \"list\"\n)\n\na: strings.ToUpper(\"q\")\nb: s.Concat([[1]])\n")
 	one := []thema.Placement{{File: f}}
 	at := func(p cue.Path) []thema.Placement { return []thema.Placement{{Path: p, File: f}} }
 	for _, tc := range []struct {
@@ -103,6 +104,8 @@ func TestComposeRefused(t *testing.T) {
 		{"pattern", "p", at(cue.MakePath(cue.AnyString)), "a placement's path is made of field and definition labels, and placement 0's path [_] is not"},
 		{"hidden", "p", at(cue.MakePath(cue.Hid("_a", "p"))), "a placement's path is made of field and definition labels, and placement 0's path _a is not"},
 		{"invalid", "p", at(cue.ParsePath("a.b c")), "a placement's path is a valid CUE path, and placement 0's has an error"},
+		{"an import's name", "p", []thema.Placement{{Path: cue.ParsePath("ops.strings"), File: imports}}, "a placement's path does not name its file's imports, and placement 0's path ops.strings names strings"},
+		{"an import's own name", "p", []thema.Placement{{Path: cue.ParsePath("s"), File: imports}}, "a placement's path does not name its file's imports, and placement 0's path s names s"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := thema.Compose(tc.pkg, tc.ps...)
@@ -136,7 +139,7 @@ package p
 
 import "strings"
 
-"at":
+at:
 	a: strings.ToUpper("q")
 `},
 		{"without a package clause", `@if(debug)
@@ -145,7 +148,7 @@ a: 1
 `, `@if(debug)
 package p
 
-"at":
+at:
 	a: 1
 `},
 	} {

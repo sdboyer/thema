@@ -6,6 +6,7 @@ import (
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/ast"
+	"cuelang.org/go/cue/literal"
 	"cuelang.org/go/cue/parser"
 	"cuelang.org/go/cue/token"
 
@@ -44,12 +45,20 @@ type Placement struct {
 // the files, alongside its package's own files if it has any, with its own
 // load.Config; load.ComposedInstance loads them on their own.
 //
-// The files are one package, and read as one:
+// The files are one package, and read as one, as they would had their
+// author written them there:
 //   - Two placements at the same path are unified.
+//   - The path's labels are written as identifiers wherever CUE can read
+//     one back, so other placements and the caller's files can refer to
+//     them. Like any field of a package, a label at the top of the path
+//     binds its name in every file: a placement at int is what int means
+//     in all of them. A label that is the name of one of its own file's
+//     imports would hide the import, and is refused.
 //   - A name a placement's file refers to without declaring it resolves in
 //     the composed package, to what the other placements or the caller's
-//     files declare at its top. The path's own labels are written quoted,
-//     so they never capture a reference.
+//     files declare at its top.
+//   - A file attribute applies to the composed file: an @if that does not
+//     hold leaves the placement out of the package.
 //   - Hidden labels belong to the package they are written in, which for
 //     every placement is now pkg: two placements at one path share their
 //     hidden fields, though they were separate where they were built.
@@ -72,7 +81,7 @@ func Compose(pkg string, ps ...Placement) ([]*ast.File, error) {
 		if p.File == nil {
 			panic(fmt.Sprintf("thema.Compose: placement %d has no file", i))
 		}
-		labels, err := placementLabels(i, p.Path)
+		labels, err := placementLabels(i, p.Path, p.File)
 		if err != nil {
 			return nil, err
 		}
@@ -91,12 +100,9 @@ func packageName(pkg string) bool {
 	return err == nil && f.PackageName() == pkg
 }
 
-// placementLabels returns the labels of the fields that nest a placement's
-// declarations at p. A regular label is written quoted: a quoted label
-// declares the same field, but binds no identifier, so it cannot capture a
-// reference the file makes to an import or a builtin, in its own file or in
-// another of the package.
-func placementLabels(i int, p cue.Path) ([]ast.Label, error) {
+// placementLabels returns the labels of the fields that nest f's
+// declarations at p.
+func placementLabels(i int, p cue.Path, f *ast.File) ([]ast.Label, error) {
 	if err := p.Err(); err != nil {
 		return nil, diag.New(diag.E0627).
 			Headlinef("a placement's path is a valid CUE path, and placement %d's has an error", i).
@@ -121,7 +127,21 @@ func placementLabels(i int, p cue.Path) ([]ast.Label, error) {
 			labels = append(labels, ast.NewIdent(sel.String()))
 			continue
 		case sel.IsString():
-			labels = append(labels, ast.NewString(sel.Unquoted()))
+			name := sel.Unquoted()
+			// import and package are identifiers, but read as clauses
+			// where the nested field begins.
+			if ast.StringLabelNeedsQuoting(name) || name == "import" || name == "package" {
+				labels = append(labels, ast.NewString(name))
+				continue
+			}
+			if imported(f, name) {
+				return nil, diag.New(diag.E0627).
+					Headlinef("a placement's path does not name its file's imports, and placement %d's path %s names %s", i, p, name).
+					Notef(token.NoPos, "the file imports a package as %s, and a field %s around its declarations would hide the import from them", name, name).
+					Help("place the file at another path, or import the package under another name").
+					Err()
+			}
+			labels = append(labels, ast.NewIdent(name))
 			continue
 		default:
 			why = "a selector a field label cannot write"
@@ -173,6 +193,23 @@ func fileLevel(d ast.Decl) bool {
 	switch d.(type) {
 	case *ast.Attribute, *ast.CommentGroup:
 		return true
+	}
+	return false
+}
+
+// imported reports whether f imports a package under name.
+func imported(f *ast.File, name string) bool {
+	for spec := range f.ImportSpecs() {
+		if spec.Name != nil {
+			if spec.Name.Name == name {
+				return true
+			}
+			continue
+		}
+		path, err := literal.Unquote(spec.Path.Value)
+		if err == nil && ast.ParseImportPath(path).Qualifier == name {
+			return true
+		}
 	}
 	return false
 }
