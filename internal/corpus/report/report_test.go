@@ -548,6 +548,11 @@ func TestRangeErrors(t *testing.T) {
 	if want := "The corpus directory does not exist in " + empty + ", so every cell is new."; !strings.Contains(md.String(), want) {
 		t.Errorf("the markdown does not say %q:\n%s", want, md.String())
 	}
+	for _, c := range r.Changed() {
+		if !slices.Equal(c.Transitions, []Transition{TNewCase}) {
+			t.Errorf("before the corpus exists, %s × %s should only be a new case; got %v", c.Case, c.Suite, c.Transitions)
+		}
+	}
 	if _, err := repo.Compare(corpusDir, before+".."+empty); err == nil {
 		t.Error("the after revision has no corpus, but there is no error")
 	}

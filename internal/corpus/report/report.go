@@ -140,8 +140,10 @@ func Build(dir string, rg Range, before, after *Corpus) *Report {
 	}
 
 	for _, s := range after.Suites {
+		// Before the corpus exists, its cases are what is new; calling every
+		// suite new as well would say the same thing twice for every cell.
 		_, had := before.Suite(s.Name)
-		r.Suites = append(r.Suites, SuiteInfo{Suite: s, New: !had})
+		r.Suites = append(r.Suites, SuiteInfo{Suite: s, New: !had && !before.Missing})
 	}
 	for _, s := range before.Suites {
 		if _, has := after.Suite(s.Name); !has {
