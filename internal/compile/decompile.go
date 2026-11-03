@@ -104,6 +104,17 @@ func decompile(lin cue.Value) (name string, files []File, err error) {
 	return name, files, nil
 }
 
+// NewTip returns the tip of a new lineage whose one version is schema:
+// tip.thema holding schema, laid out as Decompile writes a version file. The
+// history is empty, so the tip cuts as 0.0.
+func NewTip(schema cue.Value) (File, error) {
+	text, err := versionText(dversion{schema: schema}, thema.SyntacticVersion{}, nil, nil)
+	if err != nil {
+		return File{}, diag.InternalErr(fmt.Errorf("writing a new tip: %w", err))
+	}
+	return File{Path: TipFile, Text: []byte(text)}, nil
+}
+
 type dversion struct {
 	v      thema.SyntacticVersion
 	schema cue.Value

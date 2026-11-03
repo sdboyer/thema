@@ -145,6 +145,13 @@ func Decompile(lin cue.Value) (name string, files []File, err error) {
 	return compile.Decompile(lin)
 }
 
+// NewTip returns the tip of a new lineage whose one version is schema:
+// tip.thema holding schema, in the layout [Format] gives it. A lineage of
+// that tip alone has an empty history, and its tip cuts as 0.0.
+func NewTip(schema cue.Value) (File, error) {
+	return compile.NewTip(schema)
+}
+
 // Format lays out the text of a version file in the authoring form's one
 // layout: every block keeps its braces and every field has its own line.
 // Decompiling a formatted file gives back its text exactly.

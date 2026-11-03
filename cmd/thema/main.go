@@ -145,7 +145,6 @@ var allCmds = []*cobra.Command{
 	initLineageEmptyCmd,
 	initLineageOpenAPICmd,
 	initLineageJSONSchemaCmd,
-	lineageBumpCmd,
 	fmtLineageCmd,
 	tipLineageCmd,
 	checkLineageCmd,
