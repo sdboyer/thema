@@ -1,0 +1,131 @@
+A lens reads beneath a disjunction nested in the source (#229, repro B): the
+request is one of two alternatives, and 1.0 keeps only the GET. route and
+path, which both alternatives declare, are copied implicitly, and url reads
+path.id through the disjunction.
+
+The derived BackwardLens copies req whole: every field 1.0's req has, every
+alternative of 0.0's declares, and every value of it is a 0.0 value. url,
+which 1.0 added, is dropped.
+-- ship/history/0.0.thema --
+Schema: {
+	req!: {method!: "GET", route!: "/things/{id}", path!: {id!: string}} |
+		{method!: "POST", route!: "/things/{id}", path!: {id!: string}, body!: {name!: string}}
+}
+-- ship/1.0.thema --
+Schema: {
+	req!: {method!: "GET", route!: "/things/{id}", path!: {id!: string}}
+	url!: string
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		req: {method: "GET"}
+		url: "/things/" + v0_0.req.path.id
+	}
+}
+-- data/0.0/get.json --
+{"req": {"method": "GET", "route": "/things/{id}", "path": {"id": "a"}}}
+-- data/0.0/post.json --
+{"req": {"method": "POST", "route": "/things/{id}", "path": {"id": "b"}, "body": {"name": "n"}}}
+-- data/1.0/get.json --
+{"req": {"method": "GET", "route": "/things/{id}", "path": {"id": "c"}}, "url": "/things/c"}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+Schema: {
+	req!: {
+		method!: "GET"
+		route!:  "/things/{id}"
+		path!: {
+			id!: string
+		}
+	}
+	url!: string
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		req: {
+			method: "GET"
+		}
+		url: "/things/" + v0_0.req.path.id
+	}
+}
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	req!: {
+		method!: "GET"
+		route!:  "/things/{id}"
+		path!: {
+			id!: string
+		}
+	} | {
+		method!: "POST"
+		route!:  "/things/{id}"
+		path!: {
+			id!: string
+		}
+		body!: {
+			name!: string
+		}
+	}
+}
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				req!: {method!: "GET", route!: "/things/{id}", path!: {id!: string}} |
+					{method!: "POST", route!: "/things/{id}", path!: {id!: string}, body!: {name!: string}}
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				req!: {method!: "GET", route!: "/things/{id}", path!: {id!: string}}
+				url!: string
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			req: {
+				method: "GET"
+				route:  v0_0.req.route
+				path:   v0_0.req.path
+			}
+			url: "/things/" + v0_0.req.path.id
+		}
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			req: v1_0.req
+		}
+		lacunas: [{
+			@thema(derived)
+			sourceFields: [{
+				path:  "url"
+				value: v1_0.url
+			}]
+			message: "url has no equivalent in 0.0 and was dropped"
+			type:    "DroppedField"
+		}]
+	}
+}
+-- out/translate/0.0/get->1.0 --
+{"req":{"method":"GET","route":"/things/{id}","path":{"id":"a"}},"url":"/things/a"}
+[]
+-- out/translate/0.0/post->1.0 --
+{"req":{"method":"GET","route":"/things/{id}","path":{"id":"b"}},"url":"/things/b"}
+[{"sourceFields":[{"path":"req.method","value":"POST"}],"type":"DroppedField","message":"req.method set aside: the lens from 0.0 to 1.0 writes its own value for it"},{"sourceFields":[{"path":"req.body","value":{"name":"n"}}],"type":"DroppedField","message":"req.body set aside: 1.0 does not declare it in req, which it does not leave open"}]
+-- out/translate/1.0/get->0.0 --
+{"req":{"method":"GET","route":"/things/{id}","path":{"id":"c"}}}
+[{"sourceFields":[{"path":"url","value":"/things/c"}],"type":"DroppedField","message":"url has no equivalent in 0.0 and was dropped"}]

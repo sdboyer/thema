@@ -218,3 +218,56 @@ func (a *archive) lineage(t *testing.T) (string, []File) {
 	}
 	return name, files
 }
+
+// TestDisjunctiveSourceWrittenCopy compiles the lens of #229's repro B as the
+// issue wrote it, with route and path copied by reference from the
+// disjunctive source: the same normal form as leaving them to copy
+// implicitly, which is the form the disjunctive-source archive holds.
+func TestDisjunctiveSourceWrittenCopy(t *testing.T) {
+	a := readArchive(t, "testdata/roundtrip/disjunctive-source.txtar")
+	compiled := func(lens string) string {
+		t.Helper()
+		files := []File{
+			{Path: "history/0.0.thema", Text: []byte(a.file(t, "ship/history/0.0.thema"))},
+			{Path: "1.0.thema", Text: []byte(`Schema: {method!: "GET", route!: "/things/{id}", path!: {id!: string}}
+
+ForwardLens: {v0_0: _, v1_0: ` + lens + `}
+`)},
+		}
+		c, err := Compile(cuecontext.New(), "ship", files)
+		if err != nil {
+			t.Fatalf("compiling %s: %v", lens, cerrors.Details(err, nil))
+		}
+		text, err := c.Text()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return text
+	}
+	written := compiled(`{method: "GET", route: v0_0.route, path: v0_0.path}`)
+	if diff := cmp.Diff(compiled(`{method: "GET"}`), written); diff != "" {
+		t.Errorf("the written copies compile differently from the implicit ones (-implicit +written):\n%s", diff)
+	}
+}
+
+// TestDecompileEachIntoClosedList pins that Decompile refuses an each into a
+// list with no open element, which Compile never produces: the element is
+// what Decompile reads the each body's copies against.
+func TestDecompileEachIntoClosedList(t *testing.T) {
+	ctx := cuecontext.New()
+	v := ctx.CompileString(`
+name: "ship"
+schemas: {
+	"0": "0": schema: {l: [...{id: string}]}
+	"1": "0": schema: {l: [{id: string}]}
+}
+lenses: {
+	"0.0->1.0": {v0_0: _, v1_0: {l: [for _item in v0_0.l {id: _item.id}]}}
+	"1.0->0.0": {v1_0: _, v0_0: {l: [for _item in v1_0.l {id: _item.id}]}}
+}
+`)
+	_, _, err := Decompile(v)
+	if err == nil || !strings.Contains(err.Error(), "l is mapped from a list and is not an open list") {
+		t.Errorf("Decompile: got %v, want the each into l refused", err)
+	}
+}

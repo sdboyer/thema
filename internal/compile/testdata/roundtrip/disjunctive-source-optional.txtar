@@ -1,0 +1,134 @@
+A field one alternative of a disjunctive source requires and another leaves
+optional is optional: an instance may lack it. So _coalesce may read it, and
+a computed value that reads it is written only where it is present.
+
+The derived BackwardLens copies x whole, and drops what 1.0 added.
+-- ship/history/0.0.thema --
+Schema: {
+	x!: {kind!: "a", n!: int32} | {kind!: "b", n?: int32}
+}
+-- ship/1.0.thema --
+Schema: {
+	x!: {kind!: "a", n!: int32} | {kind!: "b", n?: int32}
+	count!:   int
+	doubled?: int
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		count:   _coalesce(v0_0.x.n, 0)
+		doubled: v0_0.x.n * 2
+	}
+}
+-- data/0.0/a.json --
+{"x": {"kind": "a", "n": 1}}
+-- data/0.0/b.json --
+{"x": {"kind": "b"}}
+-- data/1.0/b.json --
+{"x": {"kind": "b", "n": 3}, "count": 3, "doubled": 6}
+-- out/bind --
+ok
+-- out/decompiled/1.0.thema --
+Schema: {
+	x!: {
+		kind!: "a"
+		n!:    int32
+	} | {
+		kind!: "b"
+		n?:    int32
+	}
+	count!:   int
+	doubled?: int
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		count:   _coalesce(v0_0.x.n, 0)
+		doubled: v0_0.x.n * 2
+	}
+}
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	x!: {
+		kind!: "a"
+		n!:    int32
+	} | {
+		kind!: "b"
+		n?:    int32
+	}
+}
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				x!: {kind!: "a", n!: int32} | {kind!: "b", n?: int32}
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				x!:       {kind!: "a", n!: int32} | {kind!: "b", n?: int32}
+				count!:   int
+				doubled?: int
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			x: v0_0.x
+			if v0_0.x.n != _|_ {
+				count: v0_0.x.n
+			}
+			if v0_0.x.n == _|_ {
+				count: 0
+			}
+			if v0_0.x.n != _|_ {
+				doubled: v0_0.x.n * 2
+			}
+		}
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			x: v1_0.x
+		}
+		lacunas: [
+			{
+				@thema(derived)
+				sourceFields: [{
+					path:  "count"
+					value: v1_0.count
+				}]
+				message: "count has no equivalent in 0.0 and was dropped"
+				type:    "DroppedField"
+			},
+			{
+				@thema(derived)
+				condition: v1_0.doubled != _|_
+				sourceFields: [{
+					path:  "doubled"
+					value: v1_0.doubled
+				}]
+				message: "doubled has no equivalent in 0.0 and was dropped"
+				type:    "DroppedField"
+			}
+		]
+	}
+}
+-- out/translate/0.0/a->1.0 --
+{"x":{"kind":"a","n":1},"count":1,"doubled":2}
+[]
+-- out/translate/0.0/b->1.0 --
+{"x":{"kind":"b"},"count":0}
+[]
+-- out/translate/1.0/b->0.0 --
+{"x":{"kind":"b","n":3}}
+[{"sourceFields":[{"path":"count","value":3}],"type":"DroppedField","message":"count has no equivalent in 0.0 and was dropped"},{"sourceFields":[{"path":"doubled","value":6}],"type":"DroppedField","message":"doubled has no equivalent in 0.0 and was dropped"}]

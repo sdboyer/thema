@@ -1,0 +1,22 @@
+A field only some alternatives of a disjunctive source declare is not
+declared: an instance of the other alternatives has nowhere to hold it.
+-- ship/history/0.0.thema --
+Schema: {method!: "GET", path!: {id!: string}} |
+	{method!: "POST", path!: {id!: string}, body!: {name!: string}}
+-- ship/1.0.thema --
+Schema: {path!: {id!: string}, name?: string}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		name:   v0_0.body.name
+		method: _drop
+	}
+}
+-- out/error --
+error[E0340]: 0.0 does not declare body.name
+ --> 1.0.thema:6:11
+  |
+6 |         name:   v0_0.body.name
+  |                 ^^^^
+  |

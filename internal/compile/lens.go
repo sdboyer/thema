@@ -2430,18 +2430,12 @@ func (e *edge) covers(sv, tv cue.Value) bool {
 func (e *edge) optional(v cue.Value, p cue.Path) bool {
 	sels := p.Selectors()
 	for i := range sels {
-		parent := lookup(v, cue.MakePath(sels[:i]...))
-		iter, err := parent.Fields(cue.Optional(true))
-		if err != nil {
+		cts, ok := constraints(v, cue.MakePath(sels[:i]...), sels[i])
+		if !ok {
 			return false
 		}
-		for iter.Next() {
-			if sel := iter.Selector(); sel.IsString() && sel.Unquoted() == sels[i].Unquoted() {
-				if sel.ConstraintType() == cue.OptionalConstraint {
-					return true
-				}
-				break
-			}
+		if slices.Contains(cts, cue.OptionalConstraint) {
+			return true
 		}
 	}
 	return false
@@ -2454,17 +2448,36 @@ func (e *edge) optionalAt(v cue.Value, p cue.Path) bool {
 	if len(sels) == 0 {
 		return false
 	}
-	iter, err := lookup(v, cue.MakePath(sels[:len(sels)-1]...)).Fields(cue.Optional(true))
-	if err != nil {
-		return false
+	cts, _ := constraints(v, cue.MakePath(sels[:len(sels)-1]...), sels[len(sels)-1])
+	return slices.Contains(cts, cue.OptionalConstraint)
+}
+
+// constraints returns the constraint type sel is declared with in the struct
+// v declares at parent: one per alternative where that struct is a
+// disjunction, and none where sel names no field. Where an alternative
+// declares sel optional, an instance may lack it. ok is false where parent is
+// not a struct.
+func constraints(v cue.Value, parent cue.Path, sel cue.Selector) (cts []cue.SelectorType, ok bool) {
+	pv := lookup(v, parent)
+	alts := []cue.Value{pv}
+	if _, err := pv.Fields(cue.Optional(true)); err != nil {
+		// A disjunction has no fields of its own; its alternatives do.
+		alts = compat.Branches(pv)
 	}
-	name := sels[len(sels)-1].Unquoted()
-	for iter.Next() {
-		if sel := iter.Selector(); sel.IsString() && sel.Unquoted() == name {
-			return sel.ConstraintType() == cue.OptionalConstraint
+	for _, alt := range alts {
+		iter, err := alt.Fields(cue.Optional(true))
+		if err != nil {
+			continue
+		}
+		ok = true
+		for iter.Next() {
+			if s := iter.Selector(); s.IsString() && s.Unquoted() == sel.Unquoted() {
+				cts = append(cts, s.ConstraintType())
+				break
+			}
 		}
 	}
-	return false
+	return cts, ok
 }
 
 // required reports whether an instance of v must supply p: it is not optional,
@@ -2481,23 +2494,15 @@ func (e *edge) required(v cue.Value, p cue.Path) bool {
 	return lookup(v, p).Validate(cue.Concrete(true)) != nil
 }
 
-// marked reports whether the last field along p is a required field (p!).
+// marked reports whether the last field along p is a required field (p!), in
+// every alternative that holds it.
 func (e *edge) marked(v cue.Value, p cue.Path) bool {
 	sels := p.Selectors()
 	if len(sels) == 0 {
 		return false
 	}
-	iter, err := lookup(v, cue.MakePath(sels[:len(sels)-1]...)).Fields(cue.Optional(true))
-	if err != nil {
-		return false
-	}
-	last := sels[len(sels)-1]
-	for iter.Next() {
-		if sel := iter.Selector(); sel.IsString() && sel.Unquoted() == last.Unquoted() {
-			return sel.ConstraintType() == cue.RequiredConstraint
-		}
-	}
-	return false
+	cts, _ := constraints(v, cue.MakePath(sels[:len(sels)-1]...), sels[len(sels)-1])
+	return len(cts) > 0 && !slices.ContainsFunc(cts, func(ct cue.SelectorType) bool { return ct != cue.RequiredConstraint })
 }
 
 // lookup returns the value v declares at p, whatever the form of the fields
@@ -2508,11 +2513,46 @@ func (e *edge) marked(v cue.Value, p cue.Path) bool {
 // LookupPath finds it (as _): the result does not exist, by the rule bind and
 // the totality check apply (cuetil.DeclaresPath). So a field only one version
 // declares is never copied implicitly, nor treated as present in the other.
+//
+// LookupPath does not look beneath a disjunction. Where v, or the value at a
+// prefix of p, is one, the rest of p is looked up in each of its
+// alternatives: p is declared only where every alternative declares it, and
+// the value is the disjunction of the alternatives' values there, or the one
+// value they all are. A path only some alternatives declare is not declared.
 func lookup(v cue.Value, p cue.Path) cue.Value {
 	//nolint:staticcheck // every schema the compiler looks into is built in the one context it was given
 	if !cuetil.DeclaresPath(v.Context(), v, p) {
 		return cue.Value{}
 	}
+	if r := v.LookupPath(optionalSels(p)); r.Exists() {
+		return r
+	}
+	sels := p.Selectors()
+	for i := range sels {
+		at := v.LookupPath(optionalSels(cue.MakePath(sels[:i]...)))
+		if !at.Exists() {
+			return cue.Value{}
+		}
+		alts := compat.Branches(at)
+		if len(alts) <= 1 {
+			continue
+		}
+		var vals []cue.Value
+		for _, alt := range alts {
+			r := lookup(alt, cue.MakePath(sels[i:]...))
+			if !r.Exists() {
+				return cue.Value{}
+			}
+			vals = appendDistinct(vals, r)
+		}
+		return disjoin(vals)
+	}
+	return cue.Value{}
+}
+
+// optionalSels is p with every name an optional selector, which finds a field
+// of any form.
+func optionalSels(p cue.Path) cue.Path {
 	sels := p.Selectors()
 	out := make([]cue.Selector, len(sels))
 	for i, s := range sels {
@@ -2521,7 +2561,40 @@ func lookup(v cue.Value, p cue.Path) cue.Value {
 		}
 		out[i] = s
 	}
-	return v.LookupPath(cue.MakePath(out...))
+	return cue.MakePath(out...)
+}
+
+// appendDistinct appends v to vals unless a value there is the same as v:
+// each subsumes the other, as values detached from their fields (see
+// compat's walker.equal).
+func appendDistinct(vals []cue.Value, v cue.Value) []cue.Value {
+	top := v.Context().CompileString("_") //nolint:staticcheck // see lookup
+	for _, w := range vals {
+		if cuetil.Equal(top.Unify(w), top.Unify(v)) == nil {
+			return vals
+		}
+	}
+	return append(vals, v)
+}
+
+// disjoin returns the disjunction of vals, or the one value there is. A
+// disjunction is built in vals' context with each value in scope, since
+// cue.Value has no operation that disjoins two values. Its syntax refers to
+// the values by those names, so it answers what the value is (its kind, its
+// alternatives through compat.Branches, subsumption) but cannot be restated
+// as a type.
+func disjoin(vals []cue.Value) cue.Value {
+	if len(vals) == 1 {
+		return vals[0]
+	}
+	ctx := vals[0].Context() //nolint:staticcheck // see lookup
+	scope := ctx.CompileString("{}")
+	names := make([]string, len(vals))
+	for i, v := range vals {
+		names[i] = "alt" + strconv.Itoa(i)
+		scope = scope.FillPath(cue.MakePath(cue.Str(names[i])), v)
+	}
+	return ctx.CompileString(strings.Join(names, " | "), cue.Scope(scope))
 }
 
 func isStruct(v cue.Value) bool {
