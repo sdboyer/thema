@@ -55,6 +55,9 @@ var require = []string{"at"}
 type Suite struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	// EveryCase says the suite applies to every case, so every case has a
+	// section for it.
+	EveryCase bool `json:"everyCase,omitempty"`
 }
 
 // Corpus is a corpus as it is in one revision.
@@ -65,6 +68,12 @@ type Corpus struct {
 	// Problems are the ways the corpus breaks its format, each naming the file
 	// it is in. A cell's status is still computed where it can be.
 	Problems []string
+	// Missing says the corpus directory does not exist in the revision.
+	Missing bool
+	// Unreadable says suites.json could not be read, so the cases were not
+	// read either: without the suites, every section would read as an orphan.
+	// Problems says why.
+	Unreadable bool
 }
 
 // Suite returns the suite named name, and whether the corpus has it.
@@ -104,7 +113,11 @@ func Parse(files map[string][]byte) *Corpus {
 
 	data, hasSuites := files[SuitesFile]
 	if hasSuites {
-		c.parseSuites(data)
+		if err := c.parseSuites(data); err != nil {
+			c.Problems = []string{SuitesFile + ": " + err.Error()}
+			c.Unreadable = true
+			return c
+		}
 	}
 	for _, name := range names {
 		if path.Ext(name) != ".txtar" {
@@ -124,13 +137,12 @@ func (c *Corpus) problemf(file, format string, args ...any) {
 	c.Problems = append(c.Problems, file+": "+fmt.Sprintf(format, args...))
 }
 
-func (c *Corpus) parseSuites(data []byte) {
+func (c *Corpus) parseSuites(data []byte) error {
 	var reg struct {
 		Suites []Suite `json:"suites"`
 	}
 	if err := json.Unmarshal(data, &reg); err != nil {
-		c.problemf(SuitesFile, "%v", err)
-		return
+		return err
 	}
 	seen := map[string]bool{}
 	for _, s := range reg.Suites {
@@ -147,6 +159,7 @@ func (c *Corpus) parseSuites(data []byte) {
 		seen[s.Name] = true
 		c.Suites = append(c.Suites, s)
 	}
+	return nil
 }
 
 func (c *Corpus) parseCase(file string, data []byte) *corpus.Case {
@@ -165,6 +178,11 @@ func (c *Corpus) parseCase(file string, data []byte) *corpus.Case {
 	for suite := range k.Known {
 		if _, ran := k.File(corpus.SectionFile(suite)); !ran {
 			c.problemf(file, "#known/%s tags a suite that does not run this case", suite)
+		}
+	}
+	for _, s := range c.Suites {
+		if _, ran := k.File(corpus.SectionFile(s.Name)); s.EveryCase && !ran {
+			c.problemf(file, "%s is missing, but suite %s applies to every case", corpus.SectionFile(s.Name), s.Name)
 		}
 	}
 	return k

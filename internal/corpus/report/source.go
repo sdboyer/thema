@@ -47,6 +47,9 @@ func (r Range) AfterLabel() string {
 // and "A" compares A with the working tree.
 func (r Repo) ParseRange(s string) (Range, error) {
 	rg := Range{Label: s}
+	if strings.TrimSpace(s) == "" {
+		return rg, errors.New("the range is empty: name a revision")
+	}
 	if a, b, ok := strings.Cut(s, "..."); ok {
 		if a == "" || b == "" {
 			return rg, fmt.Errorf("range %q: name both revisions", s)
@@ -75,8 +78,33 @@ func (r Repo) ParseRange(s string) (Range, error) {
 	return rg, nil
 }
 
+// Compare reads the corpus in dir, relative to r.Dir, at both revisions of
+// the range rng (as ParseRange reads it), and compares them. Only the before
+// revision may lack the corpus directory, as the revision before the corpus
+// was added does; a missing after side is a wrong directory, and would
+// compare two empty corpora and report nothing.
+func (r Repo) Compare(dir, rng string) (*Report, error) {
+	rg, err := r.ParseRange(rng)
+	if err != nil {
+		return nil, err
+	}
+	before, err := r.Load(rg.Before, dir)
+	if err != nil {
+		return nil, err
+	}
+	after, err := r.Load(rg.After, dir)
+	if err != nil {
+		return nil, err
+	}
+	if after.Missing {
+		return nil, fmt.Errorf("the corpus directory %s does not exist in %s", dir, rg.AfterLabel())
+	}
+	return Build(dir, rg, before, after), nil
+}
+
 // Load reads the corpus in dir, relative to r.Dir, at rev. A directory that
-// does not exist at rev is an empty corpus.
+// does not exist at rev is an empty corpus marked Missing, as it is in the
+// revision before the corpus was added.
 func (r Repo) Load(rev, dir string) (*Corpus, error) {
 	if filepath.IsAbs(dir) {
 		return nil, fmt.Errorf("corpus directory %s: give it relative to %s", dir, r.Dir)
@@ -92,6 +120,11 @@ func (r Repo) Load(rev, dir string) (*Corpus, error) {
 	list, err := r.git(nil, "ls-tree", "-z", "--full-tree", "--name-only", rev, "--", full+"/")
 	if err != nil {
 		return nil, err
+	}
+	if len(list) == 0 {
+		c := Parse(nil)
+		c.Missing = true
+		return c, nil
 	}
 	var names []string
 	for _, p := range strings.Split(string(list), "\x00") {
@@ -113,7 +146,9 @@ func (r Repo) Load(rev, dir string) (*Corpus, error) {
 func (r Repo) loadWorkingTree(dir string) (*Corpus, error) {
 	entries, err := os.ReadDir(filepath.Join(r.Dir, dir))
 	if errors.Is(err, os.ErrNotExist) {
-		return Parse(nil), nil
+		c := Parse(nil)
+		c.Missing = true
+		return c, nil
 	}
 	if err != nil {
 		return nil, err

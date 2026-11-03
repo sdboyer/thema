@@ -8,7 +8,9 @@ import (
 )
 
 // Markdown writes a summary of r for a pull request's description: the count
-// of each transition, then a table of every changed cell, most severe first.
+// of each transition, what a reviewer must judge (cases whose #expect changed,
+// regressions a new #known tag accepts, and the cells that fail), then a table
+// of every changed cell, most severe first.
 //
 // Cells that only a new case or a new suite brings, and that pass, are
 // collapsed into one row per case (or per suite, for a new suite), so that
@@ -18,12 +20,22 @@ func Markdown(w io.Writer, r *Report) error {
 	var b strings.Builder
 	fmt.Fprintf(&b, "### Corpus `%s`: `%s`\n\n", r.Dir, r.Range.Label)
 
+	if len(r.Unreadable) > 0 {
+		fmt.Fprintf(&b, "**The cells were not compared: %s could not be read in %s.**\n\n", SuitesFile, strings.Join(r.Unreadable, " and "))
+		writeProblems(&b, r)
+		_, err := io.WriteString(w, b.String())
+		return err
+	}
+	if r.BeforeMissing {
+		fmt.Fprintf(&b, "The corpus directory does not exist in %s, so every cell is new.\n\n", r.Range.Before)
+	}
+
 	counts := r.TransitionCounts()
 	var parts []string
 	for _, t := range Transitions {
 		if n := counts[t]; n > 0 {
 			part := fmt.Sprintf("%s: %d", t, n)
-			if t == TRegressed || t == TXPass {
+			if t.IsLoud() {
 				part = "**" + part + "**"
 			}
 			parts = append(parts, part)
@@ -46,10 +58,42 @@ func Markdown(w io.Writer, r *Report) error {
 		fmt.Fprintf(&b, "Cells in %s: %s.\n\n", r.Range.AfterLabel(), strings.Join(parts, ", "))
 	}
 
-	if len(r.AfterProblems) > 0 {
-		fmt.Fprintf(&b, "**The corpus in %s breaks its format:**\n\n", r.Range.AfterLabel())
-		for _, p := range r.AfterProblems {
-			fmt.Fprintf(&b, "- %s\n", p)
+	writeProblems(&b, r)
+
+	var expect []CaseInfo
+	for _, k := range r.Cases {
+		if k.ExpectBefore != "" {
+			expect = append(expect, k)
+		}
+	}
+	if len(expect) > 0 {
+		b.WriteString("**#expect changed, which changes what the spec says:**\n\n")
+		for _, k := range expect {
+			fmt.Fprintf(&b, "- `%s`: was `%s`, now `%s` (spec: %s)\n", k.Name, k.ExpectBefore, k.Expect, k.Spec)
+		}
+		b.WriteString("\n")
+	}
+
+	var accepted []Cell
+	for _, c := range r.Cells {
+		if c.After == Known && slices.Contains(c.Transitions, TRegressed) {
+			accepted = append(accepted, c)
+		}
+	}
+	if len(accepted) > 0 {
+		b.WriteString("**Regressions a new #known tag accepts:**\n\n")
+		for _, c := range accepted {
+			fmt.Fprintf(&b, "- `%s` × `%s`: #%d %s\n", c.Case, c.Suite, c.KnownAfter.Issue, c.KnownAfter.Reason)
+		}
+		b.WriteString("\n")
+	}
+
+	if slices.ContainsFunc(r.Cells, Cell.Failing) {
+		fmt.Fprintf(&b, "**Failing cells in %s**, changed in this range or not:\n\n", r.Range.AfterLabel())
+		for _, c := range r.Cells {
+			if c.Failing() {
+				fmt.Fprintf(&b, "- `%s` × `%s`: %s\n", c.Case, c.Suite, c.After)
+			}
 		}
 		b.WriteString("\n")
 	}
@@ -60,8 +104,22 @@ func Markdown(w io.Writer, r *Report) error {
 			fmt.Fprintf(&b, "| %s | %s | %s → %s | %s |\n", row.cases, row.suites, row.before, row.after, row.change)
 		}
 	}
+	if counts[TNoLongerApplies] > 0 {
+		b.WriteString("\nA cell that no longer applies lost its section. The tests decide whether a suite applies, so only `go test` can say whether that is right.\n")
+	}
 	_, err := io.WriteString(w, b.String())
 	return err
+}
+
+func writeProblems(b *strings.Builder, r *Report) {
+	if len(r.AfterProblems) == 0 {
+		return
+	}
+	fmt.Fprintf(b, "**The corpus in %s breaks its format:**\n\n", r.Range.AfterLabel())
+	for _, p := range r.AfterProblems {
+		fmt.Fprintf(b, "- %s\n", p)
+	}
+	b.WriteString("\n")
 }
 
 type markdownRow struct {
@@ -105,7 +163,7 @@ func markdownRows(changed []Cell) []markdownRow {
 			suites: "`" + c.Suite + "`",
 			before: string(c.Before),
 			after:  string(c.After),
-			change: joinTransitions(c.Transitions),
+			change: markdownTransitions(c.Transitions),
 		}
 		if n := len(g.cells); n > 1 {
 			if strings.HasPrefix(g.key, "case") {
@@ -120,10 +178,14 @@ func markdownRows(changed []Cell) []markdownRow {
 	return rows
 }
 
-func joinTransitions(ts []Transition) string {
+// markdownTransitions is ts for a Markdown row: the loud ones in bold.
+func markdownTransitions(ts []Transition) string {
 	s := make([]string, len(ts))
 	for i, t := range ts {
 		s[i] = string(t)
+		if t.IsLoud() {
+			s[i] = "**" + s[i] + "**"
+		}
 	}
 	return strings.Join(s, ", ")
 }

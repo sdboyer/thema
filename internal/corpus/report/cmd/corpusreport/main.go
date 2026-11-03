@@ -8,7 +8,8 @@
 // --range is "A..B", "A...B" (from the merge base of A and B to B), or "A"
 // (from A to the working tree). The corpus is read through git, so nothing is
 // checked out. It exits 1 if a cell of the after revision is regressed or
-// xpass, or its corpus breaks the format, and 2 if it can't make the report.
+// xpass, or its corpus breaks the format, and 2 if it can't make the report,
+// which includes when the after revision has no corpus directory.
 package main
 
 import (
@@ -53,20 +54,7 @@ func main() {
 }
 
 func build(dir, rng string) (*report.Report, error) {
-	repo := report.Repo{Dir: "."}
-	rg, err := repo.ParseRange(rng)
-	if err != nil {
-		return nil, err
-	}
-	before, err := repo.Load(rg.Before, dir)
-	if err != nil {
-		return nil, err
-	}
-	after, err := repo.Load(rg.After, dir)
-	if err != nil {
-		return nil, err
-	}
-	return report.Build(dir, rg, before, after), nil
+	return report.Repo{Dir: "."}.Compare(dir, rng)
 }
 
 func write(r *report.Report, htmlOut string, md bool) error {

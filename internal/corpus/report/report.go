@@ -23,9 +23,13 @@ const (
 	// TStatusChanged: any other change of status, between revisions that both
 	// have the cell.
 	TStatusChanged Transition = "status changed"
+	// TKnownVerdictChanged: the cell is known in both revisions, but its
+	// verdict changed, so its #known tag may name the wrong mechanism.
+	TKnownVerdictChanged Transition = "known verdict changed"
 	// TExpectChanged: the case's #expect changed, which is a change of the spec.
 	TExpectChanged Transition = "#expect changed"
-	// TFixed: the cell was known before and passes after.
+	// TFixed: the cell was known before and passes after, with the same
+	// #expect.
 	TFixed Transition = "fixed"
 	// TNowApplies: the suite runs the case after and did not before.
 	TNowApplies Transition = "now applies"
@@ -42,12 +46,20 @@ const (
 
 // Transitions lists every transition, most severe first.
 var Transitions = []Transition{
-	TRegressed, TXPass, TNoLongerApplies, TStatusChanged, TExpectChanged, TFixed,
+	TRegressed, TXPass, TNoLongerApplies, TStatusChanged, TKnownVerdictChanged, TExpectChanged, TFixed,
 	TNowApplies, TKnownChanged, TRenderingChanged, TRemovedCase, TRemovedSuite,
 	TNewCase, TNewSuite,
 }
 
 func severity(t Transition) int { return slices.Index(Transitions, t) }
+
+// Loud lists the transitions a reviewer must not miss: each is a change in
+// what the corpus says about the code or the spec that a golden update
+// alone does not make, and a report shows it in bold.
+var Loud = []Transition{TRegressed, TXPass, TNoLongerApplies, TKnownVerdictChanged, TExpectChanged}
+
+// IsLoud reports whether t is one of Loud.
+func (t Transition) IsLoud() bool { return slices.Contains(Loud, t) }
 
 // Report compares a corpus at two revisions.
 type Report struct {
@@ -65,6 +77,11 @@ type Report struct {
 	// BeforeProblems and AfterProblems are each revision's breaches of the
 	// corpus format.
 	BeforeProblems, AfterProblems []string
+	// BeforeMissing says the before revision has no corpus directory.
+	BeforeMissing bool
+	// Unreadable names the revisions whose suites.json could not be read. The
+	// cells were not compared, and Suites, Cases and Cells are empty.
+	Unreadable []string
 }
 
 // SuiteInfo is a suite as the report shows it: from the after revision when it
@@ -111,7 +128,16 @@ func (c Cell) Failing() bool { return c.After == Regressed || c.After == XPass }
 
 // Build compares before with after.
 func Build(dir string, rg Range, before, after *Corpus) *Report {
-	r := &Report{Dir: dir, Range: rg, BeforeProblems: before.Problems, AfterProblems: after.Problems}
+	r := &Report{Dir: dir, Range: rg, BeforeProblems: before.Problems, AfterProblems: after.Problems, BeforeMissing: before.Missing}
+	if before.Unreadable {
+		r.Unreadable = append(r.Unreadable, rg.Before)
+	}
+	if after.Unreadable {
+		r.Unreadable = append(r.Unreadable, rg.AfterLabel())
+	}
+	if len(r.Unreadable) > 0 {
+		return r
+	}
 
 	for _, s := range after.Suites {
 		_, had := before.Suite(s.Name)
@@ -212,6 +238,9 @@ func transitions(c Cell, k CaseInfo, s SuiteInfo, expectChanged bool) []Transiti
 		}
 		switch {
 		case b == a:
+			if b == Known && corpus.ReadVerdict(c.GoldenBefore) != corpus.ReadVerdict(c.GoldenAfter) {
+				out = append(out, TKnownVerdictChanged)
+			}
 			if !equalTags(c.KnownBefore, c.KnownAfter) {
 				out = append(out, TKnownChanged)
 			}
@@ -219,7 +248,9 @@ func transitions(c Cell, k CaseInfo, s SuiteInfo, expectChanged bool) []Transiti
 				out = append(out, TRenderingChanged)
 			}
 		case regressed || xpass:
-		case b == Known && a == Pass:
+		case b == Known && a == Pass && !expectChanged:
+			// With #expect changed, the spec moved to the code, not the code
+			// to the spec.
 			out = append(out, TFixed)
 		case b == NotApplicable:
 			out = append(out, TNowApplies)

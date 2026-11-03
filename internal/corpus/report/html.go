@@ -20,10 +20,12 @@ type htmlData struct {
 	Dir, Range, Before, After string
 	Statuses                  []Status
 	Transitions               []Transition
-	Suites                    []SuiteInfo
-	Cases                     []htmlCase
-	BeforeProblems            []string
-	AfterProblems             []string
+	// Loud are the transitions the page marks as a reviewer must not miss.
+	Loud           []Transition
+	Suites         []SuiteInfo
+	Cases          []htmlCase
+	BeforeProblems []string
+	AfterProblems  []string
 }
 
 type htmlCase struct {
@@ -57,6 +59,7 @@ func HTML(w io.Writer, r *Report) error {
 		After:          r.Range.AfterLabel(),
 		Statuses:       append(slices.Clone(Statuses), Absent),
 		Transitions:    Transitions,
+		Loud:           Loud,
 		Suites:         r.Suites,
 		BeforeProblems: r.BeforeProblems,
 		AfterProblems:  r.AfterProblems,

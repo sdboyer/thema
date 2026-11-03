@@ -131,6 +131,52 @@ x
 	}
 }
 
+// TestEveryCase checks that a case without a section for a suite that
+// applies to every case breaks the format: the section was deleted, since
+// the suite can't have stopped applying.
+func TestEveryCase(t *testing.T) {
+	reg := `{"suites": [{"name": "all", "description": "d", "everyCase": true}, {"name": "some", "description": "d"}]}`
+	c := Parse(map[string][]byte{
+		SuitesFile: []byte(reg),
+		"e.txtar":  []byte(archive("ok", nil, map[string]string{"some": golden(1)})),
+	})
+	want := []string{"e.txtar: out/all/bind is missing, but suite all applies to every case"}
+	if diff := cmp.Diff(want, c.Problems); diff != "" {
+		t.Errorf("problems (-want +got):\n%s", diff)
+	}
+}
+
+// TestUnreadableSuites checks that a suites.json that can't be read is the
+// corpus's only problem, and that the report then compares no cells instead
+// of reporting each one as removed.
+func TestUnreadableSuites(t *testing.T) {
+	broken := Parse(map[string][]byte{
+		SuitesFile: []byte("{"),
+		"u.txtar":  []byte(archive("ok", nil, map[string]string{"s1": golden(1)})),
+	})
+	if want := []string{"suites.json: unexpected end of JSON input"}; !broken.Unreadable || !slices.Equal(broken.Problems, want) {
+		t.Fatalf("unreadable %v, problems %q; want %q", broken.Unreadable, broken.Problems, want)
+	}
+	ok := Parse(map[string][]byte{
+		SuitesFile: []byte(suites("s1")),
+		"u.txtar":  []byte(archive("ok", nil, map[string]string{"s1": golden(1)})),
+	})
+	r := Build(corpusDir, Range{Before: "a", After: "b", Label: "a..b"}, ok, broken)
+	if len(r.Cells) != 0 || !r.Failing() || !slices.Equal(r.Unreadable, []string{"b"}) {
+		t.Errorf("cells %d, failing %v, unreadable %q", len(r.Cells), r.Failing(), r.Unreadable)
+	}
+	var md bytes.Buffer
+	if err := Markdown(&md, r); err != nil {
+		t.Fatal(err)
+	}
+	want := "### Corpus `testdata/refs`: `a..b`\n\n" +
+		"**The cells were not compared: suites.json could not be read in b.**\n\n" +
+		"**The corpus in b breaks its format:**\n\n- suites.json: unexpected end of JSON input\n\n"
+	if md.String() != want {
+		t.Errorf("markdown:\n%s\nwant:\n%s", md.String(), want)
+	}
+}
+
 // TestRefsCorpus reads testdata/refs as it is on disk: the report must find
 // in it nothing that TestRefs, which runs it, accepts.
 func TestRefsCorpus(t *testing.T) {
@@ -230,6 +276,10 @@ var (
 		"expect.txtar":  archive("ok", nil, map[string]string{"s1": golden(3)}),
 		"retag.txtar": archive("ok", map[string]string{"s1": tag260},
 			map[string]string{"s1": golden(3, "E0141")}),
+		"moved.txtar": archive("ok", map[string]string{"s1": tag264},
+			map[string]string{"s1": golden(3, "E0141")}),
+		"respec.txtar": archive("E0141", map[string]string{"s1": tag264},
+			map[string]string{"s1": golden(3)}),
 	}
 	afterCorpus = map[string]string{
 		SuitesFile:    suites("s1", "s2", "s3", "s4"),
@@ -251,6 +301,9 @@ var (
 		"expect.txtar":  archive("E0141", nil, map[string]string{"s1": golden(3, "E0141")}),
 		"retag.txtar": archive("ok", map[string]string{"s1": tag264},
 			map[string]string{"s1": golden(3, "E0141")}),
+		"moved.txtar": archive("ok", map[string]string{"s1": tag264},
+			map[string]string{"s1": golden(3, "E0142")}),
+		"respec.txtar": archive("ok", nil, map[string]string{"s1": golden(3)}),
 	}
 )
 
@@ -265,6 +318,8 @@ var wantCells = map[string]string{ //nolint:gosec // cell descriptions, not cred
 	"applies/s2":  "not-applicable pass now applies",
 	"expect/s1":   "pass pass #expect changed, rendering changed",
 	"fixed/s1":    "known pass fixed",
+	"moved/s1":    "known known known verdict changed, rendering changed",
+	"respec/s1":   "known pass status changed, #expect changed",
 	"regress/s1":  "pass regressed regressed",
 	"removed/s1":  "pass absent removed case",
 	"render/s1":   "pass pass rendering changed",
@@ -277,6 +332,14 @@ var wantCells = map[string]string{ //nolint:gosec // cell descriptions, not cred
 	"wide/s3":     newCasePass,
 	"wide/s4":     "absent pass new case, new suite",
 	"xpass/s1":    "known xpass xpass",
+}
+
+func joinTransitions(ts []Transition) string {
+	s := make([]string, len(ts))
+	for i, t := range ts {
+		s[i] = string(t)
+	}
+	return strings.Join(s, ", ")
 }
 
 func describe(c Cell) string {
@@ -386,6 +449,9 @@ func TestReport(t *testing.T) {
 		if err := json.Unmarshal([]byte(raw), &d); err != nil {
 			t.Fatalf("the page's data: %v", err)
 		}
+		if !slices.Equal(d.Loud, Loud) {
+			t.Errorf("the page marks %v as loud, want %v", d.Loud, Loud)
+		}
 		if len(d.Cases) != len(r.Cases) || len(d.Suites) != len(r.Suites) {
 			t.Fatalf("the page has %d cases and %d suites, want %d and %d", len(d.Cases), len(d.Suites), len(r.Cases), len(r.Suites))
 		}
@@ -451,12 +517,13 @@ func TestRangeErrors(t *testing.T) {
 	g.write(beforeCorpus)
 	g.commit("before")
 	repo := Repo{Dir: g.dir}
-	for _, rng := range []string{"nope", "HEAD..nope", "..HEAD", "HEAD..."} {
+	for _, rng := range []string{"nope", "HEAD..nope", "..HEAD", "HEAD...", "", " "} {
 		if _, err := repo.ParseRange(rng); err == nil {
 			t.Errorf("range %q: no error", rng)
 		}
 	}
-	// A revision without the corpus is an empty corpus.
+	// A revision without the corpus is an empty corpus, marked missing.
+	before := g.git("rev-parse", "HEAD")
 	g.git("checkout", "-q", "--orphan", "empty")
 	g.git("rm", "-rq", "--cached", ".")
 	g.git("commit", "-q", "--allow-empty", "-m", "empty")
@@ -465,8 +532,27 @@ func TestRangeErrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(c.Cases)+len(c.Suites)+len(c.Problems) != 0 {
+	if len(c.Cases)+len(c.Suites)+len(c.Problems) != 0 || !c.Missing {
 		t.Errorf("a revision without the corpus: %+v", c)
+	}
+	// Only the before revision may lack it: that is the revision before the
+	// corpus was added.
+	r, err := repo.Compare(corpusDir, empty+".."+before)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var md bytes.Buffer
+	if err := Markdown(&md, r); err != nil {
+		t.Fatal(err)
+	}
+	if want := "The corpus directory does not exist in " + empty + ", so every cell is new."; !strings.Contains(md.String(), want) {
+		t.Errorf("the markdown does not say %q:\n%s", want, md.String())
+	}
+	if _, err := repo.Compare(corpusDir, before+".."+empty); err == nil {
+		t.Error("the after revision has no corpus, but there is no error")
+	}
+	if _, err := repo.Compare("testdata/ref", before+".."+before); err == nil || !strings.Contains(err.Error(), "the corpus directory testdata/ref does not exist in "+before) {
+		t.Errorf("a corpus directory that does not exist: %v", err)
 	}
 }
 

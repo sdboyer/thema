@@ -59,6 +59,8 @@ table.matrix { border-collapse: separate; border-spacing: 4px; padding: 6px; }
 .cell.s-absent { background: transparent; box-shadow: inset 0 0 0 1px var(--axis); color: var(--muted); }
 .cell.changed { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--mark); }
 .cell.changed::after { content: ""; position: absolute; top: -3px; right: -3px; width: 7px; height: 7px; border-radius: 50%; background: var(--mark); box-shadow: 0 0 0 1.5px var(--surface); }
+.cell.changed.loud { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--regressed); }
+.cell.changed.loud::after { background: var(--regressed); }
 .cell.dim { opacity: .15; }
 .cell.sel { outline: 2px solid var(--ink); outline-offset: 3px; }
 .cell:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
@@ -74,13 +76,14 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
 .trans { display: inline-block; border: 1px solid var(--hairline); border-radius: 999px; padding: 0 8px; margin: 2px 4px 2px 0; font-size: 12px; }
 .trans.loud { border-color: var(--regressed); color: var(--regressed); font-weight: 600; }
 pre.golden { margin: 4px 0; padding: 8px 0; background: var(--plane); border-radius: 6px; overflow-x: auto; }
-pre.golden div { padding: 0 10px; white-space: pre; }
+pre.golden div { padding: 0 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
 pre.golden .add { background: var(--add-bg); }
 pre.golden .del { background: var(--del-bg); }
+pre.golden mark { background: none; color: inherit; font-weight: 700; text-decoration: underline; text-decoration-thickness: 2px; }
 .empty { color: var(--muted); }
 ol.changed-list { padding-left: 20px; margin: 4px 0; }
 ol.changed-list li { margin: 2px 0; }
-ol.changed-list button { border: 0; background: none; color: var(--ink); font: inherit; padding: 0; cursor: pointer; text-align: left; }
+ol.changed-list button { display: block; border: 0; background: none; color: var(--ink); font: inherit; padding: 0; cursor: pointer; text-align: left; }
 ol.changed-list button:hover { text-decoration: underline; }
 @media (max-width: 900px) {
   main { flex-direction: column; padding: 12px 16px; }
@@ -108,6 +111,7 @@ ol.changed-list button:hover { text-decoration: underline; }
   const D = JSON.parse(document.getElementById("data").textContent);
   const GLYPH = { "pass": "✓", "known": "≈", "regressed": "✗", "xpass": "↑", "not-applicable": "", "absent": "" };
   const LOUD = new Set(["regressed", "xpass"]);
+  const LOUD_CHANGE = new Set(D.Loud);
   const state = { statuses: new Set(), transitions: new Set(), changedOnly: false, sel: null };
 
   function el(tag, attrs, ...kids) {
@@ -123,6 +127,7 @@ ol.changed-list button:hover { text-decoration: underline; }
   }
   const swatch = (s) => el("span", { class: "swatch cell s-" + s, text: GLYPH[s], "aria-hidden": "true" });
   const changed = (c) => (c.Transitions || []).length > 0;
+  const loud = (c) => changed(c) && LOUD_CHANGE.has(c.Transitions[0]);
 
   document.getElementById("title").textContent = "Corpus " + D.Dir;
   document.getElementById("range").textContent = D.Range + "  (" + D.Before + " → " + D.After + ")";
@@ -151,7 +156,7 @@ ol.changed-list button:hover { text-decoration: underline; }
   if (changedCount === 0) transGroup.append(el("span", { class: "empty", text: "no cell changed" }));
   for (const t of D.Transitions) {
     if (!transCount[t]) continue;
-    const b = el("button", { class: "chip plain" + (LOUD.has(t) ? " loud" : ""), "aria-pressed": "false", title: "Show only cells that changed this way" },
+    const b = el("button", { class: "chip plain" + (LOUD_CHANGE.has(t) ? " loud" : ""), "aria-pressed": "false", title: "Show only cells that changed this way" },
       el("span", { text: t }), el("span", { class: "n", text: String(transCount[t]) }));
     b.addEventListener("click", () => toggle(state.transitions, t, b));
     transGroup.append(b);
@@ -197,7 +202,7 @@ ol.changed-list button:hover { text-decoration: underline; }
     const tr = el("tr", {}, el("th", { class: "case", title: k.Description }, k.New ? el("span", { class: "flag", text: "new " }) : null,
       k.Removed ? el("span", { class: "flag", text: "removed " }) : null, k.Name));
     const btns = k.Cells.map((c, j) => {
-      const b = el("button", { class: "cell s-" + c.After + (changed(c) ? " changed" : ""), text: GLYPH[c.After],
+      const b = el("button", { class: "cell s-" + c.After + (changed(c) ? " changed" : "") + (loud(c) ? " loud" : ""), text: GLYPH[c.After],
         "aria-label": k.Name + " × " + D.Suites[j].name + ": " + c.After + (changed(c) ? " (" + c.Transitions.join(", ") + ")" : ""),
         title: k.Name + " × " + D.Suites[j].name + "\n" + c.Before + " → " + c.After + (changed(c) ? "\n" + c.Transitions.join(", ") : "") });
       b.dataset.cell = i + ":" + j;
@@ -238,13 +243,39 @@ ol.changed-list button:hover { text-decoration: underline; }
   // Detail panel.
   const detail = document.getElementById("detail");
   function transChips(ts) {
-    return el("div", {}, ...(ts || []).map((t) => el("span", { class: "trans" + (LOUD.has(t) ? " loud" : ""), text: t })));
+    return el("div", {}, ...(ts || []).map((t) => el("span", { class: "trans" + (LOUD_CHANGE.has(t) ? " loud" : ""), text: t })));
   }
   function knownText(t) { return t ? "#" + t.Issue + " " + t.Reason : "none"; }
+  // marked renders a diff line, marking where it differs from the line it
+  // replaces: everything between their common prefix and common suffix.
+  function marked(l, other) {
+    const div = el("div", { class: l.Op === "+" ? "add" : l.Op === "-" ? "del" : "" });
+    const t = l.Text;
+    if (other == null) { div.textContent = l.Op + " " + t; return div; }
+    let p = 0;
+    while (p < t.length && p < other.length && t[p] === other[p]) p++;
+    let s = 0;
+    while (s < t.length - p && s < other.length - p && t[t.length - 1 - s] === other[other.length - 1 - s]) s++;
+    div.append(l.Op + " " + t.slice(0, p), el("mark", { text: t.slice(p, t.length - s) }), t.slice(t.length - s));
+    return div;
+  }
   function golden(c) {
     const pre = el("pre", { class: "golden" });
     if (c.Diff) {
-      for (const l of c.Diff) pre.append(el("div", { class: l.Op === "+" ? "add" : l.Op === "-" ? "del" : "", text: l.Op + " " + l.Text }));
+      // Pair each run of removed lines with the run of added lines after it,
+      // line by line, so a line that changed in place shows where.
+      const d = c.Diff;
+      for (let i = 0; i < d.length;) {
+        if (d[i].Op !== "-") { pre.append(marked(d[i], null)); i++; continue; }
+        let j = i;
+        while (j < d.length && d[j].Op === "-") j++;
+        let k = j;
+        while (k < d.length && d[k].Op === "+") k++;
+        const dels = d.slice(i, j), adds = d.slice(j, k);
+        dels.forEach((l, n) => pre.append(marked(l, n < adds.length ? adds[n].Text : null)));
+        adds.forEach((l, n) => pre.append(marked(l, n < dels.length ? dels[n].Text : null)));
+        i = k;
+      }
     } else if (c.Golden) {
       for (const l of c.Golden.replace(/\n$/, "").split("\n")) pre.append(el("div", { text: l }));
     } else {
