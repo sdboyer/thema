@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	upcue "cuelang.org/go/cue"
 	"cuelang.org/go/cue/ast"
@@ -22,23 +23,31 @@ import (
 type initCommand struct {
 	srcpath string
 	input   []byte
+	dir     string
+	name    string
+	stdout  bool
 
+	tip authoring.File
 	err error
 }
 
 func (ic *initCommand) setup(cmd *cobra.Command) {
 	cmd.AddCommand(initLineageCmd)
+	initLineageCmd.PersistentFlags().StringVarP(&ic.dir, "lineage", "l", ".", "path to the new lineage's authoring directory, whose base name is the lineage's name")
+	initLineageCmd.PersistentFlags().StringVar(&ic.name, "name", "", "the new lineage's name, and its directory's, under the current one unless -l gives the directory")
+	initLineageCmd.PersistentFlags().BoolVar(&ic.stdout, "stdout", false, "print the new lineage's tip.thema, and write nothing")
+
 	initLineageCmd.AddCommand(initLineageEmptyCmd)
-	initLineageEmptyCmd.Run = ic.run
+	initLineageEmptyCmd.RunE = ic.run
 
 	initLineageCmd.AddCommand(initLineageOpenAPICmd)
 	initLineageOpenAPICmd.Flags().StringVar(&ic.srcpath, "src-subpath", "", "Schema path within the OpenAPI document. Default: whole document")
-	initLineageOpenAPICmd.Run = ic.run
+	initLineageOpenAPICmd.RunE = ic.run
 	initLineageOpenAPICmd.PreRunE = ic.processInput
 
 	initLineageCmd.AddCommand(initLineageJSONSchemaCmd)
 	initLineageJSONSchemaCmd.Flags().StringVar(&ic.srcpath, "src-subpath", "", "Schema path within the JSON Schema document (e.g. #/...) Default: whole document")
-	initLineageJSONSchemaCmd.Run = ic.run
+	initLineageJSONSchemaCmd.RunE = ic.run
 	initLineageJSONSchemaCmd.PreRunE = ic.processInput
 }
 
@@ -48,47 +57,64 @@ var initLineageCmd = &cobra.Command{
 	Long: `Create a new lineage, in the authoring form.
 
 Each subcommand takes the new lineage's schema from a different kind of input
-source, and prints the lineage's tip.thema to stdout. A lineage is a directory
-whose base name is its name: save the output as tip.thema in it. The history is
-empty, so the tip cuts as 0.0; cut it with thema lineage cut once it is ready.
+source, and writes the lineage's tip.thema in the lineage's directory, given
+by -l, the current directory by default. A lineage's name is its directory's
+base name: -l ship writes ship/tip.thema, for the lineage ship. --name ship,
+without -l, does the same; with -l, --name must be -l's base name. The
+directory is created if it does not exist, and a directory that already holds
+version files is refused: init does not overwrite a lineage. The new lineage
+is bound before it is written.
+
+The history is empty, so the tip cuts as 0.0; cut it with thema lineage cut
+once it is ready.
+
+With --stdout, the tip.thema is printed instead, and nothing is written; -l
+and --name do not apply.
 `,
 }
 
 var initLineageEmptyCmd = &cobra.Command{
-	Use:   "empty",
+	Use:   "empty [-l <dir>] [--name <name>] [--stdout]",
 	Args:  cobra.MaximumNArgs(0),
 	Short: "Initialize with an empty schema",
 	Long: `Initialize the lineage with an empty schema.
 
-The new lineage's tip.thema is printed to stdout.
+The new lineage's tip.thema is written in its directory, given by -l, or
+printed with --stdout.
 `,
 }
 
 var initLineageOpenAPICmd = &cobra.Command{
-	Use:   "openapi <path> ",
+	Use:   "openapi [<path>] [--src-subpath <path>] [-l <dir>] [--name <name>] [--stdout]",
 	Args:  cobra.MaximumNArgs(1),
 	Short: "Initialize with an OpenAPI v3 schema",
 	Long: `Initialize the lineage with one schema, derived from an OpenAPI v3 document.
 
 An OpenAPI document to be converted for the initial lineage schema must be given as an argument.
 
-The new lineage's tip.thema is printed to stdout.
+The new lineage's tip.thema is written in its directory, given by -l, or
+printed with --stdout.
 `,
 }
 
 var initLineageJSONSchemaCmd = &cobra.Command{
-	Use:   "jsonschema <path> ",
+	Use:   "jsonschema [<path>] [--src-subpath <pointer>] [-l <dir>] [--name <name>] [--stdout]",
 	Args:  cobra.MaximumNArgs(1),
 	Short: "Initialize with a JSON Schema",
 	Long: `Initialize the lineage with one schema, derived from a JSON Schema document.
 
 A JSON Schema document to be converted for the initial lineage schema must be given as an argument.
 
-The new lineage's tip.thema is printed to stdout.
+The new lineage's tip.thema is written in its directory, given by -l, or
+printed with --stdout.
 `,
 }
 
-func (ic *initCommand) run(cmd *cobra.Command, args []string) {
+func (ic *initCommand) run(cmd *cobra.Command, args []string) error {
+	dir, err := ic.lineageDir(cmd)
+	if err != nil {
+		return err
+	}
 	switch cmd.CalledAs() {
 	case "empty":
 		ic.runEmpty(cmd, args)
@@ -99,10 +125,80 @@ func (ic *initCommand) run(cmd *cobra.Command, args []string) {
 	default:
 		panic(fmt.Sprint("unrecognized command ", cmd.CalledAs()))
 	}
-
 	if ic.err != nil {
-		os.Exit(report(ic.err))
+		return ic.err
 	}
+	if ic.stdout {
+		_, err = cmd.OutOrStdout().Write(ic.tip.Text)
+		return err
+	}
+	return ic.write(cmd, dir)
+}
+
+// lineageDir returns the absolute path of the directory init writes the new
+// lineage to, or "" with --stdout. A lineage's name is its directory's base
+// name, so --name and -l cannot disagree: --name alone names a directory under
+// the current one, and with -l it must be -l's base name.
+func (ic *initCommand) lineageDir(cmd *cobra.Command) (string, error) {
+	dirSet := cmd.Flags().Changed("lineage")
+	if ic.stdout {
+		if dirSet || ic.name != "" {
+			return "", diag.New(diag.E0620).Headline("--stdout writes no directory, so it takes neither -l nor --name").
+				Help("drop --stdout to write the lineage's directory, or drop -l and --name to print its tip.thema").Err()
+		}
+		return "", nil
+	}
+	dir := ic.dir
+	if ic.name != "" && !dirSet {
+		if filepath.Base(ic.name) != ic.name {
+			return "", diag.New(diag.E0620).Headlinef("--name %q is a path, not a lineage's name", ic.name).
+				Help("a lineage's name is its directory's base name; give the directory with -l").Err()
+		}
+		dir = ic.name
+	}
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return "", diag.New(diag.E0601).Headlinef("%s cannot be resolved to a path", dir).Detail(diag.OSReason(err)).Err()
+	}
+	if base := filepath.Base(abs); ic.name != "" && base != ic.name {
+		return "", diag.New(diag.E0620).Headlinef("--name %s disagrees with -l %s, whose base name is %s", ic.name, ic.dir, base).
+			Helpf("a lineage's name is its directory's base name: drop --name, or give -l a directory named %s", ic.name).Err()
+	}
+	return abs, nil
+}
+
+// A new lineage's directory and tip.thema have the permissions any other
+// source directory and file have, before the umask.
+const (
+	newDirPerm  = 0o755
+	newFilePerm = 0o644
+)
+
+// write writes the new lineage's tip, ic.tip, as dir/tip.thema, once the
+// lineage it starts binds. A directory that already holds version files is
+// refused.
+func (ic *initCommand) write(cmd *cobra.Command, dir string) error {
+	if isAuthoringDir(dir) {
+		return diag.New(diag.E0623).Headlinef("%s already holds a lineage's version files", displayPath(dir)).
+			Help("init creates a new lineage and never overwrites one: give -l a directory that holds no version files").Err()
+	}
+	sourceDirs = append(sourceDirs, dir)
+	c, err := authoring.CompileDevelopment(ctx, filepath.Base(dir), []authoring.File{ic.tip})
+	if err != nil {
+		return err
+	}
+	if _, err = authoring.BindDevelopment(rt, c); err != nil {
+		return err
+	}
+	if err = os.MkdirAll(dir, newDirPerm); err != nil {
+		return diag.New(diag.E0616).Headlinef("%s cannot be written", displayPath(dir)).Detail(diag.OSReason(err)).Err()
+	}
+	p := filepath.Join(dir, ic.tip.Path)
+	if err = os.WriteFile(p, ic.tip.Text, newFilePerm); err != nil {
+		return diag.New(diag.E0616).Headlinef("%s cannot be written", displayPath(p)).Detail(diag.OSReason(err)).Err()
+	}
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), displayPath(p))
+	return err
 }
 
 // process both openapi and json schema, abstract over stdin
@@ -117,17 +213,12 @@ func (ic *initCommand) processInput(cmd *cobra.Command, args []string) error {
 }
 
 func (ic *initCommand) runEmpty(cmd *cobra.Command, args []string) {
-	ic.printTip(cmd, ctx.CompileString("{}"))
+	ic.newTip(ctx.CompileString("{}"))
 }
 
-// printTip prints the tip of a new lineage whose one version is sch.
-func (ic *initCommand) printTip(cmd *cobra.Command, sch upcue.Value) {
-	f, err := authoring.NewTip(sch)
-	if err != nil {
-		ic.err = err
-		return
-	}
-	_, ic.err = cmd.OutOrStdout().Write(f.Text)
+// newTip makes ic.tip, the tip of a new lineage whose one version is sch.
+func (ic *initCommand) newTip(sch upcue.Value) {
+	ic.tip, ic.err = authoring.NewTip(sch)
 }
 
 func (ic *initCommand) runJSONSchema(cmd *cobra.Command, args []string) {
@@ -160,7 +251,7 @@ func (ic *initCommand) runJSONSchema(cmd *cobra.Command, args []string) {
 		return is
 	}, nil)
 
-	ic.printTip(cmd, sch.Eval())
+	ic.newTip(sch.Eval())
 }
 
 // expects something else to have already gotten the input from either a file
@@ -254,5 +345,5 @@ func (ic *initCommand) runOpenAPI(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	ic.printTip(cmd, sch)
+	ic.newTip(sch)
 }

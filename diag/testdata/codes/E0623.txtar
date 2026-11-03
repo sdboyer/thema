@@ -1,0 +1,35 @@
+#op: cli
+#args: lineage init empty -l ship
+`thema lineage init` creates a new lineage, and never overwrites one: the
+directory it would write the new lineage's tip.thema in already holds version
+files, here the tip and history of the lineage ship.
+-- ship/history/0.0.thema --
+Schema: {
+	name: string
+}
+-- ship/tip.thema --
+Schema: {
+	name: string
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0623",
+      "severity": "error",
+      "headline": "ship already holds a lineage's version files",
+      "help": [
+        "init creates a new lineage and never overwrites one: give -l a directory that holds no version files"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0623]: ship already holds a lineage's version files
+  |
+  = help: init creates a new lineage and never overwrites one: give -l a directory that holds no version files
