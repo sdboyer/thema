@@ -14,9 +14,12 @@ import (
 // A diagnostic about a lineage in the authoring form, run from outside its
 // directory, shows the excerpt from the version file and names the lens as
 // the author wrote it. Positions in authoring files are relative to the
-// lineage's directory, not to the working directory.
+// working directory, naming the lineage's directory as -l gave it, when the
+// lineage lies beneath it; otherwise they are relative to the lineage's
+// parent, naming it by its base name.
 func TestAuthoringDiagnosticExcerpt(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "ship")
+	parent := t.TempDir()
+	dir := filepath.Join(parent, "fleet", "ship")
 	if err := os.MkdirAll(filepath.Join(dir, "history"), 0o750); err != nil {
 		t.Fatal(err)
 	}
@@ -52,21 +55,31 @@ BackwardLens: {
 		t.Fatal(err)
 	}
 
-	cmd := exec.Command(os.Args[0], "data", "validate", "-l", dir, data) //nolint:gosec // re-executes this test binary
-	cmd.Dir = t.TempDir()
-	cmd.Env = append(os.Environ(), runMainEnv+"=1")
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err == nil {
-		t.Fatal("want the lineage to fail to bind: the forward lens computes a value the target field may reject")
+	cases := []struct {
+		name, wd, lineage, pos string
+	}{
+		{"beneath the working directory", parent, filepath.Join("fleet", "ship"), "fleet/ship/history/1.0.thema:8:6"},
+		{"elsewhere", t.TempDir(), dir, "ship/history/1.0.thema:8:6"},
 	}
-	out := stderr.String()
-	for _, want := range []string{"the ForwardLens in history/1.0.thema", "a: v0_0.a"} {
-		if !strings.Contains(out, want) {
-			t.Errorf("output lacks %q:\n%s", want, out)
-		}
-	}
-	if strings.Contains(out, "0.0->1.0") {
-		t.Errorf("output names the lens by its normal-form edge:\n%s", out)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd := exec.Command(os.Args[0], "data", "validate", "-l", tc.lineage, data) //nolint:gosec // re-executes this test binary
+			cmd.Dir = tc.wd
+			cmd.Env = append(os.Environ(), runMainEnv+"=1")
+			var stderr bytes.Buffer
+			cmd.Stderr = &stderr
+			if err := cmd.Run(); err == nil {
+				t.Fatal("want the lineage to fail to bind: the forward lens computes a value the target field may reject")
+			}
+			out := stderr.String()
+			for _, want := range []string{"the ForwardLens in history/1.0.thema", "--> " + tc.pos + "\n", "a: v0_0.a"} {
+				if !strings.Contains(out, want) {
+					t.Errorf("output lacks %q:\n%s", want, out)
+				}
+			}
+			if strings.Contains(out, "0.0->1.0") {
+				t.Errorf("output names the lens by its normal-form edge:\n%s", out)
+			}
+		})
 	}
 }

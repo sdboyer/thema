@@ -70,7 +70,7 @@ ForwardLens: {
         ]
       },
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "candidate/ship/history/1.0.thema",
         "line": 6,
         "col": 1,
         "offset": 38,
@@ -94,7 +94,7 @@ ForwardLens: {
 }
 -- out/text --
 error[E0251]: the ForwardLens in history/1.0.thema is not as published
- --> history/1.0.thema:6:1
+ --> candidate/ship/history/1.0.thema:6:1
   |
 6 | ForwardLens: {
   | ^^^^^^^^^^^

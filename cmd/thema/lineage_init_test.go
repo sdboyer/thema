@@ -441,7 +441,7 @@ func TestLineageInitNameRendered(t *testing.T) {
 		t.Fatalf("lineage init -l my-ship succeeded:\n%s", out)
 	}
 	want := `error[E0137]: the lineage's name is "my-ship", which is not an identifier
- --> tip.thema:1:1
+ --> my-ship/tip.thema:1:1
   |
 1 | Schema: {}
   | ^^^^^^

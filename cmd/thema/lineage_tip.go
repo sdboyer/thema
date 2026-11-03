@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
@@ -47,12 +46,11 @@ func (tc *tipCommand) run(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return diag.New(diag.E0601).Headlinef("%s cannot be resolved to a path", tc.dir).Detail(diag.OSReason(err)).Err()
 	}
-	sourceDirs = append(sourceDirs, abs)
-	_, files, err := authoring.Load(os.DirFS(filepath.Dir(abs)), filepath.Base(abs))
+	_, files, at, err := loadAuthoring(abs)
 	if err != nil {
 		return err
 	}
-	tip, err := authoring.ReadTip(ctx, files)
+	tip, err := authoring.ReadTip(ctx, files, at)
 	if err != nil {
 		return err
 	}
@@ -60,7 +58,7 @@ func (tc *tipCommand) run(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	if tc.clean {
-		return authoring.CheckClean(ctx, files)
+		return authoring.CheckClean(ctx, files, at)
 	}
 	return nil
 }

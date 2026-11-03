@@ -121,7 +121,7 @@ BackwardLens: {
         ]
       },
       "primary": {
-        "file": "history/0.1.thema",
+        "file": "candidate/ship/history/0.1.thema",
         "line": 1,
         "col": 1,
         "origin": "user"
@@ -144,7 +144,7 @@ BackwardLens: {
 }
 -- out/text --
 error[E0253]: new version 0.1 comes before published version 1.0
- --> history/0.1.thema:1:1
+ --> candidate/ship/history/0.1.thema:1:1
   |
 1 | Schema: {
   | ^^^^^^

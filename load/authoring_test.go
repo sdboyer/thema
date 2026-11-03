@@ -71,7 +71,7 @@ func TestAuthoringLineage(t *testing.T) {
 	}
 }
 
-// An error is positioned in the authoring file.
+// An error is positioned in the authoring file, under the lineage's directory.
 func TestAuthoringLineageErrorPosition(t *testing.T) {
 	bad := fstest.MapFS{
 		"ship/history/0.0.thema": {Data: []byte("Schema: {\n\ta: string\n}\n")},
@@ -84,12 +84,12 @@ func TestAuthoringLineageErrorPosition(t *testing.T) {
 	}
 	var found bool
 	for _, e := range cerrors.Errors(err) {
-		if e.Position().Filename() == history10 {
+		if e.Position().Filename() == "ship/"+history10 {
 			found = true
 		}
 	}
 	if !found {
-		t.Errorf("no error positioned in history/1.0.thema:\n%s", cerrors.Details(err, nil))
+		t.Errorf("no error positioned in ship/history/1.0.thema:\n%s", cerrors.Details(err, nil))
 	}
 }
 

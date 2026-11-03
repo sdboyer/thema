@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/authoring"
 	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/internal/embedreg"
 )
@@ -87,8 +88,8 @@ func warn(err error) {
 var inlineSources = map[string][]byte{}
 
 // sourceDirs are directories that relative positions may be relative to,
-// besides the working directory: a lineage in the authoring form positions its
-// errors by paths relative to its own directory.
+// besides the working directory: a lineage in the authoring form outside the
+// working directory positions its errors relative to its parent (positionDir).
 var sourceDirs []string
 
 // readSource reads a file for an excerpt: thema's own CUE from the embedded
@@ -112,6 +113,32 @@ func readSource(file string) ([]byte, bool) {
 		}
 	}
 	return nil, false
+}
+
+// positionDir is the directory the files of the authoring lineage in abs are
+// positioned under (authoring.At), and the directory those positions are
+// relative to. Where the lineage lies beneath the working directory, it is
+// the lineage's path from there, so that a diagnostic names a file as the
+// command was given it, my-ship/tip.thema, relative to the working directory.
+// No fs.FS path reaches a lineage elsewhere, and its files are positioned
+// under its base name, relative to its parent.
+func positionDir(abs string) (dir, root string) {
+	if cwd, err := os.Getwd(); err == nil {
+		if rel, err := filepath.Rel(cwd, abs); err == nil && filepath.IsLocal(rel) {
+			return filepath.ToSlash(rel), cwd
+		}
+	}
+	return filepath.Base(abs), filepath.Dir(abs)
+}
+
+// loadAuthoring reads the authoring files of the lineage in abs, and returns
+// the option that positions them as positionDir says. The directory those
+// positions are relative to becomes one of the excerpts' sourceDirs.
+func loadAuthoring(abs string) (name string, files []authoring.File, at authoring.Option, err error) {
+	dir, root := positionDir(abs)
+	sourceDirs = append(sourceDirs, root)
+	name, files, err = authoring.Load(os.DirFS(filepath.Dir(abs)), filepath.Base(abs))
+	return name, files, authoring.At(dir), err
 }
 
 // displayPath is path as a diagnostic names it: relative to the working

@@ -191,4 +191,11 @@ func TestCutTipRefused(t *testing.T) {
 	if ds := diag.Diagnostics(err); len(ds) != 1 || ds[0].Code != diag.E0149 {
 		t.Errorf("no tip: want E0149, got %v", err)
 	}
+
+	// Positioned under a directory, the refusal is positioned in the tip
+	// there.
+	_, err = authoring.CutTip(rt, "ship", cutFiles("history/0.0.thema", v00, authoring.TipFile, "Schema: {\n\tafter: string\n}\n"), authoring.At("fleet/ship"))
+	if ds := diag.Diagnostics(err); len(ds) != 1 || ds[0].Primary == nil || ds[0].Primary.File != "fleet/ship/"+authoring.TipFile {
+		t.Errorf("positioned under fleet/ship: want E1004 in fleet/ship/%s, got %v", authoring.TipFile, ds)
+	}
 }
