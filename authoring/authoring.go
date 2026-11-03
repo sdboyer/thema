@@ -6,7 +6,8 @@
 // A lineage's directory holds its tip, tip.thema, the version being worked
 // on, and its frozen versions under history/. [Compile] reads the history
 // alone: what binds is what was cut. The development path, [CompileDevelopment]
-// and [BindDevelopment], adds the tip as a provisional newest version, at the
+// and [BindDevelopment] (or [BindDevelopmentValue], for the lineage as part of
+// a larger value), adds the tip as a provisional newest version, at the
 // version it would be cut as, and tolerates the lenses its edge does not have
 // yet. [ReadTip] derives that version, [CutTip] cuts the tip to history/ at
 // it, and [CheckClean] checks that the tip was cut.
@@ -21,9 +22,13 @@
 package authoring
 
 import (
+	"fmt"
 	"io/fs"
+	"slices"
+	"strings"
 
 	"cuelang.org/go/cue"
+	"cuelang.org/go/cue/token"
 
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/diag"
@@ -99,15 +104,105 @@ func CompileDevelopment(ctx *cue.Context, name string, files []File) (*Compiled,
 // An instance of the tip's version is an instance of the tip, not of any
 // version that was cut: until it is, the tip may change under it.
 func BindDevelopment(rt *thema.Runtime, c *Compiled, opts ...thema.BindOption) (thema.Lineage, error) {
-	v := rt.Context().BuildFile(c.File)
+	return BindDevelopmentValue(rt, c, rt.Context().BuildFile(c.File), opts...)
+}
+
+// BindDevelopmentValue binds v, the lineage c compiled to as it appears in a
+// larger value, on the development path, as [BindDevelopment] binds c alone. v
+// is c.File built and unified with more: a joinSchema, or other constraints
+// of a tool that composes lineages into one value.
+//
+// The provisional version's tolerance is c's to grant, so v must be c's
+// lineage: v is named as c is, declares exactly c's versions, and declares
+// every lens c compiled. Anything else is an error (E0626), and nothing is
+// bound. The lenses bind tolerates missing are then those c reports in
+// Compiled.Pending, on the edge into c's provisional version, which is v's
+// newest.
+func BindDevelopmentValue(rt *thema.Runtime, c *Compiled, v cue.Value, opts ...thema.BindOption) (thema.Lineage, error) {
 	if err := v.Err(); err != nil {
 		return nil, diag.Convert(err, diag.Context{Op: diag.OpCompile, Vocabulary: Vocabulary(c), Generic: diag.E0112})
+	}
+	if err := compiledFrom(rt.Context(), c, v); err != nil {
+		return nil, err
 	}
 	all := append([]thema.BindOption{thema.WithVocabulary(Vocabulary(c))}, opts...)
 	if p, ok := c.Provisional(); ok {
 		all = append(all, provisional.Option(p).(thema.BindOption))
 	}
 	return thema.BindLineage(v, rt, all...)
+}
+
+// compiledFrom checks that v is the lineage c compiled to, as unifying c's
+// normal form with more leaves it: the same name, the same versions, and
+// every lens c declares. Anything a tool unifies with c may narrow it, but
+// cannot rename it, add or remove a version, or remove a lens.
+func compiledFrom(ctx *cue.Context, c *Compiled, v cue.Value) error {
+	cv := ctx.BuildFile(c.File)
+	const help = "bind the lineage that Compiled.File builds, as the larger value holds it"
+	fail := func(format string, args ...any) error {
+		return diag.New(diag.E0626).Headlinef(format, args...).
+			Notef(token.NoPos, "the development path tolerates the lenses missing from the tip's edge because %s was compiled with them missing, so it binds only the lineage %s was compiled to", c.Name, c.Name).
+			Help(help).
+			Err()
+	}
+
+	namePath := cue.MakePath(cue.Str("name"))
+	if name, err := v.LookupPath(namePath).String(); err != nil || name != c.Name {
+		return fail("the lineage to bind on the development path is not named %s, as the one compiled was", c.Name)
+	}
+
+	// The versions a lineage declares, by the keys of its schemas, in order.
+	// A key that is not a version is bind's to report.
+	versions := func(lin cue.Value) []string {
+		var vs []thema.SyntacticVersion
+		var bad []string
+		majors, _ := lin.LookupPath(cue.MakePath(cue.Str("schemas"))).Fields()
+		for majors != nil && majors.Next() {
+			minors, _ := majors.Value().Fields()
+			for minors != nil && minors.Next() {
+				key := majors.Selector().Unquoted() + "." + minors.Selector().Unquoted()
+				if sv, err := thema.ParseSyntacticVersion(key); err == nil {
+					vs = append(vs, sv)
+				} else {
+					bad = append(bad, key)
+				}
+			}
+		}
+		slices.SortFunc(vs, func(a, b thema.SyntacticVersion) int {
+			if a.Less(b) {
+				return -1
+			}
+			if b.Less(a) {
+				return 1
+			}
+			return 0
+		})
+		out := make([]string, 0, len(vs)+len(bad))
+		for _, sv := range vs {
+			out = append(out, sv.String())
+		}
+		return append(out, bad...)
+	}
+	if got, want := versions(v), versions(cv); !slices.Equal(got, want) {
+		return fail("the lineage to bind on the development path has versions %s, where %s was compiled with %s", strings.Join(got, ", "), c.Name, strings.Join(want, ", "))
+	}
+
+	lensesPath := cue.MakePath(cue.Str("lenses"))
+	compiled := cv.LookupPath(lensesPath)
+	if !compiled.Exists() {
+		return nil
+	}
+	lenses, err := compiled.Fields()
+	if err != nil {
+		return diag.InternalErr(fmt.Errorf("the lenses %s compiled to cannot be read: %w", c.Name, err))
+	}
+	for lenses.Next() {
+		edge := lenses.Selector()
+		if !v.LookupPath(lensesPath.Append(edge)).Exists() {
+			return fail("the lineage to bind on the development path has no lens %s, which %s was compiled with", edge.Unquoted(), c.Name)
+		}
+	}
+	return nil
 }
 
 // ReadTip reads the tip of the lineage in files against its history: the
