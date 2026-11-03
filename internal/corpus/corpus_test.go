@@ -176,8 +176,7 @@ func TestCellStatus(t *testing.T) {
 			case tc.instruction != "" && (len(r.errs) != 1 || !strings.Contains(r.errs[0], tc.instruction)):
 				t.Errorf("want one failure ending in %q, got %q", tc.instruction, r.errs)
 			}
-			switch want := Render(tc.suite.Bind(t, nil)); {
-			case tc.suite.Applies == nil && sec != want:
+			if want := Render(tc.suite.Bind(t, nil)); tc.suite.Applies == nil && sec != want {
 				t.Errorf("the cell returned %q, want what it rendered, %q", sec, want)
 			}
 			// What an update writes for the cell reads back with the cell's
