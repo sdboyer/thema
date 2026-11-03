@@ -113,21 +113,21 @@ it, and what is left to admit later.
 
 ### Rules
 
-**A schema refers only to its own body and CUE's builtin packages.** Its body
-is everything declared inside it, at any depth: regular fields,
-definitions, `let`s and aliases. The builtin packages (`strings`, `list`,
-`time`, ...) are part of the CUE version thema pins, not something an author
-edits. The `joinSchema` is a schema for this purpose: it refers only to its
-own body. A schema does not refer to the `joinSchema`; thema unifies it into
-every schema itself.
+**A schema refers only to its own body, CUE's builtin packages and thema's own
+package.** Its body is everything declared inside it, at any depth: regular
+fields, definitions, `let`s and aliases. The builtin packages (`strings`,
+`list`, `time`, ...) are part of the CUE version thema pins, and thema's own
+package (`thema.Lacuna`, say) is part of the thema version, so neither is
+something an author edits. The `joinSchema` is a schema for this purpose: it
+refers only to its own body. A schema does not refer to the `joinSchema`;
+thema unifies it into every schema itself.
 
-**A lens refers only to the instance it takes, its own body and CUE's builtin
-packages.** The instance it takes is the field named after its from version,
-`v1_0` for a lens from 1.0, declared `_` (the Source rule under Lens totality
-says why), and its body is the instance it returns (`v0_0`), `lacunas` and
-anything else declared inside the lens, such as a hidden lookup table beside
-the instance it returns, or a `let`. thema's own package is part of the substrate, so
-`thema.Lacuna` and `thema.LacunaTypes` are fine.
+**A lens refers only to the instance it takes, its own body, CUE's builtin
+packages and thema's own package.** The instance it takes is the field named
+after its from version, `v1_0` for a lens from 1.0, declared `_` (the Source
+rule under Lens totality says why), and its body is the instance it returns
+(`v0_0`), `lacunas` and anything else declared inside the lens, such as a
+hidden lookup table beside the instance it returns, or a `let`.
 
 Everything else is refused when the lineage binds, with the error positioned
 at the referring field. The refused thing is spelled where it is used: a
@@ -219,13 +219,13 @@ for example
 | `ref-sibling-schema` | a schema refers to another schema of the lineage through `schemas`, such as a field of the version before it |
 | `ref-lineage-meta` | a schema or lens refers to something declared in the lineage outside itself: `name`, `#LatestVersion`, the `joinSchema`, a helper field or definition declared in the lineage, or `schemas` or `lenses` as a whole |
 | `ref-outside-lineage` | a schema or lens refers to something declared outside the lineage, such as a definition at the top of the file |
-| `ref-import` | a schema or lens refers to a package other than CUE's builtins, including another package of the author's module |
+| `ref-import` | a schema or lens refers to a package other than CUE's builtins and thema's own, including another package of the author's module |
 | `ref-lens-to-schema` | a lens refers to a schema of the lineage |
 | `ref-lens-to-lens` | a lens refers to another lens of the lineage |
 
 | Rule | Unknown when | What to do |
 |---|---|---|
-| `ref-unresolved` | a reference selects into the lineage, or beyond it, by a label only an instance decides (`lin[a]`, with `a` a field of the schema; a label the evaluator can fold, such as `lin["na"+"me"]`, resolves), or through a construct thema does not read | write the reference with constant labels, or declare what it needs inside the schema or lens |
+| `ref-unresolved` | a reference selects into the lineage by a label only an instance decides (`lin[a]`, with `a` a field of the schema; a label the evaluator can fold, such as `lin["na"+"me"]`, resolves), or through a construct thema does not read | write the reference with constant labels, or declare what it needs inside the schema or lens |
 
 Every rule has a recorded case in the repository's case corpus
 (`testdata/cases/ref-*`), alongside a case for each allowed form.
