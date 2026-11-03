@@ -1290,12 +1290,46 @@ func elementOf(v cue.Value, p cue.Path) cue.Value {
 	return lookup(v, p).LookupPath(cue.MakePath(cue.AnyIndex))
 }
 
+// closedWrapper reports whether n, the Documented view of the schema sch,
+// is CUE's wrapper for a recursively closed value, {_#def, _#def: ...}: what a
+// value reached through a definition (#Foo) exports as. Written into a version
+// file, the wrapper would be a hidden definition of the author's, which bind
+// refuses (E0151). A schema that declares a field _#def of its own is written
+// as it is, and bind refuses it there.
+func closedWrapper(sch cue.Value, n ast.Node) bool {
+	if !sch.IsClosedRecursively() {
+		return false
+	}
+	if iter, err := sch.Fields(cue.Hidden(true), cue.Definitions(true), cue.Optional(true)); err == nil {
+		for iter.Next() {
+			if iter.Selector().String() == "_#def" {
+				return false
+			}
+		}
+	}
+	s, ok := n.(*ast.StructLit)
+	if !ok {
+		return false
+	}
+	for _, d := range s.Elts {
+		if f, ok := d.(*ast.Field); ok {
+			if name, _, err := ast.LabelName(f.Label); err == nil && name == "_#def" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // versionText renders a version file; prev is the previous version, whose
 // edge the lenses are on.
 func versionText(v dversion, prev thema.SyntacticVersion, fwd, bwd *dbody) (string, error) {
 	n, err := cueview.Documented(v.schema)
 	if err != nil {
 		return "", fmt.Errorf("%s: schema: %w", v.v, err)
+	}
+	if closedWrapper(v.schema, n) {
+		return "", fmt.Errorf("%s: schema is outside the authoring form: it is closed as a definition is, which CUE writes as a hidden definition, {_#def, _#def: ...}, and a schema may not declare one", v.v)
 	}
 	var parts []string
 	var expr ast.Expr
