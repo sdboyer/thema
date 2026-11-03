@@ -1,0 +1,100 @@
+#op: capnp
+A compiled lens computes its values in CEL. Where CUE and CEL disagree on an
+operation for some input, the compiled lens would translate that input
+differently from Go, so the lineage does not compile. Here strings.ToUpper maps
+case per Unicode in CUE and per ASCII in CEL.
+-- lineage.cue --
+import "strings"
+
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				s: string
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				s:  string
+				up: string
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			s:  v0_0.s
+			up: strings.ToUpper(v0_0.s)
+		}
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			s: v1_0.s
+		}
+	}
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0716",
+      "severity": "error",
+      "headline": "up in the result of lens 0.0->1.0 computes a value CEL, the compiled lens language, does not compute the same way",
+      "path": [
+        "lenses",
+        "0.0->1.0",
+        "v1_0",
+        "up"
+      ],
+      "address": {
+        "field": [
+          "up"
+        ],
+        "from": [
+          0,
+          0
+        ],
+        "kind": "lensResultField",
+        "to": [
+          1,
+          0
+        ]
+      },
+      "primary": {
+        "file": "lineage.cue",
+        "line": 22,
+        "col": 2,
+        "offset": 183,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "up in the result of lens 0.0->1.0 calls strings.ToUpper, whose CEL counterpart changes ASCII only (Cap'n Proto rule cel-unrenderable)"
+        }
+      ],
+      "help": [
+        "use the operation CEL computes alike, such as quo for / or strings.Contains for strings.Index"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0716]: up in the result of lens 0.0->1.0 computes a value CEL, the compiled lens language, does not compute the same way
+  --> lineage.cue:22:2
+   |
+22 |     "0.0->1.0": {
+   |     ^^^^^^^^^^
+   |
+   = note: up in the result of lens 0.0->1.0 calls strings.ToUpper, whose CEL counterpart changes ASCII only (Cap'n Proto rule cel-unrenderable)
+   = help: use the operation CEL computes alike, such as quo for / or strings.Contains for strings.Index

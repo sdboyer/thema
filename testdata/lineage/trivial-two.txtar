@@ -272,3 +272,13 @@ struct TrivialTwoV0 @0xe2ee8f06c52773c0 {
     value @3 :Int32;
   }
 }
+-- out/encoding/capnp/programs --
+edge 0.1 -> 0.0
+  out: {
+    out.firstfield <- in.firstfield
+  }
+checks
+  0.1 TrivialTwoV0.secondfield: ((type(x) == int) && (x >= -2147483648) && (x <= 2147483647))
+-- out/encoding/capnp/artifact --
+sha256 a0f620f80594602d03016598b7abd85ed9dd6159c5eb40c04d914d97cc17e7d1
+1656 bytes

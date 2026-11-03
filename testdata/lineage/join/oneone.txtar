@@ -141,3 +141,6 @@ struct OneoneV0 @0xf6b4d803721b5335 {
   foo @1 :Text;
   bar @2 :Text;
 }
+-- out/encoding/capnp/artifact --
+sha256 82afbf2b8690aae0f0df855af711621edaf7d270485c807792eb4b0c6c30ae21
+848 bytes

@@ -141,6 +141,7 @@ var allCmds = []*cobra.Command{
 	genGoBindingsLineageCmd,
 	genOapiLineageCmd,
 	genJschLineageCmd,
+	genCapnpLineageCmd,
 	serveCmd,
 	servePlaygroundCmd,
 	playgroundCmd,

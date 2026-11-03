@@ -1,0 +1,37 @@
+# rule unknown-union-write: a copy into a disjunction of structs whose source
+# lies beneath another disjunction (in.r.y, inside r's alternative a). The
+# copy names source alternatives of y, but the compiler places a source member
+# only along a path of plain fields; the presence test above the copy is what
+# selects r's member, and the compiler does not read it. The way back writes
+# y beneath a literal of r's alternative a, which the compiler follows.
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+thema.Lineage
+name: "unionBeneath"
+schemas: {
+	"0": "0": schema: {
+		r: {k: "a", y: {t: "p", m: string} | {t: "q", n: int8}} | {k: "b"}
+	}
+	"1": "0": schema: {
+		w: {t: "p", m: string} | {t: "q", n: int8}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			if v0_0.r.y != _|_ {w: v0_0.r.y}
+			if v0_0.r.y == _|_ {w: {t: "p", m: ""}}
+		}
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			r: {k: "a", y: v1_0.w}
+		}
+	}
+}
+-- out/capnp --
+unknown
+lens 0.0->1.0: w copies v0_0.r.y, a disjunction the compiler cannot place among the members of the compiled unions (rule unknown-union-write) @ /in.cue:14:2

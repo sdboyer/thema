@@ -261,3 +261,13 @@ struct TrivialTwoCommentsV0 @0xad466f940ac7c128 {
     value @3 :Int32;
   }
 }
+-- out/encoding/capnp/programs --
+edge 0.1 -> 0.0
+  out: {
+    out.firstfield <- in.firstfield
+  }
+checks
+  0.1 TrivialTwoCommentsV0.secondfield: ((type(x) == int) && (x >= -2147483648) && (x <= 2147483647))
+-- out/encoding/capnp/artifact --
+sha256 73e928f1e9f74c86ad7ab470f593d10f6dae059ed158f50b46b808320763e4a4
+1704 bytes

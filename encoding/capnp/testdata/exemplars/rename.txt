@@ -14,3 +14,21 @@ struct RenameV1 @0x81c23e350f72a5df {
   after @1 :Text;
   unchanged @2 :Text;
 }
+
+-- programs --
+edge 0.0 -> 1.0
+  out: {
+    out.after <- in.before
+    out.unchanged <- in.unchanged
+  }
+edge 1.0 -> 0.0
+  out: {
+    out.before <- in.after
+    out.unchanged <- in.unchanged
+  }
+checks
+  1.0 RenameV1.after: (type(x) == string)
+
+-- artifact --
+sha256 2e9733be75981f79502e4d12a12fd2caa6c141965830b87076e64b4b706c7455
+2400 bytes

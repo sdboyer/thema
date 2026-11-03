@@ -43,6 +43,17 @@ struct OptionalToDefaultedV0M1 @0x8974682566e95188 {
   a @1 :Text = "x";
   s @2 :Text;
 }
+-- out/capnp/programs --
+edge 0.0 -> 0.1 (synthesized)
+  out <- in
+edge 0.1 -> 0.0
+  out: {
+    out.a <- in.a
+    out.s <- in.s
+  }
+-- out/capnp/artifact --
+sha256 6104f2f260423f3683389116163a9e4f69488ec22fe757f4fb45f7086a920558
+2344 bytes
 -- out/capnp/layout --
 struct OptionalToDefaultedV0 @0xc2b6dcc847e2751d: data=1 ptrs=3
   extras @0: data off=0

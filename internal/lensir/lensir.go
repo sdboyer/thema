@@ -36,6 +36,7 @@
 package lensir
 
 import (
+	"fmt"
 	"sort"
 	"strconv"
 
@@ -52,6 +53,20 @@ type Edge struct {
 func (e Edge) String() string {
 	return e.From.String() + "->" + e.To.String()
 }
+
+// A NoProgramError says why the lens on Edge, which binding proved total, has
+// no program: it uses a construct the IR does not carry yet. Binding reports
+// one per such lens, so that a backend can say which lens it cannot compile.
+type NoProgramError struct {
+	Edge Edge
+	Err  error
+}
+
+func (e *NoProgramError) Error() string {
+	return fmt.Sprintf("lens %s has no program: %v", e.Edge, e.Err)
+}
+
+func (e *NoProgramError) Unwrap() error { return e.Err }
 
 // less orders edges by their source version, then their target.
 func (e Edge) less(o Edge) bool {
