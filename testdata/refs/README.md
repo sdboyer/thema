@@ -92,10 +92,11 @@ described in full only in the first failure that names it.
 
 - **"This is a regression"**: the golden section records the suite giving
   `#expect`, and it no longer does. Your change broke a case that was right.
-  Don't add a tag to make it pass; `THEMA_UPDATE_GOLDEN=1` keeps the section
-  until the suite agrees again. If you believe `#expect` is wrong, it comes
-  from the spec cited, so open an issue citing those lines. Changing
-  `#expect` is a change to the spec.
+  Don't add a tag to make it pass. `THEMA_UPDATE_GOLDEN=1` records what the
+  suite gives now, and the cell keeps failing until the suite agrees again; the
+  report shows it as a change from pass to regressed. If you believe
+  `#expect` is wrong, it comes from the spec cited, so open an issue citing
+  those lines. Changing `#expect` is a change to the spec.
 - **"This suite disagrees with #expect"**: no golden section records the
   suite agreeing, and no tag tracks the disagreement. For a new case, this is
   step 5 above. If git shows the section agreeing before your change, it is a

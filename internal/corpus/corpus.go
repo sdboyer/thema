@@ -498,10 +498,10 @@ func (r *run) cell(t testing.TB, c *Case, s Suite) (string, bool) {
 	}
 	switch {
 	case status == StatusRegressed && was != "" && was == c.Expect:
+		// An update records what the suite gives now. The cell stays
+		// regressed, because its section then disagrees with #expect with no
+		// #known tag, and the report shows the change from pass.
 		fail(instructionRegressed)
-		// The section that records the suite agreeing is kept, so that a
-		// golden update can't erase the regression.
-		return golden, true
 	case status == StatusRegressed:
 		fail(r.instructionUntracked(s.Name))
 	case status == StatusXPass:
@@ -529,7 +529,7 @@ func (r *run) cell(t testing.TB, c *Case, s Suite) (string, bool) {
 // and what to do.
 const (
 	instructionRegressed = "This is a regression: the golden section records this suite giving #expect, and it no longer does. " +
-		"Do not add a #known tag to make it pass; " + envvars.VarUpdateGolden + "=1 keeps the section until the suite agrees again. " +
+		"Do not add a #known tag to make it pass. " + envvars.VarUpdateGolden + "=1 records what the suite gives now, and the cell keeps failing until the suite agrees again. " +
 		"If you believe #expect is wrong, it comes from the spec cited above: open an issue citing those lines instead of changing it."
 	instructionRendering = "The verdict is unchanged, but what bind reports changed (codes, headlines or positions). " +
 		"Review the diff below; if it is intended, run with " + envvars.VarUpdateGolden + "=1."

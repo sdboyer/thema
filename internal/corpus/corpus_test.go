@@ -119,14 +119,11 @@ func TestCellStatus(t *testing.T) {
 		want   Status
 		// The instruction the failure ends with, or "" for no failure.
 		instruction string
-		// keepsGolden: the cell returns the golden section, not what it
-		// rendered, so that an update keeps it.
-		keepsGolden bool
 	}{
 		{name: "pass", suite: fails("s", diag.E0141), golden: rendered, want: StatusPass},
 		{name: "known", known: true, suite: fails("s", diag.E0142), golden: rendered, want: StatusKnown},
-		{name: "regressed", suite: fails("s", diag.E0142), golden: goldenE0141, want: StatusRegressed, instruction: instructionRegressed, keepsGolden: true},
-		{name: "regressed-binds", suite: fails("s"), golden: goldenE0141, want: StatusRegressed, instruction: instructionRegressed, keepsGolden: true},
+		{name: "regressed", suite: fails("s", diag.E0142), golden: goldenE0141, want: StatusRegressed, instruction: instructionRegressed},
+		{name: "regressed-binds", suite: fails("s"), golden: goldenE0141, want: StatusRegressed, instruction: instructionRegressed},
 		// A cell that never agreed, by its golden, is a new disagreement
 		// rather than a regression.
 		{name: "untracked", suite: fails("s", diag.E0142), golden: rendered, want: StatusRegressed, instruction: untracked},
@@ -180,10 +177,16 @@ func TestCellStatus(t *testing.T) {
 				t.Errorf("want one failure ending in %q, got %q", tc.instruction, r.errs)
 			}
 			switch want := Render(tc.suite.Bind(t, nil)); {
-			case tc.keepsGolden && sec != tc.golden:
-				t.Errorf("the cell does not keep the golden section; it returned %q", sec)
-			case !tc.keepsGolden && tc.suite.Applies == nil && sec != want:
+			case tc.suite.Applies == nil && sec != want:
 				t.Errorf("the cell returned %q, want what it rendered, %q", sec, want)
+			}
+			// What an update writes for the cell reads back with the cell's
+			// status, so a regression stays visible to the report.
+			if tc.suite.Applies == nil {
+				rewritten := writeCase(t, t.TempDir(), comment, "out/s/bind", sec)
+				if got := CellStatus(rewritten, "s"); got != tc.want {
+					t.Errorf("after an update, CellStatus = %s, want %s", got, tc.want)
+				}
 			}
 			if tc.want == StatusKnown && (len(r.logs) != 1 || r.logs[0] != "known: #264 a reason naming the mechanism.") {
 				t.Errorf("a known cell logs one line naming the issue; got %q", r.logs)
@@ -396,7 +399,7 @@ func TestRenderingChanged(t *testing.T) {
 func TestInstructions(t *testing.T) {
 	for got, want := range map[string]string{
 		instructionRegressed: "This is a regression: the golden section records this suite giving #expect, and it no longer does. " +
-			"Do not add a #known tag to make it pass; THEMA_UPDATE_GOLDEN=1 keeps the section until the suite agrees again. " +
+			"Do not add a #known tag to make it pass. THEMA_UPDATE_GOLDEN=1 records what the suite gives now, and the cell keeps failing until the suite agrees again. " +
 			"If you believe #expect is wrong, it comes from the spec cited above: open an issue citing those lines instead of changing it.",
 		InstructionUntracked("fill-text", "testdata/refs/README.md"): "This suite disagrees with #expect, no golden section records it agreeing, and no #known tag tracks the disagreement. " +
 			"If the case is new, this is step 5 of \"Adding a case\" in testdata/refs/README.md: find the issue that covers the mechanism and add " +
