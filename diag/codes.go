@@ -224,6 +224,7 @@ var Codes = []CodeInfo{
 	{Code: E0622, Severity: SeverityError, Title: "the examples directory holds no example", Positionless: true},
 	{Code: E0623, Severity: SeverityError, Title: "the directory for a new lineage already holds version files", Positionless: true},
 	{Code: E0624, Severity: SeverityError, Title: "the document is not of an OpenAPI version thema converts", Positionless: true},
+	{Code: E0625, Severity: SeverityError, Title: "the directory to position a lineage's files under is not a valid path", Positionless: true},
 	{Code: E0701, Severity: SeverityError, Title: "generating code from the schema failed", Positionless: true},
 	{Code: E0801, Severity: SeverityError, Title: "the playground request is malformed", Positionless: true},
 	{Code: E0802, Severity: SeverityError, Title: "the playground request gives the lineage in neither form, or in both", Positionless: true},
@@ -450,6 +451,7 @@ const (
 	E0622 Code = "E0622" // an examples directory with no example in it, or not a directory
 	E0623 Code = "E0623" // lineage init into a directory that already holds version files
 	E0624 Code = "E0624" // lineage init openapi: no openapi version, or one other than 3.0 and 3.1
+	E0625 Code = "E0625" // authoring.At given a path that is not fs.ValidPath, or that falls in thema's own CUE
 
 	// E07xx: code generation.
 	E0701 Code = "E0701" // a generator failed on the schema

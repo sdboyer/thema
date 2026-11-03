@@ -46,9 +46,9 @@ type Cut struct {
 // Cutting a clean tip changes nothing and is not an error. A tip whose
 // parent moved, as when another branch cut first, is reported by binding
 // (E0150), not by the cut.
-func CutTip(rt *thema.Runtime, name string, files []File) (*Cut, error) {
+func CutTip(rt *thema.Runtime, name string, files []File, opts ...Option) (*Cut, error) {
 	ctx := rt.Context()
-	c, err := compile.Development(ctx, name, files)
+	c, err := compile.Development(ctx, name, files, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -77,12 +77,12 @@ func CutTip(rt *thema.Runtime, name string, files []File) (*Cut, error) {
 	// What the cut wrote must be the lineage it was given, with the tip
 	// frozen: the history binds, it appends to the history before, and the
 	// tip after is clean. Anything else is a fault in the cut.
-	cut, err := bindHistory(rt, name, after)
+	cut, err := bindHistory(rt, name, after, opts)
 	if err != nil {
 		return nil, diag.InternalErr(fmt.Errorf("the history after cutting the tip as %s does not bind: %w", c.Tip.Version, err))
 	}
 	if c.Tip.Base != nil {
-		before, err := bindHistory(rt, name, files)
+		before, err := bindHistory(rt, name, files, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -90,15 +90,15 @@ func CutTip(rt *thema.Runtime, name string, files []File) (*Cut, error) {
 			return nil, diag.InternalErr(fmt.Errorf("the history after cutting the tip as %s does not append to the history before: %w", c.Tip.Version, err))
 		}
 	}
-	if err := CheckClean(ctx, after); err != nil {
+	if err := CheckClean(ctx, after, opts...); err != nil {
 		return nil, diag.InternalErr(fmt.Errorf("the tip after cutting it as %s is not clean: %w", c.Tip.Version, err))
 	}
 	return &Cut{Version: c.Tip.Version, Written: []File{frozen, tip}, Files: after}, nil
 }
 
 // bindHistory compiles and binds the lineage's history alone.
-func bindHistory(rt *thema.Runtime, name string, files []File) (thema.Lineage, error) {
-	c, err := Compile(rt.Context(), name, files)
+func bindHistory(rt *thema.Runtime, name string, files []File, opts []Option) (thema.Lineage, error) {
+	c, err := Compile(rt.Context(), name, files, opts...)
 	if err != nil {
 		return nil, err
 	}

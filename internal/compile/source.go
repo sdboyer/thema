@@ -18,6 +18,7 @@ import (
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/internal/compat"
+	"github.com/sdboyer/thema/internal/embedreg"
 )
 
 // Ext is the extension of authoring files.
@@ -77,6 +78,67 @@ func Load(fsys fs.FS, dir string) (name string, files []File, err error) {
 		}
 	}
 	return path.Base(dir), files, nil
+}
+
+// An Option configures how a lineage's files are compiled.
+type Option func(*options)
+
+type options struct {
+	// at is the directory the files are positioned under, when setAt.
+	at    string
+	setAt bool
+}
+
+// At positions the lineage's files under dir: each is parsed under
+// path.Join(dir, File.Path), which every position in the normal form, and in
+// the diagnostics of evaluating and binding it, then names. dir is a path of
+// an fs.FS (fs.ValidPath): relative and slash-separated, never a filepath
+// path. Without At, a file is positioned at its File.Path, relative to the
+// lineage's directory. The layout checks, and the headlines that name a
+// file, use File.Path either way.
+func At(dir string) Option {
+	return func(o *options) { o.at, o.setAt = dir, true }
+}
+
+// resolve applies opts and checks them against the lineage's files.
+func resolve(opts []Option, files []File) (options, error) {
+	var o options
+	for _, opt := range opts {
+		opt(&o)
+	}
+	if !o.setAt {
+		return o, nil
+	}
+	const help = "pass the lineage's directory as a path of its fs.FS, such as operations/get/query"
+	if !fs.ValidPath(o.at) || strings.Contains(o.at, `\`) {
+		return o, diag.New(diag.E0625).
+			Headlinef("%q is not a directory to position the lineage's files under", o.at).
+			Note(token.NoPos, "the directory is a path of an fs.FS: relative and separated by /, with no . or .. elements").
+			Help(help).
+			Err()
+	}
+	// thema tells its own CUE from an author's by the file a position names
+	// (embedreg.IsKernelFile). Its roots are absolute, so no valid path falls
+	// under them; were one to, every position in the lineage would read as
+	// thema's, and none could be a diagnostic's primary.
+	for _, f := range files {
+		if name := o.name(f); embedreg.IsKernelFile(name) {
+			return o, diag.New(diag.E0625).
+				Headlinef("%q would position the lineage's files in thema's own CUE", o.at).
+				Notef(token.NoPos, "%s is a file of thema's own CUE module", name).
+				Help(help).
+				Err()
+		}
+	}
+	return o, nil
+}
+
+// name is the name f is parsed under, which its positions carry.
+func (o options) name(f File) string {
+	if !o.setAt {
+		return f.Path
+	}
+	return path.Join(o.at, f.Path)
 }
 
 // versionFile matches a frozen version's path: history/<major>.<minor>.thema.
@@ -186,8 +248,12 @@ func (v *version) schemaField() *ast.Field {
 // parseVersion parses one version file: a frozen version, whose name gives
 // its version, or the tip, whose version is derived later. Its contents are at
 // most a schema, a forward block and a backward block.
-func parseVersion(f File, tip bool) (*version, error) {
-	af, err := parser.ParseFile(f.Path, f.Text, parser.ParseComments)
+//
+// The file is parsed under name, which every position in it carries. A
+// node's token.File also carries its language version and experiments
+// (#64), so the name is chosen here, once, and never rewritten.
+func parseVersion(f File, name string, tip bool) (*version, error) {
+	af, err := parser.ParseFile(name, f.Text, parser.ParseComments)
 	if err != nil {
 		return nil, diag.Convert(err, diag.Context{Op: diag.OpCompile, Generic: diag.E0102})
 	}
@@ -315,11 +381,11 @@ func noShorthand(f *ast.Field) cerrors.Error {
 // parseVersions parses the frozen versions and orders them, which must be
 // contiguous: each the next minor version of its predecessor, or the first
 // version of the next major. There may be none.
-func parseVersions(files []File) ([]*version, error) {
+func parseVersions(files []File, o options) ([]*version, error) {
 	var errs cerrors.Error
 	var vs []*version
 	for _, f := range files {
-		v, err := parseVersion(f, false)
+		v, err := parseVersion(f, o.name(f), false)
 		if err != nil {
 			errs = cerrors.Append(errs, cerrors.Promote(err, ""))
 			continue

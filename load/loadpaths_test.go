@@ -41,7 +41,11 @@ import (
 //   - the same program for every lens (thema.LensPrograms);
 //   - for the paths that load the same normal-form text, the same positions
 //     for every diagnostic and note, up to the file's name, and the same
-//     origin (the lineage's file, or thema's own CUE).
+//     origin (the lineage's file, or thema's own CUE);
+//   - for the authoring form compiled with its files positioned under a
+//     directory (authoring.At), the positions the compiled path gives, with
+//     each of the author's files named under that directory: the option
+//     moves positions, and nothing else.
 //
 // A note that says only where CUE's error is ("here", "also here") is a
 // position: it is compared with the positions, not the meaning. One CUE
@@ -71,7 +75,7 @@ func TestLoadPaths(t *testing.T) {
 	for _, a := range diagtest.Archives(t, "testdata/loadpaths") {
 		t.Run(a.Name(), func(t *testing.T) {
 			fx := readLPFixture(t, a)
-			var first, firstText *lpResult
+			var first, firstText, compiled *lpResult
 			for _, p := range loadPaths {
 				if !p.loads(fx) {
 					continue
@@ -81,6 +85,14 @@ func TestLoadPaths(t *testing.T) {
 					first = res
 				} else if diff := cmp.Diff(first.meaning, res.meaning); diff != "" {
 					t.Errorf("%s reports otherwise than %s (-%s +%s):\n%s", p.name, first.path, first.path, p.name, diff)
+				}
+				switch {
+				case p.at:
+					if diff := cmp.Diff(compiled.placedAt(lpAt), res.placed); diff != "" {
+						t.Errorf("%s positions its diagnostics otherwise than %s, under %s (-%s +%s):\n%s", p.name, compiled.path, lpAt, compiled.path, p.name, diff)
+					}
+				case p.compiled:
+					compiled = res
 				}
 				if !p.text {
 					continue
@@ -107,6 +119,9 @@ const (
 	lpFile    = lpPackage + "/" + lpPackage + ".cue"
 	// fleetFile is the file of package fleet, which reaches the lineage.
 	fleetFile = "fleet/fleet.cue"
+	// lpAt is the directory the compiled-at path positions the authoring
+	// files under.
+	lpAt = "operations/get/" + lpPackage
 )
 
 // lpFixture is one archive's lineage, in the forms a loading path starts from.
@@ -114,6 +129,9 @@ type lpFixture struct {
 	// compiled is the authoring form compiled to the normal form, if the
 	// archive holds the authoring form.
 	compiled *authoring.Compiled
+	// compiledAt is the authoring form compiled with its files positioned
+	// under lpAt (authoring.At).
+	compiledAt *authoring.Compiled
 	// text is the normal form's text, as the file of package ship that holds
 	// it: what an author's module holds when the lineage is written, or
 	// generated, in the normal form.
@@ -152,6 +170,9 @@ func readLPFixture(t *testing.T, a *diagtest.Archive) lpFixture {
 			t.Fatal(err)
 		}
 		fx.compiled, fx.text = c, "package "+lpPackage+"\n\n"+text
+		if fx.compiledAt, err = authoring.Compile(cuecontext.New(), lpPackage, files, authoring.At(lpAt)); err != nil {
+			t.Fatalf("compiling the authoring form at %s: %v", lpAt, err)
+		}
 	}
 	if fx.text == "" {
 		t.Fatal("the archive holds no lineage: neither ship/*.thema nor normal.cue")
@@ -203,6 +224,10 @@ type loadPath struct {
 	name string
 	// compiled says the path binds the compiled authoring form.
 	compiled bool
+	// at says the path binds the authoring form compiled with its files
+	// positioned under lpAt. It must report what the compiled path reports,
+	// at the same positions in files named under lpAt.
+	at bool
 	// text says the path loads the normal form's text, so that its positions
 	// are comparable with every other such path's.
 	text bool
@@ -239,6 +264,14 @@ var loadPaths = []loadPath{
 		name: "compiled", compiled: true,
 		load: func(_ *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
 			return ctx.BuildFile(fx.compiled.File)
+		},
+	},
+	{
+		// The authoring form, compiled with its files positioned under lpAt
+		// (authoring.At), as load.AuthoringLineage binds it.
+		name: "compiled-at", compiled: true, at: true,
+		load: func(_ *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
+			return ctx.BuildFile(fx.compiledAt.File)
 		},
 	},
 	{
@@ -459,6 +492,40 @@ type lpResult struct {
 	path      string
 	meaning   lpMeaning
 	positions []lpPositions
+	// placed are each diagnostic's positions with their files' names: its
+	// primary position, then each note's. Only the compiled paths compare
+	// them.
+	placed [][]lpPlace
+}
+
+// lpPlace is a position with its file's name, and the label of the note it
+// is, if any.
+type lpPlace struct {
+	Label string
+	Pos   diag.Pos
+}
+
+// placedAt is r.placed with each of the author's files named under dir.
+func (r *lpResult) placedAt(dir string) [][]lpPlace {
+	var out [][]lpPlace
+	for _, ps := range r.placed {
+		var moved []lpPlace
+		for _, p := range ps {
+			if p.Pos.Origin == diag.OriginUser {
+				p.Pos.File = dir + "/" + p.Pos.File
+			}
+			moved = append(moved, p)
+		}
+		out = append(out, moved)
+	}
+	return out
+}
+
+func lpPlaced(label string, p *diag.Pos) lpPlace {
+	if p == nil {
+		return lpPlace{Label: label}
+	}
+	return lpPlace{Label: label, Pos: *p}
 }
 
 type lpMeaning struct {
@@ -521,10 +588,12 @@ func (p loadPath) run(t *testing.T, fx lpFixture) *lpResult {
 	for _, d := range ds {
 		md := lpDiagnostic{Code: d.Code, Headline: d.Headline, Path: d.Path, Address: d.Address, Help: d.Help, Detail: d.Detail}
 		pos := lpPositions{lpPos(d.Primary)}
+		placed := []lpPlace{lpPlaced("", d.Primary)}
 		for _, n := range d.Notes {
 			if !positional[n.Label] {
 				md.Notes = append(md.Notes, n.Label)
 			}
+			placed = append(placed, lpPlaced(n.Label, n.Pos))
 			at := lpPos(n.Pos)
 			if positional[n.Label] && strings.HasSuffix(at, "(elsewhere)") {
 				// A position CUE reports in a file only this path loads: where
@@ -535,6 +604,7 @@ func (p loadPath) run(t *testing.T, fx lpFixture) *lpResult {
 		}
 		res.meaning.Diagnostics = append(res.meaning.Diagnostics, md)
 		res.positions = append(res.positions, pos)
+		res.placed = append(res.placed, placed)
 	}
 
 	for _, ver := range lpVersions(t, v) {

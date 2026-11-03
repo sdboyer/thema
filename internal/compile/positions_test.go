@@ -17,6 +17,7 @@ import (
 	"cuelang.org/go/cue/token"
 
 	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/internal/cueview"
 )
 
@@ -462,4 +463,95 @@ func TestViewsOfAuthoredValues(t *testing.T) {
 			return true
 		}, nil)
 	}
+}
+
+// At positions every file of a lineage under the directory it is given, on
+// every entry point, and only that: the layout checks and their headlines
+// keep the path relative to the lineage's directory. A directory that is not
+// a path of an fs.FS is refused.
+func TestAt(t *testing.T) {
+	ctx := cuecontext.New()
+	const dir = "operations/get/query"
+	// The tip is a major version after 0.1 that writes no lens for crew, so
+	// its forward lens is pending, and it is not clean.
+	lin := files("history/0.0.thema", v00, "history/0.1.thema", v01, TipFile, v10)
+
+	t.Run("compiled positions", func(t *testing.T) {
+		c, err := Development(ctx, "query", lin, At(dir))
+		if err != nil {
+			t.Fatal(err)
+		}
+		ast.Walk(c.File, func(n ast.Node) bool {
+			if p := n.Pos(); p.IsValid() && !strings.HasPrefix(p.Filename(), dir+"/") {
+				t.Errorf("%T at %s is not positioned under %s/", n, p, dir)
+			}
+			return true
+		}, nil)
+		if c.Pending == nil {
+			t.Fatal("want the tip's forward lens pending")
+		}
+		for _, p := range cerrors.Positions(c.Pending) {
+			if p.Filename() != dir+"/"+TipFile {
+				t.Errorf("a pending lens is positioned at %s, want %s/%s", p, dir, TipFile)
+			}
+		}
+	})
+
+	t.Run("the dot directory", func(t *testing.T) {
+		c, err := Compile(ctx, "query", lin, At("."))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := c.File.Decls[0].Pos().Filename(); !strings.HasPrefix(got, HistoryDir+"/") {
+			t.Errorf("positioned in %s, want a file under %s/", got, HistoryDir)
+		}
+	})
+
+	t.Run("clean check", func(t *testing.T) {
+		ds := diag.Diagnostics(CheckClean(ctx, lin, At(dir)))
+		if len(ds) == 0 {
+			t.Fatal("want the tip not clean")
+		}
+		for _, d := range ds {
+			if d.Primary == nil || d.Primary.File != dir+"/"+TipFile {
+				t.Errorf("%s %q is positioned at %v, want %s/%s", d.Code, d.Headline, d.Primary, dir, TipFile)
+			}
+			if strings.Contains(d.Headline, dir) {
+				t.Errorf("%s %q names the directory; a headline names a file by its path in the lineage", d.Code, d.Headline)
+			}
+		}
+	})
+
+	t.Run("layout headlines", func(t *testing.T) {
+		_, err := Compile(ctx, "query", files("1.0.thema", v10, "history/0.0.thema", v00), At(dir))
+		ds := diag.Diagnostics(err)
+		if len(ds) != 1 || ds[0].Code != diag.E0148 || !strings.HasPrefix(ds[0].Headline, "1.0.thema ") {
+			t.Errorf("want E0148 naming 1.0.thema, got %v", ds)
+		}
+	})
+
+	t.Run("invalid directories", func(t *testing.T) {
+		entries := map[string]func(Option) error{
+			"Compile": func(o Option) error {
+				_, err := Compile(ctx, "query", lin, o)
+				return err
+			},
+			"Development": func(o Option) error {
+				_, err := Development(ctx, "query", lin, o)
+				return err
+			},
+			"ReadTip": func(o Option) error {
+				_, err := ReadTip(ctx, lin, o)
+				return err
+			},
+			"CheckClean": func(o Option) error { return CheckClean(ctx, lin, o) },
+		}
+		for _, bad := range []string{"", "/operations/get", "../query", "operations/../query", "./query", "operations//query", "query/", `operations\get`} {
+			for name, run := range entries {
+				if got := codes(run(At(bad))); !slices.Equal(got, []string{string(diag.E0625)}) {
+					t.Errorf("%s with At(%q): %v, want [E0625]", name, bad, got)
+				}
+			}
+		}
+	})
 }
