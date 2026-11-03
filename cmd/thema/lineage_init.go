@@ -250,19 +250,23 @@ func (ic *initCommand) runJSONSchema(cmd *cobra.Command, args []string) {
 
 	// The pointer names one schema, as it does for init openapi, not a
 	// location whose every member is a schema.
-	jcfg := &jsonschema.Config{
+	ic.err = ic.extractTip(v, &jsonschema.Config{
 		Root:       ic.srcpath,
 		SingleRoot: ic.srcpath != "",
-	}
+	})
+}
 
-	f, err := jsonschema.Extract(v, jcfg)
+// extractTip makes ic.tip from the schema jsonschema.Extract makes of doc
+// with cfg, as the extraction writes it: ... for an object that allows other
+// properties, and close() for one that does not. Evaluating the result first
+// would drop both, and every object would close with the schema.
+func (ic *initCommand) extractTip(doc upcue.Value, cfg *jsonschema.Config) error {
+	f, err := jsonschema.Extract(doc, cfg)
 	if err != nil {
-		ic.err = err
-		return
+		return err
 	}
-
-	sch := ctx.BuildFile(f)
-	// Remove attributes field
+	// Remove the file's attributes, such as the @jsonschema(schema=...) the
+	// extraction writes for the document's $schema.
 	astutil.Apply(f, func(c astutil.Cursor) bool {
 		if _, ok := c.Node().(*ast.Attribute); ok {
 			astutil.CopyComments(c.Node(), c.Parent().Node())
@@ -273,8 +277,8 @@ func (ic *initCommand) runJSONSchema(cmd *cobra.Command, args []string) {
 		_, is := c.Node().(*ast.File)
 		return is
 	}, nil)
-
-	ic.newTip(sch.Eval())
+	ic.newTip(ctx.BuildFile(f))
+	return ic.err
 }
 
 // inputToFile parses input, the document processInput read from the file
@@ -399,7 +403,7 @@ func (ic *initCommand) openAPISchema(doc upcue.Value, version jsonschema.Version
 	if !at.Exists() {
 		return diag.New(diag.E0620).Headlinef("there is no value at --src-subpath %s in the OpenAPI document", ic.srcpath).Err()
 	}
-	f, err := jsonschema.Extract(doc, &jsonschema.Config{
+	return ic.extractTip(doc, &jsonschema.Config{
 		Root:           ic.srcpath,
 		SingleRoot:     true,
 		MapRef:         openAPIRef,
@@ -408,11 +412,6 @@ func (ic *initCommand) openAPISchema(doc upcue.Value, version jsonschema.Version
 		// does not know.
 		StrictKeywords: version == jsonschema.VersionOpenAPI,
 	})
-	if err != nil {
-		return err
-	}
-	ic.newTip(ctx.BuildFile(f))
-	return ic.err
 }
 
 // openAPIVersion returns the JSON Schema dialect of the schemas in the
