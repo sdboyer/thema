@@ -208,7 +208,7 @@ func TestComposedUnderDefinition(t *testing.T) {
 				t.Fatal(inst.Err)
 			}
 			ctx := cuecontext.New()
-			_, err = thema.BindLineage(ctx.BuildInstance(inst).LookupPath(cue.ParsePath("#Op.h")), thema.NewRuntime(ctx))
+			_, err = thema.BindLineage(ctx.BuildInstance(inst), cue.ParsePath("#Op.h"), thema.NewRuntime(ctx))
 			var got []diag.Code
 			for _, d := range diag.Diagnostics(err) {
 				got = append(got, d.Code)
