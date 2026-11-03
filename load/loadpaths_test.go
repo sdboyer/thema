@@ -66,6 +66,12 @@ import (
 // narrowing at the use in each way it can be applied, and they must agree
 // with one another (docs/invariants.md, References).
 //
+// An archive whose comment says #ids: refused holds a lineage that every
+// path refuses for what makes its IDs depend on how it was loaded, such as a
+// hidden field in a schema (E0151, #250). The refusal is what must agree; the
+// IDs, which a refused lineage never reports, are neither compared nor
+// recorded, and every path must refuse it.
+//
 // A path is added as one more row in loadPaths. Two are pending #212: the
 // normal form generated beside the authoring files (normalized.gen.cue) loaded
 // as a package of a collection by the collection loader, and a module read
@@ -75,12 +81,20 @@ func TestLoadPaths(t *testing.T) {
 	for _, a := range diagtest.Archives(t, "testdata/loadpaths") {
 		t.Run(a.Name(), func(t *testing.T) {
 			fx := readLPFixture(t, a)
+			dirs, _ := a.Directives()
+			unhashed := dirs["ids"] == "refused"
 			var first, firstText, compiled *lpResult
 			for _, p := range loadPaths {
 				if !p.loads(fx) {
 					continue
 				}
 				res := p.run(t, fx)
+				if unhashed {
+					if len(res.meaning.Diagnostics) == 0 {
+						t.Fatalf("%s binds a lineage marked #ids: refused", p.name)
+					}
+					res.meaning.IDs = nil
+				}
 				if first == nil {
 					first = res
 				} else if diff := cmp.Diff(first.meaning, res.meaning); diff != "" {
@@ -668,7 +682,9 @@ func (r *lpResult) verdict() string {
 	for _, d := range r.meaning.Diagnostics {
 		fmt.Fprintf(&b, "%s %s\n", d.Code, d.Headline)
 	}
-	b.WriteString("# ids\n")
+	if len(r.meaning.IDs) > 0 {
+		b.WriteString("# ids\n")
+	}
 	for _, id := range r.meaning.IDs {
 		b.WriteString(id + "\n")
 	}

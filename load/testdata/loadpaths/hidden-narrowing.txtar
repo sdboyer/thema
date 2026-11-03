@@ -1,0 +1,12 @@
+A joinSchema narrowed where package fleet uses it, by a struct declaring a
+hidden field of package fleet: the narrowed lineage is refused however the
+narrowing is applied (#250).
+#ids: refused
+-- normal.cue --
+name: "ship"
+schemas: "0": "0": schema: {name?: string}
+-- narrowing.cue --
+{joinSchema: {_h: string, ...}}
+-- out/verdict --
+# bind
+E0151 joinSchema declares _h, a hidden field

@@ -80,6 +80,22 @@ references are fine: `d: #T`, `b?: a`, `x: y.z`. Trees and JSON-like values
 over one would have to be recursive, a lacuna's path unbounded, and a lens
 compiled to a copy-only target impossible.
 
+**No hidden labels.** One more construct is refused, for a different reason. A
+schema, the `joinSchema` and a narrowing of it declare no hidden field (`_h`)
+and no hidden definition (`_#H`), at any depth, and neither do the instance a
+lens takes, the instance it returns, or its lacunas (`E0151`). A hidden name is
+scoped to the package that declares it, and CUE writes it with a suffix naming
+that package, so the canonical form a version's ID is computed from would
+depend on the package the lineage was loaded through: the same lineage loaded
+two ways would have two IDs
+([#250](https://github.com/sdboyer/thema/issues/250)). A helper in a schema is
+written as a definition or a `let` instead, and a data field whose name starts
+with `_` is quoted, `"_x": int`. A lens keeps its helpers beside the instance
+it returns, in its own body, where they are its scratch space, and an author
+keeps theirs beside the lineage; neither is refused. CUE cannot refuse a hidden
+label itself, since no pattern constraint applies to one, so thema walks the
+value and the lens's text when the lineage binds.
+
 ## References
 
 A schema declares what instances look like, and a lens declares how an
@@ -98,7 +114,7 @@ it, and what is left to admit later.
 ### Rules
 
 **A schema refers only to its own body and CUE's builtin packages.** Its body
-is everything declared inside it, at any depth: regular and hidden fields,
+is everything declared inside it, at any depth: regular fields,
 definitions, `let`s and aliases. The builtin packages (`strings`, `list`,
 `time`, ...) are part of the CUE version thema pins, not something an author
 edits. The `joinSchema` is a schema for this purpose: it refers only to its
@@ -109,8 +125,8 @@ every schema itself.
 packages.** The instance it takes is the field named after its from version,
 `v1_0` for a lens from 1.0, declared `_` (the Source rule under Lens totality
 says why), and its body is the instance it returns (`v0_0`), `lacunas` and
-anything else declared inside the lens, such as a hidden lookup table or a
-`let`. thema's own package is part of the substrate, so
+anything else declared inside the lens, such as a hidden lookup table beside
+the instance it returns, or a `let`. thema's own package is part of the substrate, so
 `thema.Lacuna` and `thema.LacunaTypes` are fine.
 
 Everything else is refused when the lineage binds, with the error positioned
@@ -243,7 +259,7 @@ changing or removing that default changes what the program receives, even
 though the instance is still accepted.
 
 Compatibility is judged on concrete data, as a consumer outside CUE sees it.
-Hidden fields, definitions and `let`s are not data, so changing them is
+Definitions and `let`s are not data, so changing them is
 compatible unless the change reaches data through a reference; a reference
 means the value it refers to. Both schemas are closed before comparison, so an
 undeclared field is rejected unless the author wrote `...`.
@@ -345,7 +361,7 @@ for example
 
 Compatible changes include adding an optional or defaulted field, making a
 required field optional or defaulted, making an optional field defaulted,
-widening a value, dropping a validator, and adding hidden fields, definitions or
+widening a value, dropping a validator, and adding definitions or
 `let`s. Removing an optional field from a struct whose `...` still accepts it
 is compatible too, whatever its value, a struct or list included: `...` accepts
 the label with any value. The converse, declaring a type narrower than `_` for
@@ -445,8 +461,10 @@ maps](#fields-no-lens-maps)). The result is closed against *T*,
 so a field *T* does not declare is an error. Both schemas are closed for the
 proof, keeping an author's `...`. Hidden fields, definitions and `let`s in a
 lens are not data. A result field that refers to one is judged by what it
-refers to. A hidden field in the result is evaluated all the same, so it must
-evaluate on every instance, though it need not be anything the target knows.
+refers to. The result declares no hidden field: bind refuses one before the
+proof ([Schema constructs](#schema-constructs), `E0151`). The checker still
+judges a hidden field in a result it is given, and the rules below say how,
+but no lens that binds has one.
 
 ### Rules for a lens
 

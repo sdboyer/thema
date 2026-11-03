@@ -10,15 +10,29 @@ How values from definitions are presented.
   other content: _#def: {_#def: int, ...}. Written by hand, {_#def, _#def: ...}
   is indistinguishable from the wrapper.
 - A recursive reference (n?: #A) stays a reference.
+- unwrapped drops the wrapper, keeping the lets beside it (withComprehension)
+  and the imports (closedImport), and embeds contents that are not a struct
+  literal (unified). What the contents close themselves stays: close() and a
+  definition they declare or embed (authorClosed). A value closed only where it
+  is held, as a schema of a lineage held in a definition is, loses that
+  closedness (held). One that declares _#def itself (authorDefLabel), or that
+  CUE writes with no wrapper because it embeds a definition (embedsOwn), is
+  as documented writes it.
 - written: Expr() splits a reference into two operands, a nil one and the
   reference itself (definition: <nil>, #A).
 -- in.cue --
+import "strings"
+
 input: _
 #A: {a: int, n?: #A}
 #B: {b: string, c: {d: int}}
 #R: {a: int, if input.x != _|_ {extra: 1}}
 #E: {_#def: int, a: int}
 _#H: {a: int}
+#I: {s: strings.MinRunes(1)}
+#K: {c: close({x: int}), n: {#D, #D: {y: int}}, d: #D2, #D2: {z: int}}
+#Holder: x?: {schema: _}
+holder: #Holder & {x: schema: {a: int, n: {b: int}}}
 
 cases: {
 	definition:   #A
@@ -30,6 +44,10 @@ cases: {
 	authorDefLabel:    #E
 	plainDefLabel:     {_#def: 1, a: 2}
 	hiddenDefinition:  _#H
+	closedImport:      #I
+	authorClosed:      #K
+	held:              holder.x.schema
+	embedsOwn: {#S, #S: {a: int}}
 }
 -- conjunct 0 --
 <nil>
@@ -147,6 +165,26 @@ plainDefLabel: {_#def: 1, a: 2}
 <nil>
 >> operand 1
 _#H
+## closedImport
+>> operand 0
+<nil>
+>> operand 1
+#I
+## authorClosed
+>> operand 0
+<nil>
+>> operand 1
+#K
+## held
+>> operand 0
+holder.x
+>> operand 1
+<nil>
+## embedsOwn
+>> operand 0
+#S
+>> operand 1
+<nil>
 -- out/evaluated --
 ## definition
 {
@@ -231,6 +269,37 @@ _#H
 	_#def
 	_#def: a: int
 }
+## closedImport
+import "strings"
+
+_#def
+_#def: s: strings.MinRunes(1)
+## authorClosed
+{
+	_#def
+	_#def: {
+		c: close({x: int})
+		n: {
+			#D
+			#D: y: int
+		}
+		d: #D2
+		#D2: z: int
+	}
+}
+## held
+{
+	_#def
+	_#def: {
+		a: int
+		n: b: int
+	}
+}
+## embedsOwn
+{
+	#S
+	#S: a: int
+}
 -- out/raw --
 ## definition
 #A
@@ -253,6 +322,17 @@ _#H
 }
 ## hiddenDefinition
 _#H
+## closedImport
+#I
+## authorClosed
+#K
+## held
+holder.x.schema
+## embedsOwn
+{
+	#S
+	#S: a: int
+}
 -- out/final --
 ## definition
 {a: int}
@@ -280,6 +360,23 @@ _#H
 {a: 2}
 ## hiddenDefinition
 {a: int}
+## closedImport
+import "strings"
+
+s: strings.MinRunes(1)
+## authorClosed
+{
+	c: x: int
+	n: y: int
+	d: z: int
+}
+## held
+{
+	a: int
+	n: b: int
+}
+## embedsOwn
+{a: int}
 -- out/data --
 ## definition
 error: cases.definition.a: incomplete value int
@@ -299,6 +396,14 @@ error: cases.authorDefLabel.a: incomplete value int
 {a: 2}
 ## hiddenDefinition
 error: cases.hiddenDefinition.a: incomplete value int
+## closedImport
+error: cases.closedImport.s: incomplete value strings.MinRunes(1)
+## authorClosed
+error: cases.authorClosed.c.x: incomplete value int (and 2 more errors)
+## held
+error: cases.held.a: incomplete value int (and 1 more errors)
+## embedsOwn
+error: cases.embedsOwn.a: incomplete value int
 -- out/documented --
 ## definition
 {
@@ -383,6 +488,37 @@ error: cases.hiddenDefinition.a: incomplete value int
 	_#def
 	_#def: a: int
 }
+## closedImport
+import "strings"
+
+_#def
+_#def: s: strings.MinRunes(1)
+## authorClosed
+{
+	_#def
+	_#def: {
+		c: close({x: int})
+		n: {
+			#D
+			#D: y: int
+		}
+		d: #D2
+		#D2: z: int
+	}
+}
+## held
+{
+	_#def
+	_#def: {
+		a: int
+		n: b: int
+	}
+}
+## embedsOwn
+{
+	#S
+	#S: a: int
+}
 -- out/selfcontained --
 ## definition
 {
@@ -466,4 +602,128 @@ error: cases.hiddenDefinition.a: incomplete value int
 {
 	_#def
 	_#def: a: int
+}
+## closedImport
+import "strings"
+
+_#def
+_#def: s: strings.MinRunes(1)
+## authorClosed
+{
+	_#def
+	_#def: {
+		c: close({x: int})
+		n: {
+			#D
+			#D: y: int
+		}
+		d: #D2
+		#D2: z: int
+	}
+}
+## held
+{
+	_#def
+	_#def: {
+		a: int
+		n: b: int
+	}
+}
+## embedsOwn
+{
+	#S
+	#S: a: int
+}
+-- out/unwrapped --
+## definition
+{
+	a:  int
+	n?: #A
+}
+## unified
+{
+	b: string
+	c: d: int
+} & {b: "s"}
+## nestedRef
+{
+	k: B.#x
+
+	//cue:path: #B
+	let B = {
+		#x: {
+			b: string
+			c: d: int
+		}
+	}
+}
+## embeddedRef
+{
+	k: R.#x
+
+	//cue:path: #R
+	let R = {
+		#x: {
+			a: int
+			if INPUT.x != _|_ // explicit error (_|_ literal) in source
+			{
+				extra: 1
+			}
+		}
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## selectedFrom
+{d: int}
+## withComprehension
+{
+	a: int
+	if INPUT.x != _|_ // explicit error (_|_ literal) in source
+	{
+		extra: 1
+	}
+
+	//cue:path: input
+	let INPUT = _
+}
+## authorDefLabel
+{
+	_#def
+	_#def: {
+		_#def: int
+		a:     int
+	}
+}
+## plainDefLabel
+{
+	_#def: 1
+	a:     2
+}
+## hiddenDefinition
+{a: int}
+## closedImport
+import "strings"
+
+s: strings.MinRunes(1)
+## authorClosed
+{
+	c: close({x: int})
+	n: {
+		#D
+		#D: y: int
+	}
+	d: #D2
+	#D2: z: int
+}
+## held
+{
+	a: int
+	n: b: int
+}
+## embedsOwn
+{
+	#S
+	#S: a: int
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/sdboyer/thema/internal/compat"
 	"github.com/sdboyer/thema/internal/cuetil"
 	"github.com/sdboyer/thema/internal/cueview"
+	"github.com/sdboyer/thema/internal/embedreg"
 	"github.com/sdboyer/thema/internal/lenscheck"
 	"github.com/sdboyer/thema/internal/lensir"
 	"github.com/sdboyer/thema/lacuna"
@@ -678,6 +679,9 @@ func (ml *maybeLineage) checkLensResults() error {
 	return diag.Join(errs...)
 }
 
+// pathLacunas is a lens's lacunas field.
+var pathLacunas = cue.MakePath(cue.Str("lacunas"))
+
 // checkLacunas checks the lacunas each CUE lens can emit: they must be listed
 // unconditionally (each lacuna's condition field decides whether it applies),
 // have a message and a type, and refer only to fields declared by the lens's
@@ -701,7 +705,7 @@ func (ml *maybeLineage) checkLacunas() error {
 
 		// A lens that declares no lacunas has thema's open default, [...Lacuna], which
 		// resolves to []. A list built conditionally has no concrete length at all.
-		raw := lens.LookupPath(cue.MakePath(cue.Str("lacunas")))
+		raw := lens.LookupPath(pathLacunas)
 		lacunas, _ := raw.Default()
 		syn, err := cuetil.ParseLens(lens, lensParam(from), lensParam(to))
 		if err != nil {
@@ -811,6 +815,332 @@ func (ml *maybeLineage) checkReferences() error {
 		check(refOwner{name: fmt.Sprintf("lens %s", cl.id), addr: lensAddr(cl.id.From, cl.id.To), v: ml.raw.LookupPath(rel), rel: rel, lens: true, takes: lensParam(cl.id.From)})
 	}
 	return diag.Join(errs...)
+}
+
+// checkHiddenLabels refuses a hidden field or hidden definition (_x, _#X)
+// declared in a schema or the joinSchema, or in a lens's input, result or
+// lacunas: everything a version's ID is computed over (internal/contenthash).
+// A hidden label belongs to the package it is declared in, and CUE's export
+// qualifies it by that package's import path wherever the value is exported
+// outside the package's instance, so the ID of a version holding one would
+// depend on how its lineage was loaded (#250). A hidden field beside a lens's
+// fields, in the lens's own body, is the lens's scratch space, and one beside
+// the lineage is the author's helper: neither is hashed, and both stay
+// allowed.
+//
+// CUE cannot say this: a pattern constraint never applies to a hidden label,
+// so no constraint in thema's CUE can refuse one. Labels are found in the
+// value (see hiddenWalker), and, for a lens, also in its syntax, where the
+// bodies of its comprehensions declare what no instance has made them yet
+// (see hiddenInSyntax).
+// It runs before the lens checks, which would otherwise report a hidden field
+// a schema declares as whatever a lens's use of it breaks.
+func (ml *maybeLineage) checkHiddenLabels() error {
+	var errs []error
+	// report reports each hidden label of hits, declared in v, which addr
+	// names. A label found only in syntax may have no position: the view
+	// does not keep every label's; it is reported at v.
+	report := func(addr diag.Address, where string, v cue.Value, hits []hiddenLabel) {
+		for _, h := range hits {
+			if embedreg.IsKernel(h.pos) {
+				// thema's own CUE, reached through a reference out of the
+				// schema or lens, which checkReferences refuses.
+				continue
+			}
+			kind := "a hidden field"
+			if strings.HasPrefix(h.name, "_#") {
+				kind = "a hidden definition"
+			}
+			b := ml.diag(diag.E0151)
+			if h.pos.IsValid() {
+				b.At(h.pos)
+			} else {
+				b.AtValue(v)
+			}
+			b.Addr(addr).
+				Headlinef("%s declares %s, %s%s", ml.term(addr), h.name, kind, where).
+				Note(token.NoPos, "a version's ID must not depend on how its lineage is loaded, and how CUE writes a hidden name depends on the package the lineage was loaded through (#250)")
+			if addr.Kind == diag.AddrSchema || addr.Kind == diag.AddrJoinSchema {
+				b.Helpf("write a helper as a definition or a let instead; to declare a data field whose name starts with _, quote it: %q", h.name)
+			} else {
+				b.Help("declare a helper beside the lens's fields, in the lens's own body, where it is the lens's scratch space")
+			}
+			errs = append(errs, b.Err())
+		}
+	}
+
+	if join := ml.uni.LookupPath(cue.MakePath(cue.Str("joinSchema"))); join.IncompleteKind() != cue.TopKind {
+		report(diag.Address{Kind: diag.AddrJoinSchema}, "", join, hiddenLabels(join, join.Path()))
+	}
+	for _, sch := range ml.schlist {
+		v := sch.ref.LookupPath(pathSch)
+		report(schemaAddr(sch.v), "", v, hiddenLabels(v, v.Path()))
+	}
+	if len(errs) > 0 {
+		return diag.Join(errs...)
+	}
+
+	for _, cl := range ml.cueLenses() {
+		from, to := cl.id.From, cl.id.To
+		syn, err := cuetil.ParseLens(cl.v, lensParam(from), lensParam(to))
+		if err != nil {
+			return diag.InternalErr(err)
+		}
+		lensA := lensAddr(from, to)
+		inputA, resultA := lensA, lensA
+		inputA.Kind, resultA.Kind = diag.AddrLensInput, diag.AddrLensResult
+		reported := make(map[string]bool)
+		var inputExprs, resultExprs, lacunaExprs []ast.Expr
+		for _, f := range syn.InputFields() {
+			inputExprs = append(inputExprs, f.Value)
+		}
+		for _, c := range syn.ResultConjuncts() {
+			resultExprs = append(resultExprs, c.Expr)
+		}
+		for _, c := range syn.LacunaConjuncts() {
+			lacunaExprs = append(lacunaExprs, c.Expr)
+		}
+		for _, f := range []struct {
+			addr  diag.Address
+			where string
+			path  cue.Path
+			exprs []ast.Expr
+		}{
+			{inputA, "", cue.MakePath(cue.Str(lensParam(from))), inputExprs},
+			{resultA, "", cue.MakePath(cue.Str(lensParam(to))), resultExprs},
+			{lensA, " in its lacunas", pathLacunas, lacunaExprs},
+		} {
+			// The scope is the whole lens: a result may refer to the lens's
+			// helpers beside it, and its digest covers what they hold.
+			fv := cl.v.LookupPath(f.path)
+			hits := hiddenLabels(fv, cl.v.Path())
+			for _, h := range hiddenInSyntax(syn.Tree(), f.exprs) {
+				if !h.pos.IsValid() {
+					h.pos = writtenLabelPos(fv, h.name)
+				}
+				if !h.pos.IsValid() && slices.ContainsFunc(hits, func(o hiddenLabel) bool { return o.name == h.name }) {
+					continue
+				}
+				hits = appendHiddenLabels(hits, []hiddenLabel{h})
+			}
+			// A label one field reaches through another (a lacuna's value
+			// referring to the result) is reported once, for the first.
+			var own []hiddenLabel
+			for _, h := range hits {
+				if k := h.name + "@" + h.pos.String(); !reported[k] {
+					reported[k] = true
+					own = append(own, h)
+				}
+			}
+			report(f.addr, f.where, fv, own)
+		}
+	}
+	return diag.Join(errs...)
+}
+
+// A hiddenLabel is a hidden field or definition an author declared, and where.
+type hiddenLabel struct {
+	name string
+	pos  token.Pos
+}
+
+// maxHiddenDepth bounds how deep hiddenLabels follows a value's fields,
+// operands and references. A schema's references are free of cycles by now
+// (E0133), and a value this deep is not one an author wrote.
+const maxHiddenDepth = 128
+
+// hiddenLabels returns the hidden labels declared within v, a value at or
+// beneath the path scope: as one of its fields at any depth (regular,
+// optional, required, definition or pattern constraint), in any operand of its
+// expressions (each arm of a disjunction, each conjunct), and in what its
+// references within scope denote, such as the body of a let or a lens's
+// helper beside its result. A reference out of scope is not followed: it is
+// checkReferences' to refuse, and what it reaches is not the schema's or the
+// lens's own. A label reached along several paths, as a definition's fields
+// are, is returned once.
+func hiddenLabels(v cue.Value, scope cue.Path) []hiddenLabel {
+	w := hiddenWalker{scope: scope, seen: make(map[string]bool), visited: make(map[string]bool)}
+	w.walk(v, true, 0)
+	return w.hits
+}
+
+// hiddenWalker walks a value for hiddenLabels.
+type hiddenWalker struct {
+	scope cue.Path
+	hits  []hiddenLabel
+	// seen holds the labels found, by name and position; visited the values
+	// walked, by path, position and expression, so that each is walked once.
+	seen, visited map[string]bool
+}
+
+// outOfScope reports whether p, a path a reference resolves to, lies outside
+// the walk's scope. A let's value has no path (Path() is in error), and lies
+// wherever the let is declared, which is within the value that refers to it.
+func (w *hiddenWalker) outOfScope(p cue.Path) bool {
+	return p.Err() == nil && !cuetil.PathHasPrefix(p, w.scope)
+}
+
+func (w *hiddenWalker) walk(v cue.Value, deref bool, depth int) {
+	if !v.Exists() || depth > maxHiddenDepth {
+		return
+	}
+	if _, p := v.ReferencePath(); len(p.Selectors()) > 0 && w.outOfScope(p) {
+		return
+	}
+	// An operand of Expr shares its value's path and often its position;
+	// its operator and arity tell them apart.
+	op, args := v.Expr()
+	key := fmt.Sprintf("%s@%s@%s/%d/%t", v.Path(), v.Pos(), op, len(args), deref)
+	if w.visited[key] {
+		return
+	}
+	w.visited[key] = true
+
+	if op != cue.NoOp {
+		for _, a := range args {
+			w.walk(a, false, depth+1)
+		}
+	}
+	if deref {
+		// A field that is a let (x: L) evaluates to the let's value without
+		// a reference path; Dereference reaches the let's own expression, such
+		// as each arm of a disjunction. An operand of Expr is not a field,
+		// and the evaluator may not have finished one: it is not
+		// dereferenced.
+		if d := cue.Dereference(v); !w.outOfScope(d.Path()) {
+			w.walk(d, true, depth+1)
+		}
+	}
+
+	switch v.IncompleteKind() {
+	case cue.StructKind:
+		iter, err := v.Fields(cue.Optional(true), cue.Hidden(true), cue.Definitions(true), cue.Patterns(true))
+		if err != nil {
+			return
+		}
+		for iter.Next() {
+			if sel := iter.Selector(); sel.LabelType().IsHidden() {
+				w.add(hiddenLabel{name: strings.TrimRight(sel.String(), "?!"), pos: iter.Value().Pos()})
+			}
+			w.walk(iter.Value(), true, depth+1)
+		}
+	case cue.ListKind:
+		if iter, err := v.List(); err == nil {
+			for iter.Next() {
+				w.walk(iter.Value(), true, depth+1)
+			}
+		}
+		w.walk(v.LookupPath(cue.MakePath(cue.AnyIndex)), true, depth+1)
+	}
+}
+
+func (w *hiddenWalker) add(h hiddenLabel) {
+	if k := h.name + "@" + h.pos.String(); !w.seen[k] {
+		w.seen[k] = true
+		w.hits = append(w.hits, h)
+	}
+}
+
+// hiddenInSyntax returns the hidden labels declared in exprs, syntax from t,
+// following each reference within the tree to what it denotes. It finds what
+// the value cannot show: the body of a comprehension that has not fired,
+// which declares nothing in the value but is part of the lens's syntax, the
+// form a lens's digest is computed over, and the fields of a struct whose
+// pending comprehension keeps the value from listing any. A let CUE generated
+// for a reference out of the lens is not followed: it is checkReferences' to
+// refuse. Nor is the field of CUE's wrapper for a closed value,
+// {_#def, _#def: ...}, which is how the view writes closedness, not a field
+// the author declared; one the author did declare is in the value.
+func hiddenInSyntax(t *cueview.Tree, exprs []ast.Expr) []hiddenLabel {
+	var hits []hiddenLabel
+	seen := make(map[ast.Node]bool)
+	var walk func(x ast.Expr)
+	walk = func(x ast.Expr) {
+		if x == nil || seen[x] {
+			return
+		}
+		seen[x] = true
+		ast.Walk(x, func(n ast.Node) bool {
+			switch n := n.(type) {
+			case *ast.StructLit:
+				wrapped := false
+				for _, d := range n.Elts {
+					if e, ok := d.(*ast.EmbedDecl); ok {
+						if id, ok := e.Expr.(*ast.Ident); ok && id.Name == "_#def" {
+							wrapped = true
+						}
+					}
+				}
+				for _, d := range n.Elts {
+					f, ok := d.(*ast.Field)
+					if !ok {
+						continue
+					}
+					if id, ok := f.Label.(*ast.Ident); ok && strings.HasPrefix(id.Name, "_") && (!wrapped || id.Name != "_#def") {
+						hits = append(hits, hiddenLabel{name: id.Name, pos: id.Pos()})
+					}
+				}
+			case *ast.Ident:
+				if l, ok := n.Node.(*ast.LetClause); ok && generatedLet(l) {
+					return true
+				}
+				if n.Node != nil {
+					for _, c := range t.Conjuncts(n) {
+						walk(c.Expr)
+					}
+				}
+			}
+			return true
+		}, nil)
+	}
+	for _, x := range exprs {
+		walk(x)
+	}
+	return hits
+}
+
+// writtenLabelPos returns the position of the field labeled name in the text
+// the author wrote for v (cueview.Written), or no position if v's own text
+// declares none, as where v embeds a helper that does. It only positions a
+// label found otherwise.
+func writtenLabelPos(v cue.Value, name string) token.Pos {
+	var pos token.Pos
+	for _, n := range cueview.Written(v) {
+		if n == nil || pos.IsValid() {
+			continue
+		}
+		ast.Walk(n, func(n ast.Node) bool {
+			if f, ok := n.(*ast.Field); ok && !pos.IsValid() {
+				if id, ok := f.Label.(*ast.Ident); ok && id.Name == name {
+					pos = id.Pos()
+				}
+			}
+			return !pos.IsValid()
+		}, nil)
+	}
+	return pos
+}
+
+// generatedLet reports whether l is a let CUE's export generated for a
+// reference out of the exported value, marked by its doc comment
+// //cue:path: <path> (see cueview.Evaluated).
+func generatedLet(l *ast.LetClause) bool {
+	for _, cg := range ast.Comments(l) {
+		if strings.HasPrefix(strings.TrimSpace(cg.Text()), "cue:path:") {
+			return true
+		}
+	}
+	return false
+}
+
+// appendHiddenLabels appends to hits those of more not already in it.
+func appendHiddenLabels(hits, more []hiddenLabel) []hiddenLabel {
+	for _, h := range more {
+		if !slices.ContainsFunc(hits, func(o hiddenLabel) bool { return o.name == h.name && o.pos == h.pos }) {
+			hits = append(hits, h)
+		}
+	}
+	return hits
 }
 
 // checkLensTotality proves each CUE lens total: for every instance of its source

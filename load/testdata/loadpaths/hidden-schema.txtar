@@ -1,0 +1,15 @@
+A schema that declares a hidden field and a hidden definition. Either would
+make the version's ID depend on how the lineage is loaded (#250), so every
+path refuses both, with the same diagnostics.
+#ids: refused
+-- ship/history/0.0.thema --
+Schema: {
+	_limit: 10
+	count:  int & <=_limit
+	_#Name: string
+	name:   _#Name
+}
+-- out/verdict --
+# bind
+E0151 the schema in history/0.0.thema declares _limit, a hidden field
+E0151 the schema in history/0.0.thema declares _#Name, a hidden definition

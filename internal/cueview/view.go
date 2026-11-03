@@ -154,6 +154,106 @@ func Documented(v cue.Value) (ast.Node, error) {
 	return checked(v.Syntax(cue.Docs(true)))
 }
 
+// Unwrapped is Documented without the wrapper CUE writes for the recursive
+// closedness of v as a whole. Documented writes a recursively closed v (a
+// definition, or a value reached through one) as {_#def, _#def: X}, where X
+// is v's contents; Unwrapped writes X, with the lets and imports the wrapper
+// held beside it. What v's contents close themselves is in X and stays:
+// close({...}), a definition X declares (d: #D), and one X embeds
+// ({#D, #D: ...}, which CUE writes with no wrapper at all).
+//
+// None of the other views will do: each writes v's closedness as a whole,
+// which a struct literal cannot carry, as the wrapper, and the wrapper,
+// written into text an author keeps, is a hidden definition of the author's.
+//
+// Use it only where v's closedness as a whole is not part of what v is
+// because it comes from where v is held, such as a schema of a lineage held
+// in a definition (#256). Deciding that is the caller's: Unwrapped drops the
+// closedness whatever its origin. Its quirks, besides Documented's:
+//
+//   - A v that declares a field _#def of its own is written as Documented
+//     writes it: its own {_#def, _#def: ...} cannot be told from the wrapper.
+//   - A v that is not recursively closed, or that CUE writes with no wrapper,
+//     is written as Documented writes it.
+func Unwrapped(v cue.Value) (ast.Node, error) {
+	n, err := Documented(v)
+	if err != nil || !v.IsClosedRecursively() || declaresDefWrapper(v) {
+		return n, err
+	}
+	var decls []ast.Decl
+	switch x := n.(type) {
+	case *ast.StructLit:
+		decls = x.Elts
+	case *ast.File:
+		decls = x.Decls
+	default:
+		return n, nil
+	}
+	embed, field := -1, -1
+	for i, d := range decls {
+		switch d := d.(type) {
+		case *ast.EmbedDecl:
+			if id, ok := d.Expr.(*ast.Ident); ok && id.Name == defWrapper {
+				embed = i
+			}
+		case *ast.Field:
+			if id, ok := d.Label.(*ast.Ident); ok && id.Name == defWrapper {
+				field = i
+			}
+		}
+	}
+	if embed < 0 || field < 0 {
+		return n, nil
+	}
+	contents := decls[field].(*ast.Field).Value
+	var out []ast.Decl
+	for i, d := range decls {
+		switch i {
+		case embed:
+		case field:
+			if s, ok := contents.(*ast.StructLit); ok {
+				out = append(out, s.Elts...)
+			} else {
+				out = append(out, &ast.EmbedDecl{Expr: contents})
+			}
+		default:
+			out = append(out, d)
+		}
+	}
+	if f, ok := n.(*ast.File); ok {
+		file := &ast.File{Filename: f.Filename, Decls: out}
+		ast.SetComments(file, ast.Comments(f))
+		return file, nil
+	}
+	if len(out) == 1 {
+		if e, ok := out[0].(*ast.EmbedDecl); ok {
+			ast.SetComments(e.Expr, append(ast.Comments(n), ast.Comments(e.Expr)...))
+			return e.Expr, nil
+		}
+	}
+	s := &ast.StructLit{Elts: out}
+	ast.SetComments(s, append(ast.Comments(n), ast.Comments(contents)...))
+	return s, nil
+}
+
+// defWrapper is the name CUE's export gives the hidden definition it wraps a
+// recursively closed value in.
+const defWrapper = "_#def"
+
+// declaresDefWrapper reports whether v declares a field named _#def itself.
+func declaresDefWrapper(v cue.Value) bool {
+	iter, err := v.Fields(cue.Hidden(true), cue.Definitions(true), cue.Optional(true))
+	if err != nil {
+		return false
+	}
+	for iter.Next() {
+		if iter.Selector().String() == defWrapper {
+			return true
+		}
+	}
+	return false
+}
+
 // Text formats n as CUE source.
 func Text(n ast.Node) (string, error) {
 	b, err := format.Node(n)

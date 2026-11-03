@@ -1,4 +1,6 @@
-# major bump that only adds a hidden field is accepted as breaking
+# a major bump that only adds a definition, invisible to data, is not breaking,
+# so it is not a major version. #18 found this for a hidden field, which a
+# schema may no longer declare (#250).
 #issue: 18
 -- in.cue --
 import (
@@ -6,13 +8,13 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "majorHiddenOnly"
+	name: "majorDefinitionOnly"
 	schemas: {
 		"0": "0": {
 			schema: {a: int}
 		}
 		"1": "0": {
-			schema: {a: int, _h: int}
+			schema: {a: int, #H: int}
 		}
 	}
 	lenses: {
@@ -27,4 +29,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail
+bind fail E0208
