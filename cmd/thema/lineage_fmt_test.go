@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/sdboyer/thema/authoring"
 )
+
+var setupLineageOnce sync.Once
 
 // writeAuthoringDir writes a two-version lineage in the authoring form to a
 // temporary directory, with history/1.0.thema out of layout and a clean tip,

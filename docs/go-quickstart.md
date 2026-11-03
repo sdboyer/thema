@@ -6,11 +6,10 @@ The tutorial demonstrates how a user can create a lineage using the thema CLI, d
 The most fundamental task in thema is writing a lineage. A lineage in the [authoring form](authoring-form.md) is a directory, whose base name is the lineage's name. We can use the Thema CLI to start one with an empty schema:
 
 ```
-mkdir ship
-thema lineage init empty > ship/tip.thema
+thema lineage init empty -l ship
 ```
 
-This writes the new lineage's tip, `ship/tip.thema`, the version being worked on. The lineage has no history yet, so the tip will be cut as version 0.0. The generated tip looks like below
+This creates the directory `ship` and writes the new lineage's tip, `ship/tip.thema`, the version being worked on. The lineage has no history yet, so the tip will be cut as version 0.0. The generated tip looks like below
 
 ```cue
 Schema: {}
