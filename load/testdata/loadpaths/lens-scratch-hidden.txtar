@@ -1,7 +1,8 @@
 A lens keeping its scratch in hidden fields beside its result: a table it
 looks a value up in, a helper the result refers to, and one built inside a
-comprehension. None is in what the lens's digest covers, so the lineage binds
-with the same IDs and programs along every path (#250).
+comprehension. The lens's digest covers the values its result reads from them,
+bound by value, but not their names, so the lineage binds with the same IDs and
+programs along every path (#250).
 -- normal.cue --
 name: "ship"
 schemas: {
