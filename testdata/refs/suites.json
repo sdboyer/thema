@@ -2,31 +2,32 @@
   "suites": [
     {
       "name": "together",
-      "description": "text.cue is written into package m at #at, as a file of its own beside in.cue, and the package is loaded and looked up at #at. This is a lineage declared in a field of a loaded package, as cmd/thema -p, exemplars and testdata/cases bind it (ground truth: field-in-loaded-package, split-declaration-reunified, definition-holder-literal). Every other suite should agree with it."
+      "description": "text.cue is written into package m at #at, as a file of its own beside in.cue, and the package is loaded and looked up at #at. This is a lineage declared in a field of a loaded package, as cmd/thema -p, exemplars and testdata/cases bind it.",
+      "everyCase": true
     },
     {
       "name": "fill-text",
-      "description": "package m is loaded without the text, the text is compiled on its own with ctx.CompileString and no file name, and it is filled into the use: use.FillPath(at, text).LookupPath(at). This is how a tool composes separately compiled lineages into one value (#260, authoring.At) (ground truth: fill-text-into-use-field, fill-text-into-definition-use)."
+      "description": "package m is loaded without the text, the text is compiled on its own with ctx.CompileString and no file name, and it is filled into the use: use.FillPath(at, text).LookupPath(at). This is how a tool composes separately compiled lineages into one value (#260, authoring.At)."
     },
     {
       "name": "fill-text-named",
-      "description": "As fill-text, but the text is compiled with cue.Filename(\"text.cue\"), as a tool that compiles a lineage from its own file does (ground truth: fill-text-into-use-field and fill-text-into-definition-use with the text's file name, which the ground truth found never changes a verdict)."
+      "description": "As fill-text, but the text is compiled with cue.Filename(\"text.cue\"), as a tool that compiles a lineage from its own file does. #269 found that the file name changes the positions bind reports, never its verdict."
     },
     {
       "name": "fill-use",
-      "description": "The text is compiled on its own and the use's value at #at is filled into the text's root: text.FillPath(cue.Path{}, use.LookupPath(at)). No caller in the tree does this; #264 records it (ground truth: go-root-receiver, its fillpath-root variant)."
+      "description": "The text is compiled on its own and the use's value at #at is filled into the text's root: text.FillPath(cue.Path{}, use.LookupPath(at)). No caller in the tree does this; #264 records it."
     },
     {
       "name": "unify-use-text",
-      "description": "The use's value at #at is unified in Go with the text compiled on its own: use.LookupPath(at).Unify(text). No caller in the tree does this; #263's test matrix did (ground truth: go-unify-field-receiver)."
+      "description": "The use's value at #at is unified in Go with the text compiled on its own: use.LookupPath(at).Unify(text). No caller in the tree does this; #263's test matrix did."
     },
     {
       "name": "unify-text-use",
-      "description": "The text compiled on its own is unified in Go with the use's value at #at: text.Unify(use.LookupPath(at)). No caller in the tree does this; #264 records it (ground truth: go-root-receiver)."
+      "description": "The text compiled on its own is unified in Go with the use's value at #at: text.Unify(use.LookupPath(at)). No caller in the tree does this; #264 records it."
     },
     {
       "name": "third-root",
-      "description": "The text and the use's value at #at are both filled into field x of a third root: ctx.CompileString(\"x: _\").FillPath(x, text).FillPath(x, use.LookupPath(at)).LookupPath(x). No caller in the tree does this; #264 records it (ground truth: third-root-both-filled)."
+      "description": "The text and the use's value at #at are both filled into field x of a third root: ctx.CompileString(\"x: _\").FillPath(x, text).FillPath(x, use.LookupPath(at)).LookupPath(x). No caller in the tree does this; #264 records it."
     }
   ]
 }

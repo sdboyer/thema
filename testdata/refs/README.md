@@ -4,11 +4,16 @@ Each case here is one lineage, used in one way. Each suite builds the value
 passed to `BindLineage` from the case's files in its own way, so one case is
 bound several times. The spec, `docs/invariants.md` (References), gives one
 verdict for the lineage, and every suite must give it. A suite that gives
-another verdict is either a bug an issue tracks (a `#known` tag) or a
-regression.
+another verdict is a bug: either an issue tracks it (a `#known` tag), or
+nothing does yet (a regression, or a new case that still needs its tag).
 
 `TestRefs` in `internal/corpus/refs_test.go` runs the corpus. The framework is
 `internal/corpus`; its package documentation describes the format.
+
+Every case writes the lineage into package `m`, so the corpus can't express a
+lineage declared in another package and imported or re-exported. A change to
+`placement.go` must also pass `TestCases` (`go test .`) and `TestLoadPaths`
+(`go test ./load`).
 
 ## A case
 
@@ -37,9 +42,14 @@ E0141 n in schema 0.0 refers to name, which is declared in the lineage outside t
   `thema.Lineage` at the field where the lineage goes, and may narrow the
   lineage's joinSchema there.
 - **`#at`** is the path in package `m` where the lineage goes, such as `lin.h`.
+  `in.cue` must declare it: the suites that fill the text into the use fill it
+  there.
 - **`#known/<suite>: #<issue> <reason>`**, one per suite that disagrees with
   `#expect` today: the issue that tracks it, and one sentence naming the
-  mechanism.
+  mechanism. Reasons use two terms from CUE's evaluator: a *root* is the
+  value one loaded package or one compiled text evaluates to, and a value's
+  *first conjunct* is the first of the values unified to make it.
+- Each directive is given once.
 - **Other `.cue` files** are other packages of the module: `common/common.cue`
   is package `example.com/m/common`.
 - **`out/<suite>/bind`** is what that suite's bind reported: the verdict line,
@@ -64,48 +74,76 @@ The suites, and how each builds the value, are in `suites.json`.
    gives the verdict. `ok` if the lineage binds; otherwise the code of each
    rule that refuses something (the rule tables name the rules;
    `diag/codes.go` maps each rule to its code). Cite the lines that decide it
-   in `#spec`. If the spec does not decide the case, don't add it; raise it
-   instead.
+   in `#spec`; the test checks that each cited line exists. If the spec does
+   not decide the case, don't add it; raise it instead.
 4. Run `THEMA_UPDATE_GOLDEN=1 go test ./internal/corpus -run TestRefs/<name>`
    to write the `out/` sections, then run it again without the variable.
-5. For each suite that fails as a regression, the code disagrees with the
-   spec. Find the issue that covers the mechanism and add
-   `#known/<suite>: #<issue> <one sentence naming the mechanism>`. If no issue
-   covers it, don't make one up; ask for one.
+5. For each suite that fails with "This suite disagrees with #expect", the
+   code disagrees with the spec. Find the issue that covers the mechanism and
+   add `#known/<suite>: #<issue> <one sentence naming the mechanism>`. If no
+   issue covers it, don't make one up; open one that cites the `#spec` lines.
 6. Read every `out/` section before committing it.
 
 ## What a failure means
 
 Every failing cell prints the case, the suite, `#expect` and its citation,
-what bind reported, any `#known` tag, and one of these.
+what bind reported, any `#known` tag, and one of these. A case or suite is
+described in full only in the first failure that names it.
 
-- **"This is a regression"**: the suite gave a verdict other than `#expect`,
-  and no `#known` tag says it does. Your change broke a case that was right,
-  or the case is new and the suite is wrong. Don't update goldens or add a tag
-  to make it pass. Updating goldens doesn't change the status, which compares
-  against `#expect`. If you believe `#expect` is wrong, it comes from the spec
-  cited, so raise it with the owner. Changing `#expect` is a change to the
-  spec.
+- **"This is a regression"**: the golden section records the suite giving
+  `#expect`, and it no longer does. Your change broke a case that was right.
+  Don't add a tag to make it pass; `THEMA_UPDATE_GOLDEN=1` keeps the section
+  until the suite agrees again. If you believe `#expect` is wrong, it comes
+  from the spec cited, so open an issue citing those lines. Changing
+  `#expect` is a change to the spec.
+- **"This suite disagrees with #expect"**: no golden section records the
+  suite agreeing, and no tag tracks the disagreement. For a new case, this is
+  step 5 above. If git shows the section agreeing before your change, it is a
+  regression whose section was rewritten: fix the code.
 - **"This suite now gives the verdict the spec expects"** (an xpass): a cell
   tagged `#known` now agrees with `#expect`. Your change fixed it. Remove the
-  tag, mention the issue in your commit, and check the issue's other cells.
-- **"The verdict is unchanged, but what bind reports changed"**: the verdict is
-  the same, but a code, headline or position moved. Review the diff. If the
-  change is intended, run with `THEMA_UPDATE_GOLDEN=1` and commit the new
+  tag, rewrite the section with `THEMA_UPDATE_GOLDEN=1`, and mention the issue
+  in your commit. The failure lists the other cells that carry the same issue,
+  so you know whether it can be closed.
+- **"This suite's verdict changed"**: a cell tagged `#known` still disagrees
+  with `#expect`, but with another verdict than its golden section records.
+  The tag may now name the wrong mechanism. Check it against the new verdict,
+  or whether this is a different bug, before rewriting the section. A golden
+  update rewrites the section but fails this once more, since the tag isn't
+  rewritten.
+- **"This suite now gives #expect"**: an untagged cell agrees, but its golden
+  section records another verdict, usually because you just removed its tag.
+  Rewrite the section with `THEMA_UPDATE_GOLDEN=1`.
+- **"The verdict is unchanged, but what bind reports changed"**: the verdict
+  is the same, but a code, headline or position moved. Review the diff. If
+  the change is intended, run with `THEMA_UPDATE_GOLDEN=1` and commit the new
   sections.
-- **A directive is missing, or a tag or section is stale**: the case itself is
-  malformed. A `#known` tag must start with `#<issue>`, name a registered
-  suite, and name one that applies to the case. An `out/` section whose suite
-  is gone or no longer applies is removed by `THEMA_UPDATE_GOLDEN=1`.
+- **"There is no golden section"**: the suite runs the case, but the case has
+  no section for it. Run with `THEMA_UPDATE_GOLDEN=1` to write it.
 
-A cell tagged `#known` that still disagrees doesn't fail. It logs its issue.
+Other failures are about the case's text, not a cell's verdict:
+
+- **A directive is missing, repeated or malformed**, a `#spec` line doesn't
+  exist, or the file name isn't kebab-case. A `#known` tag must start with
+  `#<issue>`, name a registered suite, and name one that applies to the case.
+- **"no longer applies"**: a suite that has a section for the case no longer
+  applies to it. `THEMA_UPDATE_GOLDEN=1` keeps the section. Fix the suite, or,
+  if it should not run the case, delete the section (and its tag) by hand.
+- **"applies to no case"**: a registered suite runs nothing, so it checks
+  nothing.
+- An `out/` section whose suite is no longer registered, or that is repeated,
+  is removed by `THEMA_UPDATE_GOLDEN=1`.
+
+A cell tagged `#known` that still disagrees, with the verdict its section
+records, doesn't fail. It logs its issue.
 
 ## Limits
 
 - `#expect` is the set of codes, so it can't tell one finding from two with
   the same code. A suite that adds a false finding with a code the case
-  already expects passes. Its `out/` section shows the extra finding
-  (`text-ref-name-narrowed` is one).
+  already expects passes, though its `out/` section shows the extra finding.
+  Write a case so that each finding a suite could add falsely has a code the
+  case doesn't expect.
 - Positions differ between suites, because each compiles the text under a
   different file name: `/m/text.cue` for `together`, one line below the
   line in `text.cue`; `text.cue` for `fill-text-named`; no name for the rest.

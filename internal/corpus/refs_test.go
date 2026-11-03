@@ -21,18 +21,27 @@ import (
 // the verdict docs/invariants.md gives, which the case records as #expect.
 // testdata/refs/README.md says how to add a case and how to read a failure.
 func TestRefs(t *testing.T) {
-	Corpus{Dir: "../../testdata/refs", Suites: refSuites, Require: []string{"at"}}.Run(t)
+	Corpus{Dir: "../../testdata/refs", Root: "../..", Suites: refSuites, Require: []string{"at"}, Check: checkAt}.Run(t)
 }
 
-// The suites of the refs corpus, in registry order. Each Description names
-// the assemblies of the reference-placement ground truth (#269) the suite
-// stands for, by their ids there.
+// checkAt fails a case whose #at is not a field of package m without the
+// text. Every suite but together fills the text into the use's value at #at,
+// so such a case would bind the text alone, and test nothing about the use.
+func checkAt(t testing.TB, c *Case) {
+	t.Helper()
+	if !loadUse(t, cuecontext.New(), c, "").LookupPath(at(c)).Exists() {
+		t.Fatalf("case %s: #at: in.cue has no field %s, so the suites that fill the text into the use would fill an empty field; "+
+			"declare the field in in.cue, or correct #at", c.Name, c.Directive("at"))
+	}
+}
+
+// The suites of the refs corpus, in registry order. They are the ways a
+// lineage reaches BindLineage that #269 found give different verdicts today.
 var refSuites = []Suite{
 	{
 		Name: "together",
 		Description: "text.cue is written into package m at #at, as a file of its own beside in.cue, and the package is loaded and looked up at #at. " +
-			"This is a lineage declared in a field of a loaded package, as cmd/thema -p, exemplars and testdata/cases bind it " +
-			"(ground truth: field-in-loaded-package, split-declaration-reunified, definition-holder-literal). Every other suite should agree with it.",
+			"This is a lineage declared in a field of a loaded package, as cmd/thema -p, exemplars and testdata/cases bind it.",
 		Bind: func(t testing.TB, c *Case) error {
 			ctx := cuecontext.New()
 			v := loadUse(t, ctx, c, textAt(t, c)).LookupPath(at(c))
@@ -42,8 +51,7 @@ var refSuites = []Suite{
 	{
 		Name: "fill-text",
 		Description: "package m is loaded without the text, the text is compiled on its own with ctx.CompileString and no file name, " +
-			"and it is filled into the use: use.FillPath(at, text).LookupPath(at). This is how a tool composes separately compiled lineages into one value (#260, authoring.At) " +
-			"(ground truth: fill-text-into-use-field, fill-text-into-definition-use).",
+			"and it is filled into the use: use.FillPath(at, text).LookupPath(at). This is how a tool composes separately compiled lineages into one value (#260, authoring.At).",
 		Applies: textCompilesAlone,
 		Bind: func(t testing.TB, c *Case) error {
 			ctx := cuecontext.New()
@@ -53,8 +61,8 @@ var refSuites = []Suite{
 	},
 	{
 		Name: "fill-text-named",
-		Description: "As fill-text, but the text is compiled with cue.Filename(\"text.cue\"), as a tool that compiles a lineage from its own file does " +
-			"(ground truth: fill-text-into-use-field and fill-text-into-definition-use with the text's file name, which the ground truth found never changes a verdict).",
+		Description: "As fill-text, but the text is compiled with cue.Filename(\"text.cue\"), as a tool that compiles a lineage from its own file does. " +
+			"#269 found that the file name changes the positions bind reports, never its verdict.",
 		Applies: textCompilesAlone,
 		Bind: func(t testing.TB, c *Case) error {
 			ctx := cuecontext.New()
@@ -65,7 +73,7 @@ var refSuites = []Suite{
 	{
 		Name: "fill-use",
 		Description: "The text is compiled on its own and the use's value at #at is filled into the text's root: text.FillPath(cue.Path{}, use.LookupPath(at)). " +
-			"No caller in the tree does this; #264 records it (ground truth: go-root-receiver, its fillpath-root variant).",
+			"No caller in the tree does this; #264 records it.",
 		Applies: textCompilesAlone,
 		Bind: func(t testing.TB, c *Case) error {
 			ctx := cuecontext.New()
@@ -76,7 +84,7 @@ var refSuites = []Suite{
 	{
 		Name: "unify-use-text",
 		Description: "The use's value at #at is unified in Go with the text compiled on its own: use.LookupPath(at).Unify(text). " +
-			"No caller in the tree does this; #263's test matrix did (ground truth: go-unify-field-receiver).",
+			"No caller in the tree does this; #263's test matrix did.",
 		Applies: textCompilesAlone,
 		Bind: func(t testing.TB, c *Case) error {
 			ctx := cuecontext.New()
@@ -87,7 +95,7 @@ var refSuites = []Suite{
 	{
 		Name: "unify-text-use",
 		Description: "The text compiled on its own is unified in Go with the use's value at #at: text.Unify(use.LookupPath(at)). " +
-			"No caller in the tree does this; #264 records it (ground truth: go-root-receiver).",
+			"No caller in the tree does this; #264 records it.",
 		Applies: textCompilesAlone,
 		Bind: func(t testing.TB, c *Case) error {
 			ctx := cuecontext.New()
@@ -99,7 +107,7 @@ var refSuites = []Suite{
 		Name: "third-root",
 		Description: "The text and the use's value at #at are both filled into field x of a third root: " +
 			"ctx.CompileString(\"x: _\").FillPath(x, text).FillPath(x, use.LookupPath(at)).LookupPath(x). " +
-			"No caller in the tree does this; #264 records it (ground truth: third-root-both-filled).",
+			"No caller in the tree does this; #264 records it.",
 		Applies: textCompilesAlone,
 		Bind: func(t testing.TB, c *Case) error {
 			ctx := cuecontext.New()

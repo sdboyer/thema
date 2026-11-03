@@ -47,11 +47,19 @@ func (s Suite) applies(c *Case) (bool, string) {
 // Corpus is a directory of cases and the suites that run them.
 type Corpus struct {
 	// Dir holds the cases (*.txtar), suites.json and README.md.
-	Dir    string
+	Dir string
+	// Root is the repository's root, relative to the test's directory. #spec
+	// citations are resolved against it, and failures print paths relative to
+	// it. When it is empty, citations are checked only for their form.
+	Root   string
 	Suites []Suite
 	// Require names directives every case of this corpus must have, beyond
 	// description, expect and spec.
 	Require []string
+	// Check, when set, checks what the corpus needs of a case beyond its
+	// directives, before its cells run. It calls t.Fatal when the case cannot
+	// run as written.
+	Check func(t testing.TB, c *Case)
 }
 
 // The directives every case has.
@@ -80,19 +88,31 @@ func (co Corpus) Run(t *testing.T) {
 		t.Fatalf("no cases in %s", co.Dir)
 	}
 	slices.Sort(paths)
+	cases := make([]*Case, 0, len(paths))
 	for _, p := range paths {
-		t.Run(strings.TrimSuffix(filepath.Base(p), ".txtar"), func(t *testing.T) {
-			c, err := ReadCase(p)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if !co.checkCase(t, c) {
+		c, err := ReadCase(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cases = append(cases, c)
+	}
+	for _, msg := range co.unusedSuites(cases) {
+		t.Error(msg)
+	}
+
+	r := co.start(cases)
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			if !r.checkCase(t, c) {
 				return
+			}
+			if co.Check != nil {
+				co.Check(t, c)
 			}
 			sections := map[string]string{}
 			for _, s := range co.Suites {
 				t.Run(s.Name, func(t *testing.T) {
-					if sec, ok := co.cell(t, c, s); ok {
+					if sec, ok := r.cell(t, c, s); ok {
 						sections[s.Name] = sec
 					}
 				})
@@ -104,18 +124,31 @@ func (co Corpus) Run(t *testing.T) {
 	}
 }
 
+// unusedSuites reports each registered suite that applies to none of cases:
+// it would run nothing, and pass.
+func (co Corpus) unusedSuites(cases []*Case) []string {
+	var msgs []string
+	for _, s := range co.Suites {
+		if !slices.ContainsFunc(cases, func(c *Case) bool { ok, _ := s.applies(c); return ok }) {
+			msgs = append(msgs, fmt.Sprintf("suite %s applies to no case in %s, so it checks nothing; add a case it applies to, or remove the suite", s.Name, co.display(co.Dir)))
+		}
+	}
+	return msgs
+}
+
 // RegistryJSON renders suites.json: each suite's name and description, in
-// registry order.
+// registry order, and whether it applies to every case (its Applies is nil).
 func RegistryJSON(suites []Suite) string {
 	type entry struct {
 		Name        string `json:"name"`
 		Description string `json:"description"`
+		EveryCase   bool   `json:"everyCase,omitempty"`
 	}
 	reg := struct {
 		Suites []entry `json:"suites"`
 	}{Suites: []entry{}}
 	for _, s := range suites {
-		reg.Suites = append(reg.Suites, entry{s.Name, s.Description})
+		reg.Suites = append(reg.Suites, entry{s.Name, s.Description, s.Applies == nil})
 	}
 	b, err := json.MarshalIndent(reg, "", "  ")
 	if err != nil {
@@ -200,6 +233,19 @@ func ParseCase(path string, data []byte) *Case {
 		ar:          a,
 		directives:  dirs,
 	}
+	// Directives keeps the last of a repeated key, so a repeated directive
+	// would override the first without a word.
+	seen := map[string]bool{}
+	for _, line := range strings.Split(string(a.Ar.Comment), "\n") {
+		k, _, ok := strings.Cut(line, ":")
+		if !ok || !strings.HasPrefix(k, "#") || strings.ContainsAny(k, " \t") {
+			continue
+		}
+		if seen[k] {
+			c.problems = append(c.problems, fmt.Sprintf("%s is given more than once; give it once", k))
+		}
+		seen[k] = true
+	}
 	if raw := dirs[dirExpect]; raw != "" {
 		v, err := ParseVerdict(raw)
 		if err != nil {
@@ -236,7 +282,60 @@ func (c *Case) Inputs() []txtar.File { return c.ar.Inputs() }
 // SectionFile is the name of suite's golden section in a case's archive.
 func SectionFile(suite string) string { return "out/" + suite + "/bind" }
 
-var specCitation = regexp.MustCompile(`^[^\s:,]+:\d+(-\d+)?$`)
+var specCitation = regexp.MustCompile(`^([^\s:,]+):(\d+)(?:-(\d+))?$`)
+
+// citation is one #spec citation: a file, and the lines it cites.
+type citation struct {
+	file       string
+	start, end int
+}
+
+// citations reads c's #spec citations, and says which are not of the form
+// <path>:<line>[-<line>].
+func (c *Case) citations() ([]citation, []string) {
+	if c.Spec == "" {
+		return nil, nil
+	}
+	var cites []citation
+	var problems []string
+	for _, raw := range strings.Split(c.Spec, ",") {
+		raw = strings.TrimSpace(raw)
+		m := specCitation.FindStringSubmatch(raw)
+		if m == nil {
+			problems = append(problems, fmt.Sprintf("#spec: %q is not <path>:<line>[-<line>]", raw))
+			continue
+		}
+		start, _ := strconv.Atoi(m[2])
+		end := start
+		if m[3] != "" {
+			end, _ = strconv.Atoi(m[3])
+		}
+		if start < 1 || end < start {
+			problems = append(problems, fmt.Sprintf("#spec: %q is not a range of lines from the first to the last", raw))
+			continue
+		}
+		cites = append(cites, citation{m[1], start, end})
+	}
+	return cites, problems
+}
+
+// resolveCitations reports each of c's #spec citations that names no file
+// under root, or lines beyond the end of the file.
+func (c *Case) resolveCitations(root string) []string {
+	cites, _ := c.citations()
+	var problems []string
+	for _, cite := range cites {
+		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(cite.file))) //nolint:gosec // a file the case cites, under the repository's root
+		if err != nil {
+			problems = append(problems, fmt.Sprintf("#spec: %s is not a file of the repository", cite.file))
+			continue
+		}
+		if n := strings.Count(strings.TrimSuffix(string(data), "\n"), "\n") + 1; cite.end > n {
+			problems = append(problems, fmt.Sprintf("#spec: %s has %d lines, so it has no line %d", cite.file, n, cite.end))
+		}
+	}
+	return problems
+}
 
 // Problems returns what is wrong with c as its archive stands, given the
 // suites the corpus registers and the directives it requires beyond
@@ -249,26 +348,32 @@ func (c *Case) Problems(registered, require []string) (directives, sections []st
 			directives = append(directives, fmt.Sprintf("the required directive #%s is missing", key))
 		}
 	}
-	if c.Spec != "" {
-		for _, cite := range strings.Split(c.Spec, ",") {
-			if cite = strings.TrimSpace(cite); !specCitation.MatchString(cite) {
-				directives = append(directives, fmt.Sprintf("#spec: %q is not <path>:<line>[-<line>]", cite))
-			}
-		}
+	if !suiteName.MatchString(c.Name) {
+		directives = append(directives, fmt.Sprintf("the case's name %q is not kebab-case; rename the file", c.Name))
 	}
+	_, citeProblems := c.citations()
+	directives = append(directives, citeProblems...)
 	directives = append(directives, c.problems...)
 	for _, suite := range slices.Sorted(maps.Keys(c.Known)) {
 		if !slices.Contains(registered, suite) {
 			directives = append(directives, fmt.Sprintf("#known/%s names a suite that is not registered", suite))
 		}
 	}
+	files := map[string]bool{}
 	for _, f := range c.ar.Ar.Files {
 		rest, isOut := strings.CutPrefix(f.Name, "out/")
+		repeated := files[f.Name]
+		files[f.Name] = true
 		if !isOut {
+			if repeated {
+				directives = append(directives, fmt.Sprintf("the file %s appears more than once; only the first is read", f.Name))
+			}
 			continue
 		}
 		suite, _, _ := strings.Cut(rest, "/")
 		switch {
+		case repeated:
+			sections = append(sections, fmt.Sprintf("%s appears more than once; only the first is compared", f.Name))
 		case !slices.Contains(registered, suite):
 			sections = append(sections, fmt.Sprintf("%s is an orphan: no suite %q is registered", f.Name, suite))
 		case f.Name != SectionFile(suite):
@@ -286,22 +391,48 @@ func (c *Case) Problems(registered, require []string) (directives, sections []st
 	return directives, sections
 }
 
+// run is one run of a corpus: what its cells share.
+type run struct {
+	Corpus
+	// tracked lists, by issue, the cells (<case>/<suite>) whose #known tags
+	// name it.
+	tracked map[int][]string
+	// described holds the cases and suites a failure has described in full;
+	// later failures only name them.
+	described map[string]bool
+}
+
+func (co Corpus) start(cases []*Case) *run {
+	r := &run{Corpus: co, tracked: map[int][]string{}, described: map[string]bool{}}
+	for _, c := range cases {
+		for _, suite := range slices.Sorted(maps.Keys(c.Known)) {
+			issue := c.Known[suite].Issue
+			r.tracked[issue] = append(r.tracked[issue], c.Name+"/"+suite)
+		}
+	}
+	return r
+}
+
 // checkCase reports what is wrong with c, given the registry, and whether
 // its cells can run. A problem in its out/ sections does not stop them, and
 // is not reported when the run rewrites the sections.
-func (co Corpus) checkCase(t testing.TB, c *Case) bool {
+func (r *run) checkCase(t testing.TB, c *Case) bool {
 	t.Helper()
-	registered := make([]string, 0, len(co.Suites))
-	for _, s := range co.Suites {
+	registered := make([]string, 0, len(r.Suites))
+	for _, s := range r.Suites {
 		registered = append(registered, s.Name)
 	}
-	directives, sections := c.Problems(registered, co.Require)
+	directives, sections := c.Problems(registered, r.Require)
+	if r.Root != "" {
+		directives = append(directives, c.resolveCitations(r.Root)...)
+	}
 	for _, p := range directives {
-		t.Errorf("%s: %s; the format is in %s and the suites in %s", c.Path, p, co.readme(), filepath.Join(co.Dir, "suites.json"))
+		t.Errorf("%s: %s; the format is in %s and the suites in %s",
+			r.display(c.Path), p, r.display(r.readme()), r.display(filepath.Join(r.Dir, "suites.json")))
 	}
 	if !envvars.UpdateGoldenFiles {
 		for _, p := range sections {
-			t.Errorf("%s: %s; run with %s=1 to rewrite the out/ sections", c.Path, p, envvars.VarUpdateGolden)
+			t.Errorf("%s: %s; run with %s=1 to rewrite the out/ sections", r.display(c.Path), p, envvars.VarUpdateGolden)
 		}
 	}
 	return len(directives) == 0
@@ -309,19 +440,43 @@ func (co Corpus) checkCase(t testing.TB, c *Case) bool {
 
 func (co Corpus) readme() string { return filepath.Join(co.Dir, "README.md") }
 
-// cell runs c through s, checks the result, and returns the section it
-// rendered, if s applies to c.
-func (co Corpus) cell(t testing.TB, c *Case, s Suite) (string, bool) {
+// display is path as a failure prints it: relative to the repository's root
+// when the corpus knows the root, so that it reads the same wherever go test
+// ran.
+func (co Corpus) display(path string) string {
+	if co.Root == "" {
+		return path
+	}
+	rel, err := filepath.Rel(co.Root, path)
+	if err != nil {
+		return path
+	}
+	return filepath.ToSlash(rel)
+}
+
+// cell runs c through s, checks the result, and returns the section the case
+// should hold for s: the one it rendered, or the golden section when that
+// must not be rewritten. It returns false when s does not run c.
+func (r *run) cell(t testing.TB, c *Case, s Suite) (string, bool) {
 	t.Helper()
 	known, isKnown := c.Known[s.Name]
 	golden, hasGolden := c.File(SectionFile(s.Name))
+	file := r.display(c.Path)
 	if ok, why := s.applies(c); !ok {
-		if isKnown {
-			t.Errorf("%s: #known/%s is stale: the suite does not apply to this case (%s); remove the tag", c.Path, s.Name, why)
-		}
-		if hasGolden && !envvars.UpdateGoldenFiles {
-			t.Errorf("%s: %s is an orphan: the suite does not apply to this case (%s); run with %s=1 to remove it",
-				c.Path, SectionFile(s.Name), why, envvars.VarUpdateGolden)
+		switch {
+		case hasGolden:
+			tag := ""
+			if isKnown {
+				tag = fmt.Sprintf(" and the #known/%s tag", s.Name)
+			}
+			// The section is kept, so that a golden update can't make a
+			// suite stop running a case without anyone noticing.
+			t.Errorf("%s: suite %s no longer applies to this case (%s), but %s records it running. "+
+				"If the suite should still run this case, fix the suite. If it should not, delete the section%s by hand; %s=1 keeps it.",
+				file, s.Name, why, SectionFile(s.Name), tag, envvars.VarUpdateGolden)
+			return golden, true
+		case isKnown:
+			t.Errorf("%s: #known/%s is stale: the suite does not apply to this case (%s); remove the tag", file, s.Name, why)
 		}
 		t.Skipf("does not apply: %s", why)
 		return "", false
@@ -330,27 +485,41 @@ func (co Corpus) cell(t testing.TB, c *Case, s Suite) (string, bool) {
 	got := Render(bind(t, s, c))
 	_, v, _ := sectionVerdict(got)
 	status := statusOf(c, s.Name, v)
-	header := co.header(c, s, got)
+	// was is the verdict the golden section records: "" when there is none,
+	// or it can't be read.
+	var was Verdict
 	diff := ""
 	if hasGolden {
+		_, was, _ = sectionVerdict(golden)
 		diff = cmp.Diff(golden, got)
 	}
-	switch status {
-	case StatusRegressed:
-		t.Errorf("%s\n%s%s", header, instructionRegressed, diffNote(diff))
-	case StatusXPass:
-		t.Errorf("%s\n%s%s", header, InstructionXPass(s.Name, c.Path, known.Issue), diffNote(diff))
-	default:
-		switch {
-		case envvars.UpdateGoldenFiles:
-		case !hasGolden:
-			t.Errorf("%s\nThere is no golden section %s. Run with %s=1 to write it.", header, SectionFile(s.Name), envvars.VarUpdateGolden)
-		case diff != "":
-			t.Errorf("%s\n%s%s", header, instructionRendering, diffNote(diff))
-		}
-		if status == StatusKnown {
-			t.Logf("known: #%d %s", known.Issue, known.Reason)
-		}
+	fail := func(instruction string) {
+		t.Errorf("%s\n%s%s", r.header(c, s, got), instruction, diffNote(diff))
+	}
+	switch {
+	case status == StatusRegressed && was != "" && was == c.Expect:
+		fail(instructionRegressed)
+		// The section that records the suite agreeing is kept, so that a
+		// golden update can't erase the regression.
+		return golden, true
+	case status == StatusRegressed:
+		fail(r.instructionUntracked(s.Name))
+	case status == StatusXPass:
+		fail(r.instructionXPass(c, s.Name, known.Issue))
+	case status == StatusKnown && hasGolden && was != v:
+		// This fails with the update too: the section is rewritten, but the
+		// tag is not, and nothing else would say that it may be stale.
+		fail(InstructionKnownMoved(s.Name, was, v))
+	case envvars.UpdateGoldenFiles:
+	case !hasGolden:
+		t.Errorf("%s\nThere is no golden section %s. Run with %s=1 to write it.", r.header(c, s, got), SectionFile(s.Name), envvars.VarUpdateGolden)
+	case was != v:
+		fail(InstructionNowPasses(was))
+	case diff != "":
+		fail(instructionRendering)
+	}
+	if status == StatusKnown {
+		t.Logf("known: #%d %s", known.Issue, known.Reason)
 	}
 	return got, true
 }
@@ -359,18 +528,71 @@ func (co Corpus) cell(t testing.TB, c *Case, s Suite) (string, bool) {
 // channel to whoever sees the failure, so each says what the failure means
 // and what to do.
 const (
-	instructionRegressed = "This is a regression: the suite now disagrees with the verdict the spec gives. " +
-		"Do not update goldens or add a #known tag to make it pass. " +
-		"If you believe #expect is wrong, it comes from the spec cited above; raise it with the owner instead of changing it."
+	instructionRegressed = "This is a regression: the golden section records this suite giving #expect, and it no longer does. " +
+		"Do not add a #known tag to make it pass; " + envvars.VarUpdateGolden + "=1 keeps the section until the suite agrees again. " +
+		"If you believe #expect is wrong, it comes from the spec cited above: open an issue citing those lines instead of changing it."
 	instructionRendering = "The verdict is unchanged, but what bind reports changed (codes, headlines or positions). " +
 		"Review the diff below; if it is intended, run with " + envvars.VarUpdateGolden + "=1."
 )
 
+// InstructionUntracked is the instruction for a cell that disagrees with
+// #expect when no golden section records it agreeing and no #known tag
+// tracks it: a new case, or a section rewritten to the wrong verdict.
+func InstructionUntracked(suite, readme string) string {
+	return fmt.Sprintf("This suite disagrees with #expect, no golden section records it agreeing, and no #known tag tracks the disagreement. "+
+		"If the case is new, this is step 5 of \"Adding a case\" in %s: find the issue that covers the mechanism and add "+
+		"'#known/%s: #<issue> <one sentence naming the mechanism>', or, if no issue covers it, open one citing the #spec lines. "+
+		"If git shows the section agreeing with #expect before your change, your change broke it: fix the code instead of tagging the cell.",
+		readme, suite)
+}
+
+func (r *run) instructionUntracked(suite string) string {
+	return InstructionUntracked(suite, r.display(r.readme()))
+}
+
 // InstructionXPass is the instruction for a cell whose suite now agrees with
-// #expect despite a #known tag.
-func InstructionXPass(suite, file string, issue int) string {
-	return fmt.Sprintf("This suite now gives the verdict the spec expects: your change fixed it. "+
-		"Remove the '#known/%s' line from %s, and mention issue #%d in your commit.", suite, file, issue)
+// #expect despite a #known tag. others are the other cells whose tags name
+// the same issue.
+func InstructionXPass(suite, file string, issue int, others []string) string {
+	msg := fmt.Sprintf("This suite now gives the verdict the spec expects: your change fixed it. "+
+		"Remove the '#known/%s' line from %s, run with %s=1 to rewrite the section, and mention issue #%d in your commit. ",
+		suite, file, envvars.VarUpdateGolden, issue)
+	if len(others) == 0 {
+		return msg + fmt.Sprintf("No other cell of this corpus carries #%d, so it can be closed unless it tracks more than this corpus.", issue)
+	}
+	return msg + fmt.Sprintf("#%d also tracks %s, so leave it open until those pass too.", issue, strings.Join(others, ", "))
+}
+
+func (r *run) instructionXPass(c *Case, suite string, issue int) string {
+	self := c.Name + "/" + suite
+	var others []string
+	for _, cell := range r.tracked[issue] {
+		if cell != self {
+			others = append(others, cell)
+		}
+	}
+	return InstructionXPass(suite, r.display(c.Path), issue, others)
+}
+
+// InstructionKnownMoved is the instruction for a cell tagged #known whose
+// verdict changed, from was to now, and still disagrees with #expect.
+func InstructionKnownMoved(suite string, was, now Verdict) string {
+	if was == "" {
+		was = "an unreadable verdict"
+	}
+	return fmt.Sprintf("This suite's verdict changed from %s (the golden section) to %s. The #known tag accepts any verdict but #expect, so it may now name the wrong mechanism. "+
+		"Check that #known/%s explains %s, or whether this is a different bug; update the tag, then run with %s=1, only once it does.",
+		was, now, suite, now, envvars.VarUpdateGolden)
+}
+
+// InstructionNowPasses is the instruction for an untagged cell that gives
+// #expect, where its golden section records was.
+func InstructionNowPasses(was Verdict) string {
+	if was == "" {
+		was = "an unreadable verdict"
+	}
+	return fmt.Sprintf("This suite now gives #expect; the golden section records %s. "+
+		"If your change fixed this cell and you removed its #known tag, run with %s=1 to rewrite the section.", was, envvars.VarUpdateGolden)
 }
 
 func diffNote(diff string) string {
@@ -382,10 +604,20 @@ func diffNote(diff string) string {
 
 const sectionDiffHeader = "What bind reports, against the golden section (-golden +got):"
 
-func (co Corpus) header(c *Case, s Suite, got string) string {
+// header describes the failing cell. A case or suite is described in full
+// the first time a failure in the run names it, and only named after that.
+func (r *run) header(c *Case, s Suite, got string) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "case %s: %s\n", c.Name, c.Description)
-	fmt.Fprintf(&b, "suite %s: %s\n", s.Name, s.Description)
+	if r.describe("case/" + c.Name) {
+		fmt.Fprintf(&b, "case %s: %s\n", c.Name, c.Description)
+	} else {
+		fmt.Fprintf(&b, "case %s (described above)\n", c.Name)
+	}
+	if r.describe("suite/" + s.Name) {
+		fmt.Fprintf(&b, "suite %s: %s\n", s.Name, s.Description)
+	} else {
+		fmt.Fprintf(&b, "suite %s (described above, and in %s)\n", s.Name, r.display(filepath.Join(r.Dir, "suites.json")))
+	}
 	fmt.Fprintf(&b, "#expect: %s (spec: %s)\n", c.Expect, c.Spec)
 	v, rest, _ := strings.Cut(got, "\n")
 	fmt.Fprintf(&b, "got: %s\n", strings.TrimPrefix(v, verdictPrefix))
@@ -397,8 +629,18 @@ func (co Corpus) header(c *Case, s Suite, got string) string {
 	if k, ok := c.Known[s.Name]; ok {
 		fmt.Fprintf(&b, "#known/%s: #%d %s\n", s.Name, k.Issue, k.Reason)
 	}
-	fmt.Fprintf(&b, "How to read this corpus: %s\n", co.readme())
+	fmt.Fprintf(&b, "How to read this corpus: %s\n", r.display(r.readme()))
 	return b.String()
+}
+
+// describe reports whether key has yet to be described in this run, and
+// records that it now is.
+func (r *run) describe(key string) bool {
+	if r.described[key] {
+		return false
+	}
+	r.described[key] = true
+	return true
 }
 
 // update rewrites c's out/ sections to the ones its cells rendered, keeping
@@ -489,6 +731,13 @@ func Render(err error) string {
 	}
 	slices.Sort(lines)
 	return verdictPrefix + strings.Join(slices.Sorted(maps.Keys(codes)), " ") + "\n" + strings.Join(lines, "\n") + "\n"
+}
+
+// ReadVerdict reads the verdict on a golden section's first line, as
+// [ParseVerdict] reads it, or "" when it can't be read.
+func ReadVerdict(section string) Verdict {
+	_, v, _ := sectionVerdict(section)
+	return v
 }
 
 // sectionVerdict reads the verdict on a golden section's first line: as
