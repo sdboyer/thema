@@ -1,8 +1,8 @@
 # a lens's own body is the instance it takes, the one it returns, lacunas and
-# anything declared inside the lens: a let, a hidden field and a field alias
-# (visible within the struct that declares it) are all fine to refer to, and
-# so is thema's own package (thema.Lacuna, thema.LacunaTypes), which is part
-# of the substrate
+# anything declared inside the lens: a let, a hidden field beside the result
+# and a field alias (visible within the struct that declares it, here a hidden
+# helper) are all fine to refer to, and so is thema's own package
+# (thema.Lacuna, thema.LacunaTypes), which is part of the substrate
 #issue: 21
 -- in.cue --
 import "github.com/sdboyer/thema"
@@ -22,10 +22,13 @@ lin: thema.Lineage & {
 			v1_0: _
 			let B = v1_0.b
 			_suffix: ""
+			_m: {
+				m~(M): v1_0.m
+				echo:  M
+			}
 			v0_0: {
-				a~(A): B + _suffix
-				n:     v1_0.m
-				_echo: A
+				a: B + _suffix
+				n: _m.echo
 			}
 			lacunas: [thema.Lacuna & {
 				condition: v1_0.m == 0

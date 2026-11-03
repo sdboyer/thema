@@ -17,8 +17,8 @@ lin: thema.Lineage & {
 				z: int
 				w: x
 			}
-			_lim: 5
-			c?:   <_lim
+			let lim = 5
+			c?: <lim
 		}
 	}
 }

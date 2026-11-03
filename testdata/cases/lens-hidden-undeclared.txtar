@@ -1,4 +1,5 @@
-# a lens may build an undeclared hidden field: hidden fields are not output, and closedness doesn't apply to them
+# a lens may keep scratch in hidden fields beside its result, plain or built
+# inside a comprehension: they are not output, and no digest covers them
 -- in.cue --
 import (
 	"github.com/sdboyer/thema"
@@ -17,7 +18,9 @@ lin: thema.Lineage & {
 	lenses: {
 		"0.1->0.0": {
 			v0_1: _
-			v0_0: {a: v0_1.a, _h: {extra: 2}}
+			_h: {extra: 2}
+			_c: {if v0_1.a == "boom" {extra: 2}}
+			v0_0: {a: v0_1.a}
 		}
 	}
 }

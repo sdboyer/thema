@@ -1,4 +1,5 @@
-# beneath a hidden field the target declares, a lens may build only what it declares
+# a schema may not declare a hidden field (#250), so there is none for a lens
+# to write beneath: the lineage is refused at the schema, not at the lens
 -- in.cue --
 import (
 	"github.com/sdboyer/thema"
@@ -22,4 +23,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail _h.extra
+bind fail E0151

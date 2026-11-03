@@ -124,7 +124,7 @@ Generates a JSON Schema (draft 2020-12) of the schema, unified with the lineage'
 **Output**
 
 - The document is the schema itself: `"$schema": "https://json-schema.org/draft/2020-12/schema"`, then the schema's keywords at the top level.
-- A definition the schema refers to, `#Point`, is under `$defs`, as `$defs.Point`, and each use of it is `{"$ref": "#/$defs/Point"}`. A hidden field the schema refers to, `_aMap`, is under `$defs` by its own name, `_aMap`.
+- A definition the schema refers to, `#Point`, is under `$defs`, as `$defs.Point`, and each use of it is `{"$ref": "#/$defs/Point"}`.
 - `required` lists every field that is neither optional nor defaulted, sorted by name. A defaulted field may be omitted from an instance, and is listed under `properties` only. In CUE, an open list, `[...T]`, has the default `[]`; a struct whose every field has a default, or that has only pattern constraints, also needs no data, and is not required.
 - A field, list element or pattern value whose CUE value has a concrete default has a `default` keyword: `size: *"medium" | ...` gives `"default": "medium"`, and `[...T]` gives `"default": []`.
 - A disjunction of concrete values, `"a" | "b"`, becomes `enum`, in declaration order, with no `type`. A single concrete value becomes `const`.

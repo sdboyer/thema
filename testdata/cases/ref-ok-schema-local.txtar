@@ -1,5 +1,6 @@
 # a schema's own body is anything declared inside it, at any depth: a
-# definition, a let, a hidden field and a field alias are all fine to refer to
+# definition, a let and a field alias are all fine to refer to (a hidden field
+# is refused, E0151)
 #issue: 21
 -- in.cue --
 import "github.com/sdboyer/thema"
@@ -11,10 +12,10 @@ lin: thema.Lineage & {
 			schema: {
 				#Color: "red" | "blue"
 				let Max = 10
-				_limits: {lo: 0, hi: Max}
+				#Limits: {lo: 0, hi: Max}
 
 				color: #Color
-				n:     int & >=_limits.lo & <=_limits.hi
+				n:     int & >=#Limits.lo & <=#Limits.hi
 				inner~(X): {v: int}
 				w: X.v
 			}

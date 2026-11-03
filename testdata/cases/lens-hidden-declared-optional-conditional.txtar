@@ -1,4 +1,4 @@
-# as lens-hidden-declared-conditional, with the hidden field optional in the target
+# as lens-hidden-declared-conditional, the hidden field optional
 -- in.cue --
 import (
 	"github.com/sdboyer/thema"
@@ -28,4 +28,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail _h.extra
+bind fail E0151

@@ -5,12 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	"cuelang.org/go/cue"
+	"cuelang.org/go/cue/ast"
 	"cuelang.org/go/cue/cuecontext"
 	cerrors "cuelang.org/go/cue/errors"
+	"cuelang.org/go/cue/parser"
 
 	"github.com/google/go-cmp/cmp"
 
@@ -104,6 +107,17 @@ func TestRoundTrip(t *testing.T) {
 				t.Errorf("input %s was not decompiled", p)
 			}
 
+			// Held in a definition, the lineage and everything in it is
+			// recursively closed, which is where it is held, not what its
+			// author wrote: it decompiles the same (#256).
+			hname, hfiles, err := Decompile(heldInDefinition(t, ctx, text))
+			if err != nil {
+				t.Fatalf("decompiling the lineage held in a definition: %v", err)
+			}
+			if hname != dname || !cmp.Equal(hfiles, dfiles) {
+				t.Errorf("held in a definition, the lineage decompiles otherwise (-plain +held):\n%s", cmp.Diff(dfiles, hfiles))
+			}
+
 			// Compiling the decompiled form gives the same normal form.
 			c2, err := Compile(ctx, dname, dfiles)
 			if err != nil {
@@ -119,6 +133,58 @@ func TestRoundTrip(t *testing.T) {
 			a.compare(t, got)
 		})
 	}
+}
+
+// heldInDefinition returns the lineage in text, the normal form, held as a
+// framework holds lineages to treat them alike: in a field of a definition
+// that a pattern unifies with each use (#256),
+//
+//	#Op: query?: {name: string, schemas: ..., lenses: ...}
+//	ops: [string]: #Op
+//	ops: get: query: <lineage>
+//
+// so that the lineage, and each schema and lens in it, is recursively closed.
+// thema.Lineage is not unified in, which Decompile does not yet see past
+// (#224): the definition declares the fields it holds.
+func heldInDefinition(t *testing.T, ctx *cue.Context, text string) cue.Value {
+	t.Helper()
+	f, err := parser.ParseFile("normal.cue", text, parser.ParseComments)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var imports, decls []ast.Decl
+	for _, d := range f.Decls {
+		if _, ok := d.(*ast.ImportDecl); ok {
+			imports = append(imports, d)
+		} else {
+			decls = append(decls, d)
+		}
+	}
+	holder, err := parser.ParseFile("holder.cue", `
+#Op: query?: {
+	name:        string
+	joinSchema?: _
+	schemas: [string]: [string]: schema: _
+	lenses: [string]: _
+}
+ops: [string]: #Op
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	use := &ast.Field{
+		Label: ast.NewIdent("ops"),
+		Value: ast.NewStruct("get", ast.NewStruct("query", &ast.StructLit{Elts: decls})),
+	}
+	held := ctx.BuildFile(&ast.File{Decls: slices.Concat(imports, holder.Decls, []ast.Decl{use})})
+	if err := held.Err(); err != nil {
+		t.Fatalf("building the lineage held in a definition: %v", cerrors.Details(err, nil))
+	}
+	lin := held.LookupPath(cue.ParsePath("ops.get.query"))
+	if !lin.LookupPath(cue.ParsePath(`schemas."0"."0".schema`)).IsClosedRecursively() {
+		t.Fatal("held in a definition, the lineage's first schema is not recursively closed")
+	}
+	return lin
 }
 
 // rendered is the diagnostics as the author sees them, with the archive's
