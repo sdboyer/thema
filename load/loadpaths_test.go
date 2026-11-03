@@ -393,6 +393,25 @@ var loadPaths = []loadPath{
 		},
 	},
 	{
+		// The normal form's text compiled on its own, with no loader, and
+		// filled whole into package fleet, as a tool assembles lineages it
+		// compiles each in its own root.
+		name: "filled", text: true,
+		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
+			lin := ctx.CompileString(fx.text, cue.Filename(lpFile))
+			return filledLoad(t, ctx, fx, lin, "flagship: thema.Lineage", "flagship", "github.com/sdboyer/thema")
+		},
+	},
+	{
+		// Package ship, loaded on its own through a load.Config overlay, and
+		// filled whole into package fleet.
+		name: "filled-package", text: true, module: true,
+		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
+			lin := overlayLoad(t, ctx, fx, nil, lpPackage, "")
+			return filledLoad(t, ctx, fx, lin, "flagship: thema.Lineage", "flagship", "github.com/sdboyer/thema")
+		},
+	},
+	{
 		// Narrowed where package fleet uses it.
 		name: "narrowed", narrowed: true, module: true,
 		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
@@ -437,6 +456,16 @@ var loadPaths = []loadPath{
 		},
 	},
 	{
+		// Package ship, loaded on its own, and filled whole into a value of
+		// package fleet that a framework's definition narrows (#260).
+		name: "narrowed-filled", narrowed: true, module: true,
+		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
+			lin := overlayLoad(t, ctx, fx, nil, lpPackage, "")
+			decl := fmt.Sprintf("#Op: headers: thema.Lineage & %s\nop: #Op", fx.narrowing)
+			return filledLoad(t, ctx, fx, lin, decl, "op.headers", append([]string{"github.com/sdboyer/thema"}, fx.narrowingImports...)...)
+		},
+	},
+	{
 		// Imported into package fleet, which is the lineage, and narrowed
 		// there: the package embeds the import and the narrowing.
 		name: "narrowed-root", narrowed: true, module: true,
@@ -460,6 +489,21 @@ func narrowedLoad(t *testing.T, ctx *cue.Context, fx lpFixture, extra map[string
 		path = "flagship"
 	}
 	return overlayLoad(t, ctx, fx, files, "fleet", path)
+}
+
+// filledLoad loads package fleet, which declares decl and imports imports,
+// fills lin whole into it at path, and returns the value there. lin is built
+// in a root of its own, so its conjunct in the use carries that root.
+func filledLoad(t *testing.T, ctx *cue.Context, fx lpFixture, lin cue.Value, decl, path string, imports ...string) cue.Value {
+	t.Helper()
+	var b strings.Builder
+	b.WriteString("package fleet\n\nimport (\n")
+	for _, imp := range imports {
+		fmt.Fprintf(&b, "\t%q\n", imp)
+	}
+	b.WriteString(")\n\n" + decl + "\n")
+	p := cue.ParsePath(path)
+	return overlayLoad(t, ctx, fx, map[string]string{fleetFile: b.String()}, "fleet", "").FillPath(p, lin).LookupPath(p)
 }
 
 // loads reports whether p can load fx.

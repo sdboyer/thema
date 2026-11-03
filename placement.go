@@ -25,22 +25,33 @@ import (
 // same in each case; what differs is the CUE around it.
 //
 // So the lineage has placements: each root it is declared in, and its path
-// there. The first is where BindLineage was handed it. The others are found
-// from the lineage's own structure: every conjunct of the lineage that is a
-// reference names a value the lineage is made of, declared in a root at a path
-// (a package, flagship: ship; a field, flagship: a; a value in another
-// package, flagship: ship.lin), and that value's own conjuncts may be
-// references in turn. A reference is inside the lineage exactly when it
-// resolves under one of the placements, in that placement's root. Its path
-// relative to the lineage is then the same whichever placement it resolved in.
+// there. The first is where BindLineage was handed it: the value it was
+// handed, not one thema rebuilt from that value's conjuncts, whose path is the
+// path of whichever conjunct came first. The others are found from the
+// lineage's own structure: every conjunct of the lineage that is a reference
+// names a value the lineage is made of, declared in a root at a path (a
+// package, flagship: ship; a field, flagship: a; a value in another package,
+// flagship: ship.lin), and that value's own conjuncts may be references in
+// turn. A conjunct of the lineage that is no reference is declared at its own
+// path in its own root: the lineage's text compiled on its own and filled
+// whole into the value that uses it (FillPath) is declared at the top of the
+// root it was compiled in, and its references resolve there, while a
+// narrowing written at the use is declared at the use. A reference is inside
+// the lineage exactly when it resolves under one of the placements, in that
+// placement's root. Its path relative to the lineage is then the same
+// whichever placement it resolved in.
 //
 // Roots are told apart by their build instance, which the evaluator keeps one
 // of for every root, package or not; a placement found through a reference
 // carries the instance of the root the reference resolved in. The lineage's
 // own root is known the same way when the lineage is a root itself. When it is
-// a field (lin: {...}), its root is not reachable from the value, and is
-// recognized as the root that holds the lineage's declaration at the
-// lineage's path (isOwnRoot).
+// a field (lin: {...}), its root is not reachable from the value, and neither
+// is the root a reference in filled text resolves in; each is recognized as
+// the root that holds, at the placement's path, a value declared in the files
+// of the conjuncts the placement was found from (declaredAt). Each conjunct's
+// placement is recognized by that conjunct's files alone: the lineage's files
+// together would recognize, at the top of the text's root, any root a
+// narrowing is written in, and place everything there inside the lineage.
 
 // maxPlacementDepth bounds how far placements follows a chain of references
 // to where the lineage is declared (a: ship, b: a, lin: b).
@@ -49,10 +60,13 @@ const maxPlacementDepth = 16
 // A placement is a root the lineage is declared in, and the lineage's path in
 // it.
 type placement struct {
-	// inst is the root's build instance, or nil for the lineage's own
-	// placement when the lineage is not itself a root.
+	// inst is the root's build instance, or nil when the root is not
+	// reachable from the lineage (declaredAt).
 	inst *build.Instance
 	path cue.Path
+	// files are the files the placement's conjuncts are declared in, for
+	// recognizing its root when inst is nil.
+	files map[string]bool
 }
 
 // placements are the places one lineage is declared.
@@ -61,21 +75,24 @@ type placements struct {
 	// list holds the placements, longest path first, so that a path under
 	// several is placed under the innermost.
 	list []placement
-	// files are the files the lineage is declared in, for recognizing its own
-	// root when it is not a root itself (isOwnRoot).
-	files map[string]bool
 }
 
-func placeLineage(lin cue.Value) *placements {
-	pl := &placements{lin: lin, files: make(map[string]bool)}
-	for _, f := range declaringFiles(lin) {
-		pl.files[f] = true
-	}
-	own := placement{path: lin.Path()}
+// placeLineage places lin, the lineage as thema unified it, which BindLineage
+// was handed as at.
+func placeLineage(lin, at cue.Value) *placements {
+	pl := &placements{lin: lin}
+	own := placement{path: at.Path(), files: make(map[string]bool)}
 	if len(own.path.Selectors()) == 0 {
-		own.inst = lin.BuildInstance()
+		own.inst = at.BuildInstance()
 	}
-	pl.add(own)
+	for _, f := range declaringFiles(lin) {
+		own.files[f] = true
+	}
+	if own.inst != nil || len(own.path.Selectors()) > 0 {
+		// A value with neither is no root's: it was unified in Go, and its
+		// conjuncts' placements say where it is declared.
+		pl.add(own)
+	}
 	pl.follow(lin, 0)
 	slices.SortStableFunc(pl.list, func(a, b placement) int {
 		return len(b.path.Selectors()) - len(a.path.Selectors())
@@ -86,6 +103,9 @@ func placeLineage(lin cue.Value) *placements {
 func (pl *placements) add(x placement) {
 	for _, y := range pl.list {
 		if y.inst == x.inst && y.path.String() == x.path.String() {
+			for f := range x.files {
+				y.files[f] = true
+			}
 			return
 		}
 	}
@@ -93,8 +113,12 @@ func (pl *placements) add(x placement) {
 }
 
 // follow adds a placement for each conjunct of v that is a reference: the root
-// it resolves in and its path there. thema's own conjuncts (thema.Lineage, or
-// what thema unified in Go) are not where the author declared anything.
+// it resolves in and its path there. A conjunct of the lineage itself (depth
+// 0) that is no reference adds one too: its own path, in the root its files
+// declare. One with no positions says nothing of where it is declared, and
+// one reached through a reference is placed by the reference. thema's own
+// conjuncts (thema.Lineage, or what thema unified in Go) are not where the
+// author declared anything.
 func (pl *placements) follow(v cue.Value, depth int) {
 	if depth > maxPlacementDepth {
 		return
@@ -105,6 +129,15 @@ func (pl *placements) follow(v cue.Value, depth int) {
 		}
 		root, p := c.ReferencePath()
 		if !root.Exists() || p.Err() != nil {
+			if depth == 0 && c.Path().Err() == nil {
+				decl := placement{path: c.Path(), files: make(map[string]bool)}
+				for _, f := range declaringFiles(c) {
+					decl.files[f] = true
+				}
+				if len(decl.files) > 0 {
+					pl.add(decl)
+				}
+			}
 			continue
 		}
 		inst := root.BuildInstance()
@@ -121,7 +154,7 @@ func (pl *placements) in(x placement, root cue.Value) bool {
 	if x.inst != nil {
 		return root.BuildInstance() == x.inst
 	}
-	return pl.isOwnRoot(root)
+	return x.declaredAt(root)
 }
 
 // declares reports whether the lineage is declared in root: whether a reference
@@ -170,34 +203,34 @@ func trimPath(p, prefix cue.Path) cue.Path {
 	return cue.MakePath(p.Selectors()[len(prefix.Selectors()):]...)
 }
 
-// isOwnRoot reports whether root holds the lineage's own placement when the
-// lineage is not a root itself: whether root holds, at the lineage's path, a
-// value declared in the lineage's files. Each package is a root of its own,
-// declared in its own files, so another package's value at the same path, if
-// any, is declared elsewhere. The lineage value itself cannot be compared with
-// root: it may be a value thema unified in Go from several declarations, and a
-// value's position tells where its first conjunct is, not what it is. The
-// files are matched two ways, as a root knows them differently by how it was
-// built: an instance loaded from files lists them (BuildInstance), and one
-// built from syntax (BuildFile) has only the positions its nodes carry.
-func (pl *placements) isOwnRoot(root cue.Value) bool {
-	at := root.LookupPath(pl.lin.Path())
+// declaredAt reports whether root is x's root when x has no build instance:
+// whether root holds, at x's path, a value declared in x's files. Each
+// package is a root of its own, declared in its own files, so another
+// package's value at the same path, if any, is declared elsewhere. The
+// lineage value itself cannot be compared with root: it may be a value thema
+// unified in Go from several declarations, and a value's position tells where
+// its first conjunct is, not what it is. The files are matched two ways, as a
+// root knows them differently by how it was built: an instance loaded from
+// files lists them (BuildInstance), and one built from syntax (BuildFile) has
+// only the positions its nodes carry.
+func (x placement) declaredAt(root cue.Value) bool {
+	at := root.LookupPath(x.path)
 	if !at.Exists() {
 		return false
 	}
-	if len(pl.files) == 0 {
-		// A lineage with no positions: nothing more to compare.
+	if len(x.files) == 0 {
+		// A placement with no positions: nothing more to compare.
 		return true
 	}
 	if bi := root.BuildInstance(); bi != nil {
 		for _, f := range bi.Files {
-			if pl.files[f.Filename] {
+			if x.files[f.Filename] {
 				return true
 			}
 		}
 	}
 	for _, f := range declaringFiles(at) {
-		if pl.files[f] {
+		if x.files[f] {
 			return true
 		}
 	}

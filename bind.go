@@ -786,7 +786,7 @@ func (ml *maybeLineage) checkLacunas() error {
 // schemas fail is reported without its lenses: a lens is judged against
 // schemas that mean what they say.
 func (ml *maybeLineage) checkReferences() error {
-	rc := newRefChecker(ml.rt.Context(), ml.raw)
+	rc := newRefChecker(ml.rt.Context(), ml.raw, ml.orig)
 	var errs []error
 	check := func(o refOwner) {
 		for _, f := range rc.check(o) {
