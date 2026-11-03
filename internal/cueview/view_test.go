@@ -28,6 +28,7 @@ var views = []struct {
 	{"data", Data},
 	{"documented", Documented},
 	{"selfcontained", SelfContained},
+	{"unwrapped", Unwrapped},
 }
 
 // TestViewGoldens records what every view produces for each case in
@@ -79,7 +80,7 @@ func compareGoldens(t *testing.T, file string, ar *txtar.Archive, got map[string
 			}
 		}
 		ar.Files = kept
-		for _, name := range []string{"out/written", "out/evaluated", "out/raw", "out/final", "out/data", "out/documented", "out/selfcontained"} {
+		for _, name := range []string{"out/written", "out/evaluated", "out/raw", "out/final", "out/data", "out/documented", "out/selfcontained", "out/unwrapped"} {
 			ar.Files = append(ar.Files, txtar.File{Name: name, Data: got[name]})
 		}
 		if err := os.WriteFile(file, txtar.Format(ar), 0o600); err != nil {

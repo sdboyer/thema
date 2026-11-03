@@ -336,17 +336,22 @@ func TestTipLensStaleParent(t *testing.T) {
 // NewTip never writes CUE's wrapper for a closed value, {_#def, _#def: ...},
 // into a schema: a version file holding it declares a hidden definition,
 // which bind refuses (E0151). A value reached through a definition is
-// recursively closed, and is refused; a schema declaring a definition of its
-// own, or a field named _#def, is written as it is.
+// recursively closed where it is held, and is written without that
+// closedness, keeping what its contents close themselves (#256); a schema
+// declaring a definition of its own, or a field named _#def, is written as it
+// is.
 func TestNewTipClosedSchema(t *testing.T) {
 	ctx := cuecontext.New()
-	v := ctx.CompileString("#Foo: {a!: string}\nopen: {#Foo: {a!: string}, b?: int}\nown: {_#def, _#def: {a!: string}}")
-	_, err := NewTip(v.LookupPath(cue.ParsePath("#Foo")))
-	var de *diag.Error
-	if !errors.As(err, &de) || !strings.Contains(de.Diagnostic().Detail, "closed as a definition is") {
-		t.Errorf("NewTip of a closed value: got %v, want an error saying it is closed as a definition is", err)
+	v := ctx.CompileString("#Foo: {a!: string, c: close({x: int}), e: {#E, #E: {z: int}}}\nopen: {#Foo: {a!: string}, b?: int}\nown: {_#def, _#def: {a!: string}}")
+	f, err := NewTip(v.LookupPath(cue.ParsePath("#Foo")))
+	if err != nil {
+		t.Fatalf("NewTip of a definition: %v", err)
 	}
-	f, err := NewTip(v.LookupPath(cue.ParsePath("open")))
+	want := "Schema: {\n\ta!: string\n\tc:  close({x: int})\n\te: {\n\t\t#E\n\t\t#E: {\n\t\t\tz: int\n\t\t}\n\t}\n}\n"
+	if string(f.Text) != want {
+		t.Errorf("NewTip of a definition wrote\n%s\nwant\n%s", f.Text, want)
+	}
+	f, err = NewTip(v.LookupPath(cue.ParsePath("open")))
 	if err != nil {
 		t.Fatalf("NewTip of an open schema with a definition: %v", err)
 	}

@@ -194,7 +194,7 @@ A lineage is written in one of two forms.
 
 - The directory's base name is the lineage's name. Every version that has been cut is a file under `history/`. `tip.thema`, at the top, is the version being worked on, whose version number is derived ([The tip](../authoring-form.md#the-tip)). Published lineages are read from `history/` alone; the development path reads the tip too.
 - A version file holds `Schema`, and `ForwardLens` and `BackwardLens` where its version has them.
-- It compiles to the normal form. Decompiling a normal form the compiler produced gives back its files, in the authoring form's layout. A normal-form lens outside what the authoring form expresses does not decompile (`E0356`).
+- It compiles to the normal form. Decompiling a normal form the compiler produced gives back its files, in the authoring form's layout. A normal-form lens outside what the authoring form expresses does not decompile (`E0356`). A lineage held in a definition, such as a field of one (`#Op: {query?: thema.Lineage}`), is closed where it is held, not by its author, and decompiles without that closedness; closedness its schemas write themselves (`close()`, a definition they declare) stays. A schema closed by a definition beneath the lineage (`schemas: "0": "0": #Entry`) does not decompile (`E0356`): a version file cannot write it.
 - It has no field for `joinSchema` or `examples`. A lineage that uses them is written in the normal form.
 
 Converting between the forms:

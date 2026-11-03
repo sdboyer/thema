@@ -18,6 +18,7 @@ import (
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/internal/compat"
+	"github.com/sdboyer/thema/internal/cuetil"
 	"github.com/sdboyer/thema/internal/cueview"
 	"github.com/sdboyer/thema/internal/lenscheck"
 )
@@ -67,7 +68,7 @@ func decompile(lin cue.Value) (name string, files []File, err error) {
 			fkey, bkey := edgeKey(prev.v, v.v), edgeKey(v.v, prev.v)
 			var fwdEntries []dentry
 			if l, ok := lenses[fkey]; ok {
-				fwd, err = decompileLens(l, fkey, prev.v, v.v, prev.schema, v.schema)
+				fwd, err = decompileLens(l, heldClosed(lin, lensPath(fkey)), fkey, prev.v, v.v, prev.schema, v.schema)
 				if err != nil {
 					return "", nil, err
 				}
@@ -77,7 +78,7 @@ func decompile(lin cue.Value) (name string, files []File, err error) {
 			if !ok {
 				return "", nil, fmt.Errorf("no lens at %s", bkey)
 			}
-			bwd, err = decompileLens(l, bkey, v.v, prev.v, v.schema, prev.schema)
+			bwd, err = decompileLens(l, heldClosed(lin, lensPath(bkey)), bkey, v.v, prev.v, v.schema, prev.schema)
 			if err != nil {
 				return "", nil, err
 			}
@@ -107,8 +108,14 @@ func decompile(lin cue.Value) (name string, files []File, err error) {
 // NewTip returns the tip of a new lineage whose one version is schema:
 // tip.thema holding schema, laid out as Decompile writes a version file. The
 // history is empty, so the tip cuts as 0.0.
+//
+// A schema that is recursively closed as a whole, a definition or a value
+// reached through one, is written without that closedness, as Decompile
+// writes a schema of a lineage held in a definition: it is where the value
+// was held, not what the new lineage's author wrote in it. What its contents
+// close themselves stays (see cueview.Unwrapped).
 func NewTip(schema cue.Value) (File, error) {
-	text, err := versionText(dversion{schema: schema}, thema.SyntacticVersion{}, nil, nil)
+	text, err := versionText(dversion{schema: schema, held: true}, thema.SyntacticVersion{}, nil, nil)
 	if err != nil {
 		return File{}, diag.InternalErr(fmt.Errorf("writing a new tip: %w", err))
 	}
@@ -118,6 +125,69 @@ func NewTip(schema cue.Value) (File, error) {
 type dversion struct {
 	v      thema.SyntacticVersion
 	schema cue.Value
+	// held says the schema's closedness as a whole, if it has any, is where
+	// the lineage is held (see heldClosed), and is not written.
+	held bool
+}
+
+// heldClosed reports whether the value at p beneath the lineage lin is
+// recursively closed only because lin is: closedness that comes from where
+// the lineage is held, such as a definition it is a field of, or one a
+// pattern unifies it with (#Op: {query?: thema.Lineage}, with
+// ops: [string]: #Op). CUE closes a value reached through a definition, and
+// the values its definition declares beneath it with it. thema takes no
+// position on openness, and closedness from outside the lineage is not the
+// author's: Decompile does not write it (#256).
+//
+// The closedness is the holder's when lin is recursively closed and so is
+// every value on the path to p, none of them reached through a definition
+// of its own. A value whose closedness starts beneath the lineage, such as
+// an entry written as a definition the lineage declares
+// (schemas: "0": "0": #Entry), is closed by the author, or by a narrowing
+// at the lineage's use, and a version file cannot write that: Decompile
+// refuses it. The value at p itself is not looked through: what it closes
+// itself is in its own syntax (see cueview.Unwrapped), and a schema or lens
+// refers to no definition outside its body (bind refuses one).
+func heldClosed(lin cue.Value, p cue.Path) bool {
+	if !lin.IsClosedRecursively() {
+		return false
+	}
+	v := lin
+	sels := p.Selectors()
+	for i, sel := range sels {
+		v = v.LookupPath(cue.MakePath(sel))
+		if !v.IsClosedRecursively() {
+			return false
+		}
+		if i < len(sels)-1 && throughDefinition(v) {
+			return false
+		}
+	}
+	return true
+}
+
+// throughDefinition reports whether a conjunct of v refers to a definition.
+func throughDefinition(v cue.Value) bool {
+	for _, c := range cuetil.AppendSplit(v, cue.AndOp, nil) {
+		if _, p := c.ReferencePath(); p.Err() == nil {
+			for _, sel := range p.Selectors() {
+				if sel.IsDefinition() {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// schemaPath is the path in a lineage of the schema at major, minor.
+func schemaPath(major, minor cue.Selector) cue.Path {
+	return cue.MakePath(cue.Str("schemas"), major, minor, cue.Str("schema"))
+}
+
+// lensPath is the path in a lineage of the lens at key.
+func lensPath(key string) cue.Path {
+	return cue.MakePath(cue.Str("lenses"), cue.Str(key))
 }
 
 func decompileVersions(lin cue.Value) ([]dversion, error) {
@@ -140,7 +210,11 @@ func decompileVersions(lin cue.Value) ([]dversion, error) {
 			if err != nil {
 				return nil, fmt.Errorf("schemas.%s: %q is not a minor version", majors.Selector(), minors.Selector())
 			}
-			vs = append(vs, dversion{v: thema.SV(uint(major), uint(minor)), schema: minors.Value().LookupPath(cue.MakePath(cue.Str("schema")))})
+			vs = append(vs, dversion{
+				v:      thema.SV(uint(major), uint(minor)),
+				schema: minors.Value().LookupPath(cue.MakePath(cue.Str("schema"))),
+				held:   heldClosed(lin, schemaPath(majors.Selector(), minors.Selector())),
+			})
 		}
 	}
 	sort.Slice(vs, func(i, j int) bool { return vs[i].v.Less(vs[j].v) })
@@ -224,11 +298,17 @@ type branch struct {
 	field *ast.Field
 }
 
-// decompileLens reads the mappings of the lens at key, from sv to tv.
-func decompileLens(l cue.Value, key string, sv, tv thema.SyntacticVersion, src, tgt cue.Value) (*dbody, error) {
+// decompileLens reads the mappings of the lens at key, from sv to tv. held
+// says the lens's closedness as a whole is where the lineage is held (see
+// heldClosed), and is not read.
+func decompileLens(l cue.Value, held bool, key string, sv, tv thema.SyntacticVersion, src, tgt cue.Value) (*dbody, error) {
 	// The whole lens is exported, so that references to input stay references
 	// (exported alone, result's references to it would become a generated let).
-	n, err := cueview.Documented(l)
+	view := cueview.Documented
+	if held {
+		view = cueview.Unwrapped
+	}
+	n, err := view(l)
 	if err != nil {
 		return nil, fmt.Errorf("lens %s: %w", key, err)
 	}
@@ -1295,7 +1375,9 @@ func elementOf(v cue.Value, p cue.Path) cue.Value {
 // value reached through a definition (#Foo) exports as. Written into a version
 // file, the wrapper would be a hidden definition of the author's, which bind
 // refuses (E0151). A schema that declares a field _#def of its own is written
-// as it is, and bind refuses it there.
+// as it is, and bind refuses it there. A schema whose closedness is where its
+// lineage is held is written without it (see heldClosed), and never has the
+// wrapper.
 func closedWrapper(sch cue.Value, n ast.Node) bool {
 	if !sch.IsClosedRecursively() {
 		return false
@@ -1324,12 +1406,16 @@ func closedWrapper(sch cue.Value, n ast.Node) bool {
 // versionText renders a version file; prev is the previous version, whose
 // edge the lenses are on.
 func versionText(v dversion, prev thema.SyntacticVersion, fwd, bwd *dbody) (string, error) {
-	n, err := cueview.Documented(v.schema)
+	view := cueview.Documented
+	if v.held {
+		view = cueview.Unwrapped
+	}
+	n, err := view(v.schema)
 	if err != nil {
 		return "", fmt.Errorf("%s: schema: %w", v.v, err)
 	}
 	if closedWrapper(v.schema, n) {
-		return "", fmt.Errorf("%s: schema is outside the authoring form: it is closed as a definition is, which CUE writes as a hidden definition, {_#def, _#def: ...}, and a schema may not declare one", v.v)
+		return "", fmt.Errorf("%s: schema is outside the authoring form: it is closed as a definition is by something within the lineage or its narrowing, not by where the lineage is held, and a version file cannot write that", v.v)
 	}
 	var parts []string
 	var expr ast.Expr

@@ -266,6 +266,7 @@ seams:
       Documented: "Evaluated with doc comments, for output people read"
       Text: "formats syntax from any view as CUE source"
       SelfContained: "Evaluated with imported packages inlined, for questions about a value's content that must not stop at an import path, such as hashing it"
+      Unwrapped: "Documented without the {_#def, _#def: ...} wrapper for the value's closedness as a whole, for writing a value whose closedness comes from where it is held (a schema of a lineage held in a definition, #256) as text an author keeps, where the wrapper would be a hidden definition of the author's; every other view writes that closedness as the wrapper"
 
   # --- references-resolve: the CUE<->Go binding -----------------------------
 
