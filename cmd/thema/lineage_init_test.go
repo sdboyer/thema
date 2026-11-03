@@ -165,7 +165,7 @@ schemas: "0": "0": schema: {}
 		{
 			name: "jsonschema",
 			args: []string{"jsonschema", writeInput(t, "s.json", initTestJSONSchema)},
-			want: "Schema: {\n\ta!: string\n\tb?: int\n}\n",
+			want: "Schema: {\n\ta!: string\n\tb?: int\n\t...\n}\n",
 			normalForm: `package foo
 
 import "github.com/sdboyer/thema"
@@ -175,6 +175,7 @@ name: "foo"
 schemas: "0": "0": schema: {
 	a!: string
 	b?: int
+	...
 }
 `,
 		},
@@ -554,5 +555,108 @@ func TestLineageInitJSONSchemaSubpath(t *testing.T) {
 	}
 	if got := strings.Join(fields, ","); got != "name!,crew?,#person" {
 		t.Errorf("the bound schema has fields %s, want name!,crew?,#person", got)
+	}
+}
+
+const initTestJSONSchemaOpenness = `{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "ship": {
+      "type": "object",
+      "properties": {
+        "name": {"type": "string"},
+        "deck": {"type": "object", "properties": {"d": {"type": "integer"}}},
+        "hold": {"type": "object", "additionalProperties": false, "properties": {"c": {"type": "string"}}},
+        "crew": {"$ref": "#/$defs/crew"}
+      },
+      "required": ["name"]
+    },
+    "crew": {"type": "object", "additionalProperties": false, "properties": {"n": {"type": "string"}}}
+  },
+  "type": "object",
+  "properties": {
+    "a": {"type": "string"},
+    "inner": {"type": "object", "properties": {"x": {"type": "integer"}}},
+    "shut": {"type": "object", "additionalProperties": false, "properties": {"y": {"type": "string"}}}
+  },
+  "required": ["a"]
+}`
+
+// TestLineageInitJSONSchemaOpenness checks that init jsonschema keeps the
+// document's openness in the bound schema, which Validate closes: an object
+// allows other properties unless its additionalProperties is false, at the
+// root and nested, for the whole document and for the one schema
+// --src-subpath points at.
+func TestLineageInitJSONSchemaOpenness(t *testing.T) {
+	type check struct {
+		data  string
+		valid bool
+	}
+	cases := []struct {
+		name    string
+		subpath string
+		checks  []check
+	}{
+		{
+			name: "document",
+			checks: []check{
+				{`{"a": "x"}`, true},
+				{`{"a": "x", "other": 1}`, true},
+				{`{"a": "x", "inner": {"x": 1, "other": 1}}`, true},
+				{`{"a": "x", "shut": {"y": "z"}}`, true},
+				{`{"a": "x", "shut": {"y": "z", "other": 1}}`, false},
+				{`{}`, false},
+			},
+		},
+		{
+			name:    shipName,
+			subpath: "#/$defs/ship",
+			checks: []check{
+				{`{"name": "x"}`, true},
+				{`{"name": "x", "other": 1}`, true},
+				{`{"name": "x", "deck": {"d": 1, "other": 1}}`, true},
+				{`{"name": "x", "hold": {"c": "y"}}`, true},
+				{`{"name": "x", "hold": {"c": "y", "other": 1}}`, false},
+				{`{"name": "x", "crew": {"n": "y"}}`, true},
+				{`{"name": "x", "crew": {"n": "y", "other": 1}}`, false},
+			},
+		},
+		{
+			name:    "closed",
+			subpath: "#/$defs/crew",
+			checks: []check{
+				{`{"n": "y"}`, true},
+				{`{"n": "y", "other": 1}`, false},
+			},
+		},
+	}
+	in := writeInput(t, "s.json", initTestJSONSchemaOpenness)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			args := []string{lineageCmd, initName, "jsonschema", in, "-l", initDir}
+			if tc.subpath != "" {
+				args = append(args, "--src-subpath", tc.subpath)
+			}
+			runInit(t, dir, args...)
+			text, err := os.ReadFile(filepath.Join(dir, initDir, authoring.TipFile)) //nolint:gosec // a file under t.TempDir()
+			if err != nil {
+				t.Fatal(err)
+			}
+			formatted, err := authoring.Format(text)
+			if err != nil {
+				t.Fatalf("formatting the generated tip: %s", err)
+			}
+			if string(formatted) != string(text) {
+				t.Errorf("generated tip is not formatted; formatted, it is:\n%s", formatted)
+			}
+			sch := bindInitDir(t, dir, initDir).Lineage.Latest()
+			for _, c := range tc.checks {
+				_, err := sch.Validate(ctx.CompileString(c.data))
+				if (err == nil) != c.valid {
+					t.Errorf("validating %s: %v, want valid %v\ntip:\n%s", c.data, err, c.valid, text)
+				}
+			}
+		})
 	}
 }
