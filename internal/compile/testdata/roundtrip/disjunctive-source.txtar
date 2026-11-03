@@ -11,7 +11,7 @@ to fill.
 -- ship/history/0.0.thema --
 Schema: {method!: "GET", route!: "/things/{id}", path!: {id!: string}} |
 	{method!: "POST", route!: "/things/{id}", path!: {id!: string}, body!: {name!: string}}
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {method!: "GET", route!: "/things/{id}", path!: {id!: string}}
 
 ForwardLens: {
@@ -32,6 +32,14 @@ BackwardLens: {
 		path:   v1_0.path
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	method!: "GET"
+	route!:  "/things/{id}"
+	path!: {
+		id!: string
+	}
+}
 -- data/0.0/get.json --
 {"method": "GET", "route": "/things/{id}", "path": {"id": "a"}}
 -- data/0.0/post.json --
@@ -40,7 +48,24 @@ BackwardLens: {
 {"method": "GET", "route": "/things/{id}", "path": {"id": "c"}}
 -- out/bind --
 ok
--- out/decompiled/1.0.thema --
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	method!: "GET"
+	route!:  "/things/{id}"
+	path!: {
+		id!: string
+	}
+} | {
+	method!: "POST"
+	route!:  "/things/{id}"
+	path!: {
+		id!: string
+	}
+	body!: {
+		name!: string
+	}
+}
+-- out/decompiled/history/1.0.thema --
 Schema: {
 	method!: "GET"
 	route!:  "/things/{id}"
@@ -71,21 +96,12 @@ BackwardLens: {
 		path:   v1_0.path
 	}
 }
--- out/decompiled/history/0.0.thema --
+-- out/decompiled/tip.thema --
 Schema: {
 	method!: "GET"
 	route!:  "/things/{id}"
 	path!: {
 		id!: string
-	}
-} | {
-	method!: "POST"
-	route!:  "/things/{id}"
-	path!: {
-		id!: string
-	}
-	body!: {
-		name!: string
 	}
 }
 -- out/normal.cue --

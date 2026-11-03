@@ -229,7 +229,7 @@ func TestDisjunctiveSourceWrittenCopy(t *testing.T) {
 		t.Helper()
 		files := []File{
 			{Path: "history/0.0.thema", Text: []byte(a.file(t, "ship/history/0.0.thema"))},
-			{Path: "1.0.thema", Text: []byte(`Schema: {method!: "GET", route!: "/things/{id}", path!: {id!: string}}
+			{Path: "history/1.0.thema", Text: []byte(`Schema: {method!: "GET", route!: "/things/{id}", path!: {id!: string}}
 
 ForwardLens: {v0_0: _, v1_0: ` + lens + `}
 `)},

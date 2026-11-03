@@ -11,7 +11,7 @@ Schema: {
 	req!: {method!: "GET", route!: "/things/{id}", path!: {id!: string}} |
 		{method!: "POST", route!: "/things/{id}", path!: {id!: string}, body!: {name!: string}}
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	req!: {method!: "GET", route!: "/things/{id}", path!: {id!: string}}
 	url!: string
@@ -24,6 +24,17 @@ ForwardLens: {
 		url: "/things/" + v0_0.req.path.id
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	req!: {
+		method!: "GET"
+		route!:  "/things/{id}"
+		path!: {
+			id!: string
+		}
+	}
+	url!: string
+}
 -- data/0.0/get.json --
 {"req": {"method": "GET", "route": "/things/{id}", "path": {"id": "a"}}}
 -- data/0.0/post.json --
@@ -32,7 +43,26 @@ ForwardLens: {
 {"req": {"method": "GET", "route": "/things/{id}", "path": {"id": "c"}}, "url": "/things/c"}
 -- out/bind --
 ok
--- out/decompiled/1.0.thema --
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	req!: {
+		method!: "GET"
+		route!:  "/things/{id}"
+		path!: {
+			id!: string
+		}
+	} | {
+		method!: "POST"
+		route!:  "/things/{id}"
+		path!: {
+			id!: string
+		}
+		body!: {
+			name!: string
+		}
+	}
+}
+-- out/decompiled/history/1.0.thema --
 Schema: {
 	req!: {
 		method!: "GET"
@@ -53,7 +83,7 @@ ForwardLens: {
 		url: "/things/" + v0_0.req.path.id
 	}
 }
--- out/decompiled/history/0.0.thema --
+-- out/decompiled/tip.thema --
 Schema: {
 	req!: {
 		method!: "GET"
@@ -61,16 +91,8 @@ Schema: {
 		path!: {
 			id!: string
 		}
-	} | {
-		method!: "POST"
-		route!:  "/things/{id}"
-		path!: {
-			id!: string
-		}
-		body!: {
-			name!: string
-		}
 	}
+	url!: string
 }
 -- out/normal.cue --
 name: "ship"

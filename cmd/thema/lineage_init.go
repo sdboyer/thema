@@ -10,22 +10,16 @@ import (
 	"cuelang.org/go/cue/ast/astutil"
 	"cuelang.org/go/cue/build"
 	"cuelang.org/go/cue/load"
-	"cuelang.org/go/cue/parser"
 	"cuelang.org/go/encoding/json"
 	"cuelang.org/go/encoding/jsonschema"
 	"cuelang.org/go/encoding/openapi"
 	"cuelang.org/go/encoding/yaml"
+	"github.com/sdboyer/thema/authoring"
 	"github.com/sdboyer/thema/diag"
-	"github.com/sdboyer/thema/encoding/cue"
-	tastutil "github.com/sdboyer/thema/internal/astutil"
 	"github.com/spf13/cobra"
 )
 
 type initCommand struct {
-	name    string
-	cuepath string
-	pkgname string
-	nopkg   bool
 	srcpath string
 	input   []byte
 
@@ -34,35 +28,29 @@ type initCommand struct {
 
 func (ic *initCommand) setup(cmd *cobra.Command) {
 	cmd.AddCommand(initLineageCmd)
-	initLineageCmd.PersistentFlags().StringVarP(&ic.name, "name", "n", "", "String for the Lineage.name field")
-	initLineageCmd.PersistentFlags().StringVar(&ic.pkgname, "package-name", "", "Name for generated package. If omitted, --name value is used")
-	initLineageCmd.PersistentFlags().BoolVar(&ic.nopkg, "no-package", false, "Generate lineage without a package directive")
-
-	// TODO uncomment these and fix broken toSubpath logic to support generating at a subpath
-	// initLineageCmd.MarkFlagRequired("name")
-	// initLineageCmd.PersistentFlags().StringVarP(&ic.cuepath, "cue-path", "p", "", "CUE expression for subpath at which lineage should be generated")
-
 	initLineageCmd.AddCommand(initLineageEmptyCmd)
 	initLineageEmptyCmd.Run = ic.run
-	initLineageEmptyCmd.PreRunE = ic.processPackageArgs
 
 	initLineageCmd.AddCommand(initLineageOpenAPICmd)
 	initLineageOpenAPICmd.Flags().StringVar(&ic.srcpath, "src-subpath", "", "Schema path within the OpenAPI document. Default: whole document")
 	initLineageOpenAPICmd.Run = ic.run
-	initLineageOpenAPICmd.PreRunE = mergeCobraefuncs(ic.processPackageArgs, ic.processInput)
+	initLineageOpenAPICmd.PreRunE = ic.processInput
 
 	initLineageCmd.AddCommand(initLineageJSONSchemaCmd)
 	initLineageJSONSchemaCmd.Flags().StringVar(&ic.srcpath, "src-subpath", "", "Schema path within the JSON Schema document (e.g. #/...) Default: whole document")
 	initLineageJSONSchemaCmd.Run = ic.run
-	initLineageJSONSchemaCmd.PreRunE = mergeCobraefuncs(ic.processPackageArgs, ic.processInput)
+	initLineageJSONSchemaCmd.PreRunE = ic.processInput
 }
 
 var initLineageCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Create a new lineage",
-	Long: `Create a new lineage.
+	Long: `Create a new lineage, in the authoring form.
 
-Each subcommand supports initializing the lineage from a different kind of input source.
+Each subcommand takes the new lineage's schema from a different kind of input
+source, and prints the lineage's tip.thema to stdout. A lineage is a directory
+whose base name is its name: save the output as tip.thema in it. The history is
+empty, so the tip cuts as 0.0; cut it with thema lineage cut once it is ready.
 `,
 }
 
@@ -72,9 +60,7 @@ var initLineageEmptyCmd = &cobra.Command{
 	Short: "Initialize with an empty schema",
 	Long: `Initialize the lineage with an empty schema.
 
-The name for the new lineage must be provided as a single argument.
-
-The generated lineage is printed to stdout.
+The new lineage's tip.thema is printed to stdout.
 `,
 }
 
@@ -86,7 +72,7 @@ var initLineageOpenAPICmd = &cobra.Command{
 
 An OpenAPI document to be converted for the initial lineage schema must be given as an argument.
 
-The generated lineage is printed to stdout.
+The new lineage's tip.thema is printed to stdout.
 `,
 }
 
@@ -98,7 +84,7 @@ var initLineageJSONSchemaCmd = &cobra.Command{
 
 A JSON Schema document to be converted for the initial lineage schema must be given as an argument.
 
-The generated lineage is printed to stdout.
+The new lineage's tip.thema is printed to stdout.
 `,
 }
 
@@ -119,26 +105,6 @@ func (ic *initCommand) run(cmd *cobra.Command, args []string) {
 	}
 }
 
-func (ic *initCommand) processPackageArgs(cmd *cobra.Command, args []string) error {
-	if ic.name == "" {
-		return diag.New(diag.E0620).Headline("no lineage name was given").Help("name the lineage with --name").Err()
-	}
-	if ic.nopkg {
-		if ic.pkgname != "" {
-			return diag.New(diag.E0620).Headline("--no-package and --package-name were both given").Help("pass one: a package name, or no package").Err()
-		}
-	} else {
-		if ic.pkgname == "" {
-			ic.pkgname = ic.name
-		}
-
-		if !ast.IsValidIdent(ic.pkgname) {
-			return diag.New(diag.E0620).Headlinef("%q is not a valid package name", ic.pkgname).Help("a CUE package name is an identifier").Err()
-		}
-	}
-	return nil
-}
-
 // process both openapi and json schema, abstract over stdin
 func (ic *initCommand) processInput(cmd *cobra.Command, args []string) error {
 	byt, err := pathOrStdin(args)
@@ -150,51 +116,18 @@ func (ic *initCommand) processInput(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func empt() upcue.Value {
-	str := `
-{
-	// TODO (delete me - first schema goes here!)
-}
-`
-	expr, _ := parser.ParseExpr("empty", str, parser.ParseComments)
-	return ctx.BuildExpr(expr)
-}
-
 func (ic *initCommand) runEmpty(cmd *cobra.Command, args []string) {
-	str := `
-{
-	// TODO (delete me - first schema goes here!)
+	ic.printTip(cmd, ctx.CompileString("{}"))
 }
-`
-	expr, _ := parser.ParseExpr("empty", str, parser.ParseComments)
-	v := ctx.BuildExpr(expr)
-	linf, err := cue.NewLineage(v, ic.name, ic.pkgname)
+
+// printTip prints the tip of a new lineage whose one version is sch.
+func (ic *initCommand) printTip(cmd *cobra.Command, sch upcue.Value) {
+	f, err := authoring.NewTip(sch)
 	if err != nil {
 		ic.err = err
 		return
 	}
-
-	// TODO uncomment after re-export
-	// Have to re-insert because comments get lost somehow by NewLineage()
-	// err = cue.InsertSchemaNodeAs(linf, expr, thema.SV(0, 0))
-	// if err != nil {
-	// 	ic.err = err
-	// 	return
-	// }
-
-	linf, err = toSubpath(ic.cuepath, linf)
-	if err != nil {
-		ic.err = err
-		return
-	}
-
-	b, err := tastutil.FmtNode(linf)
-	if err != nil {
-		ic.err = err
-		return
-	}
-
-	fmt.Fprint(cmd.OutOrStdout(), string(b))
+	_, ic.err = cmd.OutOrStdout().Write(f.Text)
 }
 
 func (ic *initCommand) runJSONSchema(cmd *cobra.Command, args []string) {
@@ -227,25 +160,7 @@ func (ic *initCommand) runJSONSchema(cmd *cobra.Command, args []string) {
 		return is
 	}, nil)
 
-	linf, err := cue.NewLineage(sch.Eval(), ic.name, ic.pkgname)
-	if err != nil {
-		ic.err = err
-		return
-	}
-
-	linf, err = toSubpath(ic.cuepath, linf)
-	if err != nil {
-		ic.err = err
-		return
-	}
-
-	b, err := tastutil.FmtNode(linf)
-	if err != nil {
-		ic.err = err
-		return
-	}
-
-	fmt.Fprint(cmd.OutOrStdout(), string(b))
+	ic.printTip(cmd, sch.Eval())
 }
 
 // expects something else to have already gotten the input from either a file
@@ -339,23 +254,5 @@ func (ic *initCommand) runOpenAPI(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	linf, err := cue.NewLineage(sch, ic.name, ic.pkgname)
-	if err != nil {
-		ic.err = err
-		return
-	}
-
-	linf, err = toSubpath(ic.cuepath, linf)
-	if err != nil {
-		ic.err = err
-		return
-	}
-
-	b, err := tastutil.FmtNode(linf)
-	if err != nil {
-		ic.err = err
-		return
-	}
-
-	fmt.Fprint(cmd.OutOrStdout(), string(b))
+	ic.printTip(cmd, sch)
 }

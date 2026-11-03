@@ -1,44 +1,37 @@
 # Quickstart: Using Thema in Go
 
-The tutorial demonstrates how a user can create an empty Lineage using the thema CLI, define a simple schema and use it to generate Go types and bindings, and use the bindings to validate data against a selected schema in the Lineage.
+The tutorial demonstrates how a user can create a lineage using the thema CLI, define a simple schema, use it to generate Go types, and load the lineage in Go to validate data against a selected schema in the lineage.
 
 ## Defining a schema
-The most fundamental task in thema is writing a lineage. We can use the Thema CLI to generate an empty lineage using the below command:
+The most fundamental task in thema is writing a lineage. A lineage in the [authoring form](authoring-form.md) is a directory, whose base name is the lineage's name. We can use the Thema CLI to start one with an empty schema:
 
 ```
-thema lineage init empty --name ship > ship.cue 
+mkdir ship
+thema lineage init empty > ship/tip.thema
 ```
 
-This command will generate an empty lineage named `ship` and store the output in a file named `ship.cue`. The generated lineage looks like below
+This writes the new lineage's tip, `ship/tip.thema`, the version being worked on. The lineage has no history yet, so the tip will be cut as version 0.0. The generated tip looks like below
 
 ```cue
-package ship
-
-import "github.com/sdboyer/thema"
-
-thema.Lineage
-name: "ship"
-schemas: "0": "0": schema: {
-	// TODO (delete me - first schema goes here!)
-}
+Schema: {}
 ```
 
-Let's define a simple schema as an object containing two fields named `name` of type `string` and `masts` of type `uint8` along with a constraint that masts are not more than 7,  
+Let's define a simple schema as an object containing two fields named `name` of type `string` and `masts` of type `uint8` along with a constraint that masts are not more than 7. Edit `ship/tip.thema`:
 
 ```cue
-package ship
-
-import "github.com/sdboyer/thema"
-
-thema.Lineage
-name: "ship"
-schemas: "0": "0": schema: {
+Schema: {
 	// name is what we call a ship. It's written in big letters on its hull
 	name: string
 	// masts is the number of masts the ship has. No fully rigged ship
 	// has ever had more than 7: https://oceannavigator.com/the-most-masted-schooner-ever-built/
-	masts: uint8 & < 8
+	masts: uint8 & <8
 }
+```
+
+`thema lineage tip -l ship` reports the version the tip cuts as, `tip (cuts as 0.0)`. Once the schema is ready, cut it, which freezes it as `ship/history/0.0.thema`:
+
+```
+thema lineage cut -l ship
 ```
 
 ## Generating Go Types
@@ -47,7 +40,7 @@ Once we have a schema defined, We can use it to generate a type in Go. Use the b
 
 
 ```
-thema lineage gen gotypes -l ship.cue > ship_type_gen.go
+thema lineage gen gotypes -l ship > ship_type_gen.go
 ```
 
 This generates a Go file with a type for each schema in the lineage; `ShipV0_0` is the type for version 0.0. The generated file looks like below
@@ -68,69 +61,59 @@ type ShipV0_0 struct {
 }
 ```
 
-CUE types are more expressive than Go types. To use the rich information from CUE in Go programs, users can use bindings. Go bindings provide access to the thema Lineage defined in `ship.cue`, and validate data against schemas in the lineage.
+CUE types are more expressive than Go types. To use the rich information from CUE in Go programs, load and bind the lineage itself, and validate data against its schemas.
 
-## Generating Go Bindings
+## Loading the lineage in Go
 
-Use the below command to generate a Go binding from `ship.cue`
-
-```
-thema lineage gen gobindings -l ship.cue > ship_bindings_gen.go
-```
-
-The generated Go bindings will look like this (generated comments have been removed):
+`load.AuthoringLineage` loads a lineage's directory, compiles the versions under `history/` and binds them. Embed the directory, and the lineage is one call away:
 
 ```go
 package ship
 
 import (
 	"embed"
-	"path"
 
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/load"
 )
 
-//go:embed ship.cue
-var themaFS embed.FS
+//go:embed ship
+var shipFS embed.FS
 
+// Lineage loads and binds the ship lineage.
 func Lineage(rt *thema.Runtime, opts ...thema.BindOption) (thema.Lineage, error) {
-	inst, err := load.InstancesWithThema(themaFS, path.Dir("ship.cue"))
-	if err != nil {
-		return nil, err
-	}
-
-	raw := rt.Context().BuildInstance(inst)
-	return thema.BindLineage(raw, rt)
+	return load.AuthoringLineage(shipFS, "ship", rt, opts...)
 }
-
-// type guards
-var _ thema.LineageFactory = Lineage
 ```
-We now have a single Go function our program can call, and it will load up the `ship.cue` from disk and return a [`thema.Lineage`](https://pkg.go.dev/github.com/sdboyer/thema#Lineage)
-We can then use the Lineage function to validate our data against the schema of choice
+
+`thema lineage gen gobindings` generates a function like this for a lineage in the normal form; it does not load the authoring form yet (see its [limits](reference/codegen.md#go)).
 
 ## Validating data
 
-Using the Thema CLI, users can validate the schema of choice defined in `ship.cue`. Use the below command to validate the schema against an invalid JSON data
+Using the Thema CLI, users can validate data against a schema of the lineage. Use the below commands to validate some invalid JSON data against version 0.0
 
 ```
-curl https://raw.githubusercontent.com/sdboyer/thema/main/docs/test_ship.json > test_ship.json
-thema data validate -v 0.0 -l ship.cue test_ship.json
+echo '{"name": "Argo", "masts": 9}' > ship.json
+thema data validate -v 0.0 -l ship ship.json
 ```
 
 You should see an error similar to below
 ```
-#ship00.masts: invalid value 9 (out of bound <8)
+error[E0504]: masts in the data is 9, outside the bound <8 that schema 0.0 sets
+ --> ship.json:1:27
+  |
+1 | {"name": "Argo", "masts": 9}
+  |                           ^
+  |
+ ::: history/0.0.thema:6:17
+  |
+6 |     masts: uint8 & <8
+  |                    - the bound is set here
+  |
+  = detail: masts: invalid value 9 (out of bound <8)
 ```
 
-The Go program will need `cue.mod` to be present, Run the below command to generate it
-
-```
-cue mod init
-```
-
-The same validation logic performed by `thema data validate` can be run from a Go program, using the generated bindings. The following Go test will produce the same output:
+The same validation can be run from a Go program, using the `Lineage` function. The following Go test will produce the same error:
 
 ```go
 package ship
@@ -144,18 +127,21 @@ import (
 	"github.com/sdboyer/thema/vmux"
 )
 
-//go:embed test_ship.json
+//go:embed ship.json
 var shipJSON []byte
 
 func TestValidateShip(t *testing.T) {
 	ctx := cuecontext.New()
-	lin, _ := Lineage(thema.NewRuntime(ctx))
+	lin, err := Lineage(thema.NewRuntime(ctx))
+	if err != nil {
+		t.Fatal(err)
+	}
 	sch, _ := lin.Schema(thema.SV(0, 0))
-	shipdata, _ := vmux.NewJSONEndec("test_ship.json").Decode(ctx, shipJSON)
-	_, err := sch.Validate(shipdata)
+	shipdata, _ := vmux.NewJSONCodec("ship.json").Decode(ctx, shipJSON)
+	_, err = sch.Validate(shipdata)
 	t.Fatal(err)
 }
 ```
 
 ## Wrap up
-This tutorial demonstrated how you can create an empty Lineage using the thema CLI, define a simple schema and use it to generate Go types and bindings, and use the bindings to validate data against a selected schema in the Lineage. 
+This tutorial demonstrated how you can create a lineage using the thema CLI, define a schema in its tip and cut it, generate Go types from it, and load the lineage in Go to validate data against a selected schema.

@@ -7,7 +7,7 @@ The derived BackwardLens copies x whole, and drops what 1.0 added.
 Schema: {
 	x!: {kind!: "a", n!: int32} | {kind!: "b", n?: int32}
 }
--- ship/1.0.thema --
+-- ship/history/1.0.thema --
 Schema: {
 	x!: {kind!: "a", n!: int32} | {kind!: "b", n?: int32}
 	count!:   int
@@ -21,6 +21,18 @@ ForwardLens: {
 		doubled: v0_0.x.n * 2
 	}
 }
+-- ship/tip.thema --
+Schema: {
+	x!: {
+		kind!: "a"
+		n!:    int32
+	} | {
+		kind!: "b"
+		n?:    int32
+	}
+	count!:   int
+	doubled?: int
+}
 -- data/0.0/a.json --
 {"x": {"kind": "a", "n": 1}}
 -- data/0.0/b.json --
@@ -29,7 +41,17 @@ ForwardLens: {
 {"x": {"kind": "b", "n": 3}, "count": 3, "doubled": 6}
 -- out/bind --
 ok
--- out/decompiled/1.0.thema --
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	x!: {
+		kind!: "a"
+		n!:    int32
+	} | {
+		kind!: "b"
+		n?:    int32
+	}
+}
+-- out/decompiled/history/1.0.thema --
 Schema: {
 	x!: {
 		kind!: "a"
@@ -49,7 +71,7 @@ ForwardLens: {
 		doubled: v0_0.x.n * 2
 	}
 }
--- out/decompiled/history/0.0.thema --
+-- out/decompiled/tip.thema --
 Schema: {
 	x!: {
 		kind!: "a"
@@ -58,6 +80,8 @@ Schema: {
 		kind!: "b"
 		n?:    int32
 	}
+	count!:   int
+	doubled?: int
 }
 -- out/normal.cue --
 name: "ship"

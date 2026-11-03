@@ -2,7 +2,7 @@
 
 This is the reference for the authoring form: the files a lineage author writes, and the language lenses are written in. For a guided introduction to lineages, start with the [overview](overview.md) and the [authoring tutorial](authoring.md), which show the normal form that every thema tool consumes. The authoring form compiles to that normal form, and decompiles back from it, without loss. What translation then does with each field of an instance is defined in [translation](translation.md).
 
-Every `thema` command that takes a lineage with `-l` accepts a lineage's directory in this form, `thema lineage fmt -l <dir>` lays out its files in place, `thema lineage tip -l <dir>` reports the version its tip cuts as, and `thema lineage cut -l <dir>` cuts it. In Go, `load.AuthoringLineage` loads, compiles and binds a directory in one call, and the `authoring` package exposes the pieces: the files, the compiled normal form, the tip, cutting it, the decompiler and the formatter.
+`thema lineage init` starts a lineage in this form: it prints a new lineage's `tip.thema`, holding an empty schema or one converted from an OpenAPI or JSON Schema document. Every `thema` command that takes a lineage with `-l` accepts a lineage's directory in this form, `thema lineage fmt -l <dir>` lays out its files in place, `thema lineage tip -l <dir>` reports the version its tip cuts as, and `thema lineage cut -l <dir>` cuts it. In Go, `load.AuthoringLineage` loads, compiles and binds a directory in one call, and the `authoring` package exposes the pieces: the files, the compiled normal form, the tip, a new lineage's tip, cutting it, the decompiler and the formatter.
 
 ## Files
 
