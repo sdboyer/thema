@@ -1,0 +1,38 @@
+#description: A definition holds the lineage and narrows its joinSchema with #J, declared beside the use; the text declares only the schemas. This is #260's own case: a narrowing may refer outside the lineage.
+#expect: ok
+#spec: docs/invariants.md:162-176
+#at: lin.h
+#known/fill-text: #260 the filled text is the lineage's first conjunct, so the lineage is placed at the top of the use's root and #J beside the use reads as declared in the lineage.
+#known/fill-text-named: #260 the filled text is the lineage's first conjunct, so the lineage is placed at the top of the use's root and #J beside the use reads as declared in the lineage.
+#known/fill-use: #270 bind rebuilds the lineage from its conjuncts without thema.Lineage; the use's conjunct, written in a definition, stays closed and has no schemas field (E0126).
+#known/unify-use-text: #270 bind rebuilds the lineage from its conjuncts without thema.Lineage; the use's conjunct, written in a definition, stays closed and has no schemas field (E0126).
+#known/unify-text-use: #270 bind rebuilds the lineage from its conjuncts without thema.Lineage; the use's conjunct, written in a definition, stays closed and has no schemas field (E0126).
+#known/third-root: #270 bind rebuilds the lineage from its conjuncts without thema.Lineage; the use's conjunct, written in a definition, stays closed and has no schemas field (E0126).
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+#J: {[string]: string, ...}
+#Op: h: thema.Lineage & {name: "h", joinSchema: #J}
+lin: #Op
+-- text.cue --
+schemas: "0": "0": schema: {a?: string}
+-- out/fill-text-named/bind --
+verdict: E0141
+E0141 joinSchema refers to #J, which is declared in the lineage outside the joinSchema @ /m/in.cue:5:49
+-- out/fill-text/bind --
+verdict: E0141
+E0141 joinSchema refers to #J, which is declared in the lineage outside the joinSchema @ /m/in.cue:5:49
+-- out/fill-use/bind --
+verdict: E0126
+E0126 the lineage is not an instance of thema.Lineage @ :1:1
+-- out/third-root/bind --
+verdict: E0126
+E0126 the lineage is not an instance of thema.Lineage @ :1:1
+-- out/together/bind --
+verdict: ok
+-- out/unify-text-use/bind --
+verdict: E0126
+E0126 the lineage is not an instance of thema.Lineage @ :1:1
+-- out/unify-use-text/bind --
+verdict: E0126
+E0126 the lineage is not an instance of thema.Lineage @ no position

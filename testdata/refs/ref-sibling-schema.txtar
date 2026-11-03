@@ -1,0 +1,36 @@
+#description: Schema 0.1 in the text refers to a field of schema 0.0 through schemas. A schema referring to another schema of the lineage is ref-sibling-schema.
+#expect: E0140
+#spec: docs/invariants.md:116-118, docs/invariants.md:219
+#at: lin.h
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: h: thema.Lineage & {name: "h"}
+-- text.cue --
+name: "h"
+schemas: {
+	"0": "0": schema: {a: string}
+	"0": "1": schema: {a: string, c?: schemas["0"]["0"].schema.a}
+}
+lenses: "0.1->0.0": {v0_1: _, v0_0: {a: v0_1.a}}
+-- out/fill-text-named/bind --
+verdict: E0140
+E0140 c in schema 0.1 refers to schemas["0"]["0"].schema.a, a schema in the lineage @ text.cue:4:36
+-- out/fill-text/bind --
+verdict: E0140
+E0140 c in schema 0.1 refers to schemas["0"]["0"].schema.a, a schema in the lineage @ :4:36
+-- out/fill-use/bind --
+verdict: E0140
+E0140 c in schema 0.1 refers to schemas["0"]["0"].schema.a, a schema in the lineage @ :4:36
+-- out/third-root/bind --
+verdict: E0140
+E0140 c in schema 0.1 refers to schemas["0"]["0"].schema.a, a schema in the lineage @ :4:36
+-- out/together/bind --
+verdict: E0140
+E0140 c in schema 0.1 refers to schemas["0"]["0"].schema.a, a schema in the lineage @ /m/text.cue:5:36
+-- out/unify-text-use/bind --
+verdict: E0140
+E0140 c in schema 0.1 refers to schemas["0"]["0"].schema.a, a schema in the lineage @ :4:36
+-- out/unify-use-text/bind --
+verdict: E0140
+E0140 c in schema 0.1 refers to schemas["0"]["0"].schema.a, a schema in the lineage @ :4:36

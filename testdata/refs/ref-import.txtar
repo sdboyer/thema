@@ -1,0 +1,19 @@
+#description: A schema in the text refers to a definition in another package of the author's module, which the text imports. A package that is not one of CUE's builtins is ref-import.
+#expect: E0143
+#spec: docs/invariants.md:116-120, docs/invariants.md:222
+#at: lin.h
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: h: thema.Lineage & {name: "h"}
+-- text.cue --
+import "example.com/m/common"
+
+schemas: "0": "0": schema: {c?: common.#Color}
+-- common/common.cue --
+package common
+
+#Color: "red" | "blue"
+-- out/together/bind --
+verdict: E0143
+E0143 c in schema 0.0 refers to #Color, in package "example.com/m/common", which is not one of CUE's builtin packages @ /m/text.cue:4:33

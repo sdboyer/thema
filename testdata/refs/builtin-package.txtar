@@ -1,0 +1,26 @@
+#description: A schema in the text uses strings.MinRunes from CUE's builtin strings package, which the text imports. A schema may refer to CUE's builtin packages.
+#expect: ok
+#spec: docs/invariants.md:116-120
+#at: lin.h
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: h: thema.Lineage & {name: "h"}
+-- text.cue --
+import "strings"
+
+schemas: "0": "0": schema: {s?: string & strings.MinRunes(1)}
+-- out/fill-text-named/bind --
+verdict: ok
+-- out/fill-text/bind --
+verdict: ok
+-- out/fill-use/bind --
+verdict: ok
+-- out/third-root/bind --
+verdict: ok
+-- out/together/bind --
+verdict: ok
+-- out/unify-text-use/bind --
+verdict: ok
+-- out/unify-use-text/bind --
+verdict: ok
