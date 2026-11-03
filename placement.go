@@ -25,9 +25,9 @@ import (
 // same in each case; what differs is the CUE around it.
 //
 // So the lineage has placements: each root it is declared in, and its path
-// there. The first is where BindLineage was handed it: the value it was
-// handed, not one thema rebuilt from that value's conjuncts, whose path is the
-// path of whichever conjunct came first. The others are found from the
+// there. The first is the path of the value passed to BindLineage, not of one
+// thema rebuilt from that value's conjuncts, whose path is the path of
+// whichever conjunct came first. The others are found from the
 // lineage's own structure: every conjunct of the lineage that is a reference
 // names a value the lineage is made of, declared in a root at a path (a
 // package, flagship: ship; a field, flagship: a; a value in another package,
@@ -77,8 +77,8 @@ type placements struct {
 	list []placement
 }
 
-// placeLineage places lin, the lineage as thema unified it, which BindLineage
-// was handed as at.
+// placeLineage places lin, the lineage as thema unified it. at is the value
+// passed to BindLineage.
 func placeLineage(lin, at cue.Value) *placements {
 	pl := &placements{lin: lin}
 	own := placement{path: at.Path(), files: make(map[string]bool)}
