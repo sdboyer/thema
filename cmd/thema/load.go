@@ -136,7 +136,7 @@ func (lla *lineageLoadArgs) dynLoad() (*dynamicLoader, error) {
 		if lla.skipBindLineage {
 			return nil, diag.InternalErr(fmt.Errorf("%s is a lineage in the authoring form, which a command that skips binding does not take", lla.inputLinFilePath))
 		}
-		sourceDirs = append(sourceDirs, lla.absInput)
+		sourceDirs = append(sourceDirs, filepath.Dir(lla.absInput))
 		fsys, dir := os.DirFS(filepath.Dir(lla.absInput)), filepath.Base(lla.absInput)
 		if lla.tip {
 			dl.dev, err = tload.DevelopmentLineage(fsys, dir, rt)

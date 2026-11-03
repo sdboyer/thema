@@ -11,15 +11,16 @@ import (
 // AuthoringLineage loads the authoring files of the lineage in dir, a
 // directory of fsys, compiles its frozen versions, those under history/, to
 // the normal form and binds the result. The tip is not read.
-// Errors are positioned in the authoring files, by their paths relative to
-// dir, and worded in the authoring form's terms. For the pieces of that
-// sequence, see [github.com/sdboyer/thema/authoring].
+// Errors are positioned in the authoring files, by their paths in fsys
+// (dir/history/0.0.thema; see [authoring.At]), and worded in the authoring
+// form's terms. For the pieces of that sequence, see
+// [github.com/sdboyer/thema/authoring].
 func AuthoringLineage(fsys fs.FS, dir string, rt *thema.Runtime, opts ...thema.BindOption) (thema.Lineage, error) {
 	name, files, err := authoring.Load(fsys, dir)
 	if err != nil {
 		return nil, err
 	}
-	c, err := authoring.Compile(rt.Context(), name, files)
+	c, err := authoring.Compile(rt.Context(), name, files, authoring.At(dir))
 	if err != nil {
 		return nil, err
 	}
@@ -57,14 +58,15 @@ func (d *Development) Provisional(v thema.SyntacticVersion) bool {
 // newest version, provisional, at the version it cuts as. It is for
 // developing and testing a lineage, never for serving it: what is published
 // is what [AuthoringLineage] binds, the versions under history/. A lineage
-// with no tip.thema is an error (E0149). For the pieces, see
+// with no tip.thema is an error (E0149). Errors are positioned as
+// [AuthoringLineage] positions them. For the pieces, see
 // [authoring.CompileDevelopment] and [authoring.BindDevelopment].
 func DevelopmentLineage(fsys fs.FS, dir string, rt *thema.Runtime, opts ...thema.BindOption) (*Development, error) {
 	name, files, err := authoring.Load(fsys, dir)
 	if err != nil {
 		return nil, err
 	}
-	c, err := authoring.CompileDevelopment(rt.Context(), name, files)
+	c, err := authoring.CompileDevelopment(rt.Context(), name, files, authoring.At(dir))
 	if err != nil {
 		return nil, err
 	}

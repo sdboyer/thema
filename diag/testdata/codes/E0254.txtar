@@ -24,7 +24,7 @@ Schema: {
         "kind": "name"
       },
       "primary": {
-        "file": "history/0.0.thema",
+        "file": "candidate/boat/history/0.0.thema",
         "line": 1,
         "col": 1,
         "origin": "user"
@@ -47,7 +47,7 @@ Schema: {
 }
 -- out/text --
 error[E0254]: the lineage is named boat, but was published as ship
- --> history/0.0.thema:1:1
+ --> candidate/boat/history/0.0.thema:1:1
   |
 1 | Schema: {
   | ^^^^^^
