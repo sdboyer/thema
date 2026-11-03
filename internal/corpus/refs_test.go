@@ -19,8 +19,8 @@ import (
 )
 
 // TestRefs runs the reference-placement corpus in testdata/refs: each case
-// is one lineage text and one value that uses it, and each suite builds the
-// value passed to BindLineage from them in its own way. Every suite must give
+// is one lineage text and one value that uses it, and each suite builds from
+// them, in its own way, the package the lineage is bound from. Every suite must give
 // the verdict docs/invariants.md gives, which the case records as #expect.
 // testdata/refs/README.md says how to add a case and how to read a failure.
 func TestRefs(t *testing.T) {
@@ -28,12 +28,11 @@ func TestRefs(t *testing.T) {
 }
 
 // checkAt fails a case whose #at is not a field of package m without the
-// text. Every suite but together fills the text into the use's value at #at,
-// so such a case would bind the text alone, and test nothing about the use.
+// text. Such a case would bind the text alone, and test nothing about the use.
 func checkAt(t testing.TB, c *Case) {
 	t.Helper()
 	if !loadUse(t, cuecontext.New(), c, "").LookupPath(at(c)).Exists() {
-		t.Fatalf("case %s: #at: in.cue has no field %s, so the suites that fill the text into the use would fill an empty field; "+
+		t.Fatalf("case %s: #at: in.cue has no field %s, so the case binds the text alone; "+
 			"declare the field in in.cue, or correct #at", c.Name, c.Directive("at"))
 	}
 }

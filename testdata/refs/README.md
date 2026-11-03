@@ -55,16 +55,15 @@ E0141 n in schema 0.0 refers to name, which is declared in the lineage outside t
 - **`out/<suite>/bind`** is what that suite's bind reported: the verdict line,
   then one line per diagnostic. Never write these by hand.
 
-`compose` writes `text.cue` into package `m` at `#at` with `thema.Compose`,
-so it applies only to a text that compiles on its own: one that refers to
-nothing outside itself except CUE's builtin packages. A case whose text
-refers to `in.cue`, or imports a package of the module, runs only through
-`together`; `compose` is skipped, with the reason.
+Both suites run every case. `together` writes `text.cue` beside `in.cue`
+as it is; `compose` writes it into package `m` at `#at` with
+`thema.Compose`, so its references resolve in package `m` too.
 
 A lineage assembled in Go, by filling or unifying separately built values, is
-refused (`E0152`) rather than given a verdict; `TestRefsGoAssembly` checks
-that every case whose text compiles on its own is refused that way along each
-Go construction.
+refused (`E0152`) rather than given a verdict. `TestRefsGoAssembly` checks
+that each Go construction is refused that way, for every case whose text
+compiles on its own: one that refers to nothing outside itself except CUE's
+builtin packages.
 
 The suites, and how each builds the value, are in `suites.json`.
 

@@ -233,20 +233,37 @@ func (ml *maybeLineage) checkSchemaVersions(prev, curr *schemaDef) error {
 
 // checkRoot refuses a root built in Go. Bind places the lineage's own
 // declarations by the build instance of the root they are in (placement.go),
-// which CUE keeps only for the root of a value it built from files.
+// which CUE keeps only for the root of a value it built from source.
 func (ml *maybeLineage) checkRoot() error {
-	// A root CUE failed to build reports its own error in the checks after.
-	if ml.root.Err() != nil || ml.root.BuildInstance() != nil {
+	// A lineage CUE failed to build reports its own error in the checks
+	// after. An error elsewhere in the root is no reason to skip the check.
+	if ml.root.LookupPath(ml.path).Err() != nil || ml.root.BuildInstance() != nil {
 		return nil
 	}
+	const rule = "a lineage is bound from the root of a value CUE built from source"
+	if at := ml.root.Path(); len(at.Selectors()) > 0 {
+		whole := cue.MakePath(append(at.Selectors(), ml.path.Selectors()...)...)
+		return ml.diag(diag.E0152).
+			Headlinef("%s, and this value is its field %s", rule, at).
+			Note(token.NoPos, "bind tells the lineage's own declarations from the CUE around it by the build instance of the root it is bound from, and only the root has one").
+			Helpf("pass the root that %s is a field of, with %s as the path to the lineage", at, whole).
+			Err()
+	}
 	return ml.diag(diag.E0152).
-		Headline("a lineage is bound from a value CUE loaded from files, and this one was built in Go").
-		Note(token.NoPos, "bind tells the lineage's own declarations from the CUE around it by the files its root was loaded from; a value made by FillPath or Unify has none").
+		Headlinef("%s, and this root was built in Go", rule).
+		Note(token.NoPos, "bind tells the lineage's own declarations from the CUE around it by the build instance of the root it is bound from, and a value made by FillPath or Unify has none").
 		Help("compose separately built lineages into one package with thema.Compose, load it, and bind each lineage from that package's root").
 		Err()
 }
 
 func (ml *maybeLineage) checkExists(cfg *bindConfig) error {
+	if err := ml.path.Err(); err != nil {
+		return ml.diag(diag.E0128).
+			Headline("the path to the lineage is not a valid CUE path").
+			Detail(err.Error()).
+			Help("build the path from selectors with cue.MakePath, or correct the string given to cue.ParsePath").
+			Err()
+	}
 	// The candidate lineage must exist.
 	if !ml.raw.Exists() {
 		b := ml.diag(diag.E0128)
@@ -257,6 +274,9 @@ func (ml *maybeLineage) checkExists(cfg *bindConfig) error {
 		}
 		if err := ml.raw.Err(); err != nil {
 			b.Detail(err.Error())
+		}
+		if err := ml.root.Err(); err != nil && (ml.raw.Err() == nil || err.Error() != ml.raw.Err().Error()) {
+			b.Notef(token.NoPos, "the value it is bound from has an error: %s", err)
 		}
 		return b.Err()
 	}

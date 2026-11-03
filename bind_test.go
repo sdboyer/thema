@@ -7,6 +7,8 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	cerrors "cuelang.org/go/cue/errors"
+
+	"github.com/sdboyer/thema/diag"
 )
 
 // Bind errors found from a lens's syntax still point at the line the author
@@ -99,5 +101,54 @@ lin: Lineage & {
 	}
 	if !lin.Underlying().LookupPath(cue.ParsePath("joinSchema")).Exists() {
 		t.Error("the bound lineage was not unified with thema.Lineage: the author's field named Lineage was taken for it")
+	}
+}
+
+// Bind takes the root CUE built from source and the path to the lineage.
+// Anything else is refused by what it is, whatever else is wrong with it.
+func TestBindRoot(t *testing.T) {
+	const text = "name: \"h\"\nschemas: \"0\": \"0\": schema: {a?: string}\n"
+	ctx := cuecontext.New()
+	rt := NewRuntime(ctx)
+	loaded := loadLineageRoot(t, ctx, "lin: thema.Lineage & {\n"+text+"}\n")
+	for _, tc := range []struct {
+		name     string
+		root     cue.Value
+		path     cue.Path
+		code     string
+		headline string
+	}{
+		{
+			"built in Go, with an error beside the lineage",
+			ctx.CompileString("a: 1\nlin: _").FillPath(cue.ParsePath("a"), 2).FillPath(cue.ParsePath("lin"), ctx.CompileString(text)),
+			cue.ParsePath("lin"), "E0152",
+			"a lineage is bound from the root of a value CUE built from source, and this root was built in Go",
+		},
+		{
+			"a field of a loaded root",
+			loaded.LookupPath(cue.ParsePath("lin")), cue.Path{}, "E0152",
+			"a lineage is bound from the root of a value CUE built from source, and this value is its field lin",
+		},
+		{
+			"an invalid path",
+			loaded, cue.ParsePath("lin.["), "E0128",
+			"the path to the lineage is not a valid CUE path",
+		},
+		{
+			"source that does not compile",
+			ctx.CompileString("lin: {"), cue.ParsePath("lin"), "E0128",
+			"there is no value at lin to bind as a lineage",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := BindLineage(tc.root, tc.path, rt)
+			var got []string
+			for _, d := range diag.Diagnostics(err) {
+				got = append(got, string(d.Code)+" "+d.Headline)
+			}
+			if want := tc.code + " " + tc.headline; len(got) != 1 || got[0] != want {
+				t.Errorf("got %q, want %q", got, want)
+			}
+		})
 	}
 }
