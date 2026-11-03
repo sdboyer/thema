@@ -5,7 +5,9 @@ import (
 	"testing/fstest"
 
 	"cuelang.org/go/cue"
+	"cuelang.org/go/cue/ast"
 	"cuelang.org/go/cue/cuecontext"
+	"cuelang.org/go/cue/format"
 	"cuelang.org/go/cue/load"
 	"cuelang.org/go/cue/parser"
 
@@ -101,6 +103,70 @@ func TestComposedImports(t *testing.T) {
 	if n, _ := v.LookupPath(cue.ParsePath("b.v")).Len().Int64(); n != 2 {
 		t.Errorf("b.v has %d elements, want 2", n)
 	}
+}
+
+// A placement's path never captures a reference: not its file's own import
+// of the same name, not a builtin another placement refers to, and a keyword
+// label is still a label. The printed files, as a caller writing them to disk
+// would load them, read the same as the syntax.
+func TestComposedLabelsCaptureNothing(t *testing.T) {
+	parse := func(src string) *ast.File {
+		f, err := parser.ParseFile("p.cue", src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return f
+	}
+	ps := []thema.Placement{
+		{Path: cue.ParsePath("strings"), File: parse("import \"strings\"\nv: strings.ToUpper(\"q\")\n")},
+		{Path: cue.ParsePath("int"), File: parse("v: 1\n")},
+		{Path: cue.ParsePath("c"), File: parse("v: int\n")},
+		{Path: cue.MakePath(cue.Str("import"), cue.Str("x")), File: parse("v: 2\n")},
+	}
+	check := func(t *testing.T, v cue.Value) {
+		t.Helper()
+		if err := v.Err(); err != nil {
+			t.Fatal(err)
+		}
+		if s, _ := v.LookupPath(cue.ParsePath("strings.v")).String(); s != "Q" {
+			t.Errorf("strings.v = %q, want Q", s)
+		}
+		if k := v.LookupPath(cue.ParsePath("c.v")).IncompleteKind(); k != cue.IntKind {
+			t.Errorf("c.v is %v, want int", k)
+		}
+		if n, _ := v.LookupPath(cue.MakePath(cue.Str("import"), cue.Str("x"), cue.Str("v"))).Int64(); n != 2 {
+			t.Errorf("import.x.v = %d, want 2", n)
+		}
+	}
+
+	t.Run("syntax", func(t *testing.T) {
+		inst, err := tload.ComposedInstance("p", ps...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		check(t, cuecontext.New().BuildInstance(inst))
+	})
+	t.Run("printed", func(t *testing.T) {
+		files, err := thema.Compose("p", ps...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cfg := &load.Config{Dir: "/p", Overlay: map[string]load.Source{
+			"/p/cue.mod/module.cue": load.FromString(util.ModuleFile("example.com/p")),
+		}}
+		for _, f := range files {
+			b, err := format.Node(f)
+			if err != nil {
+				t.Fatal(err)
+			}
+			cfg.Overlay["/p/"+f.Filename] = load.FromBytes(b)
+		}
+		inst := load.Instances([]string{"."}, cfg)[0]
+		if inst.Err != nil {
+			t.Fatal(inst.Err)
+		}
+		check(t, cuecontext.New().BuildInstance(inst))
+	})
 }
 
 // A lineage composed into the caller's own package, at a field typed by a

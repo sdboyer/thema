@@ -50,7 +50,7 @@ import (
 	"strings"
 )
 
-ops: #Op: "content-type": {
+"ops": #Op: "content-type": {
 
 	// the lineage
 	name: "q"
@@ -82,28 +82,88 @@ loud: strings.ToUpper(name)
 
 func TestComposeRefused(t *testing.T) {
 	f, _ := parser.ParseFile("q.cue", "a: 1")
+	one := []thema.Placement{{File: f}}
+	at := func(p cue.Path) []thema.Placement { return []thema.Placement{{Path: p, File: f}} }
 	for _, tc := range []struct {
 		name     string
 		pkg      string
-		path     cue.Path
+		ps       []thema.Placement
 		headline string
 	}{
-		{"empty package name", "", cue.Path{}, `"" cannot name a composed package`},
-		{"package name with a digit first", "1x", cue.Path{}, `"1x" cannot name a composed package`},
-		{"definition as package name", "#x", cue.Path{}, `"#x" cannot name a composed package`},
-		{"hidden package name", "_x", cue.Path{}, `"_x" cannot name a composed package`},
-		{"index", "p", cue.ParsePath("a[0]"), "placement 0's path a[0] cannot be written as fields"},
-		{"optional", "p", cue.MakePath(cue.Str("a").Optional()), "placement 0's path a? cannot be written as fields"},
-		{"required", "p", cue.MakePath(cue.Str("a").Required()), "placement 0's path a! cannot be written as fields"},
-		{"pattern", "p", cue.MakePath(cue.AnyString), "placement 0's path [_] cannot be written as fields"},
-		{"hidden", "p", cue.MakePath(cue.Hid("_a", "p")), "placement 0's path _a cannot be written as fields"},
-		{"invalid", "p", cue.ParsePath("a.b c"), "placement 0's path is not a valid path"},
+		{"empty package name", "", one, `a composed package is named by an identifier, and "" is not one`},
+		{"package name with a digit first", "1x", one, `a composed package is named by an identifier, and "1x" is not one`},
+		{"definition as package name", "#x", one, `a composed package is named by an identifier, and "#x" is not one`},
+		{"hidden package name", "_x", one, `a composed package is named by an identifier, and "_x" is not one`},
+		{"keyword as package name", "if", one, `a composed package is named by an identifier, and "if" is not one`},
+		{"literal as package name", "true", one, `a composed package is named by an identifier, and "true" is not one`},
+		{"no placements", "p", nil, "a composed package declares at least one placement, and none was given"},
+		{"index", "p", at(cue.ParsePath("a[0]")), "a placement's path is made of field and definition labels, and placement 0's path a[0] is not"},
+		{"optional", "p", at(cue.MakePath(cue.Str("a").Optional())), "a placement's path is made of field and definition labels, and placement 0's path a? is not"},
+		{"required", "p", at(cue.MakePath(cue.Str("a").Required())), "a placement's path is made of field and definition labels, and placement 0's path a! is not"},
+		{"pattern", "p", at(cue.MakePath(cue.AnyString)), "a placement's path is made of field and definition labels, and placement 0's path [_] is not"},
+		{"hidden", "p", at(cue.MakePath(cue.Hid("_a", "p"))), "a placement's path is made of field and definition labels, and placement 0's path _a is not"},
+		{"invalid", "p", at(cue.ParsePath("a.b c")), "a placement's path is a valid CUE path, and placement 0's has an error"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := thema.Compose(tc.pkg, thema.Placement{Path: tc.path, File: f})
+			_, err := thema.Compose(tc.pkg, tc.ps...)
 			ds := diag.Diagnostics(err)
 			if len(ds) != 1 || ds[0].Code != diag.E0627 || ds[0].Headline != tc.headline {
 				t.Errorf("got %v, want one E0627 %q", ds, tc.headline)
+			}
+		})
+	}
+}
+
+// File attributes stay ahead of the new package clause, whether they precede
+// an old one or lead a file without one, and what follows an old package
+// clause, with the clause's comments, stays after the new one.
+func TestComposeAttributes(t *testing.T) {
+	for _, tc := range []struct {
+		name, src, want string
+	}{
+		{"after the package clause", `// about q
+package q
+
+@extern(embed)
+
+import "strings"
+
+a: strings.ToUpper("q")
+`, `// about q
+package p
+
+@extern(embed)
+
+import "strings"
+
+"at":
+	a: strings.ToUpper("q")
+`},
+		{"without a package clause", `@if(debug)
+
+a: 1
+`, `@if(debug)
+package p
+
+"at":
+	a: 1
+`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f, err := parser.ParseFile("q.cue", tc.src, parser.ParseComments)
+			if err != nil {
+				t.Fatal(err)
+			}
+			files, err := thema.Compose("p", thema.Placement{Path: cue.ParsePath("at"), File: f})
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := formatted(t, files[0])
+			if got != tc.want {
+				t.Errorf("got:\n%s\nwant:\n%s", got, tc.want)
+			}
+			if _, err := parser.ParseFile("composed.cue", got); err != nil {
+				t.Errorf("the composed file does not parse: %v", err)
 			}
 		})
 	}

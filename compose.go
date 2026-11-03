@@ -2,9 +2,11 @@ package thema
 
 import (
 	"fmt"
+	"slices"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/ast"
+	"cuelang.org/go/cue/parser"
 	"cuelang.org/go/cue/token"
 
 	"github.com/sdboyer/thema/diag"
@@ -13,8 +15,9 @@ import (
 // A Placement is a file of CUE and the path at which [Compose] declares it.
 type Placement struct {
 	// Path is where the file's declarations go: a path of regular field and
-	// definition labels, such as operations.get.query or #Op.h. An empty path
-	// declares them at the top of the package.
+	// definition labels, such as operations.get.query. An empty path declares
+	// them at the top of the package. A definition closes what it declares,
+	// and a lineage under one does not bind today (#270).
 	Path cue.Path
 	// File is the CUE to declare at Path, such as a lineage compiled from the
 	// authoring form (authoring.Compiled.File). Its package clause, if any, is
@@ -31,18 +34,35 @@ type Placement struct {
 // from files: every lineage in it is a field of a loaded package, as it
 // would be had its author written it there, and plain cue evaluates it.
 //
-// The declarations are the placements' own nodes, not copies, so positions
-// are those of the files the placements were built from. Each file is named
-// thema_compose_<i>.cue, for placement i, and holds no syntax that carries a
-// position of its own. The caller loads the files, alongside its package's
-// own files if it has any, with its own load.Config; load.ComposedInstance
-// loads them on their own. Two placements at the same path are unified.
+// Each file is named thema_compose_<i>.cue, for placement i, and keeps the
+// positions of the file the placement was built from: the syntax Compose
+// adds carries none. The file attributes that precede a placement's package
+// clause, or that lead a file without one, stay at the top; everything else
+// before the declarations follows the new package clause. The caller loads
+// the files, alongside its package's own files if it has any, with its own
+// load.Config; load.ComposedInstance loads them on their own.
+//
+// The files are one package, and read as one:
+//   - Two placements at the same path are unified.
+//   - A name a placement's file refers to without declaring it resolves in
+//     the composed package, to what the other placements or the caller's
+//     files declare at its top. The path's own labels are written quoted,
+//     so they never capture a reference.
+//   - Hidden labels belong to the package they are written in, which for
+//     every placement is now pkg: two placements at one path share their
+//     hidden fields, though they were separate where they were built.
 func Compose(pkg string, ps ...Placement) ([]*ast.File, error) {
-	if !ast.IsValidIdent(pkg) || pkg == "_" || pkg[0] == '#' || pkg[0] == '_' {
+	if !packageName(pkg) {
 		return nil, diag.New(diag.E0627).
-			Headlinef("%q cannot name a composed package", pkg).
-			Note(token.NoPos, "a package name is an identifier that does not start with # or _, such as lineages").
-			Help("name the package with an identifier").
+			Headlinef("a composed package is named by an identifier, and %q is not one", pkg).
+			Note(token.NoPos, "a package name is an identifier that does not start with # or _, and is not a keyword such as if or let").
+			Help("name the package with such an identifier, such as lineages").
+			Err()
+	}
+	if len(ps) == 0 {
+		return nil, diag.New(diag.E0627).
+			Headline("a composed package declares at least one placement, and none was given").
+			Help("pass Compose a placement for each file to declare").
 			Err()
 	}
 	files := make([]*ast.File, 0, len(ps))
@@ -59,14 +79,27 @@ func Compose(pkg string, ps ...Placement) ([]*ast.File, error) {
 	return files, nil
 }
 
+// packageName reports whether pkg is a name a package clause can declare,
+// and that is neither hidden nor a definition.
+func packageName(pkg string) bool {
+	if !ast.IsValidIdent(pkg) || pkg[0] == '#' || pkg[0] == '_' {
+		return false
+	}
+	f, err := parser.ParseFile("", "package "+pkg)
+	return err == nil && f.PackageName() == pkg
+}
+
 // placementLabels returns the labels of the fields that nest a placement's
-// declarations at p.
+// declarations at p. A regular label is written quoted: a quoted label
+// declares the same field, but binds no identifier, so it cannot capture a
+// reference the file makes to an import or a builtin, in its own file or in
+// another of the package.
 func placementLabels(i int, p cue.Path) ([]ast.Label, error) {
 	if err := p.Err(); err != nil {
 		return nil, diag.New(diag.E0627).
-			Headlinef("placement %d's path is not a valid path", i).
+			Headlinef("a placement's path is a valid CUE path, and placement %d's has an error", i).
 			Detail(err.Error()).
-			Help("build the path from labels, with cue.MakePath or cue.ParsePath").
+			Help("build the path from selectors with cue.MakePath, or correct the string given to cue.ParsePath").
 			Err()
 	}
 	sels := p.Selectors()
@@ -86,13 +119,13 @@ func placementLabels(i int, p cue.Path) ([]ast.Label, error) {
 			labels = append(labels, ast.NewIdent(sel.String()))
 			continue
 		case sel.IsString():
-			labels = append(labels, ast.NewStringLabel(sel.Unquoted()))
+			labels = append(labels, ast.NewString(sel.Unquoted()))
 			continue
 		default:
 			why = "a selector a field label cannot write"
 		}
 		return nil, diag.New(diag.E0627).
-			Headlinef("placement %d's path %s cannot be written as fields", i, p).
+			Headlinef("a placement's path is made of field and definition labels, and placement %d's path %s is not", i, p).
 			Notef(token.NoPos, "%s is %s", sel, why).
 			Help("place the file at a path of regular field and definition labels").
 			Err()
@@ -101,36 +134,43 @@ func placementLabels(i int, p cue.Path) ([]ast.Label, error) {
 }
 
 // placed returns the file named name, in package pkg, that declares f's
-// declarations under labels, keeping f's file attributes and imports at its
-// top.
+// declarations under labels. What precedes f's package clause, or leads a
+// file without one, are file attributes, and precede the new package
+// clause; f's imports, and what is between them, follow it.
 func placed(name, pkg string, labels []ast.Label, f *ast.File) *ast.File {
-	var preamble, body []ast.Decl
-	pre := f.Preamble()
+	clause := &ast.Package{Name: ast.NewIdent(pkg)}
+	head, rest := 0, 0
 	for i, d := range f.Decls {
-		if i < len(pre) {
-			if _, ok := d.(*ast.Package); !ok {
-				preamble = append(preamble, d)
-			}
-			continue
+		if old, ok := d.(*ast.Package); ok {
+			ast.SetComments(clause, ast.Comments(old))
+			head, rest = i, i+1
+			break
 		}
-		body = append(body, d)
 	}
-	for i := len(labels) - 1; i >= 0; i-- {
-		body = []ast.Decl{&ast.Field{Label: labels[i], Value: &ast.StructLit{Elts: body}}}
+	if rest == 0 {
+		for head < len(f.Decls) && fileLevel(f.Decls[head]) {
+			head++
+		}
+		rest = head
 	}
+	body := max(rest, len(f.Preamble()))
 
-	// File attributes precede the package clause; imports follow it.
-	var attrs, imports []ast.Decl
-	for _, d := range preamble {
-		if _, ok := d.(*ast.Attribute); ok && len(imports) == 0 {
-			attrs = append(attrs, d)
-			continue
-		}
-		imports = append(imports, d)
+	nested := slices.Clone(f.Decls[body:])
+	for i := len(labels) - 1; i >= 0; i-- {
+		nested = []ast.Decl{&ast.Field{Label: labels[i], Value: &ast.StructLit{Elts: nested}}}
 	}
-	decls := make([]ast.Decl, 0, len(attrs)+1+len(imports)+len(body))
-	decls = append(decls, attrs...)
-	decls = append(decls, &ast.Package{Name: ast.NewIdent(pkg)})
-	decls = append(decls, imports...)
-	return &ast.File{Filename: name, Decls: append(decls, body...)}
+	decls := make([]ast.Decl, 0, head+1+body-rest+len(nested))
+	decls = append(decls, f.Decls[:head]...)
+	decls = append(decls, clause)
+	decls = append(decls, f.Decls[rest:body]...)
+	return &ast.File{Filename: name, Decls: append(decls, nested...)}
+}
+
+// fileLevel reports whether d can lead a file as a file attribute does.
+func fileLevel(d ast.Decl) bool {
+	switch d.(type) {
+	case *ast.Attribute, *ast.CommentGroup:
+		return true
+	}
+	return false
 }

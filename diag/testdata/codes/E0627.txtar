@@ -15,7 +15,7 @@ schemas: "0": "0": schema: {a?: string}
     {
       "code": "E0627",
       "severity": "error",
-      "headline": "placement 0's path operations[0] cannot be written as fields",
+      "headline": "a placement's path is made of field and definition labels, and placement 0's path operations[0] is not",
       "notes": [
         {
           "label": "0 is a list index, and a placement goes in a field"
@@ -33,7 +33,7 @@ schemas: "0": "0": schema: {a?: string}
   }
 }
 -- out/text --
-error[E0627]: placement 0's path operations[0] cannot be written as fields
+error[E0627]: a placement's path is made of field and definition labels, and placement 0's path operations[0] is not
   |
   = note: 0 is a list index, and a placement goes in a field
   = help: place the file at a path of regular field and definition labels
