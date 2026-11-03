@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 
 	"github.com/sdboyer/thema"
@@ -329,5 +330,39 @@ func TestTipLensStaleParent(t *testing.T) {
 				t.Errorf("primary = %v, want in %s", d.Primary, TipFile)
 			}
 		})
+	}
+}
+
+// NewTip never writes CUE's wrapper for a closed value, {_#def, _#def: ...},
+// into a schema: a version file holding it declares a hidden definition,
+// which bind refuses (E0151). A value reached through a definition is
+// recursively closed where it is held, and is written without that
+// closedness, keeping what its contents close themselves (#256); a schema
+// declaring a definition of its own, or a field named _#def, is written as it
+// is.
+func TestNewTipClosedSchema(t *testing.T) {
+	ctx := cuecontext.New()
+	v := ctx.CompileString("#Foo: {a!: string, c: close({x: int}), e: {#E, #E: {z: int}}}\nopen: {#Foo: {a!: string}, b?: int}\nown: {_#def, _#def: {a!: string}}")
+	f, err := NewTip(v.LookupPath(cue.ParsePath("#Foo")))
+	if err != nil {
+		t.Fatalf("NewTip of a definition: %v", err)
+	}
+	want := "Schema: {\n\ta!: string\n\tc:  close({x: int})\n\te: {\n\t\t#E\n\t\t#E: {\n\t\t\tz: int\n\t\t}\n\t}\n}\n"
+	if string(f.Text) != want {
+		t.Errorf("NewTip of a definition wrote\n%s\nwant\n%s", f.Text, want)
+	}
+	f, err = NewTip(v.LookupPath(cue.ParsePath("open")))
+	if err != nil {
+		t.Fatalf("NewTip of an open schema with a definition: %v", err)
+	}
+	if strings.Contains(string(f.Text), "_#def") {
+		t.Errorf("NewTip wrote the wrapper:\n%s", f.Text)
+	}
+	f, err = NewTip(v.LookupPath(cue.ParsePath("own")))
+	if err != nil {
+		t.Fatalf("NewTip of a schema declaring _#def: %v", err)
+	}
+	if !strings.Contains(string(f.Text), "_#def: {") {
+		t.Errorf("NewTip did not write the schema's own _#def:\n%s", f.Text)
 	}
 }

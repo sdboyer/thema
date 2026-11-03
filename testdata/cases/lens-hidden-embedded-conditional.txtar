@@ -1,4 +1,5 @@
-# fields of an embedded hidden field surface in the result, where they are checked
+# fields of a hidden helper beside the result, embedded in it, surface in the
+# result, where they are checked
 -- in.cue --
 import (
 	"github.com/sdboyer/thema"
@@ -17,9 +18,9 @@ lin: thema.Lineage & {
 	lenses: {
 		"0.1->0.0": {
 			v0_1: _
+			_h: {if v0_1.a == "boom" {extra: 2}}
 			v0_0: {
 				a: v0_1.a
-				_h: {if v0_1.a == "boom" {extra: 2}}
 				_h
 			}
 		}

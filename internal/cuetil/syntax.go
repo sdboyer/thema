@@ -372,10 +372,8 @@ func listHasComprehension(x ast.Expr) bool {
 // comprehension fire, so they are found from the lens's syntax. A path is
 // reported only at its first undeclared step.
 //
-// Hidden fields follow closedness: one sch does not declare is the lens's own
-// scratch space and is not checked; beneath one it declares, the lens may write
-// only what it declares. Hidden labels are matched to sch's by name, which is
-// exact where the lens and its schemas are in the same package.
+// A hidden field is not data, and is not checked: a schema declares none, and
+// a lens result holds none (bind refuses both, E0151).
 func UndeclaredConditionalFields(ctx *cue.Context, f *LensField, sch cue.Value) []string {
 	var found []string
 	// schs are the schemas that declare path: where sch is a disjunction, any of
@@ -387,16 +385,15 @@ func UndeclaredConditionalFields(ctx *cue.Context, f *LensField, sch cue.Value) 
 			if c.Origin == Copied {
 				continue
 			}
-			hidden := strings.HasPrefix(name, "_")
+			if strings.HasPrefix(name, "_") {
+				continue
+			}
 			if unq, err := strconv.Unquote(name); err == nil {
 				// A data field whose name a hidden field or a definition
 				// would otherwise share (see dataKey).
-				name, hidden = unq, false
+				name = unq
 			}
-			step := name
-			if !hidden {
-				step = cue.MakePath(cue.Str(name)).String()
-			}
+			step := cue.MakePath(cue.Str(name)).String()
 			var next []cue.Value
 			everything := false
 			for _, s := range schs {
@@ -406,14 +403,7 @@ func UndeclaredConditionalFields(ctx *cue.Context, f *LensField, sch cue.Value) 
 						everything = true
 						continue
 					}
-					var v cue.Value
-					var ok bool
-					if hidden {
-						v, ok = declaredHidden(alt, name)
-					} else {
-						v, _, ok = DeclaredChild(ctx, alt, cue.Str(name))
-					}
-					if ok {
+					if v, _, ok := DeclaredChild(ctx, alt, cue.Str(name)); ok {
 						next = append(next, v)
 					}
 				}
@@ -423,7 +413,7 @@ func UndeclaredConditionalFields(ctx *cue.Context, f *LensField, sch cue.Value) 
 			case everything:
 			case len(next) > 0:
 				walk(c, next, p)
-			case !hidden && c.conditional:
+			case c.conditional:
 				found = append(found, strings.Join(p, "."))
 			}
 		}
@@ -441,24 +431,6 @@ func dataKey(name string) string {
 		return strconv.Quote(name)
 	}
 	return name
-}
-
-// declaredHidden returns the value of the hidden field name that sch declares,
-// if it does. Hidden labels are matched by name: see
-// [UndeclaredConditionalFields].
-func declaredHidden(sch cue.Value, name string) (cue.Value, bool) {
-	iter, err := sch.Fields(cue.Hidden(true), cue.Optional(true))
-	if err != nil {
-		return cue.Value{}, false
-	}
-	for iter.Next() {
-		// String marks an optional or required field (_h?), which a hidden name
-		// can't otherwise contain.
-		if s := iter.Selector(); s.LabelType() == cue.HiddenLabel && strings.TrimRight(s.String(), "?!") == name {
-			return iter.Value(), true
-		}
-	}
-	return cue.Value{}, false
 }
 
 func sortedKeys(m map[string]*LensField) []string {

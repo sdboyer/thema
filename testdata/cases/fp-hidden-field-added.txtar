@@ -1,4 +1,5 @@
-# adding a hidden helper field, invisible to data, is judged backwards incompatible
+# adding a definition, a helper invisible to data, is backwards compatible. #18
+# found this for a hidden field, which a schema may no longer declare (#250).
 #issue: 18
 -- in.cue --
 import (
@@ -6,13 +7,13 @@ import (
 )
 
 lin: thema.Lineage & {
-	name: "fpHiddenFieldAdded"
+	name: "fpDefinitionAdded"
 	schemas: {
 		"0": "0": {
 			schema: {a: int}
 		}
 		"0": "1": {
-			schema: {a: int, _h: int}
+			schema: {a: int, #H: int}
 		}
 	}
 	lenses: {

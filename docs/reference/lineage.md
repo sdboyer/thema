@@ -101,7 +101,8 @@ An entry has only `schema` and `examples` (`E0123`). `schema` is required.
 
 - A schema is a CUE value of struct kind (`E0129`).
 - Each field is required, optional or defaulted, as its CUE syntax says ([Field forms](../invariants.md#field-forms)).
-- A schema may declare definitions, hidden fields and `let`s inside itself, and use CUE's builtin packages.
+- A schema may declare definitions and `let`s inside itself, and use CUE's builtin packages.
+- A schema, the `joinSchema` and a narrowing of it declare no hidden field (`_h`) or hidden definition (`_#H`), at any depth (`E0151`, [Schema constructs](../invariants.md#schema-constructs)). A data field whose name starts with `_` is quoted, `"_x": int`.
 - A schema may not use a comprehension, or contain a reference cycle (`E0132`–`E0135`, [Schema constructs](../invariants.md#schema-constructs)).
 - A schema refers only to its own body and CUE's builtin packages: not to another schema, the lineage's other fields, or anything outside the lineage (`E0140`–`E0143`, `E0146`, [References](../invariants.md#references)).
 - In the authoring form, a schema is the `Schema` field of a version file. A version file imports nothing, so a schema there cannot use the builtin packages ([What is not accepted yet](../authoring-form.md#what-is-not-accepted-yet)).
@@ -171,7 +172,7 @@ A missing lens is an error (`E0301`). So is any other lens: a forward lens withi
 - The field named after the target version (`v1_0`) is the instance the lens returns, built by referring to the instance it takes. It is declared (`E0311`), it is an instance of the target schema (`E0304`), and it writes only fields the target schema declares, however open that schema is written (`E0305`).
 - `lacunas` lists every lacuna the lens can emit, unconditionally; each lacuna's `condition` decides whether it applies to an instance. It defaults to `[]`. See [Lacunas](lacunas.md).
 
-A lens has no other regular fields (`E0123`). It may declare hidden fields, definitions and `let`s. It refers only to the instance it takes, its own body, CUE's builtin packages and thema's package ([References](../invariants.md#references)).
+A lens has no other regular fields (`E0123`). It may declare hidden fields beside the instances it takes and returns, definitions and `let`s. The instances it takes and returns, and its lacunas, declare no hidden field or hidden definition (`E0151`). It refers only to the instance it takes, its own body, CUE's builtin packages and thema's package ([References](../invariants.md#references)).
 
 **Totality.** Every lens is total: for every instance of its source schema, it returns an instance of its target schema, and every lacuna's condition and reported values evaluate. thema proves this at bind, and a lens it cannot prove total is an error (`E0360`–`E0390`, [Lens totality](../invariants.md#lens-totality)).
 
@@ -193,7 +194,7 @@ A lineage is written in one of two forms.
 
 - The directory's base name is the lineage's name. Every version that has been cut is a file under `history/`. `tip.thema`, at the top, is the version being worked on, whose version number is derived ([The tip](../authoring-form.md#the-tip)). Published lineages are read from `history/` alone; the development path reads the tip too.
 - A version file holds `Schema`, and `ForwardLens` and `BackwardLens` where its version has them.
-- It compiles to the normal form. Decompiling a normal form the compiler produced gives back its files, in the authoring form's layout. A normal-form lens outside what the authoring form expresses does not decompile (`E0356`).
+- It compiles to the normal form. Decompiling a normal form the compiler produced gives back its files, in the authoring form's layout. A normal-form lens outside what the authoring form expresses does not decompile (`E0356`). A lineage held in a definition, such as a field of one (`#Op: {query?: thema.Lineage}`), is closed where it is held, not by its author, and decompiles without that closedness; closedness its schemas write themselves (`close()`, a definition they declare) stays. A schema closed by a definition beneath the lineage (`schemas: "0": "0": #Entry`) does not decompile (`E0356`): a version file cannot write it.
 - It has no field for `joinSchema` or `examples`. A lineage that uses them is written in the normal form.
 
 Converting between the forms:

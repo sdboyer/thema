@@ -1,0 +1,14 @@
+A schema written as CUE's own wrapper for a closed value, {_#def, _#def: ...},
+as lineage init once wrote it: a hidden definition of the author's, which
+every path refuses (#250).
+#ids: refused
+-- ship/history/0.0.thema --
+Schema: {
+	_#def
+	_#def: {
+		count: int
+	}
+}
+-- out/verdict --
+# bind
+E0151 the schema in history/0.0.thema declares _#def, a hidden definition
