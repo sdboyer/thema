@@ -225,6 +225,8 @@ func TestLineageGenGoTypes(t *testing.T) {
 		shipType = "type Ship struct {\n\tName string `json:\"name\"`\n}\n"
 		pkgname  = "ships"
 		types00  = "v0_0/types.go"
+		pkgFlag  = "--pkgname"
+		checkArg = "--check"
 	)
 	dir := writeTipDir(t, cleanTip)
 	gen := []string{lineageCmd, "gen", "gotypes", "-l", dir}
@@ -236,7 +238,7 @@ func TestLineageGenGoTypes(t *testing.T) {
 		pkg  string
 	}{
 		{nil, types00, "v0_0"},
-		{[]string{"-v", v00, "--pkgname", pkgname}, "types.go", pkgname},
+		{[]string{"-v", v00, pkgFlag, pkgname}, "types.go", pkgname},
 	} {
 		out, errOut, err := runThema(t, dir, "", append(gen, tc.args...)...)
 		if err != nil {
@@ -266,7 +268,7 @@ func TestLineageGenGoTypes(t *testing.T) {
 	if !strings.Contains(string(b), shipType) {
 		t.Errorf("gen gotypes -o wrote:\n%s", b)
 	}
-	if _, errOut, err := runThema(t, dir, "", append(gen, "-o", outdir, "--check")...); err != nil {
+	if _, errOut, err := runThema(t, dir, "", append(gen, "-o", outdir, checkArg)...); err != nil {
 		t.Errorf("gen gotypes --check of files it just wrote: %v\n%s", err, errOut)
 	}
 
@@ -275,9 +277,13 @@ func TestLineageGenGoTypes(t *testing.T) {
 		args []string
 		code diag.Code
 	}{
-		{"--pkgname without -v", []string{"--pkgname", pkgname}, diag.E0620},
-		{"--check without -o", []string{"--check"}, diag.E0620},
-		{"--check of a changed file", []string{"-o", outdir, "--check"}, diag.E0628},
+		{"--pkgname without -v", []string{pkgFlag, pkgname}, diag.E0620},
+		{"--pkgname not an identifier", []string{"-v", v00, pkgFlag, "my-ships"}, diag.E0620},
+		{"--pkgname a keyword", []string{"-v", v00, pkgFlag, "func"}, diag.E0620},
+		{"--check without -o", []string{checkArg}, diag.E0620},
+		{"-o a file", []string{"-o", written}, diag.E0616},
+		{"--check of -o a file", []string{"-o", written, checkArg}, diag.E0628},
+		{"--check of a changed file", []string{"-o", outdir, checkArg}, diag.E0628},
 	} {
 		if tc.code == diag.E0628 {
 			if err := os.WriteFile(written, []byte("package v0_0\n"), 0o600); err != nil {

@@ -41,7 +41,12 @@ type Ship struct {
     {
       "code": "E0628",
       "severity": "error",
-      "headline": "a generated file on disk is what would be generated, and gen/v0_0/types.go differs",
+      "headline": "a generated file on disk is what would be generated, and v0_0/types.go differs",
+      "notes": [
+        {
+          "label": "the path is relative to -o, gen"
+        }
+      ],
       "help": [
         "run the command without --check to regenerate it"
       ]
@@ -49,7 +54,12 @@ type Ship struct {
     {
       "code": "E0628",
       "severity": "error",
-      "headline": "a generated file is on disk, and gen/v0_1/types.go is missing",
+      "headline": "a generated file is on disk, and v0_1/types.go is missing",
+      "notes": [
+        {
+          "label": "the path is relative to -o, gen"
+        }
+      ],
       "help": [
         "run the command without --check to regenerate it"
       ]
@@ -62,10 +72,12 @@ type Ship struct {
   }
 }
 -- out/text --
-error[E0628]: a generated file on disk is what would be generated, and gen/v0_0/types.go differs
+error[E0628]: a generated file on disk is what would be generated, and v0_0/types.go differs
   |
+  = note: the path is relative to -o, gen
   = help: run the command without --check to regenerate it
 
-error[E0628]: a generated file is on disk, and gen/v0_1/types.go is missing
+error[E0628]: a generated file is on disk, and v0_1/types.go is missing
   |
+  = note: the path is relative to -o, gen
   = help: run the command without --check to regenerate it

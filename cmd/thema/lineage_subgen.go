@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	gotoken "go/token"
+	iofs "io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -13,6 +15,7 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	cerrors "cuelang.org/go/cue/errors"
+	"cuelang.org/go/cue/token"
 	"cuelang.org/go/pkg/encoding/yaml"
 	"github.com/dave/dst"
 	"github.com/sdboyer/jenny"
@@ -441,6 +444,10 @@ func (gc *genCommand) runGoTypes(cmd *cobra.Command, _ []string) error {
 		return diag.New(diag.E0620).Headline("--pkgname names the package of the one schema -v generates, and no -v was given").
 			Help("without -v, each version's package is named for its directory, such as v0_0").Err()
 	}
+	if gc.pkgname != "" && (!gotoken.IsIdentifier(gc.pkgname) || gc.pkgname == "_") {
+		return diag.New(diag.E0620).Headlinef("--pkgname names a Go package, and %q is not a Go package name", gc.pkgname).
+			Help("name the package with a Go identifier that is not a keyword, such as ships").Err()
+	}
 	if gc.check && gc.outdir == "" {
 		return diag.New(diag.E0620).Headline("--check verifies the files under -o, and no -o was given").Err()
 	}
@@ -472,17 +479,33 @@ func (gc *genCommand) runGoTypes(cmd *cobra.Command, _ []string) error {
 		return driftDiagnostics(fs.Verify(cmd.Context(), gc.outdir), gc.outdir)
 	default:
 		if err := fs.Write(cmd.Context(), gc.outdir); err != nil {
-			return diag.New(diag.E0616).Headlinef("the generated files cannot all be written under %s", displayPath(gc.outdir)).Detail(err.Error()).Err()
+			p := gc.outdir
+			var pe *iofs.PathError
+			if errors.As(err, &pe) {
+				p = pe.Path
+			}
+			return diag.New(diag.E0616).Headlinef("%s cannot be written", displayPath(p)).Detail(diag.OSReason(err)).Err()
 		}
 		return nil
 	}
 }
 
 // driftDiagnostics returns an E0628 for each file under dir that jenny's
-// Verify found missing or different, and any other error as it is.
+// Verify found missing or different, or could not read. Paths in the
+// headlines are relative to dir, which a note names, so that a long -o does
+// not push the headline past its limit.
 func driftDiagnostics(err error, dir string) error {
 	if err == nil {
 		return nil
+	}
+	under := func(b *diag.B) *diag.B {
+		return b.Notef(token.NoPos, "the path is relative to -o, %s", displayPath(dir)).
+			Help("run the command without --check to regenerate it")
+	}
+	var pe *iofs.PathError
+	if errors.As(err, &pe) {
+		// Verify stops at a file it cannot read, and reports nothing else.
+		return under(diag.New(diag.E0628).Headlinef("a generated file on disk can be read, and %s cannot", pe.Path)).Detail(diag.OSReason(err)).Err()
 	}
 	errs := []error{err}
 	if j, ok := err.(interface{ Unwrap() []error }); ok {
@@ -494,14 +517,13 @@ func driftDiagnostics(err error, dir string) error {
 		if !errors.As(e, &drift) {
 			return err
 		}
-		p := displayPath(filepath.Join(dir, filepath.FromSlash(drift.Path)))
 		b := diag.New(diag.E0628)
 		if drift.Missing {
-			b = b.Headlinef("a generated file is on disk, and %s is missing", p)
+			b = b.Headlinef("a generated file is on disk, and %s is missing", drift.Path)
 		} else {
-			b = b.Headlinef("a generated file on disk is what would be generated, and %s differs", p)
+			b = b.Headlinef("a generated file on disk is what would be generated, and %s differs", drift.Path)
 		}
-		ds = cerrors.Append(ds, b.Help("run the command without --check to regenerate it").Err())
+		ds = cerrors.Append(ds, under(b).Err())
 	}
 	return ds
 }

@@ -304,9 +304,9 @@ thema lineage gen gotypes -l <path> [-p <cue-path>] [-v <version> [--pkgname <na
 
 - `-l` and `-p` are as for [OpenAPI](#openapi).
 - `-v`, `--version`: the schema version. The default is every version.
-- `--pkgname`: the Go package name, with `-v` only. The default is the lineage's name in lower case. Without `-v`, each version's package is named for its directory, and `--pkgname` is refused (`E0620`).
+- `--pkgname`: the Go package name, with `-v` only. The default is the lineage's name in lower case. Without `-v`, each version's package is named for its directory, and `--pkgname` is refused (`E0620`), as is a name that is not a Go identifier or is a keyword.
 - `-o`, `--out`: the directory to write the files under, creating directories as needed. A file that cannot be written is `E0616`.
-- `--check`, with `-o` only: write nothing, and report each file under the directory that is missing or differs from what would be generated (`E0628`). Files there that the command does not generate are ignored.
+- `--check`, with `-o` only: write nothing, and report each file under the directory that is missing or differs from what would be generated, or that cannot be read (`E0628`). Files there that the command does not generate are ignored.
 
 Without `-o`, the command prints the files to stdout as a [txtar](https://pkg.go.dev/golang.org/x/tools/txtar) archive.
 
