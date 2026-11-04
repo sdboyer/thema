@@ -1,8 +1,8 @@
 # The reference-placement corpus
 
-Each case here is one lineage, used in one way. Each suite builds the value
-passed to `BindLineage` from the case's files in its own way, so one case is
-bound several times. The spec, `docs/invariants.md` (References), gives one
+Each case here is one lineage, used in one way. Each suite builds, from the
+case's files and in its own way, the package the lineage is bound from, so
+one case is bound several times. The spec, `docs/invariants.md` (References), gives one
 verdict for the lineage, and every suite must give it. A suite that gives
 another verdict is a bug: either an issue tracks it (a `#known` tag), or
 nothing does yet (a regression, or a new case that still needs its tag).
@@ -55,11 +55,15 @@ E0141 n in schema 0.0 refers to name, which is declared in the lineage outside t
 - **`out/<suite>/bind`** is what that suite's bind reported: the verdict line,
   then one line per diagnostic. Never write these by hand.
 
-Some suites compile `text.cue` on its own, so they apply only to a text that
+Both suites run every case. `together` writes `text.cue` beside `in.cue`
+as it is; `compose` writes it into package `m` at `#at` with
+`thema.Compose`, so its references resolve in package `m` too.
+
+A lineage assembled in Go, by filling or unifying separately built values, is
+refused (`E0152`) rather than given a verdict. `TestRefsGoAssembly` checks
+that each Go construction is refused that way, for every case whose text
 compiles on its own: one that refers to nothing outside itself except CUE's
-builtin packages. A case whose text refers to `in.cue`, or imports a package
-of the module, runs only through `together`; the others are skipped, with the
-reason.
+builtin packages.
 
 The suites, and how each builds the value, are in `suites.json`.
 
@@ -145,6 +149,6 @@ records, doesn't fail. It logs its issue.
   already expects passes, though its `out/` section shows the extra finding.
   Write a case so that each finding a suite could add falsely has a code the
   case doesn't expect.
-- Positions differ between suites, because each compiles the text under a
+- Positions differ between suites, because each reads the text under a
   different file name: `/m/text.cue` for `together`, one line below the
-  line in `text.cue`; `text.cue` for `fill-text-named`; no name for the rest.
+  line in `text.cue`; `text.cue` for `compose`, at its line.

@@ -70,7 +70,7 @@ func TestRoundTrip(t *testing.T) {
 			}
 			// Bound with the authoring form's vocabulary, so that what bind
 			// reports names the author's files and lenses.
-			lin, berr := thema.BindLineage(v, thema.NewRuntime(ctx), thema.WithVocabulary(Vocabulary(c)))
+			lin, berr := thema.BindLineage(v, cue.Path{}, thema.NewRuntime(ctx), thema.WithVocabulary(Vocabulary(c)))
 			if berr != nil {
 				ds := diag.Diagnostics(berr)
 				if len(ds) == 0 {

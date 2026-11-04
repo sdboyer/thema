@@ -2,8 +2,6 @@
 #expect: ok
 #spec: docs/invariants.md:162-171
 #at: lin.h
-#known/fill-use: #264 the lineage is at the top of a root with no build instance whose files include the use's, so #J beside the use reads as declared in the lineage.
-#known/unify-text-use: #264 the lineage is at the top of a root with no build instance whose files include the use's, so #J beside the use reads as declared in the lineage.
 -- in.cue --
 import "github.com/sdboyer/thema"
 
@@ -11,19 +9,7 @@ import "github.com/sdboyer/thema"
 lin: h: thema.Lineage & {name: "h", joinSchema: #J}
 -- text.cue --
 schemas: "0": "0": schema: {a?: string}
--- out/fill-text-named/bind --
-verdict: ok
--- out/fill-text/bind --
-verdict: ok
--- out/fill-use/bind --
-verdict: E0141
-E0141 joinSchema refers to #J, which is declared in the lineage outside the joinSchema @ /m/in.cue:5:49
--- out/third-root/bind --
+-- out/compose/bind --
 verdict: ok
 -- out/together/bind --
-verdict: ok
--- out/unify-text-use/bind --
-verdict: E0141
-E0141 joinSchema refers to #J, which is declared in the lineage outside the joinSchema @ /m/in.cue:5:49
--- out/unify-use-text/bind --
 verdict: ok

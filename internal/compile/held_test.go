@@ -135,7 +135,7 @@ func TestDecompileHeldInDefinition(t *testing.T) {
 				t.Fatalf("compiling the decompiled files: %v", cerrors.Details(err, nil))
 			}
 			v := ctx.BuildFile(comp.File)
-			if _, berr := thema.BindLineage(v, thema.NewRuntime(ctx)); berr != nil {
+			if _, berr := thema.BindLineage(v, cue.Path{}, thema.NewRuntime(ctx)); berr != nil {
 				t.Fatalf("binding the decompiled files: %v", cerrors.Details(berr, nil))
 			}
 			_, again, err := Decompile(v)

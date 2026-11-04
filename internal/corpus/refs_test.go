@@ -2,22 +2,25 @@ package corpus
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"cuelang.org/go/cue"
+	"cuelang.org/go/cue/ast"
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/load"
 	"cuelang.org/go/cue/parser"
 
 	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/internal/embedreg"
 	"github.com/sdboyer/thema/internal/util"
 )
 
 // TestRefs runs the reference-placement corpus in testdata/refs: each case
-// is one lineage text and one value that uses it, and each suite builds the
-// value passed to BindLineage from them in its own way. Every suite must give
+// is one lineage text and one value that uses it, and each suite builds from
+// them, in its own way, the package the lineage is bound from. Every suite must give
 // the verdict docs/invariants.md gives, which the case records as #expect.
 // testdata/refs/README.md says how to add a case and how to read a failure.
 func TestRefs(t *testing.T) {
@@ -25,18 +28,19 @@ func TestRefs(t *testing.T) {
 }
 
 // checkAt fails a case whose #at is not a field of package m without the
-// text. Every suite but together fills the text into the use's value at #at,
-// so such a case would bind the text alone, and test nothing about the use.
+// text. Such a case would bind the text alone, and test nothing about the use.
 func checkAt(t testing.TB, c *Case) {
 	t.Helper()
 	if !loadUse(t, cuecontext.New(), c, "").LookupPath(at(c)).Exists() {
-		t.Fatalf("case %s: #at: in.cue has no field %s, so the suites that fill the text into the use would fill an empty field; "+
+		t.Fatalf("case %s: #at: in.cue has no field %s, so the case binds the text alone; "+
 			"declare the field in in.cue, or correct #at", c.Name, c.Directive("at"))
 	}
 }
 
-// The suites of the refs corpus, in registry order. They are the ways a
-// lineage reaches BindLineage that #269 found give different verdicts today.
+// The suites of the refs corpus, in registry order: the ways a lineage and
+// the value that uses it reach BindLineage as one package. A lineage combined
+// with its use in Go (FillPath, Unify) is refused before any reference is
+// read (E0152); TestRefsGoAssembly checks that for every case.
 var refSuites = []Suite{
 	{
 		Name: "together",
@@ -44,83 +48,90 @@ var refSuites = []Suite{
 			"This is a lineage declared in a field of a loaded package, as cmd/thema -p, exemplars and testdata/cases bind it.",
 		Bind: func(t testing.TB, c *Case) error {
 			ctx := cuecontext.New()
-			v := loadUse(t, ctx, c, textAt(t, c)).LookupPath(at(c))
-			return bindValue(ctx, v)
+			return bindAt(ctx, loadUse(t, ctx, c, textAt(t, c)), at(c))
 		},
 	},
 	{
-		Name: "fill-text",
-		Description: "package m is loaded without the text, the text is compiled on its own with ctx.CompileString and no file name, " +
-			"and it is filled into the use: use.FillPath(at, text).LookupPath(at). This is how a tool composes separately compiled lineages into one value (#260, authoring.At).",
-		Applies: textCompilesAlone,
+		Name: "compose",
+		Description: "text.cue is parsed on its own and composed into package m at #at with thema.Compose, and the package is loaded with the composed file beside in.cue. " +
+			"This is how a tool composes separately compiled lineages into the package that uses them (#272).",
 		Bind: func(t testing.TB, c *Case) error {
 			ctx := cuecontext.New()
-			use, text := loadUse(t, ctx, c, ""), compileText(t, ctx, c)
-			return bindValue(ctx, use.FillPath(at(c), text).LookupPath(at(c)))
-		},
-	},
-	{
-		Name: "fill-text-named",
-		Description: "As fill-text, but the text is compiled with cue.Filename(\"text.cue\"), as a tool that compiles a lineage from its own file does. " +
-			"#269 found that the file name changes the positions bind reports, never its verdict.",
-		Applies: textCompilesAlone,
-		Bind: func(t testing.TB, c *Case) error {
-			ctx := cuecontext.New()
-			use, text := loadUse(t, ctx, c, ""), compileText(t, ctx, c, cue.Filename("text.cue"))
-			return bindValue(ctx, use.FillPath(at(c), text).LookupPath(at(c)))
-		},
-	},
-	{
-		Name: "fill-use",
-		Description: "The text is compiled on its own and the use's value at #at is filled into the text's root: text.FillPath(cue.Path{}, use.LookupPath(at)). " +
-			"No caller in the tree does this; #264 records it.",
-		Applies: textCompilesAlone,
-		Bind: func(t testing.TB, c *Case) error {
-			ctx := cuecontext.New()
-			use, text := loadUse(t, ctx, c, ""), compileText(t, ctx, c)
-			return bindValue(ctx, text.FillPath(cue.Path{}, use.LookupPath(at(c))))
-		},
-	},
-	{
-		Name: "unify-use-text",
-		Description: "The use's value at #at is unified in Go with the text compiled on its own: use.LookupPath(at).Unify(text). " +
-			"No caller in the tree does this; #263's test matrix did.",
-		Applies: textCompilesAlone,
-		Bind: func(t testing.TB, c *Case) error {
-			ctx := cuecontext.New()
-			use, text := loadUse(t, ctx, c, ""), compileText(t, ctx, c)
-			return bindValue(ctx, use.LookupPath(at(c)).Unify(text))
-		},
-	},
-	{
-		Name: "unify-text-use",
-		Description: "The text compiled on its own is unified in Go with the use's value at #at: text.Unify(use.LookupPath(at)). " +
-			"No caller in the tree does this; #264 records it.",
-		Applies: textCompilesAlone,
-		Bind: func(t testing.TB, c *Case) error {
-			ctx := cuecontext.New()
-			use, text := loadUse(t, ctx, c, ""), compileText(t, ctx, c)
-			return bindValue(ctx, text.Unify(use.LookupPath(at(c))))
-		},
-	},
-	{
-		Name: "third-root",
-		Description: "The text and the use's value at #at are both filled into field x of a third root: " +
-			"ctx.CompileString(\"x: _\").FillPath(x, text).FillPath(x, use.LookupPath(at)).LookupPath(x). " +
-			"No caller in the tree does this; #264 records it.",
-		Applies: textCompilesAlone,
-		Bind: func(t testing.TB, c *Case) error {
-			ctx := cuecontext.New()
-			use, text := loadUse(t, ctx, c, ""), compileText(t, ctx, c)
-			x := cue.ParsePath("x")
-			return bindValue(ctx, ctx.CompileString("x: _").FillPath(x, text).FillPath(x, use.LookupPath(at(c))).LookupPath(x))
+			return bindAt(ctx, loadUse(t, ctx, c, "", composedText(t, c)...), at(c))
 		},
 	},
 }
 
-func bindValue(ctx *cue.Context, v cue.Value) error {
-	_, err := thema.BindLineage(v, thema.NewRuntime(ctx))
+// TestRefsGoAssembly checks that every case whose text compiles on its own
+// is refused (E0152) when the text is combined with its use in Go, in each
+// way #269 found a caller might: filled into the use, the use filled into
+// it, unified in either order, or both filled into a third root.
+func TestRefsGoAssembly(t *testing.T) {
+	paths, err := filepath.Glob("../../testdata/refs/*.txtar")
+	if err != nil || len(paths) == 0 {
+		t.Fatalf("no cases: %v", err)
+	}
+	ways := map[string]func(ctx *cue.Context, use, text cue.Value, p cue.Path) (cue.Value, cue.Path){
+		"fill-text": func(_ *cue.Context, use, text cue.Value, p cue.Path) (cue.Value, cue.Path) {
+			return use.FillPath(p, text), p
+		},
+		"fill-use": func(_ *cue.Context, use, text cue.Value, p cue.Path) (cue.Value, cue.Path) {
+			return text.FillPath(cue.Path{}, use.LookupPath(p)), cue.Path{}
+		},
+		"unify-use-text": func(_ *cue.Context, use, text cue.Value, p cue.Path) (cue.Value, cue.Path) {
+			return use.LookupPath(p).Unify(text), cue.Path{}
+		},
+		"unify-text-use": func(_ *cue.Context, use, text cue.Value, p cue.Path) (cue.Value, cue.Path) {
+			return text.Unify(use.LookupPath(p)), cue.Path{}
+		},
+		"third-root": func(ctx *cue.Context, use, text cue.Value, p cue.Path) (cue.Value, cue.Path) {
+			x := cue.ParsePath("x")
+			return ctx.CompileString("x: _").FillPath(x, text).FillPath(x, use.LookupPath(p)), x
+		},
+	}
+	for _, path := range paths {
+		c, err := ReadCase(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ok, _ := textCompilesAlone(c); !ok {
+			continue
+		}
+		for name, way := range ways {
+			t.Run(c.Name+"/"+name, func(t *testing.T) {
+				ctx := cuecontext.New()
+				root, p := way(ctx, loadUse(t, ctx, c, ""), compileText(t, ctx, c), at(c))
+				ds := diag.Diagnostics(bindAt(ctx, root, p))
+				if len(ds) != 1 || ds[0].Code != diag.E0152 {
+					t.Errorf("want E0152, got %v", ds)
+				}
+			})
+		}
+	}
+}
+
+func bindAt(ctx *cue.Context, root cue.Value, p cue.Path) error {
+	_, err := thema.BindLineage(root, p, thema.NewRuntime(ctx))
 	return err
+}
+
+// composedText returns text.cue composed into package m at #at
+// (thema.Compose).
+func composedText(t testing.TB, c *Case) []*ast.File {
+	t.Helper()
+	text, ok := c.File("text.cue")
+	if !ok {
+		t.Fatalf("%s has no text.cue", c.Path)
+	}
+	f, err := parser.ParseFile("text.cue", text)
+	if err != nil {
+		t.Fatalf("parsing text.cue: %v", err)
+	}
+	files, err := thema.Compose("m", thema.Placement{Path: at(c), File: f})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return files
 }
 
 func at(c *Case) cue.Path { return cue.ParsePath(c.Directive("at")) }
@@ -182,9 +193,9 @@ func textAt(t testing.TB, c *Case) string {
 }
 
 // loadUse loads package m, the use: in.cue and the case's other packages,
-// and text as /m/text.cue when it is not empty. It returns the package's
-// root.
-func loadUse(t testing.TB, ctx *cue.Context, c *Case, text string) cue.Value {
+// text as /m/text.cue when it is not empty, and the extra files by their
+// names. It returns the package's root.
+func loadUse(t testing.TB, ctx *cue.Context, c *Case, text string, extra ...*ast.File) cue.Value {
 	t.Helper()
 	cfg := &load.Config{
 		Dir: "/m",
@@ -206,6 +217,9 @@ func loadUse(t testing.TB, ctx *cue.Context, c *Case, text string) cue.Value {
 	}
 	if text != "" {
 		cfg.Overlay["/m/text.cue"] = load.FromString(text)
+	}
+	for _, f := range extra {
+		cfg.Overlay["/m/"+f.Filename] = load.FromFile(f)
 	}
 	if err := embedreg.Configure(cfg, thema.CueJointFS); err != nil {
 		t.Fatal(err)

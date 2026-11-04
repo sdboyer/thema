@@ -58,8 +58,8 @@ type BindingConfig struct {
 	TitleName string
 
 	// CuePath is the path to the lineage within the instance referred to by EmbedPath.
-	// If non-empty, the generated binding will include a [cue.Value.LookupPath] call
-	// prior to calling [thema.BindLineage].
+	// The generated binding passes it to [thema.BindLineage] with the instance's
+	// root; empty means the lineage is the root.
 	CuePath cue.Path
 
 	// FactoryNameSuffix determines whether the [thema.LineageFactory] or

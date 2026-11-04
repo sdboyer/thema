@@ -67,15 +67,24 @@ func isLineageDef(v cue.Value) bool {
 	return bi != nil && isThemaPackage(bi.ImportPath)
 }
 
-// BindLineage takes a raw [cue.Value], checks that it correctly follows Thema's
-// invariants, such as translatability and backwards compatibility version
-// numbering. If these checks succeed, a [Lineage] is returned.
+// BindLineage binds the lineage at path p in root: it checks that the value
+// there follows Thema's invariants, such as translatability and backwards
+// compatibility version numbering, and if it does, returns a [Lineage]. A
+// lineage at the top of root is bound with an empty path.
+//
+// root is a value CUE built from files: a loaded package
+// ([cue.Context.BuildInstance]), or a file or string compiled with
+// BuildFile or CompileString. Bind tells the lineage's own declarations from
+// the CUE around it by root's files and the lineage's path in it, so a value
+// built in Go, with FillPath or Unify, is refused (E0152). Compose lineages
+// built separately into one package with [Compose], and bind each from that
+// package's root.
 //
 // This function is the only way to create non-nil Lineage objects. As a result,
 // all non-nil instances of Lineage in any Go program are guaranteed to follow
 // Thema invariants.
-func BindLineage(v cue.Value, rt *Runtime, opts ...BindOption) (Lineage, error) {
-	orig := v
+func BindLineage(root cue.Value, p cue.Path, rt *Runtime, opts ...BindOption) (Lineage, error) {
+	orig := root.LookupPath(p)
 	// We could be more selective than this, but this isn't supposed to be forever, soooooo
 	rt.l()
 	defer rt.u()
@@ -133,6 +142,8 @@ func BindLineage(v cue.Value, rt *Runtime, opts ...BindOption) (Lineage, error) 
 	ml := &maybeLineage{
 		rt:      rt,
 		orig:    orig,
+		root:    root,
+		path:    p,
 		raw:     raw,
 		uni:     uni,
 		cfg:     cfg,
@@ -140,6 +151,9 @@ func BindLineage(v cue.Value, rt *Runtime, opts ...BindOption) (Lineage, error) 
 	}
 
 	if err := ml.checkExists(cfg); err != nil {
+		return nil, err
+	}
+	if err := ml.checkRoot(); err != nil {
 		return nil, err
 	}
 	if err := ml.checkUnknownFields(); err != nil {

@@ -3,6 +3,8 @@ package load
 import (
 	"io/fs"
 
+	"cuelang.org/go/cue"
+
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/authoring"
 	"github.com/sdboyer/thema/diag"
@@ -28,7 +30,7 @@ func AuthoringLineage(fsys fs.FS, dir string, rt *thema.Runtime, opts ...thema.B
 	if err := v.Err(); err != nil {
 		return nil, diag.Convert(err, diag.Context{Op: diag.OpCompile, Vocabulary: authoring.Vocabulary(c), Generic: diag.E0112})
 	}
-	return thema.BindLineage(v, rt, append([]thema.BindOption{thema.WithVocabulary(authoring.Vocabulary(c))}, opts...)...)
+	return thema.BindLineage(v, cue.Path{}, rt, append([]thema.BindOption{thema.WithVocabulary(authoring.Vocabulary(c))}, opts...)...)
 }
 
 // Development is a lineage bound with its tip, on the development path.

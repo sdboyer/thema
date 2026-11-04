@@ -10,17 +10,7 @@ lin: h: thema.Lineage & {name: "h"}
 import "strings"
 
 schemas: "0": "0": schema: {s?: string & strings.MinRunes(1)}
--- out/fill-text-named/bind --
-verdict: ok
--- out/fill-text/bind --
-verdict: ok
--- out/fill-use/bind --
-verdict: ok
--- out/third-root/bind --
+-- out/compose/bind --
 verdict: ok
 -- out/together/bind --
-verdict: ok
--- out/unify-text-use/bind --
-verdict: ok
--- out/unify-use-text/bind --
 verdict: ok

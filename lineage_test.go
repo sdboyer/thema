@@ -181,19 +181,19 @@ func bindTxtarLineage(t *vanilla.Test, rt *Runtime, path string) (Lineage, error
 
 	t.Helper()
 	inst := t.Instance()
-	val := ctx.BuildInstance(inst)
+	root := ctx.BuildInstance(inst)
+	var pp cue.Path
 	if p, ok := t.Value(path); ok {
-		pp := cue.ParsePath(p)
+		pp = cue.ParsePath(p)
 		if len(pp.Selectors()) == 0 {
 			t.Fatalf("%q is not a valid value for the #%s key", p, path)
 		}
-		val = val.LookupPath(pp)
-		if !val.Exists() {
+		if !root.LookupPath(pp).Exists() {
 			t.Fatalf("path %q specified in #%s does not exist in input cue instance", p, path)
 		}
 	}
 
-	return BindLineage(val, rt)
+	return BindLineage(root, pp, rt)
 }
 
 var benchBindstr = `
@@ -267,7 +267,7 @@ func BenchmarkBindLineage(b *testing.B) {
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_, err := BindLineage(linv, rt)
+			_, err := BindLineage(linv, cue.Path{}, rt)
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -281,7 +281,7 @@ func BenchmarkBindLineage(b *testing.B) {
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_, err := BindLineage(linv, rt)
+			_, err := BindLineage(linv, cue.Path{}, rt)
 			if err != nil {
 				b.Fatal(err)
 			}

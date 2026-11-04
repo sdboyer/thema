@@ -307,7 +307,7 @@ func runPipeline(t *testing.T, a *archive, pc pipelineCase) error {
 	if v.Err() != nil {
 		t.Fatalf("building the normal form failed: %v", v.Err())
 	}
-	lin, err := thema.BindLineage(v, rt)
+	lin, err := thema.BindLineage(v, cue.Path{}, rt)
 	if err != nil || !pc.translate {
 		return err
 	}

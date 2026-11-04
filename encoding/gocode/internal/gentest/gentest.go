@@ -33,6 +33,5 @@ func ShapesLineage(rt *thema.Runtime) (thema.Lineage, error) {
 	if err != nil {
 		return nil, err
 	}
-	v := rt.Context().BuildInstance(inst).LookupPath(cue.ParsePath("shapes"))
-	return thema.BindLineage(v, rt)
+	return thema.BindLineage(rt.Context().BuildInstance(inst), cue.ParsePath("shapes"), rt)
 }

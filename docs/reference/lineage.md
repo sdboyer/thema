@@ -225,7 +225,7 @@ Binding takes a lineage in the normal form, checks that it satisfies every invar
 
 **Entry points.**
 
-- `thema.BindLineage(v cue.Value, rt *thema.Runtime, opts ...thema.BindOption) (thema.Lineage, error)` binds a normal-form value. It is the only way to obtain a non-nil `thema.Lineage`.
+- `thema.BindLineage(root cue.Value, p cue.Path, rt *thema.Runtime, opts ...thema.BindOption) (thema.Lineage, error)` binds the normal-form lineage at `p` in `root`. It is the only way to obtain a non-nil `thema.Lineage`. `root` is a value CUE loaded from files, such as the value of a loaded package; a value built in Go, with `FillPath` or `Unify`, is refused (`E0152`). Lineages built separately are combined with `thema.Compose`, which writes them into the files of one package, and `load.ComposedInstance` loads those files.
 - `load.AuthoringLineage(fsys fs.FS, dir string, rt *thema.Runtime, opts ...thema.BindOption) (thema.Lineage, error)` compiles a directory in the authoring form and binds the result, with diagnostics positioned in, and worded in terms of, the version files.
 - `load.DevelopmentLineage(fsys fs.FS, dir string, rt *thema.Runtime, opts ...thema.BindOption) (*load.Development, error)` does the same with the tip, as a provisional newest version; `authoring.BindDevelopment` binds what `authoring.CompileDevelopment` compiled. A lens the tip's edge lacks is a warning (`E1001`) rather than an error, and translating across it fails (`E1002`). The development path is for writing and testing a lineage, never for serving it.
 - The CLI binds the lineage whenever a command loads one with `-l`.
@@ -235,7 +235,7 @@ Binding takes a lineage in the normal form, checks that it satisfies every invar
 
 | Step | What is checked | Codes |
 |---|---|---|
-| 1. Existence | there is a value to bind | `E0128` |
+| 1. Existence | there is a value to bind, in a root CUE loaded from files | `E0128`, `E0152` |
 | 2. Fields and keys | the lineage, each schema entry and each lens have only the fields thema defines; every `schemas` key is a version, every `lenses` key an edge | `E0123`, `E0124`, `E0125` |
 | 3. Shape | `name` and `schemas` are declared and concrete, `schemas` holds a schema, `name` matches its pattern, and the value is an instance of `thema.Lineage` | `E0120`, `E0121`, `E0122`, `E0137`, `E0126` |
 | 4. CUE errors | the value, with and without `thema.Lineage`, has no CUE error | `E0126` |

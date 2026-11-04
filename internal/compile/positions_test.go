@@ -13,12 +13,15 @@ import (
 	"cuelang.org/go/cue/cuecontext"
 	cerrors "cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/format"
+	"cuelang.org/go/cue/load"
 	"cuelang.org/go/cue/parser"
 	"cuelang.org/go/cue/token"
 
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/internal/cueview"
+	"github.com/sdboyer/thema/internal/embedreg"
+	"github.com/sdboyer/thema/internal/util"
 )
 
 // TestEvaluatorReportsAuthoredPositions is the probe from #64: a field built
@@ -264,7 +267,7 @@ func TestUnpositionedResultCitesMapping(t *testing.T) {
 	s.unpositioned = true
 
 	ctx := cuecontext.New()
-	_, err := thema.BindLineage(ctx.BuildFile(s.lineage()), thema.NewRuntime(ctx))
+	_, err := thema.BindLineage(ctx.BuildFile(s.lineage()), cue.Path{}, thema.NewRuntime(ctx))
 	if err == nil {
 		t.Fatal("lineage bound")
 	}
@@ -282,11 +285,11 @@ func TestUnpositionedResultCitesMapping(t *testing.T) {
 	}
 }
 
-// TestSeparatelyBuiltFiles builds each version's part of the normal form from
-// its own ast.File, with its own BuildFile call, and assembles the lineage from
-// the resulting values with FillPath. Positions survive: the error and its
-// positions are exactly those of the same lineage built as one ast.File (the
-// lens-conflict-bind pipeline case).
+// TestSeparatelyBuiltFiles builds each version's part of the normal form as
+// its own ast.File, and composes the lineage from them into one package
+// (thema.Compose). Positions survive: the error and its positions are exactly
+// those of the same lineage built as one ast.File (the lens-conflict-bind
+// pipeline case).
 func TestSeparatelyBuiltFiles(t *testing.T) {
 	a := readArchive(t, "testdata/pipeline/lens-conflict-bind.txtar")
 	s := shipFrom(t, a)
@@ -295,7 +298,7 @@ func TestSeparatelyBuiltFiles(t *testing.T) {
 
 	ctx := cuecontext.New()
 	rt := thema.NewRuntime(ctx)
-	_, mergedErr := thema.BindLineage(ctx.BuildFile(merged), rt)
+	_, mergedErr := thema.BindLineage(ctx.BuildFile(merged), cue.Path{}, rt)
 
 	// Split the merged AST into one file per version, plus a skeleton with _
 	// where each version's parts go.
@@ -324,19 +327,34 @@ func TestSeparatelyBuiltFiles(t *testing.T) {
 	}
 	s0, s1 := entry("schemas", "0", "0"), entry("schemas", "1", "0")
 	bwd, fwd := entry("lenses", "1.0->0.0"), entry("lenses", "0.0->1.0")
-	v0 := ctx.BuildFile(fileOf(field("schema", s0)))
-	v1 := ctx.BuildFile(fileOf(field("schema", s1), field("backward", bwd), field("forward", fwd)))
-	skel := ctx.BuildFile(fileOf(
-		merged.Decls[0],
-		field("schemas", strct(key("0", strct(key("0", ident("_")))), key("1", strct(key("0", ident("_")))))),
-		field("lenses", strct(key("1.0->0.0", ident("_")), key("0.0->1.0", ident("_")))),
-	))
-	lin := skel.
-		FillPath(cue.MakePath(cue.Str("schemas"), cue.Str("0"), cue.Str("0")), v0.LookupPath(cue.ParsePath("schema"))).
-		FillPath(cue.MakePath(cue.Str("schemas"), cue.Str("1"), cue.Str("0")), v1.LookupPath(cue.ParsePath("schema"))).
-		FillPath(cue.MakePath(cue.Str("lenses"), cue.Str("1.0->0.0")), v1.LookupPath(cue.ParsePath("backward"))).
-		FillPath(cue.MakePath(cue.Str("lenses"), cue.Str("0.0->1.0")), v1.LookupPath(cue.ParsePath("forward")))
-	_, splitErr := thema.BindLineage(lin, rt)
+	files, err := thema.Compose("lin",
+		thema.Placement{File: fileOf(
+			merged.Decls[0],
+			field("schemas", strct(key("0", strct(key("0", ident("_")))), key("1", strct(key("0", ident("_")))))),
+			field("lenses", strct(key("1.0->0.0", ident("_")), key("0.0->1.0", ident("_")))),
+		)},
+		thema.Placement{Path: cue.MakePath(cue.Str("schemas"), cue.Str("0")), File: fileOf(key("0", s0))},
+		thema.Placement{Path: cue.MakePath(cue.Str("schemas"), cue.Str("1")), File: fileOf(key("0", s1))},
+		thema.Placement{Path: cue.MakePath(cue.Str("lenses")), File: fileOf(key("1.0->0.0", bwd))},
+		thema.Placement{Path: cue.MakePath(cue.Str("lenses")), File: fileOf(key("0.0->1.0", fwd))},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := &load.Config{Dir: "/lin", Overlay: map[string]load.Source{
+		"/lin/cue.mod/module.cue": load.FromString(util.ModuleFile("thema.test/lin")),
+	}}
+	for _, f := range files {
+		cfg.Overlay["/lin/"+f.Filename] = load.FromFile(f)
+	}
+	if err := embedreg.Configure(cfg, thema.CueJointFS); err != nil {
+		t.Fatal(err)
+	}
+	inst := load.Instances([]string{"."}, cfg)[0]
+	if inst.Err != nil {
+		t.Fatal(inst.Err)
+	}
+	_, splitErr := thema.BindLineage(ctx.BuildInstance(inst), cue.Path{}, rt)
 
 	if mergedErr == nil || splitErr == nil {
 		t.Fatalf("lineage bound: merged %v, split %v", mergedErr, splitErr)

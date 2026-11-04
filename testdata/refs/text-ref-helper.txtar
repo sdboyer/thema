@@ -10,24 +10,9 @@ lin: h: thema.Lineage & {name: "h"}
 name: "h"
 _x: string
 schemas: "0": "0": schema: {a?: _x}
--- out/fill-text-named/bind --
+-- out/compose/bind --
 verdict: E0141
 E0141 a in schema 0.0 refers to _x, which is declared in the lineage outside the schema @ text.cue:3:33
--- out/fill-text/bind --
-verdict: E0141
-E0141 a in schema 0.0 refers to _x, which is declared in the lineage outside the schema @ :3:33
--- out/fill-use/bind --
-verdict: E0141
-E0141 a in schema 0.0 refers to _x, which is declared in the lineage outside the schema @ :3:33
--- out/third-root/bind --
-verdict: E0141
-E0141 a in schema 0.0 refers to _x, which is declared in the lineage outside the schema @ :3:33
 -- out/together/bind --
 verdict: E0141
 E0141 a in schema 0.0 refers to _x, which is declared in the lineage outside the schema @ /m/text.cue:4:33
--- out/unify-text-use/bind --
-verdict: E0141
-E0141 a in schema 0.0 refers to _x, which is declared in the lineage outside the schema @ :3:33
--- out/unify-use-text/bind --
-verdict: E0141
-E0141 a in schema 0.0 refers to _x, which is declared in the lineage outside the schema @ :3:33

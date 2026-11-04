@@ -74,7 +74,7 @@ BackwardLens: {
 	}
 
 	for op, dir := range dirs {
-		_, err := thema.BindLineage(whole.LookupPath(cue.MakePath(cue.Str(op))), rt, thema.WithVocabulary(authoring.Vocabulary(compiled[op])))
+		_, err := thema.BindLineage(whole, cue.MakePath(cue.Str(op)), rt, thema.WithVocabulary(authoring.Vocabulary(compiled[op])))
 		ds := diag.Diagnostics(err)
 		if len(ds) != 1 || ds[0].Code != diag.E0367 {
 			t.Fatalf("%s: got %v, want one E0367", op, ds)
@@ -210,7 +210,7 @@ func TestComposedUnderDefinition(t *testing.T) {
 				t.Fatal(inst.Err)
 			}
 			ctx := cuecontext.New()
-			_, err = thema.BindLineage(ctx.BuildInstance(inst).LookupPath(cue.ParsePath("#Op.h")), thema.NewRuntime(ctx))
+			_, err = thema.BindLineage(ctx.BuildInstance(inst), cue.ParsePath("#Op.h"), thema.NewRuntime(ctx))
 			var got []diag.Code
 			for _, d := range diag.Diagnostics(err) {
 				got = append(got, d.Code)
@@ -261,7 +261,7 @@ lin: #Op
 		t.Fatal(inst.Err)
 	}
 	ctx := cuecontext.New()
-	if _, err := thema.BindLineage(ctx.BuildInstance(inst).LookupPath(cue.ParsePath("lin.h")), thema.NewRuntime(ctx)); err != nil {
+	if _, err := thema.BindLineage(ctx.BuildInstance(inst), cue.ParsePath("lin.h"), thema.NewRuntime(ctx)); err != nil {
 		t.Errorf("the composed lineage does not bind: %v", diag.Diagnostics(err))
 	}
 }

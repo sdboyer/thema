@@ -18,16 +18,17 @@ import (
 // All returns all of the exemplar lineages in a map keyed by lineage name.
 func All(rt *thema.Runtime) map[string]thema.Lineage {
 	all := make(map[string]thema.Lineage)
-	iter, err := buildAll(rt.Context()).Fields(cue.Definitions(false))
+	root := buildAll(rt.Context())
+	iter, err := root.Fields(cue.Definitions(false))
 	if err != nil {
 		panic(err)
 	}
 
 	for iter.Next() {
-		v := iter.Value().LookupPath(cue.ParsePath("l"))
-		name, _ := v.LookupPath(cue.ParsePath("name")).String()
+		p := cue.MakePath(iter.Selector(), cue.Str("l"))
+		name, _ := root.LookupPath(p).LookupPath(cue.ParsePath("name")).String()
 
-		lin, err := thema.BindLineage(v, rt)
+		lin, err := thema.BindLineage(root, p, rt)
 		if err != nil {
 			panic(err)
 		}
@@ -126,21 +127,22 @@ var _ thema.LineageFactory = DefaultChangeLineage
 var _ thema.LineageFactory = ExpandLineage
 var _ thema.LineageFactory = SingleLineage
 
-// Build the harness containing a single exemplar lineage.
-func harnessForExemplar(name string, rt *thema.Runtime) cue.Value {
+// Build the harness containing a single exemplar lineage: the exemplars
+// package's root, and the exemplar's path in it.
+func harnessForExemplar(name string, rt *thema.Runtime) (cue.Value, cue.Path) {
 	all := buildExemplarsPackage(rt)
 
-	lval := all.LookupPath(cue.MakePath(cue.Str(name)))
-	if !lval.Exists() {
+	if !all.LookupPath(cue.MakePath(cue.Str(name))).Exists() {
 		panic(fmt.Sprintf("no exemplar exists with name %q", name))
 	}
 
-	return lval.LookupPath(cue.MakePath(cue.Str("l")))
+	return all, cue.MakePath(cue.Str(name), cue.Str("l"))
 }
 
 // Build a Lineage representing a single exemplar.
 func lineageForExemplar(name string, rt *thema.Runtime, o ...thema.BindOption) (thema.Lineage, error) {
-	return thema.BindLineage(harnessForExemplar(name, rt), rt, o...)
+	root, p := harnessForExemplar(name, rt)
+	return thema.BindLineage(root, p, rt, o...)
 }
 
 func buildExemplarsPackage(rt *thema.Runtime) cue.Value {

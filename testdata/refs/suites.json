@@ -6,28 +6,9 @@
       "everyCase": true
     },
     {
-      "name": "fill-text",
-      "description": "package m is loaded without the text, the text is compiled on its own with ctx.CompileString and no file name, and it is filled into the use: use.FillPath(at, text).LookupPath(at). This is how a tool composes separately compiled lineages into one value (#260, authoring.At)."
-    },
-    {
-      "name": "fill-text-named",
-      "description": "As fill-text, but the text is compiled with cue.Filename(\"text.cue\"), as a tool that compiles a lineage from its own file does. #269 found that the file name changes the positions bind reports, never its verdict."
-    },
-    {
-      "name": "fill-use",
-      "description": "The text is compiled on its own and the use's value at #at is filled into the text's root: text.FillPath(cue.Path{}, use.LookupPath(at)). No caller in the tree does this; #264 records it."
-    },
-    {
-      "name": "unify-use-text",
-      "description": "The use's value at #at is unified in Go with the text compiled on its own: use.LookupPath(at).Unify(text). No caller in the tree does this; #263's test matrix did."
-    },
-    {
-      "name": "unify-text-use",
-      "description": "The text compiled on its own is unified in Go with the use's value at #at: text.Unify(use.LookupPath(at)). No caller in the tree does this; #264 records it."
-    },
-    {
-      "name": "third-root",
-      "description": "The text and the use's value at #at are both filled into field x of a third root: ctx.CompileString(\"x: _\").FillPath(x, text).FillPath(x, use.LookupPath(at)).LookupPath(x). No caller in the tree does this; #264 records it."
+      "name": "compose",
+      "description": "text.cue is parsed on its own and composed into package m at #at with thema.Compose, and the package is loaded with the composed file beside in.cue. This is how a tool composes separately compiled lineages into the package that uses them (#272).",
+      "everyCase": true
     }
   ]
 }

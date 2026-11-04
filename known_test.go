@@ -138,9 +138,9 @@ func checkExpectations(t *testing.T, src, expect string, extra map[string]string
 		t.Fatalf("loading case failed: %v", bi.Err)
 	}
 	root := ctx.BuildInstance(bi)
-	v := root
-	if lv := root.LookupPath(cue.ParsePath("lin")); lv.Exists() {
-		v = lv
+	var p cue.Path
+	if root.LookupPath(cue.ParsePath("lin")).Exists() {
+		p = cue.ParsePath("lin")
 	}
 
 	var lin Lineage
@@ -151,7 +151,7 @@ func checkExpectations(t *testing.T, src, expect string, extra map[string]string
 				binderr = panicked{r}
 			}
 		}()
-		lin, binderr = BindLineage(v, rt)
+		lin, binderr = BindLineage(root, p, rt)
 	}()
 
 	miss := func(line, format string, args ...any) {

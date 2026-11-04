@@ -16,12 +16,18 @@ import (
 // the lineage at path lin.
 func bindString(t *testing.T, rt *Runtime, src string) (Lineage, error) {
 	t.Helper()
-	return BindLineage(loadLineageValue(t, rt.Context(), src), rt)
+	return BindLineage(loadLineageRoot(t, rt.Context(), src), cue.ParsePath("lin"), rt)
 }
 
 // loadLineageValue loads src as a single-file lineage module importing thema, and
 // returns the value at path lin.
 func loadLineageValue(t *testing.T, ctx *cue.Context, src string) cue.Value {
+	t.Helper()
+	return loadLineageRoot(t, ctx, src).LookupPath(cue.ParsePath("lin"))
+}
+
+// loadLineageRoot is loadLineageValue's package root.
+func loadLineageRoot(t *testing.T, ctx *cue.Context, src string) cue.Value {
 	t.Helper()
 	cfg := &load.Config{
 		Dir: "/m",
@@ -37,7 +43,7 @@ func loadLineageValue(t *testing.T, ctx *cue.Context, src string) cue.Value {
 	if bi.Err != nil {
 		t.Fatal(bi.Err)
 	}
-	return ctx.BuildInstance(bi).LookupPath(cue.ParsePath("lin"))
+	return ctx.BuildInstance(bi)
 }
 
 func TestLensResultsMayNotInventFields(t *testing.T) {

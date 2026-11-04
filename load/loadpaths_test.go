@@ -252,7 +252,7 @@ type loadPath struct {
 	// it, and loads only archives that hold a narrowing.
 	narrowed bool
 	// load returns the lineage value to bind.
-	load func(t *testing.T, ctx *cue.Context, fx lpFixture) cue.Value
+	load func(t *testing.T, ctx *cue.Context, fx lpFixture) (cue.Value, cue.Path)
 }
 
 // fleet is the file of package fleet that reaches the lineage in package ship
@@ -276,36 +276,36 @@ var loadPaths = []loadPath{
 	{
 		// The authoring form, compiled, as load.AuthoringLineage binds it.
 		name: "compiled", compiled: true,
-		load: func(_ *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
-			return ctx.BuildFile(fx.compiled.File)
+		load: func(_ *testing.T, ctx *cue.Context, fx lpFixture) (cue.Value, cue.Path) {
+			return ctx.BuildFile(fx.compiled.File), cue.Path{}
 		},
 	},
 	{
 		// The authoring form, compiled with its files positioned under lpAt
 		// (authoring.At), as load.AuthoringLineage binds it.
 		name: "compiled-at", compiled: true, at: true,
-		load: func(_ *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
-			return ctx.BuildFile(fx.compiledAt.File)
+		load: func(_ *testing.T, ctx *cue.Context, fx lpFixture) (cue.Value, cue.Path) {
+			return ctx.BuildFile(fx.compiledAt.File), cue.Path{}
 		},
 	},
 	{
 		// The normal form's text compiled on its own, with no loader.
 		name: "file", text: true,
-		load: func(_ *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
-			return ctx.CompileString(fx.text, cue.Filename(lpFile))
+		load: func(_ *testing.T, ctx *cue.Context, fx lpFixture) (cue.Value, cue.Path) {
+			return ctx.CompileString(fx.text, cue.Filename(lpFile)), cue.Path{}
 		},
 	},
 	{
 		// Package ship, loaded through a load.Config overlay.
 		name: "overlay", text: true, module: true,
-		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
+		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) (cue.Value, cue.Path) {
 			return overlayLoad(t, ctx, fx, nil, lpPackage, "")
 		},
 	},
 	{
 		// Package ship, loaded from an fstest.MapFS by InstanceWithThema.
 		name: "mapfs", text: true, module: true,
-		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
+		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) (cue.Value, cue.Path) {
 			fsys := fstest.MapFS{
 				"cue.mod/module.cue": {Data: []byte(util.ModuleFile(lpModule))},
 				lpFile:               {Data: []byte(fx.text)},
@@ -317,7 +317,7 @@ var loadPaths = []loadPath{
 			if err != nil {
 				t.Fatal(err)
 			}
-			return ctx.BuildInstance(inst)
+			return ctx.BuildInstance(inst), cue.Path{}
 		},
 	},
 	{
@@ -328,7 +328,7 @@ var loadPaths = []loadPath{
 		// this module's path, so the path loads only lineages that import
 		// none.
 		name: "mapfs-under-thema", text: true,
-		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
+		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) (cue.Value, cue.Path) {
 			fsys := fstest.MapFS{
 				"cue.mod/module.cue": {Data: []byte(util.ModuleFile("github.com/sdboyer/thema/fleet"))},
 				lpFile:               {Data: []byte(fx.text)},
@@ -337,14 +337,14 @@ var loadPaths = []loadPath{
 			if err != nil {
 				t.Fatal(err)
 			}
-			return ctx.BuildInstance(inst)
+			return ctx.BuildInstance(inst), cue.Path{}
 		},
 	},
 	{
 		// Package ship, with thema.Lineage embedded in it by another of its
 		// files.
 		name: "embedded", text: true, module: true,
-		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
+		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) (cue.Value, cue.Path) {
 			return overlayLoad(t, ctx, fx, map[string]string{lpPackage + "/lineage.cue": embedLineage}, lpPackage, "")
 		},
 	},
@@ -352,7 +352,7 @@ var loadPaths = []loadPath{
 		// Imported into package fleet, which is the lineage: it embeds the
 		// import.
 		name: "imported", text: true, module: true,
-		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
+		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) (cue.Value, cue.Path) {
 			return overlayLoad(t, ctx, fx, map[string]string{fleetFile: fleet(lpPackage)}, "fleet", "")
 		},
 	},
@@ -361,14 +361,14 @@ var loadPaths = []loadPath{
 		// shares package ship's value, and the lineage's references resolve
 		// in package ship.
 		name: "reexported", text: true, module: true,
-		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
+		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) (cue.Value, cue.Path) {
 			return overlayLoad(t, ctx, fx, map[string]string{fleetFile: fleet("flagship: ship")}, "fleet", "flagship")
 		},
 	},
 	{
 		// Re-exported through a hidden field of package fleet.
 		name: "reexported-chain", text: true, module: true,
-		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
+		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) (cue.Value, cue.Path) {
 			return overlayLoad(t, ctx, fx, map[string]string{fleetFile: fleet("_ship:    ship\nflagship: _ship")}, "fleet", "flagship")
 		},
 	},
@@ -377,7 +377,7 @@ var loadPaths = []loadPath{
 		// lineage is evaluated afresh in package fleet, and its references
 		// resolve there.
 		name: "reexported-unified", text: true, module: true,
-		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
+		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) (cue.Value, cue.Path) {
 			return overlayLoad(t, ctx, fx, map[string]string{fleetFile: fleet("flagship: thema.Lineage & ship", "github.com/sdboyer/thema")}, "fleet", "flagship")
 		},
 	},
@@ -385,7 +385,7 @@ var loadPaths = []loadPath{
 		// Re-exported by package fleet, from a package ship that embeds
 		// thema.Lineage.
 		name: "reexported-embedded", text: true, module: true,
-		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
+		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) (cue.Value, cue.Path) {
 			return overlayLoad(t, ctx, fx, map[string]string{
 				lpPackage + "/lineage.cue": embedLineage,
 				fleetFile:                  fleet("flagship: ship"),
@@ -395,28 +395,28 @@ var loadPaths = []loadPath{
 	{
 		// Narrowed where package fleet uses it.
 		name: "narrowed", narrowed: true, module: true,
-		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
+		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) (cue.Value, cue.Path) {
 			return narrowedLoad(t, ctx, fx, nil, "flagship: ship & %s")
 		},
 	},
 	{
 		// Narrowed through a field of package fleet that holds the narrowing.
 		name: "narrowed-field", narrowed: true, module: true,
-		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
+		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) (cue.Value, cue.Path) {
 			return narrowedLoad(t, ctx, fx, nil, "_narrow:  %s\nflagship: ship & _narrow")
 		},
 	},
 	{
 		// Narrowed where it is re-exported through a hidden field.
 		name: "narrowed-chain", narrowed: true, module: true,
-		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
+		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) (cue.Value, cue.Path) {
 			return narrowedLoad(t, ctx, fx, nil, "_ship:    ship\nflagship: _ship & %s")
 		},
 	},
 	{
 		// Narrowed and unified with thema.Lineage where it is used.
 		name: "narrowed-unified", narrowed: true, module: true,
-		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
+		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) (cue.Value, cue.Path) {
 			return narrowedLoad(t, ctx, fx, nil, "flagship: thema.Lineage & ship & %s", "github.com/sdboyer/thema")
 		},
 	},
@@ -424,7 +424,7 @@ var loadPaths = []loadPath{
 		// Narrowed where it is used, from a package ship that embeds
 		// thema.Lineage.
 		name: "narrowed-embedded", narrowed: true, module: true,
-		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
+		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) (cue.Value, cue.Path) {
 			return narrowedLoad(t, ctx, fx, map[string]string{lpPackage + "/lineage.cue": embedLineage}, "flagship: ship & %s")
 		},
 	},
@@ -432,7 +432,7 @@ var loadPaths = []loadPath{
 		// Narrowed by a definition of package fleet, as a framework narrows
 		// the lineages its declarations hold.
 		name: "narrowed-definition", narrowed: true, module: true,
-		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
+		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) (cue.Value, cue.Path) {
 			return narrowedLoad(t, ctx, fx, nil, "#Op: headers: thema.Lineage & %s\nop: #Op & {headers: ship}\nflagship: op.headers", "github.com/sdboyer/thema")
 		},
 	},
@@ -440,7 +440,7 @@ var loadPaths = []loadPath{
 		// Imported into package fleet, which is the lineage, and narrowed
 		// there: the package embeds the import and the narrowing.
 		name: "narrowed-root", narrowed: true, module: true,
-		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) cue.Value {
+		load: func(t *testing.T, ctx *cue.Context, fx lpFixture) (cue.Value, cue.Path) {
 			return narrowedLoad(t, ctx, fx, nil, "ship\n%s")
 		},
 	},
@@ -449,7 +449,7 @@ var loadPaths = []loadPath{
 // narrowedLoad loads package fleet, which uses the lineage as decl does, with
 // %s in decl standing for the narrowing, and returns the use: flagship, or the
 // package itself when decl declares no flagship.
-func narrowedLoad(t *testing.T, ctx *cue.Context, fx lpFixture, extra map[string]string, decl string, imports ...string) cue.Value {
+func narrowedLoad(t *testing.T, ctx *cue.Context, fx lpFixture, extra map[string]string, decl string, imports ...string) (cue.Value, cue.Path) {
 	t.Helper()
 	files := map[string]string{fleetFile: fleet(fmt.Sprintf(decl, fx.narrowing), append(imports, fx.narrowingImports...)...)}
 	for name, text := range extra {
@@ -477,7 +477,7 @@ func (p loadPath) loads(fx lpFixture) bool {
 
 // overlayLoad loads the package in dir from the fixture's module, with extra
 // files, through a load.Config overlay, and returns the value at path in it.
-func overlayLoad(t *testing.T, ctx *cue.Context, fx lpFixture, extra map[string]string, dir, path string) cue.Value {
+func overlayLoad(t *testing.T, ctx *cue.Context, fx lpFixture, extra map[string]string, dir, path string) (cue.Value, cue.Path) {
 	t.Helper()
 	root := filepath.Join(util.Prefix, "loadpaths")
 	overlay := map[string]load.Source{
@@ -497,7 +497,7 @@ func overlayLoad(t *testing.T, ctx *cue.Context, fx lpFixture, extra map[string]
 	if inst.Err != nil {
 		t.Fatal(inst.Err)
 	}
-	return ctx.BuildInstance(inst).LookupPath(cue.ParsePath(path))
+	return ctx.BuildInstance(inst), cue.ParsePath(path)
 }
 
 // lpResult is what one path reported, split into what every path must agree
@@ -585,7 +585,8 @@ var positional = map[string]bool{"here": true, "also here": true, "in thema's ow
 func (p loadPath) run(t *testing.T, fx lpFixture) *lpResult {
 	t.Helper()
 	ctx := cuecontext.New()
-	v := p.load(t, ctx, fx)
+	root, path := p.load(t, ctx, fx)
+	v := root.LookupPath(path)
 	var opts []thema.BindOption
 	if fx.compiled != nil {
 		// Every path binds with the authoring form's vocabulary when there is
@@ -593,7 +594,7 @@ func (p loadPath) run(t *testing.T, fx lpFixture) *lpResult {
 		// path's.
 		opts = append(opts, thema.WithVocabulary(authoring.Vocabulary(fx.compiled)))
 	}
-	lin, err := thema.BindLineage(v, thema.NewRuntime(ctx), opts...)
+	lin, err := thema.BindLineage(root, path, thema.NewRuntime(ctx), opts...)
 	res := &lpResult{path: p.name}
 	ds := diag.Diagnostics(err)
 	if err != nil && len(ds) == 0 {

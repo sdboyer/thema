@@ -1,0 +1,42 @@
+#op: bind-filled
+#path: lineages.ship
+A lineage compiled on its own is filled into a larger value with `FillPath`
+and bound from there. The result is a value built in Go: CUE keeps no build
+instance for it, so bind cannot tell the lineage's own declarations from the
+value around it, and refuses it. `thema.Compose` writes the lineage into the
+larger value's package as a file instead, and the package loaded from those
+files binds. A field of a loaded package, passed instead of the package's
+root and the path to the field, is refused the same way.
+-- holder.cue --
+lineages: ship: _
+-- lineage.cue --
+name: "ship"
+schemas: "0": "0": schema: {a?: string}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0152",
+      "severity": "error",
+      "headline": "a lineage is bound from the root of a value CUE built from source, and this root was built in Go",
+      "notes": [
+        {
+          "label": "bind tells the lineage's own declarations from the CUE around it by the build instance of the root it is bound from, and a value made by FillPath or Unify has none"
+        }
+      ],
+      "help": [
+        "compose separately built lineages into one package with thema.Compose, load it, and bind each lineage from that package's root"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0152]: a lineage is bound from the root of a value CUE built from source, and this root was built in Go
+  |
+  = note: bind tells the lineage's own declarations from the CUE around it by the build instance of the root it is bound from, and a value made by FillPath or Unify has none
+  = help: compose separately built lineages into one package with thema.Compose, load it, and bind each lineage from that package's root

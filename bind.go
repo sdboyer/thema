@@ -40,6 +40,11 @@ type maybeLineage struct {
 	// with thema.Lineage
 	orig cue.Value
 
+	// root is the value the caller bound the lineage from, and path the
+	// lineage's path in it: where the lineage's own declarations are.
+	root cue.Value
+	path cue.Path
+
 	rt *Runtime
 
 	// pos of the original input for the lineage
@@ -226,17 +231,52 @@ func (ml *maybeLineage) checkSchemaVersions(prev, curr *schemaDef) error {
 	return nil
 }
 
+// checkRoot refuses a root built in Go. Bind places the lineage's own
+// declarations by the build instance of the root they are in (placement.go),
+// which CUE keeps only for the root of a value it built from source.
+func (ml *maybeLineage) checkRoot() error {
+	// A lineage CUE failed to build reports its own error in the checks
+	// after. An error elsewhere in the root is no reason to skip the check.
+	if ml.root.LookupPath(ml.path).Err() != nil || ml.root.BuildInstance() != nil {
+		return nil
+	}
+	const rule = "a lineage is bound from the root of a value CUE built from source"
+	if at := ml.root.Path(); len(at.Selectors()) > 0 {
+		whole := cue.MakePath(append(at.Selectors(), ml.path.Selectors()...)...)
+		return ml.diag(diag.E0152).
+			Headlinef("%s, and this value is its field %s", rule, at).
+			Note(token.NoPos, "bind tells the lineage's own declarations from the CUE around it by the build instance of the root it is bound from, and only the root has one").
+			Helpf("pass the root that %s is a field of, with %s as the path to the lineage", at, whole).
+			Err()
+	}
+	return ml.diag(diag.E0152).
+		Headlinef("%s, and this root was built in Go", rule).
+		Note(token.NoPos, "bind tells the lineage's own declarations from the CUE around it by the build instance of the root it is bound from, and a value made by FillPath or Unify has none").
+		Help("compose separately built lineages into one package with thema.Compose, load it, and bind each lineage from that package's root").
+		Err()
+}
+
 func (ml *maybeLineage) checkExists(cfg *bindConfig) error {
+	if err := ml.path.Err(); err != nil {
+		return ml.diag(diag.E0128).
+			Headline("the path to the lineage is not a valid CUE path").
+			Detail(err.Error()).
+			Help("build the path from selectors with cue.MakePath, or correct the string given to cue.ParsePath").
+			Err()
+	}
 	// The candidate lineage must exist.
 	if !ml.raw.Exists() {
 		b := ml.diag(diag.E0128)
-		if p := ml.raw.Path().String(); p != "" {
+		if p := ml.path.String(); p != "" {
 			b.Headlinef("there is no value at %s to bind as a lineage", p)
 		} else {
 			b.Headlinef("there is no value to bind as a lineage")
 		}
 		if err := ml.raw.Err(); err != nil {
 			b.Detail(err.Error())
+		}
+		if err := ml.root.Err(); err != nil && (ml.raw.Err() == nil || err.Error() != ml.raw.Err().Error()) {
+			b.Notef(token.NoPos, "the value it is bound from has an error: %s", err)
 		}
 		return b.Err()
 	}
@@ -786,7 +826,7 @@ func (ml *maybeLineage) checkLacunas() error {
 // schemas fail is reported without its lenses: a lens is judged against
 // schemas that mean what they say.
 func (ml *maybeLineage) checkReferences() error {
-	rc := newRefChecker(ml.rt.Context(), ml.raw)
+	rc := newRefChecker(ml.rt.Context(), ml.raw, ml.root, ml.path)
 	var errs []error
 	check := func(o refOwner) {
 		for _, f := range rc.check(o) {

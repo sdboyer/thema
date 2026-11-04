@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/ast"
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/errors"
@@ -137,7 +138,7 @@ schemas: "0": "0": {
 `
 
 func TestDefaults(t *testing.T) {
-	lin, err := thema.BindLineage(rt.Context().CompileString(defaultsLineage), rt)
+	lin, err := thema.BindLineage(rt.Context().CompileString(defaultsLineage), cue.Path{}, rt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -246,7 +247,7 @@ schemas: "0": "0": schema: {
 `
 
 func TestMatchesValidate(t *testing.T) {
-	lin, err := thema.BindLineage(rt.Context().CompileString(closednessLineage), rt)
+	lin, err := thema.BindLineage(rt.Context().CompileString(closednessLineage), cue.Path{}, rt)
 	if err != nil {
 		t.Fatal(err)
 	}
