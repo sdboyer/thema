@@ -10,7 +10,10 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/tools/txtar"
+
 	"github.com/sdboyer/thema/authoring"
+	"github.com/sdboyer/thema/diag"
 )
 
 // runThema runs the thema CLI in dir with args, by re-executing this test
@@ -218,16 +221,72 @@ func TestDataTipTakesAuthoringForm(t *testing.T) {
 // thema lineage gen gotypes prints Go types for every schema, or for the one
 // -v names.
 func TestLineageGenGoTypes(t *testing.T) {
+	const (
+		shipType = "type Ship struct {\n\tName string `json:\"name\"`\n}\n"
+		pkgname  = "ships"
+		types00  = "v0_0/types.go"
+	)
 	dir := writeTipDir(t, cleanTip)
-	for _, args := range [][]string{nil, {"-v", v00}} {
-		out, errOut, err := runThema(t, dir, "", append([]string{lineageCmd, "gen", "gotypes", "-l", dir, "--pkgname", "ships"}, args...)...)
+	gen := []string{lineageCmd, "gen", "gotypes", "-l", dir}
+
+	// Without -o, the files are printed as a txtar archive.
+	for _, tc := range []struct {
+		args []string
+		file string
+		pkg  string
+	}{
+		{nil, types00, "v0_0"},
+		{[]string{"-v", v00, "--pkgname", pkgname}, "types.go", pkgname},
+	} {
+		out, errOut, err := runThema(t, dir, "", append(gen, tc.args...)...)
 		if err != nil {
-			t.Fatalf("gen gotypes %v: %v\n%s", args, err, errOut)
+			t.Fatalf("gen gotypes %v: %v\n%s", tc.args, err, errOut)
 		}
-		for _, want := range []string{"package ships\n", "type ShipV0_0 struct {\n\tName string `json:\"name\"`\n}\n"} {
-			if !strings.Contains(out, want) {
-				t.Errorf("gen gotypes %v: output lacks %q:\n%s", args, want, out)
+		a := txtar.Parse([]byte(out))
+		if len(a.Files) != 1 || a.Files[0].Name != tc.file {
+			t.Fatalf("gen gotypes %v printed %d files, want %s alone:\n%s", tc.args, len(a.Files), tc.file, out)
+		}
+		for _, want := range []string{"package " + tc.pkg + "\n", shipType} {
+			if !strings.Contains(string(a.Files[0].Data), want) {
+				t.Errorf("gen gotypes %v: %s lacks %q:\n%s", tc.args, tc.file, want, a.Files[0].Data)
 			}
+		}
+	}
+
+	// -o writes the files, which --check then finds up to date.
+	outdir := filepath.Join(t.TempDir(), "gen")
+	if _, errOut, err := runThema(t, dir, "", append(gen, "-o", outdir)...); err != nil {
+		t.Fatalf("gen gotypes -o: %v\n%s", err, errOut)
+	}
+	written := filepath.Join(outdir, filepath.FromSlash(types00))
+	b, err := os.ReadFile(written) //nolint:gosec // a path the test chose
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), shipType) {
+		t.Errorf("gen gotypes -o wrote:\n%s", b)
+	}
+	if _, errOut, err := runThema(t, dir, "", append(gen, "-o", outdir, "--check")...); err != nil {
+		t.Errorf("gen gotypes --check of files it just wrote: %v\n%s", err, errOut)
+	}
+
+	for _, tc := range []struct {
+		name string
+		args []string
+		code diag.Code
+	}{
+		{"--pkgname without -v", []string{"--pkgname", pkgname}, diag.E0620},
+		{"--check without -o", []string{"--check"}, diag.E0620},
+		{"--check of a changed file", []string{"-o", outdir, "--check"}, diag.E0628},
+	} {
+		if tc.code == diag.E0628 {
+			if err := os.WriteFile(written, []byte("package v0_0\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		_, errOut, err := runThema(t, dir, "", append(gen, tc.args...)...)
+		if err == nil || !strings.Contains(errOut, "error["+string(tc.code)+"]") {
+			t.Errorf("%s: got %v, want %s in:\n%s", tc.name, err, tc.code, errOut)
 		}
 	}
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -11,10 +12,13 @@ import (
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
+	cerrors "cuelang.org/go/cue/errors"
 	"cuelang.org/go/pkg/encoding/yaml"
 	"github.com/dave/dst"
+	"github.com/sdboyer/jenny"
 	"github.com/spf13/cobra"
 	"golang.org/x/mod/modfile"
+	"golang.org/x/tools/txtar"
 
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/diag"
@@ -50,6 +54,10 @@ type genCommand struct {
 	pkgname string
 	// path for embedding
 	epath string
+	// directory to write generated files under
+	outdir string
+	// verify the files under outdir instead of writing them
+	check bool
 
 	lla *lineageLoadArgs
 }
@@ -88,9 +96,11 @@ func (gc *genCommand) setup(cmd *cobra.Command) {
 
 	ggt := genGoTypesLineageCmd
 	genLineageCmd.AddCommand(ggt)
-	ggt.Flags().StringVarP(&gc.lla.verstr, "version", "v", "", "schema syntactic version to generate. Defaults to every version")
-	ggt.Flags().StringVar(&gc.pkgname, "pkgname", "", "Name for generated Go package. Defaults to lowercase lineage name")
-	ggt.Run = gc.run
+	ggt.Flags().StringVarP(&gc.lla.verstr, "version", "v", "", "schema syntactic version to generate, as types.go. Defaults to every version, each in a directory of its own")
+	ggt.Flags().StringVar(&gc.pkgname, "pkgname", "", "Only with -v: name for the generated Go package. Defaults to lowercase lineage name")
+	ggt.Flags().StringVarP(&gc.outdir, "out", "o", "", "directory to write the generated files under. Defaults to printing them to stdout as a txtar archive")
+	ggt.Flags().BoolVar(&gc.check, "check", false, "Only with -o: write nothing, and fail if the files under the directory are not what would be generated")
+	ggt.RunE = gc.runGoTypes
 
 	// TODO
 	// genLineageCmd.AddCommand(genTSTypesLineageCmd)
@@ -409,31 +419,91 @@ func (r rootfind) Modpath() string {
 }
 
 var genGoTypesLineageCmd = &cobra.Command{
-	Use:   "gotypes -l <path> [-p <cue-path>] [-v <synver>] [--pkgname <name>]",
+	Use:   "gotypes -l <path> [-p <cue-path>] [-v <synver> [--pkgname <name>]] [-o <dir> [--check]]",
 	Short: "Generate Go types from a lineage",
 	Long: `Generate Go types from a lineage.
 
-Generate a Go file declaring a type for each schema in a lineage, or for the
-schema named with -v, and print it to stdout. The type for version X.Y of
-lineage "name" is NameVX_Y; nested structs and string enums get named types
-prefixed with it.
+Generate a Go package for each schema in a lineage, declaring a type its
+instances can be decoded into. Version X.Y is written to vX_Y/types.go, in
+package vX_Y, and the type for lineage "name" is Name in every version; nested
+structs and string enums get named types prefixed with it.
+
+With -v, generate the one schema as types.go, in the package --pkgname names.
+
+The files are written under the directory -o names, or printed to stdout as a
+txtar archive. With --check, nothing is written, and the command fails for each
+file under -o that is missing or differs from what would be generated.
 `,
 }
 
 func (gc *genCommand) runGoTypes(cmd *cobra.Command, _ []string) error {
-	cfg := &gocode.TypeConfig{PackageName: gc.pkgname}
-	var f []byte
+	if gc.pkgname != "" && gc.lla.verstr == "" {
+		return diag.New(diag.E0620).Headline("--pkgname names the package of the one schema -v generates, and no -v was given").
+			Help("without -v, each version's package is named for its directory, such as v0_0").Err()
+	}
+	if gc.check && gc.outdir == "" {
+		return diag.New(diag.E0620).Headline("--check verifies the files under -o, and no -o was given").Err()
+	}
+
+	var fs *jenny.FS
 	var err error
 	if gc.lla.verstr == "" {
-		f, err = gocode.GenerateLineageTypes(gc.lin, cfg)
+		fs, err = gocode.LineageTypes(gocode.LineageTypeConfig{}).GenerateFS(gc.lla.dl.lin)
 	} else {
-		f, err = gocode.GenerateTypes(gc.sch, cfg)
+		fs, err = gocode.SchemaTypes(gocode.TypeConfig{PackageName: gc.pkgname}).GenerateFS(gc.lla.dl.sch)
 	}
 	if err != nil {
 		return err
 	}
-	_, err = cmd.OutOrStdout().Write(f)
-	return err
+
+	switch {
+	case gc.outdir == "":
+		var a txtar.Archive
+		for _, f := range fs.AsFiles() {
+			b, rerr := f.Render()
+			if rerr != nil {
+				return rerr
+			}
+			a.Files = append(a.Files, txtar.File{Name: f.Path(), Data: b})
+		}
+		_, err = cmd.OutOrStdout().Write(txtar.Format(&a))
+		return err
+	case gc.check:
+		return driftDiagnostics(fs.Verify(cmd.Context(), gc.outdir), gc.outdir)
+	default:
+		if err := fs.Write(cmd.Context(), gc.outdir); err != nil {
+			return diag.New(diag.E0616).Headlinef("the generated files cannot all be written under %s", displayPath(gc.outdir)).Detail(err.Error()).Err()
+		}
+		return nil
+	}
+}
+
+// driftDiagnostics returns an E0628 for each file under dir that jenny's
+// Verify found missing or different, and any other error as it is.
+func driftDiagnostics(err error, dir string) error {
+	if err == nil {
+		return nil
+	}
+	errs := []error{err}
+	if j, ok := err.(interface{ Unwrap() []error }); ok {
+		errs = j.Unwrap()
+	}
+	var ds cerrors.Error
+	for _, e := range errs {
+		var drift *jenny.DriftError
+		if !errors.As(e, &drift) {
+			return err
+		}
+		p := displayPath(filepath.Join(dir, filepath.FromSlash(drift.Path)))
+		b := diag.New(diag.E0628)
+		if drift.Missing {
+			b = b.Headlinef("a generated file is on disk, and %s is missing", p)
+		} else {
+			b = b.Headlinef("a generated file on disk is what would be generated, and %s differs", p)
+		}
+		ds = cerrors.Append(ds, b.Help("run the command without --check to regenerate it").Err())
+	}
+	return ds
 }
 
 var genTSTypesLineageCmd = &cobra.Command{
