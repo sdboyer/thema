@@ -167,11 +167,11 @@ Success prints a JSON object with `from`, `to`, `cutsAs` when the tip is involve
 - `thema.WithLogger(*slog.Logger)` reports each step to the logger, at `slog.LevelDebug`, as the step completes. The record is `translation step`, with these attributes:
   - `from` and `to`;
   - `lens`, which is true when a lens ran and false for plain unification within a major version;
-  - `carried`, the paths of the fields carried around the lens;
+  - `unmapped`, the paths of the fields the step did not map: those the source schema doesn't declare, and those its lens leaves alone. Translation decides each one's fate itself. It carries, promotes or sets aside each one (a field set aside is also a lacuna), or drops one that only held a default;
   - `lacunas`, the step's lacunas;
   - `duration`.
 
-  A step that fails is reported as `translation step failed`, with `error`. `thema.WithStepData()` adds each step's `input` and `output` instances, as JSON. It is off by default, because instances can be large or hold data that shouldn't reach a log. The handler's level decides whether anything is reported, and an instance is rendered only for a record the handler takes.
+  A step that fails is reported as `translation step failed`, with `error` and `codes`, the codes of its diagnostics. `thema.WithStepData()` adds each step's `input` and `output` instances as JSON, each unified with its schema as the step sees it, so with the schema's defaults. It is off by default, because instances can be large or hold data that shouldn't reach a log. The handler's level decides whether anything is reported, and an instance is rendered only for a record the handler takes.
 - `thema.Instance.AsSuccessor` and `thema.Instance.AsPredecessor` translate one step, to the next or previous version, and take the same options. `AsSuccessor` to the next minor version validates the instance, without the fields its schema does not declare, against the successor, carries those fields as any step does, and returns one step whose lacunas are those of any field it did not carry.
 - Playground: `playground.Session.Translate`, operation name `translate`.
 

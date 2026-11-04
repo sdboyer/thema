@@ -113,10 +113,10 @@ func (i *Instance) AsSuccessor(opts ...TranslateOption) (*Instance, lacuna.Trans
 		start := time.Now()
 		ni, step, extras, err := i.minorSuccessor(nsch)
 		if err != nil {
-			cfg.failed(start, i.Schema().Version(), nsch.Version(), i.raw, err)
+			cfg.failed(start, i.sch.(*schemaDef), nsch.(*schemaDef), i.raw, err)
 			return nil, nil, err
 		}
-		cfg.step(start, i.Schema().Version(), nsch.Version(), stepInfo{carried: extras}, i.raw, ni.raw, step)
+		cfg.step(start, i.sch.(*schemaDef), nsch.(*schemaDef), stepInfo{unmapped: extras}, i.raw, ni.raw, step)
 		return ni, lacuna.TranslationLacunas{step}, nil
 	}
 	return i.Translate(i.sch.Successor().Version(), opts...)
@@ -295,10 +295,10 @@ func (i *Instance) Translate(to SyntacticVersion, opts ...TranslateOption) (*Ins
 		start := time.Now()
 		raw, step, info, serr := i.translateStep(data, sch, next)
 		if serr != nil {
-			cfg.failed(start, sch.Version(), next.Version(), data, serr)
+			cfg.failed(start, sch, next, data, serr)
 			return nil, nil, serr
 		}
-		cfg.step(start, sch.Version(), next.Version(), info, data, raw, step)
+		cfg.step(start, sch, next, info, data, raw, step)
 		lac = append(lac, step)
 		data, sch = raw, next
 	}
@@ -350,7 +350,7 @@ func (i *Instance) translateStep(data cue.Value, from, to *schemaDef) (cue.Value
 		return cue.Value{}, lacuna.TranslationStep{}, stepInfo{}, err
 	}
 	step.Lacunas = append(step.Lacunas, lacs...)
-	return raw, step, stepInfo{lens: lens != nil, carried: fields}, nil
+	return raw, step, stepInfo{lens: lens != nil, unmapped: fields}, nil
 }
 
 // stepLens reads the lens of the edge from->to, as the step whose kernel

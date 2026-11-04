@@ -3,14 +3,16 @@ package thema
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"log/slog"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"cuelang.org/go/cue/cuecontext"
+
+	"github.com/sdboyer/thema/diag"
 )
 
 // logRecords translates with a JSON logger at level and returns each record
@@ -68,8 +70,8 @@ func TestTranslateLogger(t *testing.T) {
 	}
 	translate := func(opts ...TranslateOption) func(TranslateOption) error {
 		return func(log TranslateOption) error {
-			_, _, err := inst.Translate(SV(1, 0), append([]TranslateOption{log}, opts...)...)
-			return err
+			_, _, terr := inst.Translate(SV(1, 0), append([]TranslateOption{log}, opts...)...)
+			return terr
 		}
 	}
 
@@ -98,18 +100,90 @@ func TestTranslateLogger(t *testing.T) {
 	if recs := logRecords(t, slog.LevelInfo, translate(WithStepData())); len(recs) != 0 {
 		t.Errorf("a logger at Info got %d records", len(recs))
 	}
+
+	// Logging changes nothing about the translation.
+	plain, plainLac, err := inst.Translate(SV(1, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	logged, loggedLac, err := inst.Translate(SV(1, 0), WithLogger(slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))), WithStepData())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !plain.Underlying().Equals(logged.Underlying()) || !reflect.DeepEqual(plainLac, loggedLac) {
+		t.Errorf("translating with a logger gave %v and %v, without one %v and %v", logged.Underlying(), loggedLac, plain.Underlying(), plainLac)
+	}
+
+	// Backward steps run lenses, minor ones too; AsPredecessor takes the
+	// options.
+	back := logRecords(t, slog.LevelDebug, func(log TranslateOption) error {
+		_, _, err := logged.Translate(SV(0, 0), log)
+		return err
+	})
+	if got, want := steps(back), []string{"translation step 1.0 0.1 true", "translation step 0.1 0.0 true"}; !slices.Equal(got, want) {
+		t.Errorf("backward steps %q, want %q", got, want)
+	}
+	pred := logRecords(t, slog.LevelDebug, func(log TranslateOption) error {
+		_, _, err := logged.AsPredecessor(log)
+		return err
+	})
+	if got, want := steps(pred), []string{"translation step 1.0 0.1 true"}; !slices.Equal(got, want) {
+		t.Errorf("AsPredecessor steps %q, want %q", got, want)
+	}
+}
+
+// An instance valid only through its schema's defaults renders with them, as
+// the step sees it.
+func TestTranslateLoggerDefaults(t *testing.T) {
+	ctx := cuecontext.New()
+	lin, err := bindString(t, NewRuntime(ctx), `lin: thema.Lineage & {
+	name: "defaults"
+	schemas: {
+		"0": "0": schema: {a: int | *1}
+		"0": "1": schema: {a: int | *1, b?: string}
+	}
+	lenses: "0.1->0.0": {v0_1: _, v0_0: a: v0_1.a}
+}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sch, err := lin.Schema(SV(0, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	inst, err := sch.Validate(ctx.CompileString(`{a: int}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, run := range map[string]func(TranslateOption) error{
+		"Translate": func(log TranslateOption) error {
+			_, _, err := inst.Translate(SV(0, 1), log, WithStepData())
+			return err
+		},
+		"AsSuccessor": func(log TranslateOption) error {
+			_, _, err := inst.AsSuccessor(log, WithStepData())
+			return err
+		},
+	} {
+		recs := logRecords(t, slog.LevelDebug, run)
+		if len(recs) != 1 || recs[0]["input"] != `{"a":1}` || recs[0]["output"] != `{"a":1}` {
+			t.Errorf("%s reported %s", name, jsonText(recs))
+		}
+	}
 }
 
 // AsSuccessor within a major version reports its one step, with the fields it
-// carried; Translate across a lens reports the fields carried around it.
-func TestTranslateLoggerCarried(t *testing.T) {
+// did not map; Translate across a lens reports those the lens did not map,
+// including one set aside, which is a lacuna too.
+func TestTranslateLoggerUnmapped(t *testing.T) {
 	ctx := cuecontext.New()
 	lin, err := bindString(t, NewRuntime(ctx), `lin: thema.Lineage & {
 	name: "open"
 	schemas: {
 		"0": "0": schema: {a: string, [=~"^x"]: _}
 		"0": "1": schema: {a: string, b?: string, [=~"^x"]: _}
-		"1": "0": schema: {c: string, [=~"^x"]: _}
+		"1": "0": schema: {c: string}
 	}
 	lenses: {
 		"0.1->0.0": {v0_1: _, v0_0: a: v0_1.a}
@@ -132,30 +206,44 @@ func TestTranslateLoggerCarried(t *testing.T) {
 		_, _, err := inst.AsSuccessor(log)
 		return err
 	})
-	if got := steps(recs); !slices.Equal(got, []string{"translation step 0.0 0.1 false"}) || jsonText(recs[0]["carried"]) != `["xtra"]` {
-		t.Errorf("AsSuccessor reported %q, carried %s", got, jsonText(recs[0]["carried"]))
+	if got := steps(recs); !slices.Equal(got, []string{"translation step 0.0 0.1 false"}) || jsonText(recs[0]["unmapped"]) != `["xtra"]` {
+		t.Errorf("AsSuccessor reported %q, unmapped %s", got, jsonText(recs[0]["unmapped"]))
 	}
 
 	recs = logRecords(t, slog.LevelDebug, func(log TranslateOption) error {
 		_, _, err := inst.Translate(SV(1, 0), log)
 		return err
 	})
-	if len(recs) != 2 || jsonText(recs[1]["carried"]) != `["xtra"]` || recs[1]["lens"] != true {
+	if len(recs) != 2 || jsonText(recs[1]["unmapped"]) != `["xtra"]` || recs[1]["lens"] != true || !strings.Contains(jsonText(recs[1]["lacunas"]), "xtra") {
 		t.Errorf("Translate reported %s", jsonText(recs))
 	}
 }
 
-// A step that fails is reported with its error, and its input with
-// WithStepData.
+// A step that fails is reported with its error and its diagnostics' codes,
+// and its input with WithStepData. A bound lineage's lenses are total, so no
+// step of one fails on purpose; the report is made directly.
 func TestTranslateLoggerFailed(t *testing.T) {
+	ctx := cuecontext.New()
+	lin, err := bindString(t, NewRuntime(ctx), lacunaLineage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	from, err := lin.Schema(SV(0, 1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	to, err := lin.Schema(SV(1, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
 	var buf bytes.Buffer
 	cfg := newTranslateConfig([]TranslateOption{WithLogger(slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))), WithStepData()})
-	cfg.failed(time.Now(), SV(0, 0), SV(1, 0), cuecontext.New().CompileString(`{a: "x"}`), errors.New("the lens broke"))
+	cfg.failed(time.Now(), from.(*schemaDef), to.(*schemaDef), ctx.CompileString(`{a: "x"}`), diag.New(diag.E0307).Headline("the lens broke").Err())
 	var rec map[string]any
 	if err := json.Unmarshal(buf.Bytes(), &rec); err != nil {
 		t.Fatal(err)
 	}
-	if rec["msg"] != "translation step failed" || rec["error"] != "the lens broke" || rec["input"] != `{"a":"x"}` || rec["from"] != "0.0" || rec["to"] != "1.0" {
+	if rec["msg"] != "translation step failed" || rec["error"] != "the lens broke" || jsonText(rec["codes"]) != `["E0307"]` || rec["input"] != `{"a":"x"}` || rec["from"] != "0.1" || rec["to"] != "1.0" {
 		t.Errorf("reported %s", jsonText(rec))
 	}
 }
