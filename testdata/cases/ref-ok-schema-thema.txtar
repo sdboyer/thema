@@ -1,0 +1,20 @@
+# a schema may refer to thema's own package, which is part of the thema
+# version, not something an author edits
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage & {
+	name: "refOkSchemaThema"
+	schemas: {
+		"0": "0": {
+			schema: {
+				gaps?: [...thema.Lacuna]
+				kind?: thema.LacunaTypes.Placeholder | thema.LacunaTypes.DroppedField
+			}
+		}
+	}
+}
+-- expect --
+bind ok
+validate 0.0 ok {kind: "Placeholder"}
+validate 0.0 fail {kind: "Nope"}

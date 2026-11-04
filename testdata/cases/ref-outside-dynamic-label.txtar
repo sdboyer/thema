@@ -1,0 +1,21 @@
+# a schema selects into a table declared outside the lineage by a label only
+# an instance decides: the table is outside the lineage, so it is refused as
+# ref-outside-lineage, whatever the label
+-- in.cue --
+import "github.com/sdboyer/thema"
+
+#Sizes: {small: 1, large: 2}
+
+lin: thema.Lineage & {
+	name: "refOutsideDynamicLabel"
+	schemas: {
+		"0": "0": {
+			schema: {
+				size: "small" | "large"
+				n:    #Sizes[size]
+			}
+		}
+	}
+}
+-- expect --
+bind fail ref-outside-lineage
