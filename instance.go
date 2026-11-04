@@ -3,6 +3,7 @@ package thema
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"cuelang.org/go/cue"
 
@@ -97,8 +98,8 @@ func (i *Instance) Dehydrate() *Instance {
 }
 
 // AsSuccessor translates the instance into the form specified by the successor
-// schema.
-func (i *Instance) AsSuccessor() (*Instance, lacuna.TranslationLacunas, error) {
+// schema. opts are as for [Instance.Translate].
+func (i *Instance) AsSuccessor(opts ...TranslateOption) (*Instance, lacuna.TranslationLacunas, error) {
 	i.check()
 	// A minor version upgrade needs no lens: backwards compatibility means the
 	// data is already an instance of the successor. Validate rather than assume
@@ -108,34 +109,49 @@ func (i *Instance) AsSuccessor() (*Instance, lacuna.TranslationLacunas, error) {
 	// some aside, which is never an error.
 	nsch := i.Schema().Successor()
 	if nsch.Version()[0] == i.Schema().Version()[0] {
-		ctx := i.rt().Context()
-		decl, extras, err := takeExtras(ctx, i.raw, i.sch.(*schemaDef).def)
+		cfg := newTranslateConfig(opts)
+		start := time.Now()
+		ni, step, extras, err := i.minorSuccessor(nsch)
 		if err != nil {
-			return nil, nil, diag.InternalErr(err)
-		}
-		if _, err = nsch.Validate(decl); err != nil {
-			// The diagnostics say what the successor rejects; they are the
-			// whole story, since no lens was involved.
+			cfg.failed(start, i.Schema().Version(), nsch.Version(), i.raw, err)
 			return nil, nil, err
 		}
-		raw, lacs, err := carry(ctx, decl, nil, i.sch.(*schemaDef).def, nsch.(*schemaDef), i.Schema().Version(), extras)
-		if err != nil {
-			return nil, nil, err
-		}
-		ni, err := nsch.Validate(raw)
-		if err != nil {
-			return nil, nil, err
-		}
-		return ni, lacuna.TranslationLacunas{{From: lacuna.SyntacticVersion(i.Schema().Version()), To: lacuna.SyntacticVersion(nsch.Version()), Lacunas: append([]lacuna.Lacuna{}, lacs...)}}, nil
+		cfg.step(start, i.Schema().Version(), nsch.Version(), stepInfo{carried: extras}, i.raw, ni.raw, step)
+		return ni, lacuna.TranslationLacunas{step}, nil
 	}
-	return i.Translate(i.sch.Successor().Version())
+	return i.Translate(i.sch.Successor().Version(), opts...)
+}
+
+// minorSuccessor translates the instance to nsch, its successor in the same
+// major version, and returns the step and the fields it carried.
+func (i *Instance) minorSuccessor(nsch Schema) (*Instance, lacuna.TranslationStep, []taken, error) {
+	ctx := i.rt().Context()
+	decl, extras, err := takeExtras(ctx, i.raw, i.sch.(*schemaDef).def)
+	if err != nil {
+		return nil, lacuna.TranslationStep{}, nil, diag.InternalErr(err)
+	}
+	if _, err = nsch.Validate(decl); err != nil {
+		// The diagnostics say what the successor rejects; they are the
+		// whole story, since no lens was involved.
+		return nil, lacuna.TranslationStep{}, nil, err
+	}
+	raw, lacs, err := carry(ctx, decl, nil, i.sch.(*schemaDef).def, nsch.(*schemaDef), i.Schema().Version(), extras)
+	if err != nil {
+		return nil, lacuna.TranslationStep{}, nil, err
+	}
+	ni, err := nsch.Validate(raw)
+	if err != nil {
+		return nil, lacuna.TranslationStep{}, nil, err
+	}
+	step := lacuna.TranslationStep{From: lacuna.SyntacticVersion(i.Schema().Version()), To: lacuna.SyntacticVersion(nsch.Version()), Lacunas: append([]lacuna.Lacuna{}, lacs...)}
+	return ni, step, extras, nil
 }
 
 // AsPredecessor translates the instance into the form specified by the predecessor
-// schema.
-func (i *Instance) AsPredecessor() (*Instance, lacuna.TranslationLacunas, error) {
+// schema. opts are as for [Instance.Translate].
+func (i *Instance) AsPredecessor(opts ...TranslateOption) (*Instance, lacuna.TranslationLacunas, error) {
 	i.check()
-	return i.Translate(i.sch.Predecessor().Version())
+	return i.Translate(i.sch.Predecessor().Version(), opts...)
 }
 
 // Underlying returns the cue.Value representing the data contained in the Instance.
@@ -235,8 +251,11 @@ func (inst *TypedInstance[T]) ValueP() T {
 // Errors only occur in cases where lenses were written in an unexpected way -
 // for example, not all fields were mapped over, and the resulting object is not
 // concrete. All errors returned from this func will children of [terrors.ErrInvalidLens].
-func (i *Instance) Translate(to SyntacticVersion) (*Instance, lacuna.TranslationLacunas, error) {
+//
+// opts configure the translation: [WithLogger] reports each step to a logger.
+func (i *Instance) Translate(to SyntacticVersion, opts ...TranslateOption) (*Instance, lacuna.TranslationLacunas, error) {
 	i.check()
+	cfg := newTranslateConfig(opts)
 
 	// TODO define this in terms of AsSuccessor and AsPredecessor, rather than those in terms of this.
 	newsch, err := i.Schema().Lineage().Schema(to)
@@ -273,10 +292,13 @@ func (i *Instance) Translate(to SyntacticVersion) (*Instance, lacuna.Translation
 		if to.Less(sch.Version()) {
 			next = sch.predecessor()
 		}
-		raw, step, serr := i.translateStep(data, sch, next)
+		start := time.Now()
+		raw, step, info, serr := i.translateStep(data, sch, next)
 		if serr != nil {
+			cfg.failed(start, sch.Version(), next.Version(), data, serr)
 			return nil, nil, serr
 		}
+		cfg.step(start, sch.Version(), next.Version(), info, data, raw, step)
 		lac = append(lac, step)
 		data, sch = raw, next
 	}
@@ -296,39 +318,39 @@ func (i *Instance) Translate(to SyntacticVersion) (*Instance, lacuna.Translation
 // to: through the kernel's Translate, without the fields from does not
 // declare, which are then carried, as are the fields from declares, to does
 // not, and the step's lens does not map (see carry).
-func (i *Instance) translateStep(data cue.Value, from, to *schemaDef) (cue.Value, lacuna.TranslationStep, error) {
+func (i *Instance) translateStep(data cue.Value, from, to *schemaDef) (cue.Value, lacuna.TranslationStep, stepInfo, error) {
 	ctx := i.rt().Context()
 	decl, fields, err := takeExtras(ctx, data, from.def)
 	if err != nil {
-		return cue.Value{}, lacuna.TranslationStep{}, diag.InternalErr(err)
+		return cue.Value{}, lacuna.TranslationStep{}, stepInfo{}, diag.InternalErr(err)
 	}
 	raw, out, err := i.kernelStep(decl, from.Version(), to.Version())
 	if err != nil {
-		return cue.Value{}, lacuna.TranslationStep{}, err
+		return cue.Value{}, lacuna.TranslationStep{}, stepInfo{}, err
 	}
 	lin := i.Schema().Lineage().(*baseLineage)
 	var steps lacuna.TranslationLacunas
 	if err = out.LookupPath(cue.MakePath(cue.Str("steps"))).Decode(&steps); err != nil {
-		return cue.Value{}, lacuna.TranslationStep{}, diag.Convert(err, lin.translateContext(out))
+		return cue.Value{}, lacuna.TranslationStep{}, stepInfo{}, diag.Convert(err, lin.translateContext(out))
 	}
 	if len(steps) != 1 {
-		return cue.Value{}, lacuna.TranslationStep{}, diag.InternalErr(fmt.Errorf("translating %s to %s took %d steps", from.Version(), to.Version(), len(steps)))
+		return cue.Value{}, lacuna.TranslationStep{}, stepInfo{}, diag.InternalErr(fmt.Errorf("translating %s to %s took %d steps", from.Version(), to.Version(), len(steps)))
 	}
 	step := steps[0]
 
 	var lens *stepLens
 	if from.Version()[0] != to.Version()[0] || to.Version().Less(from.Version()) {
 		if lens, err = i.stepLens(out, from.Version(), to.Version()); err != nil {
-			return cue.Value{}, lacuna.TranslationStep{}, diag.InternalErr(err)
+			return cue.Value{}, lacuna.TranslationStep{}, stepInfo{}, diag.InternalErr(err)
 		}
 	}
 	fields = takeFields(ctx, data, fields, lens, raw, from.def, to.def)
 	raw, lacs, err := carry(ctx, raw, lens, from.def, to, from.Version(), fields)
 	if err != nil {
-		return cue.Value{}, lacuna.TranslationStep{}, err
+		return cue.Value{}, lacuna.TranslationStep{}, stepInfo{}, err
 	}
 	step.Lacunas = append(step.Lacunas, lacs...)
-	return raw, step, nil
+	return raw, step, stepInfo{lens: lens != nil, carried: fields}, nil
 }
 
 // stepLens reads the lens of the edge from->to, as the step whose kernel
