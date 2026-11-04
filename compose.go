@@ -24,7 +24,9 @@ type Placement struct {
 	Path cue.Path
 	// File is the CUE to declare at Path, such as a lineage compiled from the
 	// authoring form (authoring.Compiled.File). Its package clause, if any, is
-	// replaced; its imports are kept.
+	// replaced; its imports are kept. It declares no attributes at its top
+	// level, where an attribute such as @if would decide whether the file is
+	// in the package at all.
 	File *ast.File
 }
 
@@ -39,9 +41,7 @@ type Placement struct {
 //
 // Each file is named thema_compose_<i>.cue, for placement i, and keeps the
 // positions of the file the placement was built from: the syntax Compose
-// adds carries none. The file attributes that precede a placement's package
-// clause, or that lead a file without one, stay at the top; everything else
-// before the declarations follows the new package clause. The caller loads
+// adds carries none. The caller loads
 // the files, alongside its package's own files if it has any, with its own
 // load.Config; load.ComposedInstance loads them on their own.
 //
@@ -57,8 +57,6 @@ type Placement struct {
 //   - A name a placement's file refers to without declaring it resolves in
 //     the composed package, to what the other placements or the caller's
 //     files declare at its top.
-//   - A file attribute applies to the composed file: an @if that does not
-//     hold leaves the placement out of the package.
 //   - Hidden labels belong to the package they are written in, which for
 //     every placement is now pkg: two placements at one path share their
 //     hidden fields, though they were separate where they were built.
@@ -81,6 +79,9 @@ func Compose(pkg string, ps ...Placement) ([]*ast.File, error) {
 		if p.File == nil {
 			panic(fmt.Sprintf("thema.Compose: placement %d has no file", i))
 		}
+		if err := noFileAttributes(i, p.File); err != nil {
+			return nil, err
+		}
 		labels, err := placementLabels(i, p.Path, p.File)
 		if err != nil {
 			return nil, err
@@ -98,6 +99,24 @@ func packageName(pkg string) bool {
 	}
 	f, err := parser.ParseFile("", "package "+pkg)
 	return err == nil && f.PackageName() == pkg
+}
+
+// noFileAttributes refuses an attribute at the top level of a placement's
+// file. Before the package clause, or leading a file without one, CUE's
+// loader reads it as a file attribute, and @if or @ignore there decides
+// whether the file is loaded; elsewhere at the top it would move onto the
+// fields that nest the file. A lineage is in the package or it is not.
+func noFileAttributes(i int, f *ast.File) error {
+	for _, d := range f.Decls {
+		if a, ok := d.(*ast.Attribute); ok {
+			return diag.New(diag.E0627).
+				Headlinef("a placement's file declares no attributes at its top level, and placement %d's file declares %s", i, a.Text).
+				Note(token.NoPos, "an attribute at the top of a file can decide whether the file is loaded, as @if does, and a composed lineage is always in the package").
+				Help("remove the attribute from the file").
+				Err()
+		}
+	}
+	return nil
 }
 
 // placementLabels returns the labels of the fields that nest f's
@@ -156,9 +175,8 @@ func placementLabels(i int, p cue.Path, f *ast.File) ([]ast.Label, error) {
 }
 
 // placed returns the file named name, in package pkg, that declares f's
-// declarations under labels. What precedes f's package clause, or leads a
-// file without one, are file attributes, and precede the new package
-// clause; f's imports, and what is between them, follow it.
+// declarations under labels. The comments before f's package clause, and
+// the clause's own, stay with the new clause; f's imports follow it.
 func placed(name, pkg string, labels []ast.Label, f *ast.File) *ast.File {
 	clause := &ast.Package{Name: ast.NewIdent(pkg)}
 	head, rest := 0, 0
@@ -168,12 +186,6 @@ func placed(name, pkg string, labels []ast.Label, f *ast.File) *ast.File {
 			head, rest = i, i+1
 			break
 		}
-	}
-	if rest == 0 {
-		for head < len(f.Decls) && fileLevel(f.Decls[head]) {
-			head++
-		}
-		rest = head
 	}
 	body := max(rest, len(f.Preamble()))
 
@@ -186,15 +198,6 @@ func placed(name, pkg string, labels []ast.Label, f *ast.File) *ast.File {
 	decls = append(decls, clause)
 	decls = append(decls, f.Decls[rest:body]...)
 	return &ast.File{Filename: name, Decls: append(decls, nested...)}
-}
-
-// fileLevel reports whether d can lead a file as a file attribute does.
-func fileLevel(d ast.Decl) bool {
-	switch d.(type) {
-	case *ast.Attribute, *ast.CommentGroup:
-		return true
-	}
-	return false
 }
 
 // imported reports whether f imports a package under name.
