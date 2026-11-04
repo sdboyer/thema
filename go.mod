@@ -11,6 +11,7 @@ require (
 	github.com/matryer/is v1.4.0
 	github.com/rogpeppe/go-internal v1.16.1-0.20261002162744-ce71b23481ca
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
+	github.com/sdboyer/jenny v0.0.0-20261104111933-0b7b48565c8d
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.9.0
 	github.com/xlab/treeprint v1.1.0

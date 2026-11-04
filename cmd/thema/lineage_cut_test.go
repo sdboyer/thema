@@ -103,3 +103,30 @@ func TestLineageCutFirst(t *testing.T) {
 		t.Errorf("%s:\n%s", historyV00, got)
 	}
 }
+
+// TestLineageCutFrozenFirst: a cut whose frozen version cannot be written
+// leaves the tip as it was, lenses and notes included, rather than resetting
+// it to clean with nothing frozen.
+func TestLineageCutFrozenFirst(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("permissions do not stop root")
+	}
+	dir := writeTipDir(t, minorTip)
+	history := filepath.Join(dir, "history")
+	if err := os.Chmod(history, 0o555); err != nil { //nolint:gosec // a directory under t.TempDir()
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(history, 0o750) }) //nolint:gosec // a directory under t.TempDir()
+
+	_, errOut, err := runThema(t, dir, "", lineageCmd, "cut", "-l", dir)
+	if err == nil || !strings.Contains(errOut, "E0616") {
+		t.Fatalf("want E0616, got err %v, stderr:\n%s", err, errOut)
+	}
+	tip, err := os.ReadFile(filepath.Join(dir, authoring.TipFile)) //nolint:gosec // a file under t.TempDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(tip) != minorTip {
+		t.Errorf("tip.thema changed though nothing was frozen:\n%s", tip)
+	}
+}

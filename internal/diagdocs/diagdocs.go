@@ -1,12 +1,13 @@
 // Package diagdocs generates docs/errors from the code table and the
-// reproducers, and docs/cue-errors.md from the menagerie. Tests keep the
-// generated files in lockstep; nothing here is run by hand.
+// reproducers, and docs/cue-errors.md from the menagerie, as jennies. Tests
+// keep the generated files in lockstep; nothing here is run by hand.
 package diagdocs
 
 import (
 	"fmt"
 	"strings"
 
+	"github.com/sdboyer/jenny"
 	"golang.org/x/tools/txtar"
 
 	"github.com/sdboyer/thema/diag"
@@ -22,8 +23,24 @@ type Page struct {
 	Rendered string
 }
 
-// ErrorPage renders docs/errors/<code>.md.
-func ErrorPage(p Page) string {
+var pages = jenny.For[Page](jenny.InputName(func(p Page) string { return string(p.Info.Code) }))
+
+// IndexFile is the name of the file [ErrorIndex] writes.
+const IndexFile = "README.md"
+
+// ErrorPages is a jenny that writes each code's page, <code>.md: its title,
+// and, for a code in use, its reproducer's prose, inputs and rendering.
+var ErrorPages = pages.New("ErrorPage", func(p Page) (jenny.File, error) {
+	return jenny.NewFile(string(p.Info.Code)+".md", []byte(errorPage(p))), nil
+})
+
+// ErrorIndex is a jenny that writes [IndexFile], which lists every page it is
+// given, in the order given.
+var ErrorIndex = pages.New("ErrorIndex", func(ps ...Page) (jenny.File, error) {
+	return jenny.NewFile(IndexFile, []byte(index(ps))), nil
+})
+
+func errorPage(p Page) string {
 	var b strings.Builder
 	b.WriteString(header)
 	fmt.Fprintf(&b, "# %s: %s\n\n", p.Info.Code, p.Info.Title)
@@ -53,8 +70,7 @@ func ErrorPage(p Page) string {
 	return b.String()
 }
 
-// Index renders docs/errors/README.md.
-func Index(pages []Page) string {
+func index(pages []Page) string {
 	var b strings.Builder
 	b.WriteString(header)
 	b.WriteString("# Error codes\n\n")
@@ -95,8 +111,17 @@ type MenagerieCase struct {
 // MenagerieFile is one input of a menagerie case.
 type MenagerieFile struct{ Name, Text string }
 
-// CueErrors renders docs/cue-errors.md from the menagerie.
-func CueErrors(cases []MenagerieCase) string {
+// CueErrorsFile is the name of the file [CueErrorsDoc] writes.
+const CueErrorsFile = "cue-errors.md"
+
+// CueErrorsDoc is a jenny that writes [CueErrorsFile], the catalog of CUE's
+// error shapes, from every menagerie case it is given, in the order given.
+var CueErrorsDoc = jenny.For[MenagerieCase](jenny.InputName(func(c MenagerieCase) string { return c.Name })).
+	New("CueErrorsDoc", func(cases ...MenagerieCase) (jenny.File, error) {
+		return jenny.NewFile(CueErrorsFile, []byte(cueErrors(cases))), nil
+	})
+
+func cueErrors(cases []MenagerieCase) string {
 	var b strings.Builder
 	b.WriteString(header)
 	b.WriteString(`# CUE error shapes

@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -18,6 +17,7 @@ import (
 	"cuelang.org/go/encoding/jsonschema"
 	"cuelang.org/go/encoding/openapi"
 	"cuelang.org/go/encoding/yaml"
+	"github.com/sdboyer/jenny"
 	"github.com/sdboyer/thema/authoring"
 	"github.com/sdboyer/thema/diag"
 	"github.com/spf13/cobra"
@@ -30,6 +30,8 @@ type initCommand struct {
 	name    string
 	stdout  bool
 
+	// gen holds the new lineage's tip, generated, and tip is that file.
+	gen *jenny.FS
 	tip authoring.File
 	err error
 }
@@ -179,13 +181,6 @@ func (ic *initCommand) lineageDir(cmd *cobra.Command) (string, error) {
 	return abs, nil
 }
 
-// A new lineage's directory and tip.thema have the permissions any other
-// source directory and file have, before the umask.
-const (
-	newDirPerm  = 0o755
-	newFilePerm = 0o644
-)
-
 // write writes the new lineage's tip, ic.tip, as dir/tip.thema, once the
 // lineage it starts binds. A directory that already holds version files is
 // refused.
@@ -212,14 +207,10 @@ func (ic *initCommand) write(cmd *cobra.Command, dir string) error {
 		}
 		return err
 	}
-	if err = os.MkdirAll(dir, newDirPerm); err != nil {
-		return diag.New(diag.E0616).Headlinef("%s cannot be written", displayPath(dir)).Detail(diag.OSReason(err)).Err()
+	if err = writeFS(cmd, ic.gen, dir); err != nil {
+		return err
 	}
-	p := filepath.Join(dir, ic.tip.Path)
-	if err = os.WriteFile(p, ic.tip.Text, newFilePerm); err != nil {
-		return diag.New(diag.E0616).Headlinef("%s cannot be written", displayPath(p)).Detail(diag.OSReason(err)).Err()
-	}
-	_, err = fmt.Fprintln(cmd.OutOrStdout(), displayPath(p))
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), displayPath(filepath.Join(dir, ic.tip.Path)))
 	return err
 }
 
@@ -238,9 +229,16 @@ func (ic *initCommand) runEmpty(cmd *cobra.Command, args []string) {
 	ic.newTip(ctx.CompileString("{}"))
 }
 
-// newTip makes ic.tip, the tip of a new lineage whose one version is sch.
+// newTip makes ic.gen and ic.tip, the tip of a new lineage whose one version
+// is sch.
 func (ic *initCommand) newTip(sch upcue.Value) {
-	ic.tip, ic.err = authoring.NewTip(sch)
+	ic.gen, ic.err = authoring.InitialTip.GenerateFS(sch)
+	if ic.err != nil {
+		return
+	}
+	f := ic.gen.AsFiles()[0]
+	text, err := f.Render()
+	ic.tip, ic.err = authoring.File{Path: f.Path(), Text: text}, err
 }
 
 func (ic *initCommand) runJSONSchema(cmd *cobra.Command, args []string) {

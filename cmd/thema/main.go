@@ -3,11 +3,13 @@ package main
 import (
 	"errors"
 	"fmt"
+	iofs "io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"cuelang.org/go/cue/cuecontext"
+	"github.com/sdboyer/jenny"
 	"github.com/spf13/cobra"
 
 	"github.com/sdboyer/thema"
@@ -152,6 +154,21 @@ func displayPath(path string) string {
 		return rel
 	}
 	return path
+}
+
+// writeFS writes the generated files under dir. A file that cannot be
+// written is E0616, naming the path that failed.
+func writeFS(cmd *cobra.Command, fs *jenny.FS, dir string) error {
+	err := fs.Write(cmd.Context(), dir)
+	if err == nil {
+		return nil
+	}
+	p := dir
+	var pe *iofs.PathError
+	if errors.As(err, &pe) {
+		p = pe.Path
+	}
+	return diag.New(diag.E0616).Headlinef("%s cannot be written", displayPath(p)).Detail(diag.OSReason(err)).Err()
 }
 
 func addLinPathVars(cmd *cobra.Command, lla *lineageLoadArgs) {

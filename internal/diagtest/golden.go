@@ -1,6 +1,7 @@
 package diagtest
 
 import (
+	"context"
 	"fmt"
 	"maps"
 	"os"
@@ -12,6 +13,7 @@ import (
 	cerrors "cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/token"
 	"github.com/google/go-cmp/cmp"
+	"github.com/sdboyer/jenny"
 	"golang.org/x/tools/txtar"
 
 	"github.com/sdboyer/thema/diag"
@@ -150,6 +152,22 @@ func CompareFile(t testing.TB, path, got string) {
 	}
 	if diff := cmp.Diff(string(want), got); diff != "" {
 		t.Errorf("%s (-golden +got):\n%s", path, diff)
+	}
+}
+
+// CompareFS checks that the files of fs are what is on disk under dir, or,
+// with THEMA_UPDATE_GOLDEN set, writes them there. Files under dir that fs
+// does not hold are not checked.
+func CompareFS(t testing.TB, dir string, fs *jenny.FS) {
+	t.Helper()
+	if envvars.UpdateGoldenFiles {
+		if err := fs.Write(context.Background(), dir); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	if err := fs.Verify(context.Background(), dir); err != nil {
+		t.Errorf("%v\nrun with %s=1 to regenerate", err, envvars.VarUpdateGolden)
 	}
 }
 
