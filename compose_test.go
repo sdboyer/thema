@@ -14,8 +14,7 @@ import (
 )
 
 func TestComposeFiles(t *testing.T) {
-	src := `@extern(embed)
-
+	src := `// about the lineage
 package elsewhere
 
 import (
@@ -43,7 +42,7 @@ loud: strings.ToUpper(name)
 		t.Errorf("Compose changed the placement's file:\n%s", got)
 	}
 
-	want := []string{`@extern(embed)
+	want := []string{`// about the lineage
 package lineages
 
 import (
@@ -56,7 +55,7 @@ ops: #Op: "content-type": {
 	name: "q"
 	loud: strings.ToUpper(name)
 }
-`, `@extern(embed)
+`, `// about the lineage
 package lineages
 
 import (
@@ -117,58 +116,51 @@ func TestComposeRefused(t *testing.T) {
 	}
 }
 
-// File attributes stay ahead of the new package clause, whether they precede
-// an old one or lead a file without one, and what follows an old package
-// clause, with the clause's comments, stays after the new one.
+// An attribute at the top of a placement's file is refused wherever it is:
+// before the package clause or leading a file without one, CUE's loader reads
+// it as deciding whether the file is loaded. An attribute of a field, or
+// inside a struct, is the file's content, and is kept.
 func TestComposeAttributes(t *testing.T) {
-	for _, tc := range []struct {
-		name, src, want string
-	}{
-		{"after the package clause", `// about q
-package q
-
-@extern(embed)
-
-import "strings"
-
-a: strings.ToUpper("q")
-`, `// about q
-package p
-
-@extern(embed)
-
-import "strings"
-
-at:
-	a: strings.ToUpper("q")
-`},
-		{"without a package clause", `@if(debug)
-
-a: 1
-`, `@if(debug)
-package p
-
-at:
-	a: 1
-`},
+	for _, tc := range []struct{ name, src, attr string }{
+		{"before the package clause", "@extern(embed)\n\npackage q\n\na: 1\n", "@extern(embed)"},
+		{"leading a file without a package clause", "@if(debug)\n\na: 1\n", "@if(debug)"},
+		{"among the imports", "package q\n\n@x()\n\nimport \"strings\"\n\na: strings.ToUpper(\"q\")\n", "@x()"},
+		{"among the fields", "a: 1\n\n@x()\n\nb: 2\n", "@x()"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			f, err := parser.ParseFile("q.cue", tc.src, parser.ParseComments)
+			f, err := parser.ParseFile("q.cue", tc.src)
 			if err != nil {
 				t.Fatal(err)
 			}
-			files, err := thema.Compose("p", thema.Placement{Path: cue.ParsePath("at"), File: f})
-			if err != nil {
-				t.Fatal(err)
-			}
-			got := formatted(t, files[0])
-			if got != tc.want {
-				t.Errorf("got:\n%s\nwant:\n%s", got, tc.want)
-			}
-			if _, err := parser.ParseFile("composed.cue", got); err != nil {
-				t.Errorf("the composed file does not parse: %v", err)
+			_, err = thema.Compose("p", thema.Placement{Path: cue.ParsePath("at"), File: f})
+			ds := diag.Diagnostics(err)
+			want := "a placement's file declares no attributes at its top level, and placement 0's file declares " + tc.attr
+			if len(ds) != 1 || ds[0].Code != diag.E0627 || ds[0].Headline != want {
+				t.Errorf("got %v, want one E0627 %q", ds, want)
 			}
 		})
+	}
+
+	f, err := parser.ParseFile("q.cue", "a: int @x()\nb: {\n\t@y()\n\tc: 1\n}\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	files, err := thema.Compose("p", thema.Placement{Path: cue.ParsePath("at"), File: f})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `package p
+
+at: {
+	a: int @x()
+	b: {
+		@y()
+		c: 1
+	}
+}
+`
+	if got := formatted(t, files[0]); got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
 	}
 }
 
