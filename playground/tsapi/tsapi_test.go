@@ -3,6 +3,7 @@
 package tsapi
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
@@ -53,5 +54,26 @@ func TestGenerateCollision(t *testing.T) {
 	})
 	if err == nil || !strings.Contains(err.Error(), "Diagnostic is declared in the sources and imported") {
 		t.Fatalf("want a collision error, got %v", err)
+	}
+}
+
+// UIConfig returns a copy: changing it changes neither later copies nor the
+// types other Configs import.
+func TestUIConfigCopies(t *testing.T) {
+	var want []Source
+	for _, src := range uiSources {
+		want = append(want, Source{Package: src.Package, Files: append([]string(nil), src.Files...)})
+	}
+	c := UIConfig()
+	for i := range c.Sources {
+		for j := range c.Sources[i].Files {
+			c.Sources[i].Files[j] = "changed.go"
+		}
+	}
+	c.TypeMappings["diag.Diagnostic"] = "changed"
+	c.Omit[0] = "changed"
+	fresh := UIConfig()
+	if !reflect.DeepEqual(fresh.Sources, want) || fresh.TypeMappings["diag.Diagnostic"] != "Diagnostic" || fresh.Omit[0] != "Vocabulary" {
+		t.Errorf("changing one UIConfig changed the next:\n%+v", fresh)
 	}
 }

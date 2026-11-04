@@ -70,10 +70,14 @@ var Formatted = jenny.BytesMapper(func(f jenny.File, src []byte) ([]byte, error)
 })
 
 // lineageName names a lineage in normal form by its name field, or by its
-// path where it has none to read.
+// path where it has none to read, as one built from source at its root has
+// none.
 func lineageName(lin cue.Value) string {
 	if name, err := lin.LookupPath(cue.MakePath(cue.Str("name"))).String(); err == nil {
 		return name
 	}
-	return lin.Path().String()
+	if p := lin.Path().String(); p != "" {
+		return p
+	}
+	return "an unnamed lineage"
 }

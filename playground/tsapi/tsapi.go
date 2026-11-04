@@ -97,7 +97,10 @@ var uiConfig = Config{
 // in @sdboyer/thema-ui as playground/components/src/types.ts.
 func UIConfig() Config {
 	cfg := uiConfig
-	cfg.Sources = slices.Clone(uiSources)
+	cfg.Sources = make([]Source, len(uiSources))
+	for i, src := range uiSources {
+		cfg.Sources[i] = Source{Package: src.Package, Files: slices.Clone(src.Files)}
+	}
 	cfg.TypeMappings = maps.Clone(uiConfig.TypeMappings)
 	cfg.Omit = slices.Clone(uiConfig.Omit)
 	return cfg

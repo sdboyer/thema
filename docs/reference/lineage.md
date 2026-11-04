@@ -206,7 +206,7 @@ Converting between the forms:
   - `authoring.InitialTip` writes the `tip.thema` of a new lineage from a schema.
   - `authoring.Formatted` is a mapper that lays out every `.thema` file.
 
-  Paths are relative to the lineage's directory. The CLI writes them with jenny, as mode `0644`.
+  Paths are relative to the lineage's directory. The CLI writes them with jenny: a new file is mode `0644` and a new directory `0777`, less the umask, and a file that already exists keeps its mode.
 - `thema lineage init empty -l <dir>`, `thema lineage init openapi <path> -l <dir>` and `thema lineage init jsonschema <path> -l <dir>` write the `tip.thema` of a new lineage in `<dir>`, with an empty history: its `Schema` is empty, or converted from an OpenAPI v3 or JSON Schema document. Its tip cuts as `0.0`. In Go, `authoring.NewTip(schema cue.Value) (authoring.File, error)` writes the tip for a schema.
   - The lineage's name is its directory's base name. `-l` defaults to the current directory; `--name <name>` alone writes `./<name>`, and with `-l` must equal `-l`'s base name (`E0620`).
   - The directory is created if it does not exist. One that already holds version files is refused (`E0623`): init never overwrites a lineage.

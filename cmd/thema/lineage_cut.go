@@ -72,18 +72,23 @@ func (cc *cutCommand) run(cmd *cobra.Command, _ []string) error {
 	if _, err = fmt.Fprintf(out, "%s the tip as %s\n", verb, cut.Version); err != nil {
 		return err
 	}
-	fs, err := jenny.Pipeline(authoring.FrozenVersion, authoring.CleanTip).GenerateFS(cut)
-	if err != nil {
-		return err
-	}
-	if !cc.dryRun {
-		if err := writeFS(cmd, fs, abs); err != nil {
+	// The frozen version is written before the tip is reset, each on its
+	// own: a tip reset while its version failed to freeze would lose the
+	// lenses and notes the tip held.
+	for _, j := range []jenny.Jenny[*authoring.Cut]{authoring.FrozenVersion, authoring.CleanTip} {
+		fs, err := j.GenerateFS(cut)
+		if err != nil {
 			return err
 		}
-	}
-	for _, f := range fs.AsFiles() {
-		if _, err := fmt.Fprintln(out, f.Path()); err != nil {
-			return err
+		if !cc.dryRun {
+			if err := writeFS(cmd, fs, abs); err != nil {
+				return err
+			}
+		}
+		for _, f := range fs.AsFiles() {
+			if _, err := fmt.Fprintln(out, f.Path()); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
