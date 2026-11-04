@@ -195,6 +195,7 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0624](E0624.md) | error | the document is not of an OpenAPI version thema converts |
 | [E0625](E0625.md) | error | the directory to position a lineage's files under is not a valid path |
 | [E0626](E0626.md) | error | the lineage bound on the development path is not the one that was compiled |
+| [E0628](E0628.md) | error | a generated file on disk is not what would be generated |
 | [E0701](E0701.md) | error | generating code from the schema failed |
 | [E0801](E0801.md) | error | the playground request is malformed |
 | [E0802](E0802.md) | error | the playground request gives the lineage in neither form, or in both |
