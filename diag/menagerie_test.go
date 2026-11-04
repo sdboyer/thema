@@ -237,7 +237,11 @@ func TestMenagerie(t *testing.T) {
 	}
 
 	a.Compare(t, got)
-	diagtest.CompareFile(t, filepath.Join("..", "docs", "cue-errors.md"), diagdocs.CueErrors(docCases))
+	fs, err := diagdocs.CueErrorsDoc.GenerateFS(docCases...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	diagtest.CompareFS(t, filepath.Join("..", "docs"), fs)
 }
 
 // TestShapesCovered: every shape in the table matches a message format the

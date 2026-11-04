@@ -13,7 +13,7 @@ The pieces of the [thema playground](../ui)'s frontend that other browser tools 
 - `offsetOf`, `charIndexOfByte`, `spanAt`: CUE positions (1-based line, byte column) as editor offsets.
 - `lightTheme`, `darkTheme`, `highlight`, `tokenColors`, `darkScheme`: the editor's theme.
 - `docs`, `DocLink`, `themaDoc`, `lacunaTypeDoc`: links into thema's reference docs.
-- The wire types of thema's diagnostics and the playground's session API (`Diagnostic`, `Pos`, `LineageInput`, …). They are generated from thema's Go types by `playground/tsapi` (`github.com/sdboyer/thema/playground/tsapi`), so they match the thema release they come from. A Go program whose own wire types embed thema's can generate them with `tsapi.Generate`, which imports thema's types from this package instead of declaring them again.
+- The wire types of thema's diagnostics and the playground's session API (`Diagnostic`, `Pos`, `LineageInput`, …). They are generated from thema's Go types by `playground/tsapi` (`github.com/sdboyer/thema/playground/tsapi`), so they match the thema release they come from. A Go program whose own wire types embed thema's can generate them by running the `tsapi.Types` jenny on a `tsapi.Config` of its own. With the Config's `Import` set to `tsapi.UIModule`, the generated file imports thema's types from this package instead of declaring them again.
 
 The components are Preact components. `preact` and the CodeMirror packages are peer dependencies, so the host application provides one copy of each, which CodeMirror requires.
 

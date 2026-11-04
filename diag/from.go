@@ -1,6 +1,7 @@
 package diag
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 
@@ -134,7 +135,7 @@ func convert(err error, ctx Context) []*Error {
 	if err == nil {
 		return nil
 	}
-	entries := unwrapped(cerrors.Errors(err))
+	entries := unwrapped(entriesOf(err))
 	var out []*Error
 	for i := 0; i < len(entries); i++ {
 		e := entries[i]
@@ -154,6 +155,26 @@ func convert(err error, ctx Context) []*Error {
 		out = append(out, ctx.finish(ctx.generic(e).Err()))
 	}
 	return out
+}
+
+// entriesOf returns the cue/errors entries of err. cue/errors.Errors finds
+// only the first cue error in an error that joins several, as errors.Join and
+// the generators built on it do, so each error such a join holds gives its
+// own entries. A cue error is taken as it is: it lists its own entries.
+func entriesOf(err error) []cerrors.Error {
+	for e := err; e != nil; e = errors.Unwrap(e) {
+		if _, ok := e.(cerrors.Error); ok {
+			break
+		}
+		if j, ok := e.(interface{ Unwrap() []error }); ok {
+			var out []cerrors.Error
+			for _, je := range j.Unwrap() {
+				out = append(out, entriesOf(je)...)
+			}
+			return out
+		}
+	}
+	return cerrors.Errors(err)
 }
 
 // finish renders the Path from the Address in the operation's vocabulary.
