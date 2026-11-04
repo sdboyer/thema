@@ -16,11 +16,11 @@ import (
 // generates from the Go types. Regenerate with THEMA_UPDATE_GOLDEN=1 go test
 // ./playground.
 func TestTypesTSUpToDate(t *testing.T) {
-	got, err := tsapi.ThemaUI()
+	fs, err := tsapi.Types.GenerateFS(tsapi.UIConfig())
 	if err != nil {
 		t.Fatal(err)
 	}
-	diagtest.CompareFile(t, filepath.Join("components", "src", "types.ts"), got)
+	diagtest.CompareFS(t, filepath.Join("components", "src"), fs)
 }
 
 // The playground generates no Go: Go bindings need an embed directive and a

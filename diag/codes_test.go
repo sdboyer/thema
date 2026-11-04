@@ -19,6 +19,7 @@ import (
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/parser"
 	cjson "cuelang.org/go/encoding/json"
+	"github.com/sdboyer/jenny"
 
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/authoring"
@@ -132,10 +133,11 @@ func TestDocsErrors(t *testing.T) {
 		pages = append(pages, diagdocs.Page{Info: ci, Prose: prose, Inputs: a.Inputs(), Rendered: text})
 	}
 	dir := filepath.Join("..", "docs", "errors")
-	for _, p := range pages {
-		diagtest.CompareFile(t, filepath.Join(dir, string(p.Info.Code)+".md"), diagdocs.ErrorPage(p))
+	fs, err := jenny.Pipeline(diagdocs.ErrorPages, diagdocs.ErrorIndex).GenerateFS(pages...)
+	if err != nil {
+		t.Fatal(err)
 	}
-	diagtest.CompareFile(t, filepath.Join(dir, "README.md"), diagdocs.Index(pages))
+	diagtest.CompareFS(t, dir, fs)
 
 	// No page for a code that no longer exists.
 	entries, err := os.ReadDir(dir)

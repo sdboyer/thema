@@ -7,6 +7,21 @@ import (
 	"cuelang.org/go/cue/cuecontext"
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/exemplars"
+
+	defaultchangev0_0 "github.com/sdboyer/thema/encoding/gocode/internal/gentest/defaultchange/v0_0"
+	defaultchangev1_0 "github.com/sdboyer/thema/encoding/gocode/internal/gentest/defaultchange/v1_0"
+	disjunctv0_0 "github.com/sdboyer/thema/encoding/gocode/internal/gentest/disjunct/v0_0"
+	disjunctv0_1 "github.com/sdboyer/thema/encoding/gocode/internal/gentest/disjunct/v0_1"
+	expandv0_0 "github.com/sdboyer/thema/encoding/gocode/internal/gentest/expand/v0_0"
+	expandv0_1 "github.com/sdboyer/thema/encoding/gocode/internal/gentest/expand/v0_1"
+	expandv0_2 "github.com/sdboyer/thema/encoding/gocode/internal/gentest/expand/v0_2"
+	expandv0_3 "github.com/sdboyer/thema/encoding/gocode/internal/gentest/expand/v0_3"
+	narrowingv0_0 "github.com/sdboyer/thema/encoding/gocode/internal/gentest/narrowing/v0_0"
+	narrowingv1_0 "github.com/sdboyer/thema/encoding/gocode/internal/gentest/narrowing/v1_0"
+	renamev0_0 "github.com/sdboyer/thema/encoding/gocode/internal/gentest/rename/v0_0"
+	renamev1_0 "github.com/sdboyer/thema/encoding/gocode/internal/gentest/rename/v1_0"
+	shapesv0_0 "github.com/sdboyer/thema/encoding/gocode/internal/gentest/shapes/v0_0"
+	singlev0_0 "github.com/sdboyer/thema/encoding/gocode/internal/gentest/single/v0_0"
 )
 
 // TestAssignable checks that each schema is assignable to the type generated
@@ -37,20 +52,20 @@ func TestAssignable(t *testing.T) {
 		//     AssignableTo accepts.
 		unassignable []string
 	}{
-		{"defaultchange", thema.SV(0, 0), &DefaultchangeV0_0{}, nil},
-		{"defaultchange", thema.SV(1, 0), &DefaultchangeV1_0{}, nil},
-		{"disjunct", thema.SV(0, 0), &DisjunctV0_0{}, nil},
-		{"disjunct", thema.SV(0, 1), &DisjunctV0_1{}, nil},
-		{expand, thema.SV(0, 0), &ExpandV0_0{}, nil},
-		{expand, thema.SV(0, 1), &ExpandV0_1{}, []string{optional}},
-		{expand, thema.SV(0, 2), &ExpandV0_2{}, []string{optional}},
-		{expand, thema.SV(0, 3), &ExpandV0_3{}, []string{optional}},
-		{"narrowing", thema.SV(0, 0), &NarrowingV0_0{}, nil},
-		{"narrowing", thema.SV(1, 0), &NarrowingV1_0{}, nil},
-		{"rename", thema.SV(0, 0), &RenameV0_0{}, nil},
-		{"rename", thema.SV(1, 0), &RenameV1_0{}, nil},
-		{"single", thema.SV(0, 0), &SingleV0_0{}, []string{"anint"}},
-		{"shapes", thema.SV(0, 0), &ShapesV0_0{}, []string{"parent"}},
+		{"defaultchange", thema.SV(0, 0), &defaultchangev0_0.Defaultchange{}, nil},
+		{"defaultchange", thema.SV(1, 0), &defaultchangev1_0.Defaultchange{}, nil},
+		{"disjunct", thema.SV(0, 0), &disjunctv0_0.Disjunct{}, nil},
+		{"disjunct", thema.SV(0, 1), &disjunctv0_1.Disjunct{}, nil},
+		{expand, thema.SV(0, 0), &expandv0_0.Expand{}, nil},
+		{expand, thema.SV(0, 1), &expandv0_1.Expand{}, []string{optional}},
+		{expand, thema.SV(0, 2), &expandv0_2.Expand{}, []string{optional}},
+		{expand, thema.SV(0, 3), &expandv0_3.Expand{}, []string{optional}},
+		{"narrowing", thema.SV(0, 0), &narrowingv0_0.Narrowing{}, nil},
+		{"narrowing", thema.SV(1, 0), &narrowingv1_0.Narrowing{}, nil},
+		{"rename", thema.SV(0, 0), &renamev0_0.Rename{}, nil},
+		{"rename", thema.SV(1, 0), &renamev1_0.Rename{}, nil},
+		{"single", thema.SV(0, 0), &singlev0_0.Single{}, []string{"anint"}},
+		{"shapes", thema.SV(0, 0), &shapesv0_0.Shapes{}, []string{"parent"}},
 	}
 
 	for _, tc := range tt {
