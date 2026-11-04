@@ -227,6 +227,7 @@ var Codes = []CodeInfo{
 	{Code: E0624, Severity: SeverityError, Title: "the document is not of an OpenAPI version thema converts", Positionless: true},
 	{Code: E0625, Severity: SeverityError, Title: "the directory to position a lineage's files under is not a valid path", Positionless: true},
 	{Code: E0626, Severity: SeverityError, Title: "the lineage bound on the development path is not the one that was compiled", Positionless: true},
+	{Code: E0627, Severity: SeverityError, Title: "the placements given to Compose cannot be written as one package", Positionless: true},
 	{Code: E0628, Severity: SeverityError, Title: "a generated file on disk is not what would be generated", Positionless: true},
 	{Code: E0701, Severity: SeverityError, Title: "generating code from the schema failed", Positionless: true},
 	{Code: E0801, Severity: SeverityError, Title: "the playground request is malformed", Positionless: true},
@@ -457,6 +458,7 @@ const (
 	E0624 Code = "E0624" // lineage init openapi: no openapi version, or one other than 3.0 and 3.1
 	E0625 Code = "E0625" // authoring.At given a path that is not fs.ValidPath, or that falls in thema's own CUE
 	E0626 Code = "E0626" // authoring.BindDevelopmentValue given a value that is not the lineage its Compiled compiled to
+	E0627 Code = "E0627" // thema.Compose given a package name that is not an identifier, no placements, or a path field labels cannot write
 	E0628 Code = "E0628" // gen --check found a generated file missing from disk, or different there
 
 	// E07xx: code generation.

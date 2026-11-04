@@ -17,6 +17,7 @@ import (
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
+	"cuelang.org/go/cue/parser"
 	cjson "cuelang.org/go/encoding/json"
 	"github.com/sdboyer/jenny"
 
@@ -565,6 +566,24 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 			t.Fatalf("%s succeeded", dirs["call"])
 		}
 		return resp.Diagnostics
+	},
+	// compose: compose text.cue into a package named #package at #path
+	// (thema.Compose), and report why it cannot be.
+	"compose": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {
+		text, ok := a.File("text.cue")
+		if !ok {
+			t.Fatal("compose needs text.cue")
+		}
+		f, err := parser.ParseFile("text.cue", text)
+		if err != nil {
+			t.Fatal(err)
+		}
+		dirs, _ := a.Directives()
+		_, err = thema.Compose(dirs["package"], thema.Placement{Path: cue.ParsePath(dirs["path"]), File: f})
+		if err == nil {
+			t.Fatal("text.cue composed")
+		}
+		return diag.Diagnostics(err)
 	},
 	// go-error: a plain Go error with the text of error.txt.
 	"go-error": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {
