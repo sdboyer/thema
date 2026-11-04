@@ -478,15 +478,7 @@ func (gc *genCommand) runGoTypes(cmd *cobra.Command, _ []string) error {
 	case gc.check:
 		return driftDiagnostics(fs.Verify(cmd.Context(), gc.outdir), gc.outdir)
 	default:
-		if err := fs.Write(cmd.Context(), gc.outdir); err != nil {
-			p := gc.outdir
-			var pe *iofs.PathError
-			if errors.As(err, &pe) {
-				p = pe.Path
-			}
-			return diag.New(diag.E0616).Headlinef("%s cannot be written", displayPath(p)).Detail(diag.OSReason(err)).Err()
-		}
-		return nil
+		return writeFS(cmd, fs, gc.outdir)
 	}
 }
 

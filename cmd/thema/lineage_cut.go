@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 
+	"github.com/sdboyer/jenny"
 	"github.com/spf13/cobra"
 
 	"github.com/sdboyer/thema/authoring"
@@ -72,28 +72,17 @@ func (cc *cutCommand) run(cmd *cobra.Command, _ []string) error {
 	if _, err = fmt.Fprintf(out, "%s the tip as %s\n", verb, cut.Version); err != nil {
 		return err
 	}
-	// The tip's mode is the frozen file's too, and the lineage directory's is
-	// history/'s, when the cut is the first.
-	tipPath := filepath.Join(abs, authoring.TipFile)
-	info, err := os.Stat(tipPath)
+	fs, err := jenny.Pipeline(authoring.FrozenVersion, authoring.CleanTip).GenerateFS(cut)
 	if err != nil {
-		return diag.New(diag.E0601).Headlinef("%s cannot be read", displayPath(tipPath)).Detail(diag.OSReason(err)).Err()
+		return err
 	}
-	dirInfo, err := os.Stat(abs)
-	if err != nil {
-		return diag.New(diag.E0601).Headlinef("%s cannot be read", displayPath(abs)).Detail(diag.OSReason(err)).Err()
-	}
-	for _, f := range cut.Written {
-		if !cc.dryRun {
-			p := filepath.Join(abs, filepath.FromSlash(f.Path))
-			if err := os.MkdirAll(filepath.Dir(p), dirInfo.Mode().Perm()); err != nil {
-				return diag.New(diag.E0616).Headlinef("%s cannot be written", displayPath(filepath.Dir(p))).Detail(diag.OSReason(err)).Err()
-			}
-			if err := os.WriteFile(p, f.Text, info.Mode().Perm()); err != nil {
-				return diag.New(diag.E0616).Headlinef("%s cannot be written", displayPath(p)).Detail(diag.OSReason(err)).Err()
-			}
+	if !cc.dryRun {
+		if err := writeFS(cmd, fs, abs); err != nil {
+			return err
 		}
-		if _, err := fmt.Fprintln(out, f.Path); err != nil {
+	}
+	for _, f := range fs.AsFiles() {
+		if _, err := fmt.Fprintln(out, f.Path()); err != nil {
 			return err
 		}
 	}

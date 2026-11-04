@@ -200,6 +200,13 @@ A lineage is written in one of two forms.
 Converting between the forms:
 
 - In Go, the `authoring` package compiles (`authoring.Compile`, and `authoring.CompileDevelopment` with the tip), decompiles (`authoring.Decompile`), formats (`authoring.Format`) and cuts the tip (`authoring.CutTip`). `load.AuthoringLineage` loads, compiles and binds a directory in one call; `load.DevelopmentLineage` does the same with the tip.
+- The files these write are also available as [jennies](https://github.com/sdboyer/jenny), for a pipeline to compose, place and write:
+  - `authoring.FrozenVersion` and `authoring.CleanTip` write the two files of an `*authoring.Cut`, and nothing for a clean cut.
+  - `authoring.DecompiledFiles` writes a normal-form lineage value's authoring files.
+  - `authoring.InitialTip` writes the `tip.thema` of a new lineage from a schema.
+  - `authoring.Formatted` is a mapper that lays out every `.thema` file.
+
+  Paths are relative to the lineage's directory. The CLI writes them with jenny, as mode `0644`.
 - `thema lineage init empty -l <dir>`, `thema lineage init openapi <path> -l <dir>` and `thema lineage init jsonschema <path> -l <dir>` write the `tip.thema` of a new lineage in `<dir>`, with an empty history: its `Schema` is empty, or converted from an OpenAPI v3 or JSON Schema document. Its tip cuts as `0.0`. In Go, `authoring.NewTip(schema cue.Value) (authoring.File, error)` writes the tip for a schema.
   - The lineage's name is its directory's base name. `-l` defaults to the current directory; `--name <name>` alone writes `./<name>`, and with `-l` must equal `-l`'s base name (`E0620`).
   - The directory is created if it does not exist. One that already holds version files is refused (`E0623`): init never overwrites a lineage.
