@@ -2,22 +2,24 @@
 // the Go types that define them, as thema generates the wire types of
 // @sdboyer/thema-ui (playground/components/src/types.ts).
 //
-// ThemaUI returns thema's own file: the playground's requests and responses,
-// diag's diagnostics and lacuna's translation lacunas. Generate serves a
-// program with a wire format of its own, such as a session API shaped like
-// playground.Session, whose types embed or refer to thema's. Where they do,
-// the generated file imports thema's types from @sdboyer/thema-ui instead of
-// declaring them again, so the program's types and the package's components
-// agree on one declaration.
+// [Types] is a jenny that writes the file a [Config] describes. [UIConfig] is
+// thema's own: the playground's requests and responses, diag's diagnostics
+// and lacuna's translation lacunas. A program with a wire format of its own,
+// such as a session API shaped like playground.Session, whose types embed or
+// refer to thema's, runs Types on a Config of its own. Where its types refer
+// to thema's, the generated file imports them from @sdboyer/thema-ui instead
+// of declaring them again, so the program's types and the package's
+// components agree on one declaration.
 //
-// tygo writes one TypeScript module per Go package; Generate joins them into
-// one self-contained file, referring to each type by its bare name. It loads
-// the packages' sources, so it must run inside a module that can resolve
-// them: thema's own, or one that requires it.
+// tygo writes one TypeScript module per Go package; Types joins them into one
+// self-contained file, referring to each type by its bare name. It loads the
+// packages' sources, so it must run inside a module that can resolve them:
+// thema's own, or one that requires it.
 package tsapi
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -26,6 +28,7 @@ import (
 	"strings"
 
 	"github.com/gzuidhof/tygo/tygo"
+	"github.com/sdboyer/jenny"
 )
 
 // Source is a Go package whose types a wire format declares.
@@ -37,7 +40,7 @@ type Source struct {
 	Files []string
 }
 
-// Config says what Generate writes.
+// Config says what Types writes.
 type Config struct {
 	// Header opens the generated file: typically a "Code generated" comment.
 	Header string
@@ -53,7 +56,7 @@ type Config struct {
 	Omit []string
 	// Import is the module specifier thema's wire types are imported from,
 	// such as "@sdboyer/thema-ui". Where a type in Sources refers to one of
-	// the types ThemaUI declares, written as its package's name and the type
+	// the types UIConfig declares, written as its package's name and the type
 	// (diag.Diagnostic, lacuna.Lacuna, playground.File), the file imports it
 	// from Import rather than declaring it. Empty means no type is imported.
 	//
@@ -63,7 +66,7 @@ type Config struct {
 	Import string
 }
 
-// UIModule is the npm package that ThemaUI's file is published in.
+// UIModule is the npm package that UIConfig's file is published in.
 const UIModule = "@sdboyer/thema-ui"
 
 // The packages and files thema's wire format is declared in, in the order
@@ -90,10 +93,35 @@ var uiConfig = Config{
 	Omit: []string{"Vocabulary", "Rewriter"},
 }
 
-// ThemaUI returns the contents of playground/components/src/types.ts, the
-// wire types of @sdboyer/thema-ui.
-func ThemaUI() (string, error) {
-	return Generate(uiConfig)
+// UIConfig returns the Config of thema's own wire types, the file published
+// in @sdboyer/thema-ui as playground/components/src/types.ts.
+func UIConfig() Config {
+	cfg := uiConfig
+	cfg.Sources = slices.Clone(uiSources)
+	cfg.TypeMappings = maps.Clone(uiConfig.TypeMappings)
+	cfg.Omit = slices.Clone(uiConfig.Omit)
+	return cfg
+}
+
+// TypesFile is the name of the file [Types] writes.
+const TypesFile = "types.ts"
+
+// Types is a jenny that writes [TypesFile], declaring the types of a
+// Config's Sources.
+var Types = jenny.For[Config](jenny.InputName(configName)).New("TSWireTypes", func(cfg Config) (jenny.File, error) {
+	src, err := render(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return jenny.NewFile(TypesFile, []byte(src)), nil
+})
+
+// configName names a Config by the first package it declares types from.
+func configName(cfg Config) string {
+	if len(cfg.Sources) == 0 {
+		return "no sources"
+	}
+	return cfg.Sources[0].Package
 }
 
 // tygoHeader matches the header tygo writes at the top of each module.
@@ -109,8 +137,8 @@ const importMark = "__tsapi_import_"
 
 var marked = regexp.MustCompile(importMark + `(\w+)`)
 
-// Generate returns a TypeScript file declaring the types of cfg.Sources.
-func Generate(cfg Config) (string, error) {
+// render returns a TypeScript file declaring the types of cfg.Sources.
+func render(cfg Config) (string, error) {
 	mappings := map[string]string{}
 	if cfg.Import != "" {
 		modules, err := generate(uiSources, uiConfig.TypeMappings)
