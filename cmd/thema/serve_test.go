@@ -52,10 +52,6 @@ func codesOf(err error) []diag.Code {
 	return codes
 }
 
-// thema serve playground --examples <dir> --export <out> writes the examples
-// the directory offers into out, as the register-examples request a static
-// host serves, and serves nothing. --check then finds it up to date, and
-// fails once it changes.
 // Flags the serve tests repeat.
 const (
 	examplesFlag = "--examples"
@@ -63,6 +59,10 @@ const (
 	checkFlag    = "--check"
 )
 
+// thema serve playground --examples <dir> --export <out> writes the examples
+// the directory offers into out, as the register-examples request a static
+// host serves, and serves nothing. --check then finds it up to date, and
+// fails once it changes.
 func TestServePlaygroundExport(t *testing.T) {
 	examples := writeExamplesDir(t)
 	out := filepath.Join(t.TempDir(), "site")
@@ -86,13 +86,13 @@ func TestServePlaygroundExport(t *testing.T) {
 		t.Errorf("wrote %+v", e)
 	}
 
-	// What is exported is what is served.
-	fs, err := examplesManifest(examples)
+	// What is exported is what serving serves.
+	served, err := (&serveCommand{examples: examples}).manifest()
 	if err != nil {
 		t.Fatal(diag.Diagnostics(err))
 	}
-	if served, rerr := fs.ReadFile(tplayground.ManifestFile); rerr != nil || !bytes.Equal(served, b) {
-		t.Errorf("--export wrote other bytes than serving would serve (%v):\n%s", rerr, served)
+	if !bytes.Equal(served, b) {
+		t.Errorf("--export wrote other bytes than serving serves:\n%s", served)
 	}
 
 	check := slices.Concat(export, []string{checkFlag})
@@ -119,6 +119,8 @@ func TestServePlaygroundExportArgs(t *testing.T) {
 		want diag.Code
 	}{
 		{"--export without --examples", []string{exportFlag, out}, diag.E0620},
+		{"--export empty", []string{examplesFlag, examples, exportFlag, ""}, diag.E0620},
+		{"--export empty with --check", []string{examplesFlag, examples, exportFlag + "=", checkFlag}, diag.E0620},
 		{"--check without --export", []string{examplesFlag, examples, "--check"}, diag.E0620},
 		{"--export with --addr", []string{examplesFlag, examples, exportFlag, out, "--addr", "127.0.0.1:0"}, diag.E0620},
 		{"--export with --open", []string{examplesFlag, examples, exportFlag, out, "--open"}, diag.E0620},

@@ -82,20 +82,14 @@ func setupServeCommand(cmd *cobra.Command) {
 }
 
 func (sc *serveCommand) run(cmd *cobra.Command, _ []string) error {
-	if sc.export != "" || sc.check {
+	if cmd.Flags().Changed("export") || cmd.Flags().Changed("check") {
 		return sc.runExport(cmd)
 	}
 	// The examples are read before listening, so that a problem with them is
 	// reported before the playground's address is.
-	var manifest []byte
-	if sc.examples != "" {
-		fs, err := examplesManifest(sc.examples)
-		if err != nil {
-			return err
-		}
-		if manifest, err = fs.ReadFile(tplayground.ManifestFile); err != nil {
-			return diag.InternalErr(err)
-		}
+	manifest, err := sc.manifest()
+	if err != nil {
+		return err
 	}
 	ln, err := net.Listen("tcp", sc.addr)
 	if err != nil {
@@ -123,8 +117,12 @@ func (sc *serveCommand) run(cmd *cobra.Command, _ []string) error {
 // playground serves beside thema.wasm.
 func (sc *serveCommand) runExport(cmd *cobra.Command) error {
 	switch {
+	case !cmd.Flags().Changed("export"):
+		return diag.New(diag.E0620).Headline("--check verifies the files under --export, and no --export was given").
+			Help("pass the directory the files were exported into with --export").Err()
 	case sc.export == "":
-		return diag.New(diag.E0620).Headline("--check verifies the files under --export, and no --export was given").Err()
+		return diag.New(diag.E0620).Headline("--export names the directory to write into, and its path is empty").
+			Help("pass a directory with --export, or drop it to serve the playground").Err()
 	case sc.examples == "":
 		return diag.New(diag.E0620).Headline("--export writes the examples --examples gives, and no --examples was given").
 			Help("pass the directory of lineages to offer with --examples").Err()
@@ -143,6 +141,23 @@ func (sc *serveCommand) runExport(cmd *cobra.Command) error {
 		return driftDiagnostics(fs.Verify(cmd.Context(), sc.export), "--export", sc.export)
 	}
 	return writeFS(cmd, fs, sc.export)
+}
+
+// manifest is the examples.json the playground serves: none without
+// --examples.
+func (sc *serveCommand) manifest() ([]byte, error) {
+	if sc.examples == "" {
+		return nil, nil
+	}
+	fs, err := examplesManifest(sc.examples)
+	if err != nil {
+		return nil, err
+	}
+	b, err := fs.ReadFile(tplayground.ManifestFile)
+	if err != nil {
+		return nil, diag.InternalErr(err)
+	}
+	return b, nil
 }
 
 // examplesManifest walks dir for the playground's examples, and returns the
