@@ -1,13 +1,18 @@
 package authoring_test
 
 import (
+	"bytes"
 	"io/fs"
+	"path/filepath"
 	"strings"
 	"testing"
 	"testing/fstest"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
+	"cuelang.org/go/cue/format"
+	"cuelang.org/go/cue/parser"
+	"golang.org/x/tools/txtar"
 
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/authoring"
@@ -156,20 +161,96 @@ unnamed:  ship.schemas["0"]["0"].schema & {name: ""}
 		if err != nil {
 			t.Fatalf("binding %s, imported from %s: %v", field, dir, diag.Diagnostics(err))
 		}
-		authored, err := load.AuthoringLineage(src, dir, rt)
+		sameVersions(t, dir, imported, src, rt)
+	}
+}
+
+// sameVersions checks that imported holds the versions the history of the
+// lineage in dir of src binds to, ID for ID.
+func sameVersions(t *testing.T, dir string, imported thema.Lineage, src fs.FS, rt *thema.Runtime) {
+	t.Helper()
+	authored, err := load.AuthoringLineage(src, dir, rt)
+	if err != nil {
+		t.Fatal(diag.Diagnostics(err))
+	}
+	got, want := imported.All(), authored.All()
+	if len(got) != len(want) {
+		t.Fatalf("%s imports %d versions, and its history/ holds %d", dir, len(got), len(want))
+	}
+	for i := range want {
+		gid, gerr := got[i].ID()
+		wid, werr := want[i].ID()
+		if gerr != nil || werr != nil || gid != wid {
+			t.Errorf("%s version %s imports as ID %v (%v), and binds from history/ as %v (%v)", dir, want[i].Version(), gid, gerr, wid, werr)
+		}
+	}
+}
+
+// Every lineage of the round-trip corpus that binds has a normalized.gen.cue
+// that cue fmt leaves as it is, and that binds when imported, under any
+// module path, to the versions its history binds to, ID for ID. Lenses with
+// comprehensions and lenses into disjunctions are where an imported lineage
+// has been bound otherwise (#287).
+func TestNormalFormCorpus(t *testing.T) {
+	archives, err := filepath.Glob("../internal/compile/testdata/roundtrip/*.txtar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var checked int
+	for _, path := range archives {
+		a, err := txtar.ParseFile(path)
 		if err != nil {
-			t.Fatal(diag.Diagnostics(err))
+			t.Fatal(err)
 		}
-		got, want := imported.All(), authored.All()
-		if len(got) != len(want) {
-			t.Fatalf("%s imports %d versions, and its history/ holds %d", dir, len(got), len(want))
-		}
-		for i := range want {
-			gid, gerr := got[i].ID()
-			wid, werr := want[i].ID()
-			if gerr != nil || werr != nil || gid != wid {
-				t.Errorf("%s version %s imports as ID %v (%v), and binds from history/ as %v (%v)", dir, want[i].Version(), gid, gerr, wid, werr)
+		src := fstest.MapFS{}
+		for _, f := range a.Files {
+			if strings.HasPrefix(f.Name, shipDir+"/") {
+				src["fleet/"+f.Name] = &fstest.MapFile{Data: f.Data}
 			}
 		}
+		ctx := cuecontext.New()
+		rt := thema.NewRuntime(ctx)
+		// A fixture of an error has no history that binds, and no normal form.
+		if _, err := load.AuthoringLineage(src, "fleet/ship", rt); err != nil {
+			continue
+		}
+		name := strings.TrimSuffix(filepath.Base(path), ".txtar")
+		t.Run(name, func(t *testing.T) {
+			fs, err := authoring.NormalForm.GenerateFS(compileHistory(t, ctx, src, "fleet/ship"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			b, err := fs.ReadFile(authoring.NormalizedFile)
+			if err != nil {
+				t.Fatal(err)
+			}
+			f, err := parser.ParseFile(authoring.NormalizedFile, b, parser.ParseComments)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if fmted, err := format.Node(f); err != nil || !bytes.Equal(fmted, b) {
+				t.Errorf("cue fmt changes %s (%v):\n%s", authoring.NormalizedFile, err, fmted)
+			}
+			for _, modpath := range []string{"example.com/m", "example.org/fleets/other"} {
+				mod := fstest.MapFS{
+					"cue.mod/module.cue":                     {Data: []byte(util.ModuleFile(modpath))},
+					"fleet/ship/" + authoring.NormalizedFile: {Data: b},
+					"use/use.cue":                            {Data: []byte("package use\n\nimport \"" + modpath + "/fleet/ship\"\n\nlin: ship\n")},
+				}
+				inst, err := load.InstanceWithThema(mod, "use", load.Package("use"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				imported, err := thema.BindLineage(ctx.BuildInstance(inst), cue.ParsePath("lin"), rt)
+				if err != nil {
+					t.Fatalf("imported in %s: %v", modpath, diag.Diagnostics(err))
+				}
+				sameVersions(t, "fleet/ship", imported, src, rt)
+			}
+		})
+		checked++
+	}
+	if checked < 40 {
+		t.Errorf("checked %d of the corpus's lineages, fewer than the 40 it holds that bind", checked)
 	}
 }

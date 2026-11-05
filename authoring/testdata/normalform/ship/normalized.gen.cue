@@ -2,18 +2,13 @@
 //
 // This is the lineage's normal form: every version under history/, compiled,
 // and never the tip. Regenerate it with thema lineage compile.
+
 package ship
 
-import (
-	"github.com/sdboyer/thema"
-	"strings"
-)
-
-thema.Lineage
+import "strings"
 
 name: "ship"
-
-schemas: {
+schemas:
 	"0": {
 		"0": {
 			schema: {
@@ -27,9 +22,7 @@ schemas: {
 			}
 		}
 	}
-}
-
-lenses: {
+lenses:
 	"0.1->0.0": {
 		v0_1: _
 		v0_0: {
@@ -46,4 +39,3 @@ lenses: {
 			type:    "DroppedField"
 		}]
 	}
-}

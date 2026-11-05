@@ -23,8 +23,8 @@ var compileLineageCmd = &cobra.Command{
 The lineage is the one in the authoring form in the directory given by -l. Its
 history, every version under history/, is compiled to the normal form and
 bound, and written to normalized.gen.cue in the same directory: a CUE package
-named for the lineage that embeds thema.Lineage, so that plain CUE imports the
-lineage by its directory's path. The tip is never part of it. A lineage named
+named for the lineage, whose value is its normal form, so that plain CUE
+imports the lineage by its directory's path. The tip is never part of it. A lineage named
 for a CUE keyword, such as for, declares package for_, imported as
 "<module>/<path>/for:for_".
 

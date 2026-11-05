@@ -243,10 +243,10 @@ flagship: ship.schemas["1"]["0"].schema & {name: "Bounty"}
 ```
 
 - **History only.** It is every version under `history/`, compiled, and never the tip: what CUE imports is what was cut, which never changes.
-- **A package named for the lineage.** It declares `package ship`, imports `github.com/sdboyer/thema` and the standard packages the history imports, and embeds `thema.Lineage`, so the package's value is the lineage. A lineage named for a CUE keyword gets a trailing underscore: `package for_`, imported as `"<module>/<path>/for:for_"`. Nothing else in the directory joins the package: the version files are not CUE files, and the playground's `example.cue` declares no package.
+- **A package named for the lineage.** It declares `package ship`, imports the standard packages the history imports, and its value is the lineage's normal form: `name`, `schemas` and `lenses`. It does not embed `thema.Lineage`; `thema.BindLineage` binds the imported value as it binds any lineage ([#287](https://github.com/sdboyer/thema/issues/287) is why). A lineage named for a CUE keyword gets a trailing underscore: `package for_`, imported as `"<module>/<path>/for:for_"`. The version files are not CUE files, so they never join the package. A playground `example.cue` beside them stays out of it too, as long as it has no package clause.
 - **Generated.** `thema lineage compile -l <dir>` writes it, after binding the history, and every `thema lineage cut` rewrites it. Its first line marks it generated; it is never edited by hand. In Go, `authoring.NormalForm` is the jenny that writes it, from what `authoring.Compile` returns.
 - **Checked.** `thema lineage compile -l <dir> --check` writes nothing, and fails (`E0628`) when the file is missing or is not what its history compiles to, for CI to keep it in step with `history/`.
-- **A CUE module.** To be importable, the lineage sits in a CUE module that depends on `github.com/sdboyer/thema@v0`; see [CUE modules](cue-modules.md).
+- **A CUE module.** To be importable, the lineage sits in a CUE module; see [CUE modules](cue-modules.md). The file is laid out as `cue fmt` lays it out, so formatting the module leaves it as it was generated.
 
 ## Layout
 

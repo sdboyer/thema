@@ -3,19 +3,14 @@ package authoring
 import (
 	"fmt"
 	"path"
-	"slices"
-	"strconv"
-	"strings"
 
 	"cuelang.org/go/cue"
-	"cuelang.org/go/cue/ast"
 	"cuelang.org/go/cue/format"
 	"cuelang.org/go/cue/parser"
 	"cuelang.org/go/cue/token"
 	"github.com/sdboyer/jenny"
 
 	"github.com/sdboyer/thema/diag"
-	"github.com/sdboyer/thema/internal/util"
 )
 
 var cuts = jenny.For[*Cut](jenny.InputName(func(c *Cut) string { return c.Version.String() }))
@@ -99,53 +94,38 @@ func PackageName(lineage string) string {
 }
 
 // NormalForm is a jenny that writes [NormalizedFile] for a lineage compiled
-// by [Compile] from its history: a CUE package named [PackageName] that
-// imports thema's CUE module and is the lineage, thema.Lineage embedded
-// beside its normal form. Importing the package gives the lineage as its
-// value. The tip is never part of it, since what CUE imports is what was cut,
-// which never changes: a lineage compiled with its tip, by
-// [CompileDevelopment], is an error. The file is laid out as [Format] lays
-// out the authoring form.
+// by [Compile] from its history: a CUE package named [PackageName] whose
+// value is the lineage's normal form, with the imports of CUE's standard
+// packages its history needs. Plain CUE reads its schemas as types, and
+// [github.com/sdboyer/thema.BindLineage] binds the package's value as it binds
+// any lineage. The tip is never part of it, since what CUE imports is what
+// was cut, which never changes: a lineage compiled with its tip, by
+// [CompileDevelopment], is an error. The file is laid out as cue fmt lays it
+// out, so that formatting the module leaves it as it was generated.
+//
+// The package does not embed thema.Lineage. Doing so would be a second way
+// for thema's CUE to reach the lineage, beside the one BindLineage unifies,
+// and bind's analyses then read some lineages differently: a lens with a
+// comprehension gets another ID, one that depends on the importing module's
+// path, and a lens into a disjunction is refused (#287).
 var NormalForm = jenny.For[*Compiled](jenny.InputName(func(c *Compiled) string { return c.Name })).New("NormalForm", func(c *Compiled) (jenny.File, error) {
 	if v, ok := c.Provisional(); ok {
 		return nil, diag.InternalErr(fmt.Errorf("%s was compiled with its tip, as %s; its %s is generated from its history alone, with Compile", c.Name, v, NormalizedFile))
 	}
-	// The normal form's nodes are positioned in the authoring files, which
-	// would lay out the new file by their lines; it is parsed again from its
-	// text, so that its positions are its own.
 	text, err := c.Text()
 	if err != nil {
 		return nil, diag.InternalErr(fmt.Errorf("formatting the normal form of %s: %w", c.Name, err))
 	}
-	body, err := parser.ParseFile(NormalizedFile, text, parser.ParseComments)
+	// The normal form's nodes are positioned in the authoring files, which
+	// would lay out the new file by their lines; it is parsed again from its
+	// text, so that its positions are its own, and formatted as cue fmt
+	// formats a file: parsed with its comments, and printed with no options.
+	src := fmt.Sprintf("%s\npackage %s\n\n%s", normalizedHeader, PackageName(c.Name), text)
+	f, err := parser.ParseFile(NormalizedFile, src, parser.ParseComments)
 	if err != nil {
 		return nil, diag.InternalErr(fmt.Errorf("parsing the normal form of %s: %w", c.Name, err))
 	}
-	themaPath, _, _ := strings.Cut(util.ThemaModulePath, "@")
-	imports := []string{strconv.Quote(themaPath)}
-	var decls []ast.Decl
-	for _, d := range body.Decls {
-		if imp, ok := d.(*ast.ImportDecl); ok {
-			for _, spec := range imp.Specs {
-				imports = append(imports, spec.Path.Value)
-			}
-			continue
-		}
-		decls = append(decls, d)
-	}
-	slices.Sort(imports)
-	body.Decls = decls
-	rest, err := format.Node(body)
-	if err != nil {
-		return nil, diag.InternalErr(fmt.Errorf("formatting the normal form of %s: %w", c.Name, err))
-	}
-	var src strings.Builder
-	fmt.Fprintf(&src, "%s\npackage %s\n\nimport (\n", normalizedHeader, PackageName(c.Name))
-	for _, imp := range imports {
-		fmt.Fprintf(&src, "\t%s\n", imp)
-	}
-	fmt.Fprintf(&src, ")\n\nthema.Lineage\n\n%s", rest)
-	out, err := Format([]byte(src.String()))
+	out, err := format.Node(f)
 	if err != nil {
 		return nil, diag.InternalErr(fmt.Errorf("formatting the %s of %s: %w", NormalizedFile, c.Name, err))
 	}
