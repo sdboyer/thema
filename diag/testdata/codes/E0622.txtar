@@ -1,5 +1,5 @@
 #op: cli
-#args: playground examples lineages
+#args: serve playground --examples lineages --export site
 A directory of lineages offers the playground the ones with an example.cue
 beside their version files, and a directory with none offers nothing, which
 is a mistake: the notes list the lineages it holds without one.
