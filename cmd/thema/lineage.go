@@ -33,4 +33,7 @@ func setupLineageCommand(cmd *cobra.Command) {
 
 	cut := new(cutCommand)
 	cut.setup(linCmd)
+
+	compile := new(compileCommand)
+	compile.setup(linCmd)
 }
