@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"cuelang.org/go/cue"
+	"cuelang.org/go/cue/ast"
 	cerrors "cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/parser"
 	"cuelang.org/go/cue/token"
@@ -23,7 +24,10 @@ import (
 //	summary:  "A dog's record." // optional
 //
 // It is CUE, and sits beside the version files, which the authoring form's
-// loader is the only reader of: it reads nothing but version files.
+// loader is the only reader of: it reads nothing but version files. It
+// declares no package: the lineage's directory may be a CUE package, through
+// its generated normalized.gen.cue, and an example is never part of what CUE
+// imports.
 const ExampleFile = "example.cue"
 
 // WalkExamples finds the examples in root, a directory of fsys, as a request
@@ -167,6 +171,15 @@ func (s *Session) readExampleFile(name string, src []byte) (exampleMeta, error) 
 	f, err := parser.ParseFile(name, src, parser.ParseComments)
 	if err != nil {
 		return m, diag.Convert(err, diag.Context{Generic: diag.E0621})
+	}
+	for _, d := range f.Decls {
+		if pkg, ok := d.(*ast.Package); ok {
+			return m, diag.New(diag.E0621).
+				Headlinef("%s declares package %s, and an example belongs to no package", name, pkg.Name.Name).
+				At(pkg.Pos()).
+				Notef(token.NoPos, "the lineage's directory is a CUE package when it holds the generated %s, and a package clause would make the example part of what CUE imports", "normalized.gen.cue").
+				Help("remove the package clause").Err()
+		}
 	}
 	v := s.rt.Context().BuildFile(f)
 	if err = v.Err(); err != nil {
