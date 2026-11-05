@@ -17,8 +17,9 @@
 // start-up and, when there is one, registers it: the file is a
 // [RegisterExamplesRequest]. A 404 means the host has none. [WalkExamples]
 // builds one from a directory of lineages in the authoring form, each
-// described by an [ExampleFile]; thema playground examples <dir> prints it,
-// and thema serve playground --examples <dir> serves it.
+// described by an [ExampleFile], and [Manifest] writes it as [ManifestFile]:
+// thema serve playground --examples <dir> serves it, and with --export <out>
+// writes it for a static host.
 package playground
 
 import (

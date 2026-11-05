@@ -1,5 +1,5 @@
 #op: cli
-#args: playground examples lineages
+#args: serve playground --examples lineages --export site
 Each lineage a playground deployment offers as an example has an example.cue
 beside its version files, describing it: a category, the group it is listed
 in, and optionally a title and a summary, each a string. Nothing else may be

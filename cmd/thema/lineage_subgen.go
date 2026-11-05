@@ -476,22 +476,22 @@ func (gc *genCommand) runGoTypes(cmd *cobra.Command, _ []string) error {
 		_, err = cmd.OutOrStdout().Write(txtar.Format(&a))
 		return err
 	case gc.check:
-		return driftDiagnostics(fs.Verify(cmd.Context(), gc.outdir), gc.outdir)
+		return driftDiagnostics(fs.Verify(cmd.Context(), gc.outdir), "-o", gc.outdir)
 	default:
 		return writeFS(cmd, fs, gc.outdir)
 	}
 }
 
-// driftDiagnostics returns an E0628 for each file under dir that jenny's
-// Verify found missing or different, or could not read. Paths in the
-// headlines are relative to dir, which a note names, so that a long -o does
-// not push the headline past its limit.
-func driftDiagnostics(err error, dir string) error {
+// driftDiagnostics returns an E0628 for each file under dir, the directory
+// the flag named flag gave, that jenny's Verify found missing or different,
+// or could not read. Paths in the headlines are relative to dir, which a note
+// names, so that a long directory does not push the headline past its limit.
+func driftDiagnostics(err error, flag, dir string) error {
 	if err == nil {
 		return nil
 	}
 	under := func(b *diag.B) *diag.B {
-		return b.Notef(token.NoPos, "the path is relative to -o, %s", displayPath(dir)).
+		return b.Notef(token.NoPos, "the path is relative to %s, %s", flag, displayPath(dir)).
 			Help("run the command without --check to regenerate it")
 	}
 	var pe *iofs.PathError
