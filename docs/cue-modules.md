@@ -9,6 +9,8 @@ cue mod get github.com/sdboyer/thema@v0
 
 That's all plain `cue` needs to evaluate lineages.
 
+A lineage in the [authoring form](authoring-form.md) is a directory of version files, which CUE can't read. Its [`normalized.gen.cue`](authoring-form.md#normalizedgencue), written by `thema lineage compile` and rewritten by every cut, makes the directory a CUE package: in such a module, CUE imports the lineage at `fleet/ship` as `"github.com/example/ships/fleet/ship"`.
+
 ## Loading lineages in Go
 
 Thema's Go library and its CUE depend on each other's exact shape, so the Go library always evaluates lineages against the copy of thema's CUE built into it, never one fetched from a registry. When the Go library loads a CUE module that depends on thema:

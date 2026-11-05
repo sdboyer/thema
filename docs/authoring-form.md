@@ -2,7 +2,7 @@
 
 This is the reference for the authoring form: the files a lineage author writes, and the language lenses are written in. For a guided introduction to lineages, start with the [overview](overview.md) and the [authoring tutorial](authoring.md), which show the normal form that every thema tool consumes. The authoring form compiles to that normal form, and decompiles back from it, without loss. What translation then does with each field of an instance is defined in [translation](translation.md).
 
-`thema lineage init` starts a lineage in this form: `thema lineage init empty -l <dir>` writes a new lineage's `tip.thema` in `<dir>`, holding an empty schema, and `init openapi` and `init jsonschema` write one converted from an OpenAPI or JSON Schema document; `--stdout` prints the tip instead. Every `thema` command that takes a lineage with `-l` accepts a lineage's directory in this form, `thema lineage fmt -l <dir>` lays out its files in place, `thema lineage tip -l <dir>` reports the version its tip cuts as, and `thema lineage cut -l <dir>` cuts it. In Go, `load.AuthoringLineage` loads, compiles and binds a directory in one call, and the `authoring` package exposes the pieces: the files, the compiled normal form, the tip, a new lineage's tip, cutting it, the decompiler and the formatter. A tool that composes many lineages into one CUE value compiles each with `authoring.At(dir)`, which positions its files under its directory, so that every position, and every diagnostic, names its own `dir/history/0.0.thema`.
+`thema lineage init` starts a lineage in this form: `thema lineage init empty -l <dir>` writes a new lineage's `tip.thema` in `<dir>`, holding an empty schema, and `init openapi` and `init jsonschema` write one converted from an OpenAPI or JSON Schema document; `--stdout` prints the tip instead. Every `thema` command that takes a lineage with `-l` accepts a lineage's directory in this form, `thema lineage fmt -l <dir>` lays out its files in place, `thema lineage tip -l <dir>` reports the version its tip cuts as, `thema lineage cut -l <dir>` cuts it, and `thema lineage compile -l <dir>` writes its history's normal form beside it, as [`normalized.gen.cue`](#normalizedgencue), for plain CUE to import. In Go, `load.AuthoringLineage` loads, compiles and binds a directory in one call, and the `authoring` package exposes the pieces: the files, the compiled normal form, the tip, a new lineage's tip, cutting it, the decompiler and the formatter. A tool that composes many lineages into one CUE value compiles each with `authoring.At(dir)`, which positions its files under its directory, so that every position, and every diagnostic, names its own `dir/history/0.0.thema`.
 
 ## Files
 
@@ -11,6 +11,7 @@ A lineage is a directory. The directory's base name is the lineage's name. It ho
 ```
 ship/
   tip.thema
+  normalized.gen.cue
   history/
     0.0.thema
     0.1.thema
@@ -19,7 +20,7 @@ ship/
 
 - A version that has been cut is named `history/<major>.<minor>.thema`. Data has been written against it, so it never changes. A numbered file at the top of the directory is an error (`E0148`) that says to move it under `history/`. `thema lineage check -l <dir> --published <published-dir>` checks that `history/` only appends to the one that was published, such as `history/` at the released revision; see [published versions](reference/lineage.md#versions).
 - Versions are contiguous from `0.0`: each file is either the next minor version of the one before it, or the next major version with minor `0`.
-- Only files ending in `.thema` are read; anything else in the directory is left alone. The playground uses this to keep an `example.cue` beside a lineage that it offers as an example (see `thema serve playground --help`).
+- Only files ending in `.thema` are read; anything else in the directory is left alone. That includes the generated [`normalized.gen.cue`](#normalizedgencue), and the `example.cue` the playground keeps beside a lineage it offers as an example (see `thema serve playground --help`).
 - Whether a version is minor or major is not the author's call. thema checks each version against the one before it under the [backwards compatibility](invariants.md#backwards-compatibility) rules. A file named as a minor version must be compatible with its predecessor, and a file named as a major version must not be. A file named the wrong way is an error that says which version number it should have.
 
 ### The tip
@@ -28,7 +29,7 @@ ship/
 
 - The tip's lenses are its edge to the newest version in history. In them, the tip's instance is named `tip`, since it has no version number yet: `ForwardLens: {v1_0: _, tip: {...}}` and `BackwardLens: {tip: _, v1_0: {...}}`. `tip` names nothing in a file under `history/`, and a tip's lens that names its instance by a version number is an error (`E0111`). The other end names the tip's parent, the newest version under `history/`. A lens written against an older parent, as after a rebase onto a branch that cut a newer version, is an error (`E0150`) that names the parent to declare; its mappings then need review against that version's schema.
 - A tip is *clean* when its `Schema` equals the newest version's, and it declares no lenses. Formatting, comments and field order do not count. A clean tip has nothing to cut, and tools show it as `tip (clean at 2.0)`. `thema lineage tip -l <dir> --check-clean` fails with `E1003` for a tip that is not clean, for CI to check that the tip was cut before merging; in Go, `authoring.CheckClean`.
-- Cutting a tip writes it to `history/` at its derived version: `thema lineage cut -l <dir>` writes the files in place, and `--dry-run` prints the version and the files it would write; in Go, `authoring.CutTip` returns the files after the cut. The frozen file, `history/<major>.<minor>.thema`, is the whole tip file, its notes included, with its lenses naming the tip's instance by the new version, `v<major>_<minor>`, in place of `tip`. `tip.thema` is then clean: its `Schema`, with the doc comment above it and the comments within it, and the imports the `Schema` uses. The lenses and the notes stay in the frozen file alone. A tip is cut only once nothing about it is provisional: a lens its edge needs and does not write (`E1001`) refuses the cut (`E1004`), since a version that has been cut never changes. Cutting a clean tip does nothing. A tip whose parent moved is refused by binding (`E0150`) before the cut is tried.
+- Cutting a tip writes it to `history/` at its derived version: `thema lineage cut -l <dir>` writes the files in place, and `--dry-run` prints the version and the files it would write; in Go, `authoring.CutTip` returns the files after the cut. The frozen file, `history/<major>.<minor>.thema`, is the whole tip file, its notes included, with its lenses naming the tip's instance by the new version, `v<major>_<minor>`, in place of `tip`. `tip.thema` is then clean: its `Schema`, with the doc comment above it and the comments within it, and the imports the `Schema` uses. The lenses and the notes stay in the frozen file alone. The cut also rewrites [`normalized.gen.cue`](#normalizedgencue) to hold the new version. A tip is cut only once nothing about it is provisional: a lens its edge needs and does not write (`E1001`) refuses the cut (`E1004`), since a version that has been cut never changes. Cutting a clean tip does nothing. A tip whose parent moved is refused by binding (`E0150`) before the cut is tried.
 
 A lineage is read in one of two ways:
 
@@ -228,6 +229,24 @@ The compiler produces the normal form that the tutorial shows: a `thema.Lineage`
 Every part of the normal form is positioned in the authoring file it came from. An error from the evaluator, from binding or from translation points at the author's line, and the compiler's own errors are worded in these terms: the file, the lens block and the mapping.
 
 Binding a lineage proves every lens [total](invariants.md#lens-totality). Every form the compiler emits is one the proof decides, so a lineage that compiles binds.
+
+### normalized.gen.cue
+
+CUE can't read version files, so a lineage's directory keeps its normal form beside them, in `normalized.gen.cue`, the way a `.d.ts` sits beside a `.js`. The version files are for thema's tools; `normalized.gen.cue` is for CUE, which imports the lineage by its directory's path and uses its schemas as types, with no thema tooling:
+
+```cue
+package fleet
+
+import "github.com/example/ships/ship"
+
+flagship: ship.schemas["1"]["0"].schema & {name: "Bounty"}
+```
+
+- **History only.** It is every version under `history/`, compiled, and never the tip: what CUE imports is what was cut, which never changes.
+- **A package named for the lineage.** It declares `package ship`, imports `github.com/sdboyer/thema` and the standard packages the history imports, and embeds `thema.Lineage`, so the package's value is the lineage. A lineage named for a CUE keyword gets a trailing underscore: `package for_`, imported as `"<module>/<path>/for:for_"`. Nothing else in the directory joins the package: the version files are not CUE files, and the playground's `example.cue` declares no package.
+- **Generated.** `thema lineage compile -l <dir>` writes it, after binding the history, and every `thema lineage cut` rewrites it. Its first line marks it generated; it is never edited by hand. In Go, `authoring.NormalForm` is the jenny that writes it, from what `authoring.Compile` returns.
+- **Checked.** `thema lineage compile -l <dir> --check` writes nothing, and fails (`E0628`) when the file is missing or is not what its history compiles to, for CI to keep it in step with `history/`.
+- **A CUE module.** To be importable, the lineage sits in a CUE module that depends on `github.com/sdboyer/thema@v0`; see [CUE modules](cue-modules.md).
 
 ## Layout
 

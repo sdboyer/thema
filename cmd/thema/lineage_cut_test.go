@@ -19,8 +19,8 @@ func TestLineageCut(t *testing.T) {
 		written   bool
 	}{
 		{"clean", cleanTip, false, "tip (clean at 0.0): nothing to cut\n", "", false},
-		{"minor", minorTip, false, "cut the tip as 0.1\n" + historyV01 + "\n" + authoring.TipFile + "\n", "", true},
-		{"dry run", minorTip, true, "would cut the tip as 0.1\n" + historyV01 + "\n" + authoring.TipFile + "\n", "", false},
+		{"minor", minorTip, false, "cut the tip as 0.1\n" + historyV01 + "\n" + authoring.TipFile + "\n" + authoring.NormalizedFile + "\n", "", true},
+		{"dry run", minorTip, true, "would cut the tip as 0.1\n" + historyV01 + "\n" + authoring.TipFile + "\n" + authoring.NormalizedFile + "\n", "", false},
 		{"missing lens", majorTip, false, "", "E1004", false},
 	}
 	for _, tc := range cases {
@@ -51,6 +51,9 @@ func TestLineageCut(t *testing.T) {
 				if ferr == nil {
 					t.Errorf("%s written", historyV01)
 				}
+				if _, serr := os.Stat(filepath.Join(dir, authoring.NormalizedFile)); serr == nil {
+					t.Errorf("%s written", authoring.NormalizedFile)
+				}
 				if string(tip) != tc.tip {
 					t.Errorf("tip.thema changed:\n%s", tip)
 				}
@@ -74,6 +77,11 @@ func TestLineageCut(t *testing.T) {
 			if out != "tip (clean at 0.1)\n" {
 				t.Errorf("tip after the cut: %q", out)
 			}
+
+			// The cut rewrote the normal form to hold the new version.
+			if _, errOut, err := runThema(t, dir, "", lineageCmd, "compile", "-l", dir, "--check"); err != nil {
+				t.Errorf("compile --check after the cut: %v\n%s", err, errOut)
+			}
 		})
 	}
 }
@@ -92,7 +100,7 @@ func TestLineageCutFirst(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v\n%s", err, errOut)
 	}
-	if want := "cut the tip as 0.0\n" + historyV00 + "\n" + authoring.TipFile + "\n"; out != want {
+	if want := "cut the tip as 0.0\n" + historyV00 + "\n" + authoring.TipFile + "\n" + authoring.NormalizedFile + "\n"; out != want {
 		t.Errorf("stdout:\n%s\nwant:\n%s", out, want)
 	}
 	got, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(historyV00))) //nolint:gosec // a file under t.TempDir()
