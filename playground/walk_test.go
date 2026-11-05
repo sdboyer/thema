@@ -94,6 +94,8 @@ func TestWalkExamplesFails(t *testing.T) {
 		"not a string":    {root: walkRoot, cat: "category: 3\n", want: []diag.Code{diag.E0621}},
 		"not a constant":  {root: walkRoot, cat: "category: string\n", want: []diag.Code{diag.E0621}},
 		"all are counted": {root: walkRoot, cat: "category: 3\ntitle: 4\n", want: []diag.Code{diag.E0621, diag.E0621}},
+		"a package":       {root: walkRoot, cat: "package cat\n\ncategory: \"Pets\"\n", want: []diag.Code{diag.E0621}},
+		"package _":       {root: walkRoot, cat: "package _\n\ncategory: \"Pets\"\n", want: []diag.Code{diag.E0621}},
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
