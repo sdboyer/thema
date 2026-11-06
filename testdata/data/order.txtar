@@ -1,0 +1,211 @@
+#description: An order for a shop's checkout, with bounds, patterns, enums, rune counts, a list of structs and optional fields, each input breaking at most one rule. It is the order of the decoding benchmarks (#296).
+#version: 0.0
+#known/cue/note-with-unpaired-surrogate: #301 CUE reports the bad string while validating, and no shape in diag recognizes its message, so it is E0902.
+#expect/full: ok
+#expect/without-optional: ok
+#expect/no-items: ok
+#expect/ten-items: ok
+#expect/no-id: E0501
+#expect/customer-missing-email: E0501
+#expect/id-off-pattern: E0504
+#expect/tier-not-in-enum: E0505
+#expect/status-not-in-enum: E0505
+#expect/empty-name: E0504
+#expect/name-over-100-runes: E0504
+#expect/name-of-100-runes: ok
+#expect/email-off-pattern: E0504
+#expect/quantity-below-1: E0504
+#expect/quantity-over-1000: E0504
+#expect/quantity-not-integral: E0503
+#expect/negative-price: E0504
+#expect/priority-over-10: E0504
+#expect/note-not-a-string: E0503
+#expect/undeclared-field: E0502
+#expect/undeclared-item-field: E0502
+#expect/undeclared-nested-field: E0502
+#expect/item-not-an-object: E0503
+#expect/quantity-written-with-fraction: E0503
+#expect/quantity-written-with-exponent: E0503
+#expect/note-with-unpaired-surrogate: E0507
+#expect/note-with-surrogate-pair: ok
+#spec/full: docs/translation.md:48
+#spec/without-optional: docs/translation.md:49
+#spec/no-items: docs/translation.md:48
+#spec/ten-items: docs/translation.md:48
+#spec/no-id: docs/translation.md:49
+#spec/customer-missing-email: docs/translation.md:49
+#spec/id-off-pattern: docs/translation.md:48
+#spec/tier-not-in-enum: docs/translation.md:48
+#spec/status-not-in-enum: docs/translation.md:48
+#spec/empty-name: docs/translation.md:48
+#spec/name-over-100-runes: docs/translation.md:48
+#spec/name-of-100-runes: docs/translation.md:48
+#spec/email-off-pattern: docs/translation.md:48
+#spec/quantity-below-1: docs/translation.md:48
+#spec/quantity-over-1000: docs/translation.md:48
+#spec/quantity-not-integral: docs/translation.md:50
+#spec/negative-price: docs/translation.md:48
+#spec/priority-over-10: docs/translation.md:48
+#spec/note-not-a-string: docs/translation.md:48
+#spec/undeclared-field: docs/translation.md:45
+#spec/undeclared-item-field: docs/translation.md:45
+#spec/undeclared-nested-field: docs/translation.md:45
+#spec/item-not-an-object: docs/translation.md:48
+#spec/quantity-written-with-fraction: docs/translation.md:50
+#spec/quantity-written-with-exponent: docs/translation.md:50
+#spec/note-with-unpaired-surrogate: docs/translation.md:51
+#spec/note-with-surrogate-pair: docs/translation.md:51
+-- order/history/0.0.thema --
+import "strings"
+
+Schema: {
+	id: =~"^ord_[a-z0-9]{8}$"
+	customer: {
+		name:  strings.MinRunes(1) & strings.MaxRunes(100)
+		email: =~"^[^@]+@[^@]+$"
+		tier:  "free" | "pro" | "enterprise"
+	}
+	status: "pending" | "paid" | "shipped" | "cancelled"
+	items: [...{
+		sku:        =~"^[A-Z]{3}-[0-9]{4}$"
+		quantity:   int & >=1 & <=1000
+		priceCents: int & >=0 & <=100000000
+	}]
+	note?:     string
+	priority?: int & >=0 & <=10
+}
+-- data/full.json --
+{"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
+-- data/without-optional.json --
+{"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}]}
+-- data/no-items.json --
+{"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[],"note":"leave at the door","priority":3}
+-- data/ten-items.json --
+{"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0},{"sku":"ABC-0001","quantity":2,"priceCents":7919},{"sku":"ABC-0002","quantity":3,"priceCents":15838},{"sku":"ABC-0003","quantity":4,"priceCents":23757},{"sku":"ABC-0004","quantity":5,"priceCents":31676},{"sku":"ABC-0005","quantity":6,"priceCents":39595},{"sku":"ABC-0006","quantity":7,"priceCents":47514},{"sku":"ABC-0007","quantity":8,"priceCents":55433},{"sku":"ABC-0008","quantity":9,"priceCents":63352},{"sku":"ABC-0009","quantity":10,"priceCents":71271}],"note":"leave at the door","priority":3}
+-- data/no-id.json --
+{"customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
+-- data/customer-missing-email.json --
+{"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
+-- data/id-off-pattern.json --
+{"id":"order-1","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
+-- data/tier-not-in-enum.json --
+{"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"gold"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
+-- data/status-not-in-enum.json --
+{"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"lost","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
+-- data/empty-name.json --
+{"id":"ord_7k2m9x4q","customer":{"name":"","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
+-- data/name-over-100-runes.json --
+{"id":"ord_7k2m9x4q","customer":{"name":"ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
+-- data/name-of-100-runes.json --
+{"id":"ord_7k2m9x4q","customer":{"name":"éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
+-- data/email-off-pattern.json --
+{"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
+-- data/quantity-below-1.json --
+{"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":0,"priceCents":0}],"note":"leave at the door","priority":3}
+-- data/quantity-over-1000.json --
+{"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1001,"priceCents":0}],"note":"leave at the door","priority":3}
+-- data/quantity-not-integral.json --
+{"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1.5,"priceCents":0}],"note":"leave at the door","priority":3}
+-- data/negative-price.json --
+{"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":-1}],"note":"leave at the door","priority":3}
+-- data/priority-over-10.json --
+{"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":11}
+-- data/note-not-a-string.json --
+{"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":5,"priority":3}
+-- data/undeclared-field.json --
+{"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3,"coupon":"SAVE10"}
+-- data/undeclared-item-field.json --
+{"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0,"color":"red"}],"note":"leave at the door","priority":3}
+-- data/undeclared-nested-field.json --
+{"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro","phone":"555"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
+-- data/item-not-an-object.json --
+{"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":["ABC-0001"],"note":"leave at the door","priority":3}
+-- data/quantity-written-with-fraction.json --
+{"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1.0,"priceCents":0}],"note":"leave at the door","priority":3}
+-- data/quantity-written-with-exponent.json --
+{"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1e0,"priceCents":0}],"note":"leave at the door","priority":3}
+-- data/note-with-unpaired-surrogate.json --
+{"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave \ud800 at the door","priority":3}
+-- data/note-with-surrogate-pair.json --
+{"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave \ud83d\udce6 at the door","priority":3}
+-- out/cue/customer-missing-email --
+verdict: E0501
+E0501 the data lacks customer.email, which schema 0.0 declares as =~"^[^@]+@[^@]+$" @ data/customer-missing-email.json:1:1
+-- out/cue/email-off-pattern --
+verdict: E0504
+E0504 customer.email in the data is "ada", outside the bound =~"^[^@]+@[^@]+$" that schema 0.0 sets @ data/email-off-pattern.json:1:64
+-- out/cue/empty-name --
+verdict: E0504
+E0504 customer.name in the data is "", which fails strings.MinRunes(1) in schema 0.0 @ data/empty-name.json:1:41
+-- out/cue/full --
+verdict: ok
+value: {"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
+-- out/cue/id-off-pattern --
+verdict: E0504
+E0504 id in the data is "order-1", outside the bound =~"^ord_[a-z0-9]{8}$" that schema 0.0 sets @ data/id-off-pattern.json:1:7
+-- out/cue/item-not-an-object --
+verdict: E0503
+E0503 items.0 in the data is "ABC-0001", but schema 0.0 declares it as {sku:=~"^[A-Z]{3}-[0-9]{4}$",quantity:((int & >=1) & <=1000),priceCents:((int & >=0) & <=100000000)} @ data/item-not-an-object.json:1:121
+-- out/cue/name-of-100-runes --
+verdict: ok
+value: {"id":"ord_7k2m9x4q","customer":{"name":"éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
+-- out/cue/name-over-100-runes --
+verdict: E0504
+E0504 customer.name in the data is "éééééééééééééééééééééééééééé..., which fails strings.MaxRunes(100) in schema 0.0 @ data/name-over-100-runes.json:1:41
+-- out/cue/negative-price --
+verdict: E0504
+E0504 items.0.priceCents in the data is -1, outside the bound >=0 that schema 0.0 sets @ data/negative-price.json:1:165
+-- out/cue/no-id --
+verdict: E0501
+E0501 the data lacks id, which schema 0.0 declares as =~"^ord_[a-z0-9]{8}$" @ data/no-id.json:1:1
+-- out/cue/no-items --
+verdict: ok
+value: {"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[],"note":"leave at the door","priority":3}
+-- out/cue/note-not-a-string --
+verdict: E0503
+E0503 note in the data is 5, but schema 0.0 declares it as string @ data/note-not-a-string.json:1:176
+-- out/cue/note-with-surrogate-pair --
+verdict: ok
+value: {"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave 📦 at the door","priority":3}
+-- out/cue/note-with-unpaired-surrogate --
+verdict: E0902
+E0902 CUE reported an error thema does not recognize @ data/note-with-unpaired-surrogate.json:1:176
+-- out/cue/priority-over-10 --
+verdict: E0504
+E0504 priority in the data is 11, outside the bound <=10 that schema 0.0 sets @ data/priority-over-10.json:1:207
+-- out/cue/quantity-below-1 --
+verdict: E0504
+E0504 items.0.quantity in the data is 0, outside the bound >=1 that schema 0.0 sets @ data/quantity-below-1.json:1:150
+-- out/cue/quantity-not-integral --
+verdict: E0503
+E0503 items.0.quantity in the data is 1.5, but schema 0.0 declares it as int @ data/quantity-not-integral.json:1:150
+-- out/cue/quantity-over-1000 --
+verdict: E0504
+E0504 items.0.quantity in the data is 1001, outside the bound <=1000 that schema 0.0 sets @ data/quantity-over-1000.json:1:150
+-- out/cue/quantity-written-with-exponent --
+verdict: E0503
+E0503 items.0.quantity in the data is 1.0, but schema 0.0 declares it as int @ data/quantity-written-with-exponent.json:1:150
+-- out/cue/quantity-written-with-fraction --
+verdict: E0503
+E0503 items.0.quantity in the data is 1.0, but schema 0.0 declares it as int @ data/quantity-written-with-fraction.json:1:150
+-- out/cue/status-not-in-enum --
+verdict: E0505
+E0505 status in the data matches none of the alternatives schema 0.0 allows @ data/status-not-in-enum.json:1:105
+-- out/cue/ten-items --
+verdict: ok
+value: {"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0},{"sku":"ABC-0001","quantity":2,"priceCents":7919},{"sku":"ABC-0002","quantity":3,"priceCents":15838},{"sku":"ABC-0003","quantity":4,"priceCents":23757},{"sku":"ABC-0004","quantity":5,"priceCents":31676},{"sku":"ABC-0005","quantity":6,"priceCents":39595},{"sku":"ABC-0006","quantity":7,"priceCents":47514},{"sku":"ABC-0007","quantity":8,"priceCents":55433},{"sku":"ABC-0008","quantity":9,"priceCents":63352},{"sku":"ABC-0009","quantity":10,"priceCents":71271}],"note":"leave at the door","priority":3}
+-- out/cue/tier-not-in-enum --
+verdict: E0505
+E0505 customer.tier in the data matches none of the alternatives schema 0.0 allows @ data/tier-not-in-enum.json:1:89
+-- out/cue/undeclared-field --
+verdict: E0502
+E0502 the data has coupon, which schema 0.0 does not declare @ data/undeclared-field.json:1:210
+-- out/cue/undeclared-item-field --
+verdict: E0502
+E0502 the data has items.0.color, which schema 0.0 does not declare @ data/undeclared-item-field.json:1:168
+-- out/cue/undeclared-nested-field --
+verdict: E0502
+E0502 the data has customer.phone, which schema 0.0 does not declare @ data/undeclared-nested-field.json:1:96
+-- out/cue/without-optional --
+verdict: ok
+value: {"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}]}

@@ -1,0 +1,58 @@
+#description: Defaulted fields at the top, in a nested struct, in a list element and in a map value. Every program reading an instance sees each default the instance omits.
+#version: 0.0
+#spec: docs/translation.md:49
+#expect/empty: ok
+#expect/priority-given: ok
+#expect/shipping-express: ok
+#expect/item-without-quantity: ok
+#expect/label-without-weight: ok
+#expect/item-without-sku: E0501
+#known/cue/item-without-quantity: #295 Value decodes the data onto NewT, which decodes the schema alone, so a default in a list element is never set.
+#known/cue/label-without-weight: #295 Value decodes the data onto NewT, which decodes the schema alone, so a default in a map value is never set.
+#description/empty: Every field is filled: priority 3, shipping.method standard, items [].
+#description/item-without-quantity: The item's quantity is filled with 1: a default in a list element.
+#description/label-without-weight: The label's weight is filled with 1: a default in a map value.
+-- defaults/history/0.0.thema --
+Schema: {
+	priority: *3 | int
+	shipping: {
+		method: *"standard" | "express"
+	}
+	items: [...{
+		sku:      string
+		quantity: *1 | int
+	}]
+	labels?: [string]: {
+		weight: *1 | int
+	}
+}
+-- data/empty.json --
+{}
+-- data/priority-given.json --
+{"priority":7}
+-- data/shipping-express.json --
+{"shipping":{"method":"express"}}
+-- data/item-without-quantity.json --
+{"items":[{"sku":"ABC-0001"}]}
+-- data/label-without-weight.json --
+{"labels":{"gift":{}}}
+-- data/item-without-sku.json --
+{"items":[{"quantity":2}]}
+-- out/cue/empty --
+verdict: ok
+value: {"priority":3,"shipping":{"method":"standard"},"items":[]}
+-- out/cue/item-without-quantity --
+verdict: E0901
+E0901 the Go value differs from the instance @ no position
+-- out/cue/item-without-sku --
+verdict: E0501
+E0501 the data lacks items.0.sku, which schema 0.0 declares as string @ data/item-without-sku.json:1:1
+-- out/cue/label-without-weight --
+verdict: E0901
+E0901 the Go value differs from the instance @ no position
+-- out/cue/priority-given --
+verdict: ok
+value: {"priority":7,"shipping":{"method":"standard"},"items":[]}
+-- out/cue/shipping-express --
+verdict: ok
+value: {"priority":3,"shipping":{"method":"express"},"items":[]}
