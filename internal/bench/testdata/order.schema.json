@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "customer": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "email": {
+          "type": "string",
+          "pattern": "^[^@]+@[^@]+$"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "tier": {
+          "enum": [
+            "free",
+            "pro",
+            "enterprise"
+          ]
+        }
+      },
+      "required": [
+        "email",
+        "name",
+        "tier"
+      ]
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^ord_[a-z0-9]{8}$"
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "priceCents": {
+            "type": "integer",
+            "maximum": 100000000,
+            "minimum": 0
+          },
+          "quantity": {
+            "allOf": [
+              {
+                "minimum": 1
+              },
+              {
+                "type": "integer",
+                "maximum": 1000,
+                "minimum": 0
+              }
+            ]
+          },
+          "sku": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}-[0-9]{4}$"
+          }
+        },
+        "required": [
+          "priceCents",
+          "quantity",
+          "sku"
+        ]
+      },
+      "default": []
+    },
+    "note": {
+      "type": "string"
+    },
+    "priority": {
+      "type": "integer",
+      "maximum": 10,
+      "minimum": 0
+    },
+    "status": {
+      "enum": [
+        "pending",
+        "paid",
+        "shipped",
+        "cancelled"
+      ]
+    }
+  },
+  "required": [
+    "customer",
+    "id",
+    "status"
+  ]
+}

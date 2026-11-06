@@ -32,6 +32,12 @@ jobs:
       - name: Test
         run: go test ./...
 
+      # A module of its own, so that the validators it compares are not
+      # thema's dependencies: its tests keep the comparison honest.
+      - name: Test the benchmarks' pipelines
+        run: go test ./...
+        working-directory: internal/bench
+
   # The playground compiled to WebAssembly: its tests under Go's js/wasm
   # runner (node), and the CLI built with the bundle embedded. The test job's
   # TestWasmSmoke runs the JS bridge the way a browser loads it.
