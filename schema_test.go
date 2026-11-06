@@ -196,3 +196,56 @@ func mkNew[T any](t T) func() T {
 
 	}
 }
+
+type defaultsItem struct {
+	Sku string `json:"sku"`
+	Qty int64  `json:"qty"`
+}
+
+type defaultsType struct {
+	Port   int64                   `json:"port"`
+	Inner  struct{ On bool }       `json:"inner"`
+	Items  []defaultsItem          `json:"items"`
+	ByName map[string]defaultsItem `json:"byName"`
+	Host   string                  `json:"host"`
+	URL    string                  `json:"url"`
+}
+
+// Value fills every default the schema gives data that omits it: at the top
+// level, in a nested struct, in each element of a list, in each value of a
+// map, and where the default refers to another field. Data that sets a field
+// keeps its value.
+func TestValueDefaults(t *testing.T) {
+	lin := testLin(`name: "svc"
+schemas: "0": "0": schema: {
+	port: int & >=0 & <=65535 | *8080
+	inner: On: bool | *true
+	items: [...{sku: string, qty: int | *1}]
+	byName: [string]: {sku: string, qty: int | *1}
+	host: string
+	url: string | *"https://\(host)"
+}
+`)
+	ts, err := BindType(lin.First(), &defaultsType{})
+	require.NoError(t, err)
+
+	for name, tc := range map[string]struct {
+		data string
+		want defaultsType
+	}{
+		"omitted": {
+			data: `{items: [{sku: "a"}], byName: x: {sku: "b"}, host: "example.com"}`,
+			want: defaultsType{Port: 8080, Inner: struct{ On bool }{true}, Items: []defaultsItem{{"a", 1}}, ByName: map[string]defaultsItem{"x": {"b", 1}}, Host: "example.com", URL: "https://example.com"},
+		},
+		"set": {
+			data: `{port: 9, inner: On: false, items: [{sku: "a", qty: 3}], byName: x: {sku: "b", qty: 4}, host: "example.com", url: "http://other"}`,
+			want: defaultsType{Port: 9, Inner: struct{ On bool }{false}, Items: []defaultsItem{{"a", 3}}, ByName: map[string]defaultsItem{"x": {"b", 4}}, Host: "example.com", URL: "http://other"},
+		},
+	} {
+		ti, err := ts.ValidateTyped(lin.Runtime().Context().CompileString(tc.data))
+		require.NoError(t, err, name)
+		got, err := ti.Value()
+		require.NoError(t, err, name)
+		assert.Equal(t, &tc.want, got, name)
+	}
+}
