@@ -21,7 +21,9 @@ import (
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/encoding/gocode"
+	"github.com/sdboyer/thema/internal/bench/hoistre"
 	"github.com/sdboyer/thema/internal/bench/jsgen"
+	"github.com/sdboyer/thema/internal/bench/jsgenre"
 	tjsonschema "github.com/sdboyer/thema/encoding/jsonschema"
 	"github.com/sdboyer/thema/internal/cuetil"
 	"github.com/sdboyer/thema/internal/util"
@@ -64,6 +66,38 @@ type setup struct {
 // 2020-12, so validators of the older drafts read it unchanged.
 func schemaAs(doc []byte, uri string) []byte {
 	return bytes.Replace(doc, []byte(`"https://json-schema.org/draft/2020-12/schema"`), []byte(`"`+uri+`"`), 1)
+}
+
+// generated is the pipeline of a type go-jsonschema generates, which
+// validates as it unmarshals. The benchmark stops at the generated type; only
+// to compare does decode convert it to an Order.
+func generated[T any](name string) pipeline {
+	return pipeline{
+		name: name, validates: true,
+		run: func(b []byte) error {
+			var g T
+			return json.Unmarshal(b, &g)
+		},
+		decode: func(b []byte) (Order, error) {
+			var g T
+			var o Order
+			if err := json.Unmarshal(b, &g); err != nil {
+				return o, err
+			}
+			rb, err := json.Marshal(g)
+			if err != nil {
+				return o, err
+			}
+			err = json.Unmarshal(rb, &o)
+			return o, err
+		},
+		// go-jsonschema checks neither allOf, where the exported schema bounds
+		// quantity, nor additionalProperties.
+		misses: map[string]bool{
+			"quantity below 1": true, "quantity over 1000": true, "quantity not integral": true,
+			"undeclared field": true, "undeclared item field": true, "undeclared nested": true,
+		},
+	}
 }
 
 // thenJSON validates with validate, then decodes with encoding/json.
@@ -187,33 +221,8 @@ func newSetup(tb testing.TB) *setup {
 			}
 			return nil
 		})},
-		{
-			name: "go-jsonschema", validates: true,
-			run: func(b []byte) error {
-				var o jsgen.OrderSchemaJson
-				return json.Unmarshal(b, &o)
-			},
-			decode: func(b []byte) (Order, error) {
-				var g jsgen.OrderSchemaJson
-				var o Order
-				if err := json.Unmarshal(b, &g); err != nil {
-					return o, err
-				}
-				// Only to compare: the benchmark stops at g.
-				rb, err := json.Marshal(g)
-				if err != nil {
-					return o, err
-				}
-				err = json.Unmarshal(rb, &o)
-				return o, err
-			},
-			// The generator checks neither allOf, where the exported schema
-			// bounds quantity, nor additionalProperties.
-			misses: map[string]bool{
-				"quantity below 1": true, "quantity over 1000": true, "quantity not integral": true,
-				"undeclared field": true, "undeclared item field": true, "undeclared nested": true,
-			},
-		},
+		generated[jsgen.OrderSchemaJson]("go-jsonschema"),
+		generated[jsgenre.OrderSchemaJson]("go-jsonschema, patterns compiled once"),
 		{name: "thema", validates: true, decode: func(b []byte) (Order, error) {
 			ti, err := ts.ValidateTyped(cuecontext.New().CompileBytes(b))
 			if err != nil {
@@ -349,6 +358,25 @@ func TestPipelinesAgree(t *testing.T) {
 				t.Errorf("%s is known to accept %q, which is not invalid data", p.name, name)
 			}
 		}
+	}
+}
+
+// jsgenre is jsgen with each regular expression compiled once.
+func TestHoistedCurrent(t *testing.T) {
+	src, err := os.ReadFile("jsgen/order.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := hoistre.Hoist(src, "jsgenre")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile("jsgenre/order.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Error("jsgenre/order.go is not jsgen/order.go hoisted; run go generate")
 	}
 }
 
