@@ -211,9 +211,11 @@ func (inst *TypedInstance[T]) TypedSchema() TypedSchema[T] {
 func (inst *TypedInstance[T]) Value() (T, error) {
 	inst.check()
 
-	t := inst.tsch.NewT()
-	// TODO figure out correct pointer handling here
-	err := inst.Instance.raw.Decode(&t)
+	// Decode the data as the schema makes it, so that CUE resolves every
+	// default: one inside a list element or a map value, or one that refers
+	// to another field, is never set by decoding the data onto NewT.
+	var t T
+	err := inst.sch.(*schemaDef).closed().Unify(inst.raw).Decode(&t)
 	return t, err
 }
 
