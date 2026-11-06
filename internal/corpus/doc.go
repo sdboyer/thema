@@ -51,10 +51,11 @@
 // A directive written #key/<input> gives key for that input alone, and
 // overrides #key, which gives it for every input of the archive: an archive
 // writes #expect/qty-zero: E0504 for each input, and one #spec or
-// #description for them all unless an input needs its own. #known/<suite>
-// tags every input, and #known/<suite>/<input> the one input. Every input
-// must have every required directive, from either form. A case's section for
-// a suite is out/<suite>/<input>; an archive that is one case has the one
+// #description for them all unless an input needs its own. Every input must
+// have every required directive, from either form, and every value is read,
+// even one every input overrides. A #known tag tracks one cell, so it is
+// always written for one input, as #known/<suite>/<input>. A case's section
+// for a suite is out/<suite>/<input>; an archive that is one case has the one
 // section out/<suite>/bind.
 //
 // # Statuses

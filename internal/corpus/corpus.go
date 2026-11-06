@@ -301,6 +301,24 @@ func ParseArchive(file string, data []byte, l Layout) *Archive {
 		seen[k] = true
 	}
 
+	// Every value is read, including one that every input overrides, so that
+	// none is wrong unnoticed.
+	keys := slices.Sorted(maps.Keys(dirs))
+	for _, k := range keys {
+		key, _, _ := splitDirective(k)
+		if key != dirExpect {
+			continue
+		}
+		if _, err := ParseVerdict(dirs[k]); err != nil {
+			a.problems = append(a.problems, fmt.Sprintf("#%s: %v", k, err))
+		}
+	}
+	for _, k := range keys {
+		if key, _, _ := splitDirective(k); strings.HasPrefix(key, knownPrefix) && knownTag.FindStringSubmatch(dirs[k]) == nil {
+			a.problems = append(a.problems, fmt.Sprintf("#%s: %q must start with the issue that tracks it, as \"#<number> <reason>\"", k, dirs[k]))
+		}
+	}
+
 	if l.Inputs == "" {
 		a.Cases = []*Case{a.newCase("", "")}
 	} else {
@@ -310,6 +328,10 @@ func ParseArchive(file string, data []byte, l Layout) *Archive {
 				continue
 			}
 			in := strings.TrimSuffix(path.Base(f.Name), path.Ext(f.Name))
+			if in == "" {
+				a.problems = append(a.problems, fmt.Sprintf("the input %s has no name, only an extension; name the file", f.Name))
+				continue
+			}
 			if other, dup := files[in]; dup {
 				if other != f.Name {
 					a.problems = append(a.problems, fmt.Sprintf("the inputs %s and %s have the same name, %s; rename one", other, f.Name, in))
@@ -324,29 +346,49 @@ func ParseArchive(file string, data []byte, l Layout) *Archive {
 		}
 	}
 
-	for _, k := range slices.Sorted(maps.Keys(dirs)) {
-		key, in := splitDirective(k)
-		if in != "" && a.input(in) == nil {
-			if l.Inputs == "" {
-				a.problems = append(a.problems, fmt.Sprintf("#%s names an input, but the cases of this corpus have none; write #%s", k, key))
-			} else {
-				a.problems = append(a.problems, fmt.Sprintf("#%s names %s, which is not an input of the archive", k, in))
-			}
+	for _, k := range keys {
+		key, in, forInput := splitDirective(k)
+		if !a.reads(key) {
+			continue
+		}
+		known := strings.HasPrefix(key, knownPrefix)
+		switch {
+		case forInput && l.Inputs == "":
+			a.problems = append(a.problems, fmt.Sprintf("#%s names an input, but the cases of this corpus have none; write #%s", k, key))
+		case forInput && in == "":
+			a.problems = append(a.problems, fmt.Sprintf("#%s names no input; write #%s/<input>, or #%s for every input", k, key, key))
+		case forInput && a.input(in) == nil:
+			a.problems = append(a.problems, fmt.Sprintf("#%s names %s, which is not an input of the archive", k, in))
+		case known && !forInput && l.Inputs != "":
+			// A tag tracks one cell. An archive-wide tag would be stale for
+			// the inputs a suite agrees on or skips, and no instruction could
+			// say which line to remove when one of them is fixed.
+			a.problems = append(a.problems, fmt.Sprintf("#%s tags every input, but a tag tracks one input's cell; write #%s/<input> for each input the suite disagrees on", k, key))
 		}
 	}
 	return a
 }
 
-// splitDirective splits a directive's key into the key it gives and the input
-// it gives it for, or "" when it gives it for every case of the archive:
-// expect/<input> and known/<suite>/<input>.
-func splitDirective(k string) (key, input string) {
-	if rest, ok := strings.CutPrefix(k, knownPrefix); ok {
-		suite, in, _ := strings.Cut(rest, "/")
-		return knownPrefix + suite, in
+// reads reports whether the corpus reads the directive key, given for an
+// input or for the whole archive: description, expect, spec, a required
+// directive, or a #known tag. Other directives are prose to the corpus.
+func (a *Archive) reads(key string) bool {
+	switch {
+	case key == dirDescription, key == dirExpect, key == dirSpec, strings.HasPrefix(key, knownPrefix):
+		return true
 	}
-	key, input, _ = strings.Cut(k, "/")
-	return key, input
+	return slices.Contains(a.layout.Require, key)
+}
+
+// splitDirective splits a directive's key into the key it gives and the input
+// it gives it for, which forInput reports: expect/<input> and
+// known/<suite>/<input>.
+func splitDirective(k string) (key, input string, forInput bool) {
+	if rest, ok := strings.CutPrefix(k, knownPrefix); ok {
+		suite, in, forInput := strings.Cut(rest, "/")
+		return knownPrefix + suite, in, forInput
+	}
+	return strings.Cut(k, "/")
 }
 
 // input returns the archive's case for input in, or nil.
@@ -367,40 +409,26 @@ func (a *Archive) newCase(in, file string) *Case {
 	c.Description = c.Directive(dirDescription)
 	c.Spec = c.Directive(dirSpec)
 	if raw := c.Directive(dirExpect); raw != "" {
-		v, err := ParseVerdict(raw)
-		if err != nil {
-			a.problems = append(a.problems, fmt.Sprintf("#%s: %v", c.directiveKey(dirExpect), err))
-		}
-		c.Expect = v
+		// A value that can't be read is reported by ParseArchive.
+		c.Expect, _ = ParseVerdict(raw)
 	}
-	suites := map[string]bool{}
-	for k := range a.dirs {
-		if key, _ := splitDirective(k); strings.HasPrefix(key, knownPrefix) {
-			suites[strings.TrimPrefix(key, knownPrefix)] = true
-		}
-	}
-	for _, suite := range slices.Sorted(maps.Keys(suites)) {
-		k := c.directiveKey(knownPrefix + suite)
-		v, ok := a.dirs[k]
-		if !ok {
+	for k, v := range a.dirs {
+		key, tagged, forInput := splitDirective(k)
+		suite, ok := strings.CutPrefix(key, knownPrefix)
+		if !ok || forInput != (in != "") || tagged != in {
 			continue
 		}
-		m := knownTag.FindStringSubmatch(v)
-		if m == nil {
-			msg := fmt.Sprintf("#%s: %q must start with the issue that tracks it, as \"#<number> <reason>\"", k, v)
-			if !slices.Contains(a.problems, msg) {
-				a.problems = append(a.problems, msg)
-			}
-			continue
+		if m := knownTag.FindStringSubmatch(v); m != nil {
+			n, _ := strconv.Atoi(m[1])
+			c.Known[suite] = Known{Issue: n, Reason: m[2]}
 		}
-		n, _ := strconv.Atoi(m[1])
-		c.Known[suite] = Known{Issue: n, Reason: m[2]}
 	}
 	return c
 }
 
 // directiveKey is the key of the directive that gives c key: key/<input>
-// when the archive writes one for c's input, and key otherwise.
+// when the archive writes one for c's input, and key otherwise. A #known tag
+// is never given for every input ([Case.KnownKey]).
 func (c *Case) directiveKey(key string) string {
 	if c.Input != "" {
 		if _, ok := c.archive.dirs[key+"/"+c.Input]; ok {
@@ -414,22 +442,22 @@ func (c *Case) directiveKey(key string) string {
 // written for c's input, as #key/<input>, or else the archive's #key.
 func (c *Case) Directive(key string) string { return c.archive.dirs[c.directiveKey(key)] }
 
-// KnownKey is the key of the #known directive for suite that applies to c, or
-// would: known/<suite>/<input> when c is an input and the archive tags it so,
-// or has no tag for suite at all, and known/<suite> otherwise.
+// KnownKey is the key of the #known tag for suite that tracks c's cell:
+// known/<suite>/<input> for an input, and known/<suite> when the archive is
+// one case.
 func (c *Case) KnownKey(suite string) string {
-	k := c.directiveKey(knownPrefix + suite)
-	if _, ok := c.archive.dirs[k]; !ok && c.Input != "" {
+	if c.Input != "" {
 		return knownPrefix + suite + "/" + c.Input
 	}
-	return k
+	return knownPrefix + suite
 }
 
 // File returns the contents of the archive's file name, and whether it
 // exists.
 func (c *Case) File(name string) (string, bool) { return c.archive.ar.File(name) }
 
-// Inputs returns the archive's files that are not goldens.
+// Inputs returns the archive's files that are not goldens, including the file
+// of every input of the archive, not only c's.
 func (c *Case) Inputs() []txtar.File { return c.archive.ar.Inputs() }
 
 // SectionFile is the name of suite's golden section for c in its archive:
@@ -519,10 +547,6 @@ func (a *Archive) Problems(registered []string) (directives, sections []string) 
 				add(fmt.Sprintf("the required directive #%s is missing for input %s; write #%s/%s, or #%s for every input", key, c.Input, key, c.Input, key))
 			}
 		}
-		_, citeProblems := c.citations()
-		for _, p := range citeProblems {
-			add(p)
-		}
 	}
 	if !suiteName.MatchString(a.Name) {
 		add(fmt.Sprintf("the case's name %q is not kebab-case; rename the file", a.Name))
@@ -532,13 +556,16 @@ func (a *Archive) Problems(registered []string) (directives, sections []string) 
 			add(fmt.Sprintf("the input's name %q (%s) is not kebab-case; rename the file", c.Input, c.InputFile))
 		}
 	}
-	for _, p := range a.problems {
-		add(p)
-	}
+	directives = append(directives, acrossCases(a.Cases, func(c *Case) []string {
+		_, problems := c.citations()
+		return problems
+	})...)
+	directives = append(directives, a.problems...)
 	for _, k := range slices.Sorted(maps.Keys(a.dirs)) {
-		key, _ := splitDirective(k)
-		if suite, ok := strings.CutPrefix(key, knownPrefix); ok && !slices.Contains(registered, suite) {
-			add(fmt.Sprintf("#%s names a suite that is not registered", k))
+		key, _, _ := splitDirective(k)
+		suite, ok := strings.CutPrefix(key, knownPrefix)
+		if ok && knownTag.MatchString(a.dirs[k]) && !slices.Contains(registered, suite) {
+			directives = append(directives, fmt.Sprintf("#%s names a suite that is not registered", k))
 		}
 	}
 	written := map[string]bool{}
@@ -581,6 +608,24 @@ func (a *Archive) Problems(registered []string) (directives, sections []string) 
 	return directives, sections
 }
 
+// acrossCases is what of each case's problems, from problemsOf, an earlier
+// case of the archive has not already given: the cases of an archive share
+// the directives they don't give for their input alone.
+func acrossCases(cases []*Case, problemsOf func(*Case) []string) []string {
+	var out []string
+	var earlier []string
+	for _, c := range cases {
+		ps := problemsOf(c)
+		for _, p := range ps {
+			if !slices.Contains(earlier, p) {
+				out = append(out, p)
+			}
+		}
+		earlier = append(earlier, ps...)
+	}
+	return out
+}
+
 // run is one run of a corpus: what its cells share.
 type run struct {
 	Corpus
@@ -614,13 +659,7 @@ func (r *run) checkArchive(t testing.TB, a *Archive) bool {
 	}
 	directives, sections := a.Problems(registered)
 	if r.Root != "" {
-		for _, c := range a.Cases {
-			for _, p := range c.resolveCitations(r.Root) {
-				if !slices.Contains(directives, p) {
-					directives = append(directives, p)
-				}
-			}
-		}
+		directives = append(directives, acrossCases(a.Cases, func(c *Case) []string { return c.resolveCitations(r.Root) })...)
 	}
 	for _, p := range directives {
 		t.Errorf("%s: %s; the format is in %s and the suites in %s",
@@ -885,7 +924,7 @@ var codePattern = regexp.MustCompile(`^E\d{4}$`)
 func ParseVerdict(s string) (Verdict, error) {
 	fields := strings.Fields(s)
 	if len(fields) == 0 {
-		return "", fmt.Errorf("empty; write ok or the codes bind reports")
+		return "", fmt.Errorf("empty; write ok or the codes the operation reports")
 	}
 	if len(fields) == 1 && fields[0] == string(VerdictOK) {
 		return VerdictOK, nil

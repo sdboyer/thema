@@ -771,34 +771,47 @@ func TestInputs(t *testing.T) {
 	}
 }
 
-// TestInputKnown checks that a #known tag for a suite applies to every input
-// of an archive, and that #known/<suite>/<input> applies to the one input,
-// overriding it.
+// TestInputKnown checks that a #known tag in an archive of inputs tracks the
+// one input it names, and that the instructions name the input's own tag.
 func TestInputKnown(t *testing.T) {
 	comment := "#description: d\n#spec: docs/invariants.md:1\n#expect: E0141\n" +
-		"#known/s: #264 every input.\n#known/s/two: #12 this input.\n"
+		"#known/s/two: #12 this input.\n"
 	a := writeArchive(t, t.TempDir(), "c", inputsLayout, comment,
-		"data/one.json", "ok\n", "data/two.json", "ok\n", "data/three.json", "ok\n")
+		"data/one.json", "ok\n", "data/two.json", "ok\n")
+	one, two := a.Cases[0], a.Cases[1]
+	if _, ok := one.Known["s"]; ok {
+		t.Errorf("%s is tagged by another input's tag: %+v", one.Name, one.Known)
+	}
+	if got, want := two.Known["s"], (Known{Issue: 12, Reason: "this input."}); got != want {
+		t.Errorf("%s: tag %+v, want %+v", two.Name, got, want)
+	}
 	for _, c := range a.Cases {
-		want, key := Known{Issue: 264, Reason: "every input."}, "known/s"
-		if c.Input == "two" {
-			want, key = Known{Issue: 12, Reason: "this input."}, "known/s/two"
-		}
-		if got := c.Known["s"]; got != want {
-			t.Errorf("%s: tag %+v, want %+v", c.Name, got, want)
-		}
-		if got := c.KnownKey("s"); got != key {
-			t.Errorf("%s: tag key %s, want %s", c.Name, got, key)
-		}
-		if got := c.KnownKey("other"); got != "known/other/"+c.Input {
-			t.Errorf("%s: an input with no tag for a suite would be tagged %s, want known/other/%s", c.Name, got, c.Input)
+		if got, want := c.KnownKey("s"), "known/s/"+c.Input; got != want {
+			t.Errorf("%s: tag key %s, want %s", c.Name, got, want)
 		}
 	}
-	// The untracked instruction for an input names the input's own tag.
 	r := &recorder{TB: t}
-	runCell(r, Corpus{Dir: testDir, Layout: inputsLayout}, a.Cases[0], fails("u", diag.E0140), a.Cases...)
-	if want := "'#known/u/" + a.Cases[0].Input + ": #<issue>"; len(r.errs) != 1 || !strings.Contains(r.errs[0], want) {
+	runCell(r, Corpus{Dir: testDir, Layout: inputsLayout}, one, fails("u", diag.E0140), a.Cases...)
+	if want := "'#known/u/one: #<issue>"; len(r.errs) != 1 || !strings.Contains(r.errs[0], want) {
 		t.Errorf("want one failure containing %q, got %q", want, r.errs)
+	}
+	// An xpass names the tag to remove, which tracks this input alone.
+	r = &recorder{TB: t}
+	runCell(r, Corpus{Dir: testDir, Layout: inputsLayout}, two, fails("s", diag.E0141), a.Cases...)
+	if want := "Remove the '#known/s/two' line"; len(r.errs) != 1 || !strings.Contains(r.errs[0], want) {
+		t.Errorf("want one failure containing %q, got %q", want, r.errs)
+	}
+}
+
+// TestUnreadDirectives checks that a directive the corpus does not read is
+// prose, whatever its key, and that a malformed tag is one problem even when
+// it names a suite that is not registered.
+func TestUnreadDirectives(t *testing.T) {
+	a := writeArchive(t, t.TempDir(), "c", Layout{}, header+"#see/also: prose\n#known/zz: no issue\n")
+	d, s := a.Problems([]string{"s"})
+	want := `#known/zz: "no issue" must start with the issue that tracks it, as "#<number> <reason>"`
+	if len(d) != 1 || d[0] != want || len(s) > 0 {
+		t.Errorf("problems %q %q, want only %q", d, s, want)
 	}
 }
 
@@ -864,6 +877,41 @@ func TestInputValidation(t *testing.T) {
 			name:    "input-directive-without-inputs",
 			comment: head + "#expect: ok\n#expect/a: E0504\n",
 			want:    "#expect/a names an input, but the cases of this corpus have none; write #expect",
+		},
+		{
+			name:    "known-for-every-input",
+			layout:  inputsLayout,
+			comment: head + "#expect: ok\n#known/s: #264 a reason.\n",
+			files:   []string{inputA, "ok"},
+			want:    "#known/s tags every input, but a tag tracks one input's cell; write #known/s/<input> for each input the suite disagrees on",
+		},
+		{
+			name:    "input-without-name",
+			layout:  inputsLayout,
+			comment: head + "#expect: ok\n",
+			files:   []string{inputA, "ok", "data/.json", "ok"},
+			want:    "the input data/.json has no name, only an extension; name the file",
+		},
+		{
+			name:    "overridden-expect-read",
+			layout:  inputsLayout,
+			comment: head + "#expect: E9999\n#expect/a: ok\n",
+			files:   []string{inputA, "ok"},
+			want:    "#expect: E9999 is not declared in diag.Codes",
+		},
+		{
+			name:    "input-part-empty",
+			layout:  inputsLayout,
+			comment: head + "#expect: ok\n#expect/: E0504\n",
+			files:   []string{inputA, "ok"},
+			want:    "#expect/ names no input; write #expect/<input>, or #expect for every input",
+		},
+		{
+			name:    "known-input-part-empty",
+			layout:  inputsLayout,
+			comment: head + "#expect: ok\n#known/s/: #264 a reason.\n",
+			files:   []string{inputA, "ok"},
+			want:    "#known/s/ names no input; write #known/s/<input>, or #known/s for every input",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
