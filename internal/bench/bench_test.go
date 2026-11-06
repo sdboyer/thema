@@ -2,6 +2,7 @@ package bench
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -11,11 +12,16 @@ import (
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
+	googlejs "github.com/google/jsonschema-go/jsonschema"
+	kaptinlin "github.com/kaptinlin/jsonschema"
+	qrijs "github.com/qri-io/jsonschema"
 	jsch "github.com/santhosh-tekuri/jsonschema/v6"
+	"github.com/xeipuuv/gojsonschema"
 
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/encoding/gocode"
+	"github.com/sdboyer/thema/internal/bench/jsgen"
 	tjsonschema "github.com/sdboyer/thema/encoding/jsonschema"
 	"github.com/sdboyer/thema/internal/cuetil"
 	"github.com/sdboyer/thema/internal/util"
@@ -30,12 +36,19 @@ import (
 // without bound. Unifying with a schema from another context keeps nothing.
 type decoder func(b []byte) (Order, error)
 
-// pipeline is one way from bytes to an Order.
+// pipeline is one way from bytes to a populated Go value.
 type pipeline struct {
 	name string
 	// validates is false for the pipeline that only decodes.
 	validates bool
-	decode    decoder
+	// run is the work benchmarked: from bytes to the pipeline's own Go value,
+	// or a refusal. It is decode, unless the pipeline's value is not an Order.
+	run func(b []byte) error
+	// decode does run's work and gives the value as an Order, to compare.
+	decode decoder
+	// misses names the invalid data the pipeline is known to accept, each a
+	// key of invalid.
+	misses map[string]bool
 }
 
 // setup is the lineage's schema 0.0 and every pipeline built on it, each
@@ -44,6 +57,25 @@ type setup struct {
 	rt        *thema.Runtime
 	sch       thema.Schema
 	pipelines []pipeline
+}
+
+// schemaAs is the JSON Schema doc declaring the draft uri: every keyword the
+// schema thema exports uses means the same in draft-07 and 2019-09 as in
+// 2020-12, so validators of the older drafts read it unchanged.
+func schemaAs(doc []byte, uri string) []byte {
+	return bytes.Replace(doc, []byte(`"https://json-schema.org/draft/2020-12/schema"`), []byte(`"`+uri+`"`), 1)
+}
+
+// thenJSON validates with validate, then decodes with encoding/json.
+func thenJSON(validate func(b []byte) error) decoder {
+	return func(b []byte) (Order, error) {
+		var o Order
+		if err := validate(b); err != nil {
+			return o, err
+		}
+		err := json.Unmarshal(b, &o)
+		return o, err
+	}
 }
 
 func newSetup(tb testing.TB) *setup {
@@ -76,8 +108,32 @@ func newSetup(tb testing.TB) *setup {
 	if err = c.AddResource("order.json", parsed); err != nil {
 		tb.Fatal(err)
 	}
-	js, err := c.Compile("order.json")
+	santhosh, err := c.Compile("order.json")
 	if err != nil {
+		tb.Fatal(err)
+	}
+
+	kaptin, err := kaptinlin.NewCompiler().Compile(doc)
+	if err != nil {
+		tb.Fatal(err)
+	}
+
+	var gs googlejs.Schema
+	if err = json.Unmarshal(doc, &gs); err != nil {
+		tb.Fatal(err)
+	}
+	google, err := gs.Resolve(nil)
+	if err != nil {
+		tb.Fatal(err)
+	}
+
+	xeipuuv, err := gojsonschema.NewSchema(gojsonschema.NewBytesLoader(schemaAs(doc, "http://json-schema.org/draft-07/schema#")))
+	if err != nil {
+		tb.Fatal(err)
+	}
+
+	qri := new(qrijs.Schema)
+	if err = json.Unmarshal(schemaAs(doc, "https://json-schema.org/draft/2019-09/schema"), qri); err != nil {
 		tb.Fatal(err)
 	}
 
@@ -85,24 +141,79 @@ func newSetup(tb testing.TB) *setup {
 	// schema, closed once.
 	closed := cuetil.CloseRecursive(rt.Context(), sch.Underlying().LookupPath(cue.MakePath(cue.Hid("_schema", util.ThemaPackageID))))
 
-	return &setup{rt: rt, sch: sch, pipelines: []pipeline{
+	ps := []pipeline{
 		{name: "json", decode: func(b []byte) (Order, error) {
 			var o Order
 			err := json.Unmarshal(b, &o)
 			return o, err
 		}},
-		{name: "jsonschema", validates: true, decode: func(b []byte) (Order, error) {
-			var o Order
+		{name: "santhosh-tekuri", validates: true, decode: thenJSON(func(b []byte) error {
 			inst, err := jsch.UnmarshalJSON(bytes.NewReader(b))
 			if err != nil {
-				return o, err
+				return err
 			}
-			if err = js.Validate(inst); err != nil {
-				return o, err
+			return santhosh.Validate(inst)
+		})},
+		{name: "kaptinlin", validates: true, decode: thenJSON(func(b []byte) error {
+			if r := kaptin.ValidateJSON(b); !r.IsValid() {
+				return fmt.Errorf("invalid: %v", r.Errors)
 			}
-			err = json.Unmarshal(b, &o)
-			return o, err
-		}},
+			return nil
+		})},
+		{name: "google", validates: true, decode: thenJSON(func(b []byte) error {
+			var inst any
+			if err := json.Unmarshal(b, &inst); err != nil {
+				return err
+			}
+			return google.Validate(inst)
+		})},
+		{name: "xeipuuv", validates: true, decode: thenJSON(func(b []byte) error {
+			r, err := xeipuuv.Validate(gojsonschema.NewBytesLoader(b))
+			if err != nil {
+				return err
+			}
+			if !r.Valid() {
+				return fmt.Errorf("invalid: %v", r.Errors())
+			}
+			return nil
+		})},
+		{name: "qri", validates: true, decode: thenJSON(func(b []byte) error {
+			errs, err := qri.ValidateBytes(context.Background(), b)
+			if err != nil {
+				return err
+			}
+			if len(errs) > 0 {
+				return fmt.Errorf("invalid: %v", errs)
+			}
+			return nil
+		})},
+		{
+			name: "go-jsonschema", validates: true,
+			run: func(b []byte) error {
+				var o jsgen.OrderSchemaJson
+				return json.Unmarshal(b, &o)
+			},
+			decode: func(b []byte) (Order, error) {
+				var g jsgen.OrderSchemaJson
+				var o Order
+				if err := json.Unmarshal(b, &g); err != nil {
+					return o, err
+				}
+				// Only to compare: the benchmark stops at g.
+				rb, err := json.Marshal(g)
+				if err != nil {
+					return o, err
+				}
+				err = json.Unmarshal(rb, &o)
+				return o, err
+			},
+			// The generator checks neither allOf, where the exported schema
+			// bounds quantity, nor additionalProperties.
+			misses: map[string]bool{
+				"quantity below 1": true, "quantity over 1000": true, "quantity not integral": true,
+				"undeclared field": true, "undeclared item field": true, "undeclared nested": true,
+			},
+		},
 		{name: "thema", validates: true, decode: func(b []byte) (Order, error) {
 			ti, err := ts.ValidateTyped(cuecontext.New().CompileBytes(b))
 			if err != nil {
@@ -123,7 +234,16 @@ func newSetup(tb testing.TB) *setup {
 			err := v.Decode(&o)
 			return o, err
 		}},
-	}}
+	}
+	for i, p := range ps {
+		if p.run == nil {
+			ps[i].run = func(b []byte) error {
+				_, err := p.decode(b)
+				return err
+			}
+		}
+	}
+	return &setup{rt: rt, sch: sch, pipelines: ps}
 }
 
 // order is an Order of n items, as JSON, with every optional field.
@@ -213,10 +333,48 @@ func TestPipelinesAgree(t *testing.T) {
 	}
 	for name, b := range invalid {
 		for _, p := range s.pipelines {
-			if _, err := p.decode(b); p.validates && err == nil {
-				t.Errorf("%s accepts data with %s: %s", p.name, name, b)
+			if !p.validates {
+				continue
+			}
+			// Judged by the work benchmarked, not by decode's conversion.
+			err := p.run(b)
+			if accepts := err == nil; accepts != p.misses[name] {
+				t.Errorf("%s accepts data with %s: %v, known to: %v", p.name, name, accepts, p.misses[name])
 			}
 		}
+	}
+	for _, p := range s.pipelines {
+		for name := range p.misses {
+			if _, ok := invalid[name]; !ok {
+				t.Errorf("%s is known to accept %q, which is not invalid data", p.name, name)
+			}
+		}
+	}
+}
+
+// testdata/order.schema.json, which go-jsonschema generates jsgen from, is
+// the JSON Schema thema exports for schema 0.0.
+func TestSchemaCurrent(t *testing.T) {
+	s := newSetup(t)
+	f, err := tjsonschema.GenerateSchema(s.sch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := s.rt.Context().BuildFile(f).MarshalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var want bytes.Buffer
+	if err = json.Indent(&want, b, "", "  "); err != nil {
+		t.Fatal(err)
+	}
+	want.WriteByte('\n')
+	got, err := os.ReadFile("testdata/order.schema.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, want.Bytes()) {
+		t.Error("testdata/order.schema.json is not what thema exports; run go generate")
 	}
 }
 
@@ -244,7 +402,7 @@ func BenchmarkDecode(b *testing.B) {
 				b.ReportAllocs()
 				b.RunParallel(func(pb *testing.PB) {
 					for pb.Next() {
-						if _, err := p.decode(payload); err != nil {
+						if err := p.run(payload); err != nil {
 							b.Error(err)
 							return
 						}
