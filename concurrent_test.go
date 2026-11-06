@@ -7,19 +7,20 @@ import (
 	"sync"
 	"testing"
 
+	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/exemplars"
+	"github.com/sdboyer/thema/load"
 )
 
-// concurrentCase is an exemplar and data for it, with the Go type its first
+// concurrentCase is data for an exemplar lineage, with the Go type its first
 // schema is bound to.
 type concurrentCase struct {
-	lineage thema.LineageFactory
-	data    string
-	typed   func(thema.Schema, []byte) (string, error)
+	data  string
+	typed func(thema.Schema, []byte) (string, error)
 }
 
 type rename00 struct {
@@ -47,24 +48,43 @@ func typedAs[T thema.Assignee](t T) func(thema.Schema, []byte) (string, error) {
 	}
 }
 
+// concurrentCases are keyed by the exemplar's name, its field in the
+// exemplars package.
 var concurrentCases = map[string]concurrentCase{
-	"rename":        {lineage: exemplars.RenameLineage, data: `{"before": "a", "unchanged": "b"}`, typed: typedAs(&rename00{})},
-	"expand":        {lineage: exemplars.ExpandLineage, data: `{"init": "x", "optional": 3, "withDefault": "baz"}`},
-	"defaultchange": {lineage: exemplars.DefaultChangeLineage, data: `{"aunion": "bar"}`},
-	"narrowing":     {lineage: exemplars.NarrowingLineage, data: `{"boolish": "true"}`},
-	"disjunct":      {lineage: exemplars.DisjunctLineage, data: `{"rootfield": {"branch": 2, "branchtwo": "y"}}`},
-	"single":        {lineage: exemplars.SingleLineage, data: `{"astring": "s", "anint": 3, "abool": true}`},
+	"rename":        {data: `{"before": "a", "unchanged": "b"}`, typed: typedAs(&rename00{})},
+	"expand":        {data: `{"init": "x", "optional": 3, "withDefault": "baz"}`},
+	"defaultchange": {data: `{"aunion": "bar"}`},
+	"narrowing":     {data: `{"boolish": "true"}`},
+	"disjunct":      {data: `{"rootfield": {"branch": 2, "branchtwo": "y"}}`},
+	"single":        {data: `{"astring": "s", "anint": 3, "abool": true}`},
 }
 
-// exercise binds the case's lineage with rt, and records what every
-// operation on it reports: each version's ID, which version the data is
-// valid against, its translation to every version with the lacunas, what the
-// typed path decodes, and that invalid data is refused.
-func exercise(rt *thema.Runtime, c concurrentCase) (string, error) {
-	lin, err := c.lineage(rt)
+// exemplarsRoot is the exemplars package, loaded and built once: every
+// exemplar lineage is a field of it, and they share its import of thema.
+func exemplarsRoot(t *testing.T, rt *thema.Runtime) cue.Value {
+	t.Helper()
+	bi, err := load.InstancesWithThema(exemplars.CueFS(), ".")
 	if err != nil {
-		return "", fmt.Errorf("%v", diag.Diagnostics(err))
+		t.Fatal(err)
 	}
+	return rt.Context().BuildInstance(bi)
+}
+
+// bind binds the named exemplar from root.
+func bind(root cue.Value, name string, rt *thema.Runtime) (thema.Lineage, error) {
+	lin, err := thema.BindLineage(root, cue.MakePath(cue.Str(name), cue.Str("l")), rt)
+	if err != nil {
+		return nil, fmt.Errorf("%v", diag.Diagnostics(err))
+	}
+	return lin, nil
+}
+
+// exercise records what every operation on a bound lineage reports: each
+// version's ID, which version the data is valid against, its translation to
+// every version with the lacunas, what the typed path decodes, and that
+// invalid data is refused.
+func exercise(lin thema.Lineage, c concurrentCase) (string, error) {
+	rt := lin.Runtime()
 	var b strings.Builder
 	for _, sch := range lin.All() {
 		id, err := sch.ID()
@@ -107,30 +127,78 @@ func exercise(rt *thema.Runtime, c concurrentCase) (string, error) {
 	return b.String(), nil
 }
 
-// One Runtime serves every operation from many goroutines at once: binding,
-// IDs, validation, translation and the typed path report what they report
-// run one at a time. Run it with -race.
-func TestConcurrentRuntime(t *testing.T) {
-	rt := thema.NewRuntime(cuecontext.New())
+// alone binds and exercises every case one at a time, for what each reports.
+func alone(t *testing.T, rt *thema.Runtime, root cue.Value) (map[string]thema.Lineage, map[string]string) {
+	t.Helper()
+	lins := make(map[string]thema.Lineage, len(concurrentCases))
 	want := make(map[string]string, len(concurrentCases))
 	for name, c := range concurrentCases {
-		got, err := exercise(rt, c)
+		lin, err := bind(root, name, rt)
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
-		want[name] = got
+		if want[name], err = exercise(lin, c); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		lins[name] = lin
 	}
+	return lins, want
+}
 
-	const workers = 8
+const workers = 8
+
+// Lineages of one package are bound from it concurrently, each by several
+// goroutines at once, and each reports what it reports bound alone. They
+// share the package's import of thema, which CUE finalizes lazily when a
+// reference into it is first followed: binding takes the Runtime's lock.
+// Run it with -race.
+func TestConcurrentBind(t *testing.T) {
+	rt := thema.NewRuntime(cuecontext.New())
+	_, want := alone(t, rt, exemplarsRoot(t, rt))
+
+	// A root no bind has yet touched.
+	root := exemplarsRoot(t, rt)
 	var wg sync.WaitGroup
 	for i := range workers {
 		for name, c := range concurrentCases {
 			wg.Go(func() {
-				got, err := exercise(rt, c)
+				lin, err := bind(root, name, rt)
 				if err != nil {
 					t.Errorf("%s, worker %d: %v", name, i, err)
+					return
+				}
+				if got, err := exercise(lin, c); err != nil {
+					t.Errorf("%s, worker %d: %v", name, i, err)
 				} else if got != want[name] {
-					t.Errorf("%s, worker %d, run concurrently:\n%s\nand run alone:\n%s", name, i, got, want[name])
+					t.Errorf("%s, worker %d, bound concurrently:\n%s\nand alone:\n%s", name, i, got, want[name])
+				}
+			})
+		}
+	}
+	wg.Wait()
+}
+
+// A lineage bound once is used by many goroutines at once, while others bind
+// more lineages from the same package: IDs, validation, translation and the
+// typed path report what they report run one at a time. Run it with -race.
+func TestConcurrentUse(t *testing.T) {
+	rt := thema.NewRuntime(cuecontext.New())
+	root := exemplarsRoot(t, rt)
+	lins, want := alone(t, rt, root)
+
+	var wg sync.WaitGroup
+	for i := range workers {
+		for name, c := range concurrentCases {
+			wg.Go(func() {
+				if got, err := exercise(lins[name], c); err != nil {
+					t.Errorf("%s, worker %d: %v", name, i, err)
+				} else if got != want[name] {
+					t.Errorf("%s, worker %d, used concurrently:\n%s\nand alone:\n%s", name, i, got, want[name])
+				}
+			})
+			wg.Go(func() {
+				if _, err := bind(root, name, rt); err != nil {
+					t.Errorf("%s, worker %d: %v", name, i, err)
 				}
 			})
 		}

@@ -85,6 +85,8 @@ func isLineageDef(v cue.Value) bool {
 // Thema invariants.
 func BindLineage(root cue.Value, p cue.Path, rt *Runtime, opts ...BindOption) (Lineage, error) {
 	orig := root.LookupPath(p)
+	rt.bind.Lock()
+	defer rt.bind.Unlock()
 
 	cfg := &bindConfig{}
 	for _, opt := range opts {

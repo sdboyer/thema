@@ -60,11 +60,17 @@ func loadRuntime() *build.Instance {
 // passed to [NewRuntime].
 //
 // A Runtime, and the lineages, schemas and instances made with it, are safe
-// for concurrent use, as cue.Value is.
+// for concurrent use. Binding with a Runtime runs one bind at a time.
 type Runtime struct {
 	// Value corresponds to loading the whole github.com/sdboyer/thema:thema
 	// package.
 	val cue.Value
+
+	// bind is held by BindLineage. Lineages of one package share its import
+	// of thema, and CUE finalizes an imported package lazily, the first time
+	// a reference into it is followed (Value.ReferencePath, Value.Expr):
+	// binding two of them at once races in CUE, and crashes.
+	bind sync.Mutex
 }
 
 // NewRuntime parses, loads and builds a full CUE instance/value representing
