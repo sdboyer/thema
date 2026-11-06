@@ -108,6 +108,12 @@ func (i *Instance) AsSuccessor(opts ...TranslateOption) (*Instance, lacuna.Trans
 	// declare are carried as in any step (see carry): the successor may set
 	// some aside, which is never an error.
 	nsch := i.Schema().Successor()
+	if nsch == nil {
+		return nil, nil, diag.New(diag.E0240).
+			Headlinef("lineage %s has no schema after %s", i.Schema().Lineage().Name(), i.Schema().Version()).
+			Helpf("%s is its latest version", i.Schema().Version()).
+			Err()
+	}
 	if nsch.Version()[0] == i.Schema().Version()[0] {
 		cfg := newTranslateConfig(opts)
 		start := time.Now()
@@ -151,7 +157,14 @@ func (i *Instance) minorSuccessor(nsch Schema) (*Instance, lacuna.TranslationSte
 // schema. opts are as for [Instance.Translate].
 func (i *Instance) AsPredecessor(opts ...TranslateOption) (*Instance, lacuna.TranslationLacunas, error) {
 	i.check()
-	return i.Translate(i.sch.Predecessor().Version(), opts...)
+	psch := i.sch.Predecessor()
+	if psch == nil {
+		return nil, nil, diag.New(diag.E0240).
+			Headlinef("lineage %s has no schema before %s", i.Schema().Lineage().Name(), i.Schema().Version()).
+			Helpf("%s is its first version", i.Schema().Version()).
+			Err()
+	}
+	return i.Translate(psch.Version(), opts...)
 }
 
 // Underlying returns the cue.Value representing the data contained in the Instance.
@@ -260,7 +273,7 @@ func (i *Instance) Translate(to SyntacticVersion, opts ...TranslateOption) (*Ins
 	// TODO define this in terms of AsSuccessor and AsPredecessor, rather than those in terms of this.
 	newsch, err := i.Schema().Lineage().Schema(to)
 	if err != nil {
-		panic(fmt.Sprintf("no schema in lineage with version %v, cannot translate", to))
+		return nil, nil, err
 	}
 	if merr := i.Schema().Lineage().(*baseLineage).missingLens(i.Schema().Version(), to); merr != nil {
 		return nil, nil, merr

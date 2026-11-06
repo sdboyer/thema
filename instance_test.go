@@ -9,6 +9,7 @@ import (
 
 	"cuelang.org/go/cue"
 
+	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/internal/txtartest/vanilla"
 	"github.com/sdboyer/thema/lacuna"
 
@@ -184,4 +185,46 @@ func BenchmarkBasicTranslate(b *testing.B) {
 			}
 		})
 	})
+}
+
+// There is no schema before a lineage's first or after its latest: stepping
+// past either end, or translating to a version the lineage does not have, is
+// E0240, never a panic.
+func TestTranslatePastEnds(t *testing.T) {
+	ctx := cuecontext.New()
+	rt := NewRuntime(ctx)
+	lin, err := BindLineage(ctx.CompileString(`
+name: "ship"
+schemas: "0": {
+	"0": schema: {a: string}
+	"1": schema: {a: string, b?: int}
+}
+lenses: "0.1->0.0": {v0_1: _, v0_0: a: v0_1.a}
+`), cue.Path{}, rt)
+	require.NoError(t, err)
+	first, err := lin.First().Validate(ctx.CompileString(`{a: "x"}`))
+	require.NoError(t, err)
+	latest, err := lin.Latest().Validate(ctx.CompileString(`{a: "x"}`))
+	require.NoError(t, err)
+
+	for name, step := range map[string]func() (*Instance, lacuna.TranslationLacunas, error){
+		"before the first": func() (*Instance, lacuna.TranslationLacunas, error) { return first.AsPredecessor() },
+		"after the latest": func() (*Instance, lacuna.TranslationLacunas, error) { return latest.AsSuccessor() },
+		"to a version the lineage does not have": func() (*Instance, lacuna.TranslationLacunas, error) {
+			return first.Translate(SV(9, 9))
+		},
+	} {
+		inst, lac, err := step()
+		ds := diag.Diagnostics(err)
+		if inst != nil || lac != nil || len(ds) != 1 || ds[0].Code != diag.E0240 {
+			t.Errorf("translating %s: %v, %v, %v; want E0240 alone", name, inst, lac, ds)
+		}
+	}
+	// Within the lineage, both steps still translate.
+	if _, _, err := first.AsSuccessor(); err != nil {
+		t.Errorf("0.0 to its successor: %v", diag.Diagnostics(err))
+	}
+	if _, _, err := latest.AsPredecessor(); err != nil {
+		t.Errorf("0.1 to its predecessor: %v", diag.Diagnostics(err))
+	}
 }

@@ -551,7 +551,22 @@ no lenses
   "additionalProperties": false,
   "properties": {
     "aComplexMap": {
-      "type": "object"
+      "type": "object",
+      "additionalProperties": true,
+      "patternProperties": {
+        "^b": {
+          "type": "boolean"
+        },
+        "^i": {
+          "type": "integer"
+        }
+      },
+      "properties": {
+        "foo": true
+      },
+      "required": [
+        "foo"
+      ]
     },
     "optValList": {
       "type": "object",

@@ -26,9 +26,6 @@ import (
 //
 // Assignability rules are specified here: https://github.com/sdboyer/thema/blob/main/docs/invariants.md#go-assignability
 func AssignableTo(sch Schema, T any) error {
-	rt := sch.Lineage().Runtime()
-	rt.rl()
-	defer rt.ru()
 	return assignable(sch.Underlying().LookupPath(pathSchDef), T)
 }
 
