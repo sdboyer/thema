@@ -21,7 +21,7 @@ const Generation = 2
 // holds the two together). Digests computed with any other CUE, as when a
 // module in the build requires a newer cuelang.org/go and minimal version
 // selection picks it, are uncertified.
-const CertifiedCUE = "v0.18.0-rc.1"
+const CertifiedCUE = "v0.18.0-rc.3"
 
 // linkedCUE returns the version of cuelang.org/go linked into the running
 // binary, following a replace directive, or "" when the build records none

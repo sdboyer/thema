@@ -596,8 +596,6 @@ func parentOf(p cue.Path) cue.Path {
 // closed returns the schema closed recursively, as Validate checks data
 // against it.
 func (sch *schemaDef) closed() cue.Value {
-	sch.rt().rl()
-	defer sch.rt().ru()
 	return cuetil.CloseRecursive(sch.rt().Context(), sch.def)
 }
 
