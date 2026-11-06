@@ -24,8 +24,12 @@ import (
 // the verdict docs/invariants.md gives, which the case records as #expect.
 // testdata/refs/README.md says how to add a case and how to read a failure.
 func TestRefs(t *testing.T) {
-	Corpus{Dir: "../../testdata/refs", Root: "../..", Suites: refSuites, Require: []string{"at"}, Check: checkAt}.Run(t)
+	Corpus{Dir: "../../testdata/refs", Root: "../..", Layout: refsLayout, Suites: refSuites, Check: checkAt}.Run(t)
 }
+
+// refsLayout is how the refs corpus is read: an archive is one case, and
+// says where the lineage goes (#at).
+var refsLayout = Layout{Require: []string{"at"}}
 
 // checkAt fails a case whose #at is not a field of package m without the
 // text. Such a case would bind the text alone, and test nothing about the use.
@@ -46,18 +50,18 @@ var refSuites = []Suite{
 		Name: "together",
 		Description: "text.cue is written into package m at #at, as a file of its own beside in.cue, and the package is loaded and looked up at #at. " +
 			"This is a lineage declared in a field of a loaded package, as cmd/thema -p, exemplars and testdata/cases bind it.",
-		Bind: func(t testing.TB, c *Case) error {
+		Run: func(t testing.TB, c *Case) (string, error) {
 			ctx := cuecontext.New()
-			return bindAt(ctx, loadUse(t, ctx, c, textAt(t, c)), at(c))
+			return "", bindAt(ctx, loadUse(t, ctx, c, textAt(t, c)), at(c))
 		},
 	},
 	{
 		Name: "compose",
 		Description: "text.cue is parsed on its own and composed into package m at #at with thema.Compose, and the package is loaded with the composed file beside in.cue. " +
 			"This is how a tool composes separately compiled lineages into the package that uses them (#272).",
-		Bind: func(t testing.TB, c *Case) error {
+		Run: func(t testing.TB, c *Case) (string, error) {
 			ctx := cuecontext.New()
-			return bindAt(ctx, loadUse(t, ctx, c, "", composedText(t, c)...), at(c))
+			return "", bindAt(ctx, loadUse(t, ctx, c, "", composedText(t, c)...), at(c))
 		},
 	},
 }
@@ -90,10 +94,11 @@ func TestRefsGoAssembly(t *testing.T) {
 		},
 	}
 	for _, path := range paths {
-		c, err := ReadCase(path)
+		a, err := ReadArchive(path, refsLayout)
 		if err != nil {
 			t.Fatal(err)
 		}
+		c := a.Cases[0]
 		if ok, _ := textCompilesAlone(c); !ok {
 			continue
 		}

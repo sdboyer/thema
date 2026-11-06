@@ -40,15 +40,15 @@ func fails(name string, codes ...diag.Code) Suite {
 	return Suite{
 		Name:        name,
 		Description: "a synthetic suite named " + name,
-		Bind: func(testing.TB, *Case) error {
+		Run: func(testing.TB, *Case) (string, error) {
 			var err cerrors.Error
 			for _, c := range codes {
 				err = cerrors.Append(err, diag.New(c).Headline("headline of "+string(c)).Err())
 			}
 			if err == nil {
-				return nil
+				return "", nil
 			}
-			return err
+			return "", err
 		},
 	}
 }
@@ -82,11 +82,37 @@ func writeNamedCase(t *testing.T, dir, name, comment string, files ...string) *C
 	if err := os.WriteFile(p, txtar.Format(ar), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	c, err := ReadCase(p)
+	return readArchive(t, p, Layout{}).Cases[0]
+}
+
+// writeArchive writes the archive <name>.txtar with the comment and files to
+// dir, and reads it back as the layout says.
+func writeArchive(t *testing.T, dir, name string, l Layout, comment string, files ...string) *Archive {
+	t.Helper()
+	ar := &txtar.Archive{Comment: []byte(comment)}
+	for i := 0; i+1 < len(files); i += 2 {
+		ar.Files = append(ar.Files, txtar.File{Name: files[i], Data: []byte(files[i+1])})
+	}
+	p := filepath.Join(dir, name+".txtar")
+	if err := os.WriteFile(p, txtar.Format(ar), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return readArchive(t, p, l)
+}
+
+func readArchive(t *testing.T, p string, l Layout) *Archive {
+	t.Helper()
+	a, err := ReadArchive(p, l)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return c
+	return a
+}
+
+// renderOf is the section s renders for a case it ignores.
+func renderOf(t testing.TB, s Suite) string {
+	out, err := s.Run(t, nil)
+	return Render(diag.OpBind, out, err)
 }
 
 // testDir is the directory the cell tests name; they write their cases
@@ -101,6 +127,15 @@ func runCell(t testing.TB, co Corpus, c *Case, s Suite, cases ...*Case) (string,
 	return co.start(cases).cell(t, c, s)
 }
 
+// sectionS is the section of suite s for an archive that is one case, and
+// inputA an input of an archive of inputs.
+const (
+	sectionS = "out/s/bind"
+	inputA   = "data/a.json"
+)
+
+const goldenOK = "verdict: ok\n"
+
 const goldenE0141 = "verdict: E0141\nE0141 headline of E0141 @ no position\n"
 
 // rendered stands for the golden section a suite renders, in the cell
@@ -108,7 +143,7 @@ const goldenE0141 = "verdict: E0141\nE0141 headline of E0141 @ no position\n"
 const rendered = "rendered"
 
 func TestCellStatus(t *testing.T) {
-	untracked := InstructionUntracked("s", "corpus/README.md")
+	untracked := InstructionUntracked("known/s", "corpus/README.md")
 	for _, tc := range []struct {
 		name  string
 		known bool
@@ -130,9 +165,9 @@ func TestCellStatus(t *testing.T) {
 		{name: "untracked-no-golden", suite: fails("s", diag.E0142), want: StatusRegressed, instruction: untracked},
 		{name: "xpass", known: true, suite: fails("s", diag.E0141), golden: rendered, want: StatusXPass},
 		{name: "known-moved", known: true, suite: fails("s", diag.E0140), golden: "verdict: E0142\n", want: StatusKnown,
-			instruction: InstructionKnownMoved("s", "E0142", "E0140")},
+			instruction: InstructionKnownMoved("known/s", "E0142", "E0140")},
 		{name: "known-accepts-regression", known: true, suite: fails("s", diag.E0140), golden: goldenE0141, want: StatusKnown,
-			instruction: InstructionKnownMoved("s", "E0141", "E0140")},
+			instruction: InstructionKnownMoved("known/s", "E0141", "E0140")},
 		{name: "now-passes", suite: fails("s", diag.E0141), golden: "verdict: E0142\n", want: StatusPass,
 			instruction: InstructionNowPasses("E0142")},
 		{name: "not-applicable", suite: notApplicable(fails("s", diag.E0141)), want: StatusNotApplicable},
@@ -146,16 +181,16 @@ func TestCellStatus(t *testing.T) {
 			switch tc.golden {
 			case "":
 			case rendered:
-				files = []string{"out/s/bind", Render(tc.suite.Bind(t, nil))}
+				files = []string{sectionS, renderOf(t, tc.suite)}
 			default:
-				files = []string{"out/s/bind", tc.golden}
+				files = []string{sectionS, tc.golden}
 			}
 			c := writeCase(t, t.TempDir(), comment, files...)
 			co := Corpus{Dir: testDir, Suites: []Suite{tc.suite}}
 
 			r := &recorder{TB: t}
 			sec, _ := runCell(r, co, c, tc.suite)
-			_, v, _ := sectionVerdict(Render(tc.suite.Bind(t, nil)))
+			_, v, _ := sectionVerdict(renderOf(t, tc.suite))
 			if got := statusOf(c, "s", v); tc.suite.Applies == nil && got != tc.want {
 				t.Errorf("status = %s, want %s", got, tc.want)
 			}
@@ -168,7 +203,7 @@ func TestCellStatus(t *testing.T) {
 				t.Errorf("CellStatus = %s, want %s", got, tc.want)
 			}
 			if tc.want == StatusXPass {
-				tc.instruction = InstructionXPass("s", c.Path, 264, nil)
+				tc.instruction = InstructionXPass("known/s", c.Path, 264, nil)
 			}
 			switch {
 			case tc.instruction == "" && len(r.errs) > 0:
@@ -176,13 +211,13 @@ func TestCellStatus(t *testing.T) {
 			case tc.instruction != "" && (len(r.errs) != 1 || !strings.Contains(r.errs[0], tc.instruction)):
 				t.Errorf("want one failure ending in %q, got %q", tc.instruction, r.errs)
 			}
-			if want := Render(tc.suite.Bind(t, nil)); tc.suite.Applies == nil && sec != want {
+			if want := renderOf(t, tc.suite); tc.suite.Applies == nil && sec != want {
 				t.Errorf("the cell returned %q, want what it rendered, %q", sec, want)
 			}
 			// What an update writes for the cell reads back with the cell's
 			// status, so a regression stays visible to the report.
 			if tc.suite.Applies == nil {
-				rewritten := writeCase(t, t.TempDir(), comment, "out/s/bind", sec)
+				rewritten := writeCase(t, t.TempDir(), comment, sectionS, sec)
 				if got := CellStatus(rewritten, "s"); got != tc.want {
 					t.Errorf("after an update, CellStatus = %s, want %s", got, tc.want)
 				}
@@ -206,13 +241,13 @@ func TestKnownMovedOnUpdate(t *testing.T) {
 	t.Cleanup(func() { envvars.UpdateGoldenFiles = update })
 
 	s := fails("s", diag.E0140)
-	c := writeCase(t, t.TempDir(), header+"#known/s: #264 a reason.\n", "out/s/bind", "verdict: E0142\n")
+	c := writeCase(t, t.TempDir(), header+"#known/s: #264 a reason.\n", sectionS, "verdict: E0142\n")
 	r := &recorder{TB: t}
 	sec, _ := runCell(r, Corpus{Dir: testDir, Suites: []Suite{s}}, c, s)
-	if sec != Render(s.Bind(t, nil)) {
+	if sec != renderOf(t, s) {
 		t.Errorf("the section is not rewritten: %q", sec)
 	}
-	if want := InstructionKnownMoved("s", "E0142", "E0140"); len(r.errs) != 1 || !strings.Contains(r.errs[0], want) {
+	if want := InstructionKnownMoved("known/s", "E0142", "E0140"); len(r.errs) != 1 || !strings.Contains(r.errs[0], want) {
 		t.Errorf("want one failure ending in %q, got %q", want, r.errs)
 	}
 }
@@ -259,10 +294,10 @@ func TestXPassOthers(t *testing.T) {
 	s, k := fails("s", diag.E0141), fails("k", diag.E0142)
 	dir := t.TempDir()
 	other := writeNamedCase(t, dir, "other", header+"#known/k: #264 a reason.\n#known/s: #264 a reason.\n")
-	c := writeCase(t, dir, header+"#known/s: #264 a reason.\n#known/k: #264 a reason.\n#known/x: #12 another issue.\n", "out/s/bind", goldenE0141)
+	c := writeCase(t, dir, header+"#known/s: #264 a reason.\n#known/k: #264 a reason.\n#known/x: #12 another issue.\n", sectionS, goldenE0141)
 	r := &recorder{TB: t}
 	runCell(r, Corpus{Dir: testDir, Suites: []Suite{s, k}}, c, s, c, other)
-	want := InstructionXPass("s", c.Path, 264, []string{"c/k", "other/k", "other/s"})
+	want := InstructionXPass("known/s", c.Path, 264, []string{"c/k", "other/k", "other/s"})
 	if !strings.Contains(want, "#264 also tracks c/k, other/k, other/s, so leave it open") {
 		t.Errorf("the instruction does not name the other cells: %s", want)
 	}
@@ -337,7 +372,7 @@ func TestCellStatusFromArchive(t *testing.T) {
 		{name: "undeclared-code", golden: "verdict: E9999\n", want: StatusRegressed},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			c := writeCase(t, t.TempDir(), header+tc.known, SectionFile("s"), tc.golden)
+			c := writeCase(t, t.TempDir(), header+tc.known, sectionS, tc.golden)
 			if got := CellStatus(c, "s"); got != tc.want {
 				t.Errorf("CellStatus = %s, want %s", got, tc.want)
 			}
@@ -345,7 +380,7 @@ func TestCellStatusFromArchive(t *testing.T) {
 	}
 	// An #expect that could not be read agrees with nothing, not even a
 	// verdict line that could not be read either.
-	c := writeCase(t, t.TempDir(), "#description: d\n#expect: E0141 ok\n#spec: docs/invariants.md:1\n", SectionFile("s"), "verdict: E0141 ok\n")
+	c := writeCase(t, t.TempDir(), "#description: d\n#expect: E0141 ok\n#spec: docs/invariants.md:1\n", sectionS, "verdict: E0141 ok\n")
 	if got := CellStatus(c, "s"); got != StatusRegressed {
 		t.Errorf("CellStatus = %s, want regressed", got)
 	}
@@ -353,7 +388,7 @@ func TestCellStatusFromArchive(t *testing.T) {
 
 func TestFailureMessage(t *testing.T) {
 	c := writeCase(t, t.TempDir(), header+"#known/s: #264 a reason naming the mechanism.\n",
-		"out/s/bind", "verdict: E0142\nE0142 an older headline @ no position\n")
+		sectionS, "verdict: E0142\nE0142 an older headline @ no position\n")
 	s := fails("s", diag.E0142)
 	r := &recorder{TB: t}
 	runCell(r, Corpus{Dir: testDir, Suites: []Suite{s}}, c, s)
@@ -375,7 +410,7 @@ How to read this corpus: corpus/README.md
 }
 
 func TestRenderingChanged(t *testing.T) {
-	c := writeCase(t, t.TempDir(), header, "out/s/bind", "verdict: E0141\nE0141 an older headline @ no position\n")
+	c := writeCase(t, t.TempDir(), header, sectionS, "verdict: E0141\nE0141 an older headline @ no position\n")
 	s := fails("s", diag.E0141)
 	r := &recorder{TB: t}
 	runCell(r, Corpus{Dir: testDir, Suites: []Suite{s}}, c, s)
@@ -400,22 +435,22 @@ func TestInstructions(t *testing.T) {
 		instructionRegressed: "This is a regression: the golden section records this suite giving #expect, and it no longer does. " +
 			"Do not add a #known tag to make it pass. THEMA_UPDATE_GOLDEN=1 records what the suite gives now, and the cell keeps failing until the suite agrees again. " +
 			"If you believe #expect is wrong, it comes from the spec cited above: open an issue citing those lines instead of changing it.",
-		InstructionUntracked("fill-text", "testdata/refs/README.md"): "This suite disagrees with #expect, no golden section records it agreeing, and no #known tag tracks the disagreement. " +
+		InstructionUntracked("known/fill-text", "testdata/refs/README.md"): "This suite disagrees with #expect, no golden section records it agreeing, and no #known tag tracks the disagreement. " +
 			"If the case is new, this is step 5 of \"Adding a case\" in testdata/refs/README.md: find the issue that covers the mechanism and add " +
 			"'#known/fill-text: #<issue> <one sentence naming the mechanism>', or, if no issue covers it, open one citing the #spec lines. " +
 			"If git shows the section agreeing with #expect before your change, your change broke it: fix the code instead of tagging the cell.",
-		InstructionXPass("fill-text", "testdata/refs/c.txtar", 260, nil): "This suite now gives the verdict the spec expects: your change fixed it. " +
+		InstructionXPass("known/fill-text", "testdata/refs/c.txtar", 260, nil): "This suite now gives the verdict the spec expects: your change fixed it. " +
 			"Remove the '#known/fill-text' line from testdata/refs/c.txtar, run with THEMA_UPDATE_GOLDEN=1 to rewrite the section, and mention issue #260 in your commit. " +
 			"No other cell of this corpus carries #260, so it can be closed unless it tracks more than this corpus.",
-		InstructionXPass("fill-text", "testdata/refs/c.txtar", 260, []string{"c/fill-text-named"}): "This suite now gives the verdict the spec expects: your change fixed it. " +
+		InstructionXPass("known/fill-text", "testdata/refs/c.txtar", 260, []string{"c/fill-text-named"}): "This suite now gives the verdict the spec expects: your change fixed it. " +
 			"Remove the '#known/fill-text' line from testdata/refs/c.txtar, run with THEMA_UPDATE_GOLDEN=1 to rewrite the section, and mention issue #260 in your commit. " +
 			"#260 also tracks c/fill-text-named, so leave it open until those pass too.",
-		InstructionKnownMoved("fill-use", "E0126", "E0141"): "This suite's verdict changed from E0126 (the golden section) to E0141. " +
+		InstructionKnownMoved("known/fill-use", "E0126", "E0141"): "This suite's verdict changed from E0126 (the golden section) to E0141. " +
 			"The #known tag accepts any verdict but #expect, so it may now name the wrong mechanism. " +
 			"Check that #known/fill-use explains E0141, or whether this is a different bug; update the tag, then run with THEMA_UPDATE_GOLDEN=1, only once it does.",
 		InstructionNowPasses("E0141"): "This suite now gives #expect; the golden section records E0141. " +
 			"If your change fixed this cell and you removed its #known tag, run with THEMA_UPDATE_GOLDEN=1 to rewrite the section.",
-		instructionRendering: "The verdict is unchanged, but what bind reports changed (codes, headlines or positions). " +
+		instructionRendering: "The verdict is unchanged, but what the suite reports changed (codes, headlines, positions or what it produced). " +
 			"Review the diff below; if it is intended, run with THEMA_UPDATE_GOLDEN=1.",
 	} {
 		if got != want {
@@ -426,7 +461,7 @@ func TestInstructions(t *testing.T) {
 
 func TestValidation(t *testing.T) {
 	applies, never := fails("s", diag.E0141), notApplicable(fails("n", diag.E0141))
-	co := Corpus{Dir: testDir, Suites: []Suite{applies, never}, Require: []string{"at"}}
+	co := Corpus{Dir: testDir, Layout: Layout{Require: []string{"at"}}, Suites: []Suite{applies, never}}
 	for _, tc := range []struct {
 		name string
 		// caseName names the archive, c when empty.
@@ -499,7 +534,7 @@ func TestValidation(t *testing.T) {
 		{
 			name:    "section-repeated",
 			comment: header + "#at: lin\n",
-			files:   []string{SectionFile("s"), goldenE0141, SectionFile("s"), "verdict: ok\n"},
+			files:   []string{sectionS, goldenE0141, sectionS, goldenOK},
 			want:    "out/s/bind appears more than once; only the first is compared",
 		},
 		{
@@ -528,13 +563,13 @@ func TestValidation(t *testing.T) {
 		{
 			name:    "section-no-verdict-line",
 			comment: header + "#at: lin\n",
-			files:   []string{SectionFile("s"), "E0141 headline of E0141 @ no position\n"},
+			files:   []string{sectionS, "E0141 headline of E0141 @ no position\n"},
 			want:    `out/s/bind: the first line is not "verdict: " followed by the verdict`,
 		},
 		{
 			name:    "section-verdict-unsorted",
 			comment: header + "#at: lin\n",
-			files:   []string{SectionFile("s"), "verdict: E0141 E0140\n"},
+			files:   []string{sectionS, "verdict: E0141 E0140\n"},
 			want:    `out/s/bind: verdict "E0141 E0140" is not sorted and de-duplicated ("E0140 E0141")`,
 		},
 	} {
@@ -543,12 +578,12 @@ func TestValidation(t *testing.T) {
 			if name == "" {
 				name = "c"
 			}
-			c := writeNamedCase(t, t.TempDir(), name, tc.comment, tc.files...)
+			a := writeArchive(t, t.TempDir(), name, co.Layout, tc.comment, tc.files...)
 			r := &recorder{TB: t}
 			if tc.cell.Name != "" {
-				runCell(r, co, c, tc.cell)
+				runCell(r, co, a.Cases[0], tc.cell)
 			} else {
-				co.start(nil).checkCase(r, c)
+				co.start(nil).checkArchive(r, a)
 			}
 			if len(r.errs) != 1 || !strings.Contains(r.errs[0], tc.want) {
 				t.Errorf("want one failure containing %q, got %q", tc.want, r.errs)
@@ -561,8 +596,8 @@ func TestRegistry(t *testing.T) {
 	msgs := checkRegistry([]Suite{
 		fails("ok"),
 		fails("ok"),
-		{Name: "Not_Kebab", Description: "d", Bind: fails("x").Bind},
-		{Name: "no-description", Bind: fails("x").Bind},
+		{Name: "Not_Kebab", Description: "d", Run: fails("x").Run},
+		{Name: "no-description", Run: fails("x").Run},
 	})
 	want := []string{
 		`suite "ok" is registered twice`,
@@ -586,7 +621,7 @@ func TestVerdict(t *testing.T) {
 		t.Error("ParseVerdict accepted a code that is not declared")
 	}
 
-	got := Render(fails("s", diag.E0141, diag.E0140, diag.E0141).Bind(t, nil))
+	got := renderOf(t, fails("s", diag.E0141, diag.E0140, diag.E0141))
 	want := "verdict: E0140 E0141\n" +
 		"E0140 headline of E0140 @ no position\n" +
 		"E0141 headline of E0141 @ no position\n" +
@@ -594,17 +629,21 @@ func TestVerdict(t *testing.T) {
 	if got != want {
 		t.Errorf("Render =\n%s\nwant\n%s", got, want)
 	}
-	if got := Render(nil); got != "verdict: ok\n" {
+	if got := Render(diag.OpBind, "", nil); got != goldenOK {
 		t.Errorf("Render(nil) = %q", got)
 	}
-	if got := Render(errors.New("not a diagnostic")); !strings.HasPrefix(got, "verdict: E0903\n") {
+	if got := Render(diag.OpValidate, "value: {}", nil); got != "verdict: ok\nvalue: {}\n" {
+		t.Errorf("Render with what the operation produced = %q", got)
+	}
+	if got := Render(diag.OpBind, "", errors.New("not a diagnostic")); !strings.HasPrefix(got, "verdict: E0903\n") {
 		t.Errorf("an error that is not a diagnostic is rendered as one with no code; got %q", got)
 	}
 }
 
-func TestBindPanics(t *testing.T) {
-	s := Suite{Name: "p", Description: "d", Bind: func(testing.TB, *Case) error { panic("boom") }}
-	if got := Render(bind(t, s, nil)); !strings.HasPrefix(got, "verdict: E0901\n") {
+func TestSuitePanics(t *testing.T) {
+	s := Suite{Name: "p", Description: "d", Run: func(testing.TB, *Case) (string, error) { panic("boom") }}
+	out, err := runSuite(t, s, nil)
+	if got := Render(diag.OpBind, out, err); !strings.HasPrefix(got, "verdict: E0901\n") {
 		t.Errorf("a panicking suite's verdict is E0901; got %q", got)
 	}
 }
@@ -622,15 +661,12 @@ func TestUpdate(t *testing.T) {
 	comment := header + "#known/k: #264 a reason naming the mechanism.\n\nFree prose stays too.\n"
 	c := writeCase(t, dir, comment,
 		"in.cue", "lin: _\n",
-		"out/s/bind", "verdict: E0141\nE0141 an older headline @ no position\n",
+		sectionS, "verdict: E0141\nE0141 an older headline @ no position\n",
 		"out/gone/bind", goldenE0141)
 	co := Corpus{Dir: dir, Suites: []Suite{fails("s", diag.E0141), fails("k", diag.E0142)}}
 	t.Run("run", co.Run)
 
-	updated, err := ReadCase(c.Path)
-	if err != nil {
-		t.Fatal(err)
-	}
+	updated := readArchive(t, c.Path, Layout{})
 	ar := updated.ar.Ar
 	if string(ar.Comment) != comment {
 		t.Errorf("the comment changed:\n%s", ar.Comment)
@@ -642,10 +678,201 @@ func TestUpdate(t *testing.T) {
 	if got, want := strings.Join(names, " "), "in.cue out/k/bind out/s/bind"; got != want {
 		t.Errorf("files are %s, want %s", got, want)
 	}
-	if got, _ := updated.File("out/s/bind"); got != goldenE0141 {
+	if got, _ := updated.Cases[0].File(sectionS); got != goldenE0141 {
 		t.Errorf("out/s/bind was not rewritten: %q", got)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "suites.json")); err != nil {
 		t.Errorf("suites.json was not written: %v", err)
+	}
+}
+
+// byInput is a suite of a corpus of inputs: it accepts an input whose file
+// holds "ok", producing a value, and refuses any other with the codes the
+// file holds.
+var byInput = Suite{
+	Name:        "s",
+	Description: "a synthetic suite that reads its verdict from the input",
+	Run: func(t testing.TB, c *Case) (string, error) {
+		data, ok := c.File(c.InputFile)
+		if !ok {
+			t.Fatalf("case %s has no input file %s", c.Name, c.InputFile)
+		}
+		if strings.TrimSpace(data) == "ok" {
+			return "value: " + c.Input, nil
+		}
+		var err cerrors.Error
+		for _, code := range strings.Fields(data) {
+			err = cerrors.Append(err, diag.New(diag.Code(code)).Headline("headline of "+code).Err())
+		}
+		return "", err
+	},
+}
+
+var inputsLayout = Layout{Inputs: "data/*.json"}
+
+// TestInputs checks that a corpus of inputs runs each input of an archive as
+// a case of its own, under its own directives, and that an update writes one
+// section for each input and suite.
+func TestInputs(t *testing.T) {
+	update := envvars.UpdateGoldenFiles
+	t.Cleanup(func() { envvars.UpdateGoldenFiles = update })
+
+	dir := t.TempDir()
+	comment := "#description: Inputs of one schema.\n#spec: docs/invariants.md:1\n" +
+		"#expect/fine: ok\n#expect/broken: E0504\n#description/broken: An input out of bounds.\n"
+	a := writeArchive(t, dir, "c", inputsLayout, comment,
+		"in.cue", "lin: _\n",
+		"data/fine.json", "ok\n",
+		"data/broken.json", "E0504\n",
+		"notes.md", "not an input\n")
+	if got := len(a.Cases); got != 2 {
+		t.Fatalf("%d cases, want one for each of the two inputs", got)
+	}
+	fine, broken := a.Cases[0], a.Cases[1]
+	if fine.Name != "c/fine" || fine.Input != "fine" || fine.InputFile != "data/fine.json" {
+		t.Errorf("first case is %s (input %s in %s), want c/fine from data/fine.json", fine.Name, fine.Input, fine.InputFile)
+	}
+	if fine.Description != "Inputs of one schema." || broken.Description != "An input out of bounds." {
+		t.Errorf("descriptions %q and %q: an input's own #description/<input> overrides the archive's", fine.Description, broken.Description)
+	}
+	if fine.Expect != VerdictOK || broken.Expect != "E0504" {
+		t.Errorf("verdicts %s and %s, want ok and E0504", fine.Expect, broken.Expect)
+	}
+	if got := fine.SectionFile("s"); got != "out/s/fine" {
+		t.Errorf("an input's section is %s, want out/s/fine", got)
+	}
+
+	co := Corpus{Dir: dir, Layout: inputsLayout, Op: diag.OpValidate, Suites: []Suite{byInput}}
+	envvars.UpdateGoldenFiles = true
+	t.Run("update", co.Run)
+	updated := readArchive(t, a.Path, inputsLayout)
+	for file, want := range map[string]string{
+		"out/s/fine":   "verdict: ok\nvalue: fine\n",
+		"out/s/broken": "verdict: E0504\nE0504 headline of E0504 @ no position\n",
+	} {
+		if got, _ := updated.Cases[0].File(file); got != want {
+			t.Errorf("%s is %q, want %q", file, got, want)
+		}
+	}
+	if string(updated.ar.Ar.Comment) != comment {
+		t.Errorf("the comment changed:\n%s", updated.ar.Ar.Comment)
+	}
+
+	envvars.UpdateGoldenFiles = false
+	r := &recorder{TB: t}
+	for _, c := range updated.Cases {
+		runCell(r, co, c, byInput, updated.Cases...)
+	}
+	if len(r.errs) > 0 {
+		t.Errorf("cells fail after the update: %q", r.errs)
+	}
+	if d, s := updated.Problems([]string{"s"}); len(d)+len(s) > 0 {
+		t.Errorf("problems after the update: %q %q", d, s)
+	}
+}
+
+// TestInputKnown checks that a #known tag for a suite applies to every input
+// of an archive, and that #known/<suite>/<input> applies to the one input,
+// overriding it.
+func TestInputKnown(t *testing.T) {
+	comment := "#description: d\n#spec: docs/invariants.md:1\n#expect: E0141\n" +
+		"#known/s: #264 every input.\n#known/s/two: #12 this input.\n"
+	a := writeArchive(t, t.TempDir(), "c", inputsLayout, comment,
+		"data/one.json", "ok\n", "data/two.json", "ok\n", "data/three.json", "ok\n")
+	for _, c := range a.Cases {
+		want, key := Known{Issue: 264, Reason: "every input."}, "known/s"
+		if c.Input == "two" {
+			want, key = Known{Issue: 12, Reason: "this input."}, "known/s/two"
+		}
+		if got := c.Known["s"]; got != want {
+			t.Errorf("%s: tag %+v, want %+v", c.Name, got, want)
+		}
+		if got := c.KnownKey("s"); got != key {
+			t.Errorf("%s: tag key %s, want %s", c.Name, got, key)
+		}
+		if got := c.KnownKey("other"); got != "known/other/"+c.Input {
+			t.Errorf("%s: an input with no tag for a suite would be tagged %s, want known/other/%s", c.Name, got, c.Input)
+		}
+	}
+	// The untracked instruction for an input names the input's own tag.
+	r := &recorder{TB: t}
+	runCell(r, Corpus{Dir: testDir, Layout: inputsLayout}, a.Cases[0], fails("u", diag.E0140), a.Cases...)
+	if want := "'#known/u/" + a.Cases[0].Input + ": #<issue>"; len(r.errs) != 1 || !strings.Contains(r.errs[0], want) {
+		t.Errorf("want one failure containing %q, got %q", want, r.errs)
+	}
+}
+
+func TestInputValidation(t *testing.T) {
+	const head = "#description: d\n#spec: docs/invariants.md:1\n"
+	for _, tc := range []struct {
+		name    string
+		layout  Layout
+		comment string
+		files   []string
+		want    string
+	}{
+		{
+			name:    "expect-missing-for-input",
+			layout:  inputsLayout,
+			comment: head + "#expect/a: ok\n",
+			files:   []string{inputA, "ok", "data/b.json", "ok"},
+			want:    "the required directive #expect is missing for input b; write #expect/b, or #expect for every input",
+		},
+		{
+			name:    "directive-names-no-input",
+			layout:  inputsLayout,
+			comment: head + "#expect: ok\n#expect/gone: E0504\n",
+			files:   []string{inputA, "ok"},
+			want:    "#expect/gone names gone, which is not an input of the archive",
+		},
+		{
+			name:    "known-names-no-input",
+			layout:  inputsLayout,
+			comment: head + "#expect: ok\n#known/s/gone: #264 a reason.\n",
+			files:   []string{inputA, "ok"},
+			want:    "#known/s/gone names gone, which is not an input of the archive",
+		},
+		{
+			name:    "no-inputs",
+			layout:  inputsLayout,
+			comment: head + "#expect: ok\n",
+			files:   []string{"in.cue", "lin: _\n"},
+			want:    "the archive has no input: no file matches data/*.json",
+		},
+		{
+			name:    "input-not-kebab",
+			layout:  inputsLayout,
+			comment: head + "#expect: ok\n",
+			files:   []string{"data/Bad_Input.json", "ok"},
+			want:    `the input's name "Bad_Input" (data/Bad_Input.json) is not kebab-case`,
+		},
+		{
+			name:    "inputs-same-name",
+			layout:  Layout{Inputs: "data/*"},
+			comment: head + "#expect: ok\n",
+			files:   []string{inputA, "ok", "data/a.yaml", "ok"},
+			want:    "the inputs data/a.json and data/a.yaml have the same name, a; rename one",
+		},
+		{
+			name:    "input-section-not-written",
+			layout:  inputsLayout,
+			comment: head + "#expect: ok\n",
+			files:   []string{inputA, "ok", sectionS, goldenOK},
+			want:    "out/s/bind is not a section the corpus writes; a suite's sections are out/s/<input>, one for each input",
+		},
+		{
+			name:    "input-directive-without-inputs",
+			comment: head + "#expect: ok\n#expect/a: E0504\n",
+			want:    "#expect/a names an input, but the cases of this corpus have none; write #expect",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			a := writeArchive(t, t.TempDir(), "c", tc.layout, tc.comment, tc.files...)
+			r := &recorder{TB: t}
+			Corpus{Dir: testDir, Layout: tc.layout, Suites: []Suite{byInput}}.start(nil).checkArchive(r, a)
+			if len(r.errs) != 1 || !strings.Contains(r.errs[0], tc.want) {
+				t.Errorf("want one failure containing %q, got %q", tc.want, r.errs)
+			}
+		})
 	}
 }
