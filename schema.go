@@ -77,9 +77,6 @@ func (sch *schemaDef) rt() *Runtime {
 // incomplete CUE values with Thema schemas, prefer working directly in CUE,
 // or if you must, rely on Underlying().
 func (sch *schemaDef) Validate(data cue.Value) (*Instance, error) {
-	sch.rt().rl()
-	defer sch.rt().ru()
-
 	// Schemas are only as closed as their authors wrote them; validation rejects
 	// fields the schema does not define by closing it here.
 	x := cuetil.CloseRecursive(sch.rt().Context(), sch.def).Unify(data)
@@ -288,12 +285,9 @@ func BindType[T Assignee](sch Schema, t T) (TypedSchema[T], error) {
 	// general Go types CUE can decode onto, there may be some opportunity for a
 	// specialized implementation to improve performance - but we'll attempt that
 	// iff performance is actually shown to be a problem.
-	rt := getLinLib(sch.Lineage())
 	tsch.newfn = func() T {
 		nt := new(T)
-		rt.rl()
 		sch.Underlying().LookupPath(pathSchDef).Decode(nt) //nolint:gosec,errcheck
-		rt.ru()
 		return *nt
 	}
 

@@ -58,14 +58,13 @@ func loadRuntime() *build.Instance {
 //
 // Each Thema Runtime is bound to a single cue.Context, determined by the parameter
 // passed to [NewRuntime].
+//
+// A Runtime, and the lineages, schemas and instances made with it, are safe
+// for concurrent use, as cue.Value is.
 type Runtime struct {
 	// Value corresponds to loading the whole github.com/sdboyer/thema:thema
 	// package.
 	val cue.Value
-
-	// Until CUE is safe for certain concurrent operations, keep a mutex to
-	// help guard...at least somewhat.
-	mut sync.RWMutex
 }
 
 // NewRuntime parses, loads and builds a full CUE instance/value representing
@@ -87,24 +86,6 @@ func NewRuntime(ctx *cue.Context) *Runtime {
 	}
 }
 
-func (rt *Runtime) rl() {
-	rt.mut.RLock()
-	// rt.mut.Lock()
-}
-
-func (rt *Runtime) ru() {
-	rt.mut.RUnlock()
-	// rt.mut.Unlock()
-}
-
-func (rt *Runtime) l() {
-	rt.mut.Lock()
-}
-
-func (rt *Runtime) u() {
-	rt.mut.Unlock()
-}
-
 // Underlying returns the underlying cue.Value representing the whole Thema CUE
 // library (github.com/sdboyer/thema).
 func (rt *Runtime) Underlying() cue.Value {
@@ -117,8 +98,6 @@ func (rt *Runtime) Context() *cue.Context {
 }
 
 // Return the Lineage definition (or panic)
-//
-// SURROUND CALLS TO THIS IN rl()/ru()
 func (rt *Runtime) linDef() cue.Value {
 	dlin := rt.val.LookupPath(cue.MakePath(cue.Str("Lineage")))
 	return dlin
@@ -127,9 +106,6 @@ func (rt *Runtime) linDef() cue.Value {
 type cueArgs map[string]interface{}
 
 func (ca cueArgs) make(path string, rt *Runtime) (cue.Value, error) {
-	rt.l()
-	defer rt.u()
-
 	var cpath cue.Path
 	if path[0] == '_' {
 		cpath = cue.MakePath(cue.Hid(path, util.ThemaPackageID))
@@ -176,10 +152,7 @@ func (ca cueArgs) call(path string, rt *Runtime) (cue.Value, error) {
 	if err != nil {
 		return cue.Value{}, err
 	}
-	rt.rl()
-	rv := v.LookupPath(outpath)
-	rt.ru()
-	return rv, nil
+	return v.LookupPath(outpath), nil
 }
 
 type errInvalidCUEFuncArg struct {
