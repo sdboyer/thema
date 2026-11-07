@@ -6,6 +6,7 @@ import (
 	"github.com/sdboyer/thema"
 
 	"github.com/sdboyer/thema/internal/corpus/datatypes/defaults"
+	"github.com/sdboyer/thema/internal/corpus/datatypes/open"
 	"github.com/sdboyer/thema/internal/corpus/datatypes/order"
 )
 
@@ -13,5 +14,6 @@ import (
 // corpus to its schema, by the archive's package name.
 var Registry = map[string]func(thema.Schema) (Typed, error){
 	"defaults": Bind[defaults.Defaults],
+	"open":     Bind[open.Open],
 	"order":    Bind[order.Order],
 }

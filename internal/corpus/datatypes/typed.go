@@ -7,9 +7,8 @@
 package datatypes
 
 import (
-	"encoding/json"
-
 	"cuelang.org/go/cue"
+	"github.com/go-json-experiment/json"
 
 	"github.com/sdboyer/thema"
 )
@@ -19,7 +18,9 @@ import (
 type Typed struct {
 	// Value validates data with ValidateTyped, and returns what Value gives.
 	Value func(data cue.Value) (any, error)
-	// FromJSON decodes JSON onto a new value of the type, with encoding/json.
+	// FromJSON decodes JSON onto a new value of the type, with
+	// go-json-experiment, which gives each Go field exactly the name its tag
+	// gives it, never one that differs only by case.
 	FromJSON func(b []byte) (any, error)
 }
 

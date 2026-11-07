@@ -7,9 +7,13 @@ type Defaults struct {
 	// Default: 3
 	Priority int64 `json:"priority"`
 
+	// Default: 3
+	Due int64 `json:"due"`
+
 	Shipping DefaultsShipping               `json:"shipping"`
 	Items    []DefaultsItemsItem            `json:"items"`
 	Labels   map[string]DefaultsLabelsValue `json:"labels,omitzero"`
+	Gift     *DefaultsGift                  `json:"gift,omitzero"`
 }
 
 type DefaultsShipping struct {
@@ -35,3 +39,15 @@ type DefaultsLabelsValue struct {
 	// Default: 1
 	Weight int64 `json:"weight"`
 }
+
+type DefaultsGift struct {
+	// Default: "paper"
+	Wrap DefaultsGiftWrap `json:"wrap"`
+}
+
+type DefaultsGiftWrap string
+
+const (
+	DefaultsGiftWrapPaper DefaultsGiftWrap = "paper"
+	DefaultsGiftWrapBox   DefaultsGiftWrap = "box"
+)

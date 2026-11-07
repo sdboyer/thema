@@ -46,11 +46,11 @@ Validation decides what can reach a translation at all. It closes the schema, bu
 | A3 | An undeclared field under `close()` or a definition | Invalid. | yes |
 | A4 | A field matching a pattern constraint (`[string]: T`) | Valid when its value is an instance of `T`. It is undeclared data, carried like data under `...` ([C](#undeclared-data)). A lens never reads or writes a specific key under a pattern: it copies the map only whole (`labels: v0_0.labels`, since `labels` is named). To use a key, the author first declares an optional field for carried values to land in ([C2](#undeclared-data)), then maps from that field in a later version. | yes |
 | A5 | A value its field constrains: a kind, a bound, a pattern, a validator such as `strings.MaxRunes`, or a disjunction of values | Valid when it meets every constraint on the field, as CUE evaluates them. | yes |
-| A6 | A field absent from the instance | Valid when the field is optional or defaulted, and invalid when it is required ([field forms](invariants.md#field-forms)). A defaulted field is filled: every program reading the instance sees the default, wherever the field is, in a list element or a map value too. | [#295](https://github.com/sdboyer/thema/pull/295) |
+| A6 | A field absent from the instance | Valid when the field is optional or defaulted, and invalid when it is required ([field forms](invariants.md#field-forms)). A defaulted field is filled: every program reading the instance sees the default, wherever the field is, in a list element, a map value or an optional struct the instance holds too, and a default that refers to another field takes that field's value in the instance. | [#295](https://github.com/sdboyer/thema/pull/295) |
 | A7 | A JSON number with a fraction or an exponent, such as `1.5`, `1.0` or `1e2` | A float, never an int: invalid for a field that only an `int` satisfies, even when its value is integral. | yes |
 | A8 | A JSON string with an escape that is not a character, such as an unpaired surrogate (`"\ud800"`) | Invalid: it is not a string. | yes |
 
-- A6: on main, `TypedInstance.Value` fills a default in a field of a struct, but not one in a list element or a map value ([#295](https://github.com/sdboyer/thema/pull/295)).
+- A6: on main, `TypedInstance.Value` fills a default only where the schema alone has a place for it: not in a list element, a map value or an optional struct the instance holds, and a default that refers to another field takes the value that field has in the schema alone, not in the instance ([#295](https://github.com/sdboyer/thema/pull/295)).
 
 ## Fields the source declares
 

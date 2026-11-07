@@ -13,6 +13,8 @@
 #expect/empty-name: E0504
 #expect/name-over-100-runes: E0504
 #expect/name-of-100-runes: ok
+#expect/at-upper-bounds: ok
+#expect/priority-zero: ok
 #expect/email-off-pattern: E0504
 #expect/quantity-below-1: E0504
 #expect/quantity-over-1000: E0504
@@ -40,6 +42,8 @@
 #spec/empty-name: docs/translation.md:48
 #spec/name-over-100-runes: docs/translation.md:48
 #spec/name-of-100-runes: docs/translation.md:48
+#spec/at-upper-bounds: docs/translation.md:48
+#spec/priority-zero: docs/translation.md:48
 #spec/email-off-pattern: docs/translation.md:48
 #spec/quantity-below-1: docs/translation.md:48
 #spec/quantity-over-1000: docs/translation.md:48
@@ -98,6 +102,10 @@ Schema: {
 {"id":"ord_7k2m9x4q","customer":{"name":"ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
 -- data/name-of-100-runes.json --
 {"id":"ord_7k2m9x4q","customer":{"name":"éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
+-- data/at-upper-bounds.json --
+{"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1000,"priceCents":100000000}],"note":"leave at the door","priority":10}
+-- data/priority-zero.json --
+{"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":0}
 -- data/email-off-pattern.json --
 {"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
 -- data/quantity-below-1.json --
@@ -128,6 +136,9 @@ Schema: {
 {"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave \ud800 at the door","priority":3}
 -- data/note-with-surrogate-pair.json --
 {"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave \ud83d\udce6 at the door","priority":3}
+-- out/cue/at-upper-bounds --
+verdict: ok
+value: {"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1000,"priceCents":100000000}],"note":"leave at the door","priority":10}
 -- out/cue/customer-missing-email --
 verdict: E0501
 E0501 the data lacks customer.email, which schema 0.0 declares as =~"^[^@]+@[^@]+$" @ data/customer-missing-email.json:1:1
@@ -173,6 +184,9 @@ E0902 CUE reported an error thema does not recognize @ data/note-with-unpaired-s
 -- out/cue/priority-over-10 --
 verdict: E0504
 E0504 priority in the data is 11, outside the bound <=10 that schema 0.0 sets @ data/priority-over-10.json:1:207
+-- out/cue/priority-zero --
+verdict: ok
+value: {"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":0}
 -- out/cue/quantity-below-1 --
 verdict: E0504
 E0504 items.0.quantity in the data is 0, outside the bound >=1 that schema 0.0 sets @ data/quantity-below-1.json:1:150
