@@ -14,6 +14,7 @@ type Defaults struct {
 	Items    []DefaultsItemsItem            `json:"items"`
 	Labels   map[string]DefaultsLabelsValue `json:"labels,omitzero"`
 	Gift     *DefaultsGift                  `json:"gift,omitzero"`
+	Pickup   any                            `json:"pickup,omitzero"` // CUE disjunction of structs
 }
 
 type DefaultsShipping struct {

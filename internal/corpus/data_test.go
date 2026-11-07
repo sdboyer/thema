@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"go/format"
 	"go/token"
+	"go/types"
 	"io/fs"
 	"maps"
 	"path"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -25,6 +27,7 @@ import (
 	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/encoding/gocode"
 	"github.com/sdboyer/thema/internal/corpus/datatypes"
+	"github.com/sdboyer/thema/internal/cuetil"
 	"github.com/sdboyer/thema/internal/diagtest"
 	"github.com/sdboyer/thema/internal/util"
 	"github.com/sdboyer/thema/load"
@@ -99,20 +102,21 @@ func notJSON(file string, err error) error {
 }
 
 // valueLine renders v, the Go value a suite produced from data, as the line
-// its section records, once it is checked against the instance: CUE's value
-// of data unified with the schema, every default filled, decoded onto a new
-// value of the type by name, exactly as each field's tag gives it. The two
-// are compared as JSON, so that a value the type holds as any compares by
-// what it is, not by the Go type a decoder chose for it. A Go value that
-// differs has lost or changed what the instance holds, of what the type has
-// a place for, and the suite's result is wrong ([Wrong]).
+// its section records, once it is checked against the reference value: the
+// instance, which is data unified with the schema closed as Validate closes
+// it, every default filled, decoded onto a new value of the type by name,
+// exactly as each field's tag gives it, and with each number the type holds
+// as any as [datatypes.Number] says. A Go value that differs has lost or
+// changed what the instance holds, of what the type has a place for, and the
+// suite's result is wrong ([Wrong]).
 func valueLine(t testing.TB, sch thema.Schema, data cue.Value, typed datatypes.Typed, v any) (string, error) {
 	t.Helper()
 	got, err := json.Marshal(v)
 	if err != nil {
 		t.Fatalf("the Go value does not marshal: %v", err)
 	}
-	inst, err := sch.Underlying().LookupPath(cue.MakePath(cue.Hid("_schema", util.ThemaPackageID))).Unify(data).MarshalJSON()
+	schema := sch.Underlying().LookupPath(cue.MakePath(cue.Hid("_schema", util.ThemaPackageID)))
+	inst, err := cuetil.CloseRecursive(cuecontext.New(), schema).Unify(data).MarshalJSON()
 	if err != nil {
 		t.Fatalf("the valid instance, with the schema's defaults, does not marshal: %v", err)
 	}
@@ -120,12 +124,12 @@ func valueLine(t testing.TB, sch thema.Schema, data cue.Value, typed datatypes.T
 	if err != nil {
 		t.Fatalf("the instance does not decode onto the Go type: %v", err)
 	}
-	want, err := json.Marshal(ref)
-	if err != nil {
-		t.Fatalf("the instance's Go value does not marshal: %v", err)
-	}
-	if string(got) != string(want) {
-		return "", &Wrong{Detail: fmt.Sprintf("the Go value is %s\nthe instance, decoded onto the type, is %s", got, want)}
+	if !reflect.DeepEqual(v, ref) {
+		want, err := json.Marshal(ref)
+		if err != nil {
+			t.Fatalf("the reference value does not marshal: %v", err)
+		}
+		return "", &Wrong{Detail: fmt.Sprintf("the Go value is %s\nthe reference value is %s", got, want)}
 	}
 	return "value: " + string(got), nil
 }
@@ -265,8 +269,8 @@ func generateDataTypes(p string, before []dataPackage) (dataPackage, map[string]
 	}
 	name := dataTypesPackage(a.Name)
 	switch {
-	case token.IsKeyword(name), name == "thema", name == "datatypes":
-		return dataPackage{}, nil, fmt.Errorf("its package would be %s, which is a Go keyword or a name the registry uses; rename the archive", name)
+	case !token.IsIdentifier(name), types.Universe.Lookup(name) != nil, name == "thema", name == "datatypes":
+		return dataPackage{}, nil, fmt.Errorf("its package would be %s, which is not an identifier, or is a Go keyword, a predeclared name or a name the registry uses; rename the archive", name)
 	case slices.ContainsFunc(before, func(o dataPackage) bool { return o.name == name }):
 		return dataPackage{}, nil, fmt.Errorf("its package would be %s, as another archive's is; rename one", name)
 	}

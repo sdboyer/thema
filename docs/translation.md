@@ -49,8 +49,10 @@ Validation decides what can reach a translation at all. It closes the schema, bu
 | A6 | A field absent from the instance | Valid when the field is optional or defaulted, and invalid when it is required ([field forms](invariants.md#field-forms)). A defaulted field is filled: every program reading the instance sees the default, wherever the field is, in a list element, a map value or an optional struct the instance holds too, and a default that refers to another field takes that field's value in the instance. | [#295](https://github.com/sdboyer/thema/pull/295) |
 | A7 | A JSON number with a fraction or an exponent, such as `1.5`, `1.0` or `1e2` | A float, never an int: invalid for a field that only an `int` satisfies, even when its value is integral. | yes |
 | A8 | A JSON string with an escape that is not a character, such as an unpaired surrogate (`"\ud800"`) | Invalid: it is not a string. | yes |
+| A9 | A JSON object that names a member twice, such as `{"id":"a","id":"a"}`, at any depth | Invalid, whether or not the values agree: it does not parse. JSON leaves what such an object means to each parser ([RFC 8259 §4](https://www.rfc-editor.org/rfc/rfc8259#section-4)), and I-JSON forbids it ([RFC 7493 §2.3](https://www.rfc-editor.org/rfc/rfc7493#section-2.3)), so no reading of it is the instance's. | no |
 
 - A6: on main, `TypedInstance.Value` fills a default only where the schema alone has a place for it: not in a list element, a map value or an optional struct the instance holds, and a default that refers to another field takes the value that field has in the schema alone, not in the instance ([#295](https://github.com/sdboyer/thema/pull/295)).
+- A9: on main, CUE reads the object, unifying the values a name is given: two that agree are accepted as one, and two that conflict are refused as a conflict, not as data that does not parse ([#298](https://github.com/sdboyer/thema/issues/298)).
 
 ## Fields the source declares
 

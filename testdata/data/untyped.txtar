@@ -1,0 +1,39 @@
+#description: Fields the Go type holds as any, because the schema gives them more than one kind or none. A program reading the instance sees each number exactly: an integer as an integer, however large, and a number with a fraction or an exponent as a float.
+#version: 0.0
+#spec: docs/translation.md:48
+#expect: ok
+#spec/float-written-integral: docs/translation.md:50
+#description/int-beyond-float-precision: 9007199254740993 is an integer a float64 cannot hold.
+#description/int-beyond-int64: An integer beyond int64's range.
+#description/float-written-integral: 1.0 is a float, though its value is integral (A7).
+#description/nested: Numbers inside a list and an object, under a field of any kind.
+-- untyped/history/0.0.thema --
+Schema: {
+	either?:   int | string
+	anything?: _
+}
+-- data/int-beyond-float-precision.json --
+{"either":9007199254740993,"anything":9007199254740993}
+-- data/int-beyond-int64.json --
+{"either":12345678901234567890123,"anything":12345678901234567890123}
+-- data/float-written-integral.json --
+{"anything":1.0}
+-- data/nested.json --
+{"anything":{"a":[1,2.5,{"b":3}]}}
+-- data/string.json --
+{"either":"one"}
+-- out/cue/float-written-integral --
+verdict: ok
+value: {"anything":1}
+-- out/cue/int-beyond-float-precision --
+verdict: ok
+value: {"either":9007199254740993,"anything":9007199254740993}
+-- out/cue/int-beyond-int64 --
+verdict: ok
+value: {"either":12345678901234567890123,"anything":12345678901234567890123}
+-- out/cue/nested --
+verdict: ok
+value: {"anything":{"a":[1,2.5,{"b":3}]}}
+-- out/cue/string --
+verdict: ok
+value: {"either":"one"}

@@ -8,6 +8,7 @@ import (
 	"github.com/sdboyer/thema/internal/corpus/datatypes/defaults"
 	"github.com/sdboyer/thema/internal/corpus/datatypes/open"
 	"github.com/sdboyer/thema/internal/corpus/datatypes/order"
+	"github.com/sdboyer/thema/internal/corpus/datatypes/untyped"
 )
 
 // Registry binds the Go types generated for each archive of the data
@@ -16,4 +17,5 @@ var Registry = map[string]func(thema.Schema) (Typed, error){
 	"defaults": Bind[defaults.Defaults],
 	"open":     Bind[open.Open],
 	"order":    Bind[order.Order],
+	"untyped":  Bind[untyped.Untyped],
 }

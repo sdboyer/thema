@@ -57,18 +57,22 @@ value: {"id":"ord_1","quantity":2}
   accepted, one line per diagnostic when it is not, or how the Go value is
   wrong (below). Never write these by hand.
 
-A suite checks the Go value it produces against the instance: CUE's value of
-the input unified with the schema, every default filled, decoded onto the
-same Go type with go-json-experiment, which matches each field by exactly
-the name its tag gives it. The two are compared as JSON. A Go value that
-differs has lost or changed what the instance holds, which is a bug in thema,
-and the cell's verdict is `wrong`, with both values in its section. `#expect`
-is never `wrong`, so a missed default fails its cell like any other wrong
-verdict, and is tagged `#known` like one.
+A suite checks the Go value it produces against the reference value: the
+instance (CUE's value of the input unified with the schema, closed as
+validation closes it, every default filled), decoded onto the same Go type
+with go-json-experiment, which matches each field by exactly the name its tag
+gives it. Where the type holds a number as `any`, the reference holds an
+`int64`, a `*big.Int` for an integer outside `int64`'s range, or a `float64`
+for a number with a fraction or an exponent (A7), as `datatypes.Number`
+says. A Go value that differs has lost or changed what the instance holds,
+which is a bug in thema, and the cell's verdict is `wrong`, with both values
+in its section. `#expect` is never `wrong`, so a missed default fails its cell
+like any other wrong verdict, and is tagged `#known` like one.
 
 The check sees only what the Go type has a place for. Data the schema does
-not declare, under `...`, has none, so the check can't tell whether a suite
-kept it; it can tell when such data changed a declared field.
+not declare, under `...`, has none unless it is inside a field the type holds
+as `any`, so the check can't tell whether a suite kept it; it can tell when
+such data changed a declared field.
 
 ## The Go types
 
@@ -82,9 +86,9 @@ rewrites them.
 ## Adding a case
 
 1. To add inputs to an archive, write each as `data/<input>.json`. For a new
-   lineage, write a new archive with a kebab-case name, then run
-   `THEMA_UPDATE_GOLDEN=1 go test ./internal/corpus -run TestDataTypes` to
-   generate its types.
+   lineage, write a new archive with a name that is a Go identifier once its
+   dashes are gone (it names the Go package of its types), holding the
+   lineage and its inputs.
 2. Write `#description` for someone new to the code: the scenario, and what
    the rule says about it. An input that needs more than the archive's says
    so in `#description/<input>`.
@@ -99,7 +103,11 @@ rewrites them.
    that is not a character, A8). Cite the lines that decide
    it in `#spec`. Make each invalid input break one rule. If the spec does
    not decide the case, don't add it; raise it instead.
-4. Run `THEMA_UPDATE_GOLDEN=1 go test ./internal/corpus -run 'TestData$/<archive>'`
+4. For a new archive, or a changed schema, run
+   `THEMA_UPDATE_GOLDEN=1 go test ./internal/corpus -run TestDataTypes` to
+   generate its types; it refuses an archive that breaks the format, so this
+   comes once every directive is written. Then run
+   `THEMA_UPDATE_GOLDEN=1 go test ./internal/corpus -run 'TestData$/<archive>'`
    to write the `out/` sections, then run it again without the variable.
 5. For each cell that fails with "This suite disagrees with #expect", the
    code disagrees with the spec. Find the issue that covers the mechanism and

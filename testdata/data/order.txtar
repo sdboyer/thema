@@ -1,6 +1,10 @@
 #description: An order for a shop's checkout, with bounds, patterns, enums, rune counts, a list of structs and optional fields, each input breaking at most one rule. It is the order of the decoding benchmarks (#296).
 #version: 0.0
 #known/cue/note-with-unpaired-surrogate: #301 CUE reports the bad string while validating, and no shape in diag recognizes its message, so it is E0902.
+#known/cue/id-given-twice-alike: #298 CUE reads a name given twice as one field, unifying its values, and these agree.
+#known/cue/id-given-twice-differently: #298 CUE reads a name given twice as one field, unifying its values, and reports their conflict as a value outside a bound.
+#known/cue/customer-given-twice: #298 CUE reads a name given twice as one field, merging the two objects.
+#known/cue/item-quantity-given-twice: #298 CUE reads a name given twice as one field, unifying its values, and these agree.
 #expect/full: ok
 #expect/without-optional: ok
 #expect/no-items: ok
@@ -30,6 +34,10 @@
 #expect/quantity-written-with-exponent: E0503
 #expect/note-with-unpaired-surrogate: E0507
 #expect/note-with-surrogate-pair: ok
+#expect/id-given-twice-alike: E0507
+#expect/id-given-twice-differently: E0507
+#expect/customer-given-twice: E0507
+#expect/item-quantity-given-twice: E0507
 #spec/full: docs/translation.md:48
 #spec/without-optional: docs/translation.md:49
 #spec/no-items: docs/translation.md:48
@@ -59,6 +67,14 @@
 #spec/quantity-written-with-exponent: docs/translation.md:50
 #spec/note-with-unpaired-surrogate: docs/translation.md:51
 #spec/note-with-surrogate-pair: docs/translation.md:51
+#spec/id-given-twice-alike: docs/translation.md:52
+#spec/id-given-twice-differently: docs/translation.md:52
+#spec/customer-given-twice: docs/translation.md:52
+#spec/item-quantity-given-twice: docs/translation.md:52
+#description/id-given-twice-alike: The object names id twice, with the same value. JSON does not say what it means, so it does not parse, though CUE would read the two as one.
+#description/id-given-twice-differently: The object names id twice, with different values.
+#description/customer-given-twice: The object names customer twice, the second holding only a name: CUE would merge the two.
+#description/item-quantity-given-twice: An item names quantity twice, with the same value: a duplicate below the top.
 -- order/history/0.0.thema --
 import "strings"
 
@@ -136,9 +152,20 @@ Schema: {
 {"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave \ud800 at the door","priority":3}
 -- data/note-with-surrogate-pair.json --
 {"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave \ud83d\udce6 at the door","priority":3}
+-- data/id-given-twice-alike.json --
+{"id":"ord_7k2m9x4q","id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
+-- data/id-given-twice-differently.json --
+{"id":"ord_7k2m9x4q","id":"ord_00000000","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
+-- data/customer-given-twice.json --
+{"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"customer":{"name":"Ada Lovelace"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
+-- data/item-quantity-given-twice.json --
+{"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
 -- out/cue/at-upper-bounds --
 verdict: ok
 value: {"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1000,"priceCents":100000000}],"note":"leave at the door","priority":10}
+-- out/cue/customer-given-twice --
+verdict: ok
+value: {"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
 -- out/cue/customer-missing-email --
 verdict: E0501
 E0501 the data lacks customer.email, which schema 0.0 declares as =~"^[^@]+@[^@]+$" @ data/customer-missing-email.json:1:1
@@ -151,12 +178,21 @@ E0504 customer.name in the data is "", which fails strings.MinRunes(1) in schema
 -- out/cue/full --
 verdict: ok
 value: {"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
+-- out/cue/id-given-twice-alike --
+verdict: ok
+value: {"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
+-- out/cue/id-given-twice-differently --
+verdict: E0504
+E0504 id in the data has a value schema 0.0 does not accept @ data/id-given-twice-differently.json:1:27
 -- out/cue/id-off-pattern --
 verdict: E0504
 E0504 id in the data is "order-1", outside the bound =~"^ord_[a-z0-9]{8}$" that schema 0.0 sets @ data/id-off-pattern.json:1:7
 -- out/cue/item-not-an-object --
 verdict: E0503
 E0503 items.0 in the data is "ABC-0001", but schema 0.0 declares it as {sku:=~"^[A-Z]{3}-[0-9]{4}$",quantity:((int & >=1) & <=1000),priceCents:((int & >=0) & <=100000000)} @ data/item-not-an-object.json:1:121
+-- out/cue/item-quantity-given-twice --
+verdict: ok
+value: {"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
 -- out/cue/name-of-100-runes --
 verdict: ok
 value: {"id":"ord_7k2m9x4q","customer":{"name":"éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
