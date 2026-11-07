@@ -33,7 +33,11 @@
 // section's first line is "verdict: " followed by ok or the sorted set of
 // codes the operation reported. When the operation succeeded, the lines after
 // it are what it produced, if anything (bind produces nothing); otherwise
-// each is one diagnostic, sorted, as "<code> <headline> @ <position>".
+// each is one diagnostic, sorted, as "<code> <headline> @ <position>". A suite
+// whose operation succeeded but whose result is wrong, such as a value that
+// lost what its input holds, returns [Wrong]: its verdict is wrong, which
+// #expect never is, and its section records how the result is wrong. A cell
+// with that verdict is tagged #known as any other that disagrees.
 // Running with THEMA_UPDATE_GOLDEN=1 rewrites the out/ sections and nothing
 // else, with two exceptions: it keeps a section that records a suite agreeing
 // with #expect when the suite no longer does, and a section of a suite that no

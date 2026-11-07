@@ -2,6 +2,7 @@ package corpus
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"os"
@@ -920,9 +921,37 @@ const VerdictOK Verdict = "ok"
 
 var codePattern = regexp.MustCompile(`^E\d{4}$`)
 
+// VerdictWrong is the verdict of a suite whose operation succeeded but whose
+// result is wrong, as [Wrong] reports: a value that lost what the input
+// holds. No spec gives it, so #expect never may.
+const VerdictWrong Verdict = "wrong"
+
+// Wrong is the error a suite returns when its operation succeeded but what it
+// produced is wrong, which no diagnostic of thema's reports: Detail says how,
+// such as what the result is and what it should be. Its verdict is
+// [VerdictWrong], and its section records Detail.
+type Wrong struct {
+	Detail string
+}
+
+func (w *Wrong) Error() string { return "the result is wrong: " + w.Detail }
+
 // ParseVerdict reads an #expect value: "ok", or a set of codes in any order.
 func ParseVerdict(s string) (Verdict, error) {
+	v, err := readVerdict(s)
+	if v == VerdictWrong {
+		return "", fmt.Errorf("%s is the verdict of a suite whose result is wrong, which no spec gives; write ok or the codes the operation reports", v)
+	}
+	return v, err
+}
+
+// readVerdict reads a verdict as a section records it: what ParseVerdict
+// reads, or wrong.
+func readVerdict(s string) (Verdict, error) {
 	fields := strings.Fields(s)
+	if len(fields) == 1 && fields[0] == string(VerdictWrong) {
+		return VerdictWrong, nil
+	}
 	if len(fields) == 0 {
 		return "", fmt.Errorf("empty; write ok or the codes the operation reports")
 	}
@@ -945,14 +974,19 @@ func ParseVerdict(s string) (Verdict, error) {
 const verdictPrefix = "verdict: "
 
 // Render renders what a suite reported, running op, as a golden section: the
-// verdict line, then what the operation produced when it succeeded, or else
-// one line per diagnostic, sorted.
+// verdict line, then what the operation produced when it succeeded, how it is
+// wrong when the suite says so ([Wrong]), or else one line per diagnostic,
+// sorted.
 func Render(op diag.Op, out string, err error) string {
 	if err == nil {
 		if out != "" && !strings.HasSuffix(out, "\n") {
 			out += "\n"
 		}
 		return verdictPrefix + string(VerdictOK) + "\n" + out
+	}
+	var wrong *Wrong
+	if errors.As(err, &wrong) {
+		return verdictPrefix + string(VerdictWrong) + "\n" + wrong.Detail + "\n"
 	}
 	ds := diag.Diagnostics(err)
 	if len(ds) == 0 {
@@ -976,21 +1010,21 @@ func Render(op diag.Op, out string, err error) string {
 }
 
 // ReadVerdict reads the verdict on a golden section's first line, as
-// [ParseVerdict] reads it, or "" when it can't be read.
+// [ParseVerdict] reads it, or wrong, or "" when it can't be read.
 func ReadVerdict(section string) Verdict {
 	_, v, _ := sectionVerdict(section)
 	return v
 }
 
 // sectionVerdict reads the verdict on a golden section's first line: as
-// written, and as [ParseVerdict] reads it.
+// written, and as [ParseVerdict] reads it, or wrong.
 func sectionVerdict(section string) (string, Verdict, error) {
 	first, _, _ := strings.Cut(section, "\n")
 	raw, ok := strings.CutPrefix(first, verdictPrefix)
 	if !ok {
 		return first, "", fmt.Errorf("the first line is not %q followed by the verdict", verdictPrefix)
 	}
-	v, err := ParseVerdict(raw)
+	v, err := readVerdict(raw)
 	return raw, v, err
 }
 
