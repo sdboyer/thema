@@ -37,11 +37,18 @@ type CodeInfo struct {
 }
 
 // Scope is whether a code's condition compares versions or reads one alone.
-// A code compares versions when it judges a version by another one (a schema
-// by its predecessor's, a lens by the versions at its ends, the tip by its
-// parent, a lineage by what it was published as), and reads one alone when
-// one version's files, the numbering of the version files, the data or the
-// CLI's inputs decide it. The zero value is undeclared; no code has it.
+// A code compares versions when it judges a version or a lens by another
+// version: a schema by its predecessor's, a lens by the versions at its ends,
+// the tip by its parent, a lineage by what it was published as. That holds
+// even when only version numbers decide it, as for a lens labeled with a
+// version that is not its parent, or an edge with no lens. A code reads one
+// alone when one version's files, the data or the CLI's inputs decide it, and
+// so does one that reads only the numbering of the version files under
+// history/, such as a gap or a duplicate, since that judges the layout, not
+// one version by another. The fallbacks E0901 to E0903 read one alone by
+// convention: they report a fault in thema or an error it does not
+// recognize, never a promise the history made. The zero value is undeclared;
+// no code has it.
 type Scope string
 
 const (
