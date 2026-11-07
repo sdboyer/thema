@@ -5,6 +5,7 @@ go 1.27.0
 require (
 	cuelang.org/go v0.18.0-rc.3
 	github.com/dave/dst v0.27.2
+	github.com/go-json-experiment/json v1.27.0
 	github.com/google/go-cmp v0.7.1-0.20261029010250-cb6e62ef52b3
 	github.com/gzuidhof/tygo v0.2.21
 	github.com/kr/text v0.2.0

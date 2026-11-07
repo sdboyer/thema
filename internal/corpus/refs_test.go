@@ -24,7 +24,7 @@ import (
 // the verdict docs/invariants.md gives, which the case records as #expect.
 // testdata/refs/README.md says how to add a case and how to read a failure.
 func TestRefs(t *testing.T) {
-	Corpus{Dir: "../../testdata/refs", Root: "../..", Layout: refsLayout, Suites: refSuites, Check: checkAt}.Run(t)
+	Corpus{Dir: repoRoot + "/testdata/refs", Root: repoRoot, Layout: refsLayout, Suites: refSuites, Check: checkAt}.Run(t)
 }
 
 // refsLayout is how the refs corpus is read: an archive is one case, and
