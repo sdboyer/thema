@@ -640,6 +640,27 @@ func TestVerdict(t *testing.T) {
 	}
 }
 
+// TestWrong checks that a suite's wrong result is its own verdict, which a
+// section records with its detail and #expect may not give, and which a
+// #known tag tracks.
+func TestWrong(t *testing.T) {
+	got := Render(diag.OpValidate, "", fmt.Errorf("checking: %w", &Wrong{Detail: "the value is 0, and the instance's is 1"}))
+	if want := "verdict: wrong\nthe value is 0, and the instance's is 1\n"; got != want {
+		t.Errorf("Render = %q, want %q", got, want)
+	}
+	if _, err := ParseVerdict("wrong"); err == nil {
+		t.Error("ParseVerdict accepted wrong, which no spec gives")
+	}
+	c := writeCase(t, t.TempDir(), "#description: d\n#expect: ok\n#spec: docs/invariants.md:1\n#known/s: #295 a reason.\n",
+		sectionS, got)
+	if st := CellStatus(c, "s"); st != StatusKnown {
+		t.Errorf("a cell whose section is wrong, with a tag, is %s; want known", st)
+	}
+	if d, s := c.archive.Problems([]string{"s"}); len(d)+len(s) > 0 {
+		t.Errorf("problems: %q %q", d, s)
+	}
+}
+
 func TestSuitePanics(t *testing.T) {
 	s := Suite{Name: "p", Description: "d", Run: func(testing.TB, *Case) (string, error) { panic("boom") }}
 	out, err := runSuite(t, s, nil)
