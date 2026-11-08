@@ -15,6 +15,7 @@ func TestAssignable(t *testing.T) {
 	ctx := cuecontext.New()
 	const (
 		nestUnbounded = "nest.p: schema type int not subsumed by Go type int64"
+		listUnread    = "l: schema has a default in a form assignability cannot check, may only correspond to interface{}/any"
 		nestUnread    = "nest: schema has a default in a form assignability cannot check, may only correspond to interface{}/any"
 	)
 
@@ -653,7 +654,7 @@ func TestAssignable(t *testing.T) {
 				l: X.l | *[1]
 			}
 			`,
-			refusal: "l: schema has a default in a form assignability cannot check, may only correspond to interface{}/any",
+			refusal: listUnread,
 		},
 		"listOfDefinition": {
 			T: &struct {
@@ -682,6 +683,89 @@ func TestAssignable(t *testing.T) {
 				l: [*3 | int64, *4 | int64]
 			}
 			`,
+		},
+		"listElemDisjunctionDefaultOneSide": {
+			T: &struct {
+				L []string `json:"l"`
+			}{},
+			cue: `typ: {
+				l: ["a" | "b", ...(*"a" | "b")]
+			}
+			`,
+		},
+		"listElemIntDisjunctionDefaultOneSide": {
+			T: &struct {
+				L []int64 `json:"l"`
+			}{},
+			cue: `typ: {
+				l: [1 | 2, ...(*1 | 2)]
+			}
+			`,
+		},
+		"arrayElemDisjunctionDefaultOneSide": {
+			T: &struct {
+				L [2]int64 `json:"l"`
+			}{},
+			cue: `typ: {
+				l: [*1 | 2, 1 | 2]
+			}
+			`,
+		},
+		"listElemRepeatedDefaultDisjunct": {
+			T: &struct {
+				L []string `json:"l"`
+			}{},
+			cue: `typ: {
+				l: [*"a" | "a" | "b", ...("a" | "b")]
+			}
+			`,
+		},
+		"listElemDefaultsDifferentBounds": {
+			T: &struct {
+				L []int64 `json:"l"`
+			}{},
+			cue: `typ: {
+				l: [*1 | int64, ...(*1 | int32)]
+			}
+			`,
+			refusal: "l: schema is list of multiple types; not representable in Go",
+		},
+		// A let is not read: the shapes below hold only int64 values, but
+		// are refused.
+		"structDefaultLetBounded": {
+			T: &struct {
+				Nest struct {
+					P int64 `json:"p"`
+				} `json:"nest"`
+			}{},
+			cue: `let S = {p: int64} | *{p: 4}
+			typ: {
+				nest: S
+			}
+			`,
+			refusal: nestUnread,
+		},
+		"listDefaultLetBounded": {
+			T: &struct {
+				L []int64 `json:"l"`
+			}{},
+			cue: `let L = [...int64] | *[1]
+			typ: {
+				l: L
+			}
+			`,
+			refusal: listUnread,
+		},
+		"listElemDefaultLetBounded": {
+			T: &struct {
+				L []int64 `json:"l"`
+			}{},
+			cue: `let I = *3 | int64
+			typ: {
+				l: [I, ...int64]
+			}
+			`,
+			refusal: listUnread,
 		},
 		"listDefaultOtherType": {
 			T: &struct {

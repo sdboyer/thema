@@ -386,15 +386,41 @@ func hasDefault(v cue.Value) bool {
 }
 
 // sameType reports whether a and b take the same values, whatever their
-// defaults: each disjunct of one is an instance of a disjunct of the other.
-// ok is false when disjuncts cannot read either.
+// defaults: each alternative of one is an instance of an alternative of the
+// other. ok is false when disjuncts cannot read either.
 func sameType(a, b cue.Value) (same, ok bool) {
-	ads, aok := disjuncts(a)
-	bds, bok := disjuncts(b)
+	aalts, aok := alternatives(a)
+	balts, bok := alternatives(b)
 	if !aok || !bok {
 		return false, false
 	}
-	return covers(ads, bds) && covers(bds, ads), true
+	return covers(aalts, balts) && covers(balts, aalts), true
+}
+
+// alternatives splits v into the disjuncts of every disjunction it is, with
+// or without a default, so that a disjunction compares the same whichever
+// side of a comparison carried a default.
+func alternatives(v cue.Value) ([]cue.Value, bool) {
+	ds, ok := disjuncts(v)
+	if !ok {
+		return nil, false
+	}
+	var alts []cue.Value
+	for _, d := range ds {
+		op, args := d.Expr()
+		if op != cue.OrOp {
+			alts = append(alts, d)
+			continue
+		}
+		for _, a := range args {
+			aalts, ok := alternatives(a)
+			if !ok {
+				return nil, false
+			}
+			alts = append(alts, aalts...)
+		}
+	}
+	return alts, true
 }
 
 // covers reports whether every value of ys is an instance of a value of xs.
