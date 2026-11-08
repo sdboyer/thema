@@ -124,18 +124,9 @@ func (v vocab) Term(a diag.Address) string {
 // Rewrite renders a checker's sentence about a lens in the author's terms:
 // the normal form's input is the parameter the author named after the
 // source version, v0_0, and "the target schema" is the target version's file.
-// A closing remedy written in the normal form's syntax, such as a presence
-// test to write a field under, is dropped: the authoring form has no way to
-// write one, and tests presence itself wherever a mapping or a when reads a
-// field the source may omit.
 func (v vocab) Rewrite(a diag.Address, sentence string) string {
-	switch a.Kind {
-	case diag.AddrLens, diag.AddrLensInput, diag.AddrLensResult, diag.AddrLensResultField, diag.AddrLacuna, diag.AddrLacunaField, diag.AddrStep:
-	default:
+	if !lensAddr(a) {
 		return sentence
-	}
-	if i := strings.LastIndex(sentence, "; "); i >= 0 && strings.Contains(sentence[i:], "_|_") {
-		sentence = sentence[:i]
 	}
 	param := v.param(a.From)
 	r := strings.NewReplacer(
@@ -148,7 +139,26 @@ func (v vocab) Rewrite(a diag.Address, sentence string) string {
 	return r.Replace(sentence)
 }
 
-// compatDiag describes one finding of the compatibility checker between the
+// RewriteHelp is Rewrite for a line of help about a lens. Help written in the
+// normal form's syntax, such as a presence test to write a field under, is not
+// given: the authoring form has no way to write one, and tests presence
+// itself wherever a mapping or a when reads a field the source may omit.
+func (v vocab) RewriteHelp(a diag.Address, help string) (string, bool) {
+	if lensAddr(a) && strings.Contains(help, "_|_") {
+		return "", false
+	}
+	return v.Rewrite(a, help), true
+}
+
+// lensAddr reports whether a is in a lens, where a checker's sentences use the
+// normal form's terms.
+func lensAddr(a diag.Address) bool {
+	switch a.Kind {
+	case diag.AddrLens, diag.AddrLensInput, diag.AddrLensResult, diag.AddrLensResultField, diag.AddrLacuna, diag.AddrLacunaField, diag.AddrStep:
+		return true
+	}
+	return false
+}
 // version files prev and curr, where curr was named as a minor version and is
 // not backward compatible.
 func compatDiag(f compat.Finding, prev, curr *version) *diag.Error {

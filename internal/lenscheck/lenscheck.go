@@ -522,7 +522,7 @@ func (w *walker) walkResult() {
 	if len(calls) > kernel {
 		for _, c := range calls {
 			w.add(Finding{Path: w.subject(root), Verdict: Unknown, Rule: RuleUnknownOp,
-				Detail: fmt.Sprintf("is constrained by %s, a call the checker does not prove; write %s as a struct", text(c.Expr), w.to), Pos: pos})
+				Detail: fmt.Sprintf("is constrained by %s, a call the checker does not prove", text(c.Expr)), Help: fmt.Sprintf("write %s as a struct", w.to), Pos: pos})
 		}
 	}
 	for _, c := range rest {
@@ -593,9 +593,9 @@ func (w *walker) conjunct(c cueview.Conjunct, q cue.Path, gs []pattern, pos toke
 // patterns gs (guarded), reporting there where a read through arms may find
 // the field it reads absent.
 func (w *walker) valueConjuncts(x ast.Expr, q cue.Path, gs []pattern, pos token.Pos) []cueview.Conjunct {
-	conjs, detail, ok := w.guarded(x, w.subject(q), gs)
+	conjs, detail, help, ok := w.guarded(x, w.subject(q), gs)
 	if !ok {
-		w.add(Finding{Path: w.subject(q), Verdict: Unknown, Rule: RuleUnknownExhaustive, Detail: detail, Pos: pos})
+		w.add(Finding{Path: w.subject(q), Verdict: Unknown, Rule: RuleUnknownExhaustive, Detail: detail, Help: help, Pos: pos})
 	}
 	return conjs
 }
@@ -858,7 +858,7 @@ func (w *walker) copy(q, p cue.Path, gs []pattern, pos token.Pos) {
 	}
 	if !src.present {
 		w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleSourceAbsent,
-			Detail: fmt.Sprintf("copies %s, which may be absent: %s; %s", w.inputRef(p), src.why, w.absent(p)), Pos: pos})
+			Detail: fmt.Sprintf("copies %s, which may be absent: %s", w.inputRef(p), src.why), Help: w.absent(p), Pos: pos})
 	}
 	tgt, ok := w.targetAt(q, pos)
 	if !ok {
@@ -1083,7 +1083,7 @@ func (w *walker) compositeDisjunct(e *ast.StructLit, q cue.Path, gs []pattern, p
 	switch {
 	case kinds > 1:
 		w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownTargetConstraint,
-			Detail: fmt.Sprintf("is a struct written to %s, a disjunction in the target schema, mixing fields with conditional fields or embeddings, so which alternative it is an instance of depends on the instance; write it as one struct per alternative, each with its fields unconditional, in its own arm", subj), Pos: pos})
+			Detail: fmt.Sprintf("is a struct written to %s, a disjunction in the target schema, mixing fields with conditional fields or embeddings, so which alternative it is an instance of depends on the instance", subj), Help: "write it as one struct per alternative, each with its fields unconditional, in its own arm", Pos: pos})
 		w.record(&write{q: q, patterns: gs, kind: compositeW, text: structText, pos: pos})
 		w.altPins = append(w.altPins, altPin{q: q})
 		defer w.unpin()
@@ -1219,7 +1219,7 @@ func (w *walker) chooseAlternative(fields []*ast.Field, q cue.Path, alts []cue.V
 			names = append(names, fmtv(alts[i]))
 		}
 		w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownTargetConstraint,
-			Detail: fmt.Sprintf("is a struct that fits several alternatives of %s in the target schema (%s), and the checker proves it against one; write a constant field that tells them apart", subj, strings.Join(names, ", ")), Pos: pos})
+			Detail: fmt.Sprintf("is a struct that fits several alternatives of %s in the target schema (%s), and the checker proves it against one", subj, strings.Join(names, ", ")), Help: "write a constant field that tells them apart", Pos: pos})
 	}
 	return 0, false
 }
@@ -1237,7 +1237,7 @@ func (w *walker) list(e *ast.ListLit, q cue.Path, gs []pattern, pos token.Pos) {
 		switch elt.(type) {
 		case *ast.Comprehension:
 			w.add(Finding{Path: w.subject(q), Verdict: Unknown, Rule: RuleUnknownDynamic,
-				Detail: "builds list elements with a comprehension beside other elements, so how many there are and what they hold depends on the instance; write each element, or one comprehension alone", Pos: pos})
+				Detail: "builds list elements with a comprehension beside other elements, so how many there are and what they hold depends on the instance", Help: "write each element, or one comprehension alone", Pos: pos})
 			return
 		case *ast.Ellipsis:
 			w.add(Finding{Path: w.subject(q), Verdict: NotTotal, Rule: RuleNotAValue,
@@ -1295,13 +1295,13 @@ func (w *walker) each(comp *ast.Comprehension, q cue.Path, gs []pattern, pos tok
 		case *ast.ForClause:
 			if fc != nil {
 				w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownDynamic,
-					Detail: "builds list elements with nested for clauses, so how many there are depends on the instance; write one for clause over one list", Pos: pos})
+					Detail: "builds list elements with nested for clauses, so how many there are depends on the instance", Help: "write one for clause over one list", Pos: pos})
 				return
 			}
 			fc = c
 		case *ast.IfClause:
 			w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownDynamic,
-				Detail: fmt.Sprintf("filters list elements with if %s, so how many there are depends on the instance; map every element", text(c.Condition)), Pos: pos})
+				Detail: fmt.Sprintf("filters list elements with if %s, so how many there are depends on the instance", text(c.Condition)), Help: "map every element", Pos: pos})
 			return
 		default:
 			w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownDynamic,
@@ -1327,7 +1327,7 @@ func (w *walker) each(comp *ast.Comprehension, q cue.Path, gs []pattern, pos tok
 		return
 	case !src.present:
 		w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleSourceAbsent,
-			Detail: fmt.Sprintf("maps the elements of %s, which may be absent: %s; write the field under if %s != _|_", w.inputRef(p), src.why, w.inputRef(p)), Pos: pos})
+			Detail: fmt.Sprintf("maps the elements of %s, which may be absent: %s", w.inputRef(p), src.why), Help: fmt.Sprintf("write the field under if %s != _|_", w.inputRef(p)), Pos: pos})
 		return
 	}
 	srcLens := make([]listBounds, 0, len(src.branches))
@@ -1462,7 +1462,7 @@ func (w *walker) decls(decls []ast.Decl, q cue.Path, gs []pattern, pos token.Pos
 			name, isIdent, err := ast.LabelName(x.Label)
 			if err != nil || (!isIdent && name == "") {
 				w.add(Finding{Path: w.subject(q), Verdict: Unknown, Rule: RuleUnknownDynamic,
-					Detail: fmt.Sprintf("has a field whose label %s is computed, so which field it is depends on the instance; write the label", text(x.Label)), Pos: pos})
+					Detail: fmt.Sprintf("has a field whose label %s is computed, so which field it is depends on the instance", text(x.Label)), Help: "write the label", Pos: pos})
 				continue
 			}
 			if isIdent && strings.HasPrefix(name, "#") {
@@ -1553,7 +1553,7 @@ func (w *walker) armPatterns(x *ast.Comprehension, q cue.Path, gs []pattern, pos
 			ngs = append(ngs, g...)
 		case *ast.ForClause:
 			w.add(Finding{Path: w.subject(q), Verdict: Unknown, Rule: RuleUnknownDynamic,
-				Detail: fmt.Sprintf("has fields produced by a for clause over %s, so which fields exist depends on the instance; write each field", text(c.Source)), Pos: cpos})
+				Detail: fmt.Sprintf("has fields produced by a for clause over %s, so which fields exist depends on the instance", text(c.Source)), Help: "write each field", Pos: cpos})
 			walkable = false
 		}
 	}
@@ -1809,7 +1809,7 @@ func (w *walker) checkExhaustive() {
 			case w.covers(cands):
 			default:
 				w.add(Finding{Path: w.subject(p.q), Verdict: Unknown, Rule: RuleUnknownExhaustive,
-					Detail: fmt.Sprintf("is a disjunction in the target schema, and is given an alternative only under %s, which the checker cannot show cover every instance%s; write an alternative unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field", describePatternSets(cands), underPatterns(p.patterns)), Pos: p.pos})
+					Detail: fmt.Sprintf("is a disjunction in the target schema, and is given an alternative only under %s, which the checker cannot show cover every instance%s", describePatternSets(cands), underPatterns(p.patterns)), Help: "write an alternative unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field", Pos: p.pos})
 			}
 			continue
 		}
@@ -1842,7 +1842,7 @@ func (w *walker) checkExhaustive() {
 			case w.covers(cands):
 			default:
 				w.add(Finding{Path: w.subject(cq), Verdict: Unknown, Rule: RuleUnknownExhaustive,
-					Detail: fmt.Sprintf("is required by the target schema, and is written only under %s, which the checker cannot show cover every instance%s; write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field", describePatternSets(cands), underPatterns(p.patterns)), Pos: p.pos})
+					Detail: fmt.Sprintf("is required by the target schema, and is written only under %s, which the checker cannot show cover every instance%s", describePatternSets(cands), underPatterns(p.patterns)), Help: "write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field", Pos: p.pos})
 			}
 		}
 	}
@@ -1970,7 +1970,7 @@ func (w *walker) checkConflicts() {
 				}
 				if a.alts != nil && b.alts != nil && !sameAlternative(a.alts, b.alts) && !patternsDisjoint(a.patterns, b.patterns) {
 					w.add(Finding{Path: w.subject(a.q), Verdict: NotTotal, Rule: RuleWriteConflict,
-						Detail: fmt.Sprintf("is written as %s, an instance of alternative %s of the target schema's disjunction, and as %s, an instance of alternative %s, and the two unify into an instance of neither; write the field once per instance", a.text, altList(a.alts), b.text, altList(b.alts)), Pos: b.pos})
+						Detail: fmt.Sprintf("is written as %s, an instance of alternative %s of the target schema's disjunction, and as %s, an instance of alternative %s, and the two unify into an instance of neither", a.text, altList(a.alts), b.text, altList(b.alts)), Help: "write the field once per instance", Pos: b.pos})
 					continue
 				}
 				switch {
@@ -1984,7 +1984,7 @@ func (w *walker) checkConflicts() {
 					continue
 				}
 				w.add(Finding{Path: w.subject(a.q), Verdict: NotTotal, Rule: RuleWriteConflict,
-					Detail: fmt.Sprintf("is written as %s and as %s, and the two unify, so one may reject the other's value; write the field once", a.text, b.text), Pos: b.pos})
+					Detail: fmt.Sprintf("is written as %s and as %s, and the two unify, so one may reject the other's value", a.text, b.text), Help: "write the field once", Pos: b.pos})
 			}
 		}
 	}
@@ -2091,7 +2091,7 @@ func (w *walker) lacunaType(lp cue.Path, x ast.Expr) {
 			}
 		}
 		w.add(Finding{Path: tp.String(), Verdict: NotTotal, Rule: RuleNotAValue,
-			Detail: fmt.Sprintf("is %s, which is not a literal; write a lacuna's type as one of thema's lacuna types, as a string or as thema.LacunaTypes.<name>", text(c.Expr)), Pos: w.lensPos(tp)})
+			Detail: fmt.Sprintf("is %s, which is not a literal", text(c.Expr)), Help: "write a lacuna's type as one of thema's lacuna types, as a string or as thema.LacunaTypes.<name>", Pos: w.lensPos(tp)})
 	}
 }
 
@@ -2292,7 +2292,7 @@ func (w *walker) lacunaInputs(subj string, x ast.Expr, gs []pattern, pos token.P
 			w.add(w.sourceUndeclared(subj, "reads", p, pos))
 		case !src.present:
 			w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleSourceAbsent,
-				Detail: fmt.Sprintf("reads %s, which may be absent when the lacuna applies: %s; %s", w.inputRef(p), src.why, w.absent(p)), Pos: pos})
+				Detail: fmt.Sprintf("reads %s, which may be absent when the lacuna applies: %s", w.inputRef(p), src.why), Help: w.absent(p), Pos: pos})
 		}
 	}
 }

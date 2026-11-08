@@ -48,14 +48,17 @@ Schema: {
     {
       "code": "E0415",
       "severity": "error",
-      "headline": "lacunas.items: a lacuna on _each needs when: <condition>",
+      "headline": "lacunas.items: a lacuna on _each has no when",
       "primary": {
         "file": "history/1.0.thema",
         "line": 15,
         "col": 11,
         "offset": 159,
         "origin": "user"
-      }
+      },
+      "help": [
+        "say when it applies with when: <condition>"
+      ]
     }
   ],
   "summary": {
@@ -65,9 +68,10 @@ Schema: {
   }
 }
 -- out/text --
-error[E0415]: lacunas.items: a lacuna on _each needs when: <condition>
+error[E0415]: lacunas.items: a lacuna on _each has no when
   --> history/1.0.thema:15:11
    |
 15 |         items: [{
    |                 ^
    |
+   = help: say when it applies with when: <condition>

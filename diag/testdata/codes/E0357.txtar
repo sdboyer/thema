@@ -51,14 +51,17 @@ Schema: {
     {
       "code": "E0347",
       "severity": "error",
-      "headline": "0.0 declares count and 1.0 does not, and nothing maps it: write <field>: v0_0.count to move it, or count: _drop",
+      "headline": "0.0 declares count and 1.0 does not, and nothing maps it",
       "primary": {
         "file": "history/1.0.thema",
         "line": 5,
         "col": 1,
         "offset": 27,
         "origin": "user"
-      }
+      },
+      "help": [
+        "write <field>: v0_0.count to move it, or count: _drop"
+      ]
     }
   ],
   "summary": {
@@ -76,9 +79,10 @@ error[E0357]: strings.Reverse is not a function a lens may call
   |
   = help: the strings functions a lens may call are strings.Contains, strings.HasPrefix, strings.HasSuffix, strings.Replace, strings.ToLower, strings.ToUpper, strings.Trim, strings.TrimLeft, strings.TrimPrefix, strings.TrimRight, strings.TrimSpace, strings.TrimSuffix
 
-error[E0347]: 0.0 declares count and 1.0 does not, and nothing maps it: write <field>: v0_0.count to move it, or count: _drop
+error[E0347]: 0.0 declares count and 1.0 does not, and nothing maps it
  --> history/1.0.thema:5:1
   |
 5 | ForwardLens: {
   | ^^^^^^^^^^^
   |
+  = help: write <field>: v0_0.count to move it, or count: _drop

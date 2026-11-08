@@ -14,4 +14,5 @@ v1_0: {
 }
 -- out --
 unknown
-v1_0.b reads v1_0.a, which is written only under v0_0.k == "x", and the checker cannot show that holds wherever v1_0.b is written; write v1_0.b under the same patterns, or v1_0.a on every path (rule unknown-exhaustive) @ lens.cue:4:5
+v1_0.b reads v1_0.a, which is written only under v0_0.k == "x", and the checker cannot show that holds wherever v1_0.b is written (rule unknown-exhaustive) @ lens.cue:4:5
+  help: write v1_0.b under the same patterns, or v1_0.a on every path

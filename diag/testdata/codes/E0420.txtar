@@ -47,14 +47,17 @@ Schema: {
     {
       "code": "E0420",
       "severity": "error",
-      "headline": "lacunas.aunion: a lacuna on a _match applies when its [_] arm does, and this _match has none: say when it applies with when: <condition>",
+      "headline": "lacunas.aunion: a lacuna on a _match applies when its [_] arm does, and this _match has none",
       "primary": {
         "file": "history/1.0.thema",
         "line": 11,
         "col": 12,
         "offset": 150,
         "origin": "user"
-      }
+      },
+      "help": [
+        "say when it applies with when: <condition>"
+      ]
     }
   ],
   "summary": {
@@ -64,9 +67,10 @@ Schema: {
   }
 }
 -- out/text --
-error[E0420]: lacunas.aunion: a lacuna on a _match applies when its [_] arm does, and this _match has none: say when it applies with when: <condition>
+error[E0420]: lacunas.aunion: a lacuna on a _match applies when its [_] arm does, and this _match has none
   --> history/1.0.thema:11:12
    |
 11 |         aunion: [{
    |                  ^
    |
+   = help: say when it applies with when: <condition>

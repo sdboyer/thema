@@ -216,6 +216,42 @@ func TestDevelopment(t *testing.T) {
 			}
 		}
 	})
+	// The derivation's findings are E1001's notes, each with its code, and
+	// their fixes are its help, never dropped or run on into a note: the help
+	// that writes the block first, then what goes in it.
+	t.Run("a pending lens keeps each finding's code and help", func(t *testing.T) {
+		from := "Schema: {\n\tid:    string\n\tname:  string\n}\n"
+		to := "Schema: {\n\tid:   int\n\tcrew: int\n}\n"
+		c, err := Development(ctx, "ship", files("history/0.0.thema", from, TipFile, to))
+		if err != nil {
+			t.Fatal(err)
+		}
+		ds := diag.From(c.Pending, diag.Context{})
+		if len(ds) == 0 || ds[0].Code != diag.E1001 || !strings.Contains(ds[0].Headline, "ForwardLens") {
+			t.Fatalf("want the ForwardLens pending first, got %v", ds)
+		}
+		var notes []string
+		for _, n := range ds[0].Notes {
+			notes = append(notes, n.Label)
+		}
+		wantNotes := []string{
+			"the ForwardLens in tip.thema would copy v0_0.id into id, which does not accept every value of it (E0358)",
+			"tip.thema has no ForwardLens, and tip requires crew (E0346)",
+			"0.0 declares name and tip does not, and nothing maps it (E0347)",
+			"translating from 0.0 to tip needs it; until tip.thema writes it, that translation fails (E1002)",
+		}
+		if !slices.Equal(notes, wantNotes) {
+			t.Errorf("notes:\n got %q\nwant %q", notes, wantNotes)
+		}
+		wantHelp := []string{
+			"write ForwardLens: {v0_0: _, tip: {crew: <mapping>}}",
+			"map id in the ForwardLens: a _match, a computed value, or a constant",
+			"write <field>: v0_0.name to move it, or name: _drop",
+		}
+		if !slices.Equal(ds[0].Help, wantHelp) {
+			t.Errorf("help:\n got %q\nwant %q", ds[0].Help, wantHelp)
+		}
+	})
 	t.Run("the tip's lenses name it tip", func(t *testing.T) {
 		c, err := Development(ctx, "ship", files("history/0.0.thema", v00,
 			TipFile, v10+"\nForwardLens: {\n\tv0_0: _\n\ttip: {crew: len(v0_0.name)}\n}\n"))

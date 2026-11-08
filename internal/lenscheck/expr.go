@@ -339,6 +339,12 @@ func (w *walker) fail(c *exprCtx, verdict Verdict, rule Rule, detail string) {
 	w.failWith(c, Finding{Path: c.subj, Verdict: verdict, Rule: rule, Detail: detail, Pos: c.pos})
 }
 
+// failh is fail with help, which says what to write. The detail says only
+// what is wrong, so that the two land in their own places.
+func (w *walker) failh(c *exprCtx, verdict Verdict, rule Rule, detail, help string) {
+	w.failWith(c, Finding{Path: c.subj, Verdict: verdict, Rule: rule, Detail: detail, Help: help, Pos: c.pos})
+}
+
 // failWith is fail, with the finding f.
 func (w *walker) failWith(c *exprCtx, f Finding) {
 	c.failed = true
@@ -472,7 +478,7 @@ func (w *walker) binary(e *ast.BinaryExpr, c *exprCtx) (shape, bool) {
 			return shape{kind: cue.BoolKind}, true
 		}
 	case token.QUO:
-		w.fail(c, Unknown, RuleUnknownOp, "divides with /, which yields a float in CUE; use quo or div for integer division")
+		w.failh(c, Unknown, RuleUnknownOp, "divides with /, which yields a float in CUE", "use quo or div for integer division")
 		return shape{}, false
 	case token.AND, token.OR:
 		w.fail(c, Unknown, RuleUnknownOp, fmt.Sprintf("uses %s inside a computation; unify or choose outside the expression", e.Op))
@@ -540,7 +546,7 @@ func (w *walker) arith(c *exprCtx, s shape, op string) (shape, bool) {
 				verdict, rule = Unknown, RuleUnknownBounds
 			}
 		}
-		w.fail(c, verdict, rule, fmt.Sprintf("computes %s, whose result may be %s, outside int64; bound the fields it reads so that the result fits", op, s.iv))
+		w.failh(c, verdict, rule, fmt.Sprintf("computes %s, whose result may be %s, outside int64", op, s.iv), "bound the fields it reads so that the result fits")
 		return shape{}, false
 	}
 	return s, true
@@ -549,9 +555,9 @@ func (w *walker) arith(c *exprCtx, s shape, op string) (shape, bool) {
 // operand reads an input path (or a constant reached by reference) used in an
 // expression.
 func (w *walker) operand(x ast.Expr, c *exprCtx) (shape, bool) {
-	conjs, detail, ok := w.guarded(x, c.subj, c.gs)
+	conjs, detail, help, ok := w.guarded(x, c.subj, c.gs)
 	if !ok {
-		w.fail(c, Unknown, RuleUnknownExhaustive, detail)
+		w.failh(c, Unknown, RuleUnknownExhaustive, detail, help)
 		return shape{}, false
 	}
 	if len(conjs) == 0 {
@@ -581,7 +587,7 @@ func (w *walker) operand(x ast.Expr, c *exprCtx) (shape, bool) {
 				return shape{}, false
 			}
 			if !src.present && !c.hidden {
-				w.fail(c, NotTotal, RuleSourceAbsent, fmt.Sprintf("reads %s, which may be absent: %s; %s", w.inputRef(p), src.why, w.absent(p)))
+				w.failh(c, NotTotal, RuleSourceAbsent, fmt.Sprintf("reads %s, which may be absent: %s", w.inputRef(p), src.why), w.absent(p))
 				return shape{}, false
 			}
 			s, ok = w.shapeOf(src.branches, p, c)
@@ -621,7 +627,7 @@ func (w *walker) operand(x ast.Expr, c *exprCtx) (shape, bool) {
 			continue
 		}
 		if out.kind != s.kind {
-			w.fail(c, Unknown, RuleUnknownOp, fmt.Sprintf("reads %s, which may be %s or %s; the checker needs operands of one kind: write it under a type test", text(x), *out, s))
+			w.failh(c, Unknown, RuleUnknownOp, fmt.Sprintf("reads %s, which may be %s or %s, and the checker needs operands of one kind", text(x), *out, s), "write it under a type test")
 			return shape{}, false
 		}
 		out.iv, out.exact = out.iv.hull(s.iv), out.exact && s.exact
@@ -645,11 +651,11 @@ func (w *walker) shapeOf(branches []cue.Value, p cue.Path, c *exprCtx) (shape, b
 		switch k {
 		case cue.IntKind, cue.StringKind, cue.BoolKind:
 		default:
-			w.fail(c, Unknown, RuleUnknownOp, fmt.Sprintf("reads %s, which may be %s; computations are over integers, strings and bools (floats and numbers are excluded): write it under a type test, or change the source field", w.inputRef(p), k))
+			w.failh(c, Unknown, RuleUnknownOp, fmt.Sprintf("reads %s, which may be %s, and computations are over integers, strings and bools (floats and numbers are excluded)", w.inputRef(p), k), "write it under a type test, or change the source field")
 			return shape{}, false
 		}
 		if i > 0 && out.kind != k {
-			w.fail(c, Unknown, RuleUnknownOp, fmt.Sprintf("reads %s, which may be %s or %s; the checker needs operands of one kind: write it under a type test", w.inputRef(p), out.kind, k))
+			w.failh(c, Unknown, RuleUnknownOp, fmt.Sprintf("reads %s, which may be %s or %s, and the checker needs operands of one kind", w.inputRef(p), out.kind, k), "write it under a type test")
 			return shape{}, false
 		}
 		out.kind = k
@@ -794,7 +800,7 @@ func (w *walker) length(x ast.Expr, c *exprCtx) (shape, bool) {
 			w.failWith(c, w.sourceUndeclared(c.subj, "reads", p, c.pos))
 			return shape{}, false
 		case !src.present && !c.hidden:
-			w.fail(c, NotTotal, RuleSourceAbsent, fmt.Sprintf("reads %s, which may be absent: %s; %s", w.inputRef(p), src.why, w.absent(p)))
+			w.failh(c, NotTotal, RuleSourceAbsent, fmt.Sprintf("reads %s, which may be absent: %s", w.inputRef(p), src.why), w.absent(p))
 			return shape{}, false
 		}
 		var out *interval
@@ -823,9 +829,9 @@ func (w *walker) length(x ast.Expr, c *exprCtx) (shape, bool) {
 		}
 		return shape{kind: cue.IntKind, iv: *out}, true
 	}
-	conjs, detail, ok := w.guarded(x, c.subj, c.gs)
+	conjs, detail, help, ok := w.guarded(x, c.subj, c.gs)
 	if !ok {
-		w.fail(c, Unknown, RuleUnknownExhaustive, detail)
+		w.failh(c, Unknown, RuleUnknownExhaustive, detail, help)
 		return shape{}, false
 	}
 	for _, cj := range conjs {
@@ -978,7 +984,7 @@ func (w *walker) division(name string, e *ast.CallExpr, c *exprCtx) (shape, bool
 		if w.admitsZero(e.Args[1], c) {
 			w.fail(c, NotTotal, RuleDivisionByZero, fmt.Sprintf("divides by %s, which may be 0", text(e.Args[1])))
 		} else {
-			w.fail(c, Unknown, RuleUnknownDivisor, fmt.Sprintf("divides by %s, whose range %s includes 0, though 0 may not be an instance; bound the divisor away from 0 (>0 or <0)", text(e.Args[1]), b.iv))
+			w.failh(c, Unknown, RuleUnknownDivisor, fmt.Sprintf("divides by %s, whose range %s includes 0, though 0 may not be an instance", text(e.Args[1]), b.iv), "bound the divisor away from 0 (>0 or <0)")
 		}
 		return shape{}, false
 	}
@@ -1038,7 +1044,7 @@ func (w *walker) fits(s shape, c *exprCtx, repeated bool, expr string) {
 		}
 	case cue.StringKind:
 		if tgt.Subsume(w.ctx.CompileString("string")) != nil {
-			w.fail(c, Unknown, RuleUnknownTargetConstraint, fmt.Sprintf("is a string built by %s, and the target schema accepts only some strings (%s); the checker does not reason about string contents: make the target accept any string, or copy a field the target already constrains", expr, fmtv(tgt)))
+			w.failh(c, Unknown, RuleUnknownTargetConstraint, fmt.Sprintf("is a string built by %s, and the target schema accepts only some strings (%s), which the checker does not reason about", expr, fmtv(tgt)), "make the target accept any string, or copy a field the target already constrains")
 		}
 	case cue.IntKind:
 		tiv, exact, ok := intervalOf(tgt)
@@ -1059,7 +1065,7 @@ func (w *walker) fits(s shape, c *exprCtx, repeated bool, expr string) {
 				return
 			}
 		}
-		w.fail(c, Unknown, RuleUnknownBounds, fmt.Sprintf("is an integer computed by %s, in %s, which the checker cannot show within int64 and the target's %s%s%s; bound the fields it reads (int32, >=0 & <=100)", expr, s.iv, fmtv(tgt), repeatedNote(repeated), exactNote(s)))
+		w.failh(c, Unknown, RuleUnknownBounds, fmt.Sprintf("is an integer computed by %s, in %s, which the checker cannot show within int64 and the target's %s%s%s", expr, s.iv, fmtv(tgt), repeatedNote(repeated), exactNote(s)), "bound the fields it reads (int32, >=0 & <=100)")
 	}
 }
 
@@ -1147,7 +1153,7 @@ func (w *walker) head(h head, q cue.Path, gs []pattern, pos token.Pos) {
 			fallback = "whose fallback is itself conditional"
 		}
 		w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownHead,
-			Detail: fmt.Sprintf("takes the first element of a list built by if %s %s, so when the conditions are false the list is empty and the index fails; add an unconditional fallback element: [if c {x}, y][0]", text(h.cond), fallback), Pos: pos})
+			Detail: fmt.Sprintf("takes the first element of a list built by if %s %s, so when the conditions are false the list is empty and the index fails", text(h.cond), fallback), Help: "add an unconditional fallback element: [if c {x}, y][0]", Pos: pos})
 		return
 	}
 	g, ok := w.parsePattern(h.cond)
@@ -1233,7 +1239,7 @@ func (w *walker) table(t table, q cue.Path, gs []pattern, pos token.Pos) {
 		return
 	case !src.present:
 		w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RuleSourceAbsent,
-			Detail: fmt.Sprintf("indexes a table by %s, which may be absent: %s; %s", w.inputRef(p), src.why, w.absent(p)), Pos: pos})
+			Detail: fmt.Sprintf("indexes a table by %s, which may be absent: %s", w.inputRef(p), src.why), Help: w.absent(p), Pos: pos})
 		return
 	}
 	// An entry is a regular field: an optional or required one ({x?: 1}["x"])

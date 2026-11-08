@@ -41,9 +41,10 @@ Schema: {
 	aunion: "foo" | *"bar" | "baz"
 }
 -- out/error --
-error[E0420]: lacunas.aunion: a lacuna on a _match applies when its [_] arm does, and this _match has none: say when it applies with when: <condition>
+error[E0420]: lacunas.aunion: a lacuna on a _match applies when its [_] arm does, and this _match has none
   --> history/1.0.thema:11:12
    |
 11 |         aunion: [{
    |                  ^
    |
+   = help: say when it applies with when: <condition>

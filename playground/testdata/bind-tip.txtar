@@ -28,20 +28,21 @@ Schema: {
       },
       "notes": [
         {
-          "label": "translating from 0.0 to tip needs it; until tip.thema writes it, that translation fails (E1002)"
-        },
-        {
           "pos": {
             "file": "tip.thema",
             "line": 1,
             "col": 1,
             "origin": "user"
           },
-          "label": "0.0 declares crew and tip does not, and nothing maps it: write \u003cfield\u003e: v0_0.crew to move it, or crew: _drop"
+          "label": "0.0 declares crew and tip does not, and nothing maps it (E0347)"
+        },
+        {
+          "label": "translating from 0.0 to tip needs it; until tip.thema writes it, that translation fails (E1002)"
         }
       ],
       "help": [
-        "write ForwardLens: {v0_0: _, tip: {...}} in tip.thema"
+        "write ForwardLens: {v0_0: _, tip: {...}} in tip.thema",
+        "write \u003cfield\u003e: v0_0.crew to move it, or crew: _drop"
       ]
     },
     {
@@ -56,20 +57,20 @@ Schema: {
       },
       "notes": [
         {
-          "label": "translating from tip to 0.0 needs it; until tip.thema writes it, that translation fails (E1002)"
-        },
-        {
           "pos": {
             "file": "tip.thema",
             "line": 1,
             "col": 1,
             "origin": "user"
           },
-          "label": "tip.thema has no BackwardLens, and 0.0 requires crew: write BackwardLens: {tip: _, v0_0: {crew: \u003cmapping\u003e}}"
+          "label": "tip.thema has no BackwardLens, and 0.0 requires crew (E0346)"
+        },
+        {
+          "label": "translating from tip to 0.0 needs it; until tip.thema writes it, that translation fails (E1002)"
         }
       ],
       "help": [
-        "write BackwardLens: {tip: _, v0_0: {...}} in tip.thema"
+        "write BackwardLens: {tip: _, v0_0: {crew: \u003cmapping\u003e}}"
       ]
     }
   ],

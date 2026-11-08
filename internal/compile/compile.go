@@ -347,7 +347,7 @@ func lensBlock(f *ast.Field, from, to *version) (body, lacunas *ast.StructLit, e
 			switch label {
 			case fromName:
 				if id, ok := d.Value.(*ast.Ident); !ok || id.Name != "_" {
-					return nil, nil, fail(d.Value.Pos(), "%s takes an instance of %s: declare it as %s: _", name, from.name(), fromName)
+					return nil, nil, fail(d.Value.Pos(), "%s takes an instance of %s, so %s is _", name, from.name(), fromName)
 				}
 				param = d
 			case toName:
@@ -502,7 +502,12 @@ func missingLens(v, prev *version, block string, errs cerrors.Error) error {
 		from, to = to, from
 	}
 	b.Headlinef("%s has no %s, and one cannot be derived", v.path, block)
-	b.Notef(token.NoPos, "translating from %s to %s needs it; until %s writes it, that translation fails (E1002)", nameOf(from, v), nameOf(to, v), v.path)
+	// The derivation's findings say why: each keeps its code, which names its
+	// page, and its help, which says what to write in the block. The help that
+	// writes the block comes first, and the help about what goes in it after:
+	// a missing field the block must produce (E0346) writes the block out
+	// whole, with that field in it, in place of the block's bare shape.
+	var shape, helps []string
 	for _, e := range cerrors.Errors(errs) {
 		if de, ok := e.(*diag.Error); ok {
 			d := de.Diagnostic()
@@ -510,16 +515,27 @@ func missingLens(v, prev *version, block string, errs cerrors.Error) error {
 			if pp := e.Position(); pp.IsValid() {
 				p = pp
 			}
-			b.Note(p, d.Headline)
+			b.Notef(p, "%s (%s)", d.Headline, d.Code)
+			if d.Code == diag.E0346 {
+				shape = append(shape, d.Help...)
+			} else {
+				helps = append(helps, d.Help...)
+			}
 			continue
 		}
 		msg, args := e.Msg()
 		b.Note(e.Position(), fmt.Sprintf(msg, args...))
 	}
-	if block == fieldForward {
-		b.Helpf("write %s: {%s: _, %s: {...}} in %s", block, prev.param(), TipParam, v.path)
-	} else {
-		b.Helpf("write %s: {%s: _, %s: {...}} in %s", block, TipParam, prev.param(), v.path)
+	b.Notef(token.NoPos, "translating from %s to %s needs it; until %s writes it, that translation fails (E1002)", nameOf(from, v), nameOf(to, v), v.path)
+	switch {
+	case len(shape) > 0:
+	case block == fieldForward:
+		shape = []string{fmt.Sprintf("write %s: {%s: _, %s: {...}} in %s", block, prev.param(), TipParam, v.path)}
+	default:
+		shape = []string{fmt.Sprintf("write %s: {%s: _, %s: {...}} in %s", block, TipParam, prev.param(), v.path)}
+	}
+	for _, h := range append(shape, helps...) {
+		b.Help(h)
 	}
 	return b.Err()
 }

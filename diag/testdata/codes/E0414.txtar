@@ -29,14 +29,17 @@ Schema: {
     {
       "code": "E0414",
       "severity": "error",
-      "headline": "the [_] arm collapses every unmatched value into one: declare what is lost in lacunas: {kind: [{type: Type, message: \"...\"}]}",
+      "headline": "the [_] arm collapses every unmatched value into one, and no lacuna says what is lost",
       "primary": {
         "file": "history/1.0.thema",
         "line": 10,
         "col": 4,
         "offset": 98,
         "origin": "user"
-      }
+      },
+      "help": [
+        "declare what is lost in lacunas: {kind: [{type: Type, message: \"...\"}]}"
+      ]
     }
   ],
   "summary": {
@@ -46,9 +49,10 @@ Schema: {
   }
 }
 -- out/text --
-error[E0414]: the [_] arm collapses every unmatched value into one: declare what is lost in lacunas: {kind: [{type: Type, message: "..."}]}
+error[E0414]: the [_] arm collapses every unmatched value into one, and no lacuna says what is lost
   --> history/1.0.thema:10:4
    |
 10 |             [_]: 0
    |             ^
    |
+   = help: declare what is lost in lacunas: {kind: [{type: Type, message: "..."}]}

@@ -51,6 +51,10 @@ var goLeakage = []string{"map[", "&{", "%!", "[]string", "0x", "<nil>"}
 var (
 	positionInText = regexp.MustCompile(`\S+\.(cue|thema|json|yaml|yml):\d+:\d+`)
 	bracketVersion = regexp.MustCompile(`\[\d+ \d+\]`)
+	// A fix run on after the problem: "...: write x", "...; add y". What to
+	// do is help, on its own line, so that a reader finds the problem and the
+	// fix each in its own place.
+	fixInText = regexp.MustCompile(`[:;] (write|add|declare|say|use|make|compare|remove|map|give|rename|move|drop|bound|mark|cut) `)
 )
 
 // Lint checks ds against the mechanical authoring rules, failing t for each
@@ -62,14 +66,14 @@ func Lint(t testing.TB, ds []diag.Diagnostic, form Form) {
 		if _, ok := diag.Lookup(d.Code); !ok {
 			t.Errorf("%s: code is not declared in diag.Codes", where)
 		}
-		lintText(t, where+" headline", d.Headline, form, true)
+		lintText(t, where+" headline", d.Headline, form, true, false)
 		for j, n := range d.Notes {
 			// A note that carries CUE's text verbatim is allowed CUE's phrasing;
 			// its purpose is to not drop what CUE said.
-			lintText(t, fmt.Sprintf("%s note %d", where, j), n.Label, form, false)
+			lintText(t, fmt.Sprintf("%s note %d", where, j), n.Label, form, false, false)
 		}
 		for j, h := range d.Help {
-			lintText(t, fmt.Sprintf("%s help %d", where, j), h, form, false)
+			lintText(t, fmt.Sprintf("%s help %d", where, j), h, form, false, true)
 		}
 		if d.Primary != nil && d.Primary.Origin == diag.OriginThema {
 			t.Errorf("%s: primary position is in thema's own CUE (%s); the primary is always the author's", where, d.Primary)
@@ -82,7 +86,7 @@ func Lint(t testing.TB, ds []diag.Diagnostic, form Form) {
 	}
 }
 
-func lintText(t testing.TB, where, s string, form Form, headline bool) {
+func lintText(t testing.TB, where, s string, form Form, headline, help bool) {
 	t.Helper()
 	if s == "" {
 		t.Errorf("%s: empty", where)
@@ -107,6 +111,9 @@ func lintText(t testing.TB, where, s string, form Form, headline bool) {
 	}
 	if bracketVersion.MatchString(s) {
 		t.Errorf("%s: version written as [M m], not M.m: %q", where, s)
+	}
+	if !help && fixInText.MatchString(s) {
+		t.Errorf("%s: says what to do after the problem; move it to help: %q", where, s)
 	}
 	if !headline {
 		return
