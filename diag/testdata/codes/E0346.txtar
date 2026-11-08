@@ -24,8 +24,9 @@ Schema: {
       "headline": "history/1.0.thema has no ForwardLens, and 1.0 requires b",
       "primary": {
         "file": "history/1.0.thema",
-        "line": 1,
-        "col": 1,
+        "line": 4,
+        "col": 2,
+        "offset": 30,
         "origin": "user"
       },
       "help": [
@@ -41,9 +42,9 @@ Schema: {
 }
 -- out/text --
 error[E0346]: history/1.0.thema has no ForwardLens, and 1.0 requires b
- --> history/1.0.thema:1:1
+ --> history/1.0.thema:4:2
   |
-1 | Schema: {
-  | ^^^^^^
+4 | }
+  |  ^
   |
   = help: write ForwardLens: {v0_0: _, v1_0: {b: <mapping>}}

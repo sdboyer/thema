@@ -26,8 +26,9 @@ Schema: {
       "headline": "the ForwardLens in history/1.0.thema would copy v0_0.kind into kind, which does not accept every value of it",
       "primary": {
         "file": "history/1.0.thema",
-        "line": 1,
-        "col": 1,
+        "line": 4,
+        "col": 2,
+        "offset": 42,
         "origin": "user"
       },
       "notes": [
@@ -51,10 +52,10 @@ Schema: {
 }
 -- out/text --
 error[E0358]: the ForwardLens in history/1.0.thema would copy v0_0.kind into kind, which does not accept every value of it
- --> history/1.0.thema:1:1
+ --> history/1.0.thema:4:2
   |
-1 | Schema: {
-  | ^^^^^^
+4 | }
+  |  ^
   |
   = note: both 0.0 and 1.0 declare kind, so a lens that does not map it copies it
   = note: kind in 1.0 is now "a" | "b", which does not accept every value of the prior string (copying v0_0.kind; compatibility rule value-narrowed)

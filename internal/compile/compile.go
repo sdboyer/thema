@@ -208,7 +208,7 @@ func compileVersions(ctx *cue.Context, name string, vs []*version) (*Compiled, e
 			tipV = &v.v
 		}
 		// Forward: previous version to this one. Only a major version has one.
-		fe := &edge{ctx: ctx, S: vals[i-1], T: vals[i], sv: prev.v, tv: v.v, tip: tipV, dir: forward, identity: minor, file: v.path, blockPos: v.header(), root: prev.param(), lacunas: &lacunaTable{}, imports: imports}
+		fe := &edge{ctx: ctx, S: vals[i-1], T: vals[i], sv: prev.v, tv: v.v, tip: tipV, dir: forward, identity: minor, file: v.path, blockPos: v.end(), root: prev.param(), lacunas: &lacunaTable{}, imports: imports}
 		fb := &body{}
 		if v.forward != nil {
 			fe.written, fe.blockPos = true, v.forward.Pos()
@@ -249,7 +249,7 @@ func compileVersions(ctx *cue.Context, name string, vs []*version) (*Compiled, e
 
 		// Backward: this version to the previous one, derived from the forward
 		// lens and overridden by what the author wrote.
-		be := &edge{ctx: ctx, S: vals[i], T: vals[i-1], sv: v.v, tv: prev.v, tip: tipV, dir: backward, file: v.path, blockPos: v.header(), root: v.param(), lacunas: &lacunaTable{}, imports: imports}
+		be := &edge{ctx: ctx, S: vals[i], T: vals[i-1], sv: v.v, tv: prev.v, tip: tipV, dir: backward, file: v.path, blockPos: v.end(), root: v.param(), lacunas: &lacunaTable{}, imports: imports}
 		ab := &body{}
 		if v.backward != nil {
 			be.written, be.blockPos = true, v.backward.Pos()
@@ -496,7 +496,7 @@ func (v *version) tipLens(f *ast.Field) *ast.Field {
 // prev and the tip v, which the tip does not write and derivation cannot
 // produce. Each of derivation's errors is a note.
 func missingLens(v, prev *version, block string, errs cerrors.Error) error {
-	b := diag.New(diag.E1001).At(v.header())
+	b := diag.New(diag.E1001).At(v.end())
 	from, to := prev.v, v.v
 	if block == fieldBackward {
 		from, to = to, from

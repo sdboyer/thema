@@ -228,8 +228,8 @@ type edge struct {
 	// does not declare (one an open target admits) is not refused.
 	identity bool
 	// file is the version file the lens belongs to (the newer version's), and
-	// blockPos the position of its block there, or of the file when the
-	// author wrote none.
+	// blockPos the position of its block there, or, when the author wrote
+	// none, the end of the file, where it would be written.
 	file     string
 	written  bool
 	blockPos token.Pos
@@ -1701,7 +1701,8 @@ func (e *edge) copyMisfit(code diag.Code, p token.Pos, spath, tpath cue.Path, fs
 }
 
 // unproduced reports a required target field no mapping produces, at the
-// lens block the author must add it to, or at the file when there is none.
+// lens block the author must add it to, or, when there is none, at the end of
+// the file, where the block would be written.
 func (e *edge) unproduced(tpath cue.Path) {
 	if e.written {
 		e.errh(diag.E0346, e.blockPos, fmt.Sprintf("add %s: <mapping> to %s", tpath, e.paramOf(e.tv)), "%s produces nothing for %s, which %s requires", e.dir, tpath, e.nameOf(e.tv))

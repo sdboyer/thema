@@ -22,16 +22,18 @@ Schema: {
       "headline": "tip.thema has no ForwardLens, and one cannot be derived",
       "primary": {
         "file": "tip.thema",
-        "line": 1,
-        "col": 1,
+        "line": 3,
+        "col": 2,
+        "offset": 25,
         "origin": "user"
       },
       "notes": [
         {
           "pos": {
             "file": "tip.thema",
-            "line": 1,
-            "col": 1,
+            "line": 3,
+            "col": 2,
+            "offset": 25,
             "origin": "user"
           },
           "label": "0.0 declares crew and tip does not, and nothing maps it (E0347)"
@@ -51,16 +53,18 @@ Schema: {
       "headline": "tip.thema has no BackwardLens, and one cannot be derived",
       "primary": {
         "file": "tip.thema",
-        "line": 1,
-        "col": 1,
+        "line": 3,
+        "col": 2,
+        "offset": 25,
         "origin": "user"
       },
       "notes": [
         {
           "pos": {
             "file": "tip.thema",
-            "line": 1,
-            "col": 1,
+            "line": 3,
+            "col": 2,
+            "offset": 25,
             "origin": "user"
           },
           "label": "tip.thema has no BackwardLens, and 0.0 requires crew (E0346)"

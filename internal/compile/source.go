@@ -215,6 +215,15 @@ func (v *version) header() token.Pos {
 	return v.tf.Pos(0, token.NoRelPos)
 }
 
+// end is the position just past the file's last declaration, where a block
+// the file lacks, such as a lens, would be written.
+func (v *version) end() token.Pos {
+	if n := len(v.file.Decls); n > 0 {
+		return v.file.Decls[n-1].End()
+	}
+	return v.header()
+}
+
 // usedImports returns the import specs that references within f resolve to.
 func usedImports(f *ast.Field) map[*ast.ImportSpec]bool {
 	used := make(map[*ast.ImportSpec]bool)
