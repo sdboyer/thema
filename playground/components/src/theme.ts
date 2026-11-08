@@ -47,6 +47,12 @@ const spec = {
   ".cm-tooltip-lint": { fontFamily: "var(--mono)", fontSize: "var(--code-size)" },
   ".cm-diagnostic": { whiteSpace: "pre-wrap" },
   ".cm-diagnosticSource": { color: "var(--muted)" },
+  // A marker's parts carry the diagnostics list's class names, which the host
+  // styles; these are the rules the host scopes to the list.
+  ".cm-diagnostic .headline": { fontWeight: "600" },
+  ".cm-diagnostic-error .code": { color: "var(--error)" },
+  ".cm-diagnostic-warning .code": { color: "var(--warning)" },
+  ".cm-diagnostic .of": { color: "var(--muted)" },
   "&.cm-focused": { outline: "none" },
 };
 

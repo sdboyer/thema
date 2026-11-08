@@ -1,5 +1,8 @@
-// The diagnostics of one operation, as thema says them: code and headline,
-// where, the notes, help, and CUE's own text when there is any.
+// The diagnostics of one operation, as thema says them and in the order the
+// text renderer says them: code and headline, where, the notes with a
+// position and then those without, help, and CUE's own text when there is
+// any. Each is on its own line under its own label, so that what is wrong and
+// what to do are each in one place.
 import type { Diagnostic, Pos } from "./types";
 import { docsURL } from "./markers";
 
@@ -9,6 +12,8 @@ interface Props {
   onOpen?: (file: string) => void;
   empty?: string;
 }
+
+const samePos = (a: Pos, b: Pos | undefined) => !!b && a.file === b.file && a.line === b.line && a.col === b.col;
 
 export function Diagnostics({ diagnostics, onOpen, empty }: Props) {
   if (diagnostics.length === 0) {
@@ -25,9 +30,9 @@ export function Diagnostics({ diagnostics, onOpen, empty }: Props) {
             {d.headline}
           </div>
           {d.primary && <Where pos={d.primary} onOpen={onOpen} />}
-          {(d.notes ?? []).map((n, j) => (
+          {[...(d.notes ?? []).filter((n) => n.pos), ...(d.notes ?? []).filter((n) => !n.pos)].map((n, j) => (
             <div key={j} class="note">
-              <span class="label">note:</span> {n.label} {n.pos && <Where pos={n.pos} onOpen={onOpen} inline />}
+              <span class="label">note:</span> {n.label} {n.pos && !samePos(n.pos, d.primary) && <Where pos={n.pos} onOpen={onOpen} inline />}
             </div>
           ))}
           {(d.help ?? []).map((h, j) => (
