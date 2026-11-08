@@ -379,6 +379,369 @@ func TestAssignable(t *testing.T) {
 			}
 			`, strconv.IntSize, strconv.IntSize),
 		},
+		// A Go int64 holds every value of a bounded CUE int, but not of an
+		// unbounded one, whatever form the field takes (#304). A default is
+		// one of the values a field may take, so it never stands for the rest.
+		"intRegular": {
+			T: &struct {
+				P int64 `json:"p"`
+			}{},
+			cue: `typ: {
+				p: int
+			}
+			`,
+			invalid: true,
+		},
+		"intRequired": {
+			T: &struct {
+				P int64 `json:"p"`
+			}{},
+			cue: `typ: {
+				p!: int
+			}
+			`,
+			invalid: true,
+		},
+		"intOptional": {
+			T: &struct {
+				P *int64 `json:"p,omitempty"`
+			}{},
+			cue: `typ: {
+				p?: int
+			}
+			`,
+			invalid: true,
+		},
+		"intDefault": {
+			T: &struct {
+				P int64 `json:"p"`
+			}{},
+			cue: `typ: {
+				p: *3 | int
+			}
+			`,
+			invalid: true,
+		},
+		"intOptionalDefault": {
+			T: &struct {
+				P *int64 `json:"p,omitempty"`
+			}{},
+			cue: `typ: {
+				p?: *3 | int
+			}
+			`,
+			invalid: true,
+		},
+		"intDefaultInDisjunction": {
+			T: &struct {
+				P int64 `json:"p"`
+			}{},
+			cue: `typ: {
+				p: *3 | 4 | int
+			}
+			`,
+			invalid: true,
+		},
+		"intDefaultRef": {
+			T: &struct {
+				X int64 `json:"x"`
+				P int64 `json:"p"`
+			}{},
+			cue: `typ: {
+				x: 3
+				p: *x | int
+			}
+			`,
+			invalid: true,
+		},
+		"intDefaultNested": {
+			T: &struct {
+				Nest struct {
+					P int64 `json:"p"`
+				} `json:"nest"`
+			}{},
+			cue: `typ: {
+				nest: {
+					p: *3 | int
+				}
+			}
+			`,
+			invalid: true,
+		},
+		"intDefaultListElem": {
+			T: &struct {
+				L []int64 `json:"l"`
+			}{},
+			cue: `typ: {
+				l: [...(*3 | int)]
+			}
+			`,
+			invalid: true,
+		},
+		"intDefaultListPrefix": {
+			T: &struct {
+				L []int64 `json:"l"`
+			}{},
+			cue: `typ: {
+				l: [*3 | int, ...(*3 | int64)]
+			}
+			`,
+			invalid: true,
+		},
+		"intDefaultArrayElem": {
+			T: &struct {
+				L [2]int64 `json:"l"`
+			}{},
+			cue: `typ: {
+				l: [*3 | int, *3 | int64]
+			}
+			`,
+			invalid: true,
+		},
+		"structDefault": {
+			T: &struct {
+				Nest struct {
+					P int64 `json:"p"`
+				} `json:"nest"`
+			}{},
+			cue: `typ: {
+				nest: {p: int} | *{p: 3}
+			}
+			`,
+			invalid: true,
+		},
+		"structDefaultRef": {
+			T: &struct {
+				Nest struct {
+					P int64 `json:"p"`
+				} `json:"nest"`
+			}{},
+			cue: `#S: {p: int}
+			#D: {p: 3}
+			typ: {
+				nest: #S | *#D
+			}
+			`,
+			invalid: true,
+		},
+		"structDefaultRefBounded": {
+			T: &struct {
+				Nest struct {
+					P int64 `json:"p"`
+				} `json:"nest"`
+			}{},
+			cue: `#S: {p: int64}
+			#D: {p: 3}
+			typ: {
+				nest: #S | *#D
+			}
+			`,
+		},
+		"structDefaultOfDefinition": {
+			T: &struct {
+				Nest struct {
+					P int64 `json:"p"`
+				} `json:"nest"`
+			}{},
+			cue: `#S: {p: int} | *{p: 3}
+			typ: {
+				nest: #S
+			}
+			`,
+			invalid: true,
+		},
+		"structDefaultConjunct": {
+			T: &struct {
+				Nest struct {
+					P int64 `json:"p"`
+				} `json:"nest"`
+			}{},
+			cue: `typ: {
+				nest: {p: int} & ({p: int} | *{p: 3})
+			}
+			`,
+			invalid: true,
+		},
+		"structDefaultConjunction": {
+			T: &struct {
+				Nest struct {
+					P int64 `json:"p"`
+					Q int64 `json:"q"`
+				} `json:"nest"`
+			}{},
+			cue: `typ: {
+				nest: ({p: int} & {q: int64}) | *{p: 3, q: 4}
+			}
+			`,
+			invalid: true,
+		},
+		"structDefaultConjunctionBounded": {
+			T: &struct {
+				Nest struct {
+					P int64 `json:"p"`
+					Q int64 `json:"q"`
+				} `json:"nest"`
+			}{},
+			cue: `typ: {
+				nest: ({p: int64} & {q: int64}) | *{p: 3, q: 4}
+			}
+			`,
+		},
+		"structDefaultOverDisjunction": {
+			T: &struct {
+				Nest struct {
+					P int64 `json:"p"`
+				} `json:"nest"`
+			}{},
+			cue: `typ: {
+				nest: {p: int64} & ({p: 3} | *{p: 4})
+			}
+			`,
+			invalid: true,
+		},
+		"listDefaultOtherType": {
+			T: &struct {
+				Slice []string `json:"slice"`
+			}{},
+			cue: `typ: {
+				slice: [...string] | *[1]
+			}
+			`,
+			invalid: true,
+		},
+		"listDefaultTwoTypes": {
+			T: &struct {
+				L []int64 `json:"l"`
+			}{},
+			cue: `typ: {
+				l: [...int64] | [...string] | *[1]
+			}
+			`,
+			invalid: true,
+		},
+		"listDefaultUnbounded": {
+			T: &struct {
+				L []int64 `json:"l"`
+			}{},
+			cue: `typ: {
+				l: [...int] | *[1]
+			}
+			`,
+			invalid: true,
+		},
+		"listDefaultRef": {
+			T: &struct {
+				L []int64 `json:"l"`
+			}{},
+			cue: `#L: [...int64]
+			typ: {
+				l: #L | *[1]
+			}
+			`,
+		},
+		"listDefaultOfDefinition": {
+			T: &struct {
+				L []int64 `json:"l"`
+			}{},
+			cue: `#L: [...int64] | *[1]
+			typ: {
+				l: #L
+			}
+			`,
+		},
+		"intBounded": {
+			T: &struct {
+				A int64 `json:"a"`
+				B int64 `json:"b"`
+				C int64 `json:"c"`
+				D int64 `json:"d"`
+			}{},
+			cue: `typ: {
+				a: int & >=0 & <=1000
+				b: *3 | int & >=0 & <=1000
+				c: int64
+				d: *3 | int64
+			}
+			`,
+		},
+		"int32Bounded": {
+			T: &struct {
+				A int64  `json:"a"`
+				B int64  `json:"b"`
+				C *int64 `json:"c,omitempty"`
+				D int64  `json:"d"`
+			}{},
+			cue: `typ: {
+				a: int32
+				b: *3 | int32
+				c?: int32
+				d: *3 | 4
+			}
+			`,
+		},
+		"intDefaultRefBounded": {
+			T: &struct {
+				X int64 `json:"x"`
+				P int64 `json:"p"`
+			}{},
+			cue: `typ: {
+				x: 3
+				p: *x | int64
+			}
+			`,
+		},
+		"intDefaultNestedBounded": {
+			T: &struct {
+				Nest struct {
+					P int64 `json:"p"`
+				} `json:"nest"`
+				L []int64 `json:"l"`
+			}{},
+			cue: `typ: {
+				nest: {
+					p: *3 | int64
+				}
+				l: [...(*3 | int64)]
+			}
+			`,
+		},
+		// Go's float64 encodes as number, so a default changes no float verdict:
+		// number is accepted and float refused, with or without one.
+		"floatNumber": {
+			T: &struct {
+				A float64 `json:"a"`
+				B float64 `json:"b"`
+				C float64 `json:"c"`
+				D float64 `json:"d"`
+			}{},
+			cue: `typ: {
+				a: number
+				b: *3.0 | number
+				c: float64
+				d: *1.5 | float64
+			}
+			`,
+		},
+		"floatFloat": {
+			T: &struct {
+				A float64 `json:"a"`
+			}{},
+			cue: `typ: {
+				a: float
+			}
+			`,
+			invalid: true,
+		},
+		"floatFloatDefault": {
+			T: &struct {
+				A float64 `json:"a"`
+			}{},
+			cue: `typ: {
+				a: *3.0 | float
+			}
+			`,
+			invalid: true,
+		},
 		"or-null": {
 			T: &struct {
 				Both   *string `json:"both,omitempty"`
@@ -424,6 +787,33 @@ func TestAssignable(t *testing.T) {
 			}
 			t.Run("normal", f(false))
 			t.Run("definition", f(true))
+		})
+	}
+}
+
+// TestBindTypeDefaultedInt checks the assignability rule through BindType, on
+// the schema of a bound lineage: a default does not stand for the values a
+// field may take (#304).
+func TestBindTypeDefaultedInt(t *testing.T) {
+	type P struct {
+		P int64 `json:"p"`
+	}
+	for field, invalid := range map[string]bool{
+		"p: *3 | int":   true,
+		"p: *3 | int64": false,
+		"p: int64":      false,
+	} {
+		t.Run(field, func(t *testing.T) {
+			lin := testLin(fmt.Sprintf(`name: "defaulted"
+schemas: "0": "0": schema: {%s}
+`, field))
+			_, err := BindType(lin.First(), &P{})
+			if invalid && err == nil {
+				t.Fatal("expected BindType to refuse the type")
+			}
+			if !invalid && err != nil {
+				t.Fatal(err)
+			}
 		})
 	}
 }
