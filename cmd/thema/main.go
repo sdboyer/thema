@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	iofs "io/fs"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"cuelang.org/go/cue/cuecontext"
 	"github.com/sdboyer/jenny"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/authoring"
@@ -40,10 +42,63 @@ func main() {
 			HiddenDefaultCmd: true,
 		}
 	}
+	markRan(rootCmd)
 
-	if err := rootCmd.Execute(); err != nil {
-		os.Exit(report(err))
+	if cmd, err := rootCmd.ExecuteC(); err != nil {
+		os.Exit(report(commandLine(cmd, err)))
 	}
+}
+
+// readDiagFormat sets diagFormat from args alone, ignoring every other flag
+// and argument. cobra stops reading a command line at what it cannot take,
+// so --diag-format after that point is never set, yet the diagnostic that
+// says so must be written as it asks.
+func readDiagFormat(args []string) {
+	fs := pflag.NewFlagSet("diag-format", pflag.ContinueOnError)
+	fs.ParseErrorsAllowlist.UnknownFlags = true
+	fs.SetOutput(io.Discard)
+	fs.StringVar(&diagFormat, "diag-format", diagFormat, "")
+	_ = fs.Parse(args)
+}
+
+// ran is an error a command's own code returned, as against one cobra
+// returned for the command line before any of that code ran.
+type ran struct{ err error }
+
+func (r ran) Error() string { return r.err.Error() }
+func (r ran) Unwrap() error { return r.err }
+
+// markRan wraps the hooks of cmd and every command beneath it so that every
+// error they return is marked as ran.
+func markRan(cmd *cobra.Command) {
+	for _, sub := range cmd.Commands() {
+		markRan(sub)
+	}
+	for _, h := range []*cobraefunc{(*cobraefunc)(&cmd.PersistentPreRunE), (*cobraefunc)(&cmd.PreRunE), (*cobraefunc)(&cmd.RunE), (*cobraefunc)(&cmd.PostRunE), (*cobraefunc)(&cmd.PersistentPostRunE)} {
+		if f := *h; f != nil {
+			*h = func(cmd *cobra.Command, args []string) error {
+				if err := f(cmd, args); err != nil {
+					return ran{err}
+				}
+				return nil
+			}
+		}
+	}
+}
+
+// commandLine is err as the CLI reports it: what a command's own code
+// returned, as it returned it, and anything else, which cobra returned for a
+// command line it could not take (an unknown command or flag, a flag without
+// its value, too many arguments), as E0620, with cobra's account of it.
+func commandLine(cmd *cobra.Command, err error) error {
+	var r ran
+	if errors.As(err, &r) {
+		return r.err
+	}
+	readDiagFormat(os.Args[1:])
+	return diag.New(diag.E0620).Headlinef("%s cannot take this command line", cmd.CommandPath()).
+		Detail(err.Error()).
+		Help(fmt.Sprintf("%s --help lists the commands, flags and arguments it takes", cmd.CommandPath())).Err()
 }
 
 // silent is a failure a command has already said everything about, or was
