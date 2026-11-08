@@ -126,7 +126,18 @@ func assignable(sch cue.Value, T interface{}) error {
 				errs[p.String()] = fmt.Errorf("%s: contains disjunction over struct types, but Go type is not any", p)
 				return
 			}
-			checkstruct(gval, sval, p)
+			// Fields walks a struct's default, which says nothing of the other
+			// values the field may take.
+			typs, ok := disjuncts(sval)
+			switch {
+			case !ok:
+				errs[p.String()] = errUnreadDefault(p)
+				return
+			case len(typs) > 1:
+				errs[p.String()] = fmt.Errorf("%s: contains disjunction over struct types, but Go type is not any", p)
+				return
+			}
+			checkstruct(gval, typs[0], p)
 		case cue.NullKind:
 			errs[p.String()] = fmt.Errorf("%s: null is not permitted in schema; express optionality with ?", p)
 		default:
@@ -175,19 +186,18 @@ func assignable(sch cue.Value, T interface{}) error {
 
 	checklist = func(gval, sval cue.Value, p cue.Path) {
 		// If the schema is an open list with a default value, sval.Len() will produce a bottom value because it can't
-		// know which side of the disjunction to pick. There could be many branches on this disjunction, though. Only
-		// allow two, and only if one is a default.
-		if _, has := sval.Default(); has {
-			// Bewildering: calling Expr() on a list disjunction with a default value appears to
-			// just drop the marked/default value, and not indicate an OrOp at all. This is handy,
-			// but unexpected behavior, and it feels dangerous to rely on.
-			_, evals := sval.Expr()
-			if len(evals) > 2 {
-				errs[p.String()] = fmt.Errorf("%s: schema is a complex disjunction of list types, may only correspond to interface{}/any", p)
-				return
-			}
-			sval = evals[0]
+		// know which side of the disjunction to pick. The default is only one of the values the list may take, so
+		// check the list type it is one of, and refuse a disjunction of list types.
+		typs, ok := disjuncts(sval)
+		switch {
+		case !ok:
+			errs[p.String()] = errUnreadDefault(p)
+			return
+		case len(typs) > 1:
+			errs[p.String()] = fmt.Errorf("%s: schema is a complex disjunction of list types, may only correspond to interface{}/any", p)
+			return
 		}
+		sval = typs[0]
 
 		glen, slen := gval.Len(), sval.Len()
 		// Ensure alignment of list openness/closedness
@@ -227,8 +237,12 @@ func assignable(sch cue.Value, T interface{}) error {
 				// Failures indicate the CUE schema is unrepresentable in Go.
 				// That's the kind of thing we'd likely prefer to know/have in
 				// some more universal place.
-				lerr, rerr := lastval.Subsume(los, cue.Schema()), los.Subsume(lastval, cue.Schema())
-				if lerr != nil || rerr != nil {
+				same, ok := sameType(lastval, los)
+				if !ok {
+					errs[p.String()] = errUnreadDefault(p)
+					return
+				}
+				if !same {
 					errs[p.String()] = fmt.Errorf("%s: schema is list with multiple types, not representable in Go", p)
 					return
 				}
@@ -252,8 +266,12 @@ func assignable(sch cue.Value, T interface{}) error {
 			los = sval.LookupPath(cue.MakePath(cue.AnyIndex))
 			// If there were actual list elements, make sure the AnyIndex type is the same as them, too.
 			if nonempty {
-				lerr, rerr := lastval.Subsume(los, cue.Schema()), los.Subsume(lastval, cue.Schema())
-				if lerr != nil || rerr != nil {
+				same, ok := sameType(lastval, los)
+				if !ok {
+					errs[p.String()] = errUnreadDefault(p)
+					return
+				}
+				if !same {
 					errs[p.String()] = fmt.Errorf("%s: schema is list of multiple types; not representable in Go", p)
 					return
 				}
@@ -269,8 +287,10 @@ func assignable(sch cue.Value, T interface{}) error {
 		// really interested in whether all valid schema instances will
 		// be assignable to the Go type, we have to see if the Go type
 		// subsumes the schema, rather than the more intuitive check
-		// that the schema subsumes the Go type.
-		if err := gval.Subsume(top.Unify(sval), cue.Schema()); err != nil {
+		// that the schema subsumes the Go type. Raw keeps Subsume from resolving
+		// a default: the Go type must hold every value the field may take, not
+		// only the one it takes when data gives none.
+		if err := gval.Subsume(top.Unify(sval), cue.Schema(), cue.Raw()); err != nil {
 			errs[p.String()] = fmt.Errorf("%s: schema type %v not subsumed by Go type %v", p, sval, gval)
 		}
 	}
@@ -282,6 +302,142 @@ func assignable(sch cue.Value, T interface{}) error {
 		return errs
 	}
 	return nil
+}
+
+// errUnreadDefault is the refusal of a value with a default that disjuncts
+// cannot read.
+func errUnreadDefault(p cue.Path) error {
+	return fmt.Errorf("%s: schema has a default in a form assignability cannot check, may only correspond to interface{}/any", p)
+}
+
+// disjuncts returns the values v may take, as disjuncts none of which has a
+// default. A default is one of those values, the one taken when data gives
+// none, so it cannot stand for the rest.
+//
+// Expr drops a default that another disjunct holds, and reports a sole
+// remaining disjunct as that disjunct's own expression: the value itself, or
+// the conjuncts of a conjunction. ReferencePath reports a sole remaining
+// reference. ok is false for anything else, such as a let or a call, and
+// whenever what is read still has a default.
+func disjuncts(v cue.Value) (ds []cue.Value, ok bool) {
+	if !hasDefault(v) {
+		return []cue.Value{v}, true
+	}
+	if root, p := v.ReferencePath(); root.Exists() {
+		if ref := root.LookupPath(p); ref.Exists() {
+			return disjuncts(ref)
+		}
+		return nil, false
+	}
+	switch op, args := v.Expr(); op {
+	case cue.NoOp:
+		if len(args) == 1 && !hasDefault(args[0]) {
+			return args, true
+		}
+	case cue.OrOp:
+		for _, a := range args {
+			ads, ok := disjuncts(a)
+			if !ok {
+				return nil, false
+			}
+			ds = append(ds, ads...)
+		}
+		return ds, true
+	case cue.AndOp:
+		// A conjunction of disjunctions is the disjunction of the
+		// conjunctions of their disjuncts.
+		for i, a := range args {
+			ads, ok := disjuncts(a)
+			if !ok {
+				return nil, false
+			}
+			if i == 0 {
+				ds = ads
+				continue
+			}
+			var next []cue.Value
+			for _, d := range ds {
+				for _, ad := range ads {
+					// A conjunct of a closed struct is closed on its own;
+					// v says which fields the conjunction allows.
+					if u := d.UnifyAccept(ad, v); u.Err() == nil {
+						next = append(next, u)
+					}
+				}
+			}
+			ds = next
+		}
+		if len(ds) > 0 {
+			return ds, true
+		}
+	}
+	return nil, false
+}
+
+// hasDefault reports whether v has a default other than an open list's own.
+// A list that is not a disjunction (Kind is ListKind, where a disjunction's
+// is bottom) has a default only by being open: the list closed after its
+// fixed elements, which takes no value the list does not already take.
+func hasDefault(v cue.Value) bool {
+	if _, has := v.Default(); !has {
+		return false
+	}
+	return v.Kind() != cue.ListKind
+}
+
+// sameType reports whether a and b take the same values, whatever their
+// defaults: each alternative of one is an instance of an alternative of the
+// other. ok is false when disjuncts cannot read either.
+func sameType(a, b cue.Value) (same, ok bool) {
+	aalts, aok := alternatives(a)
+	balts, bok := alternatives(b)
+	if !aok || !bok {
+		return false, false
+	}
+	return covers(aalts, balts) && covers(balts, aalts), true
+}
+
+// alternatives splits v into the disjuncts of every disjunction it is, with
+// or without a default, so that a disjunction compares the same whichever
+// side of a comparison carried a default.
+func alternatives(v cue.Value) ([]cue.Value, bool) {
+	ds, ok := disjuncts(v)
+	if !ok {
+		return nil, false
+	}
+	var alts []cue.Value
+	for _, d := range ds {
+		op, args := d.Expr()
+		if op != cue.OrOp {
+			alts = append(alts, d)
+			continue
+		}
+		for _, a := range args {
+			aalts, ok := alternatives(a)
+			if !ok {
+				return nil, false
+			}
+			alts = append(alts, aalts...)
+		}
+	}
+	return alts, true
+}
+
+// covers reports whether every value of ys is an instance of a value of xs.
+func covers(xs, ys []cue.Value) bool {
+	for _, y := range ys {
+		found := false
+		for _, x := range xs {
+			if x.Subsume(y, cue.Schema(), cue.Raw()) == nil {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
 }
 
 func stripLeadNull(v cue.Value) cue.Value {

@@ -323,7 +323,7 @@ Without `-o`, the command prints the files to stdout as a [txtar](https://pkg.go
 
 **Limits**
 
-- `thema.AssignableTo` rejects some generated types: an unbounded `int` field, which it accepts only as `math/big.Int`, and a `null | {...}` field, which it reads as a disjunction of structs. A bounded int, such as `int32` or `int & >=1 & <=100`, is accepted.
+- `thema.AssignableTo` rejects some generated types: an unbounded `int` field, with or without a default (`*3 | int`), which it accepts only as `math/big.Int`, and a `null | {...}` field, which it reads as a disjunction of structs. A bounded int, such as `int32` or `int & >=1 & <=100`, is accepted.
 - A struct with both fields and a pattern constraint becomes a struct of its fields; the pattern is dropped.
 - A fixed-length list, `[A, B]`, becomes `[]any`.
 - Closed and open structs are generated the same way; `...` adds nothing.
