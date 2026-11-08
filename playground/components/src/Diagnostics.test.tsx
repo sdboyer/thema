@@ -59,4 +59,15 @@ describe("markerDOM", () => {
       "of: of E1001: tip.thema has no ForwardLens, and one cannot be derived",
     ]);
   });
+
+  // A note the file cannot mark says where it is as the list does, in the
+  // list's class.
+  it("says where a note in another file is, as the list does", () => {
+    const m: Pick<Marker, "code" | "lines"> = {
+      code: "E0358",
+      lines: [{ kind: "note", text: "0.0 declares count as string", where: "history/0.0.thema:2:2" }],
+    };
+    expect(rows(markerDOM(m))).toEqual(["note: note: 0.0 declares count as string (history/0.0.thema:2:2)"]);
+    expect(markerDOM(m).querySelector(".note .where")!.textContent).toBe("(history/0.0.thema:2:2)");
+  });
 });

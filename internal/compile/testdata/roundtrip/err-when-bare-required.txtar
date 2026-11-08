@@ -36,4 +36,4 @@ error[E0422]: v0_0.name is string, not a condition
 15 |             when:    v0_0.name
    |                      ^^^^
    |
-   = help: compare it; an optional field named bare tests its presence
+   = help: compare v0_0.name to a value, or name an optional field bare to test whether it is present

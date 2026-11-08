@@ -4,7 +4,7 @@
 // any. Each is on its own line under its own label, so that what is wrong and
 // what to do are each in one place.
 import type { Diagnostic, Pos } from "./types";
-import { docsURL } from "./markers";
+import { docsURL, whereText } from "./markers";
 
 interface Props {
   diagnostics: readonly Diagnostic[];
@@ -53,14 +53,12 @@ export function Diagnostics({ diagnostics, onOpen, empty }: Props) {
 }
 
 function Where({ pos, onOpen, inline }: { pos: Pos; onOpen?: (file: string) => void; inline?: boolean }) {
-  const text = `${pos.file}:${pos.line}:${pos.col}`;
-  const own = pos.origin === "thema";
   const body =
-    own || !onOpen ? (
-      <span>{own ? `thema's own CUE, ${text}` : text}</span>
+    pos.origin === "thema" || !onOpen ? (
+      <span>{whereText(pos)}</span>
     ) : (
       <button class="link" onClick={() => onOpen(pos.file)}>
-        {text}
+        {whereText(pos)}
       </button>
     );
   return inline ? <span class="where">({body})</span> : <div class="where">--&gt; {body}</div>;

@@ -503,10 +503,11 @@ func missingLens(v, prev *version, block string, errs cerrors.Error) error {
 	}
 	b.Headlinef("%s has no %s, and one cannot be derived", v.path, block)
 	// The derivation's findings say why: each keeps its code, which names its
-	// page, and its help, which says what to write in the block. The help that
-	// writes the block comes first, and the help about what goes in it after:
-	// a missing field the block must produce (E0346) writes the block out
-	// whole, with that field in it, in place of the block's bare shape.
+	// page, its notes, after its own, and its help, which says what to write
+	// in the block. The help that writes the block comes first, and the help
+	// about what goes in it after: the fields the block must produce (E0346)
+	// write the block out whole, with those fields in it, in place of the
+	// block's bare shape.
 	var shape, helps []string
 	for _, e := range cerrors.Errors(errs) {
 		if de, ok := e.(*diag.Error); ok {
@@ -516,6 +517,16 @@ func missingLens(v, prev *version, block string, errs cerrors.Error) error {
 				p = pp
 			}
 			b.Notef(p, "%s (%s)", d.Headline, d.Code)
+			// InputPositions holds the position of each positioned note, in
+			// order.
+			ps := de.InputPositions()
+			for _, n := range d.Notes {
+				np := token.NoPos
+				if n.Pos != nil && len(ps) > 0 {
+					np, ps = ps[0], ps[1:]
+				}
+				b.Note(np, n.Label)
+			}
 			if d.Code == diag.E0346 {
 				shape = append(shape, d.Help...)
 			} else {

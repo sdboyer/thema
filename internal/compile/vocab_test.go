@@ -60,3 +60,36 @@ func TestRewriteKeepsDescribedConditions(t *testing.T) {
 		t.Errorf("Rewrite cut what is wrong:\n got %s\nwant %s", got, sentence)
 	}
 }
+
+// The checker's help to test a number's type before comparing it is a
+// condition in the normal form's syntax, which the authoring form cannot
+// write: it is not given, and what is wrong is still said. The authoring form
+// cannot reach it today (a _match arm keyed by a number does not parse,
+// E0102), so the checker is called directly.
+func TestRewriteDropsTypeTest(t *testing.T) {
+	ctx := cuecontext.New()
+	lens := ctx.CompileString(`v0_0: _
+v1_0: {
+	if v0_0.a == 5 {b: v0_0.a}
+	if v0_0.a != 5 {b: 0}
+}`)
+	res := lenscheck.Check(ctx, lens, ctx.CompileString(`a!: number`), ctx.CompileString(`b!: int`), "v0_0", "v1_0")
+	v := vocab{paths: map[thema.SyntacticVersion]string{thema.SV(0, 0): "history/0.0.thema", thema.SV(1, 0): "history/1.0.thema"}}
+	a := diag.Address{Kind: diag.AddrLensResultField, From: diag.Version(thema.SV(0, 0)), To: diag.Version(thema.SV(1, 0)), Field: []string{"b"}}
+	var tested int
+	for _, f := range res.Findings {
+		if !strings.HasPrefix(f.Help, "test its type first") {
+			continue
+		}
+		tested++
+		if h, ok := v.RewriteHelp(a, f.Help); ok {
+			t.Errorf("rewritten help suggests the normal form's syntax: %s", h)
+		}
+		if got := v.Rewrite(a, f.Detail); !strings.Contains(got, "v0_0.a may be a float") {
+			t.Errorf("rewritten sentence lost what is wrong: %s", got)
+		}
+	}
+	if tested == 0 {
+		t.Fatalf("want a finding whose help tests the type first, got %v", res.Findings)
+	}
+}

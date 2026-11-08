@@ -15,9 +15,9 @@ Schema: {
 }
 -- out/error --
 error[E0346]: history/1.0.thema has no ForwardLens, and 1.0 requires b
- --> history/1.0.thema:4:2
+ --> history/1.0.thema:4:1
   |
 4 | }
-  |  ^
+  | ^
   |
-  = help: write ForwardLens: {v0_0: _, v1_0: {b: <mapping>}}
+  = help: write ForwardLens: {v0_0: _, v1_0: {b: <mapping>}} in history/1.0.thema

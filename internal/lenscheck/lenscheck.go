@@ -548,7 +548,7 @@ func (w *walker) conjunct(c cueview.Conjunct, q cue.Path, gs []pattern, pos toke
 		p, ok := w.sourcePath(c)
 		if !ok {
 			w.add(Finding{Path: w.subject(q), Verdict: Unknown, Rule: RuleUnknownReference,
-				Detail: fmt.Sprintf("copies %s, a selection into the input the checker cannot follow; select fields by name", text(c.Expr)), Pos: pos})
+				Detail: fmt.Sprintf("copies %s, a selection into the input the checker cannot follow", text(c.Expr)), Help: "select fields by name", Pos: pos})
 			return
 		}
 		w.copy(q, p, gs, pos)
@@ -1317,7 +1317,7 @@ func (w *walker) each(comp *ast.Comprehension, q cue.Path, gs []pattern, pos tok
 	p, ok := w.pathOf(fc.Source)
 	if !ok {
 		w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownReference,
-			Detail: fmt.Sprintf("maps the elements of %s, which the checker cannot follow to a list in the input; iterate a list by name", text(fc.Source)), Pos: pos})
+			Detail: fmt.Sprintf("maps the elements of %s, which the checker cannot follow to a list in the input", text(fc.Source)), Help: "iterate a list by name", Pos: pos})
 		return
 	}
 	src := w.lookupSource(p, gs)

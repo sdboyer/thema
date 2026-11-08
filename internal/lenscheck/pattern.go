@@ -294,7 +294,7 @@ func (w *walker) checkPatterns(gs, outer []pattern, subj string, pos token.Pos) 
 				// CUE compares numbers by value: 5.0 == 5. The equality holds
 				// for a float the path may hold, and says nothing about its kind.
 				w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownPattern,
-					Detail: fmt.Sprintf("is under the pattern %s, but %s may be a float, and CUE compares numbers by value (5.0 == 5), so the equality does not say what %s holds; test its type first: if (%s & int) != _|_", g, w.inputRef(g.path), w.inputRef(g.path), w.inputRef(g.path)), Pos: pos})
+					Detail: fmt.Sprintf("is under the pattern %s, but %s may be a float, and CUE compares numbers by value (5.0 == 5), so the equality does not say what %s holds", g, w.inputRef(g.path), w.inputRef(g.path)), Help: fmt.Sprintf("test its type first: if (%s & int) != _|_", w.inputRef(g.path)), Pos: pos})
 				break
 			}
 		}

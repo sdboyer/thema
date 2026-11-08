@@ -53,6 +53,7 @@ const spec = {
   ".cm-diagnostic-error .code": { color: "var(--error)" },
   ".cm-diagnostic-warning .code": { color: "var(--warning)" },
   ".cm-diagnostic .of": { color: "var(--muted)" },
+  ".cm-diagnostic .where": { color: "var(--muted)" },
   "&.cm-focused": { outline: "none" },
 };
 

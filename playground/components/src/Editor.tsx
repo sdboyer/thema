@@ -113,10 +113,11 @@ export function Editor({ text, language, onChange, markers, readOnly, label }: P
 
 // markerDOM lays a marker out as the diagnostics list lays out a diagnostic,
 // with the same class names, so that the host styles the two alike: the code
-// and the headline, then each note and help on its own line under its label.
+// and the headline, then each note and help on its own line under its label,
+// a note this file cannot mark followed by where it is.
 export function markerDOM(m: Pick<Marker, "code" | "lines">): HTMLElement {
   const el = (cls: string, ...kids: (string | Node)[]) => {
-    const e = document.createElement(cls === "code" || cls === "label" ? "span" : "div");
+    const e = document.createElement(cls === "code" || cls === "label" || cls === "where" ? "span" : "div");
     e.className = cls;
     e.append(...kids);
     return e;
@@ -125,6 +126,7 @@ export function markerDOM(m: Pick<Marker, "code" | "lines">): HTMLElement {
   for (const l of m.lines) {
     if (l.kind === "headline") root.append(el("headline", el("code", m.code), " ", l.text));
     else if (l.kind === "of") root.append(el("of", `of ${m.code}: ${l.text}`));
+    else if (l.where) root.append(el(l.kind, el("label", `${l.kind}:`), " ", l.text, " ", el("where", `(${l.where})`)));
     else root.append(el(l.kind, el("label", `${l.kind}:`), " ", l.text));
   }
   return root;

@@ -481,7 +481,7 @@ func (w *walker) binary(e *ast.BinaryExpr, c *exprCtx) (shape, bool) {
 		w.failh(c, Unknown, RuleUnknownOp, "divides with /, which yields a float in CUE", "use quo or div for integer division")
 		return shape{}, false
 	case token.AND, token.OR:
-		w.fail(c, Unknown, RuleUnknownOp, fmt.Sprintf("uses %s inside a computation; unify or choose outside the expression", e.Op))
+		w.failh(c, Unknown, RuleUnknownOp, fmt.Sprintf("uses %s inside a computation", e.Op), "unify or choose outside the expression")
 		return shape{}, false
 	}
 	l, ok := w.shape(e.X, c)
@@ -576,7 +576,7 @@ func (w *walker) operand(x ast.Expr, c *exprCtx) (shape, bool) {
 		if w.syn.FromInput(cj) {
 			p, ok := w.sourcePath(cj)
 			if !ok {
-				w.fail(c, Unknown, RuleUnknownReference, fmt.Sprintf("reads %s, a selection into the input the checker cannot follow; select fields by name", text(cj.Expr)))
+				w.failh(c, Unknown, RuleUnknownReference, fmt.Sprintf("reads %s, a selection into the input the checker cannot follow", text(cj.Expr)), "select fields by name")
 				return shape{}, false
 			}
 			res.alts = append(res.alts, operandAlt{input: &p})
@@ -612,7 +612,7 @@ func (w *walker) operand(x ast.Expr, c *exprCtx) (shape, bool) {
 				return shape{}, false
 			default:
 				if cj.Expr == x {
-					w.fail(c, Unknown, RuleUnknownReference, fmt.Sprintf("reads %s, a selection into the input the checker cannot follow (a computed index or label); select fields by name", text(x)))
+					w.failh(c, Unknown, RuleUnknownReference, fmt.Sprintf("reads %s, a selection into the input the checker cannot follow (a computed index or label)", text(x)), "select fields by name")
 				} else {
 					w.fail(c, Unknown, RuleUnknownReference, fmt.Sprintf("reads %s, which resolves to %s rather than to the input or a scalar constant", text(x), text(cj.Expr)))
 				}
@@ -1049,7 +1049,7 @@ func (w *walker) fits(s shape, c *exprCtx, repeated bool, expr string) {
 	case cue.IntKind:
 		tiv, exact, ok := intervalOf(tgt)
 		if !ok || !exact {
-			w.fail(c, Unknown, RuleUnknownTargetConstraint, fmt.Sprintf("is an integer computed by %s, and the target schema constrains it beyond bounds (%s); express the constraint with >=, <= or a sized type such as int32", expr, fmtv(tgt)))
+			w.failh(c, Unknown, RuleUnknownTargetConstraint, fmt.Sprintf("is an integer computed by %s, and the target schema constrains it beyond bounds (%s)", expr, fmtv(tgt)), "express the constraint with >=, <= or a sized type such as int32")
 			return
 		}
 		if s.iv.within(tiv) && s.iv.int64() {
@@ -1229,7 +1229,7 @@ func (w *walker) table(t table, q cue.Path, gs []pattern, pos token.Pos) {
 	p, ok := w.pathOf(t.index)
 	if !ok {
 		w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownTableKey,
-			Detail: fmt.Sprintf("indexes a table by %s, which is not a field of the input; index by an input field whose values are string constants", text(t.index)), Pos: pos})
+			Detail: fmt.Sprintf("indexes a table by %s, which is not a field of the input", text(t.index)), Help: "index by an input field whose values are string constants", Pos: pos})
 		return
 	}
 	src := w.lookupSource(p, gs)

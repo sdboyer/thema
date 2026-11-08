@@ -24,8 +24,8 @@ Schema: {
       "primary": {
         "file": "tip.thema",
         "line": 3,
-        "col": 2,
-        "offset": 22,
+        "col": 1,
+        "offset": 21,
         "origin": "user"
       },
       "notes": [
@@ -52,10 +52,10 @@ Schema: {
 }
 -- out/text --
 error[E1004]: the tip cannot be cut as 1.0 while a lens on its edge is missing
- --> tip.thema:3:2
+ --> tip.thema:3:1
   |
 3 | }
-  |  ^
+  | ^
   |
   = note: tip.thema has no ForwardLens, and one cannot be derived
   = note: tip.thema has no BackwardLens, and one cannot be derived

@@ -7,7 +7,8 @@
 // headline, then the notes, then the help, each on its own line, so that the
 // problem and what to do about it are each in one place. A note positioned
 // where the primary is says why in the primary's marker rather than in one of
-// its own.
+// its own, and so does a note positioned where this file cannot mark it, in
+// another file or in thema's own CUE, with where it is.
 import type { Diagnostic, Pos } from "./types";
 import { themaDoc } from "./docs";
 import { offsetOf, spanAt } from "./positions";
@@ -30,11 +31,23 @@ export interface Marker {
 export interface MarkerLine {
   kind: "headline" | "note" | "help" | "of";
   text: string;
+  // where is the position of a note this file cannot mark, as whereText says
+  // it.
+  where?: string;
+}
+
+// whereText says a position as the diagnostics list does.
+export function whereText(pos: Pos): string {
+  const text = `${pos.file}:${pos.line}:${pos.col}`;
+  return pos.origin === "thema" ? `thema's own CUE, ${text}` : text;
 }
 
 function textOf(code: string, lines: readonly MarkerLine[]): string {
   return lines
-    .map((l) => (l.kind === "headline" ? `${code}: ${l.text}` : l.kind === "of" ? `of ${code}: ${l.text}` : `${l.kind}: ${l.text}`))
+    .map((l) => {
+      const s = l.kind === "headline" ? `${code}: ${l.text}` : l.kind === "of" ? `of ${code}: ${l.text}` : `${l.kind}: ${l.text}`;
+      return l.where ? `${s} (${l.where})` : s;
+    })
     .join("\n");
 }
 
@@ -47,16 +60,20 @@ export function markersFor(ds: readonly Diagnostic[], file: string, text: string
   };
   for (const d of ds) {
     const primary = at(d.primary);
-    const here: MarkerLine[] = [];
+    // positioned are the notes the primary's marker says, those positioned
+    // where it is or where this file cannot mark them, in their order.
+    const positioned: MarkerLine[] = [];
     const loose: MarkerLine[] = [];
     const elsewhere: Marker[] = [];
     for (const n of d.notes ?? []) {
       const span = at(n.pos);
       if (!n.pos) {
         loose.push({ kind: "note", text: n.label });
-      } else if (span && primary && span.from === primary.from && span.to === primary.to) {
-        here.push({ kind: "note", text: n.label });
-      } else if (span) {
+      } else if (!span) {
+        positioned.push({ kind: "note", text: n.label, where: whereText(n.pos) });
+      } else if (primary && span.from === primary.from && span.to === primary.to) {
+        positioned.push({ kind: "note", text: n.label });
+      } else {
         const lines: MarkerLine[] = [
           { kind: "note", text: n.label },
           { kind: "of", text: d.headline },
@@ -67,7 +84,7 @@ export function markersFor(ds: readonly Diagnostic[], file: string, text: string
     if (primary) {
       const lines: MarkerLine[] = [
         { kind: "headline", text: d.headline },
-        ...here,
+        ...positioned,
         ...loose,
         ...(d.help ?? []).map((h): MarkerLine => ({ kind: "help", text: h })),
       ];

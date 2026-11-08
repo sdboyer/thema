@@ -9,7 +9,7 @@ The pieces of the [thema playground](../ui)'s frontend that other browser tools 
 - `Output`: what an operation returned (an `Outcome`): its result in its own terms, lacunas included, then its diagnostics.
 - `Tabs`: tabs over named texts, with adding, renaming, removing and a frozen group.
 - `dataOps`, `codegenOps`, `argsOf`, `isCodegen` and the `UserOp` types: the operations a user runs and the arguments each takes.
-- `markersFor`, `markerDOM`, `filesOf`, `docsURL`: diagnostics as editor markers. A marker says what the diagnostics list says, in its order: the headline, the notes, then the help, a line each.
+- `markersFor`, `markerDOM`, `filesOf`, `docsURL`, `whereText`: diagnostics as editor markers. A marker says what the diagnostics list says, in its order: the headline, the notes, then the help, a line each. A note the file cannot mark, in another file or in thema's own CUE, is a line of the primary's marker, with where it is as `whereText` says it.
 - `offsetOf`, `charIndexOfByte`, `spanAt`: CUE positions (1-based line, byte column) as editor offsets.
 - `lightTheme`, `darkTheme`, `highlight`, `tokenColors`, `darkScheme`: the editor's theme.
 - `docs`, `DocLink`, `themaDoc`, `lacunaTypeDoc`: links into thema's reference docs.

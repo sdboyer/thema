@@ -159,6 +159,8 @@ func lensAddr(a diag.Address) bool {
 	}
 	return false
 }
+
+// compatDiag describes one finding of the compatibility checker between the
 // version files prev and curr, where curr was named as a minor version and is
 // not backward compatible.
 func compatDiag(f compat.Finding, prev, curr *version) *diag.Error {

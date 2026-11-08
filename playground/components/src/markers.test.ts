@@ -22,9 +22,33 @@ describe("markersFor", () => {
   it("marks the primary position and positioned notes in the file", () => {
     const ms = markersFor([d], "1.0.thema", text);
     expect(ms.map(({ lines: _, ...m }) => m)).toEqual([
-      { from: 11, to: 16, severity: "error", message: "E0360: count is not total\nnote: a note with no position\nhelp: bound the field", code: "E0360" },
+      { from: 11, to: 16, severity: "error", message: "E0360: count is not total\nnote: in thema's own CUE (thema's own CUE, thema/lineage.cue:9:1)\nnote: a note with no position\nhelp: bound the field", code: "E0360" },
       { from: 0, to: 6, severity: "info", message: "note: declared here\nof E0360: count is not total", code: "E0360" },
     ]);
+  });
+
+  // A note this file cannot mark, in another file or in thema's own CUE, is
+  // said in the primary's marker, with where it is, rather than dropped.
+  it("says a note in another file in the primary's marker, with where it is", () => {
+    const at = { file: "tip.thema", line: 2, col: 2, origin: "user" } as const;
+    const across: Diagnostic = {
+      code: "E0358",
+      severity: "error",
+      headline: "the ForwardLens in tip.thema would copy v0_0.count into count",
+      primary: at,
+      notes: [
+        { pos: { file: "history/0.0.thema", line: 2, col: 2, origin: "user" }, label: "0.0 declares count as string" },
+        { pos: at, label: "tip declares it as int" },
+      ],
+    };
+    const ms = markersFor([across], "tip.thema", text);
+    expect(ms).toHaveLength(1);
+    expect(ms[0]!.lines).toEqual([
+      { kind: "headline", text: "the ForwardLens in tip.thema would copy v0_0.count into count" },
+      { kind: "note", text: "0.0 declares count as string", where: "history/0.0.thema:2:2" },
+      { kind: "note", text: "tip declares it as int" },
+    ]);
+    expect(ms[0]!.message.split("\n")[1]).toBe("note: 0.0 declares count as string (history/0.0.thema:2:2)");
   });
 
   // The primary's marker says what the diagnostics list says, in its order:

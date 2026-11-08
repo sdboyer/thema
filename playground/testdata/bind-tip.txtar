@@ -23,8 +23,8 @@ Schema: {
       "primary": {
         "file": "tip.thema",
         "line": 3,
-        "col": 2,
-        "offset": 25,
+        "col": 1,
+        "offset": 24,
         "origin": "user"
       },
       "notes": [
@@ -32,8 +32,8 @@ Schema: {
           "pos": {
             "file": "tip.thema",
             "line": 3,
-            "col": 2,
-            "offset": 25,
+            "col": 1,
+            "offset": 24,
             "origin": "user"
           },
           "label": "0.0 declares crew and tip does not, and nothing maps it (E0347)"
@@ -54,8 +54,8 @@ Schema: {
       "primary": {
         "file": "tip.thema",
         "line": 3,
-        "col": 2,
-        "offset": 25,
+        "col": 1,
+        "offset": 24,
         "origin": "user"
       },
       "notes": [
@@ -63,8 +63,8 @@ Schema: {
           "pos": {
             "file": "tip.thema",
             "line": 3,
-            "col": 2,
-            "offset": 25,
+            "col": 1,
+            "offset": 24,
             "origin": "user"
           },
           "label": "tip.thema has no BackwardLens, and 0.0 requires crew (E0346)"
@@ -74,7 +74,7 @@ Schema: {
         }
       ],
       "help": [
-        "write BackwardLens: {tip: _, v0_0: {crew: \u003cmapping\u003e}}"
+        "write BackwardLens: {tip: _, v0_0: {crew: \u003cmapping\u003e}} in tip.thema"
       ]
     }
   ],

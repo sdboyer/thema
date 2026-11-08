@@ -233,6 +233,9 @@ type edge struct {
 	file     string
 	written  bool
 	blockPos token.Pos
+	// missing is every required target field an unwritten lens produces
+	// nothing for, reported once by unwritten.
+	missing []cue.Path
 	// root is the identifier the author's references start from, which is
 	// also the normal form's field for the instance the lens takes: the
 	// version's parameter (v0_0), or item inside an each body.
@@ -752,7 +755,7 @@ func (e *edge) condition(x ast.Expr) (ast.Expr, bool) {
 			e.unbind(rootIdent(x))
 			return x, true
 		default:
-			e.errh(diag.E0422, pos, "compare it; an optional field named bare tests its presence", "%s.%s is %s, not a condition", e.root, p, lookup(e.S, p).IncompleteKind())
+			e.errh(diag.E0422, pos, fmt.Sprintf("compare %s.%s to a value, or name an optional field bare to test whether it is present", e.root, p), "%s.%s is %s, not a condition", e.root, p, lookup(e.S, p).IncompleteKind())
 			return nil, false
 		}
 	}
@@ -1189,6 +1192,7 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 
 	e.fill(root, cue.MakePath(), b, consumed, dropped, out)
 	e.settle(root, cue.MakePath(), b)
+	e.unwritten()
 	e.unmapped(b, consumed, out)
 	if e.each == nil {
 		e.declare(b, out)
@@ -1701,14 +1705,38 @@ func (e *edge) copyMisfit(code diag.Code, p token.Pos, spath, tpath cue.Path, fs
 }
 
 // unproduced reports a required target field no mapping produces, at the
-// lens block the author must add it to, or, when there is none, at the end of
-// the file, where the block would be written.
+// lens block the author must add it to. When the author wrote no block, the
+// field is collected for unwritten, which reports them all at once.
 func (e *edge) unproduced(tpath cue.Path) {
 	if e.written {
 		e.errh(diag.E0346, e.blockPos, fmt.Sprintf("add %s: <mapping> to %s", tpath, e.paramOf(e.tv)), "%s produces nothing for %s, which %s requires", e.dir, tpath, e.nameOf(e.tv))
 		return
 	}
-	e.errh(diag.E0346, e.blockPos, fmt.Sprintf("write %s: {%s: _, %s: {%s: <mapping>}}", e.dir, e.paramOf(e.sv), e.paramOf(e.tv), tpath), "%s has no %s, and %s requires %s", e.file, e.dir, e.nameOf(e.tv), tpath)
+	e.missing = append(e.missing, tpath)
+}
+
+// unwritten reports every required field a lens the author did not write
+// would have to produce, in one diagnostic at the end of the file, where the
+// block would be written. The fix is one block that maps them all; a
+// diagnostic per field would each offer a different whole block.
+func (e *edge) unwritten() {
+	if len(e.missing) == 0 {
+		return
+	}
+	var names, maps []string
+	for _, p := range e.missing {
+		names = append(names, p.String())
+		maps = append(maps, p.String()+": <mapping>")
+	}
+	b := diag.New(diag.E0346).At(e.blockPos)
+	if h := fmt.Sprintf("%s has no %s, and %s requires %s", e.file, e.dir, e.nameOf(e.tv), strings.Join(names, ", ")); len(h) <= diag.MaxHeadline {
+		b.Headline(h)
+	} else {
+		b.Headlinef("%s has no %s, and %s requires %d fields", e.file, e.dir, e.nameOf(e.tv), len(names)).
+			Notef(token.NoPos, "%s requires %s", e.nameOf(e.tv), strings.Join(names, ", "))
+	}
+	b.Helpf("write %s: {%s: _, %s: {%s}} in %s", e.dir, e.paramOf(e.sv), e.paramOf(e.tv), strings.Join(maps, ", "), e.file)
+	e.errs = cerrors.Append(e.errs, b.Err())
 }
 
 // unmapped applies the direction's rule to every source field the target does

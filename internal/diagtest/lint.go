@@ -54,7 +54,7 @@ var (
 	// A fix run on after the problem: "...: write x", "...; add y". What to
 	// do is help, on its own line, so that a reader finds the problem and the
 	// fix each in its own place.
-	fixInText = regexp.MustCompile(`[:;] (write|add|declare|say|use|make|compare|remove|map|give|rename|move|drop|bound|mark|cut) `)
+	fixInText = regexp.MustCompile(`[:;] (write|add|declare|say|use|make|compare|remove|map|give|rename|move|drop|bound|mark|cut|select|iterate|unify|choose|express|index|test|split|keep) `)
 )
 
 // Lint checks ds against the mechanical authoring rules, failing t for each
