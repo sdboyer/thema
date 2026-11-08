@@ -42,6 +42,10 @@ func main() {
 			HiddenDefaultCmd: true,
 		}
 	}
+	// cobra adds these during Execute, after markRan; add them now so that
+	// markRan reaches their hooks too.
+	rootCmd.InitDefaultHelpCmd()
+	rootCmd.InitDefaultCompletionCmd()
 	markRan(rootCmd)
 
 	if cmd, err := rootCmd.ExecuteC(); err != nil {
@@ -58,6 +62,8 @@ func readDiagFormat(args []string) {
 	fs.ParseErrorsAllowlist.UnknownFlags = true
 	fs.SetOutput(io.Discard)
 	fs.StringVar(&diagFormat, "diag-format", diagFormat, "")
+	// Declared, or pflag stops at -h or --help as a request for help.
+	fs.BoolP("help", "h", false, "")
 	_ = fs.Parse(args)
 }
 
@@ -96,9 +102,15 @@ func commandLine(cmd *cobra.Command, err error) error {
 		return r.err
 	}
 	readDiagFormat(os.Args[1:])
-	return diag.New(diag.E0620).Headlinef("%s cannot take this command line", cmd.CommandPath()).
-		Detail(err.Error()).
-		Help(fmt.Sprintf("%s --help lists the commands, flags and arguments it takes", cmd.CommandPath())).Err()
+	b := diag.New(diag.E0620).Headlinef("%s cannot take this command line", cmd.CommandPath())
+	// An unknown command's message ends with the commands cobra suggests,
+	// which read as help, not as part of what went wrong.
+	msg, suggested, ok := strings.Cut(err.Error(), "\n\nDid you mean this?\n")
+	b = b.Detail(msg)
+	if ok {
+		b = b.Help("did you mean " + strings.Join(strings.Fields(suggested), " or ") + "?")
+	}
+	return b.Help(fmt.Sprintf("%s --help lists the commands, flags and arguments it takes", cmd.CommandPath())).Err()
 }
 
 // silent is a failure a command has already said everything about, or was
