@@ -10,8 +10,9 @@ import (
 	"github.com/sdboyer/thema/diag"
 )
 
-// A finding E1001 folds in keeps its notes, after its own, each where it was:
-// nothing the finding said is dropped.
+// A finding E1001 folds in keeps its notes, after its own, each where it was,
+// or where the finding is when it has no position: nothing the finding said
+// is dropped, and every renderer lists it under the finding.
 func TestMissingLensKeepsFindingNotes(t *testing.T) {
 	prev, err := parseVersion(File{Path: "history/0.0.thema", Text: []byte("Schema: {\n\tid: string\n}\n")}, "history/0.0.thema", false)
 	if err != nil {
@@ -47,7 +48,7 @@ func TestMissingLensKeepsFindingNotes(t *testing.T) {
 	}
 	want := []note{
 		{TipFile, 2, "a finding (E0358)"},
-		{label: "loose"},
+		{TipFile, 2, "loose"},
 		{"history/0.0.thema", 2, "in the source"},
 		{TipFile, 2, "in the tip"},
 	}

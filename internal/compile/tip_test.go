@@ -218,9 +218,10 @@ func TestDevelopment(t *testing.T) {
 		}
 	})
 	// The derivation's findings are E1001's notes, each with its code and
-	// followed by its own notes where they were, and their fixes are its help,
-	// never dropped or run on into a note: the help that writes the block
-	// first, then what goes in it.
+	// followed by its own notes, where they were or, with no position of their
+	// own, where the finding is, so that every renderer lists them under it.
+	// Their fixes are its help, never dropped or run on into a note: the help
+	// that writes the block first, then what goes in it.
 	t.Run("a pending lens keeps each finding's code and help", func(t *testing.T) {
 		from := "Schema: {\n\tid:    string\n\tname:  string\n}\n"
 		to := "Schema: {\n\tid:   int\n\tcrew: int\n}\n"
@@ -242,14 +243,32 @@ func TestDevelopment(t *testing.T) {
 		}
 		wantNotes := []string{
 			"tip.thema:4: the ForwardLens in tip.thema would copy v0_0.id into id, which does not accept every value of it (E0358)",
-			"both 0.0 and tip declare id, so a lens that does not map it copies it",
-			"id in tip was string and is now int (copying v0_0.id; compatibility rule value-narrowed)",
+			"tip.thema:4: both 0.0 and tip declare id, so a lens that does not map it copies it",
+			"tip.thema:4: id in tip was string and is now int (copying v0_0.id; compatibility rule value-narrowed)",
 			"tip.thema:4: tip.thema has no ForwardLens, and tip requires crew (E0346)",
 			"tip.thema:4: 0.0 declares name and tip does not, and nothing maps it (E0347)",
 			"translating from 0.0 to tip needs it; until tip.thema writes it, that translation fails (E1002)",
 		}
 		if !slices.Equal(notes, wantNotes) {
 			t.Errorf("notes:\n got %q\nwant %q", notes, wantNotes)
+		}
+		var text strings.Builder
+		diag.Render(&text, ds[:1], diag.RenderOptions{Source: func(f string) ([]byte, bool) { return []byte(to), f == TipFile }})
+		// The labels under the excerpt, in the order they are shown.
+		var rendered []string
+		for _, l := range strings.Split(text.String(), "\n") {
+			if _, rest, ok := strings.Cut(l, "| "); ok {
+				if label, ok := strings.CutPrefix(strings.TrimLeft(rest, " "), "- "); ok {
+					rendered = append(rendered, label)
+				}
+			}
+		}
+		var want []string
+		for _, n := range wantNotes[:5] {
+			want = append(want, strings.TrimPrefix(n, "tip.thema:4: "))
+		}
+		if !slices.Equal(rendered, want) {
+			t.Errorf("rendered notes are not each under their finding:\n%s", text.String())
 		}
 		wantHelp := []string{
 			"write ForwardLens: {v0_0: _, tip: {crew: <mapping>}} in tip.thema",

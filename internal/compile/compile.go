@@ -518,10 +518,13 @@ func missingLens(v, prev *version, block string, errs cerrors.Error) error {
 			}
 			b.Notef(p, "%s (%s)", d.Headline, d.Code)
 			// InputPositions holds the position of each positioned note, in
-			// order.
+			// order. A note with none of its own is about the finding and
+			// takes the finding's: every renderer groups notes by position,
+			// and without one it would be listed after every finding's note,
+			// under the last of them.
 			ps := de.InputPositions()
 			for _, n := range d.Notes {
-				np := token.NoPos
+				np := p
 				if n.Pos != nil && len(ps) > 0 {
 					np, ps = ps[0], ps[1:]
 				}
