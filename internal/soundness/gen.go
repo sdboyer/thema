@@ -38,12 +38,17 @@ type Limits struct {
 // DefaultLimits are the limits the corpus run uses.
 var DefaultLimits = Limits{Instances: 48, PerNode: 12, PerScalar: 5, Depth: 6}
 
+// WideLimits are about four times DefaultLimits per schema.
+var WideLimits = Limits{Instances: 200, PerNode: 32, PerScalar: 10, Depth: 8}
+
 // Candidate is one generated instance, before validation.
 type Candidate struct {
 	Expr ast.Expr
 	// Undeclared is set when the candidate holds a field its schema does not
 	// declare: one under ... or matched by a pattern constraint.
 	Undeclared bool
+	// twin marks the filled twin of another candidate (see Run).
+	twin bool
 }
 
 // GenStats counts what the generator did for one schema.
@@ -56,6 +61,9 @@ type GenStats struct {
 	Unproducible []string
 	// Capped counts nodes whose alternatives were cut to the limit.
 	Capped int
+	// Unfiltered counts scalars no candidate passed on its own, whose
+	// candidates were offered to whole-instance validation unfiltered.
+	Unfiltered int
 }
 
 // Generator generates instances of schemas.
@@ -120,7 +128,7 @@ func (g *Generator) values(v cue.Value, path string, depth, max int) []alt {
 			groups = append(groups, g.values(b, path, depth, max))
 		}
 	} else {
-		k := v.IncompleteKind()
+		k := kindOf(v)
 		switch {
 		case k == cue.StructKind:
 			groups = append(groups, g.structs(v, path, depth, max))
@@ -136,6 +144,25 @@ func (g *Generator) values(v cue.Value, path string, depth, max int) []alt {
 		g.unproducible(path, v)
 	}
 	return out
+}
+
+// kindOf is v's incomplete kind. A struct or list under a validator that
+// needs concrete data (struct.MinFields(1) & {...}, list.MinItems(1) &
+// [...int]) reports bottom; its kind is then read from its conjuncts, as
+// compat's kindOf does.
+func kindOf(v cue.Value) cue.Kind {
+	k := v.IncompleteKind()
+	if k != cue.BottomKind {
+		return k
+	}
+	if op, args := v.Expr(); op == cue.AndOp {
+		for _, a := range args {
+			if ak := a.IncompleteKind(); ak != cue.BottomKind && ak != cue.TopKind {
+				k |= ak
+			}
+		}
+	}
+	return k
 }
 
 // roundRobin takes the first alternative of each group, then the second, and
@@ -276,6 +303,10 @@ func (g *Generator) structs(v cue.Value, path string, depth, max int) []alt {
 			continue
 		}
 		kv := g.keyValue(closed, k)
+		if kv.IncompleteKind() == cue.BottomKind {
+			// Allowed, but refused by a validator on the struct.
+			continue
+		}
 		if kv.IncompleteKind() == cue.TopKind {
 			open = append(open, k)
 		} else {
@@ -391,7 +422,7 @@ var (
 	floatPool  = []string{"0.0", "0.5", "1.5", "-1.5", "3.4028236e38", "1e300"}
 	stringPool = []string{"a", "", "abc", "hello world", "x", "A", "0", "a-b",
 		"2006-01-02T15:04:05Z", "foo.example.com", "127.0.0.1", "10.0.0.0/8",
-		"https://example.com/", "{}", "é"}
+		"https://example.com/", "{}", "é", "8.8.8.8", "224.0.0.1", "0.0.0.0", "::", "fe80::1", "ff01::1", "ff02::1"}
 )
 
 func (g *Generator) scalars(v cue.Value, k cue.Kind) []alt {
@@ -449,6 +480,21 @@ func (g *Generator) scalars(v cue.Value, k cue.Kind) []alt {
 		out = append(out, alt{x: c})
 		if len(out) == g.lim.PerScalar {
 			break
+		}
+	}
+	if len(out) == 0 {
+		// Nothing passed on its own: the value may depend on other fields
+		// (b: >=a). Offer the first candidates anyway, and let the whole
+		// instance's validation decide.
+		g.stats.Unfiltered++
+		for _, c := range cands {
+			if v.Unify(g.ctx.BuildExpr(c)).IncompleteKind() == cue.BottomKind {
+				continue
+			}
+			out = append(out, alt{x: c})
+			if len(out) == g.lim.PerScalar {
+				break
+			}
 		}
 	}
 	return out

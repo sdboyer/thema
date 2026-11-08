@@ -22,6 +22,9 @@ func TestSoundness(t *testing.T) {
 	only := os.Getenv("THEMA_SOUNDNESS_CORPUS")
 	outPath := cmp.Or(os.Getenv("THEMA_SOUNDNESS_OUT"), "soundness.out")
 	lim := DefaultLimits
+	if os.Getenv("THEMA_SOUNDNESS_WIDE") != "" {
+		lim = WideLimits
+	}
 
 	type caseResult struct {
 		e     entry
@@ -93,6 +96,7 @@ func TestSoundness(t *testing.T) {
 			tot.S3Leaves += r.st.S3Leaves
 			tot.S3Computed += r.st.S3Computed
 			tot.S4Pairs += r.st.S4Pairs
+			tot.Twins += r.st.Twins
 			tot.Elapsed += r.st.Elapsed
 			tot.Unproducible = append(tot.Unproducible, prefixAll(r.e.name+" ", r.st.Unproducible)...)
 			if r.st.Elapsed > 5*time.Second {
@@ -103,7 +107,7 @@ func TestSoundness(t *testing.T) {
 		fmt.Fprintf(&b, "## %s\n", co.name)
 		fmt.Fprintf(&b, "cases %d, bound %d, skipped %d\n", len(rs), bound, skipped)
 		fmt.Fprintf(&b, "schemas %d, edges with a lens %d, minor steps %d\n", tot.Schemas, tot.Edges, tot.MinorSteps)
-		fmt.Fprintf(&b, "candidates %d, discarded %d, instances %d, leaf values pruned %d, nodes capped %d\n", tot.Candidates, tot.Discarded, tot.Instances, tot.LeafPruned, tot.Capped)
+		fmt.Fprintf(&b, "candidates %d (filled twins %d), discarded %d, instances %d, leaf values pruned %d, nodes capped %d\n", tot.Candidates, tot.Twins, tot.Discarded, tot.Instances, tot.LeafPruned, tot.Capped)
 		fmt.Fprintf(&b, "translations %d, S3 leaves %d (computed, unchecked: %d), S4 pairs %d, cpu time %s\n", tot.Translations, tot.S3Leaves, tot.S3Computed, tot.S4Pairs, tot.Elapsed.Round(time.Millisecond))
 		if len(slow) > 0 {
 			fmt.Fprintf(&b, "slow: %s\n", strings.Join(slow, ", "))

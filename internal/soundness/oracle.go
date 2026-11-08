@@ -80,6 +80,7 @@ type Stats struct {
 	Edges        int // adjacent steps with a lens, each direction counted
 	MinorSteps   int // forward minor steps
 	Translations int
+	Twins        int // filled twins added to the candidates, counted in Candidates
 	S4Pairs      int // pairs of distinct instances with the same filled state, compared per target
 	S3Leaves     int
 	S3Computed   int
@@ -110,14 +111,18 @@ func Run(corpus, name string, lin thema.Lineage, lim Limits) (Stats, []Failure) 
 			r.fail(Failure{Oracle: G, From: sch.Version().String(), Detail: "generator panicked: " + perr.Error()})
 			continue
 		}
-		r.st.Candidates += len(cands)
 		r.st.LeafPruned += gs.LeafPruned
 		r.st.Capped += gs.Capped
 		for _, u := range gs.Unproducible {
 			r.st.Unproducible = append(r.st.Unproducible, sch.Version().String()+" "+u)
 		}
 		states := map[string][]translated{}
+		seen := map[string]bool{}
 		for _, c := range cands {
+			seen[compact(c.Expr)] = true
+		}
+		for i := 0; i < len(cands); i++ {
+			c := cands[i]
 			v := r.ctx.BuildExpr(c.Expr)
 			var inst *thema.Instance
 			var err error
@@ -130,6 +135,15 @@ func Run(corpus, name string, lin thema.Lineage, lim Limits) (Stats, []Failure) 
 				continue
 			}
 			r.st.Instances++
+			if !c.twin {
+				// The instance's filled twin: the same state, every default
+				// written out. S4 compares the two.
+				if x, ok := data(filled(r.ctx, sch, v)); ok && !seen[compact(x)] {
+					seen[compact(x)] = true
+					cands = append(cands, Candidate{Expr: x, Undeclared: c.Undeclared, twin: true})
+					r.st.Twins++
+				}
+			}
 			tr := r.instance(sch, inst, c)
 			k := stateKey(filled(r.ctx, sch, inst.Underlying()))
 			for _, prev := range states[k] {
@@ -137,6 +151,7 @@ func Run(corpus, name string, lin thema.Lineage, lim Limits) (Stats, []Failure) 
 			}
 			states[k] = append(states[k], tr)
 		}
+		r.st.Candidates += len(cands)
 	}
 	r.st.Elapsed = time.Since(start)
 	return r.st, r.fails

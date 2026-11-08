@@ -37,6 +37,46 @@ lin: thema.Lineage & {
 	schemas: "0": "1": schema: {a: *{x: 2} | {x: int}}
 	lenses: "0.1->0.0": {v0_1: _, v0_0: v0_1}
 }`},
+	{name: "list-element-fill-dropped", issue: "#314", oracle: S4, src: `
+import "github.com/sdboyer/thema"
+lin: thema.Lineage & {
+	name: "l"
+	schemas: "0": "0": schema: {l: [...{a: *1 | int}], n?: int}
+	schemas: "1": "0": schema: {l: [...{a: int}], n?: int}
+	lenses: "0.0->1.0": {v0_0: _, v1_0: {l: [], if v0_0.n != _|_ {n: v0_0.n}}}
+	lenses: "1.0->0.0": {v1_0: _, v0_0: {l: [], if v1_0.n != _|_ {n: v1_0.n}}}
+}`},
+	// Found by the spike, not yet filed: a copy into a field whose type is a
+	// bare reference to a sibling is proven total.
+	{name: "copy-into-sibling-reference", issue: "new", oracle: S1, src: `
+import "github.com/sdboyer/thema"
+lin: thema.Lineage & {
+	name: "x"
+	schemas: "0": "0": schema: {a: int, b: int}
+	schemas: "1": "0": schema: {a: int, b: a}
+	lenses: "0.0->1.0": {v0_0: _, v1_0: {a: v0_0.a, b: v0_0.b}}
+	lenses: "1.0->0.0": {v1_0: _, v0_0: {a: v1_0.a, b: v1_0.b}}
+}`},
+	// Found by the spike, not yet filed: an instance that omits the constant
+	// discriminating a disjunction of structs validates (closed, it picks one
+	// alternative) and fails at translate, where the lens reads the
+	// instance unified with the open schema.
+	{name: "omitted-discriminator", issue: "new", oracle: S1, src: `
+import "github.com/sdboyer/thema"
+lin: thema.Lineage & {
+	name: "x"
+	schemas: "0": "0": schema: {r: {k: 1, a: string} | {k: 2, b: string}}
+	schemas: "1": "0": schema: {r: {k: 1, a: string} | {k: 2, b: string}, n: int}
+	lenses: "0.0->1.0": {v0_0: _, v1_0: {
+		n: 0
+		if v0_0.r.k == 1 {r: v0_0.r}
+		if v0_0.r.k == 2 {r: v0_0.r}
+	}}
+	lenses: "1.0->0.0": {v1_0: _, v0_0: {
+		if v1_0.r.k == 1 {r: v1_0.r}
+		if v1_0.r.k == 2 {r: v1_0.r}
+	}}
+}`},
 	{name: "match-defaulted-enum", issue: "#318", oracle: S4, authoring: []compile.File{
 		{Path: "history/0.0.thema", Text: []byte("Schema: {\n\tc: *\"a\" | \"b\" | \"q\"\n}\n")},
 		{Path: "history/1.0.thema", Text: []byte(`Schema: {
