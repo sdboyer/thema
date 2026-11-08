@@ -13,14 +13,19 @@ import (
 
 func TestAssignable(t *testing.T) {
 	ctx := cuecontext.New()
+	const (
+		nestUnbounded = "nest.p: schema type int not subsumed by Go type int64"
+		nestUnread    = "nest: schema has a default in a form assignability cannot check, may only correspond to interface{}/any"
+	)
 
 	var blah string
 	tt := map[string]struct {
 		// The raw CUE that will be checked for assignability to a Go type
 		cue string
 		// The Go type the raw CUE will be checked for assignability to
-		T       interface{}
-		invalid bool
+		T interface{}
+		// What the refusal of an unassignable type says; empty if assignable
+		refusal string
 	}{
 		"nonpointer": {
 			T: struct{}{},
@@ -36,7 +41,7 @@ func TestAssignable(t *testing.T) {
 			T: blah,
 			cue: `typ: _
 			`,
-			invalid: true,
+			refusal: "must provide struct-kinded type, got *string",
 		},
 		"simpleMatch": {
 			T: &struct {
@@ -72,7 +77,7 @@ func TestAssignable(t *testing.T) {
 				}
 			}
 			`,
-			invalid: true,
+			refusal: "hopeful: contains disjunction over struct types, but Go type is not any",
 		},
 		"stringEnumNoPointer": {
 			T: struct {
@@ -100,7 +105,7 @@ func TestAssignable(t *testing.T) {
 				foo: "foo" | 14
 			}
 			`,
-			invalid: true,
+			refusal: "foo: is kind (int|string) in schema, but kind string in Go type",
 		},
 		"extraSchField": {
 			T: &struct {
@@ -111,7 +116,7 @@ func TestAssignable(t *testing.T) {
 				bar: int
 			}
 			`,
-			invalid: true,
+			refusal: "bar: field present in schema, absent from Go type",
 		},
 		"extraGoField": {
 			T: &struct {
@@ -122,7 +127,7 @@ func TestAssignable(t *testing.T) {
 				foo: "foo" | "bar"
 			}
 			`,
-			invalid: true,
+			refusal: "bar: field present in Go type, absent from schema",
 		},
 		"optionalField": {
 			T: &struct {
@@ -150,7 +155,7 @@ func TestAssignable(t *testing.T) {
 				foo: int
 			}
 			`,
-			invalid: true,
+			refusal: "foo: is kind int in schema, but kind string in Go type",
 		},
 		"convertMap": {
 			T: &struct {
@@ -241,7 +246,7 @@ func TestAssignable(t *testing.T) {
 				slice: [...string] | [...int] | [...bool] | *[1, 2, 3]
 			}
 			`,
-			invalid: true,
+			refusal: "slice: schema is a complex disjunction of list types, may only correspond to interface{}/any",
 		},
 		"closedList": {
 			T: &struct {
@@ -251,7 +256,7 @@ func TestAssignable(t *testing.T) {
 				slice: []
 			}
 			`,
-			invalid: true,
+			refusal: "slice: list is closed in schema, Go type must be an array, not slice",
 		},
 		"closedStringList": {
 			T: &struct {
@@ -261,7 +266,7 @@ func TestAssignable(t *testing.T) {
 				slice: [string]
 			}
 			`,
-			invalid: true,
+			refusal: "slice: list is closed in schema, Go type must be an array, not slice",
 		},
 		"arrayEmpty": {
 			T: &struct {
@@ -289,7 +294,7 @@ func TestAssignable(t *testing.T) {
 				slice: [...int]
 			}
 			`,
-			invalid: true,
+			refusal: "slice.[_]: is kind int in schema, but kind string in Go type",
 		},
 		"listMinLen": {
 			T: &struct {
@@ -308,7 +313,7 @@ func TestAssignable(t *testing.T) {
 				slice: [int, ...string]
 			}
 			`,
-			invalid: true,
+			refusal: "slice: schema is list of multiple types; not representable in Go",
 		},
 		"structInList": {
 			T: &struct {
@@ -390,7 +395,7 @@ func TestAssignable(t *testing.T) {
 				p: int
 			}
 			`,
-			invalid: true,
+			refusal: "p: schema type int not subsumed by Go type int64",
 		},
 		"intRequired": {
 			T: &struct {
@@ -400,7 +405,7 @@ func TestAssignable(t *testing.T) {
 				p!: int
 			}
 			`,
-			invalid: true,
+			refusal: "p!: schema type int not subsumed by Go type int64",
 		},
 		"intOptional": {
 			T: &struct {
@@ -410,7 +415,7 @@ func TestAssignable(t *testing.T) {
 				p?: int
 			}
 			`,
-			invalid: true,
+			refusal: "p?: schema type int not subsumed by Go type int64",
 		},
 		"intDefault": {
 			T: &struct {
@@ -420,7 +425,7 @@ func TestAssignable(t *testing.T) {
 				p: *3 | int
 			}
 			`,
-			invalid: true,
+			refusal: "p: schema type *3 | int not subsumed by Go type int64",
 		},
 		"intOptionalDefault": {
 			T: &struct {
@@ -430,7 +435,7 @@ func TestAssignable(t *testing.T) {
 				p?: *3 | int
 			}
 			`,
-			invalid: true,
+			refusal: "p?: schema type *3 | int not subsumed by Go type int64",
 		},
 		"intDefaultInDisjunction": {
 			T: &struct {
@@ -440,7 +445,7 @@ func TestAssignable(t *testing.T) {
 				p: *3 | 4 | int
 			}
 			`,
-			invalid: true,
+			refusal: "p: schema type *3 | 4 | int not subsumed by Go type int64",
 		},
 		"intDefaultRef": {
 			T: &struct {
@@ -452,7 +457,7 @@ func TestAssignable(t *testing.T) {
 				p: *x | int
 			}
 			`,
-			invalid: true,
+			refusal: "p: schema type *3 | int not subsumed by Go type int64",
 		},
 		"intDefaultNested": {
 			T: &struct {
@@ -466,7 +471,7 @@ func TestAssignable(t *testing.T) {
 				}
 			}
 			`,
-			invalid: true,
+			refusal: "nest.p: schema type *3 | int not subsumed by Go type int64",
 		},
 		"intDefaultListElem": {
 			T: &struct {
@@ -476,27 +481,27 @@ func TestAssignable(t *testing.T) {
 				l: [...(*3 | int)]
 			}
 			`,
-			invalid: true,
+			refusal: "l.[_]: schema type *3 | int not subsumed by Go type int64",
 		},
 		"intDefaultListPrefix": {
 			T: &struct {
 				L []int64 `json:"l"`
 			}{},
 			cue: `typ: {
-				l: [*3 | int, ...(*3 | int64)]
+				l: [*3 | int, ...(*4 | int)]
 			}
 			`,
-			invalid: true,
+			refusal: "l.[_]: schema type *4 | int not subsumed by Go type int64",
 		},
 		"intDefaultArrayElem": {
 			T: &struct {
 				L [2]int64 `json:"l"`
 			}{},
 			cue: `typ: {
-				l: [*3 | int, *3 | int64]
+				l: [*3 | int, *4 | int]
 			}
 			`,
-			invalid: true,
+			refusal: "l.[_]: schema type *4 | int not subsumed by Go type int64",
 		},
 		"structDefault": {
 			T: &struct {
@@ -508,7 +513,7 @@ func TestAssignable(t *testing.T) {
 				nest: {p: int} | *{p: 3}
 			}
 			`,
-			invalid: true,
+			refusal: nestUnbounded,
 		},
 		"structDefaultRef": {
 			T: &struct {
@@ -522,7 +527,7 @@ func TestAssignable(t *testing.T) {
 				nest: #S | *#D
 			}
 			`,
-			invalid: true,
+			refusal: nestUnbounded,
 		},
 		"structDefaultRefBounded": {
 			T: &struct {
@@ -548,7 +553,7 @@ func TestAssignable(t *testing.T) {
 				nest: #S
 			}
 			`,
-			invalid: true,
+			refusal: nestUnbounded,
 		},
 		"structDefaultConjunct": {
 			T: &struct {
@@ -560,7 +565,7 @@ func TestAssignable(t *testing.T) {
 				nest: {p: int} & ({p: int} | *{p: 3})
 			}
 			`,
-			invalid: true,
+			refusal: nestUnbounded,
 		},
 		"structDefaultConjunction": {
 			T: &struct {
@@ -573,7 +578,7 @@ func TestAssignable(t *testing.T) {
 				nest: ({p: int} & {q: int64}) | *{p: 3, q: 4}
 			}
 			`,
-			invalid: true,
+			refusal: nestUnbounded,
 		},
 		"structDefaultConjunctionBounded": {
 			T: &struct {
@@ -597,7 +602,86 @@ func TestAssignable(t *testing.T) {
 				nest: {p: int64} & ({p: 3} | *{p: 4})
 			}
 			`,
-			invalid: true,
+			refusal: "nest: contains disjunction over struct types, but Go type is not any",
+		},
+		"structDefaultLet": {
+			T: &struct {
+				Nest struct {
+					P int64 `json:"p"`
+				} `json:"nest"`
+			}{},
+			cue: `let S = {p: int} | *{p: 4}
+			typ: {
+				nest: S
+			}
+			`,
+			refusal: nestUnread,
+		},
+		"structDefaultLetDisjunction": {
+			T: &struct {
+				Nest struct {
+					P int64 `json:"p"`
+				} `json:"nest"`
+			}{},
+			cue: `let S = {p: int} | *{p: 4}
+			typ: {
+				nest: S | *{p: 4}
+			}
+			`,
+			refusal: nestUnread,
+		},
+		// The type of a call cannot be read without the default, so this is
+		// refused, though close({p: int64}) holds only int64 values.
+		"structDefaultClose": {
+			T: &struct {
+				Nest struct {
+					P int64 `json:"p"`
+				} `json:"nest"`
+			}{},
+			cue: `typ: {
+				nest: close({p: int64}) | *close({p: 3})
+			}
+			`,
+			refusal: nestUnread,
+		},
+		"listDefaultLetSelector": {
+			T: &struct {
+				L []int64 `json:"l"`
+			}{},
+			cue: `let X = {l: [...int64]}
+			typ: {
+				l: X.l | *[1]
+			}
+			`,
+			refusal: "l: schema has a default in a form assignability cannot check, may only correspond to interface{}/any",
+		},
+		"listOfDefinition": {
+			T: &struct {
+				L []int64 `json:"l"`
+			}{},
+			cue: `#L: [...int64]
+			typ: {
+				l: #L
+			}
+			`,
+		},
+		"listElemDefaultsDiffer": {
+			T: &struct {
+				L []string `json:"l"`
+			}{},
+			cue: `typ: {
+				l: [*"a" | string, ...(*"b" | string)]
+			}
+			`,
+		},
+		"arrayElemDefaultsDiffer": {
+			T: &struct {
+				L [2]int64 `json:"l"`
+			}{},
+			cue: `typ: {
+				l: [*3 | int64, *4 | int64]
+			}
+			`,
 		},
 		"listDefaultOtherType": {
 			T: &struct {
@@ -607,7 +691,7 @@ func TestAssignable(t *testing.T) {
 				slice: [...string] | *[1]
 			}
 			`,
-			invalid: true,
+			refusal: "slice: schema is a complex disjunction of list types, may only correspond to interface{}/any",
 		},
 		"listDefaultTwoTypes": {
 			T: &struct {
@@ -617,7 +701,7 @@ func TestAssignable(t *testing.T) {
 				l: [...int64] | [...string] | *[1]
 			}
 			`,
-			invalid: true,
+			refusal: "l: schema is a complex disjunction of list types, may only correspond to interface{}/any",
 		},
 		"listDefaultUnbounded": {
 			T: &struct {
@@ -627,7 +711,7 @@ func TestAssignable(t *testing.T) {
 				l: [...int] | *[1]
 			}
 			`,
-			invalid: true,
+			refusal: "l.[_]: schema type int not subsumed by Go type int64",
 		},
 		"listDefaultRef": {
 			T: &struct {
@@ -730,7 +814,7 @@ func TestAssignable(t *testing.T) {
 				a: float
 			}
 			`,
-			invalid: true,
+			refusal: "a: is kind float in schema, but kind number in Go type",
 		},
 		"floatFloatDefault": {
 			T: &struct {
@@ -740,7 +824,7 @@ func TestAssignable(t *testing.T) {
 				a: *3.0 | float
 			}
 			`,
-			invalid: true,
+			refusal: "a: is kind float in schema, but kind number in Go type",
 		},
 		"or-null": {
 			T: &struct {
@@ -772,11 +856,13 @@ func TestAssignable(t *testing.T) {
 					sch := ctx.CompileString(cuestr).LookupPath(cue.ParsePath(path))
 
 					err := assignable(sch, tst.T)
-					if tst.invalid {
+					if tst.refusal != "" {
 						if err == nil {
 							t.Fatal("expected unassignable err")
 						}
-						t.Log(err)
+						if !strings.Contains(err.Error(), tst.refusal) {
+							t.Fatalf("expected refusal %q, got:\n%s", tst.refusal, err)
+						}
 						return
 					}
 
@@ -799,17 +885,18 @@ func TestBindTypeDefaultedInt(t *testing.T) {
 		P int64 `json:"p"`
 	}
 	for field, invalid := range map[string]bool{
-		"p: *3 | int":   true,
-		"p: *3 | int64": false,
-		"p: int64":      false,
+		"p: *3 | int":            true,
+		"p: *3 | int64":          false,
+		"p: int64":               false,
+		"let S = *3 | int\np: S": true,
 	} {
 		t.Run(field, func(t *testing.T) {
 			lin := testLin(fmt.Sprintf(`name: "defaulted"
 schemas: "0": "0": schema: {%s}
 `, field))
 			_, err := BindType(lin.First(), &P{})
-			if invalid && err == nil {
-				t.Fatal("expected BindType to refuse the type")
+			if invalid && (err == nil || !strings.Contains(err.Error(), "not subsumed by Go type int64")) {
+				t.Fatalf("expected BindType to refuse the int as unbounded, got: %v", err)
 			}
 			if !invalid && err != nil {
 				t.Fatal(err)
