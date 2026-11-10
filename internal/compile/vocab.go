@@ -186,7 +186,7 @@ func compatDiag(f compat.Finding, prev, curr *version) *diag.Error {
 	b.Notef(token.NoPos, "%s is a minor version, so it must accept all data %s accepts", curr.v, prev.v)
 	if f.ViaResidual {
 		b.Notef(token.NoPos, "%s does not declare %s by name, but accepts it through ... or a pattern, so an instance may already hold any value there", prev.path, f.Path)
-		b.Helpf("declare it as %s?: _ to accept what %s accepted, or rename the file %s/%s%s", f.Path, prev.v, HistoryDir, major, Ext)
+		b.Helpf("declare it as %s?: _ to accept what %s accepted, or rename the file %s/%s%s", keyOf(f.Path), prev.v, HistoryDir, major, Ext)
 	} else if f.Verdict == compat.Unknown {
 		b.Helpf("change the schema so the checker can decide, or rename the file %s/%s%s", HistoryDir, major, Ext)
 	} else {

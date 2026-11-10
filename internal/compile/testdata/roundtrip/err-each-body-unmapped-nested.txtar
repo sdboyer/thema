@@ -1,0 +1,47 @@
+A field the new version removes from a struct an each body writes: it is
+reported at that struct, and the drop the help offers goes inside it, named
+as the element of the list the body builds.
+-- ship/history/0.0.thema --
+Schema: {
+	items: [...{
+		meta: {
+			owner: string
+			note:  string
+		}
+	}]
+}
+-- ship/history/1.0.thema --
+Schema: {
+	items: [...{
+		meta: {
+			owner: string
+		}
+	}]
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		items: _each(v0_0.items, {
+			meta: {
+				owner: _item.meta.owner
+			}
+		})
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	items: [...{
+		meta: {
+			owner: string
+		}
+	}]
+}
+-- out/error --
+error[E0347]: 0.0 declares meta.note and 1.0 does not, and nothing maps it
+  --> history/1.0.thema:13:4
+   |
+13 |             meta: {
+   |             ^^^^
+   |
+   = help: write <field>: _item.meta.note to move it, or add note: _drop to v1_0.items[].meta

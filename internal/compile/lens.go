@@ -137,9 +137,11 @@ func (t *lacunaTable) at(p cue.Path) []*lacunaDecl {
 
 // A rebase says that target fields under target copy, when not mapped, from
 // source fields under source: the effect of a nested body embedding a
-// reference.
+// reference. pos is the nested body's field, where the author writes what
+// it lacks.
 type rebase struct {
 	target, source cue.Path
+	pos            token.Pos
 }
 
 // A body is a lens body: its entries and rebases.
@@ -194,6 +196,89 @@ func (b *body) sourceBase(tbase cue.Path) cue.Path {
 		}
 	}
 	return best
+}
+
+// wrote reports whether the author wrote a nested body for target path p.
+func (b *body) wrote(p cue.Path) bool {
+	for _, r := range b.rebases {
+		if r.target.String() == p.String() {
+			return true
+		}
+	}
+	return false
+}
+
+// dropKey returns the target path an author writes source path s's drop
+// under: beneath the nested body that copies from the innermost struct
+// holding s, else s itself.
+func (b *body) dropKey(s cue.Path) cue.Path {
+	sels := s.Selectors()
+	best, bestLen := s, 0
+	for _, r := range b.rebases {
+		if n := len(r.source.Selectors()); n > bestLen && n < len(sels) && pathHasPrefix(s, r.source) {
+			best = joinPath(r.target, cue.MakePath(sels[n:]...))
+			bestLen = n
+		}
+	}
+	return best
+}
+
+// within returns the innermost nested body the author wrote that holds
+// target path p, and where it is: else the lens's block, and the empty path.
+func (e *edge) within(b *body, p cue.Path) (cue.Path, token.Pos) {
+	lit, pos, n := cue.MakePath(), e.blockPos, 0
+	for _, r := range b.rebases {
+		if k := len(r.target.Selectors()); k > n && k < len(p.Selectors()) && pathHasPrefix(p, r.target) {
+			lit, pos, n = r.target, r.pos, k
+		}
+	}
+	return lit, pos
+}
+
+// bodyName names the nested body at target path lit as the author reads it:
+// the instance the lens returns (v1_0), a struct in it (v1_0.meta), or, in an
+// each body, the element of the list it builds (v1_0.items[].meta).
+func (e *edge) bodyName(lit cue.Path) string {
+	name := e.paramOf(e.tv)
+	if e.each != nil {
+		name += "." + e.each.element()
+	}
+	if len(lit.Selectors()) > 0 {
+		name += "." + lit.String()
+	}
+	return name
+}
+
+// nested renders fields, at paths beneath base, each with value v, as CUE
+// writes them in the struct at base: a field beneath another is written in
+// its struct (a: {b: v}), never by a dotted path, which CUE does not parse
+// as a label.
+func nested(base cue.Path, v string, paths ...cue.Path) string {
+	k := len(base.Selectors())
+	tree := &node{}
+	for _, p := range paths {
+		tree.at(cue.MakePath(p.Selectors()[k:]...))
+	}
+	var render func(n *node) string
+	render = func(n *node) string {
+		parts := make([]string, len(n.order))
+		for i, name := range n.order {
+			label, c := cue.MakePath(cue.Str(name)).String(), n.fields[name]
+			if len(c.order) == 0 {
+				parts[i] = label + ": " + v
+			} else {
+				parts[i] = label + ": {" + render(c) + "}"
+			}
+		}
+		return strings.Join(parts, ", ")
+	}
+	return render(tree)
+}
+
+// keyOf is the last selector of p, as the field's own key is written.
+func keyOf(p cue.Path) string {
+	sels := p.Selectors()
+	return cue.MakePath(sels[len(sels)-1]).String()
 }
 
 // direction says which way a lens goes, which decides how an unmapped source
@@ -321,6 +406,16 @@ func (s *eachScope) name() string {
 	return strings.Join(parts, ".")
 }
 
+// element names the target lists' element as the author reads a path into
+// it: items[], or items[].tags[] for a list in an element of another.
+func (s *eachScope) element() string {
+	var parts []string
+	for _, c := range s.chain() {
+		parts = append(parts, c.target.String()+"[]")
+	}
+	return strings.Join(parts, ".")
+}
+
 // errf reports a problem with the lens at p, under code. The message is in the
 // author's terms: version file names, the lens's parameter names, mappings.
 func (e *edge) errf(code diag.Code, p token.Pos, format string, args ...any) {
@@ -422,7 +517,7 @@ func (e *edge) parseField(f *ast.Field, tbase, sbase cue.Path, b *body) {
 			}
 			elts = append(elts, d)
 		}
-		b.rebases = append(b.rebases, rebase{target: tpath, source: base})
+		b.rebases = append(b.rebases, rebase{target: tpath, source: base, pos: f.Pos()})
 		e.parseBody(&ast.StructLit{Lbrace: x.Lbrace, Elts: elts, Rbrace: x.Rbrace}, tpath, base, b)
 		return
 	case *ast.CallExpr:
@@ -483,7 +578,7 @@ func (e *edge) parseCoalesce(x *ast.CallExpr, en *entry, b *body) {
 		return
 	}
 	if len(optional) == 0 {
-		e.errh(diag.E0348, x.Args[0].Pos(), fmt.Sprintf("write %s: %s", en.target, exprText(x.Args[0])), "%s always has every field %s reads, so _coalesce's fallback could never apply", e.nameOf(e.sv), exprText(x.Args[0]))
+		e.errh(diag.E0348, x.Args[0].Pos(), fmt.Sprintf("write %s: %s", keyOf(en.target), exprText(x.Args[0])), "%s always has every field %s reads, so _coalesce's fallback could never apply", e.nameOf(e.sv), exprText(x.Args[0]))
 		return
 	}
 	en.kind, en.computed, en.reads, en.optional, en.fallback = kindCoalesce, x.Args[0], reads, optional, fb
@@ -1271,7 +1366,7 @@ func (e *edge) declare(b *body, out *compiledLens) {
 	for i := range b.entries {
 		en := &b.entries[i]
 		if en.ok && en.kind == kindMatch && en.catchAll != nil && !catchAllLacuna[en] {
-			e.errh(diag.E0414, en.catchAll.pos, fmt.Sprintf("declare what is lost in %s: {%s: [{%s: Type, %s: \"...\"}]}", fieldLacunas, en.target, fieldType, fieldMessage), "the [_] arm collapses every unmatched value into one, and no lacuna says what is lost")
+			e.errh(diag.E0414, en.catchAll.pos, fmt.Sprintf("declare what is lost in %s: {%s}", fieldLacunas, nested(cue.MakePath(), fmt.Sprintf("[{%s: Type, %s: \"...\"}]", fieldType, fieldMessage), en.target)), "the [_] arm collapses every unmatched value into one, and no lacuna says what is lost")
 		}
 	}
 }
@@ -1318,7 +1413,7 @@ func (e *edge) checkCoalesce(en *entry) bool {
 			return false
 		}
 		if !e.optional(e.S, en.source) {
-			e.errh(diag.E0348, en.expr.Pos(), fmt.Sprintf("write %s: %s.%s", en.target, e.root, en.source), "%s always has %s, so _coalesce's fallback could never apply", e.nameOf(e.sv), en.source)
+			e.errh(diag.E0348, en.expr.Pos(), fmt.Sprintf("write %s: %s.%s", keyOf(en.target), e.root, en.source), "%s always has %s, so _coalesce's fallback could never apply", e.nameOf(e.sv), en.source)
 			return false
 		}
 	}
@@ -1602,7 +1697,9 @@ func (e *edge) place(root *node, en *entry) bool {
 // fill adds implicit copies under tbase: for each field the target declares
 // there that nothing produces, a copy from the source if it declares the
 // field too, descending where the source's struct has fields the target's
-// lacks. A required target field nothing produces is an error.
+// lacks, or a field beneath would not fit a whole copy. A required target
+// field nothing produces is an error, reported inside the innermost body the
+// author wrote that would hold it, even an empty one.
 func (e *edge) fill(n *node, tbase cue.Path, b *body, consumed, dropped map[string]bool, out *compiledLens) {
 	sbase := b.sourceBase(tbase)
 	for _, name := range e.fields(e.T, tbase) {
@@ -1621,19 +1718,34 @@ func (e *edge) fill(n *node, tbase cue.Path, b *body, consumed, dropped map[stri
 		}
 		if sv := lookup(e.S, spath); sv.Exists() && !dropped[spath.String()] {
 			tv := lookup(e.T, tpath)
-			if isStruct(sv) && isStruct(tv) && !e.covers(sv, tv) {
+			// A struct is copied whole unless some field beneath would not
+			// fit a whole copy: then field by field, so that each is reported,
+			// and can be mapped, where it is.
+			split := isStruct(sv) && isStruct(tv) && !e.covers(sv, tv)
+			var fs []compat.Finding
+			if !split {
+				fs = e.incompatible(spath, tpath)
+				split = isStruct(sv) && isStruct(tv) && beneath(fs)
+			}
+			if split {
 				c := n.child(name)
 				c.pos = e.blockPos
 				e.fill(c, tpath, b, consumed, dropped, out)
 				continue
 			}
 			en := entry{kind: kindMove, target: tpath, source: spath, pos: e.blockPos, derived: true}
-			if fs := e.misfits(spath, tpath); len(fs) > 0 {
-				e.copyMisfit(diag.E0358, e.blockPos, spath, tpath, fs)
+			if fs := slices.DeleteFunc(fs, addedRequired); len(fs) > 0 {
+				_, pos := e.within(b, tpath)
+				e.copyMisfit(diag.E0358, pos, spath, tpath, fs)
 				continue
 			}
 			if e.optional(e.S, spath) && e.required(e.T, tpath) {
-				e.errh(diag.E0343, lookup(e.T, tpath).Pos(), fmt.Sprintf("write %s: _coalesce(%s.%s, <fallback>) to say what to use when it is absent", tpath, e.root, spath), "%s is optional in %s and required in %s", spath, e.nameOf(e.sv), e.nameOf(e.tv))
+				lit, _ := e.within(b, tpath)
+				fix := nested(lit, fmt.Sprintf("%s(%s.%s, <fallback>)", opCoalesce, e.root, spath), tpath)
+				if len(lit.Selectors()) > 0 {
+					fix += " in " + e.bodyName(lit)
+				}
+				e.errh(diag.E0343, lookup(e.T, tpath).Pos(), "write "+fix+" to say what to use when it is absent", "%s is optional in %s and required in %s", spath, e.nameOf(e.sv), e.nameOf(e.tv))
 				continue
 			}
 			c := n.child(name)
@@ -1646,8 +1758,15 @@ func (e *edge) fill(n *node, tbase cue.Path, b *body, consumed, dropped map[stri
 			out.effective = append(out.effective, en)
 			continue
 		}
+		if b.wrote(tpath) && isStruct(lookup(e.T, tpath)) {
+			// The author wrote a body for the struct, with no mapping in it:
+			// what it lacks is reported beneath, where they would write it.
+			// The body writes nothing, so the result gains no node for it.
+			e.fill(&node{}, tpath, b, consumed, dropped, out)
+			continue
+		}
 		if e.required(e.T, tpath) {
-			e.unproduced(tpath)
+			e.unproduced(b, tpath)
 		}
 	}
 }
@@ -1660,18 +1779,32 @@ func (e *edge) fill(n *node, tbase cue.Path, b *body, consumed, dropped map[stri
 // bind, which reports it in full. A required field the target adds beneath
 // the copy is left too, since the lens may write it.
 func (e *edge) misfits(spath, tpath cue.Path) []compat.Finding {
+	return slices.DeleteFunc(e.incompatible(spath, tpath), addedRequired)
+}
+
+// incompatible returns the checker's definite findings against copying
+// source path spath into target path tpath, as misfits does, with the
+// required fields the target adds beneath it.
+func (e *edge) incompatible(spath, tpath cue.Path) []compat.Finding {
 	sv, tv := lookup(e.S, spath), lookup(e.T, tpath)
 	if !sv.Exists() || !tv.Exists() {
 		return nil
 	}
 	var out []compat.Finding
 	for _, f := range compat.Check(e.ctx, sv, tv).Instances().Findings {
-		if f.Verdict != compat.Incompatible || f.Rule == compat.RuleFieldAddedRequired {
-			continue
+		if f.Verdict == compat.Incompatible {
+			out = append(out, f)
 		}
-		out = append(out, f)
 	}
 	return out
+}
+
+func addedRequired(f compat.Finding) bool { return f.Rule == compat.RuleFieldAddedRequired }
+
+// beneath reports whether there are findings and each is about a field
+// beneath the struct compared, rather than the struct itself.
+func beneath(fs []compat.Finding) bool {
+	return len(fs) > 0 && !slices.ContainsFunc(fs, func(f compat.Finding) bool { return len(f.Path.Selectors()) == 0 })
 }
 
 // copyMisfit reports a copy or a move (code says which) of spath into tpath
@@ -1701,11 +1834,13 @@ func (e *edge) copyMisfit(code diag.Code, p token.Pos, spath, tpath cue.Path, fs
 }
 
 // unproduced reports a required target field no mapping produces, at the
-// lens block the author must add it to. When the author wrote no block, the
-// field is collected for unwritten, which reports them all at once.
-func (e *edge) unproduced(tpath cue.Path) {
+// innermost body the author wrote that holds it, which the help names. When
+// the author wrote no block, the field is collected for unwritten, which
+// reports them all at once.
+func (e *edge) unproduced(b *body, tpath cue.Path) {
 	if e.written {
-		e.errh(diag.E0346, e.blockPos, fmt.Sprintf("add %s: <mapping> to %s", tpath, e.paramOf(e.tv)), "%s produces nothing for %s, which %s requires", e.dir, tpath, e.nameOf(e.tv))
+		lit, pos := e.within(b, tpath)
+		e.errh(diag.E0346, pos, fmt.Sprintf("add %s to %s", nested(lit, "<mapping>", tpath), e.bodyName(lit)), "%s produces nothing for %s, which %s requires", e.dir, tpath, e.nameOf(e.tv))
 		return
 	}
 	e.missing = append(e.missing, tpath)
@@ -1719,10 +1854,9 @@ func (e *edge) unwritten() {
 	if len(e.missing) == 0 {
 		return
 	}
-	var names, maps []string
+	var names []string
 	for _, p := range e.missing {
 		names = append(names, p.String())
-		maps = append(maps, p.String()+": <mapping>")
 	}
 	b := diag.New(diag.E0346).At(e.blockPos)
 	if h := fmt.Sprintf("%s has no %s, and %s requires %s", e.file, e.dir, e.nameOf(e.tv), strings.Join(names, ", ")); len(h) <= diag.MaxHeadline {
@@ -1731,7 +1865,7 @@ func (e *edge) unwritten() {
 		b.Headlinef("%s has no %s, and %s requires %d fields", e.file, e.dir, e.nameOf(e.tv), len(names)).
 			Notef(token.NoPos, "%s requires %s", e.nameOf(e.tv), strings.Join(names, ", "))
 	}
-	b.Helpf("write %s: {%s: _, %s: {%s}} in %s", e.dir, e.paramOf(e.sv), e.paramOf(e.tv), strings.Join(maps, ", "), e.file)
+	b.Helpf("write %s: {%s: _, %s: {%s}} in %s", e.dir, e.paramOf(e.sv), e.paramOf(e.tv), nested(cue.MakePath(), "<mapping>", e.missing...), e.file)
 	e.errs = cerrors.Append(e.errs, b.Err())
 }
 
@@ -1745,7 +1879,13 @@ func (e *edge) unmapped(b *body, consumed map[string]bool, out *compiledLens) {
 				// No lens: the instance keeps it, and its successor admits it.
 				continue
 			}
-			e.errh(diag.E0347, e.blockPos, fmt.Sprintf("write <field>: %s.%s to move it, or %s: _drop", e.root, spath, spath), "%s declares %s and %s does not, and nothing maps it", e.nameOf(e.sv), spath, e.nameOf(e.tv))
+			key := b.dropKey(spath)
+			lit, pos := e.within(b, key)
+			drop := nested(lit, opDrop, key)
+			if len(lit.Selectors()) > 0 {
+				drop = "add " + drop + " to " + e.bodyName(lit)
+			}
+			e.errh(diag.E0347, pos, fmt.Sprintf("write <field>: %s.%s to move it, or %s", e.root, spath, drop), "%s declares %s and %s does not, and nothing maps it", e.nameOf(e.sv), spath, e.nameOf(e.tv))
 		case backward:
 			if e.carries(b, consumed, spath) {
 				// Translation carries it as a field the target does not
@@ -2739,7 +2879,7 @@ func (e *edge) settle(n *node, tbase cue.Path, b *body) (content dnf) {
 		// n is required all the way up, or the source has the field (a copy
 		// that was refused), fill has reported it.
 		if !e.required(e.T, tpath) && !b.claimed[tpath.String()] && !lookup(e.S, appendPath(b.sourceBase(tbase), cue.Str(name))).Exists() {
-			e.unproduced(tpath)
+			e.unproduced(b, tpath)
 		}
 		needs = nil
 	}

@@ -1,0 +1,36 @@
+A version file named as a minor version that declares, beneath a struct, a
+field the prior version accepted through ...: the declaration the help offers
+is the field at the primary, by its own name, as it is written there.
+-- ship/history/0.0.thema --
+Schema: {
+	meta: {
+		owner: string
+		...
+	}
+}
+-- ship/history/0.1.thema --
+Schema: {
+	meta: {
+		owner: string
+		size?: int
+		...
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	meta: {
+		owner: string
+		size?: int
+		...
+	}
+}
+-- out/error --
+error[E0215]: meta.size in history/0.1.thema is now int, which does not accept every value of the prior _
+ --> history/0.1.thema:4:3
+  |
+4 |         size?: int
+  |         ^^^^
+  |
+  = note: 0.1 is a minor version, so it must accept all data 0.0 accepts
+  = note: history/0.0.thema does not declare meta.size by name, but accepts it through ... or a pattern, so an instance may already hold any value there
+  = help: declare it as size?: _ to accept what 0.0 accepted, or rename the file history/1.0.thema

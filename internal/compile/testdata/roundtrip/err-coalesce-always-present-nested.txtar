@@ -1,0 +1,37 @@
+coalesce over a field the source always has, beneath a struct: the mapping
+the help offers is written where the _coalesce is, under its own key.
+-- ship/history/0.0.thema --
+Schema: {
+	meta: {
+		a: string
+	}
+}
+-- ship/history/1.0.thema --
+Schema: {
+	meta: {
+		b: string
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		meta: {
+			b: _coalesce(v0_0.meta.a, "x")
+		}
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	meta: {
+		b: string
+	}
+}
+-- out/error --
+error[E0348]: 0.0 always has meta.a, so _coalesce's fallback could never apply
+  --> history/1.0.thema:11:7
+   |
+11 |             b: _coalesce(v0_0.meta.a, "x")
+   |                ^^^^^^^^^
+   |
+   = help: write b: v0_0.meta.a
