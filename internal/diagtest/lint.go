@@ -55,10 +55,10 @@ var (
 	// do is help, on its own line, so that a reader finds the problem and the
 	// fix each in its own place.
 	fixInText = regexp.MustCompile(`[:;] (write|add|declare|say|use|make|compare|remove|map|give|rename|move|drop|bound|mark|cut|select|iterate|unify|choose|express|index|test|split|keep) `)
-	// A checker's name for one of its rules. The rule is the checker's
-	// vocabulary, not the author's: a diagnostic says what is wrong, and its
-	// code's page explains the rule.
-	ruleName = regexp.MustCompile(`\(rule [a-z-]+\)|compatibility rule [a-z-]+`)
+	// The compatibility checker's name for one of its rules. The rule is the
+	// checker's vocabulary, not the author's: a diagnostic says what is wrong,
+	// and its code's page explains the rule.
+	ruleName = regexp.MustCompile(`\(rule [a-z-]+\)|\bcompat(ibility)? rule [a-z-]+`)
 )
 
 // Lint checks ds against the mechanical authoring rules, failing t for each
@@ -120,7 +120,7 @@ func lintText(t testing.TB, where, s string, form Form, headline, help bool) {
 		t.Errorf("%s: says what to do after the problem; move it to help: %q", where, s)
 	}
 	if ruleName.MatchString(s) {
-		t.Errorf("%s: names a checker's rule; say what is wrong instead: %q", where, s)
+		t.Errorf("%s: names a compatibility rule; say what is wrong instead: %q", where, s)
 	}
 	if !headline {
 		return

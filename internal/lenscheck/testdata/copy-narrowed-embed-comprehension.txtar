@@ -14,4 +14,4 @@ v1_0: {
 }
 -- out --
 not total
-v1_0 copies v0_0, whose o is declared in the source schema and not accepted by the new one (compat rule field-removed) (rule copy-narrowed) @ lens.cue:3:2
+v1_0 copies v0_0, whose o is declared in the source schema and not accepted by the new one (rule copy-narrowed) @ lens.cue:3:2
