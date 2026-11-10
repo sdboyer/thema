@@ -292,7 +292,7 @@ func (ctx Context) place(b *B, path []string, ps []token.Pos, label string) {
 			}
 		}
 		if !primary.IsValid() && ctx.DataPos.IsValid() {
-			primary = ctx.DataPos
+			primary = ctx.dataPosAlong(path)
 		}
 	}
 	if !primary.IsValid() {
@@ -359,6 +359,20 @@ func (ctx Context) authorPosAlong(path []string) (token.Pos, int, bool) {
 		}
 	}
 	return token.NoPos, 0, false
+}
+
+// dataPosAlong is the position of the innermost value along path that the
+// data has: for a field the data lacks, the object it would be written in.
+// Failing that, the data document's.
+func (ctx Context) dataPosAlong(path []string) token.Pos {
+	if ctx.DataValue != nil {
+		for i := len(path); i > 0; i-- {
+			if v, ok := ctx.DataValue(path[:i]); ok && v.Pos().IsValid() {
+				return v.Pos()
+			}
+		}
+	}
+	return ctx.DataPos
 }
 
 // unwrapped drops entries that only wrap another entry: CUE reports a failure
