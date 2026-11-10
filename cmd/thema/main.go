@@ -48,6 +48,9 @@ func main() {
 	rootCmd.InitDefaultCompletionCmd()
 	markRan(rootCmd)
 
+	if cmd, err := unknownCommand(rootCmd, os.Args[1:]); err != nil {
+		os.Exit(report(commandLine(cmd, err)))
+	}
 	if cmd, err := rootCmd.ExecuteC(); err != nil {
 		os.Exit(report(commandLine(cmd, err)))
 	}
@@ -90,6 +93,29 @@ func markRan(cmd *cobra.Command) {
 			}
 		}
 	}
+}
+
+// unknownCommand is the error cobra gives for a word that names no command at
+// the root, for such a word beneath a command that only groups others, where
+// cobra prints the group's help and succeeds without reading its arguments.
+// It returns no error for anything else, which cobra reports itself.
+func unknownCommand(root *cobra.Command, args []string) (*cobra.Command, error) {
+	cmd, rest, err := root.Find(args)
+	if err != nil || !cmd.HasParent() || cmd.Runnable() || cmd.ParseFlags(rest) != nil {
+		return nil, nil
+	}
+	words := cmd.Flags().Args()
+	if len(words) == 0 {
+		return nil, nil
+	}
+	if cmd.SuggestionsMinimumDistance <= 0 {
+		cmd.SuggestionsMinimumDistance = 2
+	}
+	var suggested string
+	if s := cmd.SuggestionsFor(words[0]); len(s) > 0 {
+		suggested = "\n\nDid you mean this?\n\t" + strings.Join(s, "\n\t") + "\n"
+	}
+	return cmd, fmt.Errorf("unknown command %q for %q%s", words[0], cmd.CommandPath(), suggested)
 }
 
 // commandLine is err as the CLI reports it: what a command's own code

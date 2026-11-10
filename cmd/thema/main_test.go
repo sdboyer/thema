@@ -19,6 +19,9 @@ func TestCommandLine(t *testing.T) {
 		{lineageCmd, tipName, "--bogus"},
 		{"data", "validate", "a.json", "b.json"},
 		{"bogus", "--help"},
+		{lineageCmd, "bogus"},
+		{lineageCmd, "gen", "bogus"},
+		{"data", "bogus"},
 	} {
 		t.Run(strings.Join(args, " "), func(t *testing.T) {
 			if got := initCodes(t, t.TempDir(), args...); !slices.Equal(got, []diag.Code{diag.E0620}) {
