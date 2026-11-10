@@ -43,7 +43,7 @@ error[E0215]: concreteCross in schema 0.1 is now "foo" | 42, which has no altern
 17 |             concreteCross: "foo" | 42
    |             ^^^^^^^^^^^^^
    |
-   = note: schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule value-narrowed)
+   = note: schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts
    = help: make the change compatible, or make this version 1.0
 
 error[E0215]: concreteString in schema 0.1 is now "foo" | "bar", which has no alternative for the prior "baz"
@@ -52,7 +52,7 @@ error[E0215]: concreteString in schema 0.1 is now "foo" | "bar", which has no al
 18 |             concreteString: "foo" | "bar"
    |             ^^^^^^^^^^^^^^
    |
-   = note: schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule value-narrowed)
+   = note: schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts
    = help: make the change compatible, or make this version 1.0
 
 error[E0215]: crossKind2 in schema 0.1 was int and is now string
@@ -61,7 +61,7 @@ error[E0215]: crossKind2 in schema 0.1 was int and is now string
 20 |             crossKind2: string
    |             ^^^^^^^^^^
    |
-   = note: schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule value-narrowed)
+   = note: schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts
    = help: make the change compatible, or make this version 1.0
 
 error[E0215]: crossKind3 in schema 0.1 is now string | int32, no alternative of which has the kind bytes of the prior alternative bytes
@@ -70,5 +70,5 @@ error[E0215]: crossKind3 in schema 0.1 is now string | int32, no alternative of 
 19 |             crossKind3: string | int32
    |             ^^^^^^^^^^
    |
-   = note: schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule value-narrowed)
+   = note: schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts
    = help: make the change compatible, or make this version 1.0

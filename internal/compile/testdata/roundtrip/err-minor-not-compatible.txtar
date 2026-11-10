@@ -1,0 +1,35 @@
+A version file named as a minor version whose schema is not backward
+compatible with its predecessor's: one error for each field it narrows.
+-- ship/history/0.0.thema --
+Schema: {
+	size:  "s" | "m" | "l"
+	count: string | int
+}
+-- ship/history/0.1.thema --
+Schema: {
+	size:  "s" | "m"
+	count: string
+}
+-- ship/tip.thema --
+Schema: {
+	size:  "s" | "m"
+	count: string
+}
+-- out/error --
+error[E0215]: count in history/0.1.thema was int and is now string
+ --> history/0.1.thema:3:2
+  |
+3 |     count: string
+  |     ^^^^^
+  |
+  = note: 0.1 is a minor version, so it must accept all data 0.0 accepts
+  = help: make the change compatible, or rename the file history/1.0.thema
+
+error[E0215]: size in history/0.1.thema is now "s" | "m", which has no alternative for the prior "l"
+ --> history/0.1.thema:2:2
+  |
+2 |     size:  "s" | "m"
+  |     ^^^^
+  |
+  = note: 0.1 is a minor version, so it must accept all data 0.0 accepts
+  = help: make the change compatible, or rename the file history/1.0.thema

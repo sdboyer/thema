@@ -1550,7 +1550,7 @@ func (e *edge) eachCopy(en *entry, out *compiledLens) {
 			if sels := f.Path.Selectors(); len(sels) > 0 {
 				subject += "." + f.Path.String()
 			}
-			b.Notef(token.NoPos, "%s in %s %s (copying %s; compatibility rule %s)", subject, e.nameOf(e.tv), r.Replace(f.Detail), item, f.Rule)
+			b.Notef(token.NoPos, "%s in %s %s", subject, e.nameOf(e.tv), r.Replace(f.Detail))
 		}
 		e.errs = cerrors.Append(e.errs, b.Err())
 		return
@@ -1695,11 +1695,7 @@ func (e *edge) copyMisfit(code diag.Code, p token.Pos, spath, tpath cue.Path, fs
 		if sels := f.Path.Selectors(); len(sels) > 0 {
 			subject += "." + f.Path.String()
 		}
-		verb := "moving"
-		if code == diag.E0358 {
-			verb = "copying"
-		}
-		b.Notef(token.NoPos, "%s in %s %s (%s %s.%s; compatibility rule %s)", subject, e.nameOf(e.tv), r.Replace(f.Detail), verb, e.root, spath, f.Rule)
+		b.Notef(token.NoPos, "%s in %s %s", subject, e.nameOf(e.tv), r.Replace(f.Detail))
 	}
 	e.errs = cerrors.Append(e.errs, b.Err())
 }

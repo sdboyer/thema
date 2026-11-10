@@ -24,5 +24,5 @@ error[E0359]: the ForwardLens in history/1.0.thema copies u[].id into the elemen
 8 |         u: _each(v0_0.u, _item.id)
   |                          ^^^^^
   |
-  = note: u[] in 1.0 was int and is now string (copying _item.id; compatibility rule value-narrowed)
+  = note: u[] in 1.0 was int and is now string
   = help: copy into u a field whose values its elements accept, or map them with a struct of mappings
