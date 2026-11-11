@@ -47,7 +47,8 @@ which describes it:
     title:    "dog"             // optional: the lineage's name if absent
     summary:  "A dog's record." // optional
 
-A lineage without an example.cue is not offered. Each example's ID is its
+example.cue declares no package; a package clause is an error (E0621). A
+lineage without an example.cue is not offered. Each example's ID is its
 directory's path beneath the directory; whether it binds is found by binding
 it with its tip, as the playground does, and its data documents are its
 schemas' examples.
