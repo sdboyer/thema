@@ -27,7 +27,8 @@ tip): the whole file, its notes included, with its lenses naming the tip's
 instance by that version, v<major>_<minor>, in place of tip. tip.thema is
 then reset to clean: its Schema, with its doc comment and the comments within
 it, and the imports the Schema uses. The lenses and the notes stay in the
-frozen file.
+frozen file. normalized.gen.cue, the normal form of history/ that plain CUE
+imports (see thema lineage compile), is rewritten to hold the new version.
 
 The tip is bound on the development path first, and is not cut while a lens
 its edge needs is missing (E1004), or while binding reports an error. Cutting
@@ -74,12 +75,26 @@ func (cc *cutCommand) run(cmd *cobra.Command, _ []string) error {
 	}
 	// The frozen version is written before the tip is reset, each on its
 	// own: a tip reset while its version failed to freeze would lose the
-	// lenses and notes the tip held.
+	// lenses and notes the tip held. The normal form follows them, generated
+	// before anything is written; should writing it fail, thema lineage
+	// compile writes it again from the history the cut left.
+	history, err := authoring.Compile(rt.Context(), name, cut.Files, at)
+	if err != nil {
+		return err
+	}
+	normal, err := authoring.NormalForm.GenerateFS(history)
+	if err != nil {
+		return err
+	}
+	var written []*jenny.FS
 	for _, j := range []jenny.Jenny[*authoring.Cut]{authoring.FrozenVersion, authoring.CleanTip} {
 		fs, err := j.GenerateFS(cut)
 		if err != nil {
 			return err
 		}
+		written = append(written, fs)
+	}
+	for _, fs := range append(written, normal) {
 		if !cc.dryRun {
 			if err := writeFS(cmd, fs, abs); err != nil {
 				return err

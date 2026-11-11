@@ -27,7 +27,7 @@ Schema: {
 }
 ```
 
-`thema lineage tip -l ship` reports the version the tip cuts as, `tip (cuts as 0.0)`. Once the schema is ready, cut it, which freezes it as `ship/history/0.0.thema`:
+`thema lineage tip -l ship` reports the version the tip cuts as, `tip (cuts as 0.0)`. Once the schema is ready, cut it, which freezes it as `ship/history/0.0.thema`, and writes `ship/normalized.gen.cue`, the lineage's normal form, for plain CUE to import:
 
 ```
 thema lineage cut -l ship
