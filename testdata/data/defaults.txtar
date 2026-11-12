@@ -1,0 +1,84 @@
+#description: Defaulted fields at the top, in a nested struct, in an optional struct, in a list element and in a map value, and one whose default is another field. Every program reading an instance sees each default the instance omits.
+#version: 0.0
+#spec: docs/translation.md:49
+#expect/empty: ok
+#expect/priority-given: ok
+#expect/shipping-express: ok
+#expect/item-without-quantity: ok
+#expect/label-without-weight: ok
+#expect/gift-without-wrap: ok
+#expect/pickup-at-locker: ok
+#expect/item-without-sku: E0501
+#known/cue/item-without-quantity: #295 Value decodes the data onto NewT, which decodes the schema alone, so a default in a list element is never set.
+#known/cue/priority-given: #295 Value decodes the data onto NewT, which decodes the schema alone, so due keeps the default priority had there, not the priority the data gives.
+#known/cue/gift-without-wrap: #295 Value decodes the data onto NewT, which decodes the schema alone, where gift is absent, so a default in an optional struct the data supplies is never set.
+#known/cue/label-without-weight: #295 Value decodes the data onto NewT, which decodes the schema alone, so a default in a map value is never set.
+#description/empty: Every defaulted field is filled: priority 3, due 3, shipping.method standard, items []. The optional fields stay absent.
+#description/priority-given: due is filled with the priority the data gives: a default that is another field.
+#description/pickup-at-locker: The pickup is the second alternative, a locker, so the default alternative's store is not filled: only the alternative the instance matches has defaults.
+#description/gift-without-wrap: The gift's wrap is filled with paper: a default in an optional struct the data supplies.
+#description/item-without-quantity: The item's quantity is filled with 1: a default in a list element.
+#description/label-without-weight: The label's weight is filled with 1: a default in a map value.
+-- defaults/history/0.0.thema --
+Schema: {
+	priority: *3 | int
+	due:      *priority | int
+	shipping: {
+		method: *"standard" | "express"
+	}
+	items: [...{
+		sku:      string
+		quantity: *1 | int
+	}]
+	labels?: [string]: {
+		weight: *1 | int
+	}
+	gift?: {
+		wrap: *"paper" | "box"
+	}
+	pickup?: *{store: *"main" | string} | {locker: string}
+}
+-- data/empty.json --
+{}
+-- data/priority-given.json --
+{"priority":7}
+-- data/shipping-express.json --
+{"shipping":{"method":"express"}}
+-- data/item-without-quantity.json --
+{"items":[{"sku":"ABC-0001"}]}
+-- data/label-without-weight.json --
+{"labels":{"gift":{}}}
+-- data/gift-without-wrap.json --
+{"gift":{}}
+-- data/pickup-at-locker.json --
+{"pickup":{"locker":"L12"}}
+-- data/item-without-sku.json --
+{"items":[{"quantity":2}]}
+-- out/cue/empty --
+verdict: ok
+value: {"priority":3,"due":3,"shipping":{"method":"standard"},"items":[]}
+-- out/cue/gift-without-wrap --
+verdict: wrong
+the Go value is {"priority":3,"due":3,"shipping":{"method":"standard"},"items":[],"gift":{"wrap":""}}
+the reference value is {"priority":3,"due":3,"shipping":{"method":"standard"},"items":[],"gift":{"wrap":"paper"}}
+-- out/cue/item-without-quantity --
+verdict: wrong
+the Go value is {"priority":3,"due":3,"shipping":{"method":"standard"},"items":[{"sku":"ABC-0001","quantity":0}]}
+the reference value is {"priority":3,"due":3,"shipping":{"method":"standard"},"items":[{"sku":"ABC-0001","quantity":1}]}
+-- out/cue/item-without-sku --
+verdict: E0501
+E0501 the data lacks items.0.sku, which schema 0.0 declares as string @ data/item-without-sku.json:1:1
+-- out/cue/label-without-weight --
+verdict: wrong
+the Go value is {"priority":3,"due":3,"shipping":{"method":"standard"},"items":[],"labels":{"gift":{"weight":0}}}
+the reference value is {"priority":3,"due":3,"shipping":{"method":"standard"},"items":[],"labels":{"gift":{"weight":1}}}
+-- out/cue/pickup-at-locker --
+verdict: ok
+value: {"priority":3,"due":3,"shipping":{"method":"standard"},"items":[],"pickup":{"locker":"L12"}}
+-- out/cue/priority-given --
+verdict: wrong
+the Go value is {"priority":7,"due":3,"shipping":{"method":"standard"},"items":[]}
+the reference value is {"priority":7,"due":7,"shipping":{"method":"standard"},"items":[]}
+-- out/cue/shipping-express --
+verdict: ok
+value: {"priority":3,"due":3,"shipping":{"method":"express"},"items":[]}
