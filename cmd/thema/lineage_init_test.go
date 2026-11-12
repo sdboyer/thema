@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -37,19 +39,28 @@ func runInit(t *testing.T, dir string, args ...string) string {
 	return out
 }
 
-// initCodes runs thema with args in dir, expecting it to fail, and returns
-// the codes of the diagnostics it reported.
+// initCodes runs thema with args in dir, expecting it to fail as report
+// reports a failure with --diag-format json: exit status 1, nothing on
+// stderr, and diagnostics on stdout. It returns their codes.
 func initCodes(t *testing.T, dir string, args ...string) []diag.Code {
 	t.Helper()
 	out, errOut, err := runThema(t, dir, "", append(args, "--diag-format", "json")...)
+	line := strings.Join(args, " ")
 	if err == nil {
-		t.Fatalf("thema %s succeeded:\n%s", strings.Join(args, " "), out)
+		t.Fatalf("thema %s succeeded:\n%s", line, out)
+	}
+	var exit *exec.ExitError
+	if !errors.As(err, &exit) || exit.ExitCode() != 1 {
+		t.Fatalf("thema %s: %v, want exit status 1\nstdout:\n%s\nstderr:\n%s", line, err, out, errOut)
+	}
+	if errOut != "" {
+		t.Errorf("thema %s wrote to stderr, where --diag-format json writes nothing:\n%s", line, errOut)
 	}
 	var res struct {
 		Diagnostics []diag.Diagnostic `json:"diagnostics"`
 	}
 	if jerr := json.Unmarshal([]byte(out), &res); jerr != nil {
-		t.Fatalf("thema %s: %v\nstdout:\n%s\nstderr:\n%s", strings.Join(args, " "), jerr, out, errOut)
+		t.Fatalf("thema %s: %v\nstdout:\n%s\nstderr:\n%s", line, jerr, out, errOut)
 	}
 	var codes []diag.Code
 	for _, d := range res.Diagnostics {

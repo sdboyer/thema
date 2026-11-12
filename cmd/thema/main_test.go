@@ -1,9 +1,6 @@
 package main
 
 import (
-	"encoding/json"
-	"errors"
-	"os/exec"
 	"slices"
 	"strings"
 	"sync"
@@ -99,13 +96,17 @@ var needsNoInput = map[string]string{
 	"thema serve playground":   "it serves the playground until it is stopped",
 }
 
-// Every command thema runs, found by walking the tree main builds, so that
-// one added later is covered without being listed here, reports what it
-// cannot do through report: with --diag-format json, it exits 1, writes
-// nothing to stderr, and writes diagnostics to stdout, none of them E09xx,
-// the codes of thema's own failures. Each leaf is run with a flag it does
-// not take, with none of its flags or arguments, and, where it takes at
-// most some number of arguments, with one more.
+// TestCommandTree checks every leaf of the tree main builds, found by
+// walking it, so that a command added later is covered without being listed
+// here. It guards how a leaf is wired and what fails before the leaf's own
+// code runs, not what that code does: each leaf must run with RunE, not
+// Run, and have an Args validator; and each is run with a flag it does not
+// take, with one argument more than it takes, and with none of its flags or
+// arguments, in an empty directory. The first two fail in cobra, and the
+// third, for every leaf now, in loading the lineage, so none reaches a
+// PreRunE or a RunE body. Each run must exit 1, write nothing to stderr, and
+// write diagnostics to stdout, none of them E09xx, the codes of thema's own
+// failures. What a command's own code reports is for its own tests.
 func TestCommandTree(t *testing.T) {
 	var leaves []*cobra.Command
 	walkCommands(commandTree(), func(cmd *cobra.Command) {
@@ -165,27 +166,17 @@ func maxArgs(cmd *cobra.Command) (int, bool) {
 }
 
 // requireReported runs thema with args in an empty directory, with nothing
-// on stdin, and requires that it fail as report reports a failure.
+// on stdin, and requires that it fail as report reports a failure, with
+// diagnostics none of which is E09xx.
 func requireReported(t *testing.T, args []string) {
 	t.Helper()
-	out, errOut, err := runThema(t, t.TempDir(), "", append(args, "--diag-format", "json")...)
-	line := strings.Join(args, " ")
-	var exit *exec.ExitError
-	if !errors.As(err, &exit) || exit.ExitCode() != 1 {
-		t.Fatalf("thema %s: %v, want exit status 1\nstdout:\n%s\nstderr:\n%s", line, err, out, errOut)
+	codes := initCodes(t, t.TempDir(), args...)
+	if len(codes) == 0 {
+		t.Fatalf("thema %s: no diagnostics", strings.Join(args, " "))
 	}
-	if errOut != "" {
-		t.Errorf("thema %s wrote to stderr:\n%s", line, errOut)
-	}
-	var res struct {
-		Diagnostics []diag.Diagnostic `json:"diagnostics"`
-	}
-	if jerr := json.Unmarshal([]byte(out), &res); jerr != nil || len(res.Diagnostics) == 0 {
-		t.Fatalf("thema %s: stdout is not diagnostics (%v):\n%s", line, jerr, out)
-	}
-	for _, d := range res.Diagnostics {
-		if strings.HasPrefix(string(d.Code), "E09") {
-			t.Errorf("thema %s: %s %s, a code of thema's own failures", line, d.Code, d.Headline)
+	for _, c := range codes {
+		if strings.HasPrefix(string(c), "E09") {
+			t.Errorf("thema %s: %s, a code of thema's own failures", strings.Join(args, " "), c)
 		}
 	}
 }
