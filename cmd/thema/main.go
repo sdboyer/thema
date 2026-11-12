@@ -24,7 +24,31 @@ var ctx = cuecontext.New()
 var rt = thema.NewRuntime(ctx)
 
 // diagFormat is how diagnostics are written: text to stderr, or json to stdout.
-var diagFormat string
+var diagFormat = diagText
+
+// The values --diag-format takes.
+const (
+	diagText = "text"
+	diagJSON = "json"
+)
+
+// diagFormatFlag is --diag-format's value. It refuses anything but text or
+// json as the command line is parsed, which cobra reports as E0620 before
+// any command runs. The refused value is never set, so that diagnostic is
+// written as the format already set says, text on stderr by default: stdout
+// stays empty, as a failure leaves it for a script that asked for JSON.
+type diagFormatFlag string
+
+func (f *diagFormatFlag) String() string { return string(*f) }
+func (f *diagFormatFlag) Type() string   { return "string" }
+
+func (f *diagFormatFlag) Set(s string) error {
+	if s != diagText && s != diagJSON {
+		return fmt.Errorf("it takes %s or %s", diagText, diagJSON)
+	}
+	*f = diagFormatFlag(s)
+	return nil
+}
 
 func main() {
 	setupCommands()
@@ -43,7 +67,7 @@ func setupCommands() {
 	setupLineageCommand(rootCmd)
 	setupServeCommand(rootCmd)
 
-	rootCmd.PersistentFlags().StringVar(&diagFormat, "diag-format", "text", `how diagnostics are reported: "text" on stderr, or "json" on stdout`)
+	rootCmd.PersistentFlags().Var((*diagFormatFlag)(&diagFormat), "diag-format", `how diagnostics are reported: "text" on stderr, or "json" on stdout`)
 
 	// Stop cobra from being so "helpful"
 	walkCommands(rootCmd, func(cmd *cobra.Command) {
@@ -77,7 +101,7 @@ func readDiagFormat(args []string) {
 	fs := pflag.NewFlagSet("diag-format", pflag.ContinueOnError)
 	fs.ParseErrorsAllowlist.UnknownFlags = true
 	fs.SetOutput(io.Discard)
-	fs.StringVar(&diagFormat, "diag-format", diagFormat, "")
+	fs.Var((*diagFormatFlag)(&diagFormat), "diag-format", "")
 	// Declared, or pflag stops at -h or --help as a request for help.
 	fs.BoolP("help", "h", false, "")
 	_ = fs.Parse(args)
@@ -152,6 +176,15 @@ func commandLine(cmd *cobra.Command, err error) error {
 	return b.Help(fmt.Sprintf("%s --help lists the commands, flags and arguments it takes", cmd.CommandPath())).Err()
 }
 
+// stdoutErr is err, the failure of writing a command's output to stdout, as
+// E0616, or nil.
+func stdoutErr(err error) error {
+	if err == nil {
+		return nil
+	}
+	return diag.New(diag.E0616).Headline("stdout cannot be written").Detail(diag.OSReason(err)).Err()
+}
+
 // silent is a failure a command has already said everything about, or was
 // asked (-q) to say nothing about. It exits 1 with no diagnostics.
 type silent struct{}
@@ -168,7 +201,7 @@ func report(err error) int {
 	}
 	ds := diag.From(err, diag.Context{})
 	switch diagFormat {
-	case "json":
+	case diagJSON:
 		if err := diag.RenderJSON(os.Stdout, ds); err != nil {
 			fmt.Fprintln(os.Stderr, err) //nolint:forbidigo // report's own failure to write stdout has only stderr left
 		}

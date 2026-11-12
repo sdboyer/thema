@@ -141,14 +141,14 @@ func (dc *dataCommand) runValidateAny(cmd *cobra.Command, args []string) error {
 	if dc.lla.dl.sch != nil {
 		_, reterr = dc.lla.dl.sch.Validate(dc.datval)
 		if reterr == nil {
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", dc.lla.dl.versionLabel(dc.lla.dl.sch.Version()))
-			return nil
+			_, err := fmt.Fprintf(cmd.OutOrStdout(), "%s\n", dc.lla.dl.versionLabel(dc.lla.dl.sch.Version()))
+			return stdoutErr(err)
 		}
 	}
 	inst := dc.lla.dl.lin.ValidateAny(dc.datval)
 	if inst != nil {
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", dc.lla.dl.versionLabel(inst.Schema().Version()))
-		return nil
+		_, err := fmt.Fprintf(cmd.OutOrStdout(), "%s\n", dc.lla.dl.versionLabel(inst.Schema().Version()))
+		return stdoutErr(err)
 	}
 
 	if dc.quiet {
@@ -219,7 +219,7 @@ func (dc *dataCommand) runTranslate(cmd *cobra.Command, args []string) error {
 	buf := bytes.NewBuffer(byt)
 	_, err = io.Copy(cmd.OutOrStdout(), buf)
 
-	return err
+	return stdoutErr(err)
 }
 
 // translationResult is translate's output. With --tip, a version that is the

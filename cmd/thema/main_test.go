@@ -1,9 +1,11 @@
 package main
 
 import (
-	"encoding/json"
+	"bytes"
 	"errors"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -18,6 +20,14 @@ var setupOnce sync.Once
 
 // extraArg is a positional argument a command does not take.
 const extraArg = "extra"
+
+// Command names the tests repeat.
+const (
+	dataName  = "data"
+	cutName   = "cut"
+	fmtName   = "fmt"
+	emptyName = "empty"
+)
 
 // commandTree builds the command tree in this process, once, as main does,
 // for the tests that inspect it or execute it in-process.
@@ -84,6 +94,17 @@ func TestCommandLine(t *testing.T) {
 		}
 	})
 
+	// A format thema does not write is refused, even for a command line
+	// that would succeed, in text on stderr, leaving stdout empty.
+	for _, format := range []string{"xml", "JSON"} {
+		t.Run("--diag-format "+format, func(t *testing.T) {
+			out, errOut, err := runThema(t, t.TempDir(), "", lineageCmd, initName, emptyName, stdoutFlg, "--diag-format", format)
+			if err == nil || out != "" || !strings.HasPrefix(errOut, "error[E0620]") {
+				t.Errorf("want E0620 as text on stderr and nothing on stdout, got err %v\nstdout:\n%s\nstderr:\n%s", err, out, errOut)
+			}
+		})
+	}
+
 	t.Run("a command's own error", func(t *testing.T) {
 		got := initCodes(t, t.TempDir(), data, "validate", "-l", "missing", "data.json")
 		if slices.Contains(got, diag.E0620) || len(got) == 0 {
@@ -99,13 +120,17 @@ var needsNoInput = map[string]string{
 	"thema serve playground":   "it serves the playground until it is stopped",
 }
 
-// Every command thema runs, found by walking the tree main builds, so that
-// one added later is covered without being listed here, reports what it
-// cannot do through report: with --diag-format json, it exits 1, writes
-// nothing to stderr, and writes diagnostics to stdout, none of them E09xx,
-// the codes of thema's own failures. Each leaf is run with a flag it does
-// not take, with none of its flags or arguments, and, where it takes at
-// most some number of arguments, with one more.
+// TestCommandTree checks every leaf of the tree main builds, found by
+// walking it, so that a command added later is covered without being listed
+// here. It guards how a leaf is wired and what fails before the leaf's own
+// code runs, not what that code does: each leaf must run with RunE, not
+// Run, and have an Args validator; and each is run with a flag it does not
+// take, with one argument more than it takes, and with none of its flags or
+// arguments, in an empty directory. The first two fail in cobra, and the
+// third, for every leaf now, in loading the lineage, so none reaches a
+// PreRunE or a RunE body. Each run must exit 1, write nothing to stderr, and
+// write diagnostics to stdout, none of them E09xx, the codes of thema's own
+// failures. What a command's own code reports is for its own tests.
 func TestCommandTree(t *testing.T) {
 	var leaves []*cobra.Command
 	walkCommands(commandTree(), func(cmd *cobra.Command) {
@@ -125,6 +150,11 @@ func TestCommandTree(t *testing.T) {
 			// cannot reach report.
 			if cmd.Run != nil || cmd.RunE == nil {
 				t.Fatal("the command runs with Run, want RunE")
+			}
+			// Without an Args validator, cobra takes any arguments, and the
+			// command ignores those it does not read.
+			if cmd.Args == nil {
+				t.Fatal("the command has no Args validator, want one, such as cobra.NoArgs")
 			}
 			words := strings.Fields(cmd.CommandPath())[1:]
 			lines := map[string][]string{"an unknown flag": append(slices.Clone(words), "--bogus")}
@@ -160,27 +190,62 @@ func maxArgs(cmd *cobra.Command) (int, bool) {
 }
 
 // requireReported runs thema with args in an empty directory, with nothing
-// on stdin, and requires that it fail as report reports a failure.
+// on stdin, and requires that it fail as report reports a failure, with
+// diagnostics none of which is E09xx.
 func requireReported(t *testing.T, args []string) {
 	t.Helper()
-	out, errOut, err := runThema(t, t.TempDir(), "", append(args, "--diag-format", "json")...)
-	line := strings.Join(args, " ")
-	var exit *exec.ExitError
-	if !errors.As(err, &exit) || exit.ExitCode() != 1 {
-		t.Fatalf("thema %s: %v, want exit status 1\nstdout:\n%s\nstderr:\n%s", line, err, out, errOut)
+	codes := initCodes(t, t.TempDir(), args...)
+	if len(codes) == 0 {
+		t.Fatalf("thema %s: no diagnostics", strings.Join(args, " "))
 	}
-	if errOut != "" {
-		t.Errorf("thema %s wrote to stderr:\n%s", line, errOut)
-	}
-	var res struct {
-		Diagnostics []diag.Diagnostic `json:"diagnostics"`
-	}
-	if jerr := json.Unmarshal([]byte(out), &res); jerr != nil || len(res.Diagnostics) == 0 {
-		t.Fatalf("thema %s: stdout is not diagnostics (%v):\n%s", line, jerr, out)
-	}
-	for _, d := range res.Diagnostics {
-		if strings.HasPrefix(string(d.Code), "E09") {
-			t.Errorf("thema %s: %s %s, a code of thema's own failures", line, d.Code, d.Headline)
+	for _, c := range codes {
+		if strings.HasPrefix(string(c), "E09") {
+			t.Errorf("thema %s: %s, a code of thema's own failures", strings.Join(args, " "), c)
 		}
+	}
+}
+
+// A command whose output cannot be written to stdout fails, as E0616, rather
+// than exiting 0 with the output lost. stdout is a file opened read-only.
+func TestStdoutWriteFails(t *testing.T) {
+	dir := writeTipDir(t, "Schema: {\n\tname: string\n}\n")
+	dataPath := filepath.Join(t.TempDir(), "data.json")
+	ro := filepath.Join(t.TempDir(), "ro.txt")
+	for _, p := range []string{dataPath, ro} {
+		if err := os.WriteFile(p, []byte(`{"name": "x"}`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for name, args := range map[string][]string{
+		"gen openapi":             {lineageCmd, genCmd, openapiCmd, "-l", dir},
+		"gen jsonschema":          {lineageCmd, genCmd, jsonschemaCmd, "-l", dir},
+		"gen gobindings --stdout": {lineageCmd, genCmd, gobindingsCmd, "-l", dir, stdoutFlg},
+		"gen gobindings":          {lineageCmd, genCmd, gobindingsCmd, "-l", dir},
+		"data validate-any":       {dataName, "validate-any", "-l", dir, dataPath},
+		"data translate":          {dataName, "translate", "-l", dir, toFlag, v00, dataPath},
+		"gen gotypes":             {lineageCmd, genCmd, gotypesCmd, "-l", dir},
+		"lineage tip":             {lineageCmd, tipName, "-l", dir},
+		"lineage cut":             {lineageCmd, cutName, "-l", dir, "--dry-run"},
+		"lineage fmt":             {lineageCmd, fmtName, "-l", writeAuthoringDir(t)},
+		"init empty --stdout":     {lineageCmd, initName, emptyName, stdoutFlg},
+		"init empty":              {lineageCmd, initName, emptyName, "-l", filepath.Join(t.TempDir(), shipName)},
+	} {
+		t.Run(name, func(t *testing.T) {
+			stdout, err := os.Open(ro) //nolint:gosec // a file this test wrote
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer stdout.Close()                     //nolint:errcheck // a read-only file
+			cmd := exec.Command(os.Args[0], args...) //nolint:gosec // re-executes this test binary
+			cmd.Env = append(os.Environ(), runMainEnv+"=1")
+			cmd.Stdout = stdout
+			var errOut bytes.Buffer
+			cmd.Stderr = &errOut
+			err = cmd.Run()
+			var exit *exec.ExitError
+			if !errors.As(err, &exit) || exit.ExitCode() != 1 || !strings.HasPrefix(errOut.String(), "error[E0616]: stdout cannot be written") {
+				t.Errorf("got %v, want E0616 for stdout, exit 1:\n%s", err, errOut.String())
+			}
+		})
 	}
 }
