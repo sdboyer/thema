@@ -11,6 +11,7 @@ linters:
   enable:
     - dogsled
     - errcheck
+    - forbidigo
     - gochecknoinits
     - goconst
     - gocritic
@@ -28,6 +29,22 @@ linters:
     - unused
     - whitespace
   settings:
+    forbidigo:
+      # The CLI's contract: every failure is a coded diagnostic, which report
+      # writes, and main exits with its status. Scoped to cmd/thema below.
+      forbid:
+        - pattern: ^os\.Exit$
+          pkg: ^os$
+          msg: only main exits; return the error, and report gives the status
+        - pattern: ^os\.Stderr$
+          pkg: ^os$
+          msg: only report and warn write to stderr; return a diagnostic
+        - pattern: ^cobra\.Command\.(ErrOrStderr|PrintErr|PrintErrln|PrintErrf)$
+          pkg: ^github\.com/spf13/cobra$
+          msg: only report and warn write to stderr; return a diagnostic
+        - pattern: ^panic$
+          msg: return a diagnostic; a panic is for what cannot be reached, and says why
+      analyze-types: true
     govet:
       # v1's check-shadowing.
       enable:
@@ -45,6 +62,16 @@ linters:
     paths:
       # Vendored-in third-party code; not ours to lint.
       - internal/cuetsy
+    rules:
+      # forbidigo's rules are the CLI's contract, so they hold in cmd/thema
+      # alone, and not in its tests, which re-execute main from TestMain
+      # and may fail however a test fails.
+      - path-except: ^cmd/thema/
+        linters:
+          - forbidigo
+      - path: _test\.go$
+        linters:
+          - forbidigo
 
 formatters:
   enable:

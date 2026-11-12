@@ -137,7 +137,7 @@ func (ic *initCommand) run(cmd *cobra.Command, args []string) error {
 	case "openapi":
 		ic.runOpenAPI(cmd, args)
 	default:
-		panic(fmt.Sprint("unrecognized command ", cmd.CalledAs()))
+		panic(fmt.Sprint("unrecognized command ", cmd.CalledAs())) //nolint:forbidigo // run is the RunE of empty, jsonschema and openapi alone, and none has an alias
 	}
 	if ic.err != nil {
 		return ic.err

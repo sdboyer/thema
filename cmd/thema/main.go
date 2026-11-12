@@ -30,10 +30,10 @@ func main() {
 	setupCommands()
 
 	if cmd, err := unknownCommand(rootCmd, os.Args[1:]); err != nil {
-		os.Exit(report(commandLine(cmd, err)))
+		os.Exit(report(commandLine(cmd, err))) //nolint:forbidigo // main exits, with report's status
 	}
 	if cmd, err := rootCmd.ExecuteC(); err != nil {
-		os.Exit(report(commandLine(cmd, err)))
+		os.Exit(report(commandLine(cmd, err))) //nolint:forbidigo // main exits, with report's status
 	}
 }
 
@@ -170,11 +170,11 @@ func report(err error) int {
 	switch diagFormat {
 	case "json":
 		if err := diag.RenderJSON(os.Stdout, ds); err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, err) //nolint:forbidigo // report's own failure to write stdout has only stderr left
 		}
 	default:
 		cwd, _ := os.Getwd()
-		diag.Render(os.Stderr, ds, diag.RenderOptions{Source: readSource, Rel: cwd})
+		diag.Render(os.Stderr, ds, diag.RenderOptions{Source: readSource, Rel: cwd}) //nolint:forbidigo // report writes text diagnostics to stderr
 	}
 	return 1
 }
@@ -187,7 +187,7 @@ func warn(err error) {
 		return
 	}
 	cwd, _ := os.Getwd()
-	diag.Render(os.Stderr, diag.From(err, diag.Context{}), diag.RenderOptions{Source: readSource, Rel: cwd})
+	diag.Render(os.Stderr, diag.From(err, diag.Context{}), diag.RenderOptions{Source: readSource, Rel: cwd}) //nolint:forbidigo // warn writes warnings to stderr in either format
 }
 
 // inlineSources holds text that was read from somewhere diagnostics cannot

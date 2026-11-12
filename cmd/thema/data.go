@@ -109,7 +109,7 @@ Success outputs nothing and exits 0. Failure outputs the validation problem
 
 func (dc *dataCommand) runValidate(cmd *cobra.Command, args []string) error {
 	if !dc.datval.Exists() {
-		panic("datval does not exist")
+		panic("datval does not exist") //nolint:forbidigo // validateDataInput, every data command's PersistentPreRunE, sets datval from a decode that succeeded or fails, and cobra runs it before RunE
 	}
 
 	_, err := dc.lla.dl.sch.Validate(dc.datval)
@@ -146,7 +146,7 @@ be printed.
 
 func (dc *dataCommand) runValidateAny(cmd *cobra.Command, args []string) error {
 	if !dc.datval.Exists() {
-		panic("datval does not exist")
+		panic("datval does not exist") //nolint:forbidigo // validateDataInput, every data command's PersistentPreRunE, sets datval from a decode that succeeded or fails, and cobra runs it before RunE
 	}
 
 	var reterr error
@@ -193,7 +193,7 @@ arise during data input decoding or validation, never during translation.
 
 func (dc *dataCommand) runTranslate(cmd *cobra.Command, args []string) error {
 	if !dc.datval.Exists() {
-		panic("datval does not exist")
+		panic("datval does not exist") //nolint:forbidigo // validateDataInput, every data command's PersistentPreRunE, sets datval from a decode that succeeded or fails, and cobra runs it before RunE
 	}
 
 	inst := dc.lla.dl.lin.ValidateAny(dc.datval)
@@ -262,7 +262,7 @@ for validity against all schemas in the lineage.
 
 func (dc *dataCommand) runHydrate(cmd *cobra.Command, args []string) error {
 	if !dc.datval.Exists() {
-		panic("datval does not exist")
+		panic("datval does not exist") //nolint:forbidigo // validateDataInput, every data command's PersistentPreRunE, sets datval from a decode that succeeded or fails, and cobra runs it before RunE
 	}
 
 	var inst *thema.Instance
@@ -306,7 +306,7 @@ for validity against all schemas in the lineage.
 
 func (dc *dataCommand) runDehydrate(cmd *cobra.Command, args []string) error {
 	if !dc.datval.Exists() {
-		panic("datval does not exist")
+		panic("datval does not exist") //nolint:forbidigo // validateDataInput, every data command's PersistentPreRunE, sets datval from a decode that succeeded or fails, and cobra runs it before RunE
 	}
 
 	var inst *thema.Instance
@@ -472,7 +472,7 @@ func (dc *dataCommand) validateDataInput(cmd *cobra.Command, args []string) erro
 // place
 func (dc *dataCommand) validateTranslationResult(tinst *thema.Instance, _ lacuna.TranslationLacunas) error {
 	if tinst == nil {
-		panic("unreachable, thema.Translate() should never return a nil instance")
+		panic("unreachable, thema.Translate() should never return a nil instance") //nolint:forbidigo // Translate returns an instance whenever it returns no error
 	}
 
 	raw := tinst.Underlying()

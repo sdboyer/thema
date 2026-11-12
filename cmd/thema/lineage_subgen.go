@@ -140,7 +140,7 @@ func (gc *genCommand) run(cmd *cobra.Command, args []string) error {
 	case "tstypes":
 		err = gc.runTSTypes(cmd, args)
 	default:
-		panic(fmt.Sprint("unrecognized command ", cmd.CalledAs()))
+		panic(fmt.Sprint("unrecognized command ", cmd.CalledAs())) //nolint:forbidigo // run is the RunE of openapi, jsonschema and gobindings alone, and none has an alias
 	}
 	return err
 }
@@ -553,7 +553,7 @@ Generate a JSON Schema document representing a single schema in a lineage.
 }
 
 func (gc *genCommand) runTSTypes(cmd *cobra.Command, args []string) error {
-	panic("TODO")
+	panic("TODO") //nolint:forbidigo // tstypes is not in the command tree (see setup's TODO), so nothing calls this
 }
 
 var goheader = `// THIS FILE IS GENERATED. EDITING IS FUTILE.
