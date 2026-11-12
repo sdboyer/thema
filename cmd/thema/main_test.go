@@ -81,6 +81,17 @@ func TestCommandLine(t *testing.T) {
 		}
 	})
 
+	// A format thema does not write is refused, even for a command line
+	// that would succeed, in text on stderr, leaving stdout empty.
+	for _, format := range []string{"xml", "JSON"} {
+		t.Run("--diag-format "+format, func(t *testing.T) {
+			out, errOut, err := runThema(t, t.TempDir(), "", lineageCmd, initName, "empty", stdoutFlg, "--diag-format", format)
+			if err == nil || out != "" || !strings.HasPrefix(errOut, "error[E0620]") {
+				t.Errorf("want E0620 as text on stderr and nothing on stdout, got err %v\nstdout:\n%s\nstderr:\n%s", err, out, errOut)
+			}
+		})
+	}
+
 	t.Run("a command's own error", func(t *testing.T) {
 		got := initCodes(t, t.TempDir(), data, "validate", "-l", "missing", "data.json")
 		if slices.Contains(got, diag.E0620) || len(got) == 0 {
