@@ -17,7 +17,7 @@ Schema: {
 	b?: int
 }
 -- out/error --
-error[E0207]: immutability violation: history/1.0.thema is backward compatible with history/0.0.thema
+error[E0207]: immutability violation: v1.0 is backward compatible with v0.0
  --> history/1.0.thema:1:1
   |
 1 | Schema: {
@@ -28,5 +28,5 @@ error[E0207]: immutability violation: history/1.0.thema is backward compatible w
 1 | Schema: {
   | ------ the version before it
   |
-  = note: a version that accepts all data the one before it accepts is a minor version, and 1.0 is a major version
+  = note: a version that accepts all data the one before it accepts is a minor version, and v1.0 is a major version
   = help: run thema lineage check --published to find which file changed since it was cut, restore it, and make the change in tip.thema

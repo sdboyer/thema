@@ -24,7 +24,7 @@ ForwardLens: {
     {
       "code": "E0355",
       "severity": "error",
-      "headline": "tip.thema is backward compatible with 0.0, so it has no ForwardLens",
+      "headline": "tip is backward compatible with v0.0, so it has no ForwardLens",
       "primary": {
         "file": "tip.thema",
         "line": 6,
@@ -49,7 +49,7 @@ ForwardLens: {
   }
 }
 -- out/text --
-error[E0355]: tip.thema is backward compatible with 0.0, so it has no ForwardLens
+error[E0355]: tip is backward compatible with v0.0, so it has no ForwardLens
  --> tip.thema:6:1
   |
 6 | ForwardLens: {

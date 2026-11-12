@@ -208,12 +208,12 @@ func compileVersions(ctx *cue.Context, name string, vs []*version) (*Compiled, e
 			if minor && (len(lit.Elts) > 0 || lac != nil && len(lac.Elts) > 0) {
 				b := diag.New(diag.E0355).At(v.forward.Pos())
 				if v.tip {
-					b.Headlinef("%s is backward compatible with %s, so it has no %s", v.path, prev.v, fieldForward).
+					b.Headlinef("%s is backward compatible with %s, so it has no %s", v.name(), prev.name(), fieldForward).
 						Note(token.NoPos, "an instance of a version is already an instance of its minor successor; translating forward is implicit").
 						Helpf("remove the %s, or make a breaking change", fieldForward)
 				} else {
 					// A tip like this one does not compile, so it was not cut so.
-					b.Headlinef("immutability violation: %s has a %s, and is backward compatible with %s", v.path, fieldForward, prev.path).
+					b.Headlinef("immutability violation: %s has a %s, and is backward compatible with %s", v.name(), fieldForward, prev.name()).
 						Note(token.NoPos, "an instance of a version is already an instance of its minor successor; translating forward is implicit").
 						Note(prev.header(), "the version before it")
 					restoreHelp(b)
@@ -448,12 +448,13 @@ func versionOfParam(label string) (thema.SyntacticVersion, bool) {
 // paramPattern matches a lens parameter named after a version, v0_0.
 var paramPattern = regexp.MustCompile(`^v(0|[1-9][0-9]*)_(0|[1-9][0-9]*)$`)
 
-// name is the version as messages name it: its number, or the tip.
+// name is the version as messages name it: v0.1, or the tip. A message
+// names the version's file only where it means the file.
 func (v *version) name() string {
 	if v.tip {
 		return TipParam
 	}
-	return v.v.String()
+	return "v" + v.v.String()
 }
 
 // tipLens renames, in a lens on the edge into the tip, the author's name for
