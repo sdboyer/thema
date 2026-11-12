@@ -346,7 +346,7 @@ func pathOrStdin(args []string) ([]byte, error) {
 	case 0:
 		fi, err := os.Stdin.Stat()
 		if err != nil {
-			panic(err)
+			return nil, diag.New(diag.E0613).Headline("the data on stdin cannot be read").Detail(diag.OSReason(err)).Err()
 		}
 		if !stdinHasInput(fi.Mode()) {
 			return nil, diag.New(diag.E0613).Headline("no data was given").
