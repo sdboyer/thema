@@ -12,16 +12,17 @@ import (
 // and is reported as --diag-format asks even where it follows what cobra
 // stopped at. An error a command's own code returns keeps its code.
 func TestCommandLine(t *testing.T) {
+	const bogus, data = "bogus", "data"
 	for _, args := range [][]string{
-		{"bogus"},
+		{bogus},
 		{lineageCmd, tipName, "extra"},
 		{"--bogus"},
 		{lineageCmd, tipName, "--bogus"},
-		{"data", "validate", "a.json", "b.json"},
-		{"bogus", "--help"},
-		{lineageCmd, "bogus"},
-		{lineageCmd, "gen", "bogus"},
-		{"data", "bogus"},
+		{data, "validate", "a.json", "b.json"},
+		{bogus, "--help"},
+		{lineageCmd, bogus},
+		{lineageCmd, "gen", bogus},
+		{data, bogus},
 	} {
 		t.Run(strings.Join(args, " "), func(t *testing.T) {
 			if got := initCodes(t, t.TempDir(), args...); !slices.Equal(got, []diag.Code{diag.E0620}) {
@@ -40,7 +41,7 @@ func TestCommandLine(t *testing.T) {
 	})
 
 	t.Run("a command's own error", func(t *testing.T) {
-		got := initCodes(t, t.TempDir(), "data", "validate", "-l", "missing", "data.json")
+		got := initCodes(t, t.TempDir(), data, "validate", "-l", "missing", "data.json")
 		if slices.Contains(got, diag.E0620) || len(got) == 0 {
 			t.Errorf("codes %v, want the command's own, not E0620", got)
 		}
