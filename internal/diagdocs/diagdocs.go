@@ -79,13 +79,14 @@ func index(pages []Page) string {
 	for _, g := range groups {
 		fmt.Fprintf(&b, "| %s | %s |\n", g.rng, g.area)
 	}
-	b.WriteString("\n| Code | Severity | Title |\n|---|---|---|\n")
+	b.WriteString("\nA code's scope says what its condition reads: `one` when one version's files, the numbering of the version files, the data or the CLI's inputs decide it alone, and `versions` when it compares a version with another: a schema with its predecessor's, a lens with the versions at its ends, the tip with its parent, or a lineage with what it was published as.\n\n")
+	b.WriteString("| Code | Severity | Scope | Title |\n|---|---|---|---|\n")
 	for _, p := range pages {
 		title := p.Info.Title
 		if p.Info.Retired != "" {
 			title = "retired: " + title
 		}
-		fmt.Fprintf(&b, "| [%s](%s.md) | %s | %s |\n", p.Info.Code, p.Info.Code, p.Info.Severity, title)
+		fmt.Fprintf(&b, "| [%s](%s.md) | %s | %s | %s |\n", p.Info.Code, p.Info.Code, p.Info.Severity, p.Info.Scope, title)
 	}
 	return b.String()
 }
