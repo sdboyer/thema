@@ -1,6 +1,6 @@
 # Operations
 
-These are the operations that combine data with a lineage: `validate`, `validate-any`, `translate`, `hydrate` and `dehydrate`. Each is available in the Go API, as a `thema data <op>` command, and in the playground, whose requests and responses are defined in `playground/types.go`; where the three differ for one operation, its section says so. Before any operation runs, the lineage is bound and the data is parsed: a lineage that does not bind fails with its own codes, and data that does not parse fails with [E0507](../errors/E0507.md), or [E0611](../errors/E0611.md) when it is neither JSON nor YAML. A version is written `<major>.<minor>`, such as `1.0`. Why thema has these operations is explained in the [overview](../overview.md#about-thema-operations); a guided walkthrough in Go is in [using thema from Go](../go-usage.md).
+These are the operations that combine data with a lineage: `validate`, `validate-any` and `translate`. Each is available in the Go API, as a `thema data <op>` command, and in the playground, whose requests and responses are defined in `playground/types.go`; where the three differ for one operation, its section says so. Before any operation runs, the lineage is bound and the data is parsed: a lineage that does not bind fails with its own codes, and data that does not parse fails with [E0507](../errors/E0507.md), or [E0611](../errors/E0611.md) when it is neither JSON nor YAML. A version is written `<major>.<minor>`, such as `1.0`. Why thema has these operations is explained in the [overview](../overview.md#about-thema-operations); a guided walkthrough in Go is in [using thema from Go](../go-usage.md).
 
 ## validate
 
@@ -18,7 +18,7 @@ Checks that the data is an instance of one schema. The schema is closed for vali
 **Returns**
 
 - The version validated against.
-- In Go, an `*Instance` whose `Underlying` value is the data as given. Validation does not fill defaults into it; [hydrate](#hydrate) does.
+- In Go, an `*Instance` whose `Underlying` value is the data as given. Validation does not fill defaults into it. To have them, unify the data with the schema; for a typed instance, `TypedInstance.Value` starts from the schema's defaults (`TypedSchema.NewT`) and decodes the data over them.
 
 **Fails when**
 
@@ -106,7 +106,7 @@ A translation passes through every version between the two, one step per pair of
 - **Backward**, to an older version. Every step, minor or major, applies the backward lens of that pair of versions.
 - **Same version.** No steps; the result is the instance and there are no lacunas.
 
-Each step's result is closed against its target schema and is the next step's input. Before the first step, the data is unified with its own schema, so lenses see the schema's defaults for fields the data omits. As a result, the output holds the defaults of non-optional fields the data omitted, as [hydrate](#hydrate) would fill them. A step's lacunas are those of its lens whose condition held for the instance that lens took, as described under [emission](lacunas.md#emission).
+Each step's result is closed against its target schema and is the next step's input. Before the first step, the data is unified with its own schema, so lenses see the schema's defaults for fields the data omits. As a result, the output holds the defaults of non-optional fields the data omitted. A step's lacunas are those of its lens whose condition held for the instance that lens took, as described under [emission](lacunas.md#emission).
 
 **Fields no lens maps.** Data an open struct (`...`) admits without declaring it, keys a pattern constraint matches (only a field with a predictable name is declared), and declared fields a lens leaves alone, are translated by the same rule at every step, minor or major, forward or backward ([invariants](../invariants.md#fields-no-lens-maps)):
 
@@ -174,96 +174,3 @@ Success prints a JSON object with `from`, `to`, `cutsAs` when the tip is involve
   A step that fails is reported as `translation step failed`, with `error` and `codes`, the codes of its diagnostics. `thema.WithStepData()` adds each step's `input` and `output` instances as JSON, each unified with its schema as the step sees it, so with the schema's defaults. It is off by default, because instances can be large or hold data that shouldn't reach a log. The handler's level decides whether anything is reported, and an instance is rendered only for a record the handler takes.
 - `thema.Instance.AsSuccessor` and `thema.Instance.AsPredecessor` translate one step, to the next or previous version, and take the same options. `AsSuccessor` to the next minor version validates the instance, without the fields its schema does not declare, against the successor, carries those fields as any step does, and returns one step whose lacunas are those of any field it did not carry.
 - Playground: `playground.Session.Translate`, operation name `translate`.
-
-## hydrate
-
-Fills the data with the defaults its schema gives. The schema is walked field by field:
-
-- A field the data lacks is filled when the schema declares it as a regular field, neither optional (`?`) nor required (`!`). It is filled with the value the schema gives it: its default, or its only value.
-- A field the data lacks that the schema declares optional is not filled, even when the schema gives it a default.
-- A field the data has keeps its value. When the value is a struct, its own fields are hydrated by the same rules. When it is a list, each element is hydrated against the schema's element type; for an element type with several alternatives, against the first alternative the element is an instance of.
-
-**Takes**
-
-- A lineage and one data document.
-- `version`: the schema to hydrate against. Its meaning when empty differs; see version selection.
-
-**Version selection**
-
-- **Playground**: the given version, against which the data is validated. Empty means the data's: `Lineage.ValidateAny` picks the oldest schema that accepts the data. This can differ from the version [validate-any](#validate-any) reports for the same data in the playground, which is the newest.
-- **CLI**: the `-v` version, or the latest when `-v` is not given. The data is validated against that one schema; the lineage is not searched.
-- **Go**: the schema of the `*Instance`.
-
-**Returns**
-
-- The version hydrated against.
-- The hydrated instance: playground `output`, CLI the printed JSON, and in Go a new `*Instance` of the same schema.
-- Playground: `changed`, whether the output differs from the input as JSON values, ignoring field order.
-- In Go, an internal failure while hydrating returns the instance unchanged, with no error.
-
-**Fails when**
-
-- A version is given and the data is not an instance of it: that schema's validation diagnostics, as for [validate](#validate). In the CLI this includes the case where no `-v` is given and the latest schema rejects the data.
-- Playground, no version given: no schema accepts the data ([E0508](../errors/E0508.md)).
-- The version is not a version (playground [E0803](../errors/E0803.md), CLI [E0620](../errors/E0620.md)), or not in the lineage ([E0240](../errors/E0240.md)).
-
-**CLI**
-
-```
-thema data hydrate -l <lineage> [-p <cue-path>] [-v <version>] [-e json|yaml] [<data-file>]
-```
-
-- `-v`, `--version`: the schema version. Defaults to the latest.
-- `-l`, `-p`, `-e`, `<data-file>` and `--diag-format` are as for [validate](#validate). There is no `-q`.
-
-Success prints the hydrated instance as JSON and exits 0. Neither the input's formatting nor its field order is kept. Failure prints the diagnostics and exits 1.
-
-**Go**
-
-- `thema.Instance.Hydrate() *thema.Instance`.
-- Playground: `playground.Session.Hydrate`, operation name `hydrate`.
-
-## dehydrate
-
-Removes from the data the values its schema's defaults imply. The schema is walked field by field:
-
-- A field whose value equals the default the schema gives it is removed. Equality is mutual subsumption between the value and the default. A field without a default is kept.
-- A field the schema declares optional (`?`) is kept, even when its value equals the default the schema gives it. When its value is a struct, the struct's fields are dehydrated by these rules.
-- A struct is kept even when every field in it is removed; it remains as `{}`. Its own fields are dehydrated by these rules.
-- A non-empty list that equals its default is removed. An empty list is kept, even when the schema's default is the empty list. A list that is kept has each element dehydrated against the schema's element type.
-
-**Takes**
-
-- A lineage and one data document.
-- `version`: the schema to dehydrate against. Its meaning when empty differs; see version selection.
-
-**Version selection**
-
-- The same as [hydrate](#hydrate): in the playground, the given version or else the oldest schema that accepts the data; in the CLI, the `-v` version or else the latest; in Go, the schema of the `*Instance`.
-
-**Returns**
-
-- The version dehydrated against.
-- The dehydrated instance: playground `output`, CLI the printed JSON, and in Go a new `*Instance` of the same schema.
-- Playground: `changed`, whether the output differs from the input as JSON values, ignoring field order.
-- In Go, an internal failure while dehydrating returns the instance unchanged, with no error.
-
-**Fails when**
-
-- The same as [hydrate](#hydrate).
-
-**CLI**
-
-```
-thema data dehydrate -l <lineage> [-p <cue-path>] [-v <version>] [-e json|yaml] [<data-file>]
-```
-
-- `-v`, `--version`: the schema version. Defaults to the latest.
-- `-l`, `-p`, `-e`, `<data-file>` and `--diag-format` are as for [validate](#validate). There is no `-q`.
-
-Success prints the dehydrated instance as JSON and exits 0. Neither the input's formatting nor its field order is kept. Failure prints the diagnostics and exits 1.
-
-**Go**
-
-- `thema.Instance.Dehydrate() *thema.Instance`.
-- Playground: `playground.Session.Dehydrate`, operation name `dehydrate`.

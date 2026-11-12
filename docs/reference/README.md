@@ -7,7 +7,7 @@ precisely, to look up rather than read through. For a guided start, see the
 | Page | What it describes |
 |---|---|
 | [Lineages](lineage.md) | names, versions, schemas, lenses, the two forms, and binding |
-| [Operations](operations.md) | validate, validate-any, translate, hydrate and dehydrate |
+| [Operations](operations.md) | validate, validate-any and translate |
 | [Code generation](codegen.md) | OpenAPI, JSON Schema, TypeScript, Go types and Go bindings from a lineage |
 | [Lacunas](lacunas.md) | a lacuna's fields, its types, and when one is emitted |
 | [Translation](../translation.md) | what a translation step does to each field of an instance, and which lacunas it raises |
