@@ -281,7 +281,20 @@ ConvergentLineageFactory: https://pkg.go.dev/github.com/sdboyer/thema#Convergent
 `,
 }
 
+// checkPkgname refuses a --pkgname, name, that is not a Go package name.
+// An empty name is the default, which each command derives for itself.
+func checkPkgname(name string) error {
+	if name != "" && (!gotoken.IsIdentifier(name) || name == "_") {
+		return diag.New(diag.E0620).Headlinef("--pkgname names a Go package, and %q is not a Go package name", name).
+			Help("name the package with a Go identifier that is not a keyword, such as ships").Err()
+	}
+	return nil
+}
+
 func (gc *genCommand) runGoBindings(cmd *cobra.Command, args []string) error {
+	if err := checkPkgname(gc.pkgname); err != nil {
+		return err
+	}
 	cfg := &gocode.BindingConfig{
 		FactoryNameSuffix:   gc.suffix,
 		PrivateFactory:      gc.private,
@@ -455,9 +468,8 @@ func (gc *genCommand) runGoTypes(cmd *cobra.Command, _ []string) error {
 		return diag.New(diag.E0620).Headline("--pkgname names the package of the one schema -v generates, and no -v was given").
 			Help("without -v, each version's package is named for its directory, such as v0_0").Err()
 	}
-	if gc.pkgname != "" && (!gotoken.IsIdentifier(gc.pkgname) || gc.pkgname == "_") {
-		return diag.New(diag.E0620).Headlinef("--pkgname names a Go package, and %q is not a Go package name", gc.pkgname).
-			Help("name the package with a Go identifier that is not a keyword, such as ships").Err()
+	if err := checkPkgname(gc.pkgname); err != nil {
+		return err
 	}
 	if gc.check && gc.outdir == "" {
 		return diag.New(diag.E0620).Headline("--check verifies the files under -o, and no -o was given").Err()

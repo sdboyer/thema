@@ -21,3 +21,16 @@ func TestGenFormat(t *testing.T) {
 		})
 	}
 }
+
+// A --pkgname that is not a Go package name is E0620 for gobindings, as it
+// is for gotypes, before anything is generated.
+func TestGenGoBindingsPkgname(t *testing.T) {
+	dir := writeTipDir(t, "Schema: {\n\tname: string\n}\n")
+	for _, name := range []string{"9bad", "func", "_"} {
+		t.Run(name, func(t *testing.T) {
+			if got := initCodes(t, t.TempDir(), lineageCmd, "gen", "gobindings", "-l", dir, "--pkgname", name, "--stdout"); !slices.Equal(got, []diag.Code{diag.E0620}) {
+				t.Errorf("codes %v, want [E0620]", got)
+			}
+		})
+	}
+}
