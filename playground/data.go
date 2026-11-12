@@ -134,38 +134,6 @@ func (s *Session) Translate(req TranslateRequest) TranslateResponse {
 	return resp
 }
 
-// Hydrate fills a data document with its schema's defaults.
-func (s *Session) Hydrate(req HydrateRequest) HydrateResponse {
-	return s.hydrate(req, (*thema.Instance).Hydrate)
-}
-
-// Dehydrate removes from a data document the values its schema's defaults
-// imply.
-func (s *Session) Dehydrate(req HydrateRequest) HydrateResponse {
-	return s.hydrate(req, (*thema.Instance).Dehydrate)
-}
-
-func (s *Session) hydrate(req HydrateRequest, f func(*thema.Instance) *thema.Instance) HydrateResponse {
-	lin, data, err := s.linData(req.Lineage, req.Data)
-	if err != nil {
-		return HydrateResponse{Result: failed(err)}
-	}
-	inst, err := instance(lin, data, req.Version)
-	if err != nil {
-		return HydrateResponse{Result: failed(err)}
-	}
-	resp := HydrateResponse{Version: inst.Schema().Version().String()}
-	after := f(inst).Underlying()
-	resp.Output, err = marshal(after)
-	if err != nil {
-		resp.Result = failed(err)
-		return resp
-	}
-	resp.Changed = !after.Equals(inst.Underlying())
-	resp.Result = ok()
-	return resp
-}
-
 // marshal renders a concrete value as indented JSON.
 func marshal(v cue.Value) (json.RawMessage, error) {
 	b, err := v.MarshalJSON()

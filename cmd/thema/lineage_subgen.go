@@ -75,13 +75,15 @@ func (gc *genCommand) setup(cmd *cobra.Command) {
 	genLineageCmd.AddCommand(gop)
 	gop.Flags().StringVarP(&gc.lla.verstr, "version", "v", "", "schema syntactic version to generate. Defaults to latest")
 	gop.Flags().StringVarP(&gc.format, "format", "f", "yaml", "output format. \"json\" or \"yaml\".")
-	gop.Run = gc.run
+	gop.PreRunE = gc.checkFormat
+	gop.RunE = gc.run
 
 	gj := genJschLineageCmd
 	genLineageCmd.AddCommand(gj)
 	gj.Flags().StringVarP(&gc.lla.verstr, "version", "v", "", "schema syntactic version to generate. Defaults to latest")
 	gj.Flags().StringVarP(&gc.format, "format", "f", "json", "output format. \"json\" or \"yaml\".")
-	gj.Run = gc.run
+	gj.PreRunE = gc.checkFormat
+	gj.RunE = gc.run
 
 	ggb := genGoBindingsLineageCmd
 	genLineageCmd.AddCommand(ggb)
@@ -95,7 +97,7 @@ func (gc *genCommand) setup(cmd *cobra.Command) {
 	ggb.Flags().BoolVar(&gc.nofsfunc, "no-fs-func", false, "Do not generate the func that returns fs.FS for loading")
 	ggb.Flags().BoolVar(&gc.stdout, "stdout", false, "Write to stdout instead of an adjacent file")
 	ggb.Flags().BoolVarP(&gc.quiet, "quiet", "q", false, "Do not print generated filename")
-	ggb.Run = gc.run
+	ggb.RunE = gc.run
 
 	ggt := genGoTypesLineageCmd
 	genLineageCmd.AddCommand(ggt)
@@ -110,7 +112,7 @@ func (gc *genCommand) setup(cmd *cobra.Command) {
 	// genTSTypesLineageCmd.Flags().StringVarP((*string)(&verstr), "version", "v", "", "schema syntactic version to generate. Defaults to latest")
 }
 
-func (gc *genCommand) run(cmd *cobra.Command, args []string) {
+func (gc *genCommand) run(cmd *cobra.Command, args []string) error {
 	// TODO encapsulate these properly
 	gc.lin = gc.lla.dl.lin
 	gc.sch = gc.lla.dl.sch
@@ -118,8 +120,7 @@ func (gc *genCommand) run(cmd *cobra.Command, args []string) {
 
 	fi, err := os.Stat(gc.lla.inputLinFilePath)
 	if err != nil {
-		fmt.Fprintf(cmd.ErrOrStderr(), "%s\n", err)
-		os.Exit(1)
+		return diag.New(diag.E0601).Headlinef("%s cannot be read", displayPath(gc.lla.inputLinFilePath)).Detail(diag.OSReason(err)).Err()
 	}
 
 	gc.epath = "*.cue"
@@ -139,13 +140,27 @@ func (gc *genCommand) run(cmd *cobra.Command, args []string) {
 	case "tstypes":
 		err = gc.runTSTypes(cmd, args)
 	default:
-		panic(fmt.Sprint("unrecognized command ", cmd.CalledAs()))
+		panic(fmt.Sprint("unrecognized command ", cmd.CalledAs())) //nolint:forbidigo // run is the RunE of openapi, jsonschema and gobindings alone, and none has an alias
 	}
+	return err
+}
 
-	if err != nil {
-		fmt.Fprintf(cmd.ErrOrStderr(), "%s\n", err)
-		os.Exit(1)
+// The formats openapi and jsonschema write, as -f names them.
+const (
+	formatJSON = "json"
+	formatYAML = "yaml"
+	formatYML  = "yml"
+)
+
+// checkFormat refuses an -f that names no format openapi and jsonschema
+// write, before anything is generated.
+func (gc *genCommand) checkFormat(_ *cobra.Command, _ []string) error {
+	switch gc.format {
+	case formatJSON, formatYAML, formatYML:
+		return nil
 	}
+	return diag.New(diag.E0620).Headlinef("-f names the output format, and %q is not a format thema writes", gc.format).
+		Help("-f takes json, yaml or yml").Err()
 }
 
 var genLineageCmd = &cobra.Command{
@@ -164,6 +179,7 @@ you require, it is recommended to write your own code generator using those pack
 
 var genOapiLineageCmd = &cobra.Command{
 	Use:   "openapi",
+	Args:  cobra.NoArgs,
 	Short: "Generate OpenAPI from a lineage",
 	Long: `Generate OpenAPI from a lineage.
 
@@ -182,7 +198,7 @@ func (gc *genCommand) runOpenAPI(cmd *cobra.Command, args []string) error {
 
 	var str string
 	switch gc.format {
-	case "json":
+	case formatJSON:
 		var b []byte
 		b, err = rt.Context().BuildFile(f).MarshalJSON()
 		if b != nil {
@@ -190,20 +206,19 @@ func (gc *genCommand) runOpenAPI(cmd *cobra.Command, args []string) error {
 			err = json.Indent(nb, b, "", "  ")
 			str = nb.String()
 		}
-	case "yaml", "yml":
+	case formatYAML, formatYML:
 		str, err = yaml.Marshal(rt.Context().BuildFile(f))
-	default:
-		fmt.Fprintf(cmd.ErrOrStderr(), `unrecognized output format %q - must choose "yaml" or "json"`, gc.format)
 	}
 	if err != nil {
 		return err
 	}
-	fmt.Fprint(cmd.OutOrStdout(), str)
-	return nil
+	_, err = fmt.Fprint(cmd.OutOrStdout(), str)
+	return stdoutErr(err)
 }
 
 var genJschLineageCmd = &cobra.Command{
 	Use:   "jsonschema",
+	Args:  cobra.NoArgs,
 	Short: "Generate JSON Schema from a lineage",
 	Long: `Generate JSON Schema from a lineage.
 
@@ -220,7 +235,7 @@ func (gc *genCommand) runJSONSchema(cmd *cobra.Command, args []string) error {
 
 	var str string
 	switch gc.format {
-	case "json":
+	case formatJSON:
 		var b []byte
 		b, err = rt.Context().BuildFile(f).MarshalJSON()
 		if b != nil {
@@ -228,19 +243,18 @@ func (gc *genCommand) runJSONSchema(cmd *cobra.Command, args []string) error {
 			err = json.Indent(nb, b, "", "  ")
 			str = nb.String()
 		}
-	case "yaml", "yml":
+	case formatYAML, formatYML:
 		str, err = yaml.Marshal(rt.Context().BuildFile(f))
-	default:
-		fmt.Fprintf(cmd.ErrOrStderr(), `unrecognized output format %q - must choose "yaml" or "json"`, gc.format)
 	}
 	if err != nil {
 		return err
 	}
-	fmt.Fprint(cmd.OutOrStdout(), str)
-	return nil
+	_, err = fmt.Fprint(cmd.OutOrStdout(), str)
+	return stdoutErr(err)
 }
 
 var genGoBindingsLineageCmd = &cobra.Command{
+	Args:  cobra.NoArgs,
 	Short: "Generate Go bindings for a lineage",
 	Long: `Generate Go bindings for a lineage.
 
@@ -270,7 +284,29 @@ ConvergentLineageFactory: https://pkg.go.dev/github.com/sdboyer/thema#Convergent
 `,
 }
 
+// checkPkgname refuses a package name that is not a Go package name: name,
+// from --pkgname, or where it is empty, the default gocode derives from the
+// lineage, lin's name in lower case.
+func checkPkgname(name string, lin thema.Lineage) error {
+	isPkgname := func(s string) bool { return gotoken.IsIdentifier(s) && s != "_" }
+	if name == "" {
+		if derived := strings.ToLower(lin.Name()); !isPkgname(derived) {
+			return diag.New(diag.E0620).Headlinef("the package is named for the lineage by default, and %q is not a Go package name", derived).
+				Help("name the package with --pkgname, a Go identifier that is not a keyword, such as ships").Err()
+		}
+		return nil
+	}
+	if !isPkgname(name) {
+		return diag.New(diag.E0620).Headlinef("--pkgname names a Go package, and %q is not a Go package name", name).
+			Help("name the package with a Go identifier that is not a keyword, such as ships").Err()
+	}
+	return nil
+}
+
 func (gc *genCommand) runGoBindings(cmd *cobra.Command, args []string) error {
+	if err := checkPkgname(gc.pkgname, gc.lin); err != nil {
+		return err
+	}
 	cfg := &gocode.BindingConfig{
 		FactoryNameSuffix:   gc.suffix,
 		PrivateFactory:      gc.private,
@@ -324,8 +360,8 @@ func (gc *genCommand) runGoBindings(cmd *cobra.Command, args []string) error {
 	if gc.stdout {
 		fmt.Fprint(buf, goheader)
 		buf.Write(f)
-		fmt.Fprint(cmd.OutOrStdout(), buf.String())
-		return nil
+		_, err = fmt.Fprint(cmd.OutOrStdout(), buf.String())
+		return stdoutErr(err)
 	}
 
 	fmt.Fprintf(buf, goheaderp, gc.epath)
@@ -344,8 +380,8 @@ func (gc *genCommand) runGoBindings(cmd *cobra.Command, args []string) error {
 	if gc.quiet {
 		return nil
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "generated go bindings for %s at %s\n", gc.lin.Name(), path)
-	return nil
+	_, err = fmt.Fprintf(cmd.OutOrStdout(), "generated go bindings for %s at %s\n", gc.lin.Name(), path)
+	return stdoutErr(err)
 }
 
 func findModRoot(abspath string) (rootfind, error) {
@@ -423,6 +459,7 @@ func (r rootfind) Modpath() string {
 
 var genGoTypesLineageCmd = &cobra.Command{
 	Use:   "gotypes -l <path> [-p <cue-path>] [-v <synver> [--pkgname <name>]] [-o <dir> [--check]]",
+	Args:  cobra.NoArgs,
 	Short: "Generate Go types from a lineage",
 	Long: `Generate Go types from a lineage.
 
@@ -444,9 +481,11 @@ func (gc *genCommand) runGoTypes(cmd *cobra.Command, _ []string) error {
 		return diag.New(diag.E0620).Headline("--pkgname names the package of the one schema -v generates, and no -v was given").
 			Help("without -v, each version's package is named for its directory, such as v0_0").Err()
 	}
-	if gc.pkgname != "" && (!gotoken.IsIdentifier(gc.pkgname) || gc.pkgname == "_") {
-		return diag.New(diag.E0620).Headlinef("--pkgname names a Go package, and %q is not a Go package name", gc.pkgname).
-			Help("name the package with a Go identifier that is not a keyword, such as ships").Err()
+	if gc.lla.verstr != "" {
+		// Without -v, each version's package is named for its directory.
+		if err := checkPkgname(gc.pkgname, gc.lla.dl.lin); err != nil {
+			return err
+		}
 	}
 	if gc.check && gc.outdir == "" {
 		return diag.New(diag.E0620).Headline("--check verifies the files under -o, and no -o was given").Err()
@@ -474,7 +513,7 @@ func (gc *genCommand) runGoTypes(cmd *cobra.Command, _ []string) error {
 			a.Files = append(a.Files, txtar.File{Name: f.Path(), Data: b})
 		}
 		_, err = cmd.OutOrStdout().Write(txtar.Format(&a))
-		return err
+		return stdoutErr(err)
 	case gc.check:
 		return driftDiagnostics(fs.Verify(cmd.Context(), gc.outdir), "-o", gc.outdir)
 	default:
@@ -530,7 +569,7 @@ Generate a JSON Schema document representing a single schema in a lineage.
 }
 
 func (gc *genCommand) runTSTypes(cmd *cobra.Command, args []string) error {
-	panic("TODO")
+	panic("TODO") //nolint:forbidigo // tstypes is not in the command tree (see setup's TODO), so nothing calls this
 }
 
 var goheader = `// THIS FILE IS GENERATED. EDITING IS FUTILE.

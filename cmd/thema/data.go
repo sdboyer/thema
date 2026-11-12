@@ -64,18 +64,6 @@ func (dc *dataCommand) setup(cmd *cobra.Command) {
 	translateCmd.Flags().StringVarP(&dc.format, "format", "e", "", "input data format. Autodetected by default, but can be constrained to \"json\" or \"yaml\".")
 	translateCmd.PersistentPreRunE = mergeCobraefuncs(dc.lla.validateLineageInput, dc.lla.validateVersionInput, dc.validateDataInput)
 	translateCmd.RunE = dc.runTranslate
-
-	dataCmd.AddCommand(hydrateCmd)
-	hydrateCmd.Flags().StringVarP(&dc.lla.verstr, "version", "v", "", "schema syntactic version to validate data against")
-	hydrateCmd.Flags().StringVarP(&dc.format, "format", "e", "", "input data format. Autodetected by default, but can be constrained to \"json\" or \"yaml\".")
-	hydrateCmd.PersistentPreRunE = mergeCobraefuncs(dc.lla.validateLineageInput, dc.lla.validateVersionInputOptional, dc.validateDataInput)
-	hydrateCmd.RunE = dc.runHydrate
-
-	dataCmd.AddCommand(dehydrateCmd)
-	dehydrateCmd.Flags().StringVarP(&dc.lla.verstr, "version", "v", "", "schema syntactic version to validate data against")
-	dehydrateCmd.Flags().StringVarP(&dc.format, "format", "e", "", "input data format. Autodetected by default, but can be constrained to \"json\" or \"yaml\".")
-	dehydrateCmd.PersistentPreRunE = mergeCobraefuncs(dc.lla.validateLineageInput, dc.lla.validateVersionInputOptional, dc.validateDataInput)
-	dehydrateCmd.RunE = dc.runDehydrate
 }
 
 var dataCmd = &cobra.Command{
@@ -109,7 +97,7 @@ Success outputs nothing and exits 0. Failure outputs the validation problem
 
 func (dc *dataCommand) runValidate(cmd *cobra.Command, args []string) error {
 	if !dc.datval.Exists() {
-		panic("datval does not exist")
+		panic("datval does not exist") //nolint:forbidigo // validateDataInput, every data command's PersistentPreRunE, sets datval from a decode that succeeded or fails, and cobra runs it before RunE
 	}
 
 	_, err := dc.lla.dl.sch.Validate(dc.datval)
@@ -146,21 +134,21 @@ be printed.
 
 func (dc *dataCommand) runValidateAny(cmd *cobra.Command, args []string) error {
 	if !dc.datval.Exists() {
-		panic("datval does not exist")
+		panic("datval does not exist") //nolint:forbidigo // validateDataInput, every data command's PersistentPreRunE, sets datval from a decode that succeeded or fails, and cobra runs it before RunE
 	}
 
 	var reterr error
 	if dc.lla.dl.sch != nil {
 		_, reterr = dc.lla.dl.sch.Validate(dc.datval)
 		if reterr == nil {
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", dc.lla.dl.versionLabel(dc.lla.dl.sch.Version()))
-			return nil
+			_, err := fmt.Fprintf(cmd.OutOrStdout(), "%s\n", dc.lla.dl.versionLabel(dc.lla.dl.sch.Version()))
+			return stdoutErr(err)
 		}
 	}
 	inst := dc.lla.dl.lin.ValidateAny(dc.datval)
 	if inst != nil {
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", dc.lla.dl.versionLabel(inst.Schema().Version()))
-		return nil
+		_, err := fmt.Fprintf(cmd.OutOrStdout(), "%s\n", dc.lla.dl.versionLabel(inst.Schema().Version()))
+		return stdoutErr(err)
 	}
 
 	if dc.quiet {
@@ -193,7 +181,7 @@ arise during data input decoding or validation, never during translation.
 
 func (dc *dataCommand) runTranslate(cmd *cobra.Command, args []string) error {
 	if !dc.datval.Exists() {
-		panic("datval does not exist")
+		panic("datval does not exist") //nolint:forbidigo // validateDataInput, every data command's PersistentPreRunE, sets datval from a decode that succeeded or fails, and cobra runs it before RunE
 	}
 
 	inst := dc.lla.dl.lin.ValidateAny(dc.datval)
@@ -231,7 +219,7 @@ func (dc *dataCommand) runTranslate(cmd *cobra.Command, args []string) error {
 	buf := bytes.NewBuffer(byt)
 	_, err = io.Copy(cmd.OutOrStdout(), buf)
 
-	return err
+	return stdoutErr(err)
 }
 
 // translationResult is translate's output. With --tip, a version that is the
@@ -243,94 +231,6 @@ type translationResult struct {
 	CutsAs  string                    `json:"cutsAs,omitempty"`
 	Result  cue.Value                 `json:"result"`
 	Lacunas lacuna.TranslationLacunas `json:"lacunas"`
-}
-
-var hydrateCmd = &cobra.Command{
-	Use:   "hydrate -l <lineage-fs-path> [-p <cue-path>] [-e <format>] [-v <synver>] [<data-fs-path>] ",
-	Short: "Fill some valid input data with any schema-specified defaults",
-	Long: `Fill some valid input data with any schema-specified defaults.
-` + dataReuseText + `
-Success outputs the input object, but fully hydrated with schema-specified
-default values, if any. Input formatting (e.g. indent spaces) and/or object
-key ordering are not maintained.
-
-If a syntactic version is not provided (-v), the input data will be checked
-for validity against all schemas in the lineage.
-`,
-	Args: cobra.MaximumNArgs(1),
-}
-
-func (dc *dataCommand) runHydrate(cmd *cobra.Command, args []string) error {
-	if !dc.datval.Exists() {
-		panic("datval does not exist")
-	}
-
-	var inst *thema.Instance
-	var err error
-	if dc.lla.dl.sch != nil {
-		inst, err = dc.lla.dl.sch.Validate(dc.datval)
-		if err != nil {
-			return err
-		}
-	} else {
-		inst = dc.lla.dl.lin.ValidateAny(dc.datval)
-		if inst == nil {
-			return noSchemaAccepts()
-		}
-	}
-
-	// TODO support non-JSON output
-	byt, err := json.MarshalIndent(inst.Hydrate().Underlying(), "", "  ")
-	if err != nil {
-		return diag.InternalErr(err)
-	}
-	_, err = io.Copy(cmd.OutOrStdout(), bytes.NewBuffer(byt))
-
-	return err
-}
-
-var dehydrateCmd = &cobra.Command{
-	Use:   "dehydrate -l <lineage-fs-path> [-p <cue-path>] [-e <format>] [-v <synver>] [<data-fs-path>] ",
-	Short: "Remove all schema-specified defaults from some valid input data",
-	Long: `Remove all schema-specified defaults from some valid input data.
-` + dataReuseText + `
-Success outputs the input data object  with all values removed that are implied
-by defaults specified in its validating schema. Input object field orderings
-and formatting are not maintained.
-
-If a syntactic version is not provided (-v), the input data will be checked
-for validity against all schemas in the lineage.
-`,
-	Args: cobra.MaximumNArgs(1),
-}
-
-func (dc *dataCommand) runDehydrate(cmd *cobra.Command, args []string) error {
-	if !dc.datval.Exists() {
-		panic("datval does not exist")
-	}
-
-	var inst *thema.Instance
-	var err error
-	if dc.lla.dl.sch != nil {
-		inst, err = dc.lla.dl.sch.Validate(dc.datval)
-		if err != nil {
-			return err
-		}
-	} else {
-		inst = dc.lla.dl.lin.ValidateAny(dc.datval)
-		if inst == nil {
-			return noSchemaAccepts()
-		}
-	}
-
-	// TODO support non-JSON output
-	byt, err := json.MarshalIndent(inst.Dehydrate().Underlying(), "", "  ")
-	if err != nil {
-		return diag.InternalErr(err)
-	}
-	_, err = io.Copy(cmd.OutOrStdout(), bytes.NewBuffer(byt))
-
-	return err
 }
 
 // stdinHasInput reports whether a stdin with the given mode should be read
@@ -346,7 +246,7 @@ func pathOrStdin(args []string) ([]byte, error) {
 	case 0:
 		fi, err := os.Stdin.Stat()
 		if err != nil {
-			panic(err)
+			return nil, diag.New(diag.E0613).Headline("the data on stdin cannot be read").Detail(diag.OSReason(err)).Err()
 		}
 		if !stdinHasInput(fi.Mode()) {
 			return nil, diag.New(diag.E0613).Headline("no data was given").
@@ -472,7 +372,7 @@ func (dc *dataCommand) validateDataInput(cmd *cobra.Command, args []string) erro
 // place
 func (dc *dataCommand) validateTranslationResult(tinst *thema.Instance, _ lacuna.TranslationLacunas) error {
 	if tinst == nil {
-		panic("unreachable, thema.Translate() should never return a nil instance")
+		panic("unreachable, thema.Translate() should never return a nil instance") //nolint:forbidigo // Translate returns an instance whenever it returns no error
 	}
 
 	raw := tinst.Underlying()

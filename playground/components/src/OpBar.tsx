@@ -1,7 +1,7 @@
 // The operations bar: a button per operation, the arguments the chosen one
 // takes, and Run. The host holds the state; the bar only shows and changes it.
 import { DocLink, hasDoc } from "./docs";
-import { type OpArgs, type UserOp, argsOf, codegenOps, dataOps, isCodegen } from "./ops";
+import { type OpArgs, type UserOp, argsOf, codegenOps, dataOps } from "./ops";
 
 export interface OpBarProps {
   op: UserOp;
@@ -58,7 +58,7 @@ export function OpBar({ op, args, versions, label, onOp, onArgs, onRun, running,
         )}
       </div>
       <div class="bar op-args">
-        {takes.includes("version") && <label>schema {versionSelect("version", isCodegen(op) || op === "validate" ? "latest" : "any that accepts it")}</label>}
+        {takes.includes("version") && <label>schema {versionSelect("version", "latest")}</label>}
         {takes.includes("from") && <label>from {versionSelect("from", "the data's")}</label>}
         {takes.includes("to") && <label>to {versionSelect("to", "choose")}</label>}
         {takes.includes("format") && (

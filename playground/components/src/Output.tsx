@@ -3,13 +3,12 @@
 import { Diagnostics } from "./Diagnostics";
 import { DocLink, lacunaTypeDoc } from "./docs";
 import { Editor } from "./Editor";
-import type { CodegenResponse, HydrateResponse, TranslateResponse, ValidateAnyResponse, ValidateResponse } from "./types";
+import type { CodegenResponse, TranslateResponse, ValidateAnyResponse, ValidateResponse } from "./types";
 
 export type Outcome =
   | { op: "validate"; resp: ValidateResponse }
   | { op: "validate-any"; resp: ValidateAnyResponse }
   | { op: "translate"; resp: TranslateResponse }
-  | { op: "hydrate" | "dehydrate"; resp: HydrateResponse }
   | { op: "openapi" | "jsonschema" | "typescript"; resp: CodegenResponse };
 
 export interface OutputProps {
@@ -50,13 +49,6 @@ function Summary({ outcome, label }: { outcome: Outcome; label: Label }) {
           {lacunaCount(outcome.resp) === 0 ? ", with no lacunas" : lacunaCount(outcome.resp) === 1 ? ", with 1 lacuna" : `, with ${lacunaCount(outcome.resp)} lacunas`}.
         </p>
       );
-    case "hydrate":
-    case "dehydrate":
-      return (
-        <p class="status ok">
-          {outcome.resp.changed ? `${capitalize(op)}d` : "Unchanged"}, against schema {label(outcome.resp.version ?? "")}.
-        </p>
-      );
     default:
       return <p class="status ok">Generated from schema {label(outcome.resp.version ?? "")}.</p>;
   }
@@ -87,9 +79,6 @@ function Body({ outcome, label }: { outcome: Outcome; label: Label }) {
         </>
       );
     }
-    case "hydrate":
-    case "dehydrate":
-      return outcome.resp.ok ? <Result text={JSON.stringify(outcome.resp.output, null, 2)} language="json" label="Result" /> : null;
     case "openapi":
     case "jsonschema":
     case "typescript":
@@ -148,8 +137,4 @@ function Lacunas({ resp, label }: { resp: TranslateResponse; label: Label }) {
 
 function lacunaCount(r: TranslateResponse): number {
   return (r.lacunas ?? []).reduce((n, s) => n + s.lacunas.length, 0);
-}
-
-function capitalize(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1);
 }

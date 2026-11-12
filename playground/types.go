@@ -155,24 +155,6 @@ type TranslateResponse struct {
 	Lacunas lacuna.TranslationLacunas `json:"lacunas,omitempty"`
 }
 
-// HydrateRequest fills a data document with its schema's defaults
-// (Hydrate), or removes the values its defaults imply (Dehydrate). An empty
-// Version searches the lineage for the data's schema.
-type HydrateRequest struct {
-	Lineage LineageInput `json:"lineage"`
-	Data    DataInput    `json:"data"`
-	Version string       `json:"version,omitempty"`
-}
-
-// HydrateResponse is the document after the operation, and whether it
-// changed.
-type HydrateResponse struct {
-	Result  `tstype:",extends"`
-	Version string          `json:"version,omitempty"`
-	Output  json.RawMessage `json:"output,omitempty"`
-	Changed bool            `json:"changed"`
-}
-
 // CodegenRequest generates code from one schema. An empty Version means the
 // latest. Format is "json" or "yaml" for OpenAPI and JSON Schema, and is
 // ignored for TypeScript.
