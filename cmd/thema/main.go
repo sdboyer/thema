@@ -27,6 +27,18 @@ var rt = thema.NewRuntime(ctx)
 var diagFormat string
 
 func main() {
+	setupCommands()
+
+	if cmd, err := unknownCommand(rootCmd, os.Args[1:]); err != nil {
+		os.Exit(report(commandLine(cmd, err)))
+	}
+	if cmd, err := rootCmd.ExecuteC(); err != nil {
+		os.Exit(report(commandLine(cmd, err)))
+	}
+}
+
+// setupCommands builds the command tree beneath rootCmd, as main executes it.
+func setupCommands() {
 	setupDataCommand(rootCmd)
 	setupLineageCommand(rootCmd)
 	setupServeCommand(rootCmd)
@@ -34,25 +46,26 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&diagFormat, "diag-format", "text", `how diagnostics are reported: "text" on stderr, or "json" on stdout`)
 
 	// Stop cobra from being so "helpful"
-	for _, cmd := range allCmds {
+	walkCommands(rootCmd, func(cmd *cobra.Command) {
 		cmd.DisableFlagsInUseLine = true
 		cmd.SilenceUsage = true
 		cmd.SilenceErrors = true
 		cmd.CompletionOptions = cobra.CompletionOptions{
 			HiddenDefaultCmd: true,
 		}
-	}
+	})
 	// cobra adds these during Execute, after markRan; add them now so that
 	// markRan reaches their hooks too.
 	rootCmd.InitDefaultHelpCmd()
 	rootCmd.InitDefaultCompletionCmd()
 	markRan(rootCmd)
+}
 
-	if cmd, err := unknownCommand(rootCmd, os.Args[1:]); err != nil {
-		os.Exit(report(commandLine(cmd, err)))
-	}
-	if cmd, err := rootCmd.ExecuteC(); err != nil {
-		os.Exit(report(commandLine(cmd, err)))
+// walkCommands calls f on cmd and on every command beneath it.
+func walkCommands(cmd *cobra.Command, f func(*cobra.Command)) {
+	f(cmd)
+	for _, sub := range cmd.Commands() {
+		walkCommands(sub, f)
 	}
 }
 
@@ -267,30 +280,6 @@ func addLinPathVars(cmd *cobra.Command, lla *lineageLoadArgs) {
 	cmd.PersistentFlags().StringVarP(&lla.inputLinFilePath, "lineage", "l", ".", "path to .cue file or package containing lineage")
 	cmd.MarkFlagRequired("lineage")
 	cmd.PersistentFlags().StringVarP(&lla.lincuepath, "path", "p", "", "CUE expression for path to the lineage object within file, if not root")
-}
-
-// List of all commands, for batching stuff
-var allCmds = []*cobra.Command{
-	rootCmd,
-	dataCmd,
-	translateCmd,
-	validateCmd,
-	validateAnyCmd,
-	linCmd,
-	initLineageCmd,
-	initLineageEmptyCmd,
-	initLineageOpenAPICmd,
-	initLineageJSONSchemaCmd,
-	fmtLineageCmd,
-	tipLineageCmd,
-	checkLineageCmd,
-	genLineageCmd,
-	genTSTypesLineageCmd,
-	genGoBindingsLineageCmd,
-	genOapiLineageCmd,
-	genJschLineageCmd,
-	serveCmd,
-	servePlaygroundCmd,
 }
 
 var rootCmd = &cobra.Command{

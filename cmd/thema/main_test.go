@@ -3,10 +3,48 @@ package main
 import (
 	"slices"
 	"strings"
+	"sync"
 	"testing"
+
+	"github.com/spf13/cobra"
 
 	"github.com/sdboyer/thema/diag"
 )
+
+var setupOnce sync.Once
+
+// commandTree builds the command tree in this process, once, as main does,
+// for the tests that inspect it or execute it in-process.
+func commandTree() *cobra.Command {
+	setupOnce.Do(setupCommands)
+	return rootCmd
+}
+
+// cobrasOwn reports whether cmd is cobra's help or completion command, or
+// beneath one. cobra adds them itself, they take none of thema's inputs, and
+// they report their failures as cobra does.
+func cobrasOwn(cmd *cobra.Command) bool {
+	for c := cmd; c.HasParent(); c = c.Parent() {
+		if !c.Parent().HasParent() && (c.Name() == "help" || c.Name() == "completion") {
+			return true
+		}
+	}
+	return false
+}
+
+// Every command main builds leaves its usage and errors to report, and keeps
+// its usage line as its Use writes it, without cobra's [flags].
+func TestCommandSettings(t *testing.T) {
+	walkCommands(commandTree(), func(cmd *cobra.Command) {
+		if cobrasOwn(cmd) {
+			return
+		}
+		if !cmd.SilenceErrors || !cmd.SilenceUsage || !cmd.DisableFlagsInUseLine {
+			t.Errorf("%s: SilenceErrors %v, SilenceUsage %v, DisableFlagsInUseLine %v, want all true",
+				cmd.CommandPath(), cmd.SilenceErrors, cmd.SilenceUsage, cmd.DisableFlagsInUseLine)
+		}
+	})
+}
 
 // A command line cobra cannot take is E0620, whichever part of it is wrong,
 // and is reported as --diag-format asks even where it follows what cobra
