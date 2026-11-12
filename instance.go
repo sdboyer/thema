@@ -53,50 +53,6 @@ func (i *Instance) check() {
 	}
 }
 
-// Hydrate returns a copy of the Instance with all default values specified by
-// the schema included.
-//
-// NOTE hydration implementation is a WIP. If errors are encountered, the
-// original input is returned unchanged.
-func (i *Instance) Hydrate() *Instance {
-	i.check()
-
-	ni, err := doHydrate(i.sch.(*schemaDef).def, i.raw)
-	// FIXME For now, just no-op it if we error
-	if err != nil {
-		return i
-	}
-
-	return &Instance{
-		valid: true,
-		raw:   ni,
-		name:  i.name,
-		sch:   i.sch,
-	}
-}
-
-// Dehydrate returns a copy of the Instance with all default values specified by
-// the schema removed.
-//
-// NOTE dehydration implementation is a WIP. If errors are encountered, the
-// original input is returned unchanged.
-func (i *Instance) Dehydrate() *Instance {
-	i.check()
-
-	ni, _, err := doDehydrate(i.sch.(*schemaDef).def, i.raw)
-	// FIXME For now, just no-op it if we error
-	if err != nil {
-		return i
-	}
-
-	return &Instance{
-		valid: true,
-		raw:   ni,
-		name:  i.name,
-		sch:   i.sch,
-	}
-}
-
 // AsSuccessor translates the instance into the form specified by the successor
 // schema. opts are as for [Instance.Translate].
 func (i *Instance) AsSuccessor(opts ...TranslateOption) (*Instance, lacuna.TranslationLacunas, error) {
