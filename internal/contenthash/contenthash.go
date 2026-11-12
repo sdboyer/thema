@@ -113,12 +113,23 @@ func SchemaForm(lin cue.Value, v Version) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	x, err := export(sch)
+	return Form(sch)
+}
+
+// Form returns the canonical form of v, the value as it is given: the form a
+// schema's digest is taken over, of any value. Nothing is set aside first, as
+// SchemaForm sets aside what thema contributes to a lineage.
+func Form(v cue.Value) (string, error) {
+	x, err := export(v)
 	if err != nil {
 		return "", err
 	}
 	return canonicalize(x)
 }
+
+// Sum returns the digest of the canonical form form, computed by the running
+// binary.
+func Sum(form string) Digest { return digest(form) }
 
 // LensForm returns the canonical form of the lenses on the edge into version v
 // of the lineage lin, whose digest is the lens part of v's ID: a struct with a
