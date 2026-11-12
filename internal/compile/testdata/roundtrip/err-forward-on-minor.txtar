@@ -23,7 +23,7 @@ Schema: {
 	b?: int
 }
 -- out/error --
-error[E0355]: immutability violation: history/0.1.thema has a ForwardLens, and is backward compatible with history/0.0.thema
+error[E0355]: immutability violation: v0.1 has a ForwardLens, and is backward compatible with v0.0
  --> history/0.1.thema:6:1
   |
 6 | ForwardLens: {

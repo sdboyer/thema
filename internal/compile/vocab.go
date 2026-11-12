@@ -164,20 +164,20 @@ func lensAddr(a diag.Address) bool {
 // and not backward compatible, or numbered major and backward compatible. cut
 // numbers a version by this same check, so since curr was cut one of the two
 // files has changed, or the checker has, or they were not cut at all, and no
-// run of the check can tell which. The diagnostic names both files, with each
-// finding where it is.
+// run of the check can tell which. The diagnostic names both versions, with
+// each finding where it is.
 func historyMismatch(res compat.Result, prev, curr *version) *diag.Error {
 	b := diag.New(diag.E0207).At(curr.header())
 	if curr.v[1] == 0 {
-		b.Headlinef("immutability violation: %s is backward compatible with %s", curr.path, prev.path).
-			Notef(token.NoPos, "a version that accepts all data the one before it accepts is a minor version, and %s is a major version", curr.v)
+		b.Headlinef("immutability violation: %s is backward compatible with %s", curr.name(), prev.name()).
+			Notef(token.NoPos, "a version that accepts all data the one before it accepts is a minor version, and %s is a major version", curr.name())
 	} else {
 		verb := "is not backward compatible with"
 		if res.Verdict() == compat.Unknown {
-			verb = "cannot be shown backward compatible with"
+			verb = "cannot be proven backward compatible with"
 		}
-		b.Headlinef("immutability violation: %s %s %s", curr.path, verb, prev.path).
-			Notef(token.NoPos, "%s is a minor version, so it must accept all data %s accepts", curr.v, prev.v)
+		b.Headlinef("immutability violation: %s %s %s", curr.name(), verb, prev.name()).
+			Notef(token.NoPos, "%s is a minor version, so it must accept all data %s accepts", curr.name(), prev.name())
 		for _, f := range res.Findings {
 			if f.Verdict == compat.Compatible {
 				continue
@@ -188,7 +188,7 @@ func historyMismatch(res compat.Result, prev, curr *version) *diag.Error {
 			}
 			b.Note(f.Pos, subject+" "+f.Detail)
 			if f.ViaResidual {
-				b.Notef(token.NoPos, "%s does not declare %s by name, but accepts it through ... or a pattern, so an instance may already hold any value there", prev.path, f.Path)
+				b.Notef(token.NoPos, "%s does not declare %s by name, but accepts it through ... or a pattern, so an instance may already hold any value there", prev.name(), f.Path)
 			}
 		}
 	}
