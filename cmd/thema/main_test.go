@@ -1,6 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"errors"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -15,6 +20,9 @@ var setupOnce sync.Once
 
 // extraArg is a positional argument a command does not take.
 const extraArg = "extra"
+
+// dataName is the data command's name.
+const dataName = "data"
 
 // commandTree builds the command tree in this process, once, as main does,
 // for the tests that inspect it or execute it in-process.
@@ -189,5 +197,44 @@ func requireReported(t *testing.T, args []string) {
 		if strings.HasPrefix(string(c), "E09") {
 			t.Errorf("thema %s: %s, a code of thema's own failures", strings.Join(args, " "), c)
 		}
+	}
+}
+
+// A command whose output cannot be written to stdout fails, as E0616, rather
+// than exiting 0 with the output lost. stdout is a file opened read-only.
+func TestStdoutWriteFails(t *testing.T) {
+	dir := writeTipDir(t, "Schema: {\n\tname: string\n}\n")
+	dataPath := filepath.Join(t.TempDir(), "data.json")
+	ro := filepath.Join(t.TempDir(), "ro.txt")
+	for _, p := range []string{dataPath, ro} {
+		if err := os.WriteFile(p, []byte(`{"name": "x"}`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for name, args := range map[string][]string{
+		"gen openapi":             {lineageCmd, genCmd, openapiCmd, "-l", dir},
+		"gen jsonschema":          {lineageCmd, genCmd, jsonschemaCmd, "-l", dir},
+		"gen gobindings --stdout": {lineageCmd, genCmd, gobindingsCmd, "-l", dir, stdoutFlg},
+		"gen gobindings":          {lineageCmd, genCmd, gobindingsCmd, "-l", dir},
+		"data validate-any":       {dataName, "validate-any", "-l", dir, dataPath},
+		"data translate":          {dataName, "translate", "-l", dir, toFlag, v00, dataPath},
+	} {
+		t.Run(name, func(t *testing.T) {
+			stdout, err := os.Open(ro) //nolint:gosec // a file this test wrote
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer stdout.Close()                     //nolint:errcheck // a read-only file
+			cmd := exec.Command(os.Args[0], args...) //nolint:gosec // re-executes this test binary
+			cmd.Env = append(os.Environ(), runMainEnv+"=1")
+			cmd.Stdout = stdout
+			var errOut bytes.Buffer
+			cmd.Stderr = &errOut
+			err = cmd.Run()
+			var exit *exec.ExitError
+			if !errors.As(err, &exit) || exit.ExitCode() != 1 || !strings.HasPrefix(errOut.String(), "error[E0616]: stdout cannot be written") {
+				t.Errorf("got %v, want E0616 for stdout, exit 1:\n%s", err, errOut.String())
+			}
+		})
 	}
 }

@@ -212,8 +212,8 @@ func (gc *genCommand) runOpenAPI(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprint(cmd.OutOrStdout(), str)
-	return nil
+	_, err = fmt.Fprint(cmd.OutOrStdout(), str)
+	return stdoutErr(err)
 }
 
 var genJschLineageCmd = &cobra.Command{
@@ -249,8 +249,8 @@ func (gc *genCommand) runJSONSchema(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprint(cmd.OutOrStdout(), str)
-	return nil
+	_, err = fmt.Fprint(cmd.OutOrStdout(), str)
+	return stdoutErr(err)
 }
 
 var genGoBindingsLineageCmd = &cobra.Command{
@@ -360,8 +360,8 @@ func (gc *genCommand) runGoBindings(cmd *cobra.Command, args []string) error {
 	if gc.stdout {
 		fmt.Fprint(buf, goheader)
 		buf.Write(f)
-		fmt.Fprint(cmd.OutOrStdout(), buf.String())
-		return nil
+		_, err = fmt.Fprint(cmd.OutOrStdout(), buf.String())
+		return stdoutErr(err)
 	}
 
 	fmt.Fprintf(buf, goheaderp, gc.epath)
@@ -380,8 +380,8 @@ func (gc *genCommand) runGoBindings(cmd *cobra.Command, args []string) error {
 	if gc.quiet {
 		return nil
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "generated go bindings for %s at %s\n", gc.lin.Name(), path)
-	return nil
+	_, err = fmt.Fprintf(cmd.OutOrStdout(), "generated go bindings for %s at %s\n", gc.lin.Name(), path)
+	return stdoutErr(err)
 }
 
 func findModRoot(abspath string) (rootfind, error) {

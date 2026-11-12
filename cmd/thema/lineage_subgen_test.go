@@ -13,6 +13,7 @@ import (
 const (
 	jsonschemaCmd = "jsonschema"
 	genCmd        = "gen"
+	gobindingsCmd = "gobindings"
 	goKeyword     = "func"
 )
 
@@ -35,7 +36,7 @@ func TestGenGoBindingsPkgname(t *testing.T) {
 	dir := writeTipDir(t, "Schema: {\n\tname: string\n}\n")
 	for _, name := range []string{"9bad", goKeyword, "_"} {
 		t.Run(name, func(t *testing.T) {
-			if got := initCodes(t, t.TempDir(), lineageCmd, genCmd, "gobindings", "-l", dir, "--pkgname", name, "--stdout"); !slices.Equal(got, []diag.Code{diag.E0620}) {
+			if got := initCodes(t, t.TempDir(), lineageCmd, genCmd, gobindingsCmd, "-l", dir, "--pkgname", name, "--stdout"); !slices.Equal(got, []diag.Code{diag.E0620}) {
 				t.Errorf("codes %v, want [E0620]", got)
 			}
 		})
@@ -51,7 +52,7 @@ func TestGenDerivedPkgname(t *testing.T) {
 		if err := os.Rename(filepath.Join(filepath.Dir(dir), shipName), dir); err != nil {
 			t.Fatal(err)
 		}
-		for _, args := range [][]string{{"gobindings", "--stdout"}, {"gotypes", "-v", v00}} {
+		for _, args := range [][]string{{gobindingsCmd, stdoutFlg}, {"gotypes", "-v", v00}} {
 			t.Run(name+" "+args[0], func(t *testing.T) {
 				line := append([]string{lineageCmd, genCmd, "-l", dir}, args...)
 				if got := initCodes(t, t.TempDir(), line...); !slices.Equal(got, []diag.Code{diag.E0620}) {

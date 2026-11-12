@@ -176,6 +176,15 @@ func commandLine(cmd *cobra.Command, err error) error {
 	return b.Help(fmt.Sprintf("%s --help lists the commands, flags and arguments it takes", cmd.CommandPath())).Err()
 }
 
+// stdoutErr is err, the failure of writing a command's output to stdout, as
+// E0616, or nil.
+func stdoutErr(err error) error {
+	if err == nil {
+		return nil
+	}
+	return diag.New(diag.E0616).Headline("stdout cannot be written").Detail(diag.OSReason(err)).Err()
+}
+
 // silent is a failure a command has already said everything about, or was
 // asked (-q) to say nothing about. It exits 1 with no diagnostics.
 type silent struct{}
