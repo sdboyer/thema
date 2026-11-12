@@ -281,10 +281,19 @@ ConvergentLineageFactory: https://pkg.go.dev/github.com/sdboyer/thema#Convergent
 `,
 }
 
-// checkPkgname refuses a --pkgname, name, that is not a Go package name.
-// An empty name is the default, which each command derives for itself.
-func checkPkgname(name string) error {
-	if name != "" && (!gotoken.IsIdentifier(name) || name == "_") {
+// checkPkgname refuses a package name that is not a Go package name: name,
+// from --pkgname, or where it is empty, the default gocode derives from the
+// lineage, lin's name in lower case.
+func checkPkgname(name string, lin thema.Lineage) error {
+	isPkgname := func(s string) bool { return gotoken.IsIdentifier(s) && s != "_" }
+	if name == "" {
+		if derived := strings.ToLower(lin.Name()); !isPkgname(derived) {
+			return diag.New(diag.E0620).Headlinef("the package is named for the lineage by default, and %q is not a Go package name", derived).
+				Help("name the package with --pkgname, a Go identifier that is not a keyword, such as ships").Err()
+		}
+		return nil
+	}
+	if !isPkgname(name) {
 		return diag.New(diag.E0620).Headlinef("--pkgname names a Go package, and %q is not a Go package name", name).
 			Help("name the package with a Go identifier that is not a keyword, such as ships").Err()
 	}
@@ -292,7 +301,7 @@ func checkPkgname(name string) error {
 }
 
 func (gc *genCommand) runGoBindings(cmd *cobra.Command, args []string) error {
-	if err := checkPkgname(gc.pkgname); err != nil {
+	if err := checkPkgname(gc.pkgname, gc.lin); err != nil {
 		return err
 	}
 	cfg := &gocode.BindingConfig{
@@ -468,8 +477,11 @@ func (gc *genCommand) runGoTypes(cmd *cobra.Command, _ []string) error {
 		return diag.New(diag.E0620).Headline("--pkgname names the package of the one schema -v generates, and no -v was given").
 			Help("without -v, each version's package is named for its directory, such as v0_0").Err()
 	}
-	if err := checkPkgname(gc.pkgname); err != nil {
-		return err
+	if gc.lla.verstr != "" {
+		// Without -v, each version's package is named for its directory.
+		if err := checkPkgname(gc.pkgname, gc.lla.dl.lin); err != nil {
+			return err
+		}
 	}
 	if gc.check && gc.outdir == "" {
 		return diag.New(diag.E0620).Headline("--check verifies the files under -o, and no -o was given").Err()
