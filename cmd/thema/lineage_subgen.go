@@ -75,13 +75,15 @@ func (gc *genCommand) setup(cmd *cobra.Command) {
 	genLineageCmd.AddCommand(gop)
 	gop.Flags().StringVarP(&gc.lla.verstr, "version", "v", "", "schema syntactic version to generate. Defaults to latest")
 	gop.Flags().StringVarP(&gc.format, "format", "f", "yaml", "output format. \"json\" or \"yaml\".")
-	gop.Run = gc.run
+	gop.PreRunE = gc.checkFormat
+	gop.RunE = gc.run
 
 	gj := genJschLineageCmd
 	genLineageCmd.AddCommand(gj)
 	gj.Flags().StringVarP(&gc.lla.verstr, "version", "v", "", "schema syntactic version to generate. Defaults to latest")
 	gj.Flags().StringVarP(&gc.format, "format", "f", "json", "output format. \"json\" or \"yaml\".")
-	gj.Run = gc.run
+	gj.PreRunE = gc.checkFormat
+	gj.RunE = gc.run
 
 	ggb := genGoBindingsLineageCmd
 	genLineageCmd.AddCommand(ggb)
@@ -95,7 +97,7 @@ func (gc *genCommand) setup(cmd *cobra.Command) {
 	ggb.Flags().BoolVar(&gc.nofsfunc, "no-fs-func", false, "Do not generate the func that returns fs.FS for loading")
 	ggb.Flags().BoolVar(&gc.stdout, "stdout", false, "Write to stdout instead of an adjacent file")
 	ggb.Flags().BoolVarP(&gc.quiet, "quiet", "q", false, "Do not print generated filename")
-	ggb.Run = gc.run
+	ggb.RunE = gc.run
 
 	ggt := genGoTypesLineageCmd
 	genLineageCmd.AddCommand(ggt)
@@ -110,7 +112,7 @@ func (gc *genCommand) setup(cmd *cobra.Command) {
 	// genTSTypesLineageCmd.Flags().StringVarP((*string)(&verstr), "version", "v", "", "schema syntactic version to generate. Defaults to latest")
 }
 
-func (gc *genCommand) run(cmd *cobra.Command, args []string) {
+func (gc *genCommand) run(cmd *cobra.Command, args []string) error {
 	// TODO encapsulate these properly
 	gc.lin = gc.lla.dl.lin
 	gc.sch = gc.lla.dl.sch
@@ -118,8 +120,7 @@ func (gc *genCommand) run(cmd *cobra.Command, args []string) {
 
 	fi, err := os.Stat(gc.lla.inputLinFilePath)
 	if err != nil {
-		fmt.Fprintf(cmd.ErrOrStderr(), "%s\n", err)
-		os.Exit(1)
+		return diag.New(diag.E0601).Headlinef("%s cannot be read", displayPath(gc.lla.inputLinFilePath)).Detail(diag.OSReason(err)).Err()
 	}
 
 	gc.epath = "*.cue"
@@ -141,11 +142,25 @@ func (gc *genCommand) run(cmd *cobra.Command, args []string) {
 	default:
 		panic(fmt.Sprint("unrecognized command ", cmd.CalledAs()))
 	}
+	return err
+}
 
-	if err != nil {
-		fmt.Fprintf(cmd.ErrOrStderr(), "%s\n", err)
-		os.Exit(1)
+// The formats openapi and jsonschema write, as -f names them.
+const (
+	formatJSON = "json"
+	formatYAML = "yaml"
+	formatYML  = "yml"
+)
+
+// checkFormat refuses an -f that names no format openapi and jsonschema
+// write, before anything is generated.
+func (gc *genCommand) checkFormat(_ *cobra.Command, _ []string) error {
+	switch gc.format {
+	case formatJSON, formatYAML, formatYML:
+		return nil
 	}
+	return diag.New(diag.E0620).Headlinef("-f names the output format, and %q is not a format thema writes", gc.format).
+		Help("-f takes json, yaml or yml").Err()
 }
 
 var genLineageCmd = &cobra.Command{
@@ -182,7 +197,7 @@ func (gc *genCommand) runOpenAPI(cmd *cobra.Command, args []string) error {
 
 	var str string
 	switch gc.format {
-	case "json":
+	case formatJSON:
 		var b []byte
 		b, err = rt.Context().BuildFile(f).MarshalJSON()
 		if b != nil {
@@ -190,10 +205,8 @@ func (gc *genCommand) runOpenAPI(cmd *cobra.Command, args []string) error {
 			err = json.Indent(nb, b, "", "  ")
 			str = nb.String()
 		}
-	case "yaml", "yml":
+	case formatYAML, formatYML:
 		str, err = yaml.Marshal(rt.Context().BuildFile(f))
-	default:
-		fmt.Fprintf(cmd.ErrOrStderr(), `unrecognized output format %q - must choose "yaml" or "json"`, gc.format)
 	}
 	if err != nil {
 		return err
@@ -220,7 +233,7 @@ func (gc *genCommand) runJSONSchema(cmd *cobra.Command, args []string) error {
 
 	var str string
 	switch gc.format {
-	case "json":
+	case formatJSON:
 		var b []byte
 		b, err = rt.Context().BuildFile(f).MarshalJSON()
 		if b != nil {
@@ -228,10 +241,8 @@ func (gc *genCommand) runJSONSchema(cmd *cobra.Command, args []string) error {
 			err = json.Indent(nb, b, "", "  ")
 			str = nb.String()
 		}
-	case "yaml", "yml":
+	case formatYAML, formatYML:
 		str, err = yaml.Marshal(rt.Context().BuildFile(f))
-	default:
-		fmt.Fprintf(cmd.ErrOrStderr(), `unrecognized output format %q - must choose "yaml" or "json"`, gc.format)
 	}
 	if err != nil {
 		return err
