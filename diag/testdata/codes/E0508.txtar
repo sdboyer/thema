@@ -1,8 +1,9 @@
 #op: cli
 #args: data translate -l lineage.cue --to 0.0 data.json
-An operation that searches the lineage for the data's schema (validate-any,
-or translate without a from version) found none that accepts it. Validating
-against one version with -v names what that schema rejects.
+An operation that searches the lineage for the data's schema found none that
+accepts it: the CLI's translate, or the playground's validate-any, or its
+translate without a from version. Validating against one version (data
+validate -v) names what that schema rejects.
 -- lineage.cue --
 name: "ship"
 schemas: {
