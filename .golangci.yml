@@ -36,12 +36,28 @@ linters:
         - pattern: ^os\.Exit$
           pkg: ^os$
           msg: only main exits; return the error, and report gives the status
-        - pattern: ^os\.Stderr$
+        - pattern: ^(runtime\.Goexit|syscall\.Exit)$
+          pkg: ^(runtime|syscall)$
+          msg: only main exits; return the error, and report gives the status
+        - pattern: ^os\.(Stderr|NewFile)$
           pkg: ^os$
           msg: only report and warn write to stderr; return a diagnostic
-        - pattern: ^cobra\.Command\.(ErrOrStderr|PrintErr|PrintErrln|PrintErrf)$
+        # The log package writes to stderr, and Fatal and Panic exit or panic.
+        - pattern: ^log\.
+          pkg: ^log$
+          msg: only report and warn write to stderr; return a diagnostic
+        - pattern: ^(print|println)$
+          msg: only report and warn write to stderr; return a diagnostic
+        # Print, Println, Printf and Usage write to OutOrStderr: stderr, since
+        # no command calls SetOut.
+        - pattern: ^cobra\.Command\.(ErrOrStderr|OutOrStderr|PrintErr|PrintErrln|PrintErrf|Print|Println|Printf|Usage|UsageFunc)$
           pkg: ^github\.com/spf13/cobra$
           msg: only report and warn write to stderr; return a diagnostic
+        # Help writes to stdout, where a failure's help would be mistaken for
+        # output, or for JSON; cobra answers --help and help itself.
+        - pattern: ^cobra\.Command\.(Help|HelpFunc)$
+          pkg: ^github\.com/spf13/cobra$
+          msg: return a diagnostic, whose help says what to do; cobra answers --help itself
         - pattern: ^panic$
           msg: return a diagnostic; a panic is for what cannot be reached, and says why
       analyze-types: true
@@ -63,10 +79,12 @@ linters:
       # Vendored-in third-party code; not ours to lint.
       - internal/cuetsy
     rules:
-      # forbidigo's rules are the CLI's contract, so they hold in cmd/thema
-      # alone, and not in its tests, which re-execute main from TestMain
-      # and may fail however a test fails.
-      - path-except: ^cmd/thema/
+      # forbidigo's rules are the CLI's contract, so they hold in the files
+      # of package main in cmd/thema alone: not in cmd/thema/playground, a
+      # library that internal/cmd/playgroundgen imports too, which has no
+      # report to return to; and not in the tests, which re-execute main
+      # from TestMain and may fail however a test fails.
+      - path-except: ^cmd/thema/[^/]+\.go$
         linters:
           - forbidigo
       - path: _test\.go$
