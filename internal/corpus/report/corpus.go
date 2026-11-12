@@ -2,10 +2,11 @@
 // revisions, and renders the result as a matrix (HTML) or a summary for a pull
 // request (Markdown).
 //
-// A corpus is a directory of txtar archives, one case per file, and a
-// suites.json naming the suites that run them; testdata/refs is the first.
-// A cell is one case run by one suite. The package corpus defines the format,
-// reads each case and computes each cell's status from the archive alone
+// A corpus is a directory of txtar archives and a suites.json naming the
+// suites that run them, and how the archives are read: one case per archive,
+// or one per input. testdata/refs is the first. A cell is one case run by one
+// suite. The package corpus defines the format, reads each case and computes
+// each cell's status from the archive alone
 // ([corpus.CellStatus]), as its test framework does, so the report and the
 // tests never disagree about a cell. A committed corpus holds only pass,
 // known and not-applicable cells.
@@ -14,6 +15,7 @@ package report
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"path"
 	"slices"
 	"strings"
@@ -47,10 +49,6 @@ var Statuses = []Status{Regressed, XPass, Known, Pass, NotApplicable}
 // SuitesFile is the name of a corpus's suite registry, beside its archives.
 const SuitesFile = "suites.json"
 
-// require names the directives a case must have beyond description, expect
-// and spec. It is what TestRefs requires of testdata/refs, the only corpus.
-var require = []string{"at"}
-
 // Suite is one way the corpus's cases are run, as suites.json declares it.
 type Suite struct {
 	Name        string `json:"name"`
@@ -62,8 +60,11 @@ type Suite struct {
 
 // Corpus is a corpus as it is in one revision.
 type Corpus struct {
+	// Layout is how suites.json says the archives are read.
+	Layout corpus.Layout
 	Suites []Suite
-	// Cases are sorted by name.
+	// Cases are in the order of their archives, by name, and within an
+	// archive in the order of its input files.
 	Cases []*corpus.Case
 	// Problems are the ways the corpus breaks its format, each naming the file
 	// it is in. A cell's status is still computed where it can be.
@@ -127,7 +128,7 @@ func Parse(files map[string][]byte) *Corpus {
 			c.problemf(SuitesFile, "missing, but the corpus has archives")
 			hasSuites = true
 		}
-		c.Cases = append(c.Cases, c.parseCase(name, files[name]))
+		c.Cases = append(c.Cases, c.parseArchive(name, files[name])...)
 	}
 	slices.Sort(c.Problems)
 	return c
@@ -139,11 +140,13 @@ func (c *Corpus) problemf(file, format string, args ...any) {
 
 func (c *Corpus) parseSuites(data []byte) error {
 	var reg struct {
+		corpus.Layout
 		Suites []Suite `json:"suites"`
 	}
 	if err := json.Unmarshal(data, &reg); err != nil {
 		return err
 	}
+	c.Layout = reg.Layout
 	seen := map[string]bool{}
 	for _, s := range reg.Suites {
 		switch {
@@ -162,28 +165,38 @@ func (c *Corpus) parseSuites(data []byte) error {
 	return nil
 }
 
-func (c *Corpus) parseCase(file string, data []byte) *corpus.Case {
-	k := corpus.ParseCase(file, data)
+// caseLabel names k in a problem with its archive.
+func caseLabel(k *corpus.Case) string {
+	if k.Input == "" {
+		return "this case"
+	}
+	return "input " + k.Input
+}
+
+func (c *Corpus) parseArchive(file string, data []byte) []*corpus.Case {
+	a := corpus.ParseArchive(file, data, c.Layout)
 	registered := make([]string, 0, len(c.Suites))
 	for _, s := range c.Suites {
 		registered = append(registered, s.Name)
 	}
-	directives, sections := k.Problems(registered, require)
+	directives, sections := a.Problems(registered)
 	for _, p := range append(directives, sections...) {
 		c.problemf(file, "%s", p)
 	}
-	// The test framework finds a tag on a suite that does not run the case
-	// when it runs the cell; read from the archive alone, it is a tag with no
-	// section.
-	for suite := range k.Known {
-		if _, ran := k.File(corpus.SectionFile(suite)); !ran {
-			c.problemf(file, "#known/%s tags a suite that does not run this case", suite)
+	for _, k := range a.Cases {
+		// The test framework finds a tag on a suite that does not run the
+		// case when it runs the cell; read from the archive alone, it is a
+		// tag with no section.
+		for _, suite := range slices.Sorted(maps.Keys(k.Known)) {
+			if _, ran := k.File(k.SectionFile(suite)); !ran {
+				c.problemf(file, "#%s tags a suite that does not run %s", k.KnownKey(suite), caseLabel(k))
+			}
+		}
+		for _, s := range c.Suites {
+			if _, ran := k.File(k.SectionFile(s.Name)); s.EveryCase && !ran {
+				c.problemf(file, "%s is missing, but suite %s applies to every case", k.SectionFile(s.Name), s.Name)
+			}
 		}
 	}
-	for _, s := range c.Suites {
-		if _, ran := k.File(corpus.SectionFile(s.Name)); s.EveryCase && !ran {
-			c.problemf(file, "%s is missing, but suite %s applies to every case", corpus.SectionFile(s.Name), s.Name)
-		}
-	}
-	return k
+	return a.Cases
 }

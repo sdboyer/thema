@@ -1,4 +1,7 @@
 {
+  "require": [
+    "at"
+  ],
   "suites": [
     {
       "name": "together",
