@@ -513,7 +513,7 @@ func (gc *genCommand) runGoTypes(cmd *cobra.Command, _ []string) error {
 			a.Files = append(a.Files, txtar.File{Name: f.Path(), Data: b})
 		}
 		_, err = cmd.OutOrStdout().Write(txtar.Format(&a))
-		return err
+		return stdoutErr(err)
 	case gc.check:
 		return driftDiagnostics(fs.Verify(cmd.Context(), gc.outdir), "-o", gc.outdir)
 	default:

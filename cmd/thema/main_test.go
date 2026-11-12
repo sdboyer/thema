@@ -21,8 +21,13 @@ var setupOnce sync.Once
 // extraArg is a positional argument a command does not take.
 const extraArg = "extra"
 
-// dataName is the data command's name.
-const dataName = "data"
+// Command names the tests repeat.
+const (
+	dataName  = "data"
+	cutName   = "cut"
+	fmtName   = "fmt"
+	emptyName = "empty"
+)
 
 // commandTree builds the command tree in this process, once, as main does,
 // for the tests that inspect it or execute it in-process.
@@ -93,7 +98,7 @@ func TestCommandLine(t *testing.T) {
 	// that would succeed, in text on stderr, leaving stdout empty.
 	for _, format := range []string{"xml", "JSON"} {
 		t.Run("--diag-format "+format, func(t *testing.T) {
-			out, errOut, err := runThema(t, t.TempDir(), "", lineageCmd, initName, "empty", stdoutFlg, "--diag-format", format)
+			out, errOut, err := runThema(t, t.TempDir(), "", lineageCmd, initName, emptyName, stdoutFlg, "--diag-format", format)
 			if err == nil || out != "" || !strings.HasPrefix(errOut, "error[E0620]") {
 				t.Errorf("want E0620 as text on stderr and nothing on stdout, got err %v\nstdout:\n%s\nstderr:\n%s", err, out, errOut)
 			}
@@ -218,6 +223,12 @@ func TestStdoutWriteFails(t *testing.T) {
 		"gen gobindings":          {lineageCmd, genCmd, gobindingsCmd, "-l", dir},
 		"data validate-any":       {dataName, "validate-any", "-l", dir, dataPath},
 		"data translate":          {dataName, "translate", "-l", dir, toFlag, v00, dataPath},
+		"gen gotypes":             {lineageCmd, genCmd, gotypesCmd, "-l", dir},
+		"lineage tip":             {lineageCmd, tipName, "-l", dir},
+		"lineage cut":             {lineageCmd, cutName, "-l", dir, "--dry-run"},
+		"lineage fmt":             {lineageCmd, fmtName, "-l", writeAuthoringDir(t)},
+		"init empty --stdout":     {lineageCmd, initName, emptyName, stdoutFlg},
+		"init empty":              {lineageCmd, initName, emptyName, "-l", filepath.Join(t.TempDir(), shipName)},
 	} {
 		t.Run(name, func(t *testing.T) {
 			stdout, err := os.Open(ro) //nolint:gosec // a file this test wrote

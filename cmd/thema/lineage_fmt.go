@@ -73,7 +73,7 @@ func (fc *fmtCommand) run(cmd *cobra.Command, _ []string) error {
 			return diag.New(diag.E0616).Headlinef("%s cannot be written", displayPath(p)).Detail(diag.OSReason(err)).Err()
 		}
 		if _, err := fmt.Fprintln(cmd.OutOrStdout(), f.Path); err != nil {
-			return err
+			return stdoutErr(err)
 		}
 	}
 	return nil

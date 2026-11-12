@@ -144,7 +144,7 @@ func (ic *initCommand) run(cmd *cobra.Command, args []string) error {
 	}
 	if ic.stdout {
 		_, err = cmd.OutOrStdout().Write(ic.tip.Text)
-		return err
+		return stdoutErr(err)
 	}
 	return ic.write(cmd, dir)
 }
@@ -211,7 +211,7 @@ func (ic *initCommand) write(cmd *cobra.Command, dir string) error {
 		return err
 	}
 	_, err = fmt.Fprintln(cmd.OutOrStdout(), displayPath(filepath.Join(dir, ic.tip.Path)))
-	return err
+	return stdoutErr(err)
 }
 
 // process both openapi and json schema, abstract over stdin

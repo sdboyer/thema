@@ -14,6 +14,7 @@ const (
 	jsonschemaCmd = "jsonschema"
 	genCmd        = "gen"
 	gobindingsCmd = "gobindings"
+	gotypesCmd    = "gotypes"
 	goKeyword     = "func"
 )
 
@@ -52,7 +53,7 @@ func TestGenDerivedPkgname(t *testing.T) {
 		if err := os.Rename(filepath.Join(filepath.Dir(dir), shipName), dir); err != nil {
 			t.Fatal(err)
 		}
-		for _, args := range [][]string{{gobindingsCmd, stdoutFlg}, {"gotypes", "-v", v00}} {
+		for _, args := range [][]string{{gobindingsCmd, stdoutFlg}, {gotypesCmd, "-v", v00}} {
 			t.Run(name+" "+args[0], func(t *testing.T) {
 				line := append([]string{lineageCmd, genCmd, "-l", dir}, args...)
 				if got := initCodes(t, t.TempDir(), line...); !slices.Equal(got, []diag.Code{diag.E0620}) {
