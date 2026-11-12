@@ -290,8 +290,8 @@ var rootCmd = &cobra.Command{
 This program offers several kinds of behavior for working with Thema:
 
 * Validating and inspecting of written lineages.
-* Given a valid lineage, provides basic Thema operations (validate, translate,
-  [de]hydrate) on some input data.
+* Given a valid lineage, provides basic Thema operations (validate, translate)
+  on some input data.
 * Serve the thema playground locally (thema serve playground), and export
   a directory of lineages as examples for a static deployment of it (thema
   serve playground --examples <dir> --export <out>).

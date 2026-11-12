@@ -64,18 +64,6 @@ func (dc *dataCommand) setup(cmd *cobra.Command) {
 	translateCmd.Flags().StringVarP(&dc.format, "format", "e", "", "input data format. Autodetected by default, but can be constrained to \"json\" or \"yaml\".")
 	translateCmd.PersistentPreRunE = mergeCobraefuncs(dc.lla.validateLineageInput, dc.lla.validateVersionInput, dc.validateDataInput)
 	translateCmd.RunE = dc.runTranslate
-
-	dataCmd.AddCommand(hydrateCmd)
-	hydrateCmd.Flags().StringVarP(&dc.lla.verstr, "version", "v", "", "schema syntactic version to validate data against")
-	hydrateCmd.Flags().StringVarP(&dc.format, "format", "e", "", "input data format. Autodetected by default, but can be constrained to \"json\" or \"yaml\".")
-	hydrateCmd.PersistentPreRunE = mergeCobraefuncs(dc.lla.validateLineageInput, dc.lla.validateVersionInputOptional, dc.validateDataInput)
-	hydrateCmd.RunE = dc.runHydrate
-
-	dataCmd.AddCommand(dehydrateCmd)
-	dehydrateCmd.Flags().StringVarP(&dc.lla.verstr, "version", "v", "", "schema syntactic version to validate data against")
-	dehydrateCmd.Flags().StringVarP(&dc.format, "format", "e", "", "input data format. Autodetected by default, but can be constrained to \"json\" or \"yaml\".")
-	dehydrateCmd.PersistentPreRunE = mergeCobraefuncs(dc.lla.validateLineageInput, dc.lla.validateVersionInputOptional, dc.validateDataInput)
-	dehydrateCmd.RunE = dc.runDehydrate
 }
 
 var dataCmd = &cobra.Command{
@@ -243,94 +231,6 @@ type translationResult struct {
 	CutsAs  string                    `json:"cutsAs,omitempty"`
 	Result  cue.Value                 `json:"result"`
 	Lacunas lacuna.TranslationLacunas `json:"lacunas"`
-}
-
-var hydrateCmd = &cobra.Command{
-	Use:   "hydrate -l <lineage-fs-path> [-p <cue-path>] [-e <format>] [-v <synver>] [<data-fs-path>] ",
-	Short: "Fill some valid input data with any schema-specified defaults",
-	Long: `Fill some valid input data with any schema-specified defaults.
-` + dataReuseText + `
-Success outputs the input object, but fully hydrated with schema-specified
-default values, if any. Input formatting (e.g. indent spaces) and/or object
-key ordering are not maintained.
-
-If a syntactic version is not provided (-v), the input data will be checked
-for validity against all schemas in the lineage.
-`,
-	Args: cobra.MaximumNArgs(1),
-}
-
-func (dc *dataCommand) runHydrate(cmd *cobra.Command, args []string) error {
-	if !dc.datval.Exists() {
-		panic("datval does not exist") //nolint:forbidigo // validateDataInput, every data command's PersistentPreRunE, sets datval from a decode that succeeded or fails, and cobra runs it before RunE
-	}
-
-	var inst *thema.Instance
-	var err error
-	if dc.lla.dl.sch != nil {
-		inst, err = dc.lla.dl.sch.Validate(dc.datval)
-		if err != nil {
-			return err
-		}
-	} else {
-		inst = dc.lla.dl.lin.ValidateAny(dc.datval)
-		if inst == nil {
-			return noSchemaAccepts()
-		}
-	}
-
-	// TODO support non-JSON output
-	byt, err := json.MarshalIndent(inst.Hydrate().Underlying(), "", "  ")
-	if err != nil {
-		return diag.InternalErr(err)
-	}
-	_, err = io.Copy(cmd.OutOrStdout(), bytes.NewBuffer(byt))
-
-	return err
-}
-
-var dehydrateCmd = &cobra.Command{
-	Use:   "dehydrate -l <lineage-fs-path> [-p <cue-path>] [-e <format>] [-v <synver>] [<data-fs-path>] ",
-	Short: "Remove all schema-specified defaults from some valid input data",
-	Long: `Remove all schema-specified defaults from some valid input data.
-` + dataReuseText + `
-Success outputs the input data object  with all values removed that are implied
-by defaults specified in its validating schema. Input object field orderings
-and formatting are not maintained.
-
-If a syntactic version is not provided (-v), the input data will be checked
-for validity against all schemas in the lineage.
-`,
-	Args: cobra.MaximumNArgs(1),
-}
-
-func (dc *dataCommand) runDehydrate(cmd *cobra.Command, args []string) error {
-	if !dc.datval.Exists() {
-		panic("datval does not exist") //nolint:forbidigo // validateDataInput, every data command's PersistentPreRunE, sets datval from a decode that succeeded or fails, and cobra runs it before RunE
-	}
-
-	var inst *thema.Instance
-	var err error
-	if dc.lla.dl.sch != nil {
-		inst, err = dc.lla.dl.sch.Validate(dc.datval)
-		if err != nil {
-			return err
-		}
-	} else {
-		inst = dc.lla.dl.lin.ValidateAny(dc.datval)
-		if inst == nil {
-			return noSchemaAccepts()
-		}
-	}
-
-	// TODO support non-JSON output
-	byt, err := json.MarshalIndent(inst.Dehydrate().Underlying(), "", "  ")
-	if err != nil {
-		return diag.InternalErr(err)
-	}
-	_, err = io.Copy(cmd.OutOrStdout(), bytes.NewBuffer(byt))
-
-	return err
 }
 
 // stdinHasInput reports whether a stdin with the given mode should be read
