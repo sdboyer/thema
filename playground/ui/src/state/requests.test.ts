@@ -14,8 +14,8 @@ describe("requestFor", () => {
   });
 
   it("leaves empty arguments out, so thema chooses", () => {
-    const r = requestFor(with_({ op: "hydrate" }));
-    expect(r).toMatchObject({ op: "hydrate", req: { version: undefined } });
+    const r = requestFor(with_({ op: "validate" }));
+    expect(r).toMatchObject({ op: "validate", req: { version: undefined } });
   });
 
   it("says what translate lacks", () => {

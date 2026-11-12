@@ -1,17 +1,16 @@
 // The operations a user runs on data or on a lineage, and the arguments each
 // takes: what OpBar offers and Output renders the result of.
 
-export type DataOp = "validate" | "validate-any" | "translate" | "hydrate" | "dehydrate";
+export type DataOp = "validate" | "validate-any" | "translate";
 export type CodegenOp = "openapi" | "jsonschema" | "typescript";
 export type UserOp = DataOp | CodegenOp;
 
-export const dataOps: readonly DataOp[] = ["validate", "validate-any", "translate", "hydrate", "dehydrate"];
+export const dataOps: readonly DataOp[] = ["validate", "validate-any", "translate"];
 export const codegenOps: readonly CodegenOp[] = ["openapi", "jsonschema", "typescript"];
 
 export interface OpArgs {
-  // version is the schema for validate, hydrate, dehydrate and code
-  // generation; empty means the latest, or for hydrate the one that accepts
-  // the data.
+  // version is the schema for validate and code generation; empty means the
+  // latest.
   version: string;
   from: string;
   to: string;
@@ -26,8 +25,6 @@ export function isCodegen(op: string): op is CodegenOp {
 export function argsOf(op: UserOp): ReadonlyArray<"version" | "from" | "to" | "format"> {
   switch (op) {
     case "validate":
-    case "hydrate":
-    case "dehydrate":
     case "typescript":
       return ["version"];
     case "validate-any":

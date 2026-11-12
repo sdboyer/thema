@@ -30,8 +30,6 @@ export const docs = {
   validate: { href: ref("operations.md", "validate"), title: "validate" },
   "validate-any": { href: ref("operations.md", "validate-any"), title: "validate-any" },
   translate: { href: ref("operations.md", "translate"), title: "translate" },
-  hydrate: { href: ref("operations.md", "hydrate"), title: "hydrate" },
-  dehydrate: { href: ref("operations.md", "dehydrate"), title: "dehydrate" },
   openapi: { href: ref("codegen.md", "openapi"), title: "Generating OpenAPI" },
   jsonschema: { href: ref("codegen.md", "json-schema"), title: "Generating JSON Schema" },
   typescript: { href: ref("codegen.md", "typescript"), title: "Generating TypeScript" },
