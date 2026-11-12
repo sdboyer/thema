@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	iofs "io/fs"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"cuelang.org/go/cue/cuecontext"
 	"github.com/sdboyer/jenny"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/authoring"
@@ -40,10 +42,101 @@ func main() {
 			HiddenDefaultCmd: true,
 		}
 	}
+	// cobra adds these during Execute, after markRan; add them now so that
+	// markRan reaches their hooks too.
+	rootCmd.InitDefaultHelpCmd()
+	rootCmd.InitDefaultCompletionCmd()
+	markRan(rootCmd)
 
-	if err := rootCmd.Execute(); err != nil {
-		os.Exit(report(err))
+	if cmd, err := unknownCommand(rootCmd, os.Args[1:]); err != nil {
+		os.Exit(report(commandLine(cmd, err)))
 	}
+	if cmd, err := rootCmd.ExecuteC(); err != nil {
+		os.Exit(report(commandLine(cmd, err)))
+	}
+}
+
+// readDiagFormat sets diagFormat from args alone, ignoring every other flag
+// and argument. cobra stops reading a command line at what it cannot take,
+// so --diag-format after that point is never set, yet the diagnostic that
+// says so must be written as it asks.
+func readDiagFormat(args []string) {
+	fs := pflag.NewFlagSet("diag-format", pflag.ContinueOnError)
+	fs.ParseErrorsAllowlist.UnknownFlags = true
+	fs.SetOutput(io.Discard)
+	fs.StringVar(&diagFormat, "diag-format", diagFormat, "")
+	// Declared, or pflag stops at -h or --help as a request for help.
+	fs.BoolP("help", "h", false, "")
+	_ = fs.Parse(args)
+}
+
+// ran is an error a command's own code returned, as against one cobra
+// returned for the command line before any of that code ran.
+type ran struct{ err error }
+
+func (r ran) Error() string { return r.err.Error() }
+func (r ran) Unwrap() error { return r.err }
+
+// markRan wraps the hooks of cmd and every command beneath it so that every
+// error they return is marked as ran.
+func markRan(cmd *cobra.Command) {
+	for _, sub := range cmd.Commands() {
+		markRan(sub)
+	}
+	for _, h := range []*cobraefunc{(*cobraefunc)(&cmd.PersistentPreRunE), (*cobraefunc)(&cmd.PreRunE), (*cobraefunc)(&cmd.RunE), (*cobraefunc)(&cmd.PostRunE), (*cobraefunc)(&cmd.PersistentPostRunE)} {
+		if f := *h; f != nil {
+			*h = func(cmd *cobra.Command, args []string) error {
+				if err := f(cmd, args); err != nil {
+					return ran{err}
+				}
+				return nil
+			}
+		}
+	}
+}
+
+// unknownCommand is the error cobra gives for a word that names no command at
+// the root, for such a word beneath a command that only groups others, where
+// cobra prints the group's help and succeeds without reading its arguments.
+// It returns no error for anything else, which cobra reports itself.
+func unknownCommand(root *cobra.Command, args []string) (*cobra.Command, error) {
+	cmd, rest, err := root.Find(args)
+	if err != nil || !cmd.HasParent() || cmd.Runnable() || cmd.ParseFlags(rest) != nil {
+		return nil, nil
+	}
+	words := cmd.Flags().Args()
+	if len(words) == 0 {
+		return nil, nil
+	}
+	if cmd.SuggestionsMinimumDistance <= 0 {
+		cmd.SuggestionsMinimumDistance = 2
+	}
+	var suggested string
+	if s := cmd.SuggestionsFor(words[0]); len(s) > 0 {
+		suggested = "\n\nDid you mean this?\n\t" + strings.Join(s, "\n\t") + "\n"
+	}
+	return cmd, fmt.Errorf("unknown command %q for %q%s", words[0], cmd.CommandPath(), suggested)
+}
+
+// commandLine is err as the CLI reports it: what a command's own code
+// returned, as it returned it, and anything else, which cobra returned for a
+// command line it could not take (an unknown command or flag, a flag without
+// its value, too many arguments), as E0620, with cobra's account of it.
+func commandLine(cmd *cobra.Command, err error) error {
+	var r ran
+	if errors.As(err, &r) {
+		return r.err
+	}
+	readDiagFormat(os.Args[1:])
+	b := diag.New(diag.E0620).Headlinef("%s cannot take this command line", cmd.CommandPath())
+	// An unknown command's message ends with the commands cobra suggests,
+	// which read as help, not as part of what went wrong.
+	msg, suggested, ok := strings.Cut(err.Error(), "\n\nDid you mean this?\n")
+	b = b.Detail(msg)
+	if ok {
+		b = b.Help("did you mean " + strings.Join(strings.Fields(suggested), " or ") + "?")
+	}
+	return b.Help(fmt.Sprintf("%s --help lists the commands, flags and arguments it takes", cmd.CommandPath())).Err()
 }
 
 // silent is a failure a command has already said everything about, or was
