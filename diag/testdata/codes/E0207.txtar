@@ -1,0 +1,85 @@
+#op: compile
+A version under history/ was cut from the tip, which thema numbers by checking
+it against the version before it: minor when it is backward compatible, major
+when it is not. A version under history/ never changes once cut. Two of them
+whose numbers their schemas contradict, as here, where 0.1 does not accept all
+data 0.0 accepts, mean that one of the files has changed since it was cut, or
+the checker has, or the files were never cut. No run of the check can tell
+which, so the diagnostic names both files; `thema lineage check --published`
+compares them with what was published.
+-- ship/history/0.0.thema --
+Schema: {
+	size: "s" | "m" | "l"
+}
+-- ship/history/0.1.thema --
+Schema: {
+	size: "s" | "m"
+}
+-- ship/tip.thema --
+Schema: {
+	size: "s" | "m"
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0207",
+      "severity": "error",
+      "headline": "immutability violation: history/0.1.thema is not backward compatible with history/0.0.thema",
+      "primary": {
+        "file": "history/0.1.thema",
+        "line": 1,
+        "col": 1,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "0.1 is a minor version, so it must accept all data 0.0 accepts"
+        },
+        {
+          "pos": {
+            "file": "history/0.1.thema",
+            "line": 2,
+            "col": 2,
+            "offset": 11,
+            "origin": "user"
+          },
+          "label": "size is now \"s\" | \"m\", which has no alternative for the prior \"l\""
+        },
+        {
+          "pos": {
+            "file": "history/0.0.thema",
+            "line": 1,
+            "col": 1,
+            "origin": "user"
+          },
+          "label": "the version before it"
+        }
+      ],
+      "help": [
+        "run thema lineage check --published to find which file changed since it was cut, restore it, and make the change in tip.thema"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0207]: immutability violation: history/0.1.thema is not backward compatible with history/0.0.thema
+ --> history/0.1.thema:1:1
+  |
+1 | Schema: {
+  | ^^^^^^
+2 |     size: "s" | "m"
+  |     ---- size is now "s" | "m", which has no alternative for the prior "l"
+  |
+ ::: history/0.0.thema:1:1
+  |
+1 | Schema: {
+  | ------ the version before it
+  |
+  = note: 0.1 is a minor version, so it must accept all data 0.0 accepts
+  = help: run thema lineage check --published to find which file changed since it was cut, restore it, and make the change in tip.thema

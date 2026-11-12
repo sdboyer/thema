@@ -9,7 +9,6 @@ import (
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/diag"
 	"github.com/sdboyer/thema/internal/compat"
-	"github.com/sdboyer/thema/internal/rulecodes"
 )
 
 // Vocabulary is the authoring form's: diagnostics about the compiled lineage
@@ -160,37 +159,46 @@ func lensAddr(a diag.Address) bool {
 	return false
 }
 
-// compatDiag describes one finding of the compatibility checker between the
-// version files prev and curr, where curr was named as a minor version and is
-// not backward compatible.
-func compatDiag(f compat.Finding, prev, curr *version) *diag.Error {
-	code := rulecodes.CompatCode(f.Rule)
-	subject := curr.path
-	if sels := f.Path.Selectors(); len(sels) > 0 {
-		subject = f.Path.String() + " in " + curr.path
-	}
-	b := diag.New(code)
-	sentence := subject + " " + f.Detail
-	short := subject + " is not backward compatible with " + prev.v.String()
-	if len(sentence) <= diag.MaxHeadline {
-		b.Headline(sentence)
+// historyMismatch reports curr, a version under history/, whose number its
+// compatibility with prev, the version before it, contradicts: numbered minor
+// and not backward compatible, or numbered major and backward compatible. cut
+// numbers a version by this same check, so since curr was cut one of the two
+// files has changed, or the checker has, or they were not cut at all, and no
+// run of the check can tell which. The diagnostic names both files, with each
+// finding where it is.
+func historyMismatch(res compat.Result, prev, curr *version) *diag.Error {
+	b := diag.New(diag.E0207).At(curr.header())
+	if curr.v[1] == 0 {
+		b.Headlinef("immutability violation: %s is backward compatible with %s", curr.path, prev.path).
+			Notef(token.NoPos, "a version that accepts all data the one before it accepts is a minor version, and %s is a major version", curr.v)
 	} else {
-		b.Headline(short).Note(token.NoPos, sentence)
+		verb := "is not backward compatible with"
+		if res.Verdict() == compat.Unknown {
+			verb = "cannot be shown backward compatible with"
+		}
+		b.Headlinef("immutability violation: %s %s %s", curr.path, verb, prev.path).
+			Notef(token.NoPos, "%s is a minor version, so it must accept all data %s accepts", curr.v, prev.v)
+		for _, f := range res.Findings {
+			if f.Verdict == compat.Compatible {
+				continue
+			}
+			subject := "the schema"
+			if len(f.Path.Selectors()) > 0 {
+				subject = f.Path.String()
+			}
+			b.Note(f.Pos, subject+" "+f.Detail)
+			if f.ViaResidual {
+				b.Notef(token.NoPos, "%s does not declare %s by name, but accepts it through ... or a pattern, so an instance may already hold any value there", prev.path, f.Path)
+			}
+		}
 	}
-	if f.Pos.IsValid() {
-		b.At(f.Pos)
-	} else {
-		b.At(curr.header())
-	}
-	major := thema.SV(prev.v[0]+1, 0)
-	b.Notef(token.NoPos, "%s is a minor version, so it must accept all data %s accepts", curr.v, prev.v)
-	if f.ViaResidual {
-		b.Notef(token.NoPos, "%s does not declare %s by name, but accepts it through ... or a pattern, so an instance may already hold any value there", prev.path, f.Path)
-		b.Helpf("declare it as %s?: _ to accept what %s accepted, or rename the file %s/%s%s", f.Path, prev.v, HistoryDir, major, Ext)
-	} else if f.Verdict == compat.Unknown {
-		b.Helpf("change the schema so the checker can decide, or rename the file %s/%s%s", HistoryDir, major, Ext)
-	} else {
-		b.Helpf("make the change compatible, or rename the file %s/%s%s", HistoryDir, major, Ext)
-	}
+	b.Note(prev.header(), "the version before it")
+	restoreHelp(b)
 	return b.Err()
+}
+
+// restoreHelp says what to do about a version under history/ that no longer
+// agrees with what was cut: find which file changed, and restore it.
+func restoreHelp(b *diag.B) {
+	b.Helpf("run thema lineage check --published to find which file changed since it was cut, restore it, and make the change in %s", TipFile)
 }

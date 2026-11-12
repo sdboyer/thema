@@ -1,5 +1,7 @@
-A file named as a major version whose change is backward compatible: the
-version is derived from the compatibility check, and the name must agree.
+A version under history/ numbered major whose schema is backward compatible
+with the one before it: cut numbers a version by the compatibility check, so
+it was not cut so, and the diagnostic is an immutability violation naming
+both files.
 -- ship/history/0.0.thema --
 Schema: {
 	a: string
@@ -15,10 +17,16 @@ Schema: {
 	b?: int
 }
 -- out/error --
-error[E0206]: history/1.0.thema is backward compatible with 0.0, so it is minor version 0.1, not a major version
+error[E0207]: immutability violation: history/1.0.thema is backward compatible with history/0.0.thema
  --> history/1.0.thema:1:1
   |
 1 | Schema: {
   | ^^^^^^
   |
-  = help: rename the file history/0.1.thema, or make a breaking change
+ ::: history/0.0.thema:1:1
+  |
+1 | Schema: {
+  | ------ the version before it
+  |
+  = note: a version that accepts all data the one before it accepts is a minor version, and 1.0 is a major version
+  = help: run thema lineage check --published to find which file changed since it was cut, restore it, and make the change in tip.thema
