@@ -1,6 +1,6 @@
-A version file named as a minor version that declares, beneath a struct, a
-field the prior version accepted through ...: the declaration the help offers
-is the field at the primary, by its own name, as it is written there.
+A version under history/ numbered minor that declares, beneath a struct, a
+field the one before it accepted through ...: the immutability violation
+keeps the finding at the field, and why declaring it there narrows it.
 -- ship/history/0.0.thema --
 Schema: {
 	meta: {
@@ -25,12 +25,20 @@ Schema: {
 	}
 }
 -- out/error --
-error[E0215]: meta.size in history/0.1.thema is now int, which does not accept every value of the prior _
- --> history/0.1.thema:4:3
+error[E0207]: immutability violation: history/0.1.thema is not backward compatible with history/0.0.thema
+ --> history/0.1.thema:1:1
   |
+1 | Schema: {
+  | ^^^^^^
+...
 4 |         size?: int
-  |         ^^^^
+  |         ---- meta.size is now int, which does not accept every value of the prior _
+  |
+ ::: history/0.0.thema:1:1
+  |
+1 | Schema: {
+  | ------ the version before it
   |
   = note: 0.1 is a minor version, so it must accept all data 0.0 accepts
   = note: history/0.0.thema does not declare meta.size by name, but accepts it through ... or a pattern, so an instance may already hold any value there
-  = help: declare it as size?: _ to accept what 0.0 accepted, or rename the file history/1.0.thema
+  = help: run thema lineage check --published to find which file changed since it was cut, restore it, and make the change in tip.thema

@@ -1,5 +1,6 @@
-A version file named as a minor version whose schema is not backward
-compatible with its predecessor's: one error for each field it narrows.
+A version under history/ numbered minor whose schema is not backward
+compatible with the one before it: an immutability violation naming both
+files, with each field it narrows where it is, in one diagnostic.
 -- ship/history/0.0.thema --
 Schema: {
 	size:  "s" | "m" | "l"
@@ -16,20 +17,20 @@ Schema: {
 	count: string
 }
 -- out/error --
-error[E0215]: count in history/0.1.thema was int and is now string
- --> history/0.1.thema:3:2
+error[E0207]: immutability violation: history/0.1.thema is not backward compatible with history/0.0.thema
+ --> history/0.1.thema:1:1
   |
-3 |     count: string
-  |     ^^^^^
-  |
-  = note: 0.1 is a minor version, so it must accept all data 0.0 accepts
-  = help: make the change compatible, or rename the file history/1.0.thema
-
-error[E0215]: size in history/0.1.thema is now "s" | "m", which has no alternative for the prior "l"
- --> history/0.1.thema:2:2
-  |
+1 | Schema: {
+  | ^^^^^^
 2 |     size:  "s" | "m"
-  |     ^^^^
+  |     ---- size is now "s" | "m", which has no alternative for the prior "l"
+3 |     count: string
+  |     ----- count was int and is now string
+  |
+ ::: history/0.0.thema:1:1
+  |
+1 | Schema: {
+  | ------ the version before it
   |
   = note: 0.1 is a minor version, so it must accept all data 0.0 accepts
-  = help: make the change compatible, or rename the file history/1.0.thema
+  = help: run thema lineage check --published to find which file changed since it was cut, restore it, and make the change in tip.thema
