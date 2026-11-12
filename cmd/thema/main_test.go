@@ -126,6 +126,11 @@ func TestCommandTree(t *testing.T) {
 			if cmd.Run != nil || cmd.RunE == nil {
 				t.Fatal("the command runs with Run, want RunE")
 			}
+			// Without an Args validator, cobra takes any arguments, and the
+			// command ignores those it does not read.
+			if cmd.Args == nil {
+				t.Fatal("the command has no Args validator, want one, such as cobra.NoArgs")
+			}
 			words := strings.Fields(cmd.CommandPath())[1:]
 			lines := map[string][]string{"an unknown flag": append(slices.Clone(words), "--bogus")}
 			if why, ok := needsNoInput[cmd.CommandPath()]; ok {

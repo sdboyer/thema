@@ -19,6 +19,7 @@ type fmtCommand struct {
 
 var fmtLineageCmd = &cobra.Command{
 	Use:   "fmt",
+	Args:  cobra.NoArgs,
 	Short: "Format a lineage's authoring files",
 	Long: `Format a lineage's authoring files, in place.
 

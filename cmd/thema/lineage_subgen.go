@@ -179,6 +179,7 @@ you require, it is recommended to write your own code generator using those pack
 
 var genOapiLineageCmd = &cobra.Command{
 	Use:   "openapi",
+	Args:  cobra.NoArgs,
 	Short: "Generate OpenAPI from a lineage",
 	Long: `Generate OpenAPI from a lineage.
 
@@ -217,6 +218,7 @@ func (gc *genCommand) runOpenAPI(cmd *cobra.Command, args []string) error {
 
 var genJschLineageCmd = &cobra.Command{
 	Use:   "jsonschema",
+	Args:  cobra.NoArgs,
 	Short: "Generate JSON Schema from a lineage",
 	Long: `Generate JSON Schema from a lineage.
 
@@ -252,6 +254,7 @@ func (gc *genCommand) runJSONSchema(cmd *cobra.Command, args []string) error {
 }
 
 var genGoBindingsLineageCmd = &cobra.Command{
+	Args:  cobra.NoArgs,
 	Short: "Generate Go bindings for a lineage",
 	Long: `Generate Go bindings for a lineage.
 
@@ -456,6 +459,7 @@ func (r rootfind) Modpath() string {
 
 var genGoTypesLineageCmd = &cobra.Command{
 	Use:   "gotypes -l <path> [-p <cue-path>] [-v <synver> [--pkgname <name>]] [-o <dir> [--check]]",
+	Args:  cobra.NoArgs,
 	Short: "Generate Go types from a lineage",
 	Long: `Generate Go types from a lineage.
 
