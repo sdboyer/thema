@@ -18,7 +18,7 @@ Checks that the data is an instance of one schema. The schema is closed for vali
 **Returns**
 
 - The version validated against.
-- In Go, an `*Instance` whose `Underlying` value is the data as given. Validation does not fill defaults into it. To have them, unify the data with the schema; for a typed instance, `TypedInstance.Value` starts from the schema's defaults (`TypedSchema.NewT`) and decodes the data over them.
+- In Go, an `*Instance` whose `Underlying` value is the data as given. Validation does not fill defaults into it. To have them, unify the data with the schema. For a typed instance, `TypedInstance.Value` returns the Go value with the schema's defaults filled.
 
 **Fails when**
 
