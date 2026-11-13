@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces",
-    "test": "npm test --workspaces",
+    "test": "npm test --workspaces && node --test scripts/*.test.mjs",
     "typecheck": "npm run typecheck --workspaces"
   }
 }

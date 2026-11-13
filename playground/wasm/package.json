@@ -1,0 +1,23 @@
+{
+  "name": "@sdboyer/thema-wasm",
+  "private": true,
+  "version": "0.0.0",
+  "description": "thema compiled to WebAssembly, with the scripts that run it in a browser worker.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sdboyer/thema.git",
+    "directory": "playground/wasm"
+  },
+  "exports": {
+    "./*": "./*"
+  },
+  "files": [
+    "thema.wasm",
+    "thema.wasm.gz",
+    "wasm_exec.js",
+    "thema-fs.js",
+    "thema-worker.js",
+    "MANIFEST.json"
+  ]
+}
