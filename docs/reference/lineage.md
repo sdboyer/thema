@@ -57,7 +57,7 @@ Every schema has a syntactic version, a pair of non-negative integers written `m
 
 **Minor and major.** Whether a version is minor or major is decided by [backwards compatibility](../invariants.md#backwards-compatibility), not by the author. thema checks each version against its predecessor:
 
-- A minor version (`x.y`, `y > 0`) must be shown backwards compatible with its predecessor. An unknown verdict counts as incompatible. Each incompatibility is reported under its rule (`E0210`–`E0218`, `E0230`–`E0234`).
+- A minor version (`x.y`, `y > 0`) must be proven backwards compatible with its predecessor. An unknown verdict counts as incompatible. Each incompatibility is reported under its rule (`E0210`–`E0218`, `E0230`–`E0234`).
 - A major version (`x.0`, `x > 0`) must not be backwards compatible with its predecessor (`E0208`). A step whose verdict is incompatible or unknown may be a major version.
 
 The error for a version numbered the wrong way says which version it should be.

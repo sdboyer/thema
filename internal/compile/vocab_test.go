@@ -55,7 +55,7 @@ lacunas: [{condition: true, sourceFields: [{path: "l", value: v0_0.l}], message:
 func TestRewriteKeepsDescribedConditions(t *testing.T) {
 	v := vocab{paths: map[thema.SyntacticVersion]string{thema.SV(0, 0): "history/0.0.thema", thema.SV(1, 0): "history/1.0.thema"}}
 	a := diag.Address{Kind: diag.AddrLensResultField, From: diag.Version(thema.SV(0, 0)), To: diag.Version(thema.SV(1, 0)), Field: []string{"b"}}
-	sentence := "is written only under v0_0.a != _|_; v0_0.a == _|_ && v0_0.c != _|_, which the checker cannot show cover every instance"
+	sentence := "is written only under v0_0.a != _|_; v0_0.a == _|_ && v0_0.c != _|_, which the checker cannot prove cover every instance"
 	if got := v.Rewrite(a, sentence); got != sentence {
 		t.Errorf("Rewrite cut what is wrong:\n got %s\nwant %s", got, sentence)
 	}

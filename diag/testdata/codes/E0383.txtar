@@ -1,6 +1,6 @@
 #op: bind
 The totality checker proves a fixed set of operations: arithmetic, len, and a
-handful of string functions. A computation outside that set cannot be shown
+handful of string functions. A computation outside that set cannot be proven
 to produce a value the target accepts.
 -- lineage.cue --
 import "strconv"

@@ -47,7 +47,7 @@ error[E0382]: o.q.a in the ForwardLens in history/1.0.thema is not total for som
 9 | ForwardLens: {
   | ^^^^^^^^^^^
   |
-  = note: o.q.a in the ForwardLens in history/1.0.thema is required by history/1.0.thema, and is written only under v0_0.o.q.a != _|_, which the checker cannot show cover every instance under v0_0.o != _|_
+  = note: o.q.a in the ForwardLens in history/1.0.thema is required by history/1.0.thema, and is written only under v0_0.o.q.a != _|_, which the checker cannot prove cover every instance under v0_0.o != _|_
   = note: a lens must be total: every instance of the schema in history/0.0.thema must translate to an instance of the schema in history/1.0.thema (totality rule unknown-exhaustive)
   = help: write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field
   = help: write the mapping in a form the checker can follow, or add a lacuna where it cannot decide
