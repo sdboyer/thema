@@ -277,8 +277,8 @@ func (ml *maybeLineage) totalityDiag(f lenscheck.Finding, from, to SyntacticVers
 	b := ml.diag(code).Addr(addr).At(f.Pos)
 	statement(b, ml.term(addr)+" "+diag.RewriteFor(ml.vocab(), addr, f.Detail), ml.term(addr)+" is not total for some instance")
 	b.Notef(token.NoPos, "a lens must be total: every instance of %s must translate to an instance of %s (totality rule %s)", ml.term(schemaAddr(from)), ml.term(schemaAddr(to)), f.Rule)
-	if f.Help != "" {
-		b.Help(diag.RewriteFor(ml.vocab(), addr, f.Help))
+	if h, ok := diag.RewriteHelpFor(ml.vocab(), addr, f.Help); f.Help != "" && ok {
+		b.Help(h)
 	}
 	if f.Verdict == lenscheck.Unknown {
 		b.Help("write the mapping in a form the checker can follow, or add a lacuna where it cannot decide")

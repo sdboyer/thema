@@ -21,13 +21,17 @@ Schema: {
     {
       "code": "E0346",
       "severity": "error",
-      "headline": "history/1.0.thema has no ForwardLens, and 1.0 requires b: write ForwardLens: {v0_0: _, v1_0: {b: <mapping>}}",
+      "headline": "history/1.0.thema has no ForwardLens, and 1.0 requires b",
       "primary": {
         "file": "history/1.0.thema",
-        "line": 1,
+        "line": 4,
         "col": 1,
+        "offset": 29,
         "origin": "user"
-      }
+      },
+      "help": [
+        "write ForwardLens: {v0_0: _, v1_0: {b: <mapping>}} in history/1.0.thema"
+      ]
     }
   ],
   "summary": {
@@ -37,9 +41,10 @@ Schema: {
   }
 }
 -- out/text --
-error[E0346]: history/1.0.thema has no ForwardLens, and 1.0 requires b: write ForwardLens: {v0_0: _, v1_0: {b: <mapping>}}
- --> history/1.0.thema:1:1
+error[E0346]: history/1.0.thema has no ForwardLens, and 1.0 requires b
+ --> history/1.0.thema:4:1
   |
-1 | Schema: {
-  | ^^^^^^
+4 | }
+  | ^
   |
+  = help: write ForwardLens: {v0_0: _, v1_0: {b: <mapping>}} in history/1.0.thema

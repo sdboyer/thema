@@ -9,4 +9,5 @@ v0_0: _
 v1_0: {m: v0_0.n * 2}
 -- out --
 unknown
-v1_0.m is an integer computed by v0_0.n * 2, and the target schema constrains it beyond bounds (int & math.MultipleOf(2)); express the constraint with >=, <= or a sized type such as int32 (rule unknown-target-constraint) @ lens.cue:2:11
+v1_0.m is an integer computed by v0_0.n * 2, and the target schema constrains it beyond bounds (int & math.MultipleOf(2)) (rule unknown-target-constraint) @ lens.cue:2:11
+  help: express the constraint with >=, <= or a sized type such as int32

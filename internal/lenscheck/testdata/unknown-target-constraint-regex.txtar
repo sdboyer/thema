@@ -8,4 +8,5 @@ v0_0: _
 v1_0: {id: "x\(v0_0.a)"}
 -- out --
 unknown
-v1_0.id is a string built by "x\(v0_0.a)", and the target schema accepts only some strings (=~"^[a-z]+$"); the checker does not reason about string contents: make the target accept any string, or copy a field the target already constrains (rule unknown-target-constraint) @ lens.cue:2:12
+v1_0.id is a string built by "x\(v0_0.a)", and the target schema accepts only some strings (=~"^[a-z]+$"), which the checker does not reason about (rule unknown-target-constraint) @ lens.cue:2:12
+  help: make the target accept any string, or copy a field the target already constrains

@@ -9,4 +9,5 @@ v0_0: _
 v1_0: {n: v0_0.a + v0_0.b}
 -- out --
 not total
-v1_0.n computes v0_0.a + v0_0.b, whose result may be [-18446744073709551616, 18446744073709551614], outside int64; bound the fields it reads so that the result fits (rule arith-overflow) @ lens.cue:2:11
+v1_0.n computes v0_0.a + v0_0.b, whose result may be [-18446744073709551616, 18446744073709551614], outside int64 (rule arith-overflow) @ lens.cue:2:11
+  help: bound the fields it reads so that the result fits

@@ -30,9 +30,10 @@ Schema: {
 	count: int
 }
 -- out/error --
-error[E0422]: v0_0.name is string, not a condition: compare it; an optional field named bare tests its presence
+error[E0422]: v0_0.name is string, not a condition
   --> history/1.0.thema:15:13
    |
 15 |             when:    v0_0.name
    |                      ^^^^
    |
+   = help: compare v0_0.name to a value, or name an optional field bare to test whether it is present

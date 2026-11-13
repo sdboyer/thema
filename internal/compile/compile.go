@@ -208,7 +208,7 @@ func compileVersions(ctx *cue.Context, name string, vs []*version) (*Compiled, e
 			tipV = &v.v
 		}
 		// Forward: previous version to this one. Only a major version has one.
-		fe := &edge{ctx: ctx, S: vals[i-1], T: vals[i], sv: prev.v, tv: v.v, tip: tipV, dir: forward, identity: minor, file: v.path, blockPos: v.header(), root: prev.param(), lacunas: &lacunaTable{}, imports: imports}
+		fe := &edge{ctx: ctx, S: vals[i-1], T: vals[i], sv: prev.v, tv: v.v, tip: tipV, dir: forward, identity: minor, file: v.path, blockPos: v.end(), root: prev.param(), lacunas: &lacunaTable{}, imports: imports}
 		fb := &body{}
 		if v.forward != nil {
 			fe.written, fe.blockPos = true, v.forward.Pos()
@@ -249,7 +249,7 @@ func compileVersions(ctx *cue.Context, name string, vs []*version) (*Compiled, e
 
 		// Backward: this version to the previous one, derived from the forward
 		// lens and overridden by what the author wrote.
-		be := &edge{ctx: ctx, S: vals[i], T: vals[i-1], sv: v.v, tv: prev.v, tip: tipV, dir: backward, file: v.path, blockPos: v.header(), root: v.param(), lacunas: &lacunaTable{}, imports: imports}
+		be := &edge{ctx: ctx, S: vals[i], T: vals[i-1], sv: v.v, tv: prev.v, tip: tipV, dir: backward, file: v.path, blockPos: v.end(), root: v.param(), lacunas: &lacunaTable{}, imports: imports}
 		ab := &body{}
 		if v.backward != nil {
 			be.written, be.blockPos = true, v.backward.Pos()
@@ -347,7 +347,7 @@ func lensBlock(f *ast.Field, from, to *version) (body, lacunas *ast.StructLit, e
 			switch label {
 			case fromName:
 				if id, ok := d.Value.(*ast.Ident); !ok || id.Name != "_" {
-					return nil, nil, fail(d.Value.Pos(), "%s takes an instance of %s: declare it as %s: _", name, from.name(), fromName)
+					return nil, nil, fail(d.Value.Pos(), "%s takes an instance of %s, so %s is _", name, from.name(), fromName)
 				}
 				param = d
 			case toName:
@@ -496,13 +496,19 @@ func (v *version) tipLens(f *ast.Field) *ast.Field {
 // prev and the tip v, which the tip does not write and derivation cannot
 // produce. Each of derivation's errors is a note.
 func missingLens(v, prev *version, block string, errs cerrors.Error) error {
-	b := diag.New(diag.E1001).At(v.header())
+	b := diag.New(diag.E1001).At(v.end())
 	from, to := prev.v, v.v
 	if block == fieldBackward {
 		from, to = to, from
 	}
 	b.Headlinef("%s has no %s, and one cannot be derived", v.path, block)
-	b.Notef(token.NoPos, "translating from %s to %s needs it; until %s writes it, that translation fails (E1002)", nameOf(from, v), nameOf(to, v), v.path)
+	// The derivation's findings say why: each keeps its code, which names its
+	// page, its notes, after its own, and its help, which says what to write
+	// in the block. The help that writes the block comes first, and the help
+	// about what goes in it after: the fields the block must produce (E0346)
+	// write the block out whole, with those fields in it, in place of the
+	// block's bare shape.
+	var shape, helps []string
 	for _, e := range cerrors.Errors(errs) {
 		if de, ok := e.(*diag.Error); ok {
 			d := de.Diagnostic()
@@ -510,16 +516,40 @@ func missingLens(v, prev *version, block string, errs cerrors.Error) error {
 			if pp := e.Position(); pp.IsValid() {
 				p = pp
 			}
-			b.Note(p, d.Headline)
+			b.Notef(p, "%s (%s)", d.Headline, d.Code)
+			// InputPositions holds the position of each positioned note, in
+			// order. A note with none of its own is about the finding and
+			// takes the finding's: every renderer groups notes by position,
+			// and without one it would be listed after every finding's note,
+			// under the last of them.
+			ps := de.InputPositions()
+			for _, n := range d.Notes {
+				np := p
+				if n.Pos != nil && len(ps) > 0 {
+					np, ps = ps[0], ps[1:]
+				}
+				b.Note(np, n.Label)
+			}
+			if d.Code == diag.E0346 {
+				shape = append(shape, d.Help...)
+			} else {
+				helps = append(helps, d.Help...)
+			}
 			continue
 		}
 		msg, args := e.Msg()
 		b.Note(e.Position(), fmt.Sprintf(msg, args...))
 	}
-	if block == fieldForward {
-		b.Helpf("write %s: {%s: _, %s: {...}} in %s", block, prev.param(), TipParam, v.path)
-	} else {
-		b.Helpf("write %s: {%s: _, %s: {...}} in %s", block, TipParam, prev.param(), v.path)
+	b.Notef(token.NoPos, "translating from %s to %s needs it; until %s writes it, that translation fails (E1002)", nameOf(from, v), nameOf(to, v), v.path)
+	switch {
+	case len(shape) > 0:
+	case block == fieldForward:
+		shape = []string{fmt.Sprintf("write %s: {%s: _, %s: {...}} in %s", block, prev.param(), TipParam, v.path)}
+	default:
+		shape = []string{fmt.Sprintf("write %s: {%s: _, %s: {...}} in %s", block, TipParam, prev.param(), v.path)}
+	}
+	for _, h := range append(shape, helps...) {
+		b.Help(h)
 	}
 	return b.Err()
 }

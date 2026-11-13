@@ -9,4 +9,5 @@ v0_0: _
 v1_0: {o: {x: v0_0.n}}
 -- out --
 unknown
-v1_0.o is a struct that fits several alternatives of v1_0.o in the target schema ({x: int}, {x: string}), and the checker proves it against one; write a constant field that tells them apart (rule unknown-target-constraint) @ lens.cue:2:8
+v1_0.o is a struct that fits several alternatives of v1_0.o in the target schema ({x: int}, {x: string}), and the checker proves it against one (rule unknown-target-constraint) @ lens.cue:2:8
+  help: write a constant field that tells them apart

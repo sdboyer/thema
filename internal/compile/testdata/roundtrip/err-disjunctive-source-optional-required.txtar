@@ -11,9 +11,10 @@ ForwardLens: {
 	v1_0: {count: v0_0.n}
 }
 -- out/error --
-error[E0343]: n is optional in 0.0 and 1.0 requires count: write _coalesce(v0_0.n, <fallback>) to say what to use when it is absent
+error[E0343]: n is optional in 0.0 and 1.0 requires count
  --> history/1.0.thema:5:9
   |
 5 |     v1_0: {count: v0_0.n}
   |            ^^^^^
   |
+  = help: write _coalesce(v0_0.n, <fallback>) to say what to use when it is absent

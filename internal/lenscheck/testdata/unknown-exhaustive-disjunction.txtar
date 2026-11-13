@@ -13,4 +13,5 @@ v1_0: {
 }
 -- out --
 unknown
-v1_0.o is a disjunction in the target schema, and is given an alternative only under v0_0.p == true, which the checker cannot show cover every instance; write an alternative unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field (rule unknown-exhaustive) @ lens.cue:3:2
+v1_0.o is a disjunction in the target schema, and is given an alternative only under v0_0.p == true, which the checker cannot show cover every instance (rule unknown-exhaustive) @ lens.cue:3:2
+  help: write an alternative unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field

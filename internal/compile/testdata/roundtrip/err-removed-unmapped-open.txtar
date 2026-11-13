@@ -27,9 +27,10 @@ Schema: {
 	...
 }
 -- out/error --
-error[E0347]: 0.0 declares before and 1.0 does not, and nothing maps it: write <field>: v0_0.before to move it, or before: _drop
+error[E0347]: 0.0 declares before and 1.0 does not, and nothing maps it
  --> history/1.0.thema:7:1
   |
 7 | ForwardLens: {
   | ^^^^^^^^^^^
   |
+  = help: write <field>: v0_0.before to move it, or before: _drop

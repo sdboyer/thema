@@ -8,4 +8,5 @@ v0_0: _
 v1_0: {u: [for item in v0_0.u {item.id}]}
 -- out --
 not total
-v1_0.u[_] copies v0_0.u[_].id, which may be absent: v0_0.u[_].id is optional in the source schema; write the field under if v0_0.u[_].id != _|_ (rule source-absent) @ lens.cue:2:8
+v1_0.u[_] copies v0_0.u[_].id, which may be absent: v0_0.u[_].id is optional in the source schema (rule source-absent) @ lens.cue:2:8
+  help: write the field under if v0_0.u[_].id != _|_

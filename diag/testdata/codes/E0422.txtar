@@ -56,26 +56,32 @@ Schema: {
     {
       "code": "E0422",
       "severity": "error",
-      "headline": "v0_0.name is string, not a condition: compare it; an optional field named bare tests its presence",
+      "headline": "v0_0.name is string, not a condition",
       "primary": {
         "file": "history/1.0.thema",
         "line": 15,
         "col": 13,
         "offset": 198,
         "origin": "user"
-      }
+      },
+      "help": [
+        "compare v0_0.name to a value, or name an optional field bare to test whether it is present"
+      ]
     },
     {
       "code": "E0347",
       "severity": "error",
-      "headline": "0.0 declares count and 1.0 does not, and nothing maps it: write <field>: v0_0.count to move it, or count: _drop",
+      "headline": "0.0 declares count and 1.0 does not, and nothing maps it",
       "primary": {
         "file": "history/1.0.thema",
         "line": 5,
         "col": 1,
         "offset": 27,
         "origin": "user"
-      }
+      },
+      "help": [
+        "write <field>: v0_0.count to move it, or count: _drop"
+      ]
     }
   ],
   "summary": {
@@ -92,16 +98,18 @@ error[E0418]: _drop is not defined in a lens; an expression refers to v0_0, to l
   |                ^^^^^
   |
 
-error[E0422]: v0_0.name is string, not a condition: compare it; an optional field named bare tests its presence
+error[E0422]: v0_0.name is string, not a condition
   --> history/1.0.thema:15:13
    |
 15 |             when:    v0_0.name
    |                      ^^^^
    |
+   = help: compare v0_0.name to a value, or name an optional field bare to test whether it is present
 
-error[E0347]: 0.0 declares count and 1.0 does not, and nothing maps it: write <field>: v0_0.count to move it, or count: _drop
+error[E0347]: 0.0 declares count and 1.0 does not, and nothing maps it
  --> history/1.0.thema:5:1
   |
 5 | ForwardLens: {
   | ^^^^^^^^^^^
   |
+  = help: write <field>: v0_0.count to move it, or count: _drop
