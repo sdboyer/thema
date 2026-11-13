@@ -23,7 +23,7 @@ Schema: {
 	unchanged: string
 }
 -- out/error --
-error[E0347]: 0.0 declares before and 1.0 does not, and nothing maps it
+error[E0347]: v0.0 declares before and v1.0 does not, and nothing maps it
  --> history/1.0.thema:6:1
   |
 6 | ForwardLens: {

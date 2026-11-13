@@ -98,7 +98,7 @@ lenses: {
 				path:  "meta.team"
 				value: v1_0.meta.team
 			}]
-			message: "meta.team has no equivalent in 0.0 and was dropped"
+			message: "meta.team has no equivalent in v0.0 and was dropped"
 			type:    "DroppedField"
 		}]
 	}

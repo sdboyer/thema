@@ -83,7 +83,7 @@ func TestDataRedirectedStdin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("validate-any with redirected stdin failed: %v\n%s", err, out)
 	}
-	if strings.TrimSpace(out) != "0.0" {
+	if strings.TrimSpace(out) != "v0.0" {
 		t.Fatalf("expected data to validate against 0.0, got output:\n%s", out)
 	}
 }
@@ -105,7 +105,7 @@ func TestDataPipedStdin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("validate-any with piped stdin failed: %v\n%s", err, out)
 	}
-	if strings.TrimSpace(out) != "0.0" {
+	if strings.TrimSpace(out) != "v0.0" {
 		t.Fatalf("expected data to validate against 0.0, got output:\n%s", out)
 	}
 }

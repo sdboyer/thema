@@ -64,7 +64,7 @@ func TestAuthoringPatternKeys(t *testing.T) {
 				last:  "Schema: {\n\tlabels: [string]: string\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {\n\t\tlabels: {\n\t\t\tenv: v0_0.env\n\t\t}\n\t}\n}\n",
 			},
 			err:  diag.E0341,
-			help: "declare labels.env in 1.0, or copy the struct that holds it whole",
+			help: "declare labels.env in v1.0, or copy the struct that holds it whole",
 		},
 		// The remedy: 0.1 declares labels.env, so a value instances carry
 		// there is promoted into it, and the lens from 0.1 moves it to env.

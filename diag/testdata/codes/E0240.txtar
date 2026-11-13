@@ -19,9 +19,9 @@ schemas: {
     {
       "code": "E0240",
       "severity": "error",
-      "headline": "lineage ship has no schema 9.9",
+      "headline": "lineage ship has no schema v9.9",
       "help": [
-        "its versions are 0.0"
+        "its versions are v0.0"
       ]
     }
   ],
@@ -32,6 +32,6 @@ schemas: {
   }
 }
 -- out/text --
-error[E0240]: lineage ship has no schema 9.9
+error[E0240]: lineage ship has no schema v9.9
   |
-  = help: its versions are 0.0
+  = help: its versions are v0.0

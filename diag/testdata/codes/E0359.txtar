@@ -27,7 +27,7 @@ Schema: {
     {
       "code": "E0359",
       "severity": "error",
-      "headline": "the ForwardLens in history/1.0.thema moves v0_0.count into total, which does not accept every value of it",
+      "headline": "the ForwardLens of v1.0 moves v0_0.count into total, which does not accept every value of it",
       "primary": {
         "file": "history/1.0.thema",
         "line": 8,
@@ -37,7 +37,7 @@ Schema: {
       },
       "notes": [
         {
-          "label": "total in 1.0 is now uint, which does not accept every value of the prior int"
+          "label": "total in v1.0 is now uint, which does not accept every value of the prior int"
         }
       ],
       "help": [
@@ -52,11 +52,11 @@ Schema: {
   }
 }
 -- out/text --
-error[E0359]: the ForwardLens in history/1.0.thema moves v0_0.count into total, which does not accept every value of it
+error[E0359]: the ForwardLens of v1.0 moves v0_0.count into total, which does not accept every value of it
  --> history/1.0.thema:8:10
   |
 8 |         total: v0_0.count
   |                ^^^^
   |
-  = note: total in 1.0 is now uint, which does not accept every value of the prior int
+  = note: total in v1.0 is now uint, which does not accept every value of the prior int
   = help: map total from a value it accepts: a _match, or a computed value

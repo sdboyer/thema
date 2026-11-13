@@ -67,8 +67,8 @@ func bindInitDir(t *testing.T, dir, name string) *tload.Development {
 	if err != nil {
 		t.Fatalf("the written lineage does not bind on the development path: %s", err)
 	}
-	if got := d.Tip.String(); got != "tip (cuts as 0.0)" {
-		t.Errorf("the written tip is %s, want tip (cuts as 0.0)", got)
+	if got := d.Tip.String(); got != "tip (cuts as v0.0)" {
+		t.Errorf("the written tip is %s, want tip (cuts as v0.0)", got)
 	}
 	if got := d.Lineage.Name(); got != name {
 		t.Errorf("the written lineage is named %s, want %s", got, name)

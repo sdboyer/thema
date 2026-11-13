@@ -47,7 +47,7 @@ ForwardLens: {
     {
       "code": "E0150",
       "severity": "error",
-      "headline": "ForwardLens in tip.thema names v1_0, but the tip's parent is 1.1",
+      "headline": "the ForwardLens of tip names v1_0, but the tip's parent is v1.1",
       "primary": {
         "file": "tip.thema",
         "line": 8,
@@ -57,11 +57,11 @@ ForwardLens: {
       },
       "notes": [
         {
-          "label": "the lens was written against an older parent, 1.0; the newest version under history/ is now 1.1, history/1.1.thema"
+          "label": "the lens was written against an older parent, v1.0; the newest version under history/ is now v1.1"
         }
       ],
       "help": [
-        "declare v1_1: _ in place of v1_0, and review the mappings against 1.1's schema"
+        "declare v1_1: _ in place of v1_0, and review the mappings against v1.1's schema"
       ]
     }
   ],
@@ -72,11 +72,11 @@ ForwardLens: {
   }
 }
 -- out/text --
-error[E0150]: ForwardLens in tip.thema names v1_0, but the tip's parent is 1.1
+error[E0150]: the ForwardLens of tip names v1_0, but the tip's parent is v1.1
  --> tip.thema:8:2
   |
 8 |     v1_0: _
   |     ^^^^
   |
-  = note: the lens was written against an older parent, 1.0; the newest version under history/ is now 1.1, history/1.1.thema
-  = help: declare v1_1: _ in place of v1_0, and review the mappings against 1.1's schema
+  = note: the lens was written against an older parent, v1.0; the newest version under history/ is now v1.1
+  = help: declare v1_1: _ in place of v1_0, and review the mappings against v1.1's schema

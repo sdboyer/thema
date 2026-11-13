@@ -866,7 +866,7 @@ func (w *walker) residuals(p cue.Path, pred, succ cue.Value, os, ns structShape)
 		}
 		w.add(Finding{
 			Path: anyp, Verdict: Unknown, Rule: RuleUnknownPatterns,
-			Detail: fmt.Sprintf("has the pattern %s in the new schema, which the checker cannot show covers the prior pattern %s", patternsString(ns.patterns), patternsString(os.patterns)),
+			Detail: fmt.Sprintf("has the pattern %s in the new schema, which the checker cannot prove covers the prior pattern %s", patternsString(ns.patterns), patternsString(os.patterns)),
 			Pos:    posOf(succ, pred),
 		})
 		return

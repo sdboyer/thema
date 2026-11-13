@@ -37,38 +37,38 @@ lin: lenses: {
     }
 }
 -- out/bindfail --
-error[E0215]: concreteCross in schema 0.1 is now "foo" | 42, which has no alternative for the prior "bar"
+error[E0215]: concreteCross in schema v0.1 is now "foo" | 42, which has no alternative for the prior "bar"
   --> /in.cue:17:13
    |
 17 |             concreteCross: "foo" | 42
    |             ^^^^^^^^^^^^^
    |
-   = note: schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts
-   = help: make the change compatible, or make this version 1.0
+   = note: schema v0.1 is a minor version, so it must accept all data schema v0.0 accepts
+   = help: make the change compatible, or make this version v1.0
 
-error[E0215]: concreteString in schema 0.1 is now "foo" | "bar", which has no alternative for the prior "baz"
+error[E0215]: concreteString in schema v0.1 is now "foo" | "bar", which has no alternative for the prior "baz"
   --> /in.cue:18:13
    |
 18 |             concreteString: "foo" | "bar"
    |             ^^^^^^^^^^^^^^
    |
-   = note: schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts
-   = help: make the change compatible, or make this version 1.0
+   = note: schema v0.1 is a minor version, so it must accept all data schema v0.0 accepts
+   = help: make the change compatible, or make this version v1.0
 
-error[E0215]: crossKind2 in schema 0.1 was int and is now string
+error[E0215]: crossKind2 in schema v0.1 was int and is now string
   --> /in.cue:20:13
    |
 20 |             crossKind2: string
    |             ^^^^^^^^^^
    |
-   = note: schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts
-   = help: make the change compatible, or make this version 1.0
+   = note: schema v0.1 is a minor version, so it must accept all data schema v0.0 accepts
+   = help: make the change compatible, or make this version v1.0
 
-error[E0215]: crossKind3 in schema 0.1 is now string | int32, no alternative of which has the kind bytes of the prior alternative bytes
+error[E0215]: crossKind3 in schema v0.1 is now string | int32, no alternative of which has the kind bytes of the prior alternative bytes
   --> /in.cue:19:13
    |
 19 |             crossKind3: string | int32
    |             ^^^^^^^^^^
    |
-   = note: schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts
-   = help: make the change compatible, or make this version 1.0
+   = note: schema v0.1 is a minor version, so it must accept all data schema v0.0 accepts
+   = help: make the change compatible, or make this version v1.0

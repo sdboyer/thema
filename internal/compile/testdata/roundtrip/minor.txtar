@@ -60,7 +60,7 @@ lenses:
 				path:  "secondfield"
 				value: v0_1.secondfield
 			}]
-			message: "secondfield has no equivalent in 0.0 and was dropped"
+			message: "secondfield has no equivalent in v0.0 and was dropped"
 			type:    "DroppedField"
 		}]
 	}

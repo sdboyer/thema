@@ -126,7 +126,7 @@ lenses: {
 				path:  "env"
 				value: v1_0.env
 			}]
-			message: "env has no equivalent in 0.1 and was dropped"
+			message: "env has no equivalent in v0.1 and was dropped"
 			type:    "DroppedField"
 		}]
 	}

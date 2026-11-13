@@ -123,11 +123,11 @@ lenses: {
 			@thema(derived)
 			condition:    len(_d_0) > 0
 			sourceFields: _d_0
-			message:      "items[].hint has no equivalent in 0.0 and was dropped"
+			message:      "items[].hint has no equivalent in v0.0 and was dropped"
 			type:         "DroppedField"
 		}]
 	}
 }
 -- out/translate/1.0/hinted->0.0 --
 {"items":[{"title":"a"},{"title":"b"}]}
-[{"sourceFields":[{"path":"items[0].hint","value":"h"}],"type":"DroppedField","message":"items[].hint has no equivalent in 0.0 and was dropped"}]
+[{"sourceFields":[{"path":"items[0].hint","value":"h"}],"type":"DroppedField","message":"items[].hint has no equivalent in v0.0 and was dropped"}]

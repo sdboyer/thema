@@ -482,9 +482,9 @@ func carry(ctx *cue.Context, result cue.Value, lens *stepLens, from cue.Value, t
 // declares.
 func lossyMessage(src, dest cue.Path, toV SyntacticVersion) string {
 	if src.String() == dest.String() {
-		return fmt.Sprintf("%s not carried: its value is not an instance of what %s declares for it", src, toV)
+		return fmt.Sprintf("%s not carried: its value is not an instance of what %s declares for it", src, toV.name())
 	}
-	return fmt.Sprintf("%s not carried: its value is not an instance of what %s declares for %s", src, toV, dest)
+	return fmt.Sprintf("%s not carried: its value is not an instance of what %s declares for %s", src, toV.name(), dest)
 }
 
 // asideMessage says why the fields refs, under parent, were set aside on the
@@ -508,15 +508,15 @@ func asideMessage(refs []lacuna.FieldRef, parent cue.Path, cause asideCause, fro
 	}
 	switch cause {
 	case asideClosed:
-		return fmt.Sprintf("%s set aside: %s does not declare %s in %s, which it does not leave open", subject, toV, pick("it", "them"), where)
+		return fmt.Sprintf("%s set aside: %s does not declare %s in %s, which it does not leave open", subject, toV.name(), pick("it", "them"), where)
 	case asideWritten:
-		return fmt.Sprintf("%s set aside: the lens from %s to %s writes %s for %s", subject, fromV, toV, pick("its own value", "its own values"), pick("it", "them"))
+		return fmt.Sprintf("%s set aside: the lens from %s to %s writes %s for %s", subject, fromV.name(), toV.name(), pick("its own value", "its own values"), pick("it", "them"))
 	case asideUnwritten:
-		return fmt.Sprintf("%s set aside: the lens from %s to %s neither maps nor writes %s", subject, fromV, toV, pick("it", "them"))
+		return fmt.Sprintf("%s set aside: the lens from %s to %s neither maps nor writes %s", subject, fromV.name(), toV.name(), pick("it", "them"))
 	case asideRejected:
-		return fmt.Sprintf("%s set aside: the pattern constraint of %s in %s does not accept %s", subject, toV, where, pick("its value", "their values"))
+		return fmt.Sprintf("%s set aside: the pattern constraint of %s in %s does not accept %s", subject, toV.name(), where, pick("its value", "their values"))
 	}
-	return fmt.Sprintf("%s set aside: translating from %s to %s produces no %s to carry %s in", subject, fromV, toV, where, pick("it", "them"))
+	return fmt.Sprintf("%s set aside: translating from %s to %s produces no %s to carry %s in", subject, fromV.name(), toV.name(), where, pick("it", "them"))
 }
 
 // sameContainer reports whether a and b are both structs, or both lists.

@@ -22,7 +22,7 @@ Schema: {
     {
       "code": "E0205",
       "severity": "error",
-      "headline": "history/0.2.thema skips a version: after 0.0 comes 0.1",
+      "headline": "history/0.2.thema skips a version: after v0.0 comes v0.1",
       "primary": {
         "file": "history/0.2.thema",
         "line": 1,
@@ -41,7 +41,7 @@ Schema: {
   }
 }
 -- out/text --
-error[E0205]: history/0.2.thema skips a version: after 0.0 comes 0.1
+error[E0205]: history/0.2.thema skips a version: after v0.0 comes v0.1
  --> history/0.2.thema:1:1
   |
 1 | Schema: {

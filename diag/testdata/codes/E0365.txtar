@@ -41,7 +41,7 @@ lenses: {
     {
       "code": "E0365",
       "severity": "error",
-      "headline": "n in the result of lens 0.0->1.0 is int, a constraint rather than a value; a result field must have a concrete value",
+      "headline": "n in the result of lens v0.0->v1.0 is int, a constraint rather than a value; a result field must have a concrete value",
       "path": [
         "lenses",
         "0.0->1.0",
@@ -71,7 +71,7 @@ lenses: {
       },
       "notes": [
         {
-          "label": "a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule not-a-value)"
+          "label": "a lens must be total: every instance of schema v0.0 must translate to an instance of schema v1.0 (totality rule not-a-value)"
         }
       ]
     }
@@ -83,10 +83,10 @@ lenses: {
   }
 }
 -- out/text --
-error[E0365]: n in the result of lens 0.0->1.0 is int, a constraint rather than a value; a result field must have a concrete value
+error[E0365]: n in the result of lens v0.0->v1.0 is int, a constraint rather than a value; a result field must have a concrete value
   --> lineage.cue:24:4
    |
 24 |             n: int
    |             ^
    |
-   = note: a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule not-a-value)
+   = note: a lens must be total: every instance of schema v0.0 must translate to an instance of schema v1.0 (totality rule not-a-value)

@@ -14,7 +14,7 @@ import (
 func allvstr(sch thema.Schema) string {
 	var vl []string
 	for isch := thema.SchemaP(sch.Lineage(), thema.SV(0, 0)); isch != nil; isch = isch.Successor() {
-		vl = append(vl, isch.Version().String())
+		vl = append(vl, vname(isch.Version()))
 	}
 	return strings.Join(vl, ", ")
 }
@@ -98,4 +98,10 @@ func (e yamlCodec) Decode(ctx *cue.Context, data []byte) (cue.Value, error) {
 func (e yamlCodec) Encode(v cue.Value) ([]byte, error) {
 	s, err := pyaml.Marshal(v)
 	return []byte(s), err
+}
+
+// vname is version v as messages name it: v0.1. v.String() is the version
+// as data writes it.
+func vname(v thema.SyntacticVersion) string {
+	return "v" + v.String()
 }

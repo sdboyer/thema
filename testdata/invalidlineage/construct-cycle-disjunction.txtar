@@ -12,7 +12,7 @@ thema.Lineage & {
 	}
 }
 -- out/bindfail --
-error[E0133]: schema 0.0 has a reference cycle: #Value -> #Value
+error[E0133]: schema v0.0 has a reference cycle: #Value -> #Value
  --> /in.cue:7:25
   |
 7 |             #Value: string | [...#Value] | {[string]: #Value}

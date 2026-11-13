@@ -29,7 +29,7 @@ Schema: {
     {
       "code": "E0347",
       "severity": "error",
-      "headline": "0.0 declares before and 1.0 does not, and nothing maps it",
+      "headline": "v0.0 declares before and v1.0 does not, and nothing maps it",
       "primary": {
         "file": "history/1.0.thema",
         "line": 6,
@@ -49,7 +49,7 @@ Schema: {
   }
 }
 -- out/text --
-error[E0347]: 0.0 declares before and 1.0 does not, and nothing maps it
+error[E0347]: v0.0 declares before and v1.0 does not, and nothing maps it
  --> history/1.0.thema:6:1
   |
 6 | ForwardLens: {

@@ -43,7 +43,7 @@ Schema: {
     {
       "code": "E0347",
       "severity": "error",
-      "headline": "0.0 declares x and 1.0 does not, and nothing maps it",
+      "headline": "v0.0 declares x and v1.0 does not, and nothing maps it",
       "primary": {
         "file": "history/1.0.thema",
         "line": 5,
@@ -70,7 +70,7 @@ error[E0338]: a _match arm's value must be a constant
   |                  ^^^^
   |
 
-error[E0347]: 0.0 declares x and 1.0 does not, and nothing maps it
+error[E0347]: v0.0 declares x and v1.0 does not, and nothing maps it
  --> history/1.0.thema:5:1
   |
 5 | ForwardLens: {

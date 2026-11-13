@@ -48,7 +48,7 @@ lenses: {
     {
       "code": "E0356",
       "severity": "error",
-      "headline": "lens 0.0->1.0 is outside the authoring form: a lacuna over several fields",
+      "headline": "lens v0.0->v1.0 is outside the authoring form: a lacuna over several fields",
       "primary": {
         "file": "lineage.cue",
         "line": 1,
@@ -67,7 +67,7 @@ lenses: {
   }
 }
 -- out/text --
-error[E0356]: lens 0.0->1.0 is outside the authoring form: a lacuna over several fields
+error[E0356]: lens v0.0->v1.0 is outside the authoring form: a lacuna over several fields
  --> lineage.cue:1:1
   |
 1 | name: "ship"

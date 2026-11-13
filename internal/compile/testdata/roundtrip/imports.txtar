@@ -144,7 +144,7 @@ lenses: {
 					path:  "label"
 					value: v1_0.label
 				}]
-				message: "label has no equivalent in 0.0 and was dropped"
+				message: "label has no equivalent in v0.0 and was dropped"
 				type:    "DroppedField"
 			},
 			{
@@ -153,7 +153,7 @@ lenses: {
 					path:  "created"
 					value: v1_0.created
 				}]
-				message: "created has no equivalent in 0.0 and was dropped"
+				message: "created has no equivalent in v0.0 and was dropped"
 				type:    "DroppedField"
 			}
 		]

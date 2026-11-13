@@ -80,7 +80,7 @@ func CutTip(rt *thema.Runtime, name string, files []File, opts ...Option) (*Cut,
 	// tip after is clean. Anything else is a fault in the cut.
 	cut, err := bindHistory(rt, name, after, opts)
 	if err != nil {
-		return nil, diag.InternalErr(fmt.Errorf("the history after cutting the tip as %s does not bind: %w", c.Tip.Version, err))
+		return nil, diag.InternalErr(fmt.Errorf("the history after cutting the tip as %s does not bind: %w", vname(c.Tip.Version), err))
 	}
 	if c.Tip.Base != nil {
 		before, err := bindHistory(rt, name, files, opts)
@@ -88,11 +88,11 @@ func CutTip(rt *thema.Runtime, name string, files []File, opts ...Option) (*Cut,
 			return nil, err
 		}
 		if err := thema.CheckAppendOnly(before, cut); err != nil {
-			return nil, diag.InternalErr(fmt.Errorf("the history after cutting the tip as %s does not append to the history before: %w", c.Tip.Version, err))
+			return nil, diag.InternalErr(fmt.Errorf("the history after cutting the tip as %s does not append to the history before: %w", vname(c.Tip.Version), err))
 		}
 	}
 	if err := CheckClean(ctx, after, opts...); err != nil {
-		return nil, diag.InternalErr(fmt.Errorf("the tip after cutting it as %s is not clean: %w", c.Tip.Version, err))
+		return nil, diag.InternalErr(fmt.Errorf("the tip after cutting it as %s is not clean: %w", vname(c.Tip.Version), err))
 	}
 	return &Cut{Version: c.Tip.Version, Written: []File{frozen, tip}, Files: after}, nil
 }
@@ -109,7 +109,7 @@ func bindHistory(rt *thema.Runtime, name string, files []File, opts []Option) (t
 // pendingLenses is the E1004 error for a tip whose edge still lacks the
 // lenses c.Pending reports, at the tip and with a note for each.
 func pendingLenses(c *compile.Compiled) error {
-	b := diag.New(diag.E1004).Headlinef("the tip cannot be cut as %s while a lens on its edge is missing", c.Tip.Version)
+	b := diag.New(diag.E1004).Headlinef("the tip cannot be cut as %s while a lens on its edge is missing", vname(c.Tip.Version))
 	for i, e := range cerrors.Errors(c.Pending) {
 		label := e.Error()
 		if de, ok := e.(*diag.Error); ok {
@@ -123,4 +123,10 @@ func pendingLenses(c *compile.Compiled) error {
 	return b.Note(token.NoPos, "a version that has been cut never changes, so the lenses into it are written before it is").
 		Helpf("write the missing lenses in %s, then cut it", TipFile).
 		Err()
+}
+
+// vname is version v as messages name it: v0.1. v.String() is the version
+// as data writes it.
+func vname(v thema.SyntacticVersion) string {
+	return "v" + v.String()
 }

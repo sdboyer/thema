@@ -44,7 +44,7 @@ out: {
 }
 lacuna DroppedField {
   source size = in.size
-  message "size has no equivalent in 1.0 and was dropped"
+  message "size has no equivalent in v1.0 and was dropped"
 }
 lens 1.0->0.0
 out: {
@@ -53,5 +53,5 @@ out: {
 }
 lacuna DroppedField {
   source big = in.big
-  message "big has no equivalent in 0.0 and was dropped"
+  message "big has no equivalent in v0.0 and was dropped"
 }

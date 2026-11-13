@@ -24,7 +24,7 @@ schemas: {
     {
       "code": "E0213",
       "severity": "error",
-      "headline": "a in schema 0.1 was filled when absent and is now left absent",
+      "headline": "a in schema v0.1 was filled when absent and is now left absent",
       "path": [
         "schemas",
         "0",
@@ -51,11 +51,11 @@ schemas: {
       },
       "notes": [
         {
-          "label": "schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts"
+          "label": "schema v0.1 is a minor version, so it must accept all data schema v0.0 accepts"
         }
       ],
       "help": [
-        "make the change compatible, or make this version 1.0"
+        "make the change compatible, or make this version v1.0"
       ]
     }
   ],
@@ -66,11 +66,11 @@ schemas: {
   }
 }
 -- out/text --
-error[E0213]: a in schema 0.1 was filled when absent and is now left absent
+error[E0213]: a in schema v0.1 was filled when absent and is now left absent
   --> lineage.cue:11:5
    |
 11 |                 a?: int
    |                 ^
    |
-   = note: schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts
-   = help: make the change compatible, or make this version 1.0
+   = note: schema v0.1 is a minor version, so it must accept all data schema v0.0 accepts
+   = help: make the change compatible, or make this version v1.0

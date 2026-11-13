@@ -39,7 +39,7 @@ Schema: {
 	}]
 }
 -- out/error --
-error[E0346]: ForwardLens produces nothing for meta.team, which 1.0 requires
+error[E0346]: ForwardLens produces nothing for meta.team, which v1.0 requires
   --> history/1.0.thema:14:4
    |
 14 |             meta: {

@@ -11,7 +11,7 @@ lin: h: thema.Lineage & {name: "h"}
 schemas: "0": "0": schema: {c?: #Color}
 -- out/compose/bind --
 verdict: E0142
-E0142 c in schema 0.0 refers to #Color, which is declared outside the lineage @ text.cue:1:33
+E0142 c in schema v0.0 refers to #Color, which is declared outside the lineage @ text.cue:1:33
 -- out/together/bind --
 verdict: E0142
-E0142 c in schema 0.0 refers to #Color, which is declared outside the lineage @ /m/text.cue:2:42
+E0142 c in schema v0.0 refers to #Color, which is declared outside the lineage @ /m/text.cue:2:42

@@ -27,7 +27,7 @@ Schema: {
     {
       "code": "E0341",
       "severity": "error",
-      "headline": "1.0 does not declare nope",
+      "headline": "v1.0 does not declare nope",
       "primary": {
         "file": "history/1.0.thema",
         "line": 9,
@@ -44,7 +44,7 @@ Schema: {
   }
 }
 -- out/text --
-error[E0341]: 1.0 does not declare nope
+error[E0341]: v1.0 does not declare nope
  --> history/1.0.thema:9:3
   |
 9 |         nope: v0_0.a

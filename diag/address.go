@@ -34,6 +34,10 @@ type Version [2]uint
 
 func (v Version) String() string { return fmt.Sprintf("%d.%d", v[0], v[1]) }
 
+// name is the version as messages name it: v0.1. String is the version as
+// data writes it, in keys and paths.
+func (v Version) name() string { return "v" + v.String() }
+
 // Address is the structured subject of a Diagnostic, in terms independent of
 // how the lineage was written. A Vocabulary renders it into the author's.
 type Address struct {
@@ -122,6 +126,9 @@ type normalForm struct{}
 
 func edge(a Address) string { return a.From.String() + "->" + a.To.String() }
 
+// edgeName is the lens edge as messages name it: v0.0->v1.0.
+func edgeName(a Address) string { return a.From.name() + "->" + a.To.name() }
+
 func (normalForm) Path(a Address) []string {
 	sch := func(v Version) []string { return []string{"schemas", fmt.Sprint(v[0]), fmt.Sprint(v[1])} }
 	lens := func() []string { return []string{"lenses", edge(a)} }
@@ -166,25 +173,25 @@ func (normalForm) Term(a Address) string {
 	case AddrJoinSchema:
 		return "joinSchema"
 	case AddrSchema:
-		return "schema " + a.Version.String()
+		return "schema " + a.Version.name()
 	case AddrSchemaField:
-		return field + " in schema " + a.Version.String()
+		return field + " in schema " + a.Version.name()
 	case AddrExample:
-		return "example " + a.Name + " of schema " + a.Version.String()
+		return "example " + a.Name + " of schema " + a.Version.name()
 	case AddrLens:
-		return "lens " + edge(a)
+		return "lens " + edgeName(a)
 	case AddrLensInput:
-		return "the input of lens " + edge(a)
+		return "the input of lens " + edgeName(a)
 	case AddrLensResult:
-		return "the result of lens " + edge(a)
+		return "the result of lens " + edgeName(a)
 	case AddrLensResultField:
-		return field + " in the result of lens " + edge(a)
+		return field + " in the result of lens " + edgeName(a)
 	case AddrLacuna:
-		return fmt.Sprintf("lacuna %d of lens %s", a.Index, edge(a))
+		return fmt.Sprintf("lacuna %d of lens %s", a.Index, edgeName(a))
 	case AddrLacunaField:
-		return fmt.Sprintf("%s of lacuna %d of lens %s", a.Name, a.Index, edge(a))
+		return fmt.Sprintf("%s of lacuna %d of lens %s", a.Name, a.Index, edgeName(a))
 	case AddrStep:
-		return "the step from " + a.From.String() + " to " + a.To.String()
+		return "the step from " + a.From.name() + " to " + a.To.name()
 	case AddrData:
 		if field == "" {
 			return "the data"

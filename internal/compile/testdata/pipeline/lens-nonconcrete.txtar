@@ -40,12 +40,12 @@ backward: {
 -- data.json --
 {"title": "a"}
 -- out/error --
-count in the result of lens 0.0->1.0 copies v0_0.count, which is now int & <10, which does not accept every value of the prior int:
+count in the result of lens v0.0->v1.0 copies v0_0.count, which is now int & <10, which does not accept every value of the prior int:
     ship/history/1.0.thema:7:9
-count in the result of lens 0.0->1.0 copies v0_0.count, which may be absent: v0_0.count is optional in the source schema:
+count in the result of lens v0.0->v1.0 copies v0_0.count, which may be absent: v0_0.count is optional in the source schema:
     ship/history/1.0.thema:7:9
 -- out/positions --
-count in the result of lens 0.0->1.0 copies v0_0.count, which is now int & <10, which does not accept every value of the prior int
+count in the result of lens v0.0->v1.0 copies v0_0.count, which is now int & <10, which does not accept every value of the prior int
 	authored ship/history/1.0.thema:7:9
-count in the result of lens 0.0->1.0 copies v0_0.count, which may be absent: v0_0.count is optional in the source schema
+count in the result of lens v0.0->v1.0 copies v0_0.count, which may be absent: v0_0.count is optional in the source schema
 	authored ship/history/1.0.thema:7:9

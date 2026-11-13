@@ -32,7 +32,7 @@ schemas: {
     {
       "code": "E0626",
       "severity": "error",
-      "headline": "the lineage to bind on the development path has versions 0.0, where ship was compiled with 0.0, 1.0",
+      "headline": "the lineage to bind on the development path has versions v0.0, where ship was compiled with v0.0, v1.0",
       "notes": [
         {
           "label": "the development path tolerates the lenses missing from the tip's edge because ship was compiled with them missing, so it binds only the lineage ship was compiled to"
@@ -50,7 +50,7 @@ schemas: {
   }
 }
 -- out/text --
-error[E0626]: the lineage to bind on the development path has versions 0.0, where ship was compiled with 0.0, 1.0
+error[E0626]: the lineage to bind on the development path has versions v0.0, where ship was compiled with v0.0, v1.0
   |
   = note: the development path tolerates the lenses missing from the tip's edge because ship was compiled with them missing, so it binds only the lineage ship was compiled to
   = help: bind the lineage that Compiled.File builds, as the larger value holds it

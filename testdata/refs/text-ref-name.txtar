@@ -11,7 +11,7 @@ name: "h"
 schemas: "0": "0": schema: {a?: string, n?: name}
 -- out/compose/bind --
 verdict: E0141
-E0141 n in schema 0.0 refers to name, which is declared in the lineage outside the schema @ text.cue:2:45
+E0141 n in schema v0.0 refers to name, which is declared in the lineage outside the schema @ text.cue:2:45
 -- out/together/bind --
 verdict: E0141
-E0141 n in schema 0.0 refers to name, which is declared in the lineage outside the schema @ /m/text.cue:3:45
+E0141 n in schema v0.0 refers to name, which is declared in the lineage outside the schema @ /m/text.cue:3:45

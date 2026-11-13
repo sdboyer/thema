@@ -169,7 +169,7 @@ lenses: {
 					path:  "q.y"
 					value: v0_0.q.y
 				}]
-				message: "q.y has no equivalent in 1.0 and was dropped"
+				message: "q.y has no equivalent in v1.0 and was dropped"
 				type:    "DroppedField"
 			},
 			{
@@ -185,7 +185,7 @@ lenses: {
 					path:  "s"
 					value: v0_0.s
 				}]
-				message: "s has no equivalent in 1.0 and was dropped"
+				message: "s has no equivalent in v1.0 and was dropped"
 				type:    "DroppedField"
 			}
 		]
@@ -211,7 +211,7 @@ lenses: {
 				path:  "r.c"
 				value: v1_0.r.c
 			}]
-			message: "r.c has no equivalent in 0.0 and was dropped"
+			message: "r.c has no equivalent in v0.0 and was dropped"
 			type:    "DroppedField"
 		}]
 	}
@@ -224,13 +224,13 @@ lenses: {
 []
 -- out/translate/0.0/full->1.0 --
 {"q":{"x2":1},"r":{"k":3,"c":"z"}}
-[{"sourceFields":[{"path":"q.y","value":2}],"type":"DroppedField","message":"q.y has no equivalent in 1.0 and was dropped"},{"sourceFields":[{"path":"s","value":{"v":4}}],"type":"DroppedField","message":"s has no equivalent in 1.0 and was dropped"}]
+[{"sourceFields":[{"path":"q.y","value":2}],"type":"DroppedField","message":"q.y has no equivalent in v1.0 and was dropped"},{"sourceFields":[{"path":"s","value":{"v":4}}],"type":"DroppedField","message":"s has no equivalent in v1.0 and was dropped"}]
 -- out/translate/1.0/absent->0.0 --
 {}
 []
 -- out/translate/1.0/constant->0.0 --
 {"r":{}}
-[{"sourceFields":[{"path":"r.c","value":"z"}],"type":"DroppedField","message":"r.c has no equivalent in 0.0 and was dropped"}]
+[{"sourceFields":[{"path":"r.c","value":"z"}],"type":"DroppedField","message":"r.c has no equivalent in v0.0 and was dropped"}]
 -- out/translate/1.0/empty->0.0 --
 {"q":{},"r":{}}
 []

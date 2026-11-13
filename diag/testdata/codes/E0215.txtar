@@ -26,7 +26,7 @@ schemas: {
     {
       "code": "E0215",
       "severity": "error",
-      "headline": "n in schema 0.1 is now uint, which does not accept every value of the prior int",
+      "headline": "n in schema v0.1 is now uint, which does not accept every value of the prior int",
       "path": [
         "schemas",
         "0",
@@ -53,11 +53,11 @@ schemas: {
       },
       "notes": [
         {
-          "label": "schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts"
+          "label": "schema v0.1 is a minor version, so it must accept all data schema v0.0 accepts"
         }
       ],
       "help": [
-        "make the change compatible, or make this version 1.0"
+        "make the change compatible, or make this version v1.0"
       ]
     }
   ],
@@ -68,11 +68,11 @@ schemas: {
   }
 }
 -- out/text --
-error[E0215]: n in schema 0.1 is now uint, which does not accept every value of the prior int
+error[E0215]: n in schema v0.1 is now uint, which does not accept every value of the prior int
   --> lineage.cue:11:5
    |
 11 |                 n: int & >=0
    |                 ^
    |
-   = note: schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts
-   = help: make the change compatible, or make this version 1.0
+   = note: schema v0.1 is a minor version, so it must accept all data schema v0.0 accepts
+   = help: make the change compatible, or make this version v1.0

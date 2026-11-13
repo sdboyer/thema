@@ -11,5 +11,5 @@ Schema: {
 }
 -- out/verdict --
 # bind
-E0151 the schema in history/0.0.thema declares _limit, a hidden field
-E0151 the schema in history/0.0.thema declares _#Name, a hidden definition
+E0151 the schema of v0.0 declares _limit, a hidden field
+E0151 the schema of v0.0 declares _#Name, a hidden definition

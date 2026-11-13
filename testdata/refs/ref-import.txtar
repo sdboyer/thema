@@ -16,7 +16,7 @@ package common
 #Color: "red" | "blue"
 -- out/compose/bind --
 verdict: E0143
-E0143 c in schema 0.0 refers to #Color, in package "example.com/m/common", which is not one of CUE's builtin packages @ text.cue:3:33
+E0143 c in schema v0.0 refers to #Color, in package "example.com/m/common", which is not one of CUE's builtin packages @ text.cue:3:33
 -- out/together/bind --
 verdict: E0143
-E0143 c in schema 0.0 refers to #Color, in package "example.com/m/common", which is not one of CUE's builtin packages @ /m/text.cue:4:33
+E0143 c in schema v0.0 refers to #Color, in package "example.com/m/common", which is not one of CUE's builtin packages @ /m/text.cue:4:33

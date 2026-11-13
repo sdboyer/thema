@@ -25,7 +25,7 @@ BackwardLens: {
 }
 -- out/verdict --
 # bind
-E0367 a in the ForwardLens in history/1.0.thema is v0_0.a * 2, which may be as low as -4294967296, where history/1.0.thema requires >=0
+E0367 a in the ForwardLens of v1.0 is v0_0.a * 2, which may be as low as -4294967296, where v1.0 requires >=0
 # ids
 0.0 g2.03b2162b5e20958230beb977567c1ae9153eff3769cc7aa338b4c072da49592e:g2.44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
 1.0 g2.04222cf2ef07f929ae36720db2d69837bf454c4635ac854498f7d6c19f776534:g2.221bc6361f943c164dfc59ac7c3761654e69a96b9f30dbe19fb218130fa8b879

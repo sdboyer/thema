@@ -149,14 +149,14 @@ schemas: "0": "0": schema: {
 			text:     `{"c": "yes"}`,
 			gov:      map[string]any{"c": "yes"},
 			code:     diag.E0503,
-			headline: `c in the data is "yes", but schema 0.0 declares it as bool`,
+			headline: `c in the data is "yes", but schema v0.0 declares it as bool`,
 		},
 		{
 			name:     "kind conflict in a list",
 			text:     `{"l": [{"x": "q"}]}`,
 			gov:      map[string]any{"l": []any{map[string]any{"x": "q"}}},
 			code:     diag.E0503,
-			headline: `l.0.x in the data is "q", but schema 0.0 declares it as int`,
+			headline: `l.0.x in the data is "q", but schema v0.0 declares it as int`,
 		},
 		{
 			// A struct is named by its kind; its contents rarely fit.
@@ -164,14 +164,14 @@ schemas: "0": "0": schema: {
 			text:     `{"n": {"p": 1, "q": [1, 2, 3]}}`,
 			gov:      map[string]any{"n": map[string]any{"p": 1, "q": []any{1, 2, 3}}},
 			code:     diag.E0503,
-			headline: "n in the data is a struct, but schema 0.0 declares it as int",
+			headline: "n in the data is a struct, but schema v0.0 declares it as int",
 		},
 		{
 			name:     "kind conflict with a list",
 			text:     `{"c": [true, false]}`,
 			gov:      map[string]any{"c": []any{true, false}},
 			code:     diag.E0503,
-			headline: "c in the data is a list, but schema 0.0 declares it as bool",
+			headline: "c in the data is a list, but schema v0.0 declares it as bool",
 		},
 		{
 			// A long value is shortened to fit the headline.
@@ -179,14 +179,14 @@ schemas: "0": "0": schema: {
 			text:     `{"n": "` + fmt.Sprintf("%0100d", 0) + `"}`,
 			gov:      map[string]any{"n": fmt.Sprintf("%0100d", 0)},
 			code:     diag.E0503,
-			headline: `n in the data is "` + fmt.Sprintf("%056d", 0) + `..., but schema 0.0 declares it as int`,
+			headline: `n in the data is "` + fmt.Sprintf("%056d", 0) + `..., but schema v0.0 declares it as int`,
 		},
 		{
 			name:     "value conflict",
 			text:     `{"s": "b"}`,
 			gov:      map[string]any{"s": "b"},
 			code:     diag.E0504,
-			headline: `s in the data is "b", but schema 0.0 requires "a"`,
+			headline: `s in the data is "b", but schema v0.0 requires "a"`,
 		},
 		{
 			// CUE's message writes the value as "a\nb", but formats the
@@ -196,7 +196,7 @@ schemas: "0": "0": schema: {
 			text:     `{"m": "a\nb"}`,
 			gov:      map[string]any{"m": "a\nb"},
 			code:     diag.E0504,
-			headline: `m in the data is "a\nb", but schema 0.0 requires "x"`,
+			headline: `m in the data is "a\nb", but schema v0.0 requires "x"`,
 		},
 		{
 			name:     "not concrete",

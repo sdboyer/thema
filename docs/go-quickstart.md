@@ -27,7 +27,7 @@ Schema: {
 }
 ```
 
-`thema lineage tip -l ship` reports the version the tip cuts as, `tip (cuts as 0.0)`. Once the schema is ready, cut it, which freezes it as `ship/history/0.0.thema`:
+`thema lineage tip -l ship` reports the version the tip cuts as, `tip (cuts as v0.0)`. Once the schema is ready, cut it, which freezes it as `ship/history/0.0.thema`:
 
 ```
 thema lineage cut -l ship
@@ -98,7 +98,7 @@ thema data validate -v 0.0 -l ship ship.json
 
 You should see an error similar to below
 ```
-error[E0504]: masts in the data is 9, outside the bound <8 that schema 0.0 sets
+error[E0504]: masts in the data is 9, outside the bound <8 that schema v0.0 sets
  --> ship.json:1:27
   |
 1 | {"name": "Argo", "masts": 9}

@@ -39,7 +39,7 @@ lenses: {
     {
       "code": "E0362",
       "severity": "error",
-      "headline": "b in the result of lens 0.0->1.0 copies v0_0.nope, which the source schema does not declare",
+      "headline": "b in the result of lens v0.0->v1.0 copies v0_0.nope, which the source schema does not declare",
       "path": [
         "lenses",
         "0.0->1.0",
@@ -69,7 +69,7 @@ lenses: {
       },
       "notes": [
         {
-          "label": "a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule source-undeclared)"
+          "label": "a lens must be total: every instance of schema v0.0 must translate to an instance of schema v1.0 (totality rule source-undeclared)"
         }
       ]
     }
@@ -81,10 +81,10 @@ lenses: {
   }
 }
 -- out/text --
-error[E0362]: b in the result of lens 0.0->1.0 copies v0_0.nope, which the source schema does not declare
+error[E0362]: b in the result of lens v0.0->v1.0 copies v0_0.nope, which the source schema does not declare
   --> lineage.cue:22:7
    |
 22 |             b: v0_0.nope
    |                ^^^^
    |
-   = note: a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule source-undeclared)
+   = note: a lens must be total: every instance of schema v0.0 must translate to an instance of schema v1.0 (totality rule source-undeclared)

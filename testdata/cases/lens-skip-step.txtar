@@ -30,4 +30,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail has no lens 0.2->0.1
+bind fail has no lens v0.2->v0.1

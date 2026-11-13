@@ -54,7 +54,7 @@ lenses: {
         {
           "code": "E0502",
           "severity": "error",
-          "headline": "the data has name, which schema 1.0 does not declare",
+          "headline": "the data has name, which schema v1.0 does not declare",
           "path": [
             "name"
           ],
@@ -83,7 +83,7 @@ lenses: {
         {
           "code": "E0501",
           "severity": "error",
-          "headline": "the data lacks title, which schema 1.0 declares as string",
+          "headline": "the data lacks title, which schema v1.0 declares as string",
           "path": [
             "title"
           ],

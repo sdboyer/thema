@@ -40,7 +40,7 @@ lenses: {
     {
       "code": "E0367",
       "severity": "error",
-      "headline": "n in the result of lens 0.0->1.0 is v0_0.a - 1, which may be as low as -1, where the target schema requires >=0",
+      "headline": "n in the result of lens v0.0->v1.0 is v0_0.a - 1, which may be as low as -1, where the target schema requires >=0",
       "path": [
         "lenses",
         "0.0->1.0",
@@ -70,7 +70,7 @@ lenses: {
       },
       "notes": [
         {
-          "label": "a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule computed-narrowed)"
+          "label": "a lens must be total: every instance of schema v0.0 must translate to an instance of schema v1.0 (totality rule computed-narrowed)"
         }
       ]
     }
@@ -82,10 +82,10 @@ lenses: {
   }
 }
 -- out/text --
-error[E0367]: n in the result of lens 0.0->1.0 is v0_0.a - 1, which may be as low as -1, where the target schema requires >=0
+error[E0367]: n in the result of lens v0.0->v1.0 is v0_0.a - 1, which may be as low as -1, where the target schema requires >=0
   --> lineage.cue:22:7
    |
 22 |             n: v0_0.a - 1
    |                ^^^^
    |
-   = note: a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule computed-narrowed)
+   = note: a lens must be total: every instance of schema v0.0 must translate to an instance of schema v1.0 (totality rule computed-narrowed)

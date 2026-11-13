@@ -211,7 +211,7 @@ lenses: {
 			@thema(derived)
 			condition:    len(_d_0) > 0
 			sourceFields: _d_0
-			message:      "steps[].fields[].hint has no equivalent in 0.0 and was dropped"
+			message:      "steps[].fields[].hint has no equivalent in v0.0 and was dropped"
 			type:         "DroppedField"
 		}]
 	}
@@ -221,4 +221,4 @@ lenses: {
 [{"sourceFields":[{"path":"steps[0].fields[0].legacy","value":"old"},{"path":"steps[2].fields[0].legacy","value":"older"}],"type":"DroppedField","message":"1.0 form fields have no legacy field"}]
 -- out/translate/1.0/hinted->0.0 --
 {"steps":[{"title":"a"},{"title":"b","fields":[{"label":"x"},{"label":"y"}]}]}
-[{"sourceFields":[{"path":"steps[1].fields[1].hint","value":"h"}],"type":"DroppedField","message":"steps[].fields[].hint has no equivalent in 0.0 and was dropped"}]
+[{"sourceFields":[{"path":"steps[1].fields[1].hint","value":"h"}],"type":"DroppedField","message":"steps[].fields[].hint has no equivalent in v0.0 and was dropped"}]

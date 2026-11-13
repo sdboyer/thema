@@ -42,7 +42,7 @@ type Digest = contenthash.Digest
 func (sch *schemaDef) ID() (VersionID, error) {
 	id, err := contenthash.VersionID(sch.lin.raw, contenthash.Version(sch.v))
 	if err != nil {
-		return id, diag.InternalErr(fmt.Errorf("the identity of %s: %w", sch.v, err))
+		return id, diag.InternalErr(fmt.Errorf("the identity of %s: %w", sch.v.name(), err))
 	}
 	return id, nil
 }
@@ -100,7 +100,7 @@ func CheckAppendOnly(published, candidate Lineage) error {
 		cs, ok := byVersion[ps.v]
 		if !ok {
 			errs = append(errs, diag.New(diag.E0252).
-				Headlinef("immutability violation: the lineage removes published version %s", ps.v).
+				Headlinef("immutability violation: the lineage removes published version %s", ps.v.name()).
 				Notef(token.NoPos, "%s was published, so instances of it may exist", pub.vocab.Term(schemaAddr(ps.v))).
 				Helpf("restore %s as it was published; a published version is never removed", pub.vocab.Term(schemaAddr(ps.v))).
 				Err())
@@ -121,9 +121,9 @@ func CheckAppendOnly(published, candidate Lineage) error {
 			}
 			a := schemaAddr(cs.v)
 			errs = append(errs, diag.New(diag.E0253).AtValue(cs.ref.LookupPath(pathSch)).Addr(a).
-				Headlinef("immutability violation: new version %s comes before published version %s", cs.v, newest).
-				Notef(token.NoPos, "versions are only appended: a new version comes after the newest published one, %s, so that every published version keeps its predecessor", newest).
-				Helpf("remove %s, and make the change in a version after %s", cand.vocab.Term(a), newest).
+				Headlinef("immutability violation: new version %s comes before published version %s", cs.v.name(), newest.name()).
+				Notef(token.NoPos, "versions are only appended: a new version comes after the newest published one, %s, so that every published version keeps its predecessor", newest.name()).
+				Helpf("remove %s, and make the change in a version after %s", cand.vocab.Term(a), newest.name()).
 				Err())
 		}
 	}
@@ -160,11 +160,11 @@ func (lin *baseLineage) changes(ps, cs *schemaDef) ([]error, error) {
 	}
 	pf, pb, err := contenthash.LensForms(ps.lin.raw, contenthash.Version(ps.v))
 	if err != nil {
-		return nil, diag.InternalErr(fmt.Errorf("the lenses into %s: %w", ps.v, err))
+		return nil, diag.InternalErr(fmt.Errorf("the lenses into %s: %w", ps.v.name(), err))
 	}
 	cf, cb, err := contenthash.LensForms(lin.raw, contenthash.Version(cs.v))
 	if err != nil {
-		return nil, diag.InternalErr(fmt.Errorf("the lenses into %s: %w", cs.v, err))
+		return nil, diag.InternalErr(fmt.Errorf("the lenses into %s: %w", cs.v.name(), err))
 	}
 	pred := lin.allv[searchSynv(lin.allv, cs.v)-1]
 	var changed []lensID
@@ -175,7 +175,7 @@ func (lin *baseLineage) changes(ps, cs *schemaDef) ([]error, error) {
 		changed = append(changed, lid(cs.v, pred))
 	}
 	if len(changed) == 0 {
-		return nil, diag.InternalErr(fmt.Errorf("the lens digest of %s differs from the published one, but none of its lenses does", cs.v))
+		return nil, diag.InternalErr(fmt.Errorf("the lens digest of %s differs from the published one, but none of its lenses does", cs.v.name()))
 	}
 	for _, id := range changed {
 		a := lensAddr(id.From, id.To)

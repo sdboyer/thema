@@ -52,7 +52,7 @@ lenses: {
     {
       "code": "E0505",
       "severity": "error",
-      "headline": "crew in the data matches none of the alternatives schema 1.0 allows",
+      "headline": "crew in the data matches none of the alternatives schema v1.0 allows",
       "path": [
         "crew"
       ],

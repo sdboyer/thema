@@ -22,7 +22,7 @@ Schema: {
     {
       "code": "E1002",
       "severity": "error",
-      "headline": "translating from 0.0 to 1.0 needs the ForwardLens in tip.thema, which is not written yet",
+      "headline": "translating from v0.0 to v1.0 needs the ForwardLens of tip, which is not written yet",
       "path": [
         "lenses",
         "0.0-\u003e1.0"
@@ -40,11 +40,11 @@ Schema: {
       },
       "notes": [
         {
-          "label": "1.0 is provisional: the schema in tip.thema, which is still being worked on, and whose lenses may not be written yet"
+          "label": "v1.0 is provisional: the schema of tip, which is still being worked on, and whose lenses may not be written yet"
         }
       ],
       "help": [
-        "write the ForwardLens in tip.thema"
+        "write the ForwardLens of tip"
       ]
     }
   ],
