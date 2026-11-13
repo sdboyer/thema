@@ -20,6 +20,13 @@ func init() { //nolint:gochecknoinits // the only way to hand internal/provision
 			c.provisional = &sv
 		})
 	}
+	provisional.Version = func(lin any) ([2]uint, bool) {
+		bl, ok := lin.(*baseLineage)
+		if !ok || bl.provisional == nil {
+			return [2]uint{}, false
+		}
+		return [2]uint(*bl.provisional), true
+	}
 }
 
 // tolerated reports whether bind tolerates the lens id's absence: it is on

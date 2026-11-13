@@ -1,10 +1,15 @@
 package authoring
 
 import (
+	"encoding/json"
+	"fmt"
 	"path"
 
 	"cuelang.org/go/cue"
 	"github.com/sdboyer/jenny"
+
+	"github.com/sdboyer/thema"
+	"github.com/sdboyer/thema/internal/provisional"
 )
 
 var cuts = jenny.For[*Cut](jenny.InputName(func(c *Cut) string { return c.Version.String() }))
@@ -58,6 +63,46 @@ var InitialTip = jenny.For[cue.Value]().New("InitialTip", func(schema cue.Value)
 		return nil, err
 	}
 	return jenny.NewFile(tip.Path, tip.Text), nil
+})
+
+// VersionIndex is a jenny that writes a lineage's version index, IndexFile:
+// the [thema.VersionID] of each version that was cut, with its schema and
+// lens digests, so that a tool can look versions up by content without
+// thema. A provisional version, the tip of a lineage bound on the development
+// path, was not cut and is left out; a lineage with no other version gets no
+// index.
+//
+// The index is derived: the lineage is the record, and thema never reads an
+// index. It is written beside the files it describes, never in them, so
+// writing it changes no version's ID. An index is computed under one
+// generation of the canonical form ([thema.Digest]); after a generation
+// changes, write it again.
+var VersionIndex = jenny.For[thema.Lineage](jenny.InputName(func(lin thema.Lineage) string { return lin.Name() })).New("VersionIndex", func(lin thema.Lineage) (jenny.File, error) {
+	p, hasProvisional := provisional.Version(lin)
+	idx := Index{Lineage: lin.Name()}
+	for sch := lin.First(); sch != nil; sch = sch.Successor() {
+		if hasProvisional && [2]uint(sch.Version()) == p {
+			break
+		}
+		id, err := sch.ID()
+		if err != nil {
+			return nil, err
+		}
+		idx.Versions = append(idx.Versions, IndexedVersion{
+			Version: sch.Version().String(),
+			ID:      id.String(),
+			Schema:  id.Schema.String(),
+			Lens:    id.Lens.String(),
+		})
+	}
+	if len(idx.Versions) == 0 {
+		return nil, nil
+	}
+	text, err := json.MarshalIndent(idx, "", "\t")
+	if err != nil {
+		return nil, fmt.Errorf("the index of %s: %w", lin.Name(), err)
+	}
+	return jenny.NewFile(IndexFile, append(text, '\n')), nil
 })
 
 // Formatted is a mapper that lays out every version file, a file named
