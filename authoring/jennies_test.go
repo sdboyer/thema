@@ -1,9 +1,13 @@
 package authoring_test
 
 import (
+	"encoding/json"
+	"fmt"
 	"maps"
+	"slices"
 	"testing"
 
+	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	"github.com/sdboyer/jenny"
 
@@ -147,5 +151,84 @@ func TestFormatted(t *testing.T) {
 	}).Map(authoring.Formatted)
 	if _, err := bad.Generate("ship"); err == nil {
 		t.Error("a version file that does not parse was formatted")
+	}
+}
+
+// VersionIndex writes each cut version's ID, as thema computes it, to
+// versions.json in the lineage's directory, in this shape.
+func TestVersionIndex(t *testing.T) {
+	rt := thema.NewRuntime(cuecontext.New())
+	c, err := authoring.Compile(rt.Context(), "ship", cutFiles("history/0.0.thema", v00, "history/1.0.thema", v10))
+	if err != nil {
+		t.Fatal(err)
+	}
+	lin, err := thema.BindLineage(rt.Context().BuildFile(c.File), cue.Path{}, rt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ids []thema.VersionID
+	for sch := lin.First(); sch != nil; sch = sch.Successor() {
+		id, ierr := sch.ID()
+		if ierr != nil {
+			t.Fatal(ierr)
+		}
+		ids = append(ids, id)
+	}
+	entry := func(v string, id thema.VersionID) string {
+		return fmt.Sprintf("\t\t{\n\t\t\t\"version\": %q,\n\t\t\t\"id\": %q,\n\t\t\t\"schema\": %q,\n\t\t\t\"lens\": %q\n\t\t}", v, id.String(), id.Schema.String(), id.Lens.String())
+	}
+	want := "{\n\t\"lineage\": \"ship\",\n\t\"versions\": [\n" + entry("0.0", ids[0]) + ",\n" + entry("1.0", ids[1]) + "\n\t]\n}\n"
+
+	fl, err := authoring.VersionIndex.Generate(lin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := rendered(t, fl); len(got) != 1 || got[authoring.IndexFile] != want {
+		t.Errorf("generated %v, want %s holding\n%s", got, authoring.IndexFile, want)
+	}
+}
+
+// A provisional version wasn't cut, so VersionIndex leaves it out, and
+// writes nothing for a lineage that has no other version.
+func TestVersionIndexProvisional(t *testing.T) {
+	rt := thema.NewRuntime(cuecontext.New())
+	for _, tc := range []struct {
+		name  string
+		files []authoring.File
+		want  []string
+	}{
+		{"tip after history", cutFiles("history/0.0.thema", v00, authoring.TipFile, renameTip), []string{"0.0"}},
+		{"tip alone", cutFiles(authoring.TipFile, tip), nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c, err := authoring.CompileDevelopment(rt.Context(), "ship", tc.files)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, ok := c.Provisional(); !ok {
+				t.Fatal("the tip isn't provisional: the test no longer shows what it means to")
+			}
+			lin, err := authoring.BindDevelopment(rt, c)
+			if err != nil {
+				t.Fatal(err)
+			}
+			fl, err := authoring.VersionIndex.Generate(lin)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got []string
+			for _, text := range rendered(t, fl) {
+				var idx authoring.Index
+				if err := json.Unmarshal([]byte(text), &idx); err != nil {
+					t.Fatal(err)
+				}
+				for _, v := range idx.Versions {
+					got = append(got, v.Version)
+				}
+			}
+			if !slices.Equal(got, tc.want) {
+				t.Errorf("indexed %v, want %v", got, tc.want)
+			}
+		})
 	}
 }
