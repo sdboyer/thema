@@ -98,6 +98,8 @@ jobs:
           cache-dependency-path: playground/package-lock.json
 
       # A draft (see .goreleaser.yaml), replacing one an earlier attempt left.
+      # goreleaser builds the newest tag on the commit unless told which, and
+      # a release can share its commit with an rc.
       - uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
@@ -105,12 +107,23 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_CURRENT_TAG: ${{ github.ref_name }}
 
-      # The bundle the release attaches is the one npm publishes.
+      # The npm packages are staged here, from the bundle the release
+      # attaches, so that the job holding npm's publishing rights runs no
+      # code but npm's and thema's: no dependency's install scripts or build.
+      - name: Stage the npm packages
+        run: |
+          npm run build --workspace components
+          node scripts/release.mjs stage "$VERSION" ../cmd/thema/playground/dist "$RUNNER_TEMP/npm"
+        working-directory: playground
+        env:
+          VERSION: ${{ needs.guard.outputs.version }}
+
       - uses: actions/upload-artifact@v7
         with:
-          name: playground-bundle
-          path: cmd/thema/playground/dist
+          name: npm-packages
+          path: ${{ runner.temp }}/npm
           if-no-files-found: error
 
   cue:
@@ -151,7 +164,7 @@ jobs:
           TAG: ${{ github.ref_name }}
 
   npm:
-    needs: [guard, cue]
+    needs: cue
     runs-on: ubuntu-latest
     # npm trusts this workflow, in this environment, to publish the packages,
     # and the environment deploys only from v* tags.
@@ -163,31 +176,19 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # No dependency cache: npm runs nothing here that a cache could feed.
       - uses: actions/setup-node@v7
         with:
           node-version-file: playground/.nvmrc
           registry-url: https://registry.npmjs.org
-          cache: npm
-          cache-dependency-path: playground/package-lock.json
 
       - uses: actions/download-artifact@v8
         with:
-          name: playground-bundle
-          path: ${{ runner.temp }}/bundle
-
-      - name: Build the components package
-        run: npm ci && npm run build --workspace components
-        working-directory: playground
-
-      - name: Stage the packages
-        run: node scripts/release.mjs stage "$VERSION" "$RUNNER_TEMP/bundle" "$RUNNER_TEMP/npm"
-        working-directory: playground
-        env:
-          VERSION: ${{ needs.guard.outputs.version }}
+          name: npm-packages
+          path: ${{ runner.temp }}/npm
 
       - name: Publish the packages
-        run: node scripts/release.mjs publish "$RUNNER_TEMP/npm"
-        working-directory: playground
+        run: node playground/scripts/release.mjs publish "$RUNNER_TEMP/npm"
 
   publish:
     needs: npm
