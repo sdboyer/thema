@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { decodeShare, emptySession, encodeShare, lineageInput, normalize } from "./session";
+import { codegenOps, dataOps } from "@sdboyer/thema-ui";
+import { type Session, decodeShare, emptySession, encodeShare, lineageInput, normalize } from "./session";
 
 describe("share links", () => {
   it("round-trip a session", async () => {
@@ -38,6 +39,19 @@ describe("normalize", () => {
     expect(s.path).toBe("lin");
     expect(s.args).toEqual(emptySession().args);
     expect(s.files.length).toBeGreaterThan(0);
+  });
+
+  it("drops an operation the page does not offer", () => {
+    const s = normalize({ op: "hydrate" as Session["op"], path: "lin", args: { ...emptySession().args, version: "1.0" } });
+    expect(s.op).toBe(emptySession().op);
+    expect(s.path).toBe("lin");
+    expect(s.args.version).toBe("1.0");
+  });
+
+  it("keeps every operation the page offers", () => {
+    for (const op of [...dataOps, ...codegenOps]) {
+      expect(normalize({ op }).op).toBe(op);
+    }
   });
 
   it("clamps the open file and document", () => {
