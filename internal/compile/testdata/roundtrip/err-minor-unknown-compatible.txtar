@@ -1,6 +1,6 @@
 A version under history/ numbered minor whose compatibility with the one
 before it the checker cannot decide: cut numbers such a tip major, so it was
-not cut so, and the immutability violation says it cannot be shown
+not cut so, and the immutability violation says it cannot be proven
 compatible rather than that it is not.
 -- ship/history/0.0.thema --
 Schema: {
