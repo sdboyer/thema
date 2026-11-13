@@ -14,6 +14,7 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	github.com/sdboyer/jenny v0.0.0-20261104111933-0b7b48565c8d
 	github.com/spf13/cobra v1.10.2
+	github.com/spf13/pflag v1.0.11-0.20261019083819-70f284b93daa
 	github.com/stretchr/testify v1.9.0
 	github.com/xlab/treeprint v1.1.0
 	github.com/yalue/merged_fs v1.2.2
@@ -40,7 +41,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20261013103202-7c8a61a7a736 // indirect
 	github.com/sergi/go-diff v1.3.1 // indirect
-	github.com/spf13/pflag v1.0.11-0.20261019083819-70f284b93daa // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/net v0.61.0 // indirect
 	golang.org/x/oauth2 v0.37.0 // indirect

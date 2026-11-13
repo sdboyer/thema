@@ -1,10 +1,18 @@
 {
-  "name": "thema-playground",
+  "name": "@sdboyer/thema-playground",
   "private": true,
   "version": "0.0.0",
   "description": "A browser playground for thema lineages: bind, validate, translate and generate code, with thema running as WebAssembly.",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sdboyer/thema.git",
+    "directory": "playground/ui"
+  },
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
