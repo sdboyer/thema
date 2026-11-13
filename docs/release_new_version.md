@@ -20,10 +20,14 @@ depends on that version, so the constant and the tag must agree.
 
 None of it can be undone. Once a tag is pushed, the first `go get` of it
 records it in the Go checksum database for good, and npm and the Central
-Registry never take a version twice. So everything that can fail is checked
-before the tag exists: CI's `release` job rehearses the whole release, with
-nothing published, on every pull request and on `main`; and `make release`
-tags only a commit that passed it.
+Registry never take a version twice. So as much as can be checked is checked
+before the tag exists. CI's `release` job rehearses, on every pull request and
+on `main`, what can be rehearsed without a tag: GoReleaser's build, as a
+snapshot; the npm packages, staged and published with `--dry-run`; and the
+CUE module, published with `--dry-run`. `make release` tags only a commit that
+passed it. What needs a tag (GoReleaser's choice of tag and its draft
+release, the registries' trust in the workflow, the `release` environment) is
+first exercised by a release candidate.
 
 ## Releasing
 
@@ -62,7 +66,9 @@ is fixed by the next one.
 prerelease. The GitHub release is marked as one, the npm packages go under
 the `next` dist-tag rather than `latest`, and Go and CUE order it before
 `vX.Y.Z`. An rc is tagged on a commit whose `ThemaModuleVersion` is `vX.Y.Z`,
-so the release can be tagged on the very commit its last rc published.
+so the release can be tagged on the very commit its last rc published. Until
+the first release, npm's `latest` dist-tag stays on each package's
+`0.0.0-bootstrap.0` placeholder.
 
 ## One-time setup
 

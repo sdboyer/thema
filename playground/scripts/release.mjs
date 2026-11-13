@@ -128,9 +128,9 @@ export function publish({ out, dryRun = false, npm = runNpm }) {
 }
 
 // published reports whether name@version is on the registry. npm view
-// prints nothing for a version a package does not have and fails for a
-// package that does not exist; any failure counts as not published, since
-// publishing a version that is would fail rather than replace it.
+// fails, E404, for a version or a package that does not exist. Any failure
+// counts as not published: publishing a version that is fails rather than
+// replaces it, and the job is run again.
 function published(npm, name, version) {
   try {
     return npm(["view", `${name}@${version}`, "version"]).trim() === version;
