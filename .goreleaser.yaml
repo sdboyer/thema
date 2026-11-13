@@ -4,9 +4,10 @@ before:
   hooks:
     - go mod tidy
     # The playground bundle: the frontend in playground/ui and this release's
-    # thema.wasm, embedded by the playgroundui tag below.
-    - cmd: npm ci
-      dir: playground
+    # thema.wasm, embedded by the playgroundui tag below. goreleaser takes a
+    # hook only as a command, run in the repository's root, so npm's --prefix
+    # runs this one in playground.
+    - npm --prefix playground ci
     - go generate ./cmd/thema/playground
 builds:
   - env:
