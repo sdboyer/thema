@@ -82,6 +82,8 @@ func TestNested(t *testing.T) {
 		{"siblings share their struct", cue.MakePath(), []cue.Path{p("meta.owner"), p("id"), p("meta.team")}, "meta: {owner: 1, team: 1}, id: 1"},
 		{"deeper", p("a"), []cue.Path{p("a.b.c"), p("a.b.d.e")}, "b: {c: 1, d: {e: 1}}"},
 		{"a key that is not an identifier", cue.MakePath(), []cue.Path{cue.MakePath(cue.Str("x-y"), cue.Str("z"))}, `"x-y": {z: 1}`},
+		// Writing meta.team writes meta, so meta needs no value of its own.
+		{"a path beneath another", cue.MakePath(), []cue.Path{p("meta"), p("meta.team")}, "meta: {team: 1}"},
 	}
 	ctx := cuecontext.New()
 	for _, c := range cases {
@@ -96,6 +98,12 @@ func TestNested(t *testing.T) {
 			}
 			var want, back []string
 			for _, q := range c.paths {
+				// A path another lies beneath is written by it, not as a leaf.
+				if slices.ContainsFunc(c.paths, func(r cue.Path) bool {
+					return len(r.Selectors()) > len(q.Selectors()) && strings.HasPrefix(r.String(), q.String()+".")
+				}) {
+					continue
+				}
 				want = append(want, cue.MakePath(q.Selectors()[len(c.base.Selectors()):]...).String())
 			}
 			var walk func(v cue.Value, at cue.Path)
