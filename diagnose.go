@@ -227,10 +227,15 @@ func (ml *maybeLineage) compatDiag(f compat.Finding, prev, curr *schemaDef) *dia
 	}
 	b.Notef(token.NoPos, "%s is a minor version, so it must accept all data %s accepts", ml.term(schema), ml.term(prior))
 	if f.ViaResidual {
-		b.Notef(token.NoPos, "%s does not declare %s by name, but accepts it through ... or a pattern, so an instance may already hold any value there", ml.term(prior), f.Path)
-		// The primary is the field: its declaration is written by its own key.
-		sels := f.Path.Selectors()
-		b.Helpf("declare it as %s?: _ to accept what %s accepted, or make this version %d.0", cue.MakePath(sels[len(sels)-1]), prev.v, prev.v[0]+1)
+		b.Notef(token.NoPos, "%s does not declare %s by name, but accepts it through ... or a pattern, so an instance may already hold any value there", ml.term(prior), f.Claimed)
+		// The declaration is the claimed field's, written by its own key: at
+		// the primary, or above it when the finding is beneath the field.
+		sels := f.Claimed.Selectors()
+		what := "it"
+		if f.Claimed.String() != f.Path.String() {
+			what = f.Claimed.String()
+		}
+		b.Helpf("declare %s as %s?: _ to accept what %s accepted, or make this version %d.0", what, cue.MakePath(sels[len(sels)-1]), prev.v, prev.v[0]+1)
 	} else if f.Verdict == compat.Unknown {
 		b.Help("change the schema so the checker can decide, or make this version " + synv(prev.v[0]+1, 0).String())
 	} else {
