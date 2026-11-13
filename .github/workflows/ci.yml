@@ -104,6 +104,11 @@ jobs:
           cache: npm
           cache-dependency-path: playground/package-lock.json
 
+      # goreleaser tidies before it builds, and the CUE module publishes only
+      # from a clean tree, so a release needs go.mod tidy as committed.
+      - name: go mod tidy -diff
+        run: go mod tidy -diff
+
       - uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
