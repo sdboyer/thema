@@ -1,0 +1,44 @@
+A narrowed field beneath a struct that a narrow pattern constraint opens: a
+copy field by field would drop every field the pattern matches, so the struct
+is copied whole, and reported as a whole, as one with ... is.
+-- ship/history/0.0.thema --
+Schema: {
+	id: string
+	meta: {
+		owner: "a" | "b"
+		[=~"^x"]: string
+	}
+}
+-- ship/history/1.0.thema --
+Schema: {
+	id: string
+	meta: {
+		owner: "a"
+		[=~"^x"]: string
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		id: v0_0.id
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	id: string
+	meta: {
+		owner: "a"
+		[=~"^x"]: string
+	}
+}
+-- out/error --
+error[E0358]: the ForwardLens in history/1.0.thema would copy v0_0.meta into meta, which does not accept every value of it
+ --> history/1.0.thema:9:1
+  |
+9 | ForwardLens: {
+  | ^^^^^^^^^^^
+  |
+  = note: both 0.0 and 1.0 declare meta, so a lens that does not map it copies it
+  = note: meta.owner in 1.0 was "b" and is now "a"
+  = help: map meta in the ForwardLens: a _match, a computed value, or a constant

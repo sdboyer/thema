@@ -1725,7 +1725,7 @@ func (e *edge) fill(n *node, tbase cue.Path, b *body, consumed, dropped map[stri
 			var fs []compat.Finding
 			if !split {
 				fs = e.incompatible(spath, tpath)
-				split = isStruct(sv) && isStruct(tv) && beneath(fs)
+				split = isStruct(sv) && isStruct(tv) && e.splits(tpath, fs)
 			}
 			if split {
 				c := n.child(name)
@@ -1734,7 +1734,7 @@ func (e *edge) fill(n *node, tbase cue.Path, b *body, consumed, dropped map[stri
 				continue
 			}
 			en := entry{kind: kindMove, target: tpath, source: spath, pos: e.blockPos, derived: true}
-			if fs := slices.DeleteFunc(fs, addedRequired); len(fs) > 0 {
+			if fs := blocking(fs); len(fs) > 0 {
 				_, pos := e.within(b, tpath)
 				e.copyMisfit(diag.E0358, pos, spath, tpath, fs)
 				continue
@@ -1761,8 +1761,14 @@ func (e *edge) fill(n *node, tbase cue.Path, b *body, consumed, dropped map[stri
 		if b.wrote(tpath) && isStruct(lookup(e.T, tpath)) {
 			// The author wrote a body for the struct, with no mapping in it:
 			// what it lacks is reported beneath, where they would write it.
-			// The body writes nothing, so the result gains no node for it.
+			// The body writes nothing, so the result gains no node for it,
+			// and a required struct with nothing required beneath is itself
+			// what the lens does not produce.
+			before := len(cerrors.Errors(e.errs))
 			e.fill(&node{}, tpath, b, consumed, dropped, out)
+			if e.required(e.T, tpath) && len(cerrors.Errors(e.errs)) == before {
+				e.unproduced(b, tpath)
+			}
 			continue
 		}
 		if e.required(e.T, tpath) {
@@ -1779,7 +1785,13 @@ func (e *edge) fill(n *node, tbase cue.Path, b *body, consumed, dropped map[stri
 // bind, which reports it in full. A required field the target adds beneath
 // the copy is left too, since the lens may write it.
 func (e *edge) misfits(spath, tpath cue.Path) []compat.Finding {
-	return slices.DeleteFunc(e.incompatible(spath, tpath), addedRequired)
+	return blocking(e.incompatible(spath, tpath))
+}
+
+// blocking is the findings of fs that rule out a copy: all but the required
+// fields the target adds beneath it, which the lens may write.
+func blocking(fs []compat.Finding) []compat.Finding {
+	return slices.DeleteFunc(fs, addedRequired)
 }
 
 // incompatible returns the checker's definite findings against copying
@@ -1801,10 +1813,24 @@ func (e *edge) incompatible(spath, tpath cue.Path) []compat.Finding {
 
 func addedRequired(f compat.Finding) bool { return f.Rule == compat.RuleFieldAddedRequired }
 
-// beneath reports whether there are findings and each is about a field
-// beneath the struct compared, rather than the struct itself.
-func beneath(fs []compat.Finding) bool {
-	return len(fs) > 0 && !slices.ContainsFunc(fs, func(f compat.Finding) bool { return len(f.Path.Selectors()) == 0 })
+// splits reports whether a struct copy into tpath that the findings fs rule
+// out whole is made field by field instead, so that each finding is reported,
+// and can be mapped, at its field. Each finding must be about a field the
+// target's struct declares by name, which the source declares by name too, or
+// lacks; and the struct must accept no field beyond those it names, which a
+// copy field by field would drop.
+func (e *edge) splits(tpath cue.Path, fs []compat.Finding) bool {
+	if len(fs) == 0 || e.residual(e.T, tpath) {
+		return false
+	}
+	named := e.fields(e.T, tpath)
+	for _, f := range fs {
+		sels := f.Path.Selectors()
+		if f.ViaResidual || len(sels) == 0 || !sels[0].IsString() || !slices.Contains(named, sels[0].Unquoted()) {
+			return false
+		}
+	}
+	return true
 }
 
 // copyMisfit reports a copy or a move (code says which) of spath into tpath
@@ -2583,6 +2609,26 @@ func (e *edge) fields(v cue.Value, p cue.Path) []string {
 		}
 	}
 	return out
+}
+
+// residual reports whether the struct at p in v accepts fields it does not
+// declare by name, through ... or a pattern constraint.
+func (e *edge) residual(v cue.Value, p cue.Path) bool {
+	s := lookup(v, p)
+	//nolint:staticcheck // every schema the compiler looks into is built in the one context it was given
+	if cuetil.CloseRecursive(s.Context(), s).Allows(cue.AnyString) {
+		return true
+	}
+	iter, err := s.Fields(cue.Optional(true), cue.Patterns(true))
+	if err != nil {
+		return false
+	}
+	for iter.Next() {
+		if iter.Selector().ConstraintType() >= cue.PatternConstraint {
+			return true
+		}
+	}
+	return false
 }
 
 // covers reports whether the target declares every path the source declares
