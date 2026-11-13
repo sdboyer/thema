@@ -22,7 +22,7 @@ Schema: {
     {
       "code": "E0354",
       "severity": "error",
-      "headline": "history/0.0.thema is the first version, and has no previous version to map from",
+      "headline": "v0.0 is the first version, and has no previous version to map from",
       "primary": {
         "file": "history/0.0.thema",
         "line": 5,
@@ -42,7 +42,7 @@ Schema: {
   }
 }
 -- out/text --
-error[E0354]: history/0.0.thema is the first version, and has no previous version to map from
+error[E0354]: v0.0 is the first version, and has no previous version to map from
  --> history/0.0.thema:5:1
   |
 5 | ForwardLens: {

@@ -26,7 +26,7 @@ schemas: {
     {
       "code": "E0218",
       "severity": "error",
-      "headline": "s in schema 0.1 must now satisfy strings.MinRunes(1), which the prior schema did not require",
+      "headline": "s in schema v0.1 must now satisfy strings.MinRunes(1), which the prior schema did not require",
       "path": [
         "schemas",
         "0",
@@ -53,11 +53,11 @@ schemas: {
       },
       "notes": [
         {
-          "label": "schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts"
+          "label": "schema v0.1 is a minor version, so it must accept all data schema v0.0 accepts"
         }
       ],
       "help": [
-        "make the change compatible, or make this version 1.0"
+        "make the change compatible, or make this version v1.0"
       ]
     }
   ],
@@ -68,11 +68,11 @@ schemas: {
   }
 }
 -- out/text --
-error[E0218]: s in schema 0.1 must now satisfy strings.MinRunes(1), which the prior schema did not require
+error[E0218]: s in schema v0.1 must now satisfy strings.MinRunes(1), which the prior schema did not require
   --> lineage.cue:13:5
    |
 13 |                 s: strings.MinRunes(1)
    |                 ^
    |
-   = note: schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts
-   = help: make the change compatible, or make this version 1.0
+   = note: schema v0.1 is a minor version, so it must accept all data schema v0.0 accepts
+   = help: make the change compatible, or make this version v1.0

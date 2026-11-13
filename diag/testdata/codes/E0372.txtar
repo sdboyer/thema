@@ -40,7 +40,7 @@ lenses: {
     {
       "code": "E0372",
       "severity": "error",
-      "headline": "u in the result of lens 0.0->1.0 indexes a table by v0_0.t, which may be \"c\", for which the table has no entry",
+      "headline": "u in the result of lens v0.0->v1.0 indexes a table by v0_0.t, which may be \"c\", for which the table has no entry",
       "path": [
         "lenses",
         "0.0->1.0",
@@ -70,7 +70,7 @@ lenses: {
       },
       "notes": [
         {
-          "label": "a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule table-key-missing)"
+          "label": "a lens must be total: every instance of schema v0.0 must translate to an instance of schema v1.0 (totality rule table-key-missing)"
         }
       ]
     }
@@ -82,10 +82,10 @@ lenses: {
   }
 }
 -- out/text --
-error[E0372]: u in the result of lens 0.0->1.0 indexes a table by v0_0.t, which may be "c", for which the table has no entry
+error[E0372]: u in the result of lens v0.0->v1.0 indexes a table by v0_0.t, which may be "c", for which the table has no entry
   --> lineage.cue:23:7
    |
 23 |             u: _T[v0_0.t]
    |                ^^
    |
-   = note: a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule table-key-missing)
+   = note: a lens must be total: every instance of schema v0.0 must translate to an instance of schema v1.0 (totality rule table-key-missing)

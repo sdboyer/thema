@@ -68,7 +68,7 @@ func decompile(lin cue.Value) (name string, files []File, err error) {
 			fkey, bkey := edgeKey(prev.v, v.v), edgeKey(v.v, prev.v)
 			var fwdEntries []dentry
 			if l, ok := lenses[fkey]; ok {
-				fwd, err = decompileLens(l, heldClosed(lin, lensPath(fkey)), fkey, prev.v, v.v, prev.schema, v.schema)
+				fwd, err = decompileLens(l, heldClosed(lin, lensPath(fkey)), edgeName(prev.v, v.v), prev.v, v.v, prev.schema, v.schema)
 				if err != nil {
 					return "", nil, err
 				}
@@ -76,9 +76,9 @@ func decompile(lin cue.Value) (name string, files []File, err error) {
 			}
 			l, ok := lenses[bkey]
 			if !ok {
-				return "", nil, fmt.Errorf("no lens at %s", bkey)
+				return "", nil, fmt.Errorf("no lens %s", edgeName(v.v, prev.v))
 			}
-			bwd, err = decompileLens(l, heldClosed(lin, lensPath(bkey)), bkey, v.v, prev.v, v.schema, prev.schema)
+			bwd, err = decompileLens(l, heldClosed(lin, lensPath(bkey)), edgeName(v.v, prev.v), v.v, prev.v, v.schema, prev.schema)
 			if err != nil {
 				return "", nil, err
 			}
@@ -237,6 +237,12 @@ func edgeKey(from, to thema.SyntacticVersion) string {
 	return fmt.Sprintf("%s->%s", from, to)
 }
 
+// edgeName is the lens from -> to as messages name it: v0.0->v1.0. edgeKey is
+// its key in the normal form.
+func edgeName(from, to thema.SyntacticVersion) string {
+	return vname(from) + "->" + vname(to)
+}
+
 // A dentry is a mapping read back from a normal-form lens.
 type dentry struct {
 	kind     entryKind
@@ -298,10 +304,11 @@ type branch struct {
 	field *ast.Field
 }
 
-// decompileLens reads the mappings of the lens at key, from sv to tv. held
+// decompileLens reads the mappings of the lens lname, from sv to tv; lname
+// names it in errors, v0.0->v1.0. held
 // says the lens's closedness as a whole is where the lineage is held (see
 // heldClosed), and is not read.
-func decompileLens(l cue.Value, held bool, key string, sv, tv thema.SyntacticVersion, src, tgt cue.Value) (*dbody, error) {
+func decompileLens(l cue.Value, held bool, lname string, sv, tv thema.SyntacticVersion, src, tgt cue.Value) (*dbody, error) {
 	// The whole lens is exported, so that references to input stay references
 	// (exported alone, result's references to it would become a generated let).
 	view := cueview.Documented
@@ -310,9 +317,9 @@ func decompileLens(l cue.Value, held bool, key string, sv, tv thema.SyntacticVer
 	}
 	n, err := view(l)
 	if err != nil {
-		return nil, fmt.Errorf("lens %s: %w", key, err)
+		return nil, fmt.Errorf("lens %s: %w", lname, err)
 	}
-	lens, err := lensDecls(n, key)
+	lens, err := lensDecls(n, lname)
 	if err != nil {
 		return nil, err
 	}
@@ -334,15 +341,15 @@ func decompileLens(l cue.Value, held bool, key string, sv, tv thema.SyntacticVer
 		}
 	}
 	if result == nil {
-		return nil, fmt.Errorf("lens %s is outside the authoring form: its result is not a struct literal", key)
+		return nil, fmt.Errorf("lens %s is outside the authoring form: its result is not a struct literal", lname)
 	}
 	b := &dbody{root: paramName(sv), src: src, tgt: tgt}
-	if werr := b.walk(result.Elts, cue.MakePath(), key); werr != nil {
+	if werr := b.walk(result.Elts, cue.MakePath(), lname); werr != nil {
 		return nil, werr
 	}
 	if lacunas != nil {
 		for _, el := range lacunas.Elts {
-			if lerr := b.lacuna(el, lets, key, tv); lerr != nil {
+			if lerr := b.lacuna(el, lets, lname, tv); lerr != nil {
 				return nil, lerr
 			}
 		}
@@ -353,7 +360,7 @@ func decompileLens(l cue.Value, held bool, key string, sv, tv thema.SyntacticVer
 // lensDecls returns an exported lens as a struct. A lens whose expressions
 // call into strings exports as a file importing it, which the authoring form
 // writes without the import; any other import is outside the form.
-func lensDecls(n ast.Node, key string) (*ast.StructLit, error) {
+func lensDecls(n ast.Node, lname string) (*ast.StructLit, error) {
 	switch n := n.(type) {
 	case *ast.StructLit:
 		return n, nil
@@ -367,17 +374,17 @@ func lensDecls(n ast.Node, key string) (*ast.StructLit, error) {
 			}
 			for _, spec := range imp.Specs {
 				if path, _ := literal.Unquote(spec.Path.Value); path != pkgStrings || spec.Name != nil {
-					return nil, fmt.Errorf("lens %s is outside the authoring form: it imports %s", key, spec.Path.Value)
+					return nil, fmt.Errorf("lens %s is outside the authoring form: it imports %s", lname, spec.Path.Value)
 				}
 			}
 		}
 		return lit, nil
 	}
-	return nil, fmt.Errorf("lens %s is outside the authoring form: it is not a struct", key)
+	return nil, fmt.Errorf("lens %s is outside the authoring form: it is not a struct", lname)
 }
 
 // walk reads a result struct's declarations into the body.
-func (b *dbody) walk(decls []ast.Decl, tbase cue.Path, key string) error {
+func (b *dbody) walk(decls []ast.Decl, tbase cue.Path, lname string) error {
 	var branches []branch
 	start := len(b.entries)
 	// order is each field's place in the result, by name beneath tbase, so
@@ -395,21 +402,21 @@ func (b *dbody) walk(decls []ast.Decl, tbase cue.Path, key string) error {
 		case *ast.CommentGroup:
 		case *ast.Field:
 			note(d)
-			if err := b.field(d, tbase, key); err != nil {
+			if err := b.field(d, tbase, lname); err != nil {
 				return err
 			}
 		case *ast.Comprehension:
 			br, ok := singleBranch(d)
 			if !ok {
-				return fmt.Errorf("lens %s is outside the authoring form: a comprehension in its result that is not an arm", key)
+				return fmt.Errorf("lens %s is outside the authoring form: a comprehension in its result that is not an arm", lname)
 			}
 			note(br.field)
 			branches = append(branches, br)
 		default:
-			return fmt.Errorf("lens %s is outside the authoring form: %T in its result", key, d)
+			return fmt.Errorf("lens %s is outside the authoring form: %T in its result", lname, d)
 		}
 	}
-	if err := b.branches(branches, tbase, key); err != nil {
+	if err := b.branches(branches, tbase, lname); err != nil {
 		return err
 	}
 	depth := len(tbase.Selectors())
@@ -429,21 +436,21 @@ func (b *dbody) walk(decls []ast.Decl, tbase cue.Path, key string) error {
 	return nil
 }
 
-func (b *dbody) field(f *ast.Field, tbase cue.Path, key string) error {
+func (b *dbody) field(f *ast.Field, tbase cue.Path, lname string) error {
 	name, _, err := ast.LabelName(f.Label)
 	if err != nil {
-		return fmt.Errorf("lens %s is outside the authoring form: a field whose label is not a name", key)
+		return fmt.Errorf("lens %s is outside the authoring form: a field whose label is not a name", lname)
 	}
 	tpath := appendPath(tbase, cue.Str(name))
 	if s, ok := f.Value.(*ast.StructLit); ok {
-		return b.walk(s.Elts, tpath, key)
+		return b.walk(s.Elts, tpath, lname)
 	}
 	en := dentry{target: tpath, expr: f.Value, comments: ast.Comments(f)}
 	if root, p, ok := refPathAny(f.Value); ok && root == b.root {
 		en.kind, en.source, en.implicit = kindMove, p, b.regenerates(p, tpath)
 	} else if isLiteral(f.Value) {
 		en.kind = kindConst
-	} else if each, ok := b.eachOf(f.Value, key, tpath); ok {
+	} else if each, ok := b.eachOf(f.Value, lname, tpath); ok {
 		var eerr error
 		en.kind, en.source, en.body, eerr = kindEach, each.source, each.body, each.err
 		if eerr != nil {
@@ -453,13 +460,13 @@ func (b *dbody) field(f *ast.Field, tbase cue.Path, key string) error {
 		// coalesce over a computed primary: the expression where the optional
 		// fields it reads are present, the fallback otherwise.
 		if _, _, isRef := refPathAny(h.els); !isRef && !isConstant(h.els) {
-			return fmt.Errorf("lens %s is outside the authoring form: the fallback of %s is computed", key, tpath)
+			return fmt.Errorf("lens %s is outside the authoring form: the fallback of %s is computed", lname, tpath)
 		}
 		en.kind, en.computed, en.fallback = kindCoalesce, h.then, h.els
 	} else if b.expressionOK(f.Value) {
 		en.kind, en.computed = kindComputed, f.Value
 	} else {
-		return fmt.Errorf("lens %s is outside the authoring form: %s is an expression the authoring form cannot write", key, tpath)
+		return fmt.Errorf("lens %s is outside the authoring form: %s is an expression the authoring form cannot write", lname, tpath)
 	}
 	b.entries = append(b.entries, en)
 	return nil
@@ -474,7 +481,7 @@ type eachSyntax struct {
 // eachOf recognizes [for item in <root>.<list> {...}], whose body is a struct
 // of mappings, or the copy of the element or a path in it, embedded:
 // {_item.id}.
-func (b *dbody) eachOf(x ast.Expr, key string, tpath cue.Path) (eachSyntax, bool) {
+func (b *dbody) eachOf(x ast.Expr, lname string, tpath cue.Path) (eachSyntax, bool) {
 	list, ok := x.(*ast.ListLit)
 	if !ok || len(list.Elts) != 1 {
 		return eachSyntax{}, false
@@ -497,7 +504,7 @@ func (b *dbody) eachOf(x ast.Expr, key string, tpath cue.Path) (eachSyntax, bool
 	}
 	elem := elementOf(b.tgt, tpath)
 	if !elem.Exists() {
-		return eachSyntax{source: p, err: fmt.Errorf("lens %s is outside the authoring form: %s is mapped from a list and is not an open list", key, tpath)}, true
+		return eachSyntax{source: p, err: fmt.Errorf("lens %s is outside the authoring form: %s is mapped from a list and is not an open list", lname, tpath)}, true
 	}
 	body := &dbody{root: rootItem, tgt: elem}
 	if len(s.Elts) == 1 {
@@ -508,7 +515,7 @@ func (b *dbody) eachOf(x ast.Expr, key string, tpath cue.Path) (eachSyntax, bool
 			}
 		}
 	}
-	err := body.walk(s.Elts, cue.MakePath(), key)
+	err := body.walk(s.Elts, cue.MakePath(), lname)
 	return eachSyntax{source: p, body: body, err: err}, true
 }
 
@@ -599,7 +606,7 @@ func (b *dbody) tests(cond ast.Expr) ([]test, bool) {
 
 // branches interprets the comprehensions of one struct: a copy or move under
 // a presence test, the two arms of a coalesce, or the arms of a match.
-func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
+func (b *dbody) branches(brs []branch, tbase cue.Path, lname string) error {
 	type group struct {
 		name string
 		brs  []branch
@@ -609,7 +616,7 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 	for _, br := range brs {
 		name, _, err := ast.LabelName(br.field.Label)
 		if err != nil {
-			return fmt.Errorf("lens %s is outside the authoring form: a branch whose label is not a name", key)
+			return fmt.Errorf("lens %s is outside the authoring form: a branch whose label is not a name", lname)
 		}
 		g, ok := byName[name]
 		if !ok {
@@ -625,7 +632,7 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 		if s, ok := b.sameStruct(g.brs); ok && len(g.brs) > 1 {
 			// A struct written under a condition of several terms, as
 			// disjoint arms that each write it.
-			if err := b.walk(s.Elts, tpath, key); err != nil {
+			if err := b.walk(s.Elts, tpath, lname); err != nil {
 				return err
 			}
 			continue
@@ -634,12 +641,12 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 			// An each over a list the source may omit, written only where it
 			// is present.
 			ts, ok := b.tests(g.brs[0].cond)
-			if each, isEach := b.eachOf(g.brs[0].field.Value, key, tpath); isEach && ok && len(ts) == 1 && ts[0].operand == nil && ts[0].present {
+			if each, isEach := b.eachOf(g.brs[0].field.Value, lname, tpath); isEach && ok && len(ts) == 1 && ts[0].operand == nil && ts[0].present {
 				if each.err != nil {
 					return each.err
 				}
 				if ts[0].path.String() != each.source.String() {
-					return fmt.Errorf("lens %s is outside the authoring form: the presence test on %s does not test the list it maps", key, tpath)
+					return fmt.Errorf("lens %s is outside the authoring form: the presence test on %s does not test the list it maps", lname, tpath)
 				}
 				en.kind, en.source, en.body = kindEach, each.source, each.body
 				b.entries = append(b.entries, en)
@@ -651,9 +658,9 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 			// data for it: a condition on what the source has, which Compile
 			// derives again from what the struct holds.
 			if !b.allPresence(g.brs[0].cond) {
-				return fmt.Errorf("lens %s is outside the authoring form: %s is written under a condition the authoring form cannot express", key, tpath)
+				return fmt.Errorf("lens %s is outside the authoring form: %s is written under a condition the authoring form cannot express", lname, tpath)
 			}
-			if err := b.walk(s.Elts, tpath, key); err != nil {
+			if err := b.walk(s.Elts, tpath, lname); err != nil {
 				return err
 			}
 			continue
@@ -663,7 +670,7 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 				// A computed mapping that reads optional fields, written only
 				// where they are present.
 				if !b.expressionOK(g.brs[0].field.Value) {
-					return fmt.Errorf("lens %s is outside the authoring form: %s is an expression the authoring form cannot write", key, tpath)
+					return fmt.Errorf("lens %s is outside the authoring form: %s is an expression the authoring form cannot write", lname, tpath)
 				}
 				ts, _ := b.tests(g.brs[0].cond)
 				for _, t := range ts {
@@ -681,7 +688,7 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 		for _, br := range g.brs {
 			ts, ok := b.tests(br.cond)
 			if !ok || len(ts) == 0 || len(ts) > 2 {
-				return fmt.Errorf("lens %s is outside the authoring form: a condition on %s the authoring form cannot express", key, tpath)
+				return fmt.Errorf("lens %s is outside the authoring form: a condition on %s the authoring form cannot express", lname, tpath)
 			}
 			source = ts[0].path
 			last := ts[len(ts)-1]
@@ -704,46 +711,46 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 			case last.operand != nil:
 				catchAll = append(catchAll, br)
 			default:
-				return fmt.Errorf("lens %s is outside the authoring form: a condition on %s the authoring form cannot express", key, tpath)
+				return fmt.Errorf("lens %s is outside the authoring form: a condition on %s the authoring form cannot express", lname, tpath)
 			}
 		}
 		switch {
 		case len(arms) > 0 || len(passthrough) > 0 || len(catchAll) > 0:
 			if len(present)+len(absent) > 0 || len(passthrough) > 1 || len(catchAll) > 1 {
-				return fmt.Errorf("lens %s is outside the authoring form: the arms of %s are not a _match", key, tpath)
+				return fmt.Errorf("lens %s is outside the authoring form: the arms of %s are not a _match", lname, tpath)
 			}
 			en.kind, en.source = kindMatch, source
 			for i, br := range arms {
 				if !isLiteral(br.field.Value) {
-					return fmt.Errorf("lens %s is outside the authoring form: _match arm %q of %s is not a constant", key, armKeys[i], tpath)
+					return fmt.Errorf("lens %s is outside the authoring form: _match arm %q of %s is not a constant", lname, armKeys[i], tpath)
 				}
 				en.arms = append(en.arms, arm{key: armKeys[i], value: br.field.Value})
 			}
 			if len(catchAll) == 1 {
 				if !isLiteral(catchAll[0].field.Value) {
-					return fmt.Errorf("lens %s is outside the authoring form: the [_] arm of %s is not a constant", key, tpath)
+					return fmt.Errorf("lens %s is outside the authoring form: the [_] arm of %s is not a constant", lname, tpath)
 				}
 				en.catchAll = &arm{value: catchAll[0].field.Value}
 			}
 		case len(present) == 1 && len(absent) == 1:
 			root, p, ok := refPathAny(present[0].field.Value)
 			if !ok || root != b.root || p.String() != source.String() {
-				return fmt.Errorf("lens %s is outside the authoring form: the arms of %s are not a _coalesce", key, tpath)
+				return fmt.Errorf("lens %s is outside the authoring form: the arms of %s are not a _coalesce", lname, tpath)
 			}
 			fb := absent[0].field.Value
 			if _, _, isRef := refPathAny(fb); !isRef && !isConstant(fb) {
-				return fmt.Errorf("lens %s is outside the authoring form: the fallback of %s is computed", key, tpath)
+				return fmt.Errorf("lens %s is outside the authoring form: the fallback of %s is computed", lname, tpath)
 			}
 			en.kind, en.source, en.fallback = kindCoalesce, source, fb
 		case len(present) == 1 && len(absent) == 0:
 			root, p, ok := refPathAny(present[0].field.Value)
 			if !ok || root != b.root || p.String() != source.String() {
-				return fmt.Errorf("lens %s is outside the authoring form: the presence test on %s does not test its own reference", key, tpath)
+				return fmt.Errorf("lens %s is outside the authoring form: the presence test on %s does not test its own reference", lname, tpath)
 			}
 			en.kind, en.source, en.expr, en.implicit = kindMove, p, present[0].field.Value, b.regenerates(p, tpath)
 			en.present = []cue.Path{p}
 		default:
-			return fmt.Errorf("lens %s is outside the authoring form: the arms of %s", key, tpath)
+			return fmt.Errorf("lens %s is outside the authoring form: the arms of %s", lname, tpath)
 		}
 		b.entries = append(b.entries, en)
 	}
@@ -753,10 +760,10 @@ func (b *dbody) branches(brs []branch, tbase cue.Path, key string) error {
 // lacuna reads one lacuna from its syntax: a derived DroppedField becomes a
 // drop, and a declared lacuna attaches to the mapping, arm or fallback it
 // names.
-func (b *dbody) lacuna(x ast.Expr, lets map[string]ast.Expr, key string, tv thema.SyntacticVersion) error {
+func (b *dbody) lacuna(x ast.Expr, lets map[string]ast.Expr, lname string, tv thema.SyntacticVersion) error {
 	s, ok := x.(*ast.StructLit)
 	if !ok {
-		return fmt.Errorf("lens %s is outside the authoring form: a lacuna that is not a struct literal", key)
+		return fmt.Errorf("lens %s is outside the authoring form: a lacuna that is not a struct literal", lname)
 	}
 	var derived bool
 	var typ, msg string
@@ -784,22 +791,22 @@ func (b *dbody) lacuna(x ast.Expr, lets map[string]ast.Expr, key string, tv them
 				targets = []ast.Expr{d.Value}
 			}
 			if err != nil {
-				return fmt.Errorf("lens %s is outside the authoring form: a lacuna's %s is not a string", key, name)
+				return fmt.Errorf("lens %s is outside the authoring form: a lacuna's %s is not a string", lname, name)
 			}
 		}
 	}
 	srcPaths, srcEach, err := fieldPaths(sources, lets)
 	if err != nil {
-		return fmt.Errorf("lens %s: %w", key, err)
+		return fmt.Errorf("lens %s: %w", lname, err)
 	}
 	tgtPaths, _, err := fieldPaths(targets, lets)
 	if err != nil {
-		return fmt.Errorf("lens %s: %w", key, err)
+		return fmt.Errorf("lens %s: %w", lname, err)
 	}
 
 	if derived {
 		if typ != lacunaDropped || len(srcPaths) != 1 || len(tgtPaths) != 0 {
-			return fmt.Errorf("lens %s is outside the authoring form: a derived lacuna of type %s", key, typ)
+			return fmt.Errorf("lens %s is outside the authoring form: a derived lacuna of type %s", lname, typ)
 		}
 		body, p, path := b, srcPaths[0], srcPaths[0]
 		if srcEach != nil {
@@ -815,7 +822,7 @@ func (b *dbody) lacuna(x ast.Expr, lets map[string]ast.Expr, key string, tv them
 					}
 				}
 				if next == nil {
-					return fmt.Errorf("lens %s is outside the authoring form: a lacuna over %s[], which no _each maps", key, list)
+					return fmt.Errorf("lens %s is outside the authoring form: a lacuna over %s[], which no _each maps", lname, list)
 				}
 				body = next
 			}
@@ -838,10 +845,10 @@ func (b *dbody) lacuna(x ast.Expr, lets map[string]ast.Expr, key string, tv them
 	case len(srcPaths) == 1 && len(tgtPaths) == 0:
 		en = b.find(srcPaths[0], true)
 	default:
-		return fmt.Errorf("lens %s is outside the authoring form: a lacuna over several fields", key)
+		return fmt.Errorf("lens %s is outside the authoring form: a lacuna over several fields", lname)
 	}
 	if en == nil {
-		return fmt.Errorf("lens %s is outside the authoring form: a lacuna on a field no mapping produces", key)
+		return fmt.Errorf("lens %s is outside the authoring form: a lacuna on a field no mapping produces", lname)
 	}
 	en.implicit = false // the author wrote the copy, to key the lacuna
 	when, _ := b.when(en, cond)
@@ -1247,9 +1254,9 @@ func dropMessageFor(each []cue.Path, p cue.Path, tv thema.SyntacticVersion) stri
 		for _, l := range each {
 			lists = append(lists, l.String()+"[]")
 		}
-		return fmt.Sprintf("%s.%s has no equivalent in %s and was dropped", strings.Join(lists, "."), p, tv)
+		return fmt.Sprintf("%s.%s has no equivalent in %s and was dropped", strings.Join(lists, "."), p, vname(tv))
 	}
-	return fmt.Sprintf("%s has no equivalent in %s and was dropped", p, tv)
+	return fmt.Sprintf("%s has no equivalent in %s and was dropped", p, vname(tv))
 }
 
 // stripDerived removes from a backward body the entries derivation would
@@ -1412,10 +1419,10 @@ func versionText(v dversion, prev thema.SyntacticVersion, fwd, bwd *dbody) (stri
 	}
 	n, err := view(v.schema)
 	if err != nil {
-		return "", fmt.Errorf("%s: schema: %w", v.v, err)
+		return "", fmt.Errorf("%s: schema: %w", vname(v.v), err)
 	}
 	if closedWrapper(v.schema, n) {
-		return "", fmt.Errorf("%s: schema is outside the authoring form: it is closed as a definition is by something within the lineage or its narrowing, not by where the lineage is held, and a version file cannot write that", v.v)
+		return "", fmt.Errorf("%s: schema is outside the authoring form: it is closed as a definition is by something within the lineage or its narrowing, not by where the lineage is held, and a version file cannot write that", vname(v.v))
 	}
 	var parts []string
 	var expr ast.Expr
@@ -1436,7 +1443,7 @@ func versionText(v dversion, prev thema.SyntacticVersion, fwd, bwd *dbody) (stri
 			for _, spec := range imp.Specs {
 				path, _ := literal.Unquote(spec.Path.Value)
 				if !compat.IsBuiltinPackage(path) {
-					return "", fmt.Errorf("%s: schema is outside the authoring form: it imports %s", v.v, path)
+					return "", fmt.Errorf("%s: schema is outside the authoring form: it imports %s", vname(v.v), path)
 				}
 				paths = append(paths, path)
 			}
@@ -1453,7 +1460,7 @@ func versionText(v dversion, prev thema.SyntacticVersion, fwd, bwd *dbody) (stri
 		}
 		parts = append(parts, strings.TrimRight(string(text), "\n")+"\n")
 	default:
-		return "", fmt.Errorf("%s: schema is outside the authoring form", v.v)
+		return "", fmt.Errorf("%s: schema is outside the authoring form", vname(v.v))
 	}
 	for _, block := range []struct {
 		name string

@@ -18,7 +18,7 @@ schemas: {
     {
       "code": "E0201",
       "severity": "error",
-      "headline": "the first schema is version 1.0, not 0.0",
+      "headline": "the first schema is v1.0, not v0.0",
       "path": [
         "schemas",
         "1",
@@ -40,7 +40,7 @@ schemas: {
         "origin": "user"
       },
       "help": [
-        "every lineage starts at version 0.0"
+        "every lineage starts at v0.0"
       ]
     }
   ],
@@ -51,10 +51,10 @@ schemas: {
   }
 }
 -- out/text --
-error[E0201]: the first schema is version 1.0, not 0.0
+error[E0201]: the first schema is v1.0, not v0.0
  --> lineage.cue:4:3
   |
 4 |         "0": {
   |         ^^^
   |
-  = help: every lineage starts at version 0.0
+  = help: every lineage starts at v0.0

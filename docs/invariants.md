@@ -218,7 +218,7 @@ Every finding is positioned at the referring field and reads
 
 for example
 
-    schema 0.0: color refers to #Color, which is declared outside the lineage; a schema may refer only to its own body and CUE's builtin packages (rule ref-outside-lineage)
+    schema v0.0: color refers to #Color, which is declared outside the lineage; a schema may refer only to its own body and CUE's builtin packages (rule ref-outside-lineage)
 
 | Rule | Refused when |
 |---|---|

@@ -21,7 +21,7 @@ lin: {
     {
       "code": "E0142",
       "severity": "error",
-      "headline": "c in schema 0.0 refers to #Color, which is declared outside the lineage",
+      "headline": "c in schema v0.0 refers to #Color, which is declared outside the lineage",
       "path": [
         "schemas",
         "0",
@@ -59,7 +59,7 @@ lin: {
   }
 }
 -- out/text --
-error[E0142]: c in schema 0.0 refers to #Color, which is declared outside the lineage
+error[E0142]: c in schema v0.0 refers to #Color, which is declared outside the lineage
  --> lineage.cue:7:16
   |
 7 |             schema: {c: #Color}

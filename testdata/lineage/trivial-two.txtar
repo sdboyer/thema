@@ -32,7 +32,7 @@ lenses: {
     "firstfield": 42
 }
 -- out/validate/TestValidate/firstfieldAsInt32 --
-error[E0503]: firstfield in the data is 42, but schema 0.1 declares it as string
+error[E0503]: firstfield in the data is 42, but schema v0.1 declares it as string
   --> in/validate/TestValidate/firstfieldAsInt32.data.json:2:19
    |
  2 |     "firstfield": 42
@@ -45,7 +45,7 @@ error[E0503]: firstfield in the data is 42, but schema 0.1 declares it as string
    |
    = detail: firstfield: conflicting values 42 and string (mismatched types int and string)
 -- out/validate/TestValidate/secondfieldAsString --
-error[E0503]: secondfield in the data is "foo", but schema 0.1 declares it as int32
+error[E0503]: secondfield in the data is "foo", but schema v0.1 declares it as int32
  --> in/validate/TestValidate/secondfieldAsString.data.json:2:20
   |
 2 |     "secondfield": "foo"
@@ -53,7 +53,7 @@ error[E0503]: secondfield in the data is "foo", but schema 0.1 declares it as in
   |
   = detail: secondfield: conflicting values "foo" and int32 (mismatched types string and int)
 
-error[E0501]: the data lacks firstfield, which schema 0.1 declares as string
+error[E0501]: the data lacks firstfield, which schema v0.1 declares as string
   --> in/validate/TestValidate/secondfieldAsString.data.json:1:1
    |
  1 | {
@@ -211,7 +211,7 @@ error[E0501]: the data lacks firstfield, which schema 0.1 declares as string
 }
 -- out/bind --
 Schema count: 2
-Schema versions: 0.0, 0.1
+Schema versions: v0.0, v0.1
 Lenses count: 1
 -- out/encoding/typescript/TestGenerate/nilcfg --
 export interface TrivialTwo {

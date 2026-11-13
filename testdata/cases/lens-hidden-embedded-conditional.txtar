@@ -27,4 +27,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail writes extra, which schema 0.0 does not declare
+bind fail writes extra, which schema v0.0 does not declare

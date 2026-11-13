@@ -29,7 +29,7 @@ Schema: {
     {
       "code": "E0344",
       "severity": "error",
-      "headline": "\"one\" is not an instance of 1.0's b",
+      "headline": "\"one\" is not an instance of v1.0's b",
       "primary": {
         "file": "history/1.0.thema",
         "line": 9,
@@ -69,7 +69,7 @@ Schema: {
   }
 }
 -- out/text --
-error[E0344]: "one" is not an instance of 1.0's b
+error[E0344]: "one" is not an instance of v1.0's b
  --> history/1.0.thema:9:6
   |
 3 |     b: int

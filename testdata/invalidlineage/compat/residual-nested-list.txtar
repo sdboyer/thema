@@ -32,21 +32,21 @@ lin: lenses: {
     }
 }
 -- out/bindfail --
-error[E0217]: meta in schema 0.1 accepts any field name in the prior schema and is closed in the new one
+error[E0217]: meta in schema v0.1 accepts any field name in the prior schema and is closed in the new one
   --> /in.cue:16:13
    |
 16 |             meta: {
    |             ^^^^
    |
-   = note: schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts
-   = help: make the change compatible, or make this version 1.0
+   = note: schema v0.1 is a minor version, so it must accept all data schema v0.0 accepts
+   = help: make the change compatible, or make this version v1.0
 
-error[E0215]: meta.tags.[_] in schema 0.1 was string and is now int
+error[E0215]: meta.tags.[_] in schema v0.1 was string and is now int
   --> /in.cue:17:28
    |
 17 |                 tags?: [...int]
    |                            ^^^
    |
-   = note: schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts
-   = note: schema 0.0 does not declare meta.tags by name, but accepts it through ... or a pattern, so an instance may already hold any value there
-   = help: declare meta.tags as tags?: _ to accept what 0.0 accepted, or make this version 1.0
+   = note: schema v0.1 is a minor version, so it must accept all data schema v0.0 accepts
+   = note: schema v0.0 does not declare meta.tags by name, but accepts it through ... or a pattern, so an instance may already hold any value there
+   = help: declare meta.tags as tags?: _ to accept what v0.0 accepted, or make this version v1.0

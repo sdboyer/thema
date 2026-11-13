@@ -40,7 +40,7 @@ lenses: {
     {
       "code": "E0364",
       "severity": "error",
-      "headline": "the result of lens 0.0->1.0 is not total for some instance",
+      "headline": "the result of lens v0.0->v1.0 is not total for some instance",
       "path": [
         "lenses",
         "0.0->1.0",
@@ -66,10 +66,10 @@ lenses: {
       },
       "notes": [
         {
-          "label": "the result of lens 0.0->1.0 is under the pattern v0_0.c == \"x\", but v0_0.c may be absent (v0_0.c is optional in the source schema), and comparing an absent field is an error rather than false"
+          "label": "the result of lens v0.0->v1.0 is under the pattern v0_0.c == \"x\", but v0_0.c may be absent (v0_0.c is optional in the source schema), and comparing an absent field is an error rather than false"
         },
         {
-          "label": "a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule pattern-absent)"
+          "label": "a lens must be total: every instance of schema v0.0 must translate to an instance of schema v1.0 (totality rule pattern-absent)"
         }
       ],
       "help": [
@@ -84,12 +84,12 @@ lenses: {
   }
 }
 -- out/text --
-error[E0364]: the result of lens 0.0->1.0 is not total for some instance
+error[E0364]: the result of lens v0.0->v1.0 is not total for some instance
   --> lineage.cue:22:4
    |
 22 |             if v0_0.c == "x" {
    |             ^^
    |
-   = note: the result of lens 0.0->1.0 is under the pattern v0_0.c == "x", but v0_0.c may be absent (v0_0.c is optional in the source schema), and comparing an absent field is an error rather than false
-   = note: a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule pattern-absent)
+   = note: the result of lens v0.0->v1.0 is under the pattern v0_0.c == "x", but v0_0.c may be absent (v0_0.c is optional in the source schema), and comparing an absent field is an error rather than false
+   = note: a lens must be total: every instance of schema v0.0 must translate to an instance of schema v1.0 (totality rule pattern-absent)
    = help: test presence first: if v0_0.c != _|_

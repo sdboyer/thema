@@ -42,6 +42,23 @@ func (v vocab) file(ver diag.Version) string {
 	return ver.String() + Ext
 }
 
+// name is version ver as messages name it: v0.1, or the tip.
+func (v vocab) name(ver diag.Version) string {
+	if v.tip != nil && *v.tip == thema.SyntacticVersion(ver) {
+		return TipParam
+	}
+	return vname(thema.SyntacticVersion(ver))
+}
+
+// lensName names a's lens by the version that declares it, as lens says:
+// the ForwardLens of v1.0.
+func (v vocab) lensName(a diag.Address) string {
+	if thema.SyntacticVersion(a.From).Less(thema.SyntacticVersion(a.To)) {
+		return fmt.Sprintf("the %s of %s", fieldForward, v.name(a.To))
+	}
+	return fmt.Sprintf("the %s of %s", fieldBackward, v.name(a.From))
+}
+
 // lens names the lens block and the file it is in: a lens lives in the newer
 // version's file, as its ForwardLens (from the predecessor) or BackwardLens (to
 // it).
@@ -93,36 +110,30 @@ func (v vocab) Term(a diag.Address) string {
 	field := strings.Join(a.Field, ".")
 	switch a.Kind {
 	case diag.AddrSchema:
-		return "the schema in " + v.file(a.Version)
+		return "the schema of " + v.name(a.Version)
 	case diag.AddrSchemaField:
-		return field + " in " + v.file(a.Version)
+		return field + " in " + v.name(a.Version)
 	case diag.AddrExample:
-		return "example " + a.Name + " in " + v.file(a.Version)
+		return "example " + a.Name + " of " + v.name(a.Version)
 	case diag.AddrLens, diag.AddrStep:
-		file, block := v.lens(a)
-		return fmt.Sprintf("the %s in %s", block, file)
+		return v.lensName(a)
 	case diag.AddrLensInput:
-		file, block := v.lens(a)
-		return fmt.Sprintf("%s, the input of the %s in %s", v.param(a.From), block, file)
+		return fmt.Sprintf("%s, the input of %s", v.param(a.From), v.lensName(a))
 	case diag.AddrLensResult:
-		file, block := v.lens(a)
-		return fmt.Sprintf("the body of the %s in %s", block, file)
+		return "the body of " + v.lensName(a)
 	case diag.AddrLensResultField:
-		file, block := v.lens(a)
-		return fmt.Sprintf("%s in the %s in %s", field, block, file)
+		return field + " in " + v.lensName(a)
 	case diag.AddrLacuna:
-		file, block := v.lens(a)
-		return fmt.Sprintf("a lacuna of the %s in %s", block, file)
+		return "a lacuna of " + v.lensName(a)
 	case diag.AddrLacunaField:
-		file, block := v.lens(a)
-		return fmt.Sprintf("%s of a lacuna of the %s in %s", a.Name, block, file)
+		return a.Name + " of a lacuna of " + v.lensName(a)
 	}
 	return diag.NormalForm.Term(a)
 }
 
 // Rewrite renders a checker's sentence about a lens in the author's terms:
 // the normal form's input is the parameter the author named after the
-// source version, v0_0, and "the target schema" is the target version's file.
+// source version, v0_0, and "the target schema" is the target version.
 func (v vocab) Rewrite(a diag.Address, sentence string) string {
 	if !lensAddr(a) {
 		return sentence
@@ -132,8 +143,8 @@ func (v vocab) Rewrite(a diag.Address, sentence string) string {
 		"input.", param+".",
 		"an input field", "a field of "+param,
 		"the input", param,
-		"the source schema", v.file(a.From),
-		"the target schema", v.file(a.To),
+		"the source schema", v.name(a.From),
+		"the target schema", v.name(a.To),
 	)
 	return r.Replace(sentence)
 }

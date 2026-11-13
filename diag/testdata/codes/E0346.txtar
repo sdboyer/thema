@@ -21,7 +21,7 @@ Schema: {
     {
       "code": "E0346",
       "severity": "error",
-      "headline": "history/1.0.thema has no ForwardLens, and 1.0 requires b",
+      "headline": "v1.0 has no ForwardLens, and v1.0 requires b",
       "primary": {
         "file": "history/1.0.thema",
         "line": 4,
@@ -41,7 +41,7 @@ Schema: {
   }
 }
 -- out/text --
-error[E0346]: history/1.0.thema has no ForwardLens, and 1.0 requires b
+error[E0346]: v1.0 has no ForwardLens, and v1.0 requires b
  --> history/1.0.thema:4:1
   |
 4 | }

@@ -242,7 +242,7 @@ lenses: {
 				path:  "area"
 				value: v1_0.area
 			}]
-			message: "area has no equivalent in 0.0 and was dropped"
+			message: "area has no equivalent in v0.0 and was dropped"
 			type:    "DroppedField"
 		}]
 	}

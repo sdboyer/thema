@@ -32,7 +32,7 @@ Schema: {
 	}
 }
 -- out/error --
-error[E0346]: ForwardLens produces nothing for o.z, which 1.0 requires
+error[E0346]: ForwardLens produces nothing for o.z, which v1.0 requires
   --> history/1.0.thema:11:3
    |
 11 |         o: {

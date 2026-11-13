@@ -35,7 +35,7 @@ lenses: {
     {
       "code": "E0402",
       "severity": "error",
-      "headline": "lacuna 0 of lens 0.1->0.0 has no message",
+      "headline": "lacuna 0 of lens v0.1->v0.0 has no message",
       "path": [
         "lenses",
         "0.1->0.0",
@@ -70,7 +70,7 @@ lenses: {
   }
 }
 -- out/text --
-error[E0402]: lacuna 0 of lens 0.1->0.0 has no message
+error[E0402]: lacuna 0 of lens v0.1->v0.0 has no message
   --> lineage.cue:24:4
    |
 24 |             {type: "DroppedField", condition: v0_1.b != _|_},

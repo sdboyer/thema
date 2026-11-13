@@ -36,7 +36,7 @@ lenses: {
     {
       "code": "E0303",
       "severity": "error",
-      "headline": "the input of lens 0.1->0.0 does not accept every instance of schema 0.1",
+      "headline": "the input of lens v0.1->v0.0 does not accept every instance of schema v0.1",
       "path": [
         "lenses",
         "0.1->0.0",
@@ -85,7 +85,7 @@ lenses: {
   }
 }
 -- out/text --
-error[E0303]: the input of lens 0.1->0.0 does not accept every instance of schema 0.1
+error[E0303]: the input of lens v0.1->v0.0 does not accept every instance of schema v0.1
    --> lineage.cue:19:3
     |
  19 |         v0_1: {

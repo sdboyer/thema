@@ -21,7 +21,7 @@ schemas: {}
         "origin": "user"
       },
       "help": [
-        "declare at least version 0.0 under schemas"
+        "declare at least v0.0 under schemas"
       ]
     }
   ],
@@ -38,4 +38,4 @@ error[E0122]: the lineage declares no schemas
 2 | schemas: {}
   | ^^^^^^^
   |
-  = help: declare at least version 0.0 under schemas
+  = help: declare at least v0.0 under schemas

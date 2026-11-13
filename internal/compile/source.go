@@ -414,7 +414,7 @@ func parseVersions(files []File, o options) ([]*version, error) {
 			prev := vs[i-1].v
 			if v.v == prev {
 				return nil, diag.New(diag.E0204).At(v.header()).
-					Headlinef("%s and %s both declare version %s", vs[i-1].path, v.path, v.v).
+					Headlinef("%s and %s both declare %s", vs[i-1].path, v.path, vname(v.v)).
 					Note(vs[i-1].header(), "the other is here").
 					Helpf("a version has one file, under %s/", HistoryDir).
 					Err()
@@ -427,9 +427,9 @@ func parseVersions(files []File, o options) ([]*version, error) {
 		}
 		if v.v != want {
 			b := diag.New(diag.E0205).At(v.header()).
-				Headlinef("%s skips a version: after %s comes %s", v.path, vs[max(i-1, 0)].v, want)
+				Headlinef("%s skips a version: after %s comes %s", v.path, vname(vs[max(i-1, 0)].v), vname(want))
 			if i == 0 {
-				b.Headlinef("%s is not the first version: a lineage starts at 0.0", v.path)
+				b.Headlinef("%s is not the first version: a lineage starts at v0.0", v.path)
 			}
 			return nil, b.Helpf("rename the file %s/%s%s, or add the versions between", HistoryDir, want, Ext).Err()
 		}

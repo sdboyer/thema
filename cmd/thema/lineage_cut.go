@@ -62,14 +62,14 @@ func (cc *cutCommand) run(cmd *cobra.Command, _ []string) error {
 	}
 	out := cmd.OutOrStdout()
 	if cut.Clean {
-		_, werr := fmt.Fprintf(out, "tip (clean at %s): nothing to cut\n", cut.Version)
+		_, werr := fmt.Fprintf(out, "tip (clean at %s): nothing to cut\n", vname(cut.Version))
 		return werr
 	}
 	verb := "cut"
 	if cc.dryRun {
 		verb = "would cut"
 	}
-	if _, err = fmt.Fprintf(out, "%s the tip as %s\n", verb, cut.Version); err != nil {
+	if _, err = fmt.Fprintf(out, "%s the tip as %s\n", verb, vname(cut.Version)); err != nil {
 		return err
 	}
 	// The frozen version is written before the tip is reset, each on its

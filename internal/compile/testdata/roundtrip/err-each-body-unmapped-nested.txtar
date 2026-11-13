@@ -38,7 +38,7 @@ Schema: {
 	}]
 }
 -- out/error --
-error[E0347]: 0.0 declares meta.note and 1.0 does not, and nothing maps it
+error[E0347]: v0.0 declares meta.note and v1.0 does not, and nothing maps it
   --> history/1.0.thema:13:4
    |
 13 |             meta: {

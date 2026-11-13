@@ -24,7 +24,7 @@ lenses: {}
     "value": 42
 }
 -- out/validate/TestValidate/valueAsInt --
-error[E0505]: value in the data matches none of the alternatives schema 0.0 allows
+error[E0505]: value in the data matches none of the alternatives schema v0.0 allows
  --> in/validate/TestValidate/valueAsInt.data.json:2:14
   |
 2 |     "value": 42
@@ -39,7 +39,7 @@ error[E0505]: value in the data matches none of the alternatives schema 0.0 allo
   |
   = detail: value: 2 errors in empty disjunction:
 
-error[E0501]: the data lacks structVal.inner, which schema 0.0 declares as string | int
+error[E0501]: the data lacks structVal.inner, which schema v0.0 declares as string | int
   --> in/validate/TestValidate/valueAsInt.data.json:1:1
    |
  1 | {
@@ -52,7 +52,7 @@ error[E0501]: the data lacks structVal.inner, which schema 0.0 declares as strin
    |
    = detail: structVal.inner: incomplete value string | int
 -- out/validate/TestValidate/emptyMapAsString --
-error[E0503]: emptyMap in the data is "definitely not a map", but schema 0.0 declares it as {...}
+error[E0503]: emptyMap in the data is "definitely not a map", but schema v0.0 declares it as {...}
   --> in/validate/TestValidate/emptyMapAsString.data.json:2:17
    |
  2 |     "emptyMap": "definitely not a map"
@@ -65,7 +65,7 @@ error[E0503]: emptyMap in the data is "definitely not a map", but schema 0.0 dec
    |
    = detail: emptyMap: conflicting values "definitely not a map" and {...} (mismatched types string and struct)
 
-error[E0501]: the data lacks value, which schema 0.0 declares as string | bool
+error[E0501]: the data lacks value, which schema v0.0 declares as string | bool
  --> in/validate/TestValidate/emptyMapAsString.data.json:1:1
   |
 1 | {
@@ -78,7 +78,7 @@ error[E0501]: the data lacks value, which schema 0.0 declares as string | bool
   |
   = detail: value: incomplete value string | bool
 
-error[E0501]: the data lacks structVal.inner, which schema 0.0 declares as string | int
+error[E0501]: the data lacks structVal.inner, which schema v0.0 declares as string | int
   --> in/validate/TestValidate/emptyMapAsString.data.json:1:1
    |
  1 | {
@@ -91,7 +91,7 @@ error[E0501]: the data lacks structVal.inner, which schema 0.0 declares as strin
    |
    = detail: structVal.inner: incomplete value string | int
 -- out/validate/TestValidate/structValInnerAsBool --
-error[E0505]: structVal.inner in the data matches none of the alternatives schema 0.0 allows
+error[E0505]: structVal.inner in the data matches none of the alternatives schema v0.0 allows
   --> in/validate/TestValidate/structValInnerAsBool.data.json:3:18
    |
  3 |         "inner": true
@@ -106,7 +106,7 @@ error[E0505]: structVal.inner in the data matches none of the alternatives schem
    |
    = detail: structVal.inner: 2 errors in empty disjunction:
 
-error[E0501]: the data lacks value, which schema 0.0 declares as string | bool
+error[E0501]: the data lacks value, which schema v0.0 declares as string | bool
  --> in/validate/TestValidate/structValInnerAsBool.data.json:1:1
   |
 1 | {
@@ -252,7 +252,7 @@ error[E0501]: the data lacks value, which schema 0.0 declares as string | bool
 }
 -- out/bind --
 Schema count: 1
-Schema versions: 0.0
+Schema versions: v0.0
 Lenses count: 0
 -- out/encoding/openapi/TestGenerate/expandrefs --
 == 0.0.json

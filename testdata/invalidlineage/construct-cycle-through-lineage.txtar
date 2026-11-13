@@ -23,7 +23,7 @@ lin: thema.Lineage & {
 	}
 }
 -- out/bindfail --
-error[E0134]: schema 0.0 refers to schemas, which contains it
+error[E0134]: schema v0.0 refers to schemas, which contains it
  --> /in.cue:7:22
   |
 7 |             schema: {n: <=len(lin.schemas)}

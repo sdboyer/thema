@@ -11,4 +11,4 @@ Schema: {
 }
 -- out/verdict --
 # bind
-E0151 the schema in history/0.0.thema declares _#def, a hidden definition
+E0151 the schema of v0.0 declares _#def, a hidden definition

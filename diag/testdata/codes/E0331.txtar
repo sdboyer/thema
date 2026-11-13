@@ -38,7 +38,7 @@ Schema: {
     {
       "code": "E0346",
       "severity": "error",
-      "headline": "ForwardLens produces nothing for b, which 1.0 requires",
+      "headline": "ForwardLens produces nothing for b, which v1.0 requires",
       "primary": {
         "file": "history/1.0.thema",
         "line": 5,
@@ -53,7 +53,7 @@ Schema: {
     {
       "code": "E0347",
       "severity": "error",
-      "headline": "0.0 declares a and 1.0 does not, and nothing maps it",
+      "headline": "v0.0 declares a and v1.0 does not, and nothing maps it",
       "primary": {
         "file": "history/1.0.thema",
         "line": 5,
@@ -80,7 +80,7 @@ error[E0331]: a mapping's key is a plain field name
   |         ^^^^
   |
 
-error[E0346]: ForwardLens produces nothing for b, which 1.0 requires
+error[E0346]: ForwardLens produces nothing for b, which v1.0 requires
  --> history/1.0.thema:5:1
   |
 5 | ForwardLens: {
@@ -88,7 +88,7 @@ error[E0346]: ForwardLens produces nothing for b, which 1.0 requires
   |
   = help: add b: <mapping> to v1_0
 
-error[E0347]: 0.0 declares a and 1.0 does not, and nothing maps it
+error[E0347]: v0.0 declares a and v1.0 does not, and nothing maps it
  --> history/1.0.thema:5:1
   |
 5 | ForwardLens: {

@@ -261,12 +261,18 @@ func isAuthoringDir(dir string) bool {
 }
 
 // versionLabel names version v of the loaded lineage as the CLI reports it:
-// with --tip, the tip's version is the tip, "tip (cuts as 2.1)".
+// v2.1, and with --tip the tip's version is the tip, "tip (cuts as v2.1)".
 func (dl *dynamicLoader) versionLabel(v thema.SyntacticVersion) string {
 	if dl.dev != nil && dl.dev.Provisional(v) {
 		return dl.dev.Tip.String()
 	}
-	return v.String()
+	return vname(v)
+}
+
+// vname is version v as messages name it: v0.1. v.String() is the version
+// as data writes it.
+func vname(v thema.SyntacticVersion) string {
+	return "v" + v.String()
 }
 
 // versionName names version v of the loaded lineage in machine-readable

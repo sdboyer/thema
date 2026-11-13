@@ -26,7 +26,7 @@ schemas: {
     {
       "code": "E0210",
       "severity": "error",
-      "headline": "b in schema 0.1 is required in the new schema but not declared in the prior one",
+      "headline": "b in schema v0.1 is required in the new schema but not declared in the prior one",
       "path": [
         "schemas",
         "0",
@@ -53,11 +53,11 @@ schemas: {
       },
       "notes": [
         {
-          "label": "schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts"
+          "label": "schema v0.1 is a minor version, so it must accept all data schema v0.0 accepts"
         }
       ],
       "help": [
-        "make the change compatible, or make this version 1.0"
+        "make the change compatible, or make this version v1.0"
       ]
     }
   ],
@@ -68,11 +68,11 @@ schemas: {
   }
 }
 -- out/text --
-error[E0210]: b in schema 0.1 is required in the new schema but not declared in the prior one
+error[E0210]: b in schema v0.1 is required in the new schema but not declared in the prior one
   --> lineage.cue:12:5
    |
 12 |                 b: int
    |                 ^
    |
-   = note: schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts
-   = help: make the change compatible, or make this version 1.0
+   = note: schema v0.1 is a minor version, so it must accept all data schema v0.0 accepts
+   = help: make the change compatible, or make this version v1.0

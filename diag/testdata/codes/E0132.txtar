@@ -22,7 +22,7 @@ schemas: {
     {
       "code": "E0132",
       "severity": "error",
-      "headline": "schema 0.0 uses a comprehension",
+      "headline": "schema v0.0 uses a comprehension",
       "path": [
         "schemas",
         "0",
@@ -60,7 +60,7 @@ schemas: {
   }
 }
 -- out/text --
-error[E0132]: schema 0.0 uses a comprehension
+error[E0132]: schema v0.0 uses a comprehension
  --> lineage.cue:7:5
   |
 7 |                 if true {

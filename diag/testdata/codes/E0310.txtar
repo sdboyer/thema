@@ -30,7 +30,7 @@ lin: {
     {
       "code": "E0310",
       "severity": "error",
-      "headline": "lens 1.0->0.0 does not declare v1_0, the instance of 1.0 it takes",
+      "headline": "lens v1.0->v0.0 does not declare v1_0, the instance of v1.0 it takes",
       "path": [
         "lenses",
         "1.0->0.0"
@@ -65,7 +65,7 @@ lin: {
   }
 }
 -- out/text --
-error[E0310]: lens 1.0->0.0 does not declare v1_0, the instance of 1.0 it takes
+error[E0310]: lens v1.0->v0.0 does not declare v1_0, the instance of v1.0 it takes
   --> lineage.cue:12:3
    |
 12 |         "1.0->0.0": {

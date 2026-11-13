@@ -11,7 +11,7 @@ ForwardLens: {
 	v1_0: {count: v0_0.n}
 }
 -- out/error --
-error[E0343]: n is optional in 0.0 and 1.0 requires count
+error[E0343]: n is optional in v0.0 and v1.0 requires count
  --> history/1.0.thema:5:9
   |
 5 |     v1_0: {count: v0_0.n}

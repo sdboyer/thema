@@ -135,7 +135,7 @@ schemas: {
 -- out/validate/TestValidate/stringWithLength --
 <scalar-fields@v0.0>.stringWithLength:
 -- out/validate/TestValidate/someInt8 --
-error[E0503]: someInt8 in the data is null, but schema 0.0 declares it as int8
+error[E0503]: someInt8 in the data is null, but schema v0.0 declares it as int8
   --> in/validate/TestValidate/someInt8.data.json:2:17
    |
  2 |     "someInt8": null,
@@ -148,7 +148,7 @@ error[E0503]: someInt8 in the data is null, but schema 0.0 declares it as int8
    |
    = detail: someInt8: conflicting values null and int8 (mismatched types null and int)
 
-error[E0504]: stringWithLength in the data is "hello", which fails strings.MinRunes(10) in schema 0.0
+error[E0504]: stringWithLength in the data is "hello", which fails strings.MinRunes(10) in schema v0.0
   --> in/validate/TestValidate/someInt8.data.json:15:25
    |
 15 |     "stringWithLength": "hello"
@@ -161,7 +161,7 @@ error[E0504]: stringWithLength in the data is "hello", which fails strings.MinRu
    |
    = detail: stringWithLength: invalid value "hello" (does not satisfy strings.MinRunes(10))
 -- out/validate/TestValidate/someInt16 --
-error[E0503]: someInt16 in the data is null, but schema 0.0 declares it as int16
+error[E0503]: someInt16 in the data is null, but schema v0.0 declares it as int16
   --> in/validate/TestValidate/someInt16.data.json:3:18
    |
  3 |     "someInt16": null,
@@ -174,7 +174,7 @@ error[E0503]: someInt16 in the data is null, but schema 0.0 declares it as int16
    |
    = detail: someInt16: conflicting values null and int16 (mismatched types null and int)
 
-error[E0503]: someUInt16 in the data is null, but schema 0.0 declares it as uint16
+error[E0503]: someUInt16 in the data is null, but schema v0.0 declares it as uint16
   --> in/validate/TestValidate/someInt16.data.json:4:19
    |
  4 |     "someUInt16": null,
@@ -187,7 +187,7 @@ error[E0503]: someUInt16 in the data is null, but schema 0.0 declares it as uint
    |
    = detail: someUInt16: conflicting values null and uint16 (mismatched types null and int)
 
-error[E0504]: stringWithLength in the data is "hello", which fails strings.MinRunes(10) in schema 0.0
+error[E0504]: stringWithLength in the data is "hello", which fails strings.MinRunes(10) in schema v0.0
   --> in/validate/TestValidate/someInt16.data.json:15:25
    |
 15 |     "stringWithLength": "hello"
@@ -200,7 +200,7 @@ error[E0504]: stringWithLength in the data is "hello", which fails strings.MinRu
    |
    = detail: stringWithLength: invalid value "hello" (does not satisfy strings.MinRunes(10))
 -- out/validate/TestValidate/someUInt16 --
-error[E0503]: someUInt16 in the data is null, but schema 0.0 declares it as uint16
+error[E0503]: someUInt16 in the data is null, but schema v0.0 declares it as uint16
   --> in/validate/TestValidate/someUInt16.data.json:2:19
    |
  2 |     "someUInt16": null,
@@ -213,7 +213,7 @@ error[E0503]: someUInt16 in the data is null, but schema 0.0 declares it as uint
    |
    = detail: someUInt16: conflicting values null and uint16 (mismatched types null and int)
 
-error[E0504]: stringWithLength in the data is "hello", which fails strings.MinRunes(10) in schema 0.0
+error[E0504]: stringWithLength in the data is "hello", which fails strings.MinRunes(10) in schema v0.0
   --> in/validate/TestValidate/someUInt16.data.json:13:25
    |
 13 |     "stringWithLength": "hello"
@@ -226,7 +226,7 @@ error[E0504]: stringWithLength in the data is "hello", which fails strings.MinRu
    |
    = detail: stringWithLength: invalid value "hello" (does not satisfy strings.MinRunes(10))
 
-error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
+error[E0501]: the data lacks someInt8, which schema v0.0 declares as int8
   --> in/validate/TestValidate/someUInt16.data.json:1:1
    |
  1 | {
@@ -239,7 +239,7 @@ error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
    |
    = detail: someInt8: incomplete value int8
 
-error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
+error[E0501]: the data lacks someInt16, which schema v0.0 declares as int16
   --> in/validate/TestValidate/someUInt16.data.json:1:1
    |
  1 | {
@@ -252,7 +252,7 @@ error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
    |
    = detail: someInt16: incomplete value int16
 -- out/validate/TestValidate/someUInt32 --
-error[E0503]: someUInt32 in the data is null, but schema 0.0 declares it as uint32
+error[E0503]: someUInt32 in the data is null, but schema v0.0 declares it as uint32
   --> in/validate/TestValidate/someUInt32.data.json:2:19
    |
  2 |     "someUInt32": null,
@@ -265,7 +265,7 @@ error[E0503]: someUInt32 in the data is null, but schema 0.0 declares it as uint
    |
    = detail: someUInt32: conflicting values null and uint32 (mismatched types null and int)
 
-error[E0504]: stringWithLength in the data is "hello", which fails strings.MinRunes(10) in schema 0.0
+error[E0504]: stringWithLength in the data is "hello", which fails strings.MinRunes(10) in schema v0.0
   --> in/validate/TestValidate/someUInt32.data.json:12:25
    |
 12 |     "stringWithLength": "hello"
@@ -278,7 +278,7 @@ error[E0504]: stringWithLength in the data is "hello", which fails strings.MinRu
    |
    = detail: stringWithLength: invalid value "hello" (does not satisfy strings.MinRunes(10))
 
-error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
+error[E0501]: the data lacks someUInt16, which schema v0.0 declares as uint16
   --> in/validate/TestValidate/someUInt32.data.json:1:1
    |
  1 | {
@@ -291,7 +291,7 @@ error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
    |
    = detail: someUInt16: incomplete value uint16
 
-error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
+error[E0501]: the data lacks someInt8, which schema v0.0 declares as int8
   --> in/validate/TestValidate/someUInt32.data.json:1:1
    |
  1 | {
@@ -304,7 +304,7 @@ error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
    |
    = detail: someInt8: incomplete value int8
 
-error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
+error[E0501]: the data lacks someInt16, which schema v0.0 declares as int16
   --> in/validate/TestValidate/someUInt32.data.json:1:1
    |
  1 | {
@@ -317,7 +317,7 @@ error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
    |
    = detail: someInt16: incomplete value int16
 -- out/validate/TestValidate/someUInt64 --
-error[E0503]: someUInt64 in the data is null, but schema 0.0 declares it as uint64
+error[E0503]: someUInt64 in the data is null, but schema v0.0 declares it as uint64
   --> in/validate/TestValidate/someUInt64.data.json:3:19
    |
  3 |     "someUInt64": null,
@@ -330,7 +330,7 @@ error[E0503]: someUInt64 in the data is null, but schema 0.0 declares it as uint
    |
    = detail: someUInt64: conflicting values null and uint64 (mismatched types null and int)
 
-error[E0504]: stringWithLength in the data is "hello", which fails strings.MinRunes(10) in schema 0.0
+error[E0504]: stringWithLength in the data is "hello", which fails strings.MinRunes(10) in schema v0.0
   --> in/validate/TestValidate/someUInt64.data.json:12:25
    |
 12 |     "stringWithLength": "hello"
@@ -343,7 +343,7 @@ error[E0504]: stringWithLength in the data is "hello", which fails strings.MinRu
    |
    = detail: stringWithLength: invalid value "hello" (does not satisfy strings.MinRunes(10))
 
-error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
+error[E0501]: the data lacks someUInt16, which schema v0.0 declares as uint16
   --> in/validate/TestValidate/someUInt64.data.json:1:1
    |
  1 | {
@@ -356,7 +356,7 @@ error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
    |
    = detail: someUInt16: incomplete value uint16
 
-error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
+error[E0501]: the data lacks someInt8, which schema v0.0 declares as int8
   --> in/validate/TestValidate/someUInt64.data.json:1:1
    |
  1 | {
@@ -369,7 +369,7 @@ error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
    |
    = detail: someInt8: incomplete value int8
 
-error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
+error[E0501]: the data lacks someInt16, which schema v0.0 declares as int16
   --> in/validate/TestValidate/someUInt64.data.json:1:1
    |
  1 | {
@@ -382,7 +382,7 @@ error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
    |
    = detail: someInt16: incomplete value int16
 -- out/validate/TestValidate/someUInt8 --
-error[E0503]: someUInt8 in the data is null, but schema 0.0 declares it as uint8
+error[E0503]: someUInt8 in the data is null, but schema v0.0 declares it as uint8
   --> in/validate/TestValidate/someUInt8.data.json:2:18
    |
  2 |     "someUInt8": null,
@@ -395,7 +395,7 @@ error[E0503]: someUInt8 in the data is null, but schema 0.0 declares it as uint8
    |
    = detail: someUInt8: conflicting values null and uint8 (mismatched types null and int)
 
-error[E0504]: stringWithLength in the data is "hello", which fails strings.MinRunes(10) in schema 0.0
+error[E0504]: stringWithLength in the data is "hello", which fails strings.MinRunes(10) in schema v0.0
   --> in/validate/TestValidate/someUInt8.data.json:10:25
    |
 10 |     "stringWithLength": "hello"
@@ -408,7 +408,7 @@ error[E0504]: stringWithLength in the data is "hello", which fails strings.MinRu
    |
    = detail: stringWithLength: invalid value "hello" (does not satisfy strings.MinRunes(10))
 
-error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
+error[E0501]: the data lacks someUInt16, which schema v0.0 declares as uint16
   --> in/validate/TestValidate/someUInt8.data.json:1:1
    |
  1 | {
@@ -421,7 +421,7 @@ error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
    |
    = detail: someUInt16: incomplete value uint16
 
-error[E0501]: the data lacks someUInt32, which schema 0.0 declares as uint32
+error[E0501]: the data lacks someUInt32, which schema v0.0 declares as uint32
   --> in/validate/TestValidate/someUInt8.data.json:1:1
    |
  1 | {
@@ -434,7 +434,7 @@ error[E0501]: the data lacks someUInt32, which schema 0.0 declares as uint32
    |
    = detail: someUInt32: incomplete value uint32
 
-error[E0501]: the data lacks someUInt64, which schema 0.0 declares as uint64
+error[E0501]: the data lacks someUInt64, which schema v0.0 declares as uint64
   --> in/validate/TestValidate/someUInt8.data.json:1:1
    |
  1 | {
@@ -447,7 +447,7 @@ error[E0501]: the data lacks someUInt64, which schema 0.0 declares as uint64
    |
    = detail: someUInt64: incomplete value uint64
 
-error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
+error[E0501]: the data lacks someInt8, which schema v0.0 declares as int8
   --> in/validate/TestValidate/someUInt8.data.json:1:1
    |
  1 | {
@@ -460,7 +460,7 @@ error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
    |
    = detail: someInt8: incomplete value int8
 
-error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
+error[E0501]: the data lacks someInt16, which schema v0.0 declares as int16
   --> in/validate/TestValidate/someUInt8.data.json:1:1
    |
  1 | {
@@ -473,7 +473,7 @@ error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
    |
    = detail: someInt16: incomplete value int16
 -- out/validate/TestValidate/missingFields --
-error[E0501]: the data lacks someUInt8, which schema 0.0 declares as uint8
+error[E0501]: the data lacks someUInt8, which schema v0.0 declares as uint8
   --> in/validate/TestValidate/missingFields.data.json:1:1
    |
  1 | {
@@ -486,7 +486,7 @@ error[E0501]: the data lacks someUInt8, which schema 0.0 declares as uint8
    |
    = detail: someUInt8: incomplete value uint8
 
-error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
+error[E0501]: the data lacks someUInt16, which schema v0.0 declares as uint16
   --> in/validate/TestValidate/missingFields.data.json:1:1
    |
  1 | {
@@ -499,7 +499,7 @@ error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
    |
    = detail: someUInt16: incomplete value uint16
 
-error[E0501]: the data lacks someUInt32, which schema 0.0 declares as uint32
+error[E0501]: the data lacks someUInt32, which schema v0.0 declares as uint32
   --> in/validate/TestValidate/missingFields.data.json:1:1
    |
  1 | {
@@ -512,7 +512,7 @@ error[E0501]: the data lacks someUInt32, which schema 0.0 declares as uint32
    |
    = detail: someUInt32: incomplete value uint32
 
-error[E0501]: the data lacks someUInt64, which schema 0.0 declares as uint64
+error[E0501]: the data lacks someUInt64, which schema v0.0 declares as uint64
   --> in/validate/TestValidate/missingFields.data.json:1:1
    |
  1 | {
@@ -525,7 +525,7 @@ error[E0501]: the data lacks someUInt64, which schema 0.0 declares as uint64
    |
    = detail: someUInt64: incomplete value uint64
 
-error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
+error[E0501]: the data lacks someInt8, which schema v0.0 declares as int8
   --> in/validate/TestValidate/missingFields.data.json:1:1
    |
  1 | {
@@ -538,7 +538,7 @@ error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
    |
    = detail: someInt8: incomplete value int8
 
-error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
+error[E0501]: the data lacks someInt16, which schema v0.0 declares as int16
   --> in/validate/TestValidate/missingFields.data.json:1:1
    |
  1 | {
@@ -551,7 +551,7 @@ error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
    |
    = detail: someInt16: incomplete value int16
 
-error[E0501]: the data lacks someInt32, which schema 0.0 declares as int32
+error[E0501]: the data lacks someInt32, which schema v0.0 declares as int32
   --> in/validate/TestValidate/missingFields.data.json:1:1
    |
  1 | {
@@ -564,7 +564,7 @@ error[E0501]: the data lacks someInt32, which schema 0.0 declares as int32
    |
    = detail: someInt32: incomplete value int32
 
-error[E0501]: the data lacks someInt64, which schema 0.0 declares as int64
+error[E0501]: the data lacks someInt64, which schema v0.0 declares as int64
   --> in/validate/TestValidate/missingFields.data.json:1:1
    |
  1 | {
@@ -577,7 +577,7 @@ error[E0501]: the data lacks someInt64, which schema 0.0 declares as int64
    |
    = detail: someInt64: incomplete value int64
 
-error[E0501]: the data lacks someFloat32, which schema 0.0 declares as float32
+error[E0501]: the data lacks someFloat32, which schema v0.0 declares as float32
   --> in/validate/TestValidate/missingFields.data.json:1:1
    |
  1 | {
@@ -590,7 +590,7 @@ error[E0501]: the data lacks someFloat32, which schema 0.0 declares as float32
    |
    = detail: someFloat32: incomplete value float32
 
-error[E0501]: the data lacks someFloat64, which schema 0.0 declares as float64
+error[E0501]: the data lacks someFloat64, which schema v0.0 declares as float64
   --> in/validate/TestValidate/missingFields.data.json:1:1
    |
  1 | {
@@ -603,7 +603,7 @@ error[E0501]: the data lacks someFloat64, which schema 0.0 declares as float64
    |
    = detail: someFloat64: incomplete value float64
 
-error[E0501]: the data lacks intWithBounds, which schema 0.0 declares as >=0 & <10 & int
+error[E0501]: the data lacks intWithBounds, which schema v0.0 declares as >=0 & <10 & int
   --> in/validate/TestValidate/missingFields.data.json:1:1
    |
  1 | {
@@ -616,7 +616,7 @@ error[E0501]: the data lacks intWithBounds, which schema 0.0 declares as >=0 & <
    |
    = detail: intWithBounds: incomplete value >=0 & <10 & int
 
-error[E0501]: the data lacks nullableIntWithNoDefault, which schema 0.0 declares as int | null
+error[E0501]: the data lacks nullableIntWithNoDefault, which schema v0.0 declares as int | null
   --> in/validate/TestValidate/missingFields.data.json:1:1
    |
  1 | {
@@ -629,7 +629,7 @@ error[E0501]: the data lacks nullableIntWithNoDefault, which schema 0.0 declares
    |
    = detail: nullableIntWithNoDefault: incomplete value int | null
 
-error[E0501]: the data lacks stringWithLength, which schema 0.0 declares as strings.MinRunes(10)
+error[E0501]: the data lacks stringWithLength, which schema v0.0 declares as strings.MinRunes(10)
   --> in/validate/TestValidate/missingFields.data.json:1:1
    |
  1 | {
@@ -642,7 +642,7 @@ error[E0501]: the data lacks stringWithLength, which schema 0.0 declares as stri
    |
    = detail: stringWithLength: incomplete value strings.MinRunes(10)
 -- out/validate/TestValidate/stringWithLength --
-error[E0504]: stringWithLength in the data is "hello", which fails strings.MinRunes(10) in schema 0.0
+error[E0504]: stringWithLength in the data is "hello", which fails strings.MinRunes(10) in schema v0.0
   --> in/validate/TestValidate/stringWithLength.data.json:9:25
    |
  9 |     "stringWithLength": "hello"
@@ -655,7 +655,7 @@ error[E0504]: stringWithLength in the data is "hello", which fails strings.MinRu
    |
    = detail: stringWithLength: invalid value "hello" (does not satisfy strings.MinRunes(10))
 
-error[E0501]: the data lacks someUInt8, which schema 0.0 declares as uint8
+error[E0501]: the data lacks someUInt8, which schema v0.0 declares as uint8
   --> in/validate/TestValidate/stringWithLength.data.json:1:1
    |
  1 | {
@@ -668,7 +668,7 @@ error[E0501]: the data lacks someUInt8, which schema 0.0 declares as uint8
    |
    = detail: someUInt8: incomplete value uint8
 
-error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
+error[E0501]: the data lacks someUInt16, which schema v0.0 declares as uint16
   --> in/validate/TestValidate/stringWithLength.data.json:1:1
    |
  1 | {
@@ -681,7 +681,7 @@ error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
    |
    = detail: someUInt16: incomplete value uint16
 
-error[E0501]: the data lacks someUInt32, which schema 0.0 declares as uint32
+error[E0501]: the data lacks someUInt32, which schema v0.0 declares as uint32
   --> in/validate/TestValidate/stringWithLength.data.json:1:1
    |
  1 | {
@@ -694,7 +694,7 @@ error[E0501]: the data lacks someUInt32, which schema 0.0 declares as uint32
    |
    = detail: someUInt32: incomplete value uint32
 
-error[E0501]: the data lacks someUInt64, which schema 0.0 declares as uint64
+error[E0501]: the data lacks someUInt64, which schema v0.0 declares as uint64
   --> in/validate/TestValidate/stringWithLength.data.json:1:1
    |
  1 | {
@@ -707,7 +707,7 @@ error[E0501]: the data lacks someUInt64, which schema 0.0 declares as uint64
    |
    = detail: someUInt64: incomplete value uint64
 
-error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
+error[E0501]: the data lacks someInt8, which schema v0.0 declares as int8
   --> in/validate/TestValidate/stringWithLength.data.json:1:1
    |
  1 | {
@@ -720,7 +720,7 @@ error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
    |
    = detail: someInt8: incomplete value int8
 
-error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
+error[E0501]: the data lacks someInt16, which schema v0.0 declares as int16
   --> in/validate/TestValidate/stringWithLength.data.json:1:1
    |
  1 | {
@@ -733,7 +733,7 @@ error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
    |
    = detail: someInt16: incomplete value int16
 -- out/validate/TestValidate/outOfBoundsLowerInt --
-error[E0504]: intWithBounds in the data is -1, outside the bound >=0 that schema 0.0 sets
+error[E0504]: intWithBounds in the data is -1, outside the bound >=0 that schema v0.0 sets
   --> in/validate/TestValidate/outOfBoundsLowerInt.data.json:2:22
    |
  2 |     "intWithBounds": -1
@@ -746,7 +746,7 @@ error[E0504]: intWithBounds in the data is -1, outside the bound >=0 that schema
    |
    = detail: intWithBounds: invalid value -1 (out of bound >=0)
 
-error[E0501]: the data lacks someUInt8, which schema 0.0 declares as uint8
+error[E0501]: the data lacks someUInt8, which schema v0.0 declares as uint8
   --> in/validate/TestValidate/outOfBoundsLowerInt.data.json:1:1
    |
  1 | {
@@ -759,7 +759,7 @@ error[E0501]: the data lacks someUInt8, which schema 0.0 declares as uint8
    |
    = detail: someUInt8: incomplete value uint8
 
-error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
+error[E0501]: the data lacks someUInt16, which schema v0.0 declares as uint16
   --> in/validate/TestValidate/outOfBoundsLowerInt.data.json:1:1
    |
  1 | {
@@ -772,7 +772,7 @@ error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
    |
    = detail: someUInt16: incomplete value uint16
 
-error[E0501]: the data lacks someUInt32, which schema 0.0 declares as uint32
+error[E0501]: the data lacks someUInt32, which schema v0.0 declares as uint32
   --> in/validate/TestValidate/outOfBoundsLowerInt.data.json:1:1
    |
  1 | {
@@ -785,7 +785,7 @@ error[E0501]: the data lacks someUInt32, which schema 0.0 declares as uint32
    |
    = detail: someUInt32: incomplete value uint32
 
-error[E0501]: the data lacks someUInt64, which schema 0.0 declares as uint64
+error[E0501]: the data lacks someUInt64, which schema v0.0 declares as uint64
   --> in/validate/TestValidate/outOfBoundsLowerInt.data.json:1:1
    |
  1 | {
@@ -798,7 +798,7 @@ error[E0501]: the data lacks someUInt64, which schema 0.0 declares as uint64
    |
    = detail: someUInt64: incomplete value uint64
 
-error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
+error[E0501]: the data lacks someInt8, which schema v0.0 declares as int8
   --> in/validate/TestValidate/outOfBoundsLowerInt.data.json:1:1
    |
  1 | {
@@ -811,7 +811,7 @@ error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
    |
    = detail: someInt8: incomplete value int8
 
-error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
+error[E0501]: the data lacks someInt16, which schema v0.0 declares as int16
   --> in/validate/TestValidate/outOfBoundsLowerInt.data.json:1:1
    |
  1 | {
@@ -824,7 +824,7 @@ error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
    |
    = detail: someInt16: incomplete value int16
 
-error[E0501]: the data lacks someInt32, which schema 0.0 declares as int32
+error[E0501]: the data lacks someInt32, which schema v0.0 declares as int32
   --> in/validate/TestValidate/outOfBoundsLowerInt.data.json:1:1
    |
  1 | {
@@ -837,7 +837,7 @@ error[E0501]: the data lacks someInt32, which schema 0.0 declares as int32
    |
    = detail: someInt32: incomplete value int32
 
-error[E0501]: the data lacks someInt64, which schema 0.0 declares as int64
+error[E0501]: the data lacks someInt64, which schema v0.0 declares as int64
   --> in/validate/TestValidate/outOfBoundsLowerInt.data.json:1:1
    |
  1 | {
@@ -850,7 +850,7 @@ error[E0501]: the data lacks someInt64, which schema 0.0 declares as int64
    |
    = detail: someInt64: incomplete value int64
 
-error[E0501]: the data lacks someFloat32, which schema 0.0 declares as float32
+error[E0501]: the data lacks someFloat32, which schema v0.0 declares as float32
   --> in/validate/TestValidate/outOfBoundsLowerInt.data.json:1:1
    |
  1 | {
@@ -863,7 +863,7 @@ error[E0501]: the data lacks someFloat32, which schema 0.0 declares as float32
    |
    = detail: someFloat32: incomplete value float32
 
-error[E0501]: the data lacks someFloat64, which schema 0.0 declares as float64
+error[E0501]: the data lacks someFloat64, which schema v0.0 declares as float64
   --> in/validate/TestValidate/outOfBoundsLowerInt.data.json:1:1
    |
  1 | {
@@ -876,7 +876,7 @@ error[E0501]: the data lacks someFloat64, which schema 0.0 declares as float64
    |
    = detail: someFloat64: incomplete value float64
 
-error[E0501]: the data lacks nullableIntWithNoDefault, which schema 0.0 declares as int | null
+error[E0501]: the data lacks nullableIntWithNoDefault, which schema v0.0 declares as int | null
   --> in/validate/TestValidate/outOfBoundsLowerInt.data.json:1:1
    |
  1 | {
@@ -889,7 +889,7 @@ error[E0501]: the data lacks nullableIntWithNoDefault, which schema 0.0 declares
    |
    = detail: nullableIntWithNoDefault: incomplete value int | null
 
-error[E0501]: the data lacks stringWithLength, which schema 0.0 declares as strings.MinRunes(10)
+error[E0501]: the data lacks stringWithLength, which schema v0.0 declares as strings.MinRunes(10)
   --> in/validate/TestValidate/outOfBoundsLowerInt.data.json:1:1
    |
  1 | {
@@ -902,7 +902,7 @@ error[E0501]: the data lacks stringWithLength, which schema 0.0 declares as stri
    |
    = detail: stringWithLength: incomplete value strings.MinRunes(10)
 -- out/validate/TestValidate/outOfBoundsUpperInt --
-error[E0504]: intWithBounds in the data is 12, outside the bound <10 that schema 0.0 sets
+error[E0504]: intWithBounds in the data is 12, outside the bound <10 that schema v0.0 sets
   --> in/validate/TestValidate/outOfBoundsUpperInt.data.json:6:22
    |
  6 |     "intWithBounds": 12
@@ -915,7 +915,7 @@ error[E0504]: intWithBounds in the data is 12, outside the bound <10 that schema
    |
    = detail: intWithBounds: invalid value 12 (out of bound <10)
 
-error[E0501]: the data lacks someUInt8, which schema 0.0 declares as uint8
+error[E0501]: the data lacks someUInt8, which schema v0.0 declares as uint8
   --> in/validate/TestValidate/outOfBoundsUpperInt.data.json:1:1
    |
  1 | {
@@ -928,7 +928,7 @@ error[E0501]: the data lacks someUInt8, which schema 0.0 declares as uint8
    |
    = detail: someUInt8: incomplete value uint8
 
-error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
+error[E0501]: the data lacks someUInt16, which schema v0.0 declares as uint16
   --> in/validate/TestValidate/outOfBoundsUpperInt.data.json:1:1
    |
  1 | {
@@ -941,7 +941,7 @@ error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
    |
    = detail: someUInt16: incomplete value uint16
 
-error[E0501]: the data lacks someUInt32, which schema 0.0 declares as uint32
+error[E0501]: the data lacks someUInt32, which schema v0.0 declares as uint32
   --> in/validate/TestValidate/outOfBoundsUpperInt.data.json:1:1
    |
  1 | {
@@ -954,7 +954,7 @@ error[E0501]: the data lacks someUInt32, which schema 0.0 declares as uint32
    |
    = detail: someUInt32: incomplete value uint32
 
-error[E0501]: the data lacks someUInt64, which schema 0.0 declares as uint64
+error[E0501]: the data lacks someUInt64, which schema v0.0 declares as uint64
   --> in/validate/TestValidate/outOfBoundsUpperInt.data.json:1:1
    |
  1 | {
@@ -967,7 +967,7 @@ error[E0501]: the data lacks someUInt64, which schema 0.0 declares as uint64
    |
    = detail: someUInt64: incomplete value uint64
 
-error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
+error[E0501]: the data lacks someInt8, which schema v0.0 declares as int8
   --> in/validate/TestValidate/outOfBoundsUpperInt.data.json:1:1
    |
  1 | {
@@ -980,7 +980,7 @@ error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
    |
    = detail: someInt8: incomplete value int8
 
-error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
+error[E0501]: the data lacks someInt16, which schema v0.0 declares as int16
   --> in/validate/TestValidate/outOfBoundsUpperInt.data.json:1:1
    |
  1 | {
@@ -993,7 +993,7 @@ error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
    |
    = detail: someInt16: incomplete value int16
 
-error[E0501]: the data lacks nullableIntWithNoDefault, which schema 0.0 declares as int | null
+error[E0501]: the data lacks nullableIntWithNoDefault, which schema v0.0 declares as int | null
   --> in/validate/TestValidate/outOfBoundsUpperInt.data.json:1:1
    |
  1 | {
@@ -1006,7 +1006,7 @@ error[E0501]: the data lacks nullableIntWithNoDefault, which schema 0.0 declares
    |
    = detail: nullableIntWithNoDefault: incomplete value int | null
 
-error[E0501]: the data lacks stringWithLength, which schema 0.0 declares as strings.MinRunes(10)
+error[E0501]: the data lacks stringWithLength, which schema v0.0 declares as strings.MinRunes(10)
   --> in/validate/TestValidate/outOfBoundsUpperInt.data.json:1:1
    |
  1 | {
@@ -1019,7 +1019,7 @@ error[E0501]: the data lacks stringWithLength, which schema 0.0 declares as stri
    |
    = detail: stringWithLength: incomplete value strings.MinRunes(10)
 -- out/validate/TestValidate/someInt32 --
-error[E0503]: someInt32 in the data is "not an int", but schema 0.0 declares it as int32
+error[E0503]: someInt32 in the data is "not an int", but schema v0.0 declares it as int32
   --> in/validate/TestValidate/someInt32.data.json:2:18
    |
  2 |     "someInt32": "not an int"
@@ -1032,7 +1032,7 @@ error[E0503]: someInt32 in the data is "not an int", but schema 0.0 declares it 
    |
    = detail: someInt32: conflicting values "not an int" and int32 (mismatched types string and int)
 
-error[E0501]: the data lacks someUInt8, which schema 0.0 declares as uint8
+error[E0501]: the data lacks someUInt8, which schema v0.0 declares as uint8
   --> in/validate/TestValidate/someInt32.data.json:1:1
    |
  1 | {
@@ -1045,7 +1045,7 @@ error[E0501]: the data lacks someUInt8, which schema 0.0 declares as uint8
    |
    = detail: someUInt8: incomplete value uint8
 
-error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
+error[E0501]: the data lacks someUInt16, which schema v0.0 declares as uint16
   --> in/validate/TestValidate/someInt32.data.json:1:1
    |
  1 | {
@@ -1058,7 +1058,7 @@ error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
    |
    = detail: someUInt16: incomplete value uint16
 
-error[E0501]: the data lacks someUInt32, which schema 0.0 declares as uint32
+error[E0501]: the data lacks someUInt32, which schema v0.0 declares as uint32
   --> in/validate/TestValidate/someInt32.data.json:1:1
    |
  1 | {
@@ -1071,7 +1071,7 @@ error[E0501]: the data lacks someUInt32, which schema 0.0 declares as uint32
    |
    = detail: someUInt32: incomplete value uint32
 
-error[E0501]: the data lacks someUInt64, which schema 0.0 declares as uint64
+error[E0501]: the data lacks someUInt64, which schema v0.0 declares as uint64
   --> in/validate/TestValidate/someInt32.data.json:1:1
    |
  1 | {
@@ -1084,7 +1084,7 @@ error[E0501]: the data lacks someUInt64, which schema 0.0 declares as uint64
    |
    = detail: someUInt64: incomplete value uint64
 
-error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
+error[E0501]: the data lacks someInt8, which schema v0.0 declares as int8
   --> in/validate/TestValidate/someInt32.data.json:1:1
    |
  1 | {
@@ -1097,7 +1097,7 @@ error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
    |
    = detail: someInt8: incomplete value int8
 
-error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
+error[E0501]: the data lacks someInt16, which schema v0.0 declares as int16
   --> in/validate/TestValidate/someInt32.data.json:1:1
    |
  1 | {
@@ -1110,7 +1110,7 @@ error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
    |
    = detail: someInt16: incomplete value int16
 
-error[E0501]: the data lacks someInt64, which schema 0.0 declares as int64
+error[E0501]: the data lacks someInt64, which schema v0.0 declares as int64
   --> in/validate/TestValidate/someInt32.data.json:1:1
    |
  1 | {
@@ -1123,7 +1123,7 @@ error[E0501]: the data lacks someInt64, which schema 0.0 declares as int64
    |
    = detail: someInt64: incomplete value int64
 
-error[E0501]: the data lacks someFloat32, which schema 0.0 declares as float32
+error[E0501]: the data lacks someFloat32, which schema v0.0 declares as float32
   --> in/validate/TestValidate/someInt32.data.json:1:1
    |
  1 | {
@@ -1136,7 +1136,7 @@ error[E0501]: the data lacks someFloat32, which schema 0.0 declares as float32
    |
    = detail: someFloat32: incomplete value float32
 
-error[E0501]: the data lacks someFloat64, which schema 0.0 declares as float64
+error[E0501]: the data lacks someFloat64, which schema v0.0 declares as float64
   --> in/validate/TestValidate/someInt32.data.json:1:1
    |
  1 | {
@@ -1149,7 +1149,7 @@ error[E0501]: the data lacks someFloat64, which schema 0.0 declares as float64
    |
    = detail: someFloat64: incomplete value float64
 
-error[E0501]: the data lacks intWithBounds, which schema 0.0 declares as >=0 & <10 & int
+error[E0501]: the data lacks intWithBounds, which schema v0.0 declares as >=0 & <10 & int
   --> in/validate/TestValidate/someInt32.data.json:1:1
    |
  1 | {
@@ -1162,7 +1162,7 @@ error[E0501]: the data lacks intWithBounds, which schema 0.0 declares as >=0 & <
    |
    = detail: intWithBounds: incomplete value >=0 & <10 & int
 
-error[E0501]: the data lacks nullableIntWithNoDefault, which schema 0.0 declares as int | null
+error[E0501]: the data lacks nullableIntWithNoDefault, which schema v0.0 declares as int | null
   --> in/validate/TestValidate/someInt32.data.json:1:1
    |
  1 | {
@@ -1175,7 +1175,7 @@ error[E0501]: the data lacks nullableIntWithNoDefault, which schema 0.0 declares
    |
    = detail: nullableIntWithNoDefault: incomplete value int | null
 
-error[E0501]: the data lacks stringWithLength, which schema 0.0 declares as strings.MinRunes(10)
+error[E0501]: the data lacks stringWithLength, which schema v0.0 declares as strings.MinRunes(10)
   --> in/validate/TestValidate/someInt32.data.json:1:1
    |
  1 | {
@@ -1188,7 +1188,7 @@ error[E0501]: the data lacks stringWithLength, which schema 0.0 declares as stri
    |
    = detail: stringWithLength: incomplete value strings.MinRunes(10)
 -- out/validate/TestValidate/someInt64 --
-error[E0503]: someInt64 in the data is "not an int64", but schema 0.0 declares it as int64
+error[E0503]: someInt64 in the data is "not an int64", but schema v0.0 declares it as int64
   --> in/validate/someInt64.data.json:2:18
    |
  2 |     "someInt64": "not an int64"
@@ -1201,7 +1201,7 @@ error[E0503]: someInt64 in the data is "not an int64", but schema 0.0 declares i
    |
    = detail: someInt64: conflicting values "not an int64" and int64 (mismatched types string and int)
 
-error[E0501]: the data lacks someUInt8, which schema 0.0 declares as uint8
+error[E0501]: the data lacks someUInt8, which schema v0.0 declares as uint8
   --> in/validate/someInt64.data.json:1:1
    |
  1 | {
@@ -1214,7 +1214,7 @@ error[E0501]: the data lacks someUInt8, which schema 0.0 declares as uint8
    |
    = detail: someUInt8: incomplete value uint8
 
-error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
+error[E0501]: the data lacks someUInt16, which schema v0.0 declares as uint16
   --> in/validate/someInt64.data.json:1:1
    |
  1 | {
@@ -1227,7 +1227,7 @@ error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
    |
    = detail: someUInt16: incomplete value uint16
 
-error[E0501]: the data lacks someUInt32, which schema 0.0 declares as uint32
+error[E0501]: the data lacks someUInt32, which schema v0.0 declares as uint32
   --> in/validate/someInt64.data.json:1:1
    |
  1 | {
@@ -1240,7 +1240,7 @@ error[E0501]: the data lacks someUInt32, which schema 0.0 declares as uint32
    |
    = detail: someUInt32: incomplete value uint32
 
-error[E0501]: the data lacks someUInt64, which schema 0.0 declares as uint64
+error[E0501]: the data lacks someUInt64, which schema v0.0 declares as uint64
   --> in/validate/someInt64.data.json:1:1
    |
  1 | {
@@ -1253,7 +1253,7 @@ error[E0501]: the data lacks someUInt64, which schema 0.0 declares as uint64
    |
    = detail: someUInt64: incomplete value uint64
 
-error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
+error[E0501]: the data lacks someInt8, which schema v0.0 declares as int8
   --> in/validate/someInt64.data.json:1:1
    |
  1 | {
@@ -1266,7 +1266,7 @@ error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
    |
    = detail: someInt8: incomplete value int8
 
-error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
+error[E0501]: the data lacks someInt16, which schema v0.0 declares as int16
   --> in/validate/someInt64.data.json:1:1
    |
  1 | {
@@ -1279,7 +1279,7 @@ error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
    |
    = detail: someInt16: incomplete value int16
 
-error[E0501]: the data lacks someInt32, which schema 0.0 declares as int32
+error[E0501]: the data lacks someInt32, which schema v0.0 declares as int32
   --> in/validate/someInt64.data.json:1:1
    |
  1 | {
@@ -1292,7 +1292,7 @@ error[E0501]: the data lacks someInt32, which schema 0.0 declares as int32
    |
    = detail: someInt32: incomplete value int32
 
-error[E0501]: the data lacks someFloat32, which schema 0.0 declares as float32
+error[E0501]: the data lacks someFloat32, which schema v0.0 declares as float32
   --> in/validate/someInt64.data.json:1:1
    |
  1 | {
@@ -1305,7 +1305,7 @@ error[E0501]: the data lacks someFloat32, which schema 0.0 declares as float32
    |
    = detail: someFloat32: incomplete value float32
 
-error[E0501]: the data lacks someFloat64, which schema 0.0 declares as float64
+error[E0501]: the data lacks someFloat64, which schema v0.0 declares as float64
   --> in/validate/someInt64.data.json:1:1
    |
  1 | {
@@ -1318,7 +1318,7 @@ error[E0501]: the data lacks someFloat64, which schema 0.0 declares as float64
    |
    = detail: someFloat64: incomplete value float64
 
-error[E0501]: the data lacks intWithBounds, which schema 0.0 declares as >=0 & <10 & int
+error[E0501]: the data lacks intWithBounds, which schema v0.0 declares as >=0 & <10 & int
   --> in/validate/someInt64.data.json:1:1
    |
  1 | {
@@ -1331,7 +1331,7 @@ error[E0501]: the data lacks intWithBounds, which schema 0.0 declares as >=0 & <
    |
    = detail: intWithBounds: incomplete value >=0 & <10 & int
 
-error[E0501]: the data lacks nullableIntWithNoDefault, which schema 0.0 declares as int | null
+error[E0501]: the data lacks nullableIntWithNoDefault, which schema v0.0 declares as int | null
   --> in/validate/someInt64.data.json:1:1
    |
  1 | {
@@ -1344,7 +1344,7 @@ error[E0501]: the data lacks nullableIntWithNoDefault, which schema 0.0 declares
    |
    = detail: nullableIntWithNoDefault: incomplete value int | null
 
-error[E0501]: the data lacks stringWithLength, which schema 0.0 declares as strings.MinRunes(10)
+error[E0501]: the data lacks stringWithLength, which schema v0.0 declares as strings.MinRunes(10)
   --> in/validate/someInt64.data.json:1:1
    |
  1 | {
@@ -1357,7 +1357,7 @@ error[E0501]: the data lacks stringWithLength, which schema 0.0 declares as stri
    |
    = detail: stringWithLength: incomplete value strings.MinRunes(10)
 -- out/validate/TestValidate/someFloat32 --
-error[E0503]: someFloat32 in the data is "I am a string", but schema 0.0 declares it as float32
+error[E0503]: someFloat32 in the data is "I am a string", but schema v0.0 declares it as float32
   --> in/validate/TestValidate/someFloat32.data.json:2:20
    |
  2 |     "someFloat32": "I am a string"
@@ -1370,7 +1370,7 @@ error[E0503]: someFloat32 in the data is "I am a string", but schema 0.0 declare
    |
    = detail: someFloat32: conflicting values "I am a string" and float32 (mismatched types string and number)
 
-error[E0501]: the data lacks someUInt8, which schema 0.0 declares as uint8
+error[E0501]: the data lacks someUInt8, which schema v0.0 declares as uint8
   --> in/validate/TestValidate/someFloat32.data.json:1:1
    |
  1 | {
@@ -1383,7 +1383,7 @@ error[E0501]: the data lacks someUInt8, which schema 0.0 declares as uint8
    |
    = detail: someUInt8: incomplete value uint8
 
-error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
+error[E0501]: the data lacks someUInt16, which schema v0.0 declares as uint16
   --> in/validate/TestValidate/someFloat32.data.json:1:1
    |
  1 | {
@@ -1396,7 +1396,7 @@ error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
    |
    = detail: someUInt16: incomplete value uint16
 
-error[E0501]: the data lacks someUInt32, which schema 0.0 declares as uint32
+error[E0501]: the data lacks someUInt32, which schema v0.0 declares as uint32
   --> in/validate/TestValidate/someFloat32.data.json:1:1
    |
  1 | {
@@ -1409,7 +1409,7 @@ error[E0501]: the data lacks someUInt32, which schema 0.0 declares as uint32
    |
    = detail: someUInt32: incomplete value uint32
 
-error[E0501]: the data lacks someUInt64, which schema 0.0 declares as uint64
+error[E0501]: the data lacks someUInt64, which schema v0.0 declares as uint64
   --> in/validate/TestValidate/someFloat32.data.json:1:1
    |
  1 | {
@@ -1422,7 +1422,7 @@ error[E0501]: the data lacks someUInt64, which schema 0.0 declares as uint64
    |
    = detail: someUInt64: incomplete value uint64
 
-error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
+error[E0501]: the data lacks someInt8, which schema v0.0 declares as int8
   --> in/validate/TestValidate/someFloat32.data.json:1:1
    |
  1 | {
@@ -1435,7 +1435,7 @@ error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
    |
    = detail: someInt8: incomplete value int8
 
-error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
+error[E0501]: the data lacks someInt16, which schema v0.0 declares as int16
   --> in/validate/TestValidate/someFloat32.data.json:1:1
    |
  1 | {
@@ -1448,7 +1448,7 @@ error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
    |
    = detail: someInt16: incomplete value int16
 
-error[E0501]: the data lacks someInt32, which schema 0.0 declares as int32
+error[E0501]: the data lacks someInt32, which schema v0.0 declares as int32
   --> in/validate/TestValidate/someFloat32.data.json:1:1
    |
  1 | {
@@ -1461,7 +1461,7 @@ error[E0501]: the data lacks someInt32, which schema 0.0 declares as int32
    |
    = detail: someInt32: incomplete value int32
 
-error[E0501]: the data lacks someInt64, which schema 0.0 declares as int64
+error[E0501]: the data lacks someInt64, which schema v0.0 declares as int64
   --> in/validate/TestValidate/someFloat32.data.json:1:1
    |
  1 | {
@@ -1474,7 +1474,7 @@ error[E0501]: the data lacks someInt64, which schema 0.0 declares as int64
    |
    = detail: someInt64: incomplete value int64
 
-error[E0501]: the data lacks someFloat64, which schema 0.0 declares as float64
+error[E0501]: the data lacks someFloat64, which schema v0.0 declares as float64
   --> in/validate/TestValidate/someFloat32.data.json:1:1
    |
  1 | {
@@ -1487,7 +1487,7 @@ error[E0501]: the data lacks someFloat64, which schema 0.0 declares as float64
    |
    = detail: someFloat64: incomplete value float64
 
-error[E0501]: the data lacks intWithBounds, which schema 0.0 declares as >=0 & <10 & int
+error[E0501]: the data lacks intWithBounds, which schema v0.0 declares as >=0 & <10 & int
   --> in/validate/TestValidate/someFloat32.data.json:1:1
    |
  1 | {
@@ -1500,7 +1500,7 @@ error[E0501]: the data lacks intWithBounds, which schema 0.0 declares as >=0 & <
    |
    = detail: intWithBounds: incomplete value >=0 & <10 & int
 
-error[E0501]: the data lacks nullableIntWithNoDefault, which schema 0.0 declares as int | null
+error[E0501]: the data lacks nullableIntWithNoDefault, which schema v0.0 declares as int | null
   --> in/validate/TestValidate/someFloat32.data.json:1:1
    |
  1 | {
@@ -1513,7 +1513,7 @@ error[E0501]: the data lacks nullableIntWithNoDefault, which schema 0.0 declares
    |
    = detail: nullableIntWithNoDefault: incomplete value int | null
 
-error[E0501]: the data lacks stringWithLength, which schema 0.0 declares as strings.MinRunes(10)
+error[E0501]: the data lacks stringWithLength, which schema v0.0 declares as strings.MinRunes(10)
   --> in/validate/TestValidate/someFloat32.data.json:1:1
    |
  1 | {
@@ -1526,7 +1526,7 @@ error[E0501]: the data lacks stringWithLength, which schema 0.0 declares as stri
    |
    = detail: stringWithLength: incomplete value strings.MinRunes(10)
 -- out/validate/TestValidate/someFloat64 --
-error[E0503]: someFloat64 in the data is "I am a string", but schema 0.0 declares it as float64
+error[E0503]: someFloat64 in the data is "I am a string", but schema v0.0 declares it as float64
   --> in/validate/TestValidate/someFloat64.data.json:2:20
    |
  2 |     "someFloat64": "I am a string"
@@ -1539,7 +1539,7 @@ error[E0503]: someFloat64 in the data is "I am a string", but schema 0.0 declare
    |
    = detail: someFloat64: conflicting values "I am a string" and float64 (mismatched types string and number)
 
-error[E0501]: the data lacks someUInt8, which schema 0.0 declares as uint8
+error[E0501]: the data lacks someUInt8, which schema v0.0 declares as uint8
   --> in/validate/TestValidate/someFloat64.data.json:1:1
    |
  1 | {
@@ -1552,7 +1552,7 @@ error[E0501]: the data lacks someUInt8, which schema 0.0 declares as uint8
    |
    = detail: someUInt8: incomplete value uint8
 
-error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
+error[E0501]: the data lacks someUInt16, which schema v0.0 declares as uint16
   --> in/validate/TestValidate/someFloat64.data.json:1:1
    |
  1 | {
@@ -1565,7 +1565,7 @@ error[E0501]: the data lacks someUInt16, which schema 0.0 declares as uint16
    |
    = detail: someUInt16: incomplete value uint16
 
-error[E0501]: the data lacks someUInt32, which schema 0.0 declares as uint32
+error[E0501]: the data lacks someUInt32, which schema v0.0 declares as uint32
   --> in/validate/TestValidate/someFloat64.data.json:1:1
    |
  1 | {
@@ -1578,7 +1578,7 @@ error[E0501]: the data lacks someUInt32, which schema 0.0 declares as uint32
    |
    = detail: someUInt32: incomplete value uint32
 
-error[E0501]: the data lacks someUInt64, which schema 0.0 declares as uint64
+error[E0501]: the data lacks someUInt64, which schema v0.0 declares as uint64
   --> in/validate/TestValidate/someFloat64.data.json:1:1
    |
  1 | {
@@ -1591,7 +1591,7 @@ error[E0501]: the data lacks someUInt64, which schema 0.0 declares as uint64
    |
    = detail: someUInt64: incomplete value uint64
 
-error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
+error[E0501]: the data lacks someInt8, which schema v0.0 declares as int8
   --> in/validate/TestValidate/someFloat64.data.json:1:1
    |
  1 | {
@@ -1604,7 +1604,7 @@ error[E0501]: the data lacks someInt8, which schema 0.0 declares as int8
    |
    = detail: someInt8: incomplete value int8
 
-error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
+error[E0501]: the data lacks someInt16, which schema v0.0 declares as int16
   --> in/validate/TestValidate/someFloat64.data.json:1:1
    |
  1 | {
@@ -1617,7 +1617,7 @@ error[E0501]: the data lacks someInt16, which schema 0.0 declares as int16
    |
    = detail: someInt16: incomplete value int16
 
-error[E0501]: the data lacks someInt32, which schema 0.0 declares as int32
+error[E0501]: the data lacks someInt32, which schema v0.0 declares as int32
   --> in/validate/TestValidate/someFloat64.data.json:1:1
    |
  1 | {
@@ -1630,7 +1630,7 @@ error[E0501]: the data lacks someInt32, which schema 0.0 declares as int32
    |
    = detail: someInt32: incomplete value int32
 
-error[E0501]: the data lacks someInt64, which schema 0.0 declares as int64
+error[E0501]: the data lacks someInt64, which schema v0.0 declares as int64
   --> in/validate/TestValidate/someFloat64.data.json:1:1
    |
  1 | {
@@ -1643,7 +1643,7 @@ error[E0501]: the data lacks someInt64, which schema 0.0 declares as int64
    |
    = detail: someInt64: incomplete value int64
 
-error[E0501]: the data lacks someFloat32, which schema 0.0 declares as float32
+error[E0501]: the data lacks someFloat32, which schema v0.0 declares as float32
   --> in/validate/TestValidate/someFloat64.data.json:1:1
    |
  1 | {
@@ -1656,7 +1656,7 @@ error[E0501]: the data lacks someFloat32, which schema 0.0 declares as float32
    |
    = detail: someFloat32: incomplete value float32
 
-error[E0501]: the data lacks intWithBounds, which schema 0.0 declares as >=0 & <10 & int
+error[E0501]: the data lacks intWithBounds, which schema v0.0 declares as >=0 & <10 & int
   --> in/validate/TestValidate/someFloat64.data.json:1:1
    |
  1 | {
@@ -1669,7 +1669,7 @@ error[E0501]: the data lacks intWithBounds, which schema 0.0 declares as >=0 & <
    |
    = detail: intWithBounds: incomplete value >=0 & <10 & int
 
-error[E0501]: the data lacks nullableIntWithNoDefault, which schema 0.0 declares as int | null
+error[E0501]: the data lacks nullableIntWithNoDefault, which schema v0.0 declares as int | null
   --> in/validate/TestValidate/someFloat64.data.json:1:1
    |
  1 | {
@@ -1682,7 +1682,7 @@ error[E0501]: the data lacks nullableIntWithNoDefault, which schema 0.0 declares
    |
    = detail: nullableIntWithNoDefault: incomplete value int | null
 
-error[E0501]: the data lacks stringWithLength, which schema 0.0 declares as strings.MinRunes(10)
+error[E0501]: the data lacks stringWithLength, which schema v0.0 declares as strings.MinRunes(10)
   --> in/validate/TestValidate/someFloat64.data.json:1:1
    |
  1 | {
@@ -2003,7 +2003,7 @@ error[E0501]: the data lacks stringWithLength, which schema 0.0 declares as stri
 }
 -- out/bind --
 Schema count: 1
-Schema versions: 0.0
+Schema versions: v0.0
 Lenses count: 0
 -- out/encoding/typescript/TestGenerate/nilcfg --
 export interface ScalarFields {

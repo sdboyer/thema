@@ -56,8 +56,8 @@ func (lin *baseLineage) missingLens(from, to SyntacticVersion) error {
 	}
 	a := lensAddr(id.From, id.To)
 	err := diag.New(diag.E1002).Addr(a).
-		Headlinef("translating from %s to %s needs %s, which is not written yet", from, to, lin.vocab.Term(a)).
-		Notef(token.NoPos, "%s is provisional: %s, which is still being worked on, and whose lenses may not be written yet", p, lin.vocab.Term(schemaAddr(p))).
+		Headlinef("translating from %s to %s needs %s, which is not written yet", from.name(), to.name(), lin.vocab.Term(a)).
+		Notef(token.NoPos, "%s is provisional: %s, which is still being worked on, and whose lenses may not be written yet", p.name(), lin.vocab.Term(schemaAddr(p))).
 		Helpf("write %s", lin.vocab.Term(a)).
 		Err()
 	// Converted in the lineage's vocabulary, which renders the path.

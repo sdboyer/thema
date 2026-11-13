@@ -28,7 +28,7 @@ schemas: {
     {
       "code": "E0502",
       "severity": "error",
-      "headline": "the data has cuont, which schema 0.0 does not declare",
+      "headline": "the data has cuont, which schema v0.0 does not declare",
       "path": [
         "cuont"
       ],
@@ -62,7 +62,7 @@ schemas: {
   }
 }
 -- out/text --
-error[E0502]: the data has cuont, which schema 0.0 does not declare
+error[E0502]: the data has cuont, which schema v0.0 does not declare
  --> data.json:4:3
   |
 4 |     "cuont": 4

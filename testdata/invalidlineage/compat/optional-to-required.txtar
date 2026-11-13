@@ -27,11 +27,11 @@ lenses: {
     }
 }
 -- out/bindfail --
-error[E0212]: toUpgrade in schema 0.1 was optional and is now required
+error[E0212]: toUpgrade in schema v0.1 was optional and is now required
   --> /in.cue:14:13
    |
 14 |             toUpgrade: string
    |             ^^^^^^^^^
    |
-   = note: schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts
-   = help: make the change compatible, or make this version 1.0
+   = note: schema v0.1 is a minor version, so it must accept all data schema v0.0 accepts
+   = help: make the change compatible, or make this version v1.0

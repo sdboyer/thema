@@ -23,7 +23,7 @@ schemas: {
     {
       "code": "E0216",
       "severity": "error",
-      "headline": "l in schema 0.1 had length uint and now has length 2",
+      "headline": "l in schema v0.1 had length uint and now has length 2",
       "path": [
         "schemas",
         "0",
@@ -50,11 +50,11 @@ schemas: {
       },
       "notes": [
         {
-          "label": "schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts"
+          "label": "schema v0.1 is a minor version, so it must accept all data schema v0.0 accepts"
         }
       ],
       "help": [
-        "make the change compatible, or make this version 1.0"
+        "make the change compatible, or make this version v1.0"
       ]
     }
   ],
@@ -65,11 +65,11 @@ schemas: {
   }
 }
 -- out/text --
-error[E0216]: l in schema 0.1 had length uint and now has length 2
+error[E0216]: l in schema v0.1 had length uint and now has length 2
   --> lineage.cue:11:5
    |
 11 |                 l: [int, int]
    |                 ^
    |
-   = note: schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts
-   = help: make the change compatible, or make this version 1.0
+   = note: schema v0.1 is a minor version, so it must accept all data schema v0.0 accepts
+   = help: make the change compatible, or make this version v1.0

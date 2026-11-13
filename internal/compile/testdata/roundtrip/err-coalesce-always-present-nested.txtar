@@ -28,7 +28,7 @@ Schema: {
 	}
 }
 -- out/error --
-error[E0348]: 0.0 always has meta.a, so _coalesce's fallback could never apply
+error[E0348]: v0.0 always has meta.a, so _coalesce's fallback could never apply
   --> history/1.0.thema:11:7
    |
 11 |             b: _coalesce(v0_0.meta.a, "x")

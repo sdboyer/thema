@@ -23,11 +23,11 @@ Schema: {
 	env:    string
 }
 -- out/error --
-error[E0340]: 0.0 does not declare labels.env
+error[E0340]: v0.0 does not declare labels.env
  --> history/1.0.thema:9:8
   |
 9 |         env: _coalesce(v0_0.labels.env, "none")
   |              ^^^^^^^^^
   |
-  = note: only a pattern constraint of 0.0 matches labels.env, and a pattern constraint declares no field
+  = note: only a pattern constraint of v0.0 matches labels.env, and a pattern constraint declares no field
   = help: a lens reads only fields declared by name: declare labels.env as an optional field in a new minor version, for the values instances carry there to land in, then map from it in the lens from that version

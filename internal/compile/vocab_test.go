@@ -41,7 +41,7 @@ lacunas: [{condition: true, sourceFields: [{path: "l", value: v0_0.l}], message:
 				if h, ok := v.RewriteHelp(a, f.Help); ok {
 					t.Errorf("rewritten help suggests the normal form's syntax: %s", h)
 				}
-				if got := v.Rewrite(a, f.Detail); !strings.Contains(got, "v0_0.l is optional in history/0.0.thema") {
+				if got := v.Rewrite(a, f.Detail); !strings.Contains(got, "v0_0.l is optional in v0.0") {
 					t.Errorf("rewritten sentence lost what is wrong: %s", got)
 				}
 			}

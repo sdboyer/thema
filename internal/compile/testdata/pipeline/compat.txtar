@@ -28,8 +28,8 @@ backward: {
 	title: "untitled"
 }
 -- out/error --
-title in schema 0.1 was string and is now int:
+title in schema v0.1 was string and is now int:
     ship/history/0.1.thema:2:9
 -- out/positions --
-title in schema 0.1 was string and is now int
+title in schema v0.1 was string and is now int
 	authored ship/history/0.1.thema:2:9
