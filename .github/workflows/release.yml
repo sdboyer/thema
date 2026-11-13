@@ -1,40 +1,82 @@
 name: Release
 
+# A release is a tag pushed by make release. thema publishes it in four
+# places, in this order, each step after the one before succeeds:
+#
+#   1. a draft GitHub release, with the CLI and the playground's wasm assets
+#   2. the CUE module, to the Central Registry
+#   3. the npm packages: @sdboyer/thema-ui, @sdboyer/thema-wasm and
+#      @sdboyer/thema-playground
+#   4. the GitHub release, published
+#
+# The tag has already published the Go module, and npm and the registry never
+# take a version twice, so nothing here can be undone. Every step skips what
+# is already published: a release that failed part way is finished by
+# re-running its failed jobs, never by moving its tag. make release checks
+# before tagging what can be checked then, and CI's release job rehearses
+# all of this on every change.
+
 on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+'
 
 permissions:
   contents: read
+
+concurrency:
+  group: release-${{ github.ref_name }}
 
 jobs:
   # The Go module and the CUE module are released under the same tag, and the
   # Go module embeds the CUE module's version as util.ThemaModuleVersion. A tag
   # that disagrees with it would publish a Go module whose synthesized
   # module.cue files depend on a different CUE module version than the one
-  # published alongside it.
-  version-guard:
+  # published alongside it. An rc is of the version it rehearses.
+  guard:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      released: ${{ steps.released.outputs.released }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
-      - name: Check ThemaModuleVersion matches tag
+      - name: Check the tag against ThemaModuleVersion
+        run: make release-check tag="$TAG"
         env:
           TAG: ${{ github.ref_name }}
-        run: |
-          v=$(sed -n 's/^const ThemaModuleVersion = "\(.*\)"$/\1/p' internal/util/modfile.go)
-          if [ -z "$v" ]; then
-            echo "::error file=internal/util/modfile.go::could not find ThemaModuleVersion"
-            exit 1
-          fi
-          if [ "$v" != "$TAG" ]; then
-            echo "::error file=internal/util/modfile.go::ThemaModuleVersion is $v but the tag is $TAG; bump it in a commit and re-tag"
-            exit 1
-          fi
 
-  goreleaser:
-    needs: version-guard
+      - name: Check the tagged commit is on main
+        run: |
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "::error::$TAG is on $(git rev-parse --short HEAD), which is not on main"
+            exit 1
+          fi
+        env:
+          TAG: ${{ github.ref_name }}
+
+      # npm's versions are the tag's, without its v.
+      - id: version
+        run: echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+        env:
+          TAG: ${{ github.ref_name }}
+
+      # Publishing the GitHub release is the last step, so re-running a
+      # finished release does nothing.
+      - id: released
+        run: |
+          draft=$(gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null || true)
+          echo "released=$([ "$draft" = false ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+        env:
+          TAG: ${{ github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
+
+  github:
+    needs: guard
+    if: needs.guard.outputs.released != 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -55,6 +97,7 @@ jobs:
           cache: npm
           cache-dependency-path: playground/package-lock.json
 
+      # A draft (see .goreleaser.yaml), replacing one an earlier attempt left.
       - uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
@@ -63,8 +106,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  cue-publish:
-    needs: version-guard
+      # The bundle the release attaches is the one npm publishes.
+      - uses: actions/upload-artifact@v7
+        with:
+          name: playground-bundle
+          path: cmd/thema/playground/dist
+          if-no-files-found: error
+
+  cue:
+    needs: github
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -86,7 +136,67 @@ jobs:
       - name: Log in to the Central Registry
         uses: cue-labs/registry-login-action@v1
 
-      - name: Publish CUE module
+      # The version is published already if a module can depend on it. A
+      # lookup that fails for any other reason publishes, and publishing a
+      # version that exists fails rather than replaces it.
+      - name: Publish the CUE module
+        run: |
+          probe=$(mktemp -d)
+          if (cd "$probe" && cue mod init example.com/probe@v0 && cue mod get "github.com/sdboyer/thema@$TAG"); then
+            echo "github.com/sdboyer/thema@$TAG is already published"
+          else
+            cue mod publish "$TAG"
+          fi
         env:
           TAG: ${{ github.ref_name }}
-        run: cue mod publish "$TAG"
+
+  npm:
+    needs: [guard, cue]
+    runs-on: ubuntu-latest
+    # npm trusts this workflow, in this environment, to publish the packages,
+    # and the environment deploys only from v* tags.
+    environment: release
+    permissions:
+      contents: read
+      # npm's trusted publishing: no npm token, and provenance for each package.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: playground/.nvmrc
+          registry-url: https://registry.npmjs.org
+          cache: npm
+          cache-dependency-path: playground/package-lock.json
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: playground-bundle
+          path: ${{ runner.temp }}/bundle
+
+      - name: Build the components package
+        run: npm ci && npm run build --workspace components
+        working-directory: playground
+
+      - name: Stage the packages
+        run: node scripts/release.mjs stage "$VERSION" "$RUNNER_TEMP/bundle" "$RUNNER_TEMP/npm"
+        working-directory: playground
+        env:
+          VERSION: ${{ needs.guard.outputs.version }}
+
+      - name: Publish the packages
+        run: node scripts/release.mjs publish "$RUNNER_TEMP/npm"
+        working-directory: playground
+
+  publish:
+    needs: npm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish the GitHub release
+        run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
+        env:
+          TAG: ${{ github.ref_name }}
+          GH_TOKEN: ${{ github.token }}

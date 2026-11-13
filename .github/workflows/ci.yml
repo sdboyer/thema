@@ -82,6 +82,51 @@ jobs:
       - name: Build the CLI with the playground
         run: go build -tags playgroundui -o /dev/null ./cmd/thema
 
+  # The release workflow, rehearsed on this commit with nothing published:
+  # goreleaser's release as a snapshot, the npm packages staged from the
+  # bundle it built and published with --dry-run, and the CUE module the
+  # same. make release tags only a commit this passed on.
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: playground/.nvmrc
+          cache: npm
+          cache-dependency-path: playground/package-lock.json
+
+      - uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --snapshot --clean
+
+      # A prerelease of the version a release of this commit would be.
+      - name: Choose the rehearsal's version
+        run: echo "VERSION=$(sed -n 's/^const ThemaModuleVersion = "v\(.*\)"$/\1/p' internal/util/modfile.go)-rehearsal" >> "$GITHUB_ENV"
+
+      - name: Rehearse publishing the npm packages
+        run: |
+          npm run build --workspace components
+          node scripts/release.mjs stage "$VERSION" ../cmd/thema/playground/dist "$RUNNER_TEMP/npm"
+          node scripts/release.mjs publish "$RUNNER_TEMP/npm" --dry-run
+        working-directory: playground
+
+      - name: Install cue
+        run: go install "cuelang.org/go/cmd/cue@$(go list -m -f '{{.Version}}' cuelang.org/go)"
+
+      - name: Rehearse publishing the CUE module
+        run: cue mod publish --dry-run "v$VERSION"
+
   lint:
     runs-on: ubuntu-latest
     permissions:
