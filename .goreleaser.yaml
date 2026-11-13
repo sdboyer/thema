@@ -9,6 +9,10 @@ before:
     # runs this one in playground.
     - npm --prefix playground ci
     - go generate ./cmd/thema/playground
+# An rc and its release can share a commit, so goreleaser must order the
+# release after the rc. The release workflow also names the tag it builds.
+git:
+  prerelease_suffix: "-"
 builds:
   - env:
       - CGO_ENABLED=0
