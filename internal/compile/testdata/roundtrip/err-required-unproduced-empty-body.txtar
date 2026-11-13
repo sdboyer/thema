@@ -1,0 +1,37 @@
+A required struct whose fields are all optional, written as an empty body:
+an empty body writes nothing, and nothing beneath is required to report, so
+the struct itself is reported as one the lens does not produce.
+-- ship/history/0.0.thema --
+Schema: {
+	id: string
+}
+-- ship/history/1.0.thema --
+Schema: {
+	id: string
+	meta!: {
+		note?: string
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		id: v0_0.id
+		meta: {}
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	id: string
+	meta!: {
+		note?: string
+	}
+}
+-- out/error --
+error[E0346]: ForwardLens produces nothing for meta, which 1.0 requires
+ --> history/1.0.thema:8:1
+  |
+8 | ForwardLens: {
+  | ^^^^^^^^^^^
+  |
+  = help: add meta: <mapping> to v1_0

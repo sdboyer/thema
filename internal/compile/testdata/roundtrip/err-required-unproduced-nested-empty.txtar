@@ -1,0 +1,46 @@
+A struct the lens writes empty, whose fields the target requires and the
+source does not have: each field is reported where it is missing, inside the
+struct the author wrote, rather than the struct as if it were not written.
+-- ship/history/0.0.thema --
+Schema: {
+	id: string
+}
+-- ship/history/1.0.thema --
+Schema: {
+	id: string
+	meta: {
+		owner: string
+		team:  string
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		meta: {}
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	id: string
+	meta: {
+		owner: string
+		team:  string
+	}
+}
+-- out/error --
+error[E0346]: ForwardLens produces nothing for meta.owner, which 1.0 requires
+  --> history/1.0.thema:12:3
+   |
+12 |         meta: {}
+   |         ^^^^
+   |
+   = help: add owner: <mapping> to v1_0.meta
+
+error[E0346]: ForwardLens produces nothing for meta.team, which 1.0 requires
+  --> history/1.0.thema:12:3
+   |
+12 |         meta: {}
+   |         ^^^^
+   |
+   = help: add team: <mapping> to v1_0.meta

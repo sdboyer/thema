@@ -1,0 +1,41 @@
+A field the new version removes from a struct the lens writes: it is
+reported at that struct, and the drop the help offers goes inside it.
+-- ship/history/0.0.thema --
+Schema: {
+	id: string
+	meta: {
+		owner: string
+		note:  string
+	}
+}
+-- ship/history/1.0.thema --
+Schema: {
+	id: string
+	meta: {
+		owner: string
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		meta: {
+			owner: v0_0.meta.owner
+		}
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	id: string
+	meta: {
+		owner: string
+	}
+}
+-- out/error --
+error[E0347]: 0.0 declares meta.note and 1.0 does not, and nothing maps it
+  --> history/1.0.thema:11:3
+   |
+11 |         meta: {
+   |         ^^^^
+   |
+   = help: write <field>: v0_0.meta.note to move it, or add note: _drop to v1_0.meta

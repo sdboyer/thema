@@ -1,0 +1,34 @@
+A version file with no lens, whose schema requires a field beneath a struct
+the prior version has: the block the help offers nests the field in its
+struct, as CUE writes it, rather than naming it by its dotted path.
+-- ship/history/0.0.thema --
+Schema: {
+	id: string
+	meta: {
+		owner: string
+	}
+}
+-- ship/history/1.0.thema --
+Schema: {
+	id: string
+	meta: {
+		owner: string
+		team:  string
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	id: string
+	meta: {
+		owner: string
+		team:  string
+	}
+}
+-- out/error --
+error[E0346]: history/1.0.thema has no ForwardLens, and 1.0 requires meta.team
+ --> history/1.0.thema:7:1
+  |
+7 | }
+  | ^
+  |
+  = help: write ForwardLens: {v0_0: _, v1_0: {meta: {team: <mapping>}}} in history/1.0.thema
