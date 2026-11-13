@@ -51,7 +51,7 @@ schemas: {
       },
       "notes": [
         {
-          "label": "schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule default-changed)"
+          "label": "schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts"
         }
       ],
       "help": [
@@ -72,5 +72,5 @@ error[E0214]: u in schema 0.1 fills with "baz" when absent, where the prior sche
 11 |                 u: "foo" | "bar" | *"baz"
    |                 ^
    |
-   = note: schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule default-changed)
+   = note: schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts
    = help: make the change compatible, or make this version 1.0

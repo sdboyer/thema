@@ -184,22 +184,10 @@ func compileVersions(ctx *cue.Context, name string, vs []*version) (*Compiled, e
 		prev := vs[i-1]
 		res := compat.Check(ctx, vals[i-1], vals[i])
 		minor := res.Compatible()
-		switch {
-		case minor && v.v[1] == 0:
-			errs = cerrors.Append(errs, diag.New(diag.E0206).At(v.header()).
-				Headlinef("%s is backward compatible with %s, so it is minor version %s, not a major version", v.path, prev.v, thema.SV(prev.v[0], prev.v[1]+1)).
-				Helpf("rename the file %s/%s%s, or make a breaking change", HistoryDir, thema.SV(prev.v[0], prev.v[1]+1), Ext).
-				Err())
-			continue
-		case !minor && v.v[1] != 0:
-			// One diagnostic per finding, under the finding's rule, each saying
-			// what to do about the file.
-			for _, f := range res.Findings {
-				if f.Verdict == compat.Compatible {
-					continue
-				}
-				errs = cerrors.Append(errs, compatDiag(f, prev, v))
-			}
+		if minor != (v.v[1] != 0) {
+			// Only a version under history/ has a number to disagree with:
+			// the tip's is derived by this same check.
+			errs = cerrors.Append(errs, historyMismatch(res, prev, v))
 			continue
 		}
 
@@ -218,11 +206,19 @@ func compileVersions(ctx *cue.Context, name string, vs []*version) (*Compiled, e
 				continue
 			}
 			if minor && (len(lit.Elts) > 0 || lac != nil && len(lac.Elts) > 0) {
-				errs = cerrors.Append(errs, diag.New(diag.E0355).At(v.forward.Pos()).
-					Headlinef("%s is backward compatible with %s, so it has no %s", v.path, prev.v, fieldForward).
-					Note(token.NoPos, "an instance of a version is already an instance of its minor successor; translating forward is implicit").
-					Helpf("remove the %s, or make a breaking change", fieldForward).
-					Err())
+				b := diag.New(diag.E0355).At(v.forward.Pos())
+				if v.tip {
+					b.Headlinef("%s is backward compatible with %s, so it has no %s", v.name(), prev.name(), fieldForward).
+						Note(token.NoPos, "an instance of a version is already an instance of its minor successor; translating forward is implicit").
+						Helpf("remove the %s, or make a breaking change", fieldForward)
+				} else {
+					// A tip like this one does not compile, so it was not cut so.
+					b.Headlinef("immutability violation: %s has a %s, and is backward compatible with %s", v.name(), fieldForward, prev.name()).
+						Note(token.NoPos, "an instance of a version is already an instance of its minor successor; translating forward is implicit").
+						Note(prev.header(), "the version before it")
+					restoreHelp(b)
+				}
+				errs = cerrors.Append(errs, b.Err())
 				continue
 			}
 			fe.parseBody(lit, cue.MakePath(), cue.MakePath(), fb)
@@ -452,12 +448,13 @@ func versionOfParam(label string) (thema.SyntacticVersion, bool) {
 // paramPattern matches a lens parameter named after a version, v0_0.
 var paramPattern = regexp.MustCompile(`^v(0|[1-9][0-9]*)_(0|[1-9][0-9]*)$`)
 
-// name is the version as messages name it: its number, or the tip.
+// name is the version as messages name it: v0.1, or the tip. A message
+// names the version's file only where it means the file.
 func (v *version) name() string {
 	if v.tip {
 		return TipParam
 	}
-	return v.v.String()
+	return "v" + v.v.String()
 }
 
 // tipLens renames, in a lens on the edge into the tip, the author's name for

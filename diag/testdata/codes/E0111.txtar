@@ -30,7 +30,7 @@ Schema: {
     {
       "code": "E0111",
       "severity": "error",
-      "headline": "ForwardLens takes an instance of 0.0, so v0_0 is _",
+      "headline": "ForwardLens takes an instance of v0.0, so v0_0 is _",
       "primary": {
         "file": "history/1.0.thema",
         "line": 7,
@@ -39,7 +39,7 @@ Schema: {
         "origin": "user"
       },
       "help": [
-        "ForwardLens for the lens from 0.0 to 1.0 is {v0_0: _, v1_0: {...}}, with an optional lacunas: {...}"
+        "ForwardLens for the lens from v0.0 to v1.0 is {v0_0: _, v1_0: {...}}, with an optional lacunas: {...}"
       ]
     }
   ],
@@ -50,10 +50,10 @@ Schema: {
   }
 }
 -- out/text --
-error[E0111]: ForwardLens takes an instance of 0.0, so v0_0 is _
+error[E0111]: ForwardLens takes an instance of v0.0, so v0_0 is _
  --> history/1.0.thema:7:8
   |
 7 |     v0_0: {a: string}
   |           ^
   |
-  = help: ForwardLens for the lens from 0.0 to 1.0 is {v0_0: _, v1_0: {...}}, with an optional lacunas: {...}
+  = help: ForwardLens for the lens from v0.0 to v1.0 is {v0_0: _, v1_0: {...}}, with an optional lacunas: {...}

@@ -53,7 +53,7 @@ schemas: {
       },
       "notes": [
         {
-          "label": "schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule validator-added)"
+          "label": "schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts"
         }
       ],
       "help": [
@@ -74,5 +74,5 @@ error[E0218]: s in schema 0.1 must now satisfy strings.MinRunes(1), which the pr
 13 |                 s: strings.MinRunes(1)
    |                 ^
    |
-   = note: schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule validator-added)
+   = note: schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts
    = help: make the change compatible, or make this version 1.0

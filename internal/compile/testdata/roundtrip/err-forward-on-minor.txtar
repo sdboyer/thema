@@ -1,5 +1,6 @@
-A minor version with forward entries: translating forward is implicit for a
-compatible change, so the entries are refused.
+A version under history/ numbered minor with forward entries: translating
+forward is implicit for a compatible change, and a tip like it does not
+compile, so it was not cut so: an immutability violation naming both files.
 -- ship/history/0.0.thema --
 Schema: {
 	a: string
@@ -22,11 +23,16 @@ Schema: {
 	b?: int
 }
 -- out/error --
-error[E0355]: history/0.1.thema is backward compatible with 0.0, so it has no ForwardLens
+error[E0355]: immutability violation: v0.1 has a ForwardLens, and is backward compatible with v0.0
  --> history/0.1.thema:6:1
   |
 6 | ForwardLens: {
   | ^^^^^^^^^^^
   |
+ ::: history/0.0.thema:1:1
+  |
+1 | Schema: {
+  | ------ the version before it
+  |
   = note: an instance of a version is already an instance of its minor successor; translating forward is implicit
-  = help: remove the ForwardLens, or make a breaking change
+  = help: run thema lineage check --published to find which file changed since it was cut, restore it, and make the change in tip.thema

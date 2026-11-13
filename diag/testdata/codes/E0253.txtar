@@ -108,7 +108,7 @@ BackwardLens: {
     {
       "code": "E0253",
       "severity": "error",
-      "headline": "new version 0.1 comes before published version 1.0",
+      "headline": "immutability violation: new version 0.1 comes before published version 1.0",
       "path": [
         "history/0.1.thema",
         "Schema"
@@ -143,7 +143,7 @@ BackwardLens: {
   }
 }
 -- out/text --
-error[E0253]: new version 0.1 comes before published version 1.0
+error[E0253]: immutability violation: new version 0.1 comes before published version 1.0
  --> candidate/ship/history/0.1.thema:1:1
   |
 1 | Schema: {

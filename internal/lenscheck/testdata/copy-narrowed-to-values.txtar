@@ -9,4 +9,4 @@ v0_0: _
 v1_0: {kind: v0_0.kind}
 -- out --
 not total
-v1_0.kind copies v0_0.kind, which is now "a" | "b", which does not accept every value of the prior string (compat rule value-narrowed) (rule copy-narrowed) @ lens.cue:2:14
+v1_0.kind copies v0_0.kind, which is now "a" | "b", which does not accept every value of the prior string (rule copy-narrowed) @ lens.cue:2:14

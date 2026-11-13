@@ -62,7 +62,8 @@ Every diagnostic thema reports carries a code. A code's meaning never changes; a
 | [E0203](E0203.md) | error | a major version declares no schemas |
 | [E0204](E0204.md) | error | two version files declare the same version |
 | [E0205](E0205.md) | error | the version files skip a version |
-| [E0206](E0206.md) | error | a version file named as a major version is backward compatible with its predecessor |
+| [E0206](E0206.md) | error | retired: a version file named as a major version is backward compatible with its predecessor |
+| [E0207](E0207.md) | error | a version under history/ has a number its compatibility with the version before it contradicts |
 | [E0208](E0208.md) | error | a major version is backward compatible with its predecessor |
 | [E0210](E0210.md) | error | a minor version requires a field its predecessor does not declare |
 | [E0211](E0211.md) | error | a minor version rejects a field its predecessor declares |

@@ -1009,9 +1009,9 @@ func compatDetail(f compat.Finding) string {
 		detail += "; an instance omitting the field copies the source's default beside the target's, and the two give it no single value"
 	}
 	if len(f.Path.Selectors()) == 0 {
-		return fmt.Sprintf("which %s (compat rule %s)", detail, f.Rule)
+		return fmt.Sprintf("which %s", detail)
 	}
-	return fmt.Sprintf("whose %s %s (compat rule %s)", f.Path, detail, f.Rule)
+	return fmt.Sprintf("whose %s %s", f.Path, detail)
 }
 
 // composite walks a struct literal written at q. Where the target at q is a

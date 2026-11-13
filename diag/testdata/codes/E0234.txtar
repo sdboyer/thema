@@ -54,7 +54,7 @@ schemas: {
           "label": "m in schema 0.1 has several pattern constraints, [=~\"^a\"], [=~\"^b\"] in the prior schema and [=~\"^a\"], [=~\"^b\"] in the new one, which the checker compares only for identity"
         },
         {
-          "label": "schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule unknown-patterns)"
+          "label": "schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts"
         }
       ],
       "help": [
@@ -76,5 +76,5 @@ error[E0234]: m in schema 0.1 is not backward compatible with 0.0
    |                 ^
    |
    = note: m in schema 0.1 has several pattern constraints, [=~"^a"], [=~"^b"] in the prior schema and [=~"^a"], [=~"^b"] in the new one, which the checker compares only for identity
-   = note: schema 0.1 is declared as a minor version of 0.0, so every instance of schema 0.0 must be an instance of it (compatibility rule unknown-patterns)
+   = note: schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts
    = help: change the schema so the checker can decide, or make this version 1.0

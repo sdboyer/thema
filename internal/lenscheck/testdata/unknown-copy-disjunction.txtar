@@ -11,4 +11,4 @@ v0_0: _
 v1_0: {rootfield: v0_0.rootfield}
 -- out --
 unknown
-v1_0.rootfield copies v0_0.rootfield, which is now { branch: 1 one: string } | { branch: 2 two: string }, no single alternative of which covers the prior alternative { branch: 3 three: string }; the checker does not combine alternatives (compat rule unknown-disjunction) (rule unknown-copy) @ lens.cue:2:19
+v1_0.rootfield copies v0_0.rootfield, which is now { branch: 1 one: string } | { branch: 2 two: string }, no single alternative of which covers the prior alternative { branch: 3 three: string }; the checker does not combine alternatives (rule unknown-copy) @ lens.cue:2:19

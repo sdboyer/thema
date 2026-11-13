@@ -1,0 +1,36 @@
+A version under history/ numbered minor whose compatibility with the one
+before it the checker cannot decide: cut numbers such a tip major, so it was
+not cut so, and the immutability violation says it cannot be proven
+compatible rather than that it is not.
+-- ship/history/0.0.thema --
+Schema: {
+	a: int
+	b: int & >=a
+}
+-- ship/history/0.1.thema --
+Schema: {
+	a: int
+	b: int & >a
+}
+-- ship/tip.thema --
+Schema: {
+	a: int
+	b: int & >a
+}
+-- out/error --
+error[E0207]: immutability violation: v0.1 cannot be proven backward compatible with v0.0
+ --> history/0.1.thema:1:1
+  |
+1 | Schema: {
+  | ^^^^^^
+...
+3 |     b: int & >a
+  |     - b is constrained by a in both schemas, differently; the checker cannot compare constraints between fields
+  |
+ ::: history/0.0.thema:1:1
+  |
+1 | Schema: {
+  | ------ the version before it
+  |
+  = note: v0.1 is a minor version, so it must accept all data v0.0 accepts
+  = help: run thema lineage check --published to find which file changed since it was cut, restore it, and make the change in tip.thema

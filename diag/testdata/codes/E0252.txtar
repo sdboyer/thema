@@ -20,7 +20,7 @@ Schema: {
     {
       "code": "E0252",
       "severity": "error",
-      "headline": "the lineage removes published version 0.1",
+      "headline": "immutability violation: the lineage removes published version 0.1",
       "notes": [
         {
           "label": "the schema in history/0.1.thema was published, so instances of it may exist"
@@ -38,7 +38,7 @@ Schema: {
   }
 }
 -- out/text --
-error[E0252]: the lineage removes published version 0.1
+error[E0252]: immutability violation: the lineage removes published version 0.1
   |
   = note: the schema in history/0.1.thema was published, so instances of it may exist
   = help: restore the schema in history/0.1.thema as it was published; a published version is never removed

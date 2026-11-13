@@ -1,4 +1,4 @@
-#op: compile
+#op: develop
 A minor version is backward compatible with its predecessor, so an instance of
 the predecessor is already an instance of it: translating forward is implicit,
 and a minor version's file has no ForwardLens.
@@ -6,7 +6,7 @@ and a minor version's file has no ForwardLens.
 Schema: {
 	a: string
 }
--- ship/history/0.1.thema --
+-- ship/tip.thema --
 Schema: {
 	a:  string
 	b?: int
@@ -14,14 +14,9 @@ Schema: {
 
 ForwardLens: {
 	v0_0: _
-	v0_1: {
+	tip: {
 		b: 1
 	}
-}
--- ship/tip.thema --
-Schema: {
-	a:  string
-	b?: int
 }
 -- out/json --
 {
@@ -29,9 +24,9 @@ Schema: {
     {
       "code": "E0355",
       "severity": "error",
-      "headline": "history/0.1.thema is backward compatible with 0.0, so it has no ForwardLens",
+      "headline": "tip is backward compatible with v0.0, so it has no ForwardLens",
       "primary": {
-        "file": "history/0.1.thema",
+        "file": "tip.thema",
         "line": 6,
         "col": 1,
         "offset": 34,
@@ -54,8 +49,8 @@ Schema: {
   }
 }
 -- out/text --
-error[E0355]: history/0.1.thema is backward compatible with 0.0, so it has no ForwardLens
- --> history/0.1.thema:6:1
+error[E0355]: tip is backward compatible with v0.0, so it has no ForwardLens
+ --> tip.thema:6:1
   |
 6 | ForwardLens: {
   | ^^^^^^^^^^^

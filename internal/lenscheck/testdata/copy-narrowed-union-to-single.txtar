@@ -9,4 +9,4 @@ v0_0: _
 v1_0: {s: v0_0.s}
 -- out --
 not total
-v1_0.s copies v0_0.s, whose t was "b" and is now "a" (compat rule value-narrowed) (rule copy-narrowed) @ lens.cue:2:11
+v1_0.s copies v0_0.s, whose t was "b" and is now "a" (rule copy-narrowed) @ lens.cue:2:11

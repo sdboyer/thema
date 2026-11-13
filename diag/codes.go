@@ -94,7 +94,8 @@ var Codes = []CodeInfo{
 	{Code: E0203, Severity: SeverityError, Title: "a major version declares no schemas", Sentinels: []error{terrors.ErrNonContiguousVersions}},
 	{Code: E0204, Severity: SeverityError, Title: "two version files declare the same version", Sentinels: []error{terrors.ErrNonContiguousVersions}},
 	{Code: E0205, Severity: SeverityError, Title: "the version files skip a version", Sentinels: []error{terrors.ErrNonContiguousVersions}},
-	{Code: E0206, Severity: SeverityError, Title: "a version file named as a major version is backward compatible with its predecessor", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0206, Severity: SeverityError, Title: "a version file named as a major version is backward compatible with its predecessor", Sentinels: []error{terrors.ErrInvalidLineage}, Retired: "It told the author to rename the file. Only a file under history/ has a number to disagree with, since the tip's is derived, and a file under history/ never changes: the disagreement is an immutability violation, E0207, in either direction."},
+	{Code: E0207, Severity: SeverityError, Title: "a version under history/ has a number its compatibility with the version before it contradicts", Sentinels: []error{terrors.ErrInvalidLineage}},
 	{Code: E0208, Severity: SeverityError, Title: "a major version is backward compatible with its predecessor", Sentinels: []error{terrors.ErrInvalidLineage}},
 	{Code: E0210, Severity: SeverityError, Title: "a minor version requires a field its predecessor does not declare", Sentinels: []error{terrors.ErrInvalidLineage}},
 	{Code: E0211, Severity: SeverityError, Title: "a minor version rejects a field its predecessor declares", Sentinels: []error{terrors.ErrInvalidLineage}},
@@ -296,7 +297,8 @@ const (
 	E0203 Code = "E0203" // a major version key with no minor versions
 	E0204 Code = "E0204" // two version files, one version
 	E0205 Code = "E0205" // version files that skip a version
-	E0206 Code = "E0206" // N.0.thema whose schema is compatible with its predecessor
+	E0206 Code = "E0206" // retired: N.0.thema whose schema is compatible with its predecessor
+	E0207 Code = "E0207" // a history/ version numbered minor and incompatible, or major and compatible
 	E0208 Code = "E0208" // a .0 version that is compatible with its predecessor
 	// E0210 to E0218: one per rule of internal/compat that finds an
 	// incompatibility; E0230 to E0234: one per rule that leaves the verdict
