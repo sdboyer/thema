@@ -327,10 +327,10 @@ func (e *edge) errf(code diag.Code, p token.Pos, format string, args ...any) {
 	e.errs = cerrors.Append(e.errs, diag.New(code).At(p).Headlinef(format, args...).Err())
 }
 
-// errh is errf with a line of help saying what to write. The fix goes in the
+// errhf is errf with a line of help saying what to write. The fix goes in the
 // help, never after a colon in the headline, so that a reader finds the
 // problem and the fix each in its own place.
-func (e *edge) errh(code diag.Code, p token.Pos, help, format string, args ...any) {
+func (e *edge) errhf(code diag.Code, p token.Pos, help, format string, args ...any) {
 	e.errs = cerrors.Append(e.errs, diag.New(code).At(p).Headlinef(format, args...).Help(help).Err())
 }
 
@@ -368,7 +368,7 @@ func (e *edge) parseBody(lit *ast.StructLit, tbase, sbase cue.Path, b *body) {
 		case *ast.Field:
 			e.parseField(d, tbase, sbase, b)
 		case *ast.EmbedDecl:
-			e.errh(diag.E0330, d.Pos(), fmt.Sprintf("to copy from %s, embed %s.<path> in a nested body", e.root, e.root), "a lens body has no embeddings")
+			e.errhf(diag.E0330, d.Pos(), fmt.Sprintf("to copy from %s, embed %s.<path> in a nested body", e.root, e.root), "a lens body has no embeddings")
 		case *ast.Comprehension:
 			e.errs = cerrors.Append(e.errs, diag.New(diag.E0330).At(d.Pos()).
 				Headline("comprehensions are not allowed in a lens body").
@@ -483,7 +483,7 @@ func (e *edge) parseCoalesce(x *ast.CallExpr, en *entry, b *body) {
 		return
 	}
 	if len(optional) == 0 {
-		e.errh(diag.E0348, x.Args[0].Pos(), fmt.Sprintf("write %s: %s", en.target, exprText(x.Args[0])), "%s always has every field %s reads, so _coalesce's fallback could never apply", e.nameOf(e.sv), exprText(x.Args[0]))
+		e.errhf(diag.E0348, x.Args[0].Pos(), fmt.Sprintf("write %s: %s", en.target, exprText(x.Args[0])), "%s always has every field %s reads, so _coalesce's fallback could never apply", e.nameOf(e.sv), exprText(x.Args[0]))
 		return
 	}
 	en.kind, en.computed, en.reads, en.optional, en.fallback = kindCoalesce, x.Args[0], reads, optional, fb
@@ -755,7 +755,7 @@ func (e *edge) condition(x ast.Expr) (ast.Expr, bool) {
 			e.unbind(rootIdent(x))
 			return x, true
 		default:
-			e.errh(diag.E0422, pos, fmt.Sprintf("compare %s.%s to a value, or name an optional field bare to test whether it is present", e.root, p), "%s.%s is %s, not a condition", e.root, p, lookup(e.S, p).IncompleteKind())
+			e.errhf(diag.E0422, pos, fmt.Sprintf("compare %s.%s to a value, or name an optional field bare to test whether it is present", e.root, p), "%s.%s is %s, not a condition", e.root, p, lookup(e.S, p).IncompleteKind())
 			return nil, false
 		}
 	}
@@ -1117,7 +1117,7 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 			}
 			if e.optional(e.S, en.source) {
 				if e.required(e.T, en.target) {
-					e.errh(diag.E0343, en.pos, fmt.Sprintf("write _coalesce(%s.%s, <fallback>) to say what to use when it is absent", e.root, en.source), "%s is optional in %s and %s requires %s", en.source, e.nameOf(e.sv), e.nameOf(e.tv), en.target)
+					e.errhf(diag.E0343, en.pos, fmt.Sprintf("write _coalesce(%s.%s, <fallback>) to say what to use when it is absent", e.root, en.source), "%s is optional in %s and %s requires %s", en.source, e.nameOf(e.sv), e.nameOf(e.tv), en.target)
 					continue
 				}
 				root.has(en.target).present = e.presence(en)
@@ -1250,7 +1250,7 @@ func (e *edge) declare(b *body, out *compiledLens) {
 		case kindMatch:
 			if cond == nil {
 				if en.catchAll == nil {
-					e.errh(diag.E0420, d.pos, fmt.Sprintf("say when it applies with %s: <condition>", fieldWhen), "%s.%s: a lacuna on a _match applies when its [_] arm does, and this _match has none", fieldLacunas, d.path)
+					e.errhf(diag.E0420, d.pos, fmt.Sprintf("say when it applies with %s: <condition>", fieldWhen), "%s.%s: a lacuna on a _match applies when its [_] arm does, and this _match has none", fieldLacunas, d.path)
 					continue
 				}
 				cond = e.catchAllCondition(en, d.pos)
@@ -1261,7 +1261,7 @@ func (e *edge) declare(b *body, out *compiledLens) {
 			}
 		case kindEach:
 			if cond == nil {
-				e.errh(diag.E0415, d.pos, fmt.Sprintf("say when it applies with %s: <condition>", fieldWhen), "%s.%s: a lacuna on _each has no %s", fieldLacunas, d.path, fieldWhen)
+				e.errhf(diag.E0415, d.pos, fmt.Sprintf("say when it applies with %s: <condition>", fieldWhen), "%s.%s: a lacuna on _each has no %s", fieldLacunas, d.path, fieldWhen)
 				continue
 			}
 		}
@@ -1271,7 +1271,7 @@ func (e *edge) declare(b *body, out *compiledLens) {
 	for i := range b.entries {
 		en := &b.entries[i]
 		if en.ok && en.kind == kindMatch && en.catchAll != nil && !catchAllLacuna[en] {
-			e.errh(diag.E0414, en.catchAll.pos, fmt.Sprintf("declare what is lost in %s: {%s: [{%s: Type, %s: \"...\"}]}", fieldLacunas, en.target, fieldType, fieldMessage), "the [_] arm collapses every unmatched value into one, and no lacuna says what is lost")
+			e.errhf(diag.E0414, en.catchAll.pos, fmt.Sprintf("declare what is lost in %s: {%s: [{%s: Type, %s: \"...\"}]}", fieldLacunas, en.target, fieldType, fieldMessage), "the [_] arm collapses every unmatched value into one, and no lacuna says what is lost")
 		}
 	}
 }
@@ -1318,7 +1318,7 @@ func (e *edge) checkCoalesce(en *entry) bool {
 			return false
 		}
 		if !e.optional(e.S, en.source) {
-			e.errh(diag.E0348, en.expr.Pos(), fmt.Sprintf("write %s: %s.%s", en.target, e.root, en.source), "%s always has %s, so _coalesce's fallback could never apply", e.nameOf(e.sv), en.source)
+			e.errhf(diag.E0348, en.expr.Pos(), fmt.Sprintf("write %s: %s.%s", en.target, e.root, en.source), "%s always has %s, so _coalesce's fallback could never apply", e.nameOf(e.sv), en.source)
 			return false
 		}
 	}
@@ -1633,7 +1633,7 @@ func (e *edge) fill(n *node, tbase cue.Path, b *body, consumed, dropped map[stri
 				continue
 			}
 			if e.optional(e.S, spath) && e.required(e.T, tpath) {
-				e.errh(diag.E0343, lookup(e.T, tpath).Pos(), fmt.Sprintf("write %s: _coalesce(%s.%s, <fallback>) to say what to use when it is absent", tpath, e.root, spath), "%s is optional in %s and required in %s", spath, e.nameOf(e.sv), e.nameOf(e.tv))
+				e.errhf(diag.E0343, lookup(e.T, tpath).Pos(), fmt.Sprintf("write %s: _coalesce(%s.%s, <fallback>) to say what to use when it is absent", tpath, e.root, spath), "%s is optional in %s and required in %s", spath, e.nameOf(e.sv), e.nameOf(e.tv))
 				continue
 			}
 			c := n.child(name)
@@ -1709,7 +1709,7 @@ func (e *edge) copyMisfit(code diag.Code, p token.Pos, spath, tpath cue.Path, fs
 // field is collected for unwritten, which reports them all at once.
 func (e *edge) unproduced(tpath cue.Path) {
 	if e.written {
-		e.errh(diag.E0346, e.blockPos, fmt.Sprintf("add %s: <mapping> to %s", tpath, e.paramOf(e.tv)), "%s produces nothing for %s, which %s requires", e.dir, tpath, e.nameOf(e.tv))
+		e.errhf(diag.E0346, e.blockPos, fmt.Sprintf("add %s: <mapping> to %s", tpath, e.paramOf(e.tv)), "%s produces nothing for %s, which %s requires", e.dir, tpath, e.nameOf(e.tv))
 		return
 	}
 	e.missing = append(e.missing, tpath)
@@ -1749,7 +1749,7 @@ func (e *edge) unmapped(b *body, consumed map[string]bool, out *compiledLens) {
 				// No lens: the instance keeps it, and its successor admits it.
 				continue
 			}
-			e.errh(diag.E0347, e.blockPos, fmt.Sprintf("write <field>: %s.%s to move it, or %s: _drop", e.root, spath, spath), "%s declares %s and %s does not, and nothing maps it", e.nameOf(e.sv), spath, e.nameOf(e.tv))
+			e.errhf(diag.E0347, e.blockPos, fmt.Sprintf("write <field>: %s.%s to move it, or %s: _drop", e.root, spath, spath), "%s declares %s and %s does not, and nothing maps it", e.nameOf(e.sv), spath, e.nameOf(e.tv))
 		case backward:
 			if e.carries(b, consumed, spath) {
 				// Translation carries it as a field the target does not
