@@ -5,7 +5,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { docs, docsBase, lacunaTypeDoc } from "./docs";
+import { docs, docsBase, lacunaTypeDoc } from "./docs.js";
 
 const root = resolve(__dirname, "../../..");
 const docsDir = resolve(root, "docs");

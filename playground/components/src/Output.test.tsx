@@ -1,7 +1,7 @@
 import { render } from "preact";
 import { describe, expect, it } from "vitest";
-import { docsBase } from "./docs";
-import { Output } from "./Output";
+import { docsBase } from "./docs.js";
+import { Output } from "./Output.js";
 
 describe("Output", () => {
   it("links each lacuna type to its reference entry", () => {

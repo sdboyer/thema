@@ -104,6 +104,8 @@ test("each manifest is publishable, at the version, from this repository", () =>
     assert.equal(m.repository?.url, "git+https://github.com/sdboyer/thema.git", p.staged);
     assert.equal(m.repository?.directory, `playground/${p.dir}`, p.staged);
     assert.equal(m.license, "Apache-2.0", p.staged);
+    // npm packs LICENSE whatever files says, and NOTICE only if named.
+    assert.ok(m.files.includes("NOTICE"), p.staged);
   }
   assert.deepEqual(names, ["@sdboyer/thema-ui", "@sdboyer/thema-wasm", "@sdboyer/thema-playground"]);
 });
