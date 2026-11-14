@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Regenerate the thresh-generated section of AGENTS.md, leaving the rest intact.
 set -euo pipefail
-cd "$(dirname "$0")/.."
+# An exported CDPATH would redirect a relative cd.
+CDPATH='' cd "$(dirname "$0")/.."
 
 trap 'rm -f AGENTS.md.tmp' EXIT
 {

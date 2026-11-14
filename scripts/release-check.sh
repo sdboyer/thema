@@ -3,14 +3,15 @@
 # vX.Y.Z, or other than ThemaModuleVersion. The release workflow runs this
 # too.
 set -euo pipefail
-cd "$(dirname "$0")/.."
+# An exported CDPATH would redirect a relative cd.
+CDPATH='' cd "$(dirname "$0")/.."
 
 die() {
 	echo "$*" >&2
 	exit 1
 }
 
-[[ $# -eq 1 ]] || die "usage: $0 vX.Y.Z"
+[[ $# -eq 1 && -n $1 ]] || die "usage: $0 vX.Y.Z"
 tag=$1
 
 version=$(sed -n 's/^const ThemaModuleVersion = "\(.*\)"$/\1/p' internal/util/modfile.go)
