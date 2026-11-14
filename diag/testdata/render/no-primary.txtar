@@ -7,7 +7,7 @@ displays as thema/<file>.
   "severity": "error",
   "headline": "CUE reported an error thema does not recognize",
   "notes": [
-    {"pos": {"file": "/github.com/sdboyer/thema@v0.1.1/lineage.cue", "line": 62, "col": 30, "origin": "thema"}, "label": "in thema's own CUE"}
+    {"pos": {"file": "$THEMA_ROOT/lineage.cue", "line": 62, "col": 30, "origin": "thema"}, "label": "in thema's own CUE"}
   ],
   "detail": "schemas.\"0\".x: \"x\" is not a minor version; schemas are keyed by major, then minor version, each a non-negative integer such as \"0\""
 }]
