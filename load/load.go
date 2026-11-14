@@ -70,8 +70,8 @@ func Configure(cfg *load.Config) error {
 }
 
 // ThemaVersion is the version of thema's CUE module embedded in this Go
-// module. A CUE module loaded through [Configure] must require
-// github.com/sdboyer/thema@v0 at exactly this version.
+// module. A CUE module loaded through [Configure] that requires
+// github.com/sdboyer/thema@v0 must require exactly this version.
 const ThemaVersion = util.ThemaModuleVersion
 
 // InstanceWithThema wraps CUE's [load.Instance] in order to allow
