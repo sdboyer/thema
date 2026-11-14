@@ -24,7 +24,7 @@ Registry never take a version twice. So as much as can be checked is checked
 before the tag exists. CI's `release` job rehearses, on every pull request and
 on `main`, what can be rehearsed without a tag: GoReleaser's build, as a
 snapshot; the npm packages, staged and published with `--dry-run`; and the
-CUE module, published with `--dry-run`. `make release` tags only a commit that
+CUE module, published with `--dry-run`. `just release` tags only a commit that
 passed it. What needs a tag (GoReleaser's choice of tag and its draft
 release, the registries' trust in the workflow, the `release` environment) is
 exercised only by a release: thema has no release candidates.
@@ -33,8 +33,9 @@ exercised only by a release: thema has no release candidates.
 
 1. In a pull request, set `ThemaModuleVersion` to the new version, with its
    `v` (`v0.2.0`). Merge it.
-2. On `main`, up to date with `origin`, run `make release tag=v0.2.0`. It
-   refuses, before anything is pushed:
+2. On `main`, up to date with `origin`, run `just release v0.2.0`. It needs
+   [just](https://just.systems), the GitHub CLI `gh`, signed in, and git set
+   up to sign tags. It refuses, before anything is pushed:
    - a tag that is not `vX.Y.Z`, or that is not `ThemaModuleVersion`;
    - a working tree with changes, or a `HEAD` that is not `origin/main`;
    - a tag that exists, or a version older than one tagged already;
@@ -49,8 +50,8 @@ exercised only by a release: thema has no release candidates.
       same playground bundle the GitHub release attaches;
    4. the GitHub release, published.
 
-   It refuses a tag `make release-check` refuses, or one on a commit that is
-   not on `main`.
+   It refuses a tag `scripts/release-check.sh` refuses, or one on a commit
+   that is not on `main`.
 
 If a step fails, fix what failed outside the repository (a registry outage, a
 missing permission) and re-run the workflow's failed jobs. Every step skips
