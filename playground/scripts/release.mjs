@@ -49,9 +49,11 @@ export function distTag(version) {
 // tree: at version, publishable, without the scripts and devDependencies
 // that only build it here, and, for a bundled package, without dependencies.
 // thema-ui's source export condition goes too: it names src/, which the
-// package does not ship.
+// package does not ship. Its files name NOTICE, which npm leaves out of a
+// package unless named, and which the license asks a redistribution to
+// carry.
 export function manifest(src, version, { bundled }) {
-  const m = { ...src, version };
+  const m = { ...src, version, files: [...src.files, "NOTICE"] };
   delete m.private;
   delete m.scripts;
   delete m.devDependencies;
@@ -92,7 +94,7 @@ export function stage({ version, root, bundle, out }) {
   }
 
   const wasm = join(out, "thema-wasm");
-  for (const f of JSON.parse(readFileSync(join(wasm, "package.json"), "utf8")).files) {
+  for (const f of JSON.parse(readFileSync(join(pg, "wasm", "package.json"), "utf8")).files) {
     copy(join(bundle, f), join(wasm, f), "is it a playground bundle?");
   }
 
