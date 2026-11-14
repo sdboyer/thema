@@ -13,8 +13,8 @@ name: Release
 # take a version twice, so nothing here can be undone. Every step skips what
 # is already published: a release that failed part way is finished by
 # re-running its failed jobs, never by moving its tag. make release checks
-# before tagging what can be checked then, and CI's release job rehearses
-# all of this on every change.
+# before tagging what can be checked then, and CI's release job rehearses on
+# every change what can be rehearsed without a tag.
 
 on:
   push:
@@ -97,7 +97,8 @@ jobs:
           cache-dependency-path: playground/package-lock.json
 
       # A draft (see .goreleaser.yaml), replacing one an earlier attempt left.
-      # goreleaser builds the newest tag on the commit unless told which.
+      # goreleaser builds the newest tag on the commit unless told which, and
+      # the pushed tag is the one to build, whatever else points at it.
       - uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser

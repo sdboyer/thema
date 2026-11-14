@@ -180,7 +180,7 @@ test("publish publishes every package, in order, under the version's dist-tag", 
 test("publish skips what is already published, so a failed release is finished by running it again", () => {
   const f = fixture();
   stage({ version: "0.1.0", ...f });
-  const { npm, calls } = fakeNpm({ "@sdboyer/thema-ui": ["0.1.0"], "@sdboyer/thema-wasm": ["0.1.0-rehearsal"] });
+  const { npm, calls } = fakeNpm({ "@sdboyer/thema-ui": ["0.1.0"], "@sdboyer/thema-wasm": ["0.0.0-bootstrap.0"] });
   publish({ out: f.out, npm });
   assert.deepEqual(publishes(calls), [
     ["thema-wasm", "--access", "public", "--tag", "latest"],

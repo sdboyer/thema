@@ -27,8 +27,7 @@ snapshot; the npm packages, staged and published with `--dry-run`; and the
 CUE module, published with `--dry-run`. `make release` tags only a commit that
 passed it. What needs a tag (GoReleaser's choice of tag and its draft
 release, the registries' trust in the workflow, the `release` environment) is
-exercised only by a release. thema has no release candidates: until v1, a
-release that is wrong is fixed by the next one.
+exercised only by a release: thema has no release candidates.
 
 ## Releasing
 
@@ -84,7 +83,8 @@ registry token is stored in the repository.
     -f name='v*' -f type=tag
   ```
 - **npm.** Each package must exist before it can trust a workflow, so each
-  was first published by hand, as `0.0.0-bootstrap.0`. Then, on each package's
+  was first published by hand, as `0.0.0-bootstrap.0`; npm's processing of
+  that publish also left a `0.0.0-stage` version. Then, on each package's
   settings page at npmjs.com, add a trusted publisher: GitHub Actions,
   owner `sdboyer`, repository `thema`, workflow `release.yml`, environment
   `release`, and, under Allowed actions, **npm publish**. npm allows a new
@@ -93,6 +93,6 @@ registry token is stored in the repository.
   `E403 OIDC permission denied`. A trusted publisher can't be edited, only
   deleted and added again. A trusted publisher that publishes nothing within
   two days expires, so add them when a tag is ready to follow. Then set each
-  package's
-  publishing access to require two-factor authentication and disallow tokens,
-  so that only the workflow publishes. The placeholders are deprecated.
+  package's publishing access to require two-factor authentication and
+  disallow tokens, so that only the workflow publishes. The placeholder
+  versions are deprecated.

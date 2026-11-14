@@ -21,7 +21,7 @@ release: release-check
 	@test -z "$$(git status --porcelain)" || { echo "the working tree has changes"; exit 1; }
 	@test "$$(git rev-parse HEAD)" = "$$(git rev-parse origin/main)" || { echo "HEAD is not origin/main"; exit 1; }
 	@! git rev-parse -q --verify "refs/tags/$(tag)" >/dev/null || { echo "$(tag) is tagged already"; exit 1; }
-	@last=$$(git tag -l 'v*' | sort -V | tail -1); \
+	@last=$$(git tag -l 'v*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$$' | sort -V | tail -1); \
 	if [ -n "$$last" ] && [ "$$(printf '%s\n' "$$last" "$(tag)" | sort -V | tail -1)" = "$$last" ]; then echo "$(tag) is older than $$last"; exit 1; fi
 	@ci=$$(gh run list -R sdboyer/thema --workflow ci.yml --event push --commit "$$(git rev-parse HEAD)" --json status,conclusion --jq '.[0] | if . == null then "no CI run" else "\(.status) \(.conclusion)" end'); \
 	test "$$ci" = "completed success" || { echo "CI on $$(git rev-parse --short HEAD) has not completed and passed: $$ci"; exit 1; }
