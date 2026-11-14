@@ -1,7 +1,7 @@
 // The diagnostics of one operation, as thema says them: code and headline,
 // where, the notes, help, and CUE's own text when there is any.
-import type { Diagnostic, Pos } from "./types";
-import { docsURL } from "./markers";
+import type { Diagnostic, Pos } from "./types.js";
+import { docsURL } from "./markers.js";
 
 interface Props {
   diagnostics: readonly Diagnostic[];

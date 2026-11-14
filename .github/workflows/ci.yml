@@ -74,9 +74,13 @@ jobs:
         run: npm test
         working-directory: playground
 
-      # The editor components ship as a package; its build must keep working.
+      # The editor components ship as a package; its build must keep working,
+      # and what it builds must load as Node loads a package, not only through
+      # a bundler.
       - name: Build the components package
-        run: npm run build --workspace components
+        run: |
+          npm run build --workspace components
+          node --input-type=module -e 'await import("@sdboyer/thema-ui")'
         working-directory: playground
 
       - name: Build the CLI with the playground

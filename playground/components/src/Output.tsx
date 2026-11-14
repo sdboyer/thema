@@ -1,9 +1,9 @@
 // What an operation returned: its result in its own terms, then its
 // diagnostics.
-import { Diagnostics } from "./Diagnostics";
-import { DocLink, lacunaTypeDoc } from "./docs";
-import { Editor } from "./Editor";
-import type { CodegenResponse, TranslateResponse, ValidateAnyResponse, ValidateResponse } from "./types";
+import { Diagnostics } from "./Diagnostics.js";
+import { DocLink, lacunaTypeDoc } from "./docs.js";
+import { Editor } from "./Editor.js";
+import type { CodegenResponse, TranslateResponse, ValidateAnyResponse, ValidateResponse } from "./types.js";
 
 export type Outcome =
   | { op: "validate"; resp: ValidateResponse }

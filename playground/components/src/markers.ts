@@ -2,9 +2,9 @@
 // file it is in with the diagnostic's severity, and each note positioned in a
 // file marks it as information. Positions in thema's own CUE mark nothing;
 // the diagnostics list shows them.
-import type { Diagnostic, Pos } from "./types";
-import { themaDoc } from "./docs";
-import { offsetOf, spanAt } from "./positions";
+import type { Diagnostic, Pos } from "./types.js";
+import { themaDoc } from "./docs.js";
+import { offsetOf, spanAt } from "./positions.js";
 
 export interface Marker {
   from: number;

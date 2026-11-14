@@ -1,6 +1,6 @@
 import { StringStream } from "@codemirror/language";
 import { describe, expect, it } from "vitest";
-import { cueParser } from "./cue-lang";
+import { cueParser } from "./cue-lang.js";
 
 // tokens runs the tokenizer over text, as CodeMirror does line by line, and
 // fails rather than hang if a call does not advance.

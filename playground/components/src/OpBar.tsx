@@ -1,7 +1,7 @@
 // The operations bar: a button per operation, the arguments the chosen one
 // takes, and Run. The host holds the state; the bar only shows and changes it.
-import { DocLink, hasDoc } from "./docs";
-import { type OpArgs, type UserOp, argsOf, codegenOps, dataOps } from "./ops";
+import { DocLink, hasDoc } from "./docs.js";
+import { type OpArgs, type UserOp, argsOf, codegenOps, dataOps } from "./ops.js";
 
 export interface OpBarProps {
   op: UserOp;
