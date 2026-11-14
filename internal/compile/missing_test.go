@@ -10,11 +10,18 @@ import (
 	"github.com/sdboyer/thema/diag"
 )
 
+// The paths of versions 0.0's and 1.0's files, which this package's tests
+// write.
+const (
+	history00 = HistoryDir + "/0.0" + Ext
+	history10 = HistoryDir + "/1.0" + Ext
+)
+
 // A finding E1001 folds in keeps its notes, after its own, each where it was,
 // or where the finding is when it has no position: nothing the finding said
 // is dropped, and every renderer lists it under the finding.
 func TestMissingLensKeepsFindingNotes(t *testing.T) {
-	prev, err := parseVersion(File{Path: "history/0.0.thema", Text: []byte("Schema: {\n\tid: string\n}\n")}, "history/0.0.thema", false)
+	prev, err := parseVersion(File{Path: history00, Text: []byte("Schema: {\n\tid: string\n}\n")}, history00, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +56,7 @@ func TestMissingLensKeepsFindingNotes(t *testing.T) {
 	want := []note{
 		{TipFile, 2, "a finding (E0358)"},
 		{TipFile, 2, "loose"},
-		{"history/0.0.thema", 2, "in the source"},
+		{history00, 2, "in the source"},
 		{TipFile, 2, "in the tip"},
 	}
 	if len(got) < len(want) || !slices.Equal(got[:len(want)], want) {

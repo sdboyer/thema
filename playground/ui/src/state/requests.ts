@@ -3,7 +3,6 @@ import {
   type CodegenOp,
   type CodegenRequest,
   type DataOp,
-  type HydrateRequest,
   type TranslateRequest,
   type ValidateAnyRequest,
   type ValidateRequest,
@@ -15,7 +14,6 @@ export type UserRequest =
   | { op: "validate"; req: ValidateRequest }
   | { op: "validate-any"; req: ValidateAnyRequest }
   | { op: "translate"; req: TranslateRequest }
-  | { op: "hydrate" | "dehydrate"; req: HydrateRequest }
   | { op: CodegenOp; req: CodegenRequest };
 
 // requestFor is the request s.op sends, or a sentence saying what it lacks.
@@ -36,8 +34,5 @@ export function requestFor(s: Session): UserRequest | string {
     case "translate":
       if (!s.args.to) return "choose the version to translate to";
       return { op, req: { lineage, data, from: v(s.args.from), to: s.args.to } };
-    case "hydrate":
-    case "dehydrate":
-      return { op, req: { lineage, data, version: v(s.args.version) } };
   }
 }

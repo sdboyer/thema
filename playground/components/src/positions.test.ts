@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { charIndexOfByte, offsetOf, spanAt } from "./positions";
+import { charIndexOfByte, offsetOf, spanAt } from "./positions.js";
 
 describe("offsetOf", () => {
   const text = "a: 1\nbb: \"x\"\n\tccc: 3\n";

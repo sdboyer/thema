@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/sdboyer/thema/diag"
 )
 
 // When set, the test binary runs the thema CLI's main instead of the tests, so
@@ -38,6 +40,25 @@ func TestStdinHasInput(t *testing.T) {
 				t.Fatalf("stdinHasInput(%v) = %v, want %v", tt.mode, got, tt.want)
 			}
 		})
+	}
+}
+
+// A stdin that cannot be stat'd is E0613, as one that cannot be read is.
+func TestDataStdinStatFails(t *testing.T) {
+	f, err := os.Open(os.DevNull)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	stdin := os.Stdin
+	os.Stdin = f
+	defer func() { os.Stdin = stdin }()
+
+	_, err = pathOrStdin(nil)
+	if got := diag.Diagnostics(err); len(got) != 1 || got[0].Code != diag.E0613 {
+		t.Errorf("got %v, want E0613", err)
 	}
 }
 

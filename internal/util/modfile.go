@@ -23,7 +23,7 @@ const ThemaModulePath = "github.com/sdboyer/thema@v0"
 // ThemaModuleVersion is the version of thema's CUE module embedded in this
 // version of the thema Go module. It is bumped as part of each release, so that
 // the Go module and the published CUE module carry the same version.
-const ThemaModuleVersion = "v0.1.0"
+const ThemaModuleVersion = "v0.1.1"
 
 // ThemaPackageID is the canonical CUE import path of thema's CUE package, which
 // lives at the root of [ThemaModulePath]. Thema's hidden fields (e.g. _schema)

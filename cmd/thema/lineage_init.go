@@ -137,14 +137,14 @@ func (ic *initCommand) run(cmd *cobra.Command, args []string) error {
 	case "openapi":
 		ic.runOpenAPI(cmd, args)
 	default:
-		panic(fmt.Sprint("unrecognized command ", cmd.CalledAs()))
+		panic(fmt.Sprint("unrecognized command ", cmd.CalledAs())) //nolint:forbidigo // run is the RunE of empty, jsonschema and openapi alone, and none has an alias
 	}
 	if ic.err != nil {
 		return ic.err
 	}
 	if ic.stdout {
 		_, err = cmd.OutOrStdout().Write(ic.tip.Text)
-		return err
+		return stdoutErr(err)
 	}
 	return ic.write(cmd, dir)
 }
@@ -211,7 +211,7 @@ func (ic *initCommand) write(cmd *cobra.Command, dir string) error {
 		return err
 	}
 	_, err = fmt.Fprintln(cmd.OutOrStdout(), displayPath(filepath.Join(dir, ic.tip.Path)))
-	return err
+	return stdoutErr(err)
 }
 
 // process both openapi and json schema, abstract over stdin

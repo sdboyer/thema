@@ -3,8 +3,8 @@
 // position and then those without, help, and CUE's own text when there is
 // any. Each is on its own line under its own label, so that what is wrong and
 // what to do are each in one place.
-import type { Diagnostic, Pos } from "./types";
-import { docsURL, whereText } from "./markers";
+import type { Diagnostic, Pos } from "./types.js";
+import { docsURL, whereText } from "./markers.js";
 
 interface Props {
   diagnostics: readonly Diagnostic[];

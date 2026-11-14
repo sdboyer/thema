@@ -17,8 +17,8 @@ import (
 // trip fixture cannot hold this input, since decompiling omits the empty body.
 func TestEmptyBodyWritesNothing(t *testing.T) {
 	files := []File{
-		{Path: "history/0.0.thema", Text: []byte("Schema: {\n\tid: string\n}\n")},
-		{Path: "history/1.0.thema", Text: []byte(`Schema: {
+		{Path: history00, Text: []byte("Schema: {\n\tid: string\n}\n")},
+		{Path: history10, Text: []byte(`Schema: {
 	name: string
 	meta: {
 		note?: string
@@ -69,7 +69,7 @@ ForwardLens: {
 // not parse as a label. What nested renders parses back to the fields it was
 // given, beneath the struct it was given.
 func TestNested(t *testing.T) {
-	p := func(s string) cue.Path { return cue.ParsePath(s) }
+	p := cue.ParsePath
 	cases := []struct {
 		name  string
 		base  cue.Path

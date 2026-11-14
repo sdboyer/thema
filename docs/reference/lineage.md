@@ -79,6 +79,10 @@ The error for a version numbered the wrong way says which version it should be.
 
 A version is the same in both when it has the same number and the same identity, `Schema.ID()`. The identity is `<schema-hash>:<lens-hash>`, each written `g2.<hex>`: a SHA-256 digest of the canonical form of the version's schema, joined with the `joinSchema`, and one of the lenses on the edge into it, forward from its predecessor and backward to it. Neither covers the version number, examples, comments or layout, so an edit to comments or formatting is not a change, and fixing a lens changes the lens hash and not the schema hash. Of a lacuna, the lens hash covers its type, its condition and the fields it reports, and not its message, which is prose: rewording a message is not a change, and a derived lacuna whose message names the predecessor's number is the same when that number changes. The identity is never stored in the files it describes: what was published is read from the published lineage itself, such as `history/` at the released revision. The `g2` tag names the generation of the canonical form, bumped whenever that form's output changes; an ID of another generation, or one marked uncertified (`g2u`, computed with a CUE other than the one its generation was certified against), never equals one of this generation. A tip is never part of the check; in the authoring form, both revisions are read from `history/` alone.
 
+The same canonical form and digest are available for any CUE value, from package `github.com/sdboyer/thema/contenthash`: `contenthash.Of(v)` is the digest of `v`, and `contenthash.Form(v)` the canonical text it is taken over. It is for tools that build on lineages and need identities for what they build: write each lineage version's `Schema.ID()` into the value as data, and take the value's digest. Digests compare as above, within one generation (`contenthash.Generation`) and certification.
+
+A tool that looks versions up by content without thema can read a lineage's version index, `versions.json` at the top of its directory beside `history/`, which the `authoring.VersionIndex` jenny writes from a bound lineage: the lineage's name, and for each cut version its number, its identity and the two digests. A provisional version, the tip on the development path, is left out, and a lineage with no cut version gets no index. The index is derived, beside the files it describes and never in them: thema never reads one, and the lineage remains the record. An index is of one generation; after a generation changes, write it again.
+
 ## Schemas
 
 In the normal form, each entry of `schemas` holds a schema and, optionally, examples of it:
@@ -204,6 +208,7 @@ Converting between the forms:
   - `authoring.FrozenVersion` and `authoring.CleanTip` write the two files of an `*authoring.Cut`, and nothing for a clean cut.
   - `authoring.DecompiledFiles` writes a normal-form lineage value's authoring files.
   - `authoring.InitialTip` writes the `tip.thema` of a new lineage from a schema.
+  - `authoring.VersionIndex` writes a bound lineage's version index, `versions.json` ([Versions](#versions)). Thema itself never writes or reads one.
   - `authoring.Formatted` is a mapper that lays out every `.thema` file.
 
   Paths are relative to the lineage's directory. The CLI writes them with jenny: a new file is mode `0644` and a new directory `0777`, less the umask, and a file that already exists keeps its mode.

@@ -178,25 +178,6 @@ export interface TranslateResponse extends Result {
   lacunas?: TranslationLacunas;
 }
 /**
- * HydrateRequest fills a data document with its schema's defaults
- * (Hydrate), or removes the values its defaults imply (Dehydrate). An empty
- * Version searches the lineage for the data's schema.
- */
-export interface HydrateRequest {
-  lineage: LineageInput;
-  data: DataInput;
-  version?: string;
-}
-/**
- * HydrateResponse is the document after the operation, and whether it
- * changed.
- */
-export interface HydrateResponse extends Result {
-  version?: string;
-  output?: unknown;
-  changed: boolean;
-}
-/**
  * CodegenRequest generates code from one schema. An empty Version means the
  * latest. Format is "json" or "yaml" for OpenAPI and JSON Schema, and is
  * ignored for TypeScript.
