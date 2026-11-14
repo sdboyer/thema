@@ -31,8 +31,6 @@ const json = (v: unknown) => JSON.stringify(v, null, 2) + "\n";
 export const data = {
   v1: json({ firstfield: "hello", secondfield: 42 }),
   v0: json({ firstfield: "hello" }),
-  v11Bare: json({ firstfield: "hello", secondfield: 42 }),
-  v11Default: json({ firstfield: "hello", secondfield: 42, size: "medium" }),
   v11Large: json({ firstfield: "hello", secondfield: 42, size: "large" }),
 };
 
@@ -125,19 +123,6 @@ export const steps: Step[] = [
     snippets: [{ label: "tip.thema", text: minorFile }],
     see: "`binds: 0.0, 1.0, tip (cuts as 1.1)`. thema derived the tip's version from the change: once it is cut, it is 1.1. Until then it is provisional, and the version selectors call it the tip.",
     doc: "versions",
-  },
-  {
-    id: "hydrate",
-    title: "Hydrate and dehydrate",
-    about: "Hydrate fills in what a schema's defaults imply; dehydrate takes out values that only repeat them, the form to store.",
-    todo: ["Choose `hydrate`, with schema `tip (cuts as 1.1)`, and run it on the first document.", "Then `dehydrate`, the same schema, on the second."],
-    snippets: [
-      { label: "to hydrate", text: data.v11Bare },
-      { label: "to dehydrate", text: data.v11Default },
-    ],
-    see: "Hydrate adds `size: \"medium\"`; dehydrate removes it again.",
-    result: json({ firstfield: "hello", secondfield: 42, size: "medium" }),
-    doc: "hydrate",
   },
   {
     id: "translate-chain",

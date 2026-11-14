@@ -85,13 +85,6 @@ describe.skipIf(!haveThema())("the tour, against thema", () => {
     expect(step("minor").see).toContain(summary(b));
   });
 
-  it("hydrates and dehydrates", async () => {
-    const h = await t.call("hydrate", { lineage: lineage(withMinor()), data: doc(data.v11Bare), version: "1.1" });
-    expect(h.output).toEqual(JSON.parse(step("hydrate").result!));
-    const d = await t.call("dehydrate", { lineage: lineage(withMinor()), data: doc(data.v11Default), version: "1.1" });
-    expect(d.output).toEqual(JSON.parse(data.v11Bare));
-  });
-
   it("chains translation through 1.0", async () => {
     const r = await t.call("translate", { lineage: lineage(withMinor()), data: doc(data.v11Large), from: "1.1", to: "0.0" });
     expect(r.output).toEqual(JSON.parse(step("translate-chain").result!));

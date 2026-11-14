@@ -111,7 +111,7 @@ describe("App", () => {
     const work = root.querySelector(".work")!;
     expect(work.firstElementChild!.classList.contains("ops")).toBe(true);
     const ops = [...work.querySelectorAll(".op button")].map((b) => b.textContent);
-    expect(ops).toEqual(["validate", "validate-any", "translate", "hydrate", "dehydrate", "openapi", "jsonschema", "typescript"]);
+    expect(ops).toEqual(["validate", "validate-any", "translate", "openapi", "jsonschema", "typescript"]);
     expect(opButton(root, "validate").getAttribute("aria-pressed")).toBe("true");
     render(null, root);
   });
@@ -133,7 +133,7 @@ describe("App", () => {
   it("links every operation to its reference entry", async () => {
     const root = await mount();
     const link = (op: string) => opButton(root, op).parentElement!.querySelector<HTMLAnchorElement>("a.doc-link");
-    for (const op of ["validate", "validate-any", "translate", "hydrate", "dehydrate"]) {
+    for (const op of ["validate", "validate-any", "translate"]) {
       expect(link(op)!.href, op).toBe(`${docsBase}reference/operations.md#${op}`);
     }
     expect(link("jsonschema")!.href).toBe(`${docsBase}reference/codegen.md#json-schema`);

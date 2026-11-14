@@ -112,7 +112,7 @@ type Cell struct {
 	Before, After Status
 	// KnownBefore and KnownAfter are the #known/<suite> tags, or nil.
 	KnownBefore, KnownAfter *corpus.Known
-	// GoldenBefore and GoldenAfter are out/<suite>/bind, or empty.
+	// GoldenBefore and GoldenAfter are the cell's out/ section, or empty.
 	GoldenBefore, GoldenAfter string
 	GoldenChanged             bool
 	// Transitions are the ways the cell changed, most severe first.
@@ -202,7 +202,7 @@ func cellOf(k *corpus.Case, suite string) (Status, string, *corpus.Known) {
 	if t, ok := k.Known[suite]; ok {
 		tag = &t
 	}
-	golden, _ := k.File(corpus.SectionFile(suite))
+	golden, _ := k.File(k.SectionFile(suite))
 	return CellStatus(k, suite), golden, tag
 }
 

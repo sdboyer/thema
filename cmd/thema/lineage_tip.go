@@ -55,7 +55,7 @@ func (tc *tipCommand) run(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	if _, err := fmt.Fprintln(cmd.OutOrStdout(), tip); err != nil {
-		return err
+		return stdoutErr(err)
 	}
 	if tc.clean {
 		return authoring.CheckClean(ctx, files, at)

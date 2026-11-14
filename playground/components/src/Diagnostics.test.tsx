@@ -1,9 +1,9 @@
 import { render } from "preact";
 import { describe, expect, it } from "vitest";
-import { Diagnostics } from "./Diagnostics";
-import { markerDOM } from "./Editor";
-import { type Marker, markersFor } from "./markers";
-import type { Diagnostic } from "./types";
+import { Diagnostics } from "./Diagnostics.js";
+import { markerDOM } from "./Editor.js";
+import { type Marker, markersFor } from "./markers.js";
+import type { Diagnostic } from "./types.js";
 
 const at = { file: "tip.thema", line: 1, col: 1, origin: "user" } as const;
 const lens: Diagnostic = {

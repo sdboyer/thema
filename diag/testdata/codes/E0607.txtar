@@ -33,7 +33,7 @@ lin: thema.Lineage & {
     {
       "code": "E0607",
       "severity": "error",
-      "headline": "the CUE module requires thema v0.0.1, but this program embeds v0.1.0",
+      "headline": "the CUE module requires thema v0.0.1, but this program embeds v0.1.1",
       "primary": {
         "file": "mod/x.cue",
         "line": 3,
@@ -42,7 +42,7 @@ lin: thema.Lineage & {
         "origin": "user"
       },
       "help": [
-        "set deps[\"github.com/sdboyer/thema@v0\"].v to \"v0.1.0\" in cue.mod/module.cue"
+        "set deps[\"github.com/sdboyer/thema@v0\"].v to \"v0.1.1\" in cue.mod/module.cue"
       ]
     }
   ],
@@ -53,10 +53,10 @@ lin: thema.Lineage & {
   }
 }
 -- out/text --
-error[E0607]: the CUE module requires thema v0.0.1, but this program embeds v0.1.0
+error[E0607]: the CUE module requires thema v0.0.1, but this program embeds v0.1.1
  --> mod/x.cue:3:8
   |
 3 | import "github.com/sdboyer/thema"
   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
   |
-  = help: set deps["github.com/sdboyer/thema@v0"].v to "v0.1.0" in cue.mod/module.cue
+  = help: set deps["github.com/sdboyer/thema@v0"].v to "v0.1.1" in cue.mod/module.cue

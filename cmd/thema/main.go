@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	iofs "io/fs"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"cuelang.org/go/cue/cuecontext"
 	"github.com/sdboyer/jenny"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/authoring"
@@ -22,28 +24,165 @@ var ctx = cuecontext.New()
 var rt = thema.NewRuntime(ctx)
 
 // diagFormat is how diagnostics are written: text to stderr, or json to stdout.
-var diagFormat string
+var diagFormat = diagText
+
+// The values --diag-format takes.
+const (
+	diagText = "text"
+	diagJSON = "json"
+)
+
+// diagFormatFlag is --diag-format's value. It refuses anything but text or
+// json as the command line is parsed, which cobra reports as E0620 before
+// any command runs. The refused value is never set, so that diagnostic is
+// written as the format already set says, text on stderr by default: stdout
+// stays empty, as a failure leaves it for a script that asked for JSON.
+type diagFormatFlag string
+
+func (f *diagFormatFlag) String() string { return string(*f) }
+func (f *diagFormatFlag) Type() string   { return "string" }
+
+func (f *diagFormatFlag) Set(s string) error {
+	if s != diagText && s != diagJSON {
+		return fmt.Errorf("it takes %s or %s", diagText, diagJSON)
+	}
+	*f = diagFormatFlag(s)
+	return nil
+}
 
 func main() {
+	setupCommands()
+
+	if cmd, err := unknownCommand(rootCmd, os.Args[1:]); err != nil {
+		os.Exit(report(commandLine(cmd, err))) //nolint:forbidigo // main exits, with report's status
+	}
+	if cmd, err := rootCmd.ExecuteC(); err != nil {
+		os.Exit(report(commandLine(cmd, err))) //nolint:forbidigo // main exits, with report's status
+	}
+}
+
+// setupCommands builds the command tree beneath rootCmd, as main executes it.
+func setupCommands() {
 	setupDataCommand(rootCmd)
 	setupLineageCommand(rootCmd)
 	setupServeCommand(rootCmd)
 
-	rootCmd.PersistentFlags().StringVar(&diagFormat, "diag-format", "text", `how diagnostics are reported: "text" on stderr, or "json" on stdout`)
+	rootCmd.PersistentFlags().Var((*diagFormatFlag)(&diagFormat), "diag-format", `how diagnostics are reported: "text" on stderr, or "json" on stdout`)
 
 	// Stop cobra from being so "helpful"
-	for _, cmd := range allCmds {
+	walkCommands(rootCmd, func(cmd *cobra.Command) {
 		cmd.DisableFlagsInUseLine = true
 		cmd.SilenceUsage = true
 		cmd.SilenceErrors = true
 		cmd.CompletionOptions = cobra.CompletionOptions{
 			HiddenDefaultCmd: true,
 		}
-	}
+	})
+	// cobra adds these during Execute, after markRan; add them now so that
+	// markRan reaches their hooks too.
+	rootCmd.InitDefaultHelpCmd()
+	rootCmd.InitDefaultCompletionCmd()
+	markRan(rootCmd)
+}
 
-	if err := rootCmd.Execute(); err != nil {
-		os.Exit(report(err))
+// walkCommands calls f on cmd and on every command beneath it.
+func walkCommands(cmd *cobra.Command, f func(*cobra.Command)) {
+	f(cmd)
+	for _, sub := range cmd.Commands() {
+		walkCommands(sub, f)
 	}
+}
+
+// readDiagFormat sets diagFormat from args alone, ignoring every other flag
+// and argument. cobra stops reading a command line at what it cannot take,
+// so --diag-format after that point is never set, yet the diagnostic that
+// says so must be written as it asks.
+func readDiagFormat(args []string) {
+	fs := pflag.NewFlagSet("diag-format", pflag.ContinueOnError)
+	fs.ParseErrorsAllowlist.UnknownFlags = true
+	fs.SetOutput(io.Discard)
+	fs.Var((*diagFormatFlag)(&diagFormat), "diag-format", "")
+	// Declared, or pflag stops at -h or --help as a request for help.
+	fs.BoolP("help", "h", false, "")
+	_ = fs.Parse(args)
+}
+
+// ran is an error a command's own code returned, as against one cobra
+// returned for the command line before any of that code ran.
+type ran struct{ err error }
+
+func (r ran) Error() string { return r.err.Error() }
+func (r ran) Unwrap() error { return r.err }
+
+// markRan wraps the hooks of cmd and every command beneath it so that every
+// error they return is marked as ran.
+func markRan(cmd *cobra.Command) {
+	for _, sub := range cmd.Commands() {
+		markRan(sub)
+	}
+	for _, h := range []*cobraefunc{(*cobraefunc)(&cmd.PersistentPreRunE), (*cobraefunc)(&cmd.PreRunE), (*cobraefunc)(&cmd.RunE), (*cobraefunc)(&cmd.PostRunE), (*cobraefunc)(&cmd.PersistentPostRunE)} {
+		if f := *h; f != nil {
+			*h = func(cmd *cobra.Command, args []string) error {
+				if err := f(cmd, args); err != nil {
+					return ran{err}
+				}
+				return nil
+			}
+		}
+	}
+}
+
+// unknownCommand is the error cobra gives for a word that names no command at
+// the root, for such a word beneath a command that only groups others, where
+// cobra prints the group's help and succeeds without reading its arguments.
+// It returns no error for anything else, which cobra reports itself.
+func unknownCommand(root *cobra.Command, args []string) (*cobra.Command, error) {
+	cmd, rest, err := root.Find(args)
+	if err != nil || !cmd.HasParent() || cmd.Runnable() || cmd.ParseFlags(rest) != nil {
+		return nil, nil
+	}
+	words := cmd.Flags().Args()
+	if len(words) == 0 {
+		return nil, nil
+	}
+	if cmd.SuggestionsMinimumDistance <= 0 {
+		cmd.SuggestionsMinimumDistance = 2
+	}
+	var suggested string
+	if s := cmd.SuggestionsFor(words[0]); len(s) > 0 {
+		suggested = "\n\nDid you mean this?\n\t" + strings.Join(s, "\n\t") + "\n"
+	}
+	return cmd, fmt.Errorf("unknown command %q for %q%s", words[0], cmd.CommandPath(), suggested)
+}
+
+// commandLine is err as the CLI reports it: what a command's own code
+// returned, as it returned it, and anything else, which cobra returned for a
+// command line it could not take (an unknown command or flag, a flag without
+// its value, too many arguments), as E0620, with cobra's account of it.
+func commandLine(cmd *cobra.Command, err error) error {
+	var r ran
+	if errors.As(err, &r) {
+		return r.err
+	}
+	readDiagFormat(os.Args[1:])
+	b := diag.New(diag.E0620).Headlinef("%s cannot take this command line", cmd.CommandPath())
+	// An unknown command's message ends with the commands cobra suggests,
+	// which read as help, not as part of what went wrong.
+	msg, suggested, ok := strings.Cut(err.Error(), "\n\nDid you mean this?\n")
+	b = b.Detail(msg)
+	if ok {
+		b = b.Help("did you mean " + strings.Join(strings.Fields(suggested), " or ") + "?")
+	}
+	return b.Help(fmt.Sprintf("%s --help lists the commands, flags and arguments it takes", cmd.CommandPath())).Err()
+}
+
+// stdoutErr is err, the failure of writing a command's output to stdout, as
+// E0616, or nil.
+func stdoutErr(err error) error {
+	if err == nil {
+		return nil
+	}
+	return diag.New(diag.E0616).Headline("stdout cannot be written").Detail(diag.OSReason(err)).Err()
 }
 
 // silent is a failure a command has already said everything about, or was
@@ -62,13 +201,13 @@ func report(err error) int {
 	}
 	ds := diag.From(err, diag.Context{})
 	switch diagFormat {
-	case "json":
+	case diagJSON:
 		if err := diag.RenderJSON(os.Stdout, ds); err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, err) //nolint:forbidigo // report's own failure to write stdout has only stderr left
 		}
 	default:
 		cwd, _ := os.Getwd()
-		diag.Render(os.Stderr, ds, diag.RenderOptions{Source: readSource, Rel: cwd})
+		diag.Render(os.Stderr, ds, diag.RenderOptions{Source: readSource, Rel: cwd}) //nolint:forbidigo // report writes text diagnostics to stderr
 	}
 	return 1
 }
@@ -81,7 +220,7 @@ func warn(err error) {
 		return
 	}
 	cwd, _ := os.Getwd()
-	diag.Render(os.Stderr, diag.From(err, diag.Context{}), diag.RenderOptions{Source: readSource, Rel: cwd})
+	diag.Render(os.Stderr, diag.From(err, diag.Context{}), diag.RenderOptions{Source: readSource, Rel: cwd}) //nolint:forbidigo // warn writes warnings to stderr in either format
 }
 
 // inlineSources holds text that was read from somewhere diagnostics cannot
@@ -176,30 +315,6 @@ func addLinPathVars(cmd *cobra.Command, lla *lineageLoadArgs) {
 	cmd.PersistentFlags().StringVarP(&lla.lincuepath, "path", "p", "", "CUE expression for path to the lineage object within file, if not root")
 }
 
-// List of all commands, for batching stuff
-var allCmds = []*cobra.Command{
-	rootCmd,
-	dataCmd,
-	translateCmd,
-	validateCmd,
-	validateAnyCmd,
-	linCmd,
-	initLineageCmd,
-	initLineageEmptyCmd,
-	initLineageOpenAPICmd,
-	initLineageJSONSchemaCmd,
-	fmtLineageCmd,
-	tipLineageCmd,
-	checkLineageCmd,
-	genLineageCmd,
-	genTSTypesLineageCmd,
-	genGoBindingsLineageCmd,
-	genOapiLineageCmd,
-	genJschLineageCmd,
-	serveCmd,
-	servePlaygroundCmd,
-}
-
 var rootCmd = &cobra.Command{
 	Use:   "thema <command>",
 	Short: "A tool for putting Thema lineages to work",
@@ -208,8 +323,8 @@ var rootCmd = &cobra.Command{
 This program offers several kinds of behavior for working with Thema:
 
 * Validating and inspecting of written lineages.
-* Given a valid lineage, provides basic Thema operations (validate, translate,
-  [de]hydrate) on some input data.
+* Given a valid lineage, provides basic Thema operations (validate, translate)
+  on some input data.
 * Serve the thema playground locally (thema serve playground), and export
   a directory of lineages as examples for a static deployment of it (thema
   serve playground --examples <dir> --export <out>).
