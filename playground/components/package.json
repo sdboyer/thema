@@ -15,10 +15,12 @@
       "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./errors/*": "./errors/*"
   },
   "files": [
     "dist",
+    "errors",
     "README.md"
   ],
   "scripts": {

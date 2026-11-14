@@ -10,15 +10,12 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"sync"
 	"testing"
 	"testing/fstest"
 
 	"github.com/sdboyer/thema/diag"
 	tplayground "github.com/sdboyer/thema/playground"
 )
-
-var setupServeOnce sync.Once
 
 // writeExamplesDir writes a directory of lineages, one of them an example,
 // and returns it.
@@ -142,7 +139,7 @@ func TestServePlaygroundExportArgs(t *testing.T) {
 // thema serve playground --examples <dir> serves the directory's examples at
 // /examples.json; without it, /examples.json is the bundle's to answer.
 func TestServePlaygroundExamples(t *testing.T) {
-	setupServeOnce.Do(func() { setupServeCommand(rootCmd) })
+	commandTree()
 	if servePlaygroundCmd.Flags().Lookup("examples") == nil {
 		t.Fatal("thema serve playground has no --examples")
 	}

@@ -3,7 +3,7 @@ import { render } from "preact";
 import { useState } from "preact/hooks";
 import { act } from "preact/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Editor } from "./Editor";
+import { Editor } from "./Editor.js";
 
 // Typing faster than effects run after paint: each keystroke re-renders the
 // parent with the new text before the previous render's effects have run.

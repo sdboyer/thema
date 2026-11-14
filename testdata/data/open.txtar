@@ -1,0 +1,30 @@
+#description: A schema open to fields it does not declare. An instance may hold any other field beside the ones the schema declares, and a program reading the instance through the Go type sees the declared fields as the instance holds them.
+#version: 0.0
+#spec: docs/translation.md:44
+#spec/declared-only: docs/translation.md:48
+#expect: ok
+#known/cue/undeclared-differs-by-case: #303 Value decodes with CUE's Decode, which matches a key to a Go field whatever its case, so ID overwrites id.
+#description/declared-only: Only the declared field.
+#description/undeclared-field: A field the schema does not declare, beside the one it does.
+#description/undeclared-differs-by-case: A field the schema does not declare, ID, whose name differs from the declared id only by case. id is still a.
+-- open/history/0.0.thema --
+Schema: {
+	id: string
+	...
+}
+-- data/declared-only.json --
+{"id":"a"}
+-- data/undeclared-field.json --
+{"id":"a","color":"red"}
+-- data/undeclared-differs-by-case.json --
+{"id":"a","ID":"b"}
+-- out/cue/declared-only --
+verdict: ok
+value: {"id":"a"}
+-- out/cue/undeclared-differs-by-case --
+verdict: wrong
+the Go value is {"id":"b"}
+the reference value is {"id":"a"}
+-- out/cue/undeclared-field --
+verdict: ok
+value: {"id":"a"}

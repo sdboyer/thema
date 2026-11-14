@@ -5,9 +5,9 @@ import { describe, expect, it } from "vitest";
 // them readably.
 describe("highlight", () => {
   it("gives every token kind its color, comments included", async () => {
-    const { highlight } = await import("./theme");
+    const { highlight } = await import("./theme.js");
     const { highlightTree } = await import("@lezer/highlight");
-    const { cue } = await import("./cue-lang");
+    const { cue } = await import("./cue-lang.js");
     const { EditorState } = await import("@codemirror/state");
     const { ensureSyntaxTree } = await import("@codemirror/language");
     const doc = 'Schema: {\n\t// a note\n\tname: string | *"x"\n\tn: 1\n}\n';

@@ -1,6 +1,6 @@
 // The whole of what a user has in the playground, as one serializable value:
 // what a share link carries, and what the page renders.
-import type { DataInput, File, LineageInput, OpArgs, UserOp } from "@sdboyer/thema-ui";
+import { type DataInput, type File, type LineageInput, type OpArgs, type UserOp, codegenOps, dataOps } from "@sdboyer/thema-ui";
 
 export type Form = "authoring" | "normal";
 
@@ -71,7 +71,8 @@ export async function decodeShare(fragment: string): Promise<Session | null> {
 }
 
 // normalize fills what a link from an older page lacks, so a link keeps
-// working as the session grows fields.
+// working as the session grows fields, and treats an operation the page no
+// longer offers as one the link never named.
 export function normalize(v: Partial<Session>): Session {
   const d = emptySession();
   const s: Session = {
@@ -81,6 +82,7 @@ export function normalize(v: Partial<Session>): Session {
   };
   if (!Array.isArray(s.files) || s.files.length === 0) s.files = d.files;
   if (!Array.isArray(s.data)) s.data = [];
+  if (!(dataOps as readonly string[]).includes(s.op) && !(codegenOps as readonly string[]).includes(s.op)) s.op = d.op;
   s.activeFile = clamp(s.activeFile, s.files.length);
   s.activeData = clamp(s.activeData, s.data.length);
   return s;

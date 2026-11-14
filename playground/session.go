@@ -86,8 +86,6 @@ func operations() map[string]op {
 		"validate":     typed(func(s *Session, r ValidateRequest) any { return s.Validate(r) }),
 		"validate-any": typed(func(s *Session, r ValidateAnyRequest) any { return s.ValidateAny(r) }),
 		"translate":    typed(func(s *Session, r TranslateRequest) any { return s.Translate(r) }),
-		"hydrate":      typed(func(s *Session, r HydrateRequest) any { return s.Hydrate(r) }),
-		"dehydrate":    typed(func(s *Session, r HydrateRequest) any { return s.Dehydrate(r) }),
 		"openapi":      typed(func(s *Session, r CodegenRequest) any { return s.OpenAPI(r) }),
 		"jsonschema":   typed(func(s *Session, r CodegenRequest) any { return s.JSONSchema(r) }),
 		"typescript":   typed(func(s *Session, r CodegenRequest) any { return s.TypeScript(r) }),

@@ -1,0 +1,13 @@
+{
+  "inputs": "data/*.json",
+  "require": [
+    "version"
+  ],
+  "suites": [
+    {
+      "name": "cue",
+      "description": "The input is decoded as JSON (vmux), validated against the schema with ValidateTyped, and taken to the Go type with Value. This is how a program gets a Go value from JSON with thema today.",
+      "everyCase": true
+    }
+  ]
+}

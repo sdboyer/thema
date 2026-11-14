@@ -4,9 +4,10 @@ before:
   hooks:
     - go mod tidy
     # The playground bundle: the frontend in playground/ui and this release's
-    # thema.wasm, embedded by the playgroundui tag below.
-    - cmd: npm ci
-      dir: playground
+    # thema.wasm, embedded by the playgroundui tag below. goreleaser takes a
+    # hook only as a command, run in the repository's root, so npm's --prefix
+    # runs this one in playground.
+    - npm --prefix playground ci
     - go generate ./cmd/thema/playground
 builds:
   - env:
@@ -29,7 +30,13 @@ checksum:
   name_template: 'checksums.txt'
 # The wasm build and what loads it, so that a statically hosted playground
 # can run a released thema, fetched by tag, rather than bundle its own.
+#
+# The release is created as a draft, replacing a draft an earlier attempt
+# left: the release workflow publishes it once the CUE module and the npm
+# packages are published.
 release:
+  draft: true
+  replace_existing_draft: true
   extra_files:
     - glob: ./cmd/thema/playground/dist/thema.wasm
     - glob: ./cmd/thema/playground/dist/thema.wasm.gz

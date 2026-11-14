@@ -1,7 +1,7 @@
 // thema positions are CUE's: a 1-based line, and a 1-based column counting
 // bytes of UTF-8. An editor counts UTF-16 code units from the document's
 // start.
-import type { Pos } from "./types";
+import type { Pos } from "./types.js";
 
 // offsetOf is pos as an offset into text, or null when text has no such
 // line. A column past the line's end is clamped to it.

@@ -12,8 +12,6 @@ import type {
   FormatResponse,
   GetExampleRequest,
   GetExampleResponse,
-  HydrateRequest,
-  HydrateResponse,
   InitResponse,
   ListExamplesResponse,
   RegisterExamplesRequest,
@@ -32,8 +30,6 @@ export interface Ops {
   validate: [ValidateRequest, ValidateResponse];
   "validate-any": [ValidateAnyRequest, ValidateAnyResponse];
   translate: [TranslateRequest, TranslateResponse];
-  hydrate: [HydrateRequest, HydrateResponse];
-  dehydrate: [HydrateRequest, HydrateResponse];
   openapi: [CodegenRequest, CodegenResponse];
   jsonschema: [CodegenRequest, CodegenResponse];
   typescript: [CodegenRequest, CodegenResponse];

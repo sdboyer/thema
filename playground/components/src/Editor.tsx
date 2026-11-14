@@ -8,9 +8,9 @@ import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
 import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView, drawSelection, highlightActiveLine, keymap, lineNumbers } from "@codemirror/view";
 import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
-import { cue } from "./cue-lang";
-import type { Marker } from "./markers";
-import { darkScheme, darkTheme, highlight, lightTheme } from "./theme";
+import { cue } from "./cue-lang.js";
+import type { Marker } from "./markers.js";
+import { darkScheme, darkTheme, highlight, lightTheme } from "./theme.js";
 
 export type Language = "cue" | "json" | "yaml" | "text";
 

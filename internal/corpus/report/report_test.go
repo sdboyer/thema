@@ -48,10 +48,14 @@ func golden(line int, codes ...string) string {
 	return b.String()
 }
 
+// suites renders a suites.json registering the named suites, laid out as
+// testdata/refs is: one case per archive, which must give #at.
 func suites(names ...string) string {
 	var reg struct {
+		corpus.Layout
 		Suites []Suite `json:"suites"`
 	}
+	reg.Require = []string{"at"}
 	for _, n := range names {
 		reg.Suites = append(reg.Suites, Suite{Name: n, Description: "Builds the value the way " + n + " does."})
 	}
@@ -571,5 +575,31 @@ func TestLineDiff(t *testing.T) {
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("(-want +got):\n%s", diff)
+	}
+}
+
+// TestInputCases checks that the report reads a corpus of inputs as
+// suites.json lays it out: one case for each input, each with its own
+// verdict, tag and section.
+func TestInputCases(t *testing.T) {
+	reg := `{"inputs": "data/*.json", "suites": [{"name": "s", "description": "d", "everyCase": true}]}`
+	ar := "#description: d\n#spec: docs/invariants.md:1\n#expect/fine: ok\n#expect/broken: E0504\n#known/s/broken: #264 a reason.\n" +
+		"-- data/fine.json --\n{}\n-- data/broken.json --\n{}\n" +
+		"-- out/s/fine --\nverdict: ok\nvalue: {}\n-- out/s/broken --\nverdict: ok\nvalue: {}\n"
+	c := Parse(map[string][]byte{SuitesFile: []byte(reg), "c.txtar": []byte(ar)})
+	if len(c.Problems) > 0 {
+		t.Fatalf("problems: %v", c.Problems)
+	}
+	var names []string
+	for _, k := range c.Cases {
+		names = append(names, k.Name)
+	}
+	if got, want := strings.Join(names, " "), "c/fine c/broken"; got != want {
+		t.Fatalf("cases %s, want %s", got, want)
+	}
+	for name, want := range map[string]Status{"c/fine": Pass, "c/broken": Known} {
+		if got := CellStatus(c.Case(name), "s"); got != want {
+			t.Errorf("%s: status %s, want %s", name, got, want)
+		}
 	}
 }

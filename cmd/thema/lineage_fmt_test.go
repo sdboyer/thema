@@ -4,13 +4,10 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
-	"sync"
 	"testing"
 
 	"github.com/sdboyer/thema/authoring"
 )
-
-var setupLineageOnce sync.Once
 
 // writeAuthoringDir writes a two-version lineage in the authoring form to a
 // temporary directory, with history/1.0.thema out of layout and a clean tip,
@@ -36,7 +33,7 @@ func writeAuthoringDir(t *testing.T) string {
 
 // thema lineage fmt rewrites the files not in the one layout, and lists them.
 func TestLineageFmt(t *testing.T) {
-	setupLineageOnce.Do(func() { setupLineageCommand(rootCmd) })
+	commandTree()
 	dir := writeAuthoringDir(t)
 	var out bytes.Buffer
 	rootCmd.SetOut(&out)
@@ -61,7 +58,7 @@ func TestLineageFmt(t *testing.T) {
 // it, and so keeps the doc comment that describes the schema: a file already
 // in the layout is left untouched, and formatting one is idempotent.
 func TestLineageFmtComments(t *testing.T) {
-	setupLineageOnce.Do(func() { setupLineageCommand(rootCmd) })
+	commandTree()
 	inLayout := "// Internal note, detached.\n\n// The user-facing description.\nSchema: {\n\ta!: string\n}\n\n// note2\n"
 	outOfLayout := "// note\n\n// doc\nSchema: {a!: string, b?: int}\n\n// after\n"
 	formatted := "// note\n\n// doc\nSchema: {\n\ta!: string\n\tb?: int\n}\n\n// after\n"
