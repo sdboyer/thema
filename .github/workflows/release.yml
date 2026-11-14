@@ -20,7 +20,6 @@ on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
-      - 'v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+'
 
 permissions:
   contents: read
@@ -33,7 +32,7 @@ jobs:
   # Go module embeds the CUE module's version as util.ThemaModuleVersion. A tag
   # that disagrees with it would publish a Go module whose synthesized
   # module.cue files depend on a different CUE module version than the one
-  # published alongside it. An rc is of the version it rehearses.
+  # published alongside it.
   guard:
     runs-on: ubuntu-latest
     outputs:
@@ -98,8 +97,7 @@ jobs:
           cache-dependency-path: playground/package-lock.json
 
       # A draft (see .goreleaser.yaml), replacing one an earlier attempt left.
-      # goreleaser builds the newest tag on the commit unless told which, and
-      # a release can share its commit with an rc.
+      # goreleaser builds the newest tag on the commit unless told which.
       - uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser

@@ -27,7 +27,8 @@ snapshot; the npm packages, staged and published with `--dry-run`; and the
 CUE module, published with `--dry-run`. `make release` tags only a commit that
 passed it. What needs a tag (GoReleaser's choice of tag and its draft
 release, the registries' trust in the workflow, the `release` environment) is
-first exercised by a release candidate.
+exercised only by a release. thema has no release candidates: until v1, a
+release that is wrong is fixed by the next one.
 
 ## Releasing
 
@@ -35,11 +36,9 @@ first exercised by a release candidate.
    `v` (`v0.2.0`). Merge it.
 2. On `main`, up to date with `origin`, run `make release tag=v0.2.0`. It
    refuses, before anything is pushed:
-   - a tag that is neither `vX.Y.Z` nor `vX.Y.Z-rc.N`, or that is not of
-     `ThemaModuleVersion`;
+   - a tag that is not `vX.Y.Z`, or that is not `ThemaModuleVersion`;
    - a working tree with changes, or a `HEAD` that is not `origin/main`;
-   - a tag that exists, a version older than one tagged already, or an rc of a
-     version that is released;
+   - a tag that exists, or a version older than one tagged already;
    - a commit whose CI has not passed.
 
    Then it creates the tag, signed, and pushes it.
@@ -59,16 +58,6 @@ missing permission) and re-run the workflow's failed jobs. Every step skips
 what is already published, so a re-run finishes the release. Never move or
 re-push a tag: the Go module is published already. A release that is wrong
 is fixed by the next one.
-
-## Release candidates
-
-`vX.Y.Z-rc.N` rehearses `vX.Y.Z` for real: it publishes everywhere, as a
-prerelease. The GitHub release is marked as one, the npm packages go under
-the `next` dist-tag rather than `latest`, and Go and CUE order it before
-`vX.Y.Z`. An rc is tagged on a commit whose `ThemaModuleVersion` is `vX.Y.Z`,
-so the release can be tagged on the very commit its last rc published. Until
-the first release, npm's `latest` dist-tag stays on each package's
-`0.0.0-bootstrap.0` placeholder.
 
 ## One-time setup
 
@@ -98,7 +87,12 @@ registry token is stored in the repository.
   was first published by hand, as `0.0.0-bootstrap.0`. Then, on each package's
   settings page at npmjs.com, add a trusted publisher: GitHub Actions,
   owner `sdboyer`, repository `thema`, workflow `release.yml`, environment
-  `release`. A trusted publisher that publishes nothing within two days
-  expires, so add them when a tag is ready to follow. Then set each package's
+  `release`, and, under Allowed actions, **npm publish**. npm allows a new
+  trusted publisher only `npm stage publish` unless told otherwise, and the
+  workflow publishes directly; without it, the npm job fails with
+  `E403 OIDC permission denied`. A trusted publisher can't be edited, only
+  deleted and added again. A trusted publisher that publishes nothing within
+  two days expires, so add them when a tag is ready to follow. Then set each
+  package's
   publishing access to require two-factor authentication and disallow tokens,
-  so that only the workflow publishes.
+  so that only the workflow publishes. The placeholders are deprecated.

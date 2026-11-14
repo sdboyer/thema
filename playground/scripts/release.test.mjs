@@ -69,10 +69,9 @@ function manifestOf(out, staged) {
   return JSON.parse(readFileSync(join(out, staged, "package.json"), "utf8"));
 }
 
-test("a release publishes as latest, and any prerelease as next", () => {
+test("a release publishes as latest, and the rehearsal's prerelease as next", () => {
   assert.equal(distTag("0.1.0"), "latest");
-  assert.equal(distTag("0.1.0-rc.1"), "next");
-  assert.equal(distTag("0.0.0-rehearsal"), "next");
+  assert.equal(distTag("0.1.0-rehearsal"), "next");
   for (const v of ["v0.1.0", "0.1", "0.1.0-", ""]) {
     assert.throws(() => distTag(v), /not a version npm publishes/, v);
   }
@@ -80,7 +79,7 @@ test("a release publishes as latest, and any prerelease as next", () => {
 
 test("each package stages exactly what it ships", () => {
   const f = fixture();
-  stage({ version: "0.1.0-rc.1", ...f });
+  stage({ version: "0.1.0-rehearsal", ...f });
   const common = ["LICENSE", "NOTICE", "README.md", "package.json"];
   assert.deepEqual(files(join(f.out, "thema-ui")), [...common, "dist/index.js", "errors/E0101.md", "errors/README.md"].sort());
   assert.deepEqual(
@@ -168,7 +167,7 @@ function publishes(calls) {
 
 test("publish publishes every package, in order, under the version's dist-tag", () => {
   const f = fixture();
-  stage({ version: "0.1.0-rc.1", ...f });
+  stage({ version: "0.1.0-rehearsal", ...f });
   const { npm, calls } = fakeNpm({ "@sdboyer/thema-ui": ["0.0.0-bootstrap.0"] });
   publish({ out: f.out, npm });
   assert.deepEqual(publishes(calls), [
@@ -181,7 +180,7 @@ test("publish publishes every package, in order, under the version's dist-tag", 
 test("publish skips what is already published, so a failed release is finished by running it again", () => {
   const f = fixture();
   stage({ version: "0.1.0", ...f });
-  const { npm, calls } = fakeNpm({ "@sdboyer/thema-ui": ["0.1.0"], "@sdboyer/thema-wasm": ["0.1.0-rc.1"] });
+  const { npm, calls } = fakeNpm({ "@sdboyer/thema-ui": ["0.1.0"], "@sdboyer/thema-wasm": ["0.1.0-rehearsal"] });
   publish({ out: f.out, npm });
   assert.deepEqual(publishes(calls), [
     ["thema-wasm", "--access", "public", "--tag", "latest"],
