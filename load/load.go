@@ -69,6 +69,11 @@ func Configure(cfg *load.Config) error {
 	return embedreg.Configure(cfg, thema.CueJointFS)
 }
 
+// ThemaVersion is the version of thema's CUE module embedded in this Go
+// module. A CUE module loaded through [Configure] must require
+// github.com/sdboyer/thema@v0 at exactly this version.
+const ThemaVersion = util.ThemaModuleVersion
+
 // InstanceWithThema wraps CUE's [load.Instance] in order to allow
 // loading .cue files that directly `import "github.com/sdboyer/thema"`, as
 // lineages are expected to. Thema's CUE module is served from the copy embedded
