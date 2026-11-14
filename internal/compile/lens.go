@@ -1734,9 +1734,9 @@ func (e *edge) fill(n *node, tbase cue.Path, b *body, consumed, dropped map[stri
 				continue
 			}
 			en := entry{kind: kindMove, target: tpath, source: spath, pos: e.blockPos, derived: true}
-			if fs := blocking(fs); len(fs) > 0 {
+			if misfit := blocking(fs); len(misfit) > 0 {
 				_, pos := e.within(b, tpath)
-				e.copyMisfit(diag.E0358, pos, spath, tpath, fs)
+				e.copyMisfit(diag.E0358, pos, spath, tpath, misfit)
 				continue
 			}
 			if e.optional(e.S, spath) && e.required(e.T, tpath) {
