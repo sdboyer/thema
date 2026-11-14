@@ -12,8 +12,8 @@
 //
 // The bundle is what go generate ./cmd/thema/playground writes to
 // cmd/thema/playground/dist, the same files the GitHub release attaches. All
-// three take the release's version, and publish under the dist-tag it
-// implies: latest for a release, next for a prerelease.
+// three take the release's version and publish as latest. CI's rehearsal
+// stages a prerelease, a version never published, which publishes as next.
 //
 //   node scripts/release.mjs stage <version> <bundle> <out>
 //   node scripts/release.mjs publish <out> [--dry-run]

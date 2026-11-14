@@ -9,10 +9,6 @@ before:
     # runs this one in playground.
     - npm --prefix playground ci
     - go generate ./cmd/thema/playground
-# An rc and its release can share a commit, so goreleaser must order the
-# release after the rc. The release workflow also names the tag it builds.
-git:
-  prerelease_suffix: "-"
 builds:
   - env:
       - CGO_ENABLED=0
@@ -37,11 +33,10 @@ checksum:
 #
 # The release is created as a draft, replacing a draft an earlier attempt
 # left: the release workflow publishes it once the CUE module and the npm
-# packages are published. An rc is a prerelease.
+# packages are published.
 release:
   draft: true
   replace_existing_draft: true
-  prerelease: auto
   extra_files:
     - glob: ./cmd/thema/playground/dist/thema.wasm
     - glob: ./cmd/thema/playground/dist/thema.wasm.gz
