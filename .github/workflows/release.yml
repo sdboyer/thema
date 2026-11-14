@@ -1,6 +1,6 @@
 name: Release
 
-# A release is a tag pushed by make release. thema publishes it in four
+# A release is a tag pushed by just release. thema publishes it in four
 # places, in this order, each step after the one before succeeds:
 #
 #   1. a draft GitHub release, with the CLI and the playground's wasm assets
@@ -12,7 +12,7 @@ name: Release
 # The tag has already published the Go module, and npm and the registry never
 # take a version twice, so nothing here can be undone. Every step skips what
 # is already published: a release that failed part way is finished by
-# re-running its failed jobs, never by moving its tag. make release checks
+# re-running its failed jobs, never by moving its tag. just release checks
 # before tagging what can be checked then, and CI's release job rehearses on
 # every change what can be rehearsed without a tag.
 
@@ -44,7 +44,7 @@ jobs:
           fetch-depth: 0
 
       - name: Check the tag against ThemaModuleVersion
-        run: make release-check tag="$TAG"
+        run: scripts/release-check.sh "$TAG"
         env:
           TAG: ${{ github.ref_name }}
 

@@ -89,7 +89,7 @@ jobs:
   # The release workflow, rehearsed on this commit with nothing published:
   # goreleaser's release as a snapshot, the npm packages staged from the
   # bundle it built and published with --dry-run, and the CUE module the
-  # same. make release tags only a commit this passed on.
+  # same. just release tags only a commit this passed on.
   release:
     runs-on: ubuntu-latest
     steps:
@@ -143,6 +143,12 @@ jobs:
       pull-requests: read
     steps:
       - uses: actions/checkout@v7
+
+      # The scripts the justfile names. The release workflow runs one of
+      # them, release-check.sh, directly. shellcheck comes with the runner
+      # image.
+      - name: shellcheck
+        run: shellcheck scripts/*.sh
 
       - uses: actions/setup-go@v7
         with:
