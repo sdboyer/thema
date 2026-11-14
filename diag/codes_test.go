@@ -57,6 +57,11 @@ func TestCodesTable(t *testing.T) {
 		if ci.Title == "" {
 			t.Errorf("code %s has no title", ci.Code)
 		}
+		switch ci.Scope {
+		case diag.ScopeOne, diag.ScopeVersions:
+		default:
+			t.Errorf("code %s declares no scope: say whether it compares versions (ScopeVersions) or reads one alone (ScopeOne)", ci.Code)
+		}
 		diagtest.Lint(t, []diag.Diagnostic{{Code: ci.Code, Severity: ci.Severity, Headline: ci.Title, Primary: &diag.Pos{Origin: diag.OriginUser}}}, diagtest.Authoring)
 	}
 }

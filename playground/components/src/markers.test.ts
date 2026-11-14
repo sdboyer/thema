@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { Diagnostic } from "./types";
-import { docsBase } from "./docs";
-import { docsURL, filesOf, markersFor } from "./markers";
+import type { Diagnostic } from "./types.js";
+import { docsBase } from "./docs.js";
+import { docsURL, filesOf, markersFor } from "./markers.js";
 
 const text = "Schema: {\n\tcount: int\n}\n";
 

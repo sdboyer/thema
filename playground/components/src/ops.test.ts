@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { argsOf } from "./ops";
+import { argsOf } from "./ops.js";
 
 describe("argsOf", () => {
   it("offers what each operation takes", () => {

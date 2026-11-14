@@ -9,9 +9,9 @@
 // where the primary is says why in the primary's marker rather than in one of
 // its own, and so does a note positioned where this file cannot mark it, in
 // another file or in thema's own CUE, with where it is.
-import type { Diagnostic, Pos } from "./types";
-import { themaDoc } from "./docs";
-import { offsetOf, spanAt } from "./positions";
+import type { Diagnostic, Pos } from "./types.js";
+import { themaDoc } from "./docs.js";
+import { offsetOf, spanAt } from "./positions.js";
 
 export interface Marker {
   from: number;

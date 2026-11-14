@@ -4,15 +4,15 @@
 // thema's diagnostics and session API. The playground
 // itself imports everything it shares from here, so this is exactly what it
 // uses.
-export * from "./cue-lang";
-export * from "./Diagnostics";
-export * from "./docs";
-export * from "./Editor";
-export * from "./markers";
-export * from "./OpBar";
-export * from "./ops";
-export * from "./Output";
-export * from "./positions";
-export * from "./Tabs";
-export * from "./theme";
-export * from "./types";
+export * from "./cue-lang.js";
+export * from "./Diagnostics.js";
+export * from "./docs.js";
+export * from "./Editor.js";
+export * from "./markers.js";
+export * from "./OpBar.js";
+export * from "./ops.js";
+export * from "./Output.js";
+export * from "./positions.js";
+export * from "./Tabs.js";
+export * from "./theme.js";
+export * from "./types.js";

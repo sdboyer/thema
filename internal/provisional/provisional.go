@@ -16,3 +16,8 @@ package provisional
 // would need may be absent, and translating across one that is fails with
 // E1002. Package thema sets it at init.
 var Option func(v [2]uint) any
+
+// Version returns the provisional version of lin, a thema.Lineage, and
+// whether it has one: a lineage bound with Option has one, its newest. Package
+// thema sets it at init.
+var Version func(lin any) ([2]uint, bool)
