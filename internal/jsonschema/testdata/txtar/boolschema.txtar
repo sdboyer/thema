@@ -1,0 +1,10 @@
+-- schema.json --
+{
+	"anyOf": [
+		true,
+		false
+	]
+}
+
+-- out/decode/extract --
+matchN(>=1, [_, error("disallowed")])

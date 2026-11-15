@@ -1,0 +1,44 @@
+By contrast with CRDs, the Kubernetes API does allow $ref.
+Use the same example as crd_ref.txtar for comparison.
+
+#version: k8sAPI
+#root: #/spec/versions/0/schema/openAPIV3Schema
+#singleRoot
+
+-- schema.yaml --
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  # name must be in the form: <plural>.<group>
+  name: myapps.example.com
+x-other:
+  type: string
+spec:
+  # group name to use for REST API: /apis/<group>/<version>
+  group: example.com
+  scope: Namespaced
+  names:
+    # kind is normally the CamelCased singular type.
+    kind: MyApp
+    # singular name to be used as an alias on the CLI
+    singular: myapp
+    # plural name in the URL: /apis/<group>/<version>/<plural>
+    plural: myapps
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            $ref: "#/x-other"
+          foo:
+            type: string
+
+-- out/decode/extract --
+spec?: _#defs."/x-other"
+foo?:  string
+
+_#defs: "/x-other": string

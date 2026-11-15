@@ -1,0 +1,31 @@
+#version: openapi
+
+-- schema.yaml --
+components:
+  schemas:
+    User:
+      description: "A User uses something."
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        address:
+          allOf: [{$ref: "#/components/schemas/PhoneNumber"}]
+          nullable: true
+    PhoneNumber:
+      description: "The number to dial."
+      type: string
+
+-- out/decode/extract --
+// The number to dial.
+#PhoneNumber: string
+
+// A User uses something.
+#User: {
+	id?:      int
+	name?:    string
+	address?: null | #PhoneNumber
+	...
+}

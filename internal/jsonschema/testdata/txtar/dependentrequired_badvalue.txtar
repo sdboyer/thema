@@ -1,0 +1,29 @@
+Entries of a dependentRequired keyword must be arrays of strings,
+and entries of a dependentSchemas keyword must be schemas.
+The error for an entry of any other kind says what its keyword expects.
+
+-- schema.json --
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "dependentRequired": {
+        "a": {"type": "string"},
+        "b": true,
+        "c": 1234
+    },
+    "dependentSchemas": {
+        "d": ["e"],
+        "f": 1234
+    }
+}
+-- out/decode/extract --
+ERROR:
+value of "a" in "dependentRequired" must be an array of strings, found struct:
+    schema.json:4:10
+value of "b" in "dependentRequired" must be an array of strings, found bool:
+    schema.json:5:10
+value of "c" in "dependentRequired" must be an array of strings, found int:
+    schema.json:6:10
+value of "d" in "dependentSchemas" must be an object or boolean, found list:
+    schema.json:9:10
+value of "f" in "dependentSchemas" must be an object or boolean, found int:
+    schema.json:10:10

@@ -25,3 +25,8 @@ cuelang.org/go/encoding/jsonschema, and encoding/openapi/decode.go from
 cuelang.org/go/encoding/openapi, at cuelang.org/go v0.18.0-rc.3
 (https://cuelang.org), Copyright CUE Authors, licensed under the Apache
 License, Version 2.0, and modified from the original.
+
+internal/jsonschema/testdata/txtar is copied unmodified from
+cuelang.org/go/encoding/jsonschema/testdata/txtar at cuelang.org/go v0.18.0-rc.3
+(https://cuelang.org), Copyright CUE Authors, licensed under the Apache
+License, Version 2.0.
