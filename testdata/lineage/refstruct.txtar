@@ -66,10 +66,10 @@ error[E0503]: aBaz.run in the data is 42, but schema 0.0 declares it as string
    = detail: aBaz.run: conflicting values 42 and string (mismatched types int and string)
 
 error[E0501]: the data lacks aBaz.dat, which schema 0.0 declares as int32
-  --> in/validate/TestValidate/aBazRunWithInt.data.json:1:1
+  --> in/validate/TestValidate/aBazRunWithInt.data.json:2:13
    |
- 1 | {
-   | ^
+ 2 |     "aBaz": {
+   |             ^
    |
   ::: /in.cue:14:5
    |

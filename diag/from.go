@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"cuelang.org/go/cue"
+	"cuelang.org/go/cue/ast"
 	cerrors "cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/token"
 )
@@ -292,7 +293,7 @@ func (ctx Context) place(b *B, path []string, ps []token.Pos, label string) {
 			}
 		}
 		if !primary.IsValid() && ctx.DataPos.IsValid() {
-			primary = ctx.DataPos
+			primary = ctx.dataPosAlong(path)
 		}
 	}
 	if !primary.IsValid() {
@@ -359,6 +360,32 @@ func (ctx Context) authorPosAlong(path []string) (token.Pos, int, bool) {
 		}
 	}
 	return token.NoPos, 0, false
+}
+
+// dataPosAlong is the position of the innermost value along path that the
+// data has: for a field the data lacks, the object it would be written in.
+// Failing that, the data document's.
+func (ctx Context) dataPosAlong(path []string) token.Pos {
+	if ctx.DataValue != nil {
+		for i := len(path); i > 0; i-- {
+			if v, ok := ctx.DataValue(path[:i]); ok {
+				if p := valuePos(v); p.IsValid() {
+					return p
+				}
+			}
+		}
+	}
+	return ctx.DataPos
+}
+
+// valuePos is where v is written: for a field's value, the value, such as an
+// object's opening brace, rather than the field's label, which is where
+// v.Pos() is.
+func valuePos(v cue.Value) token.Pos {
+	if f, ok := v.Source().(*ast.Field); ok && f.Value != nil {
+		return f.Value.Pos()
+	}
+	return v.Pos()
 }
 
 // unwrapped drops entries that only wrap another entry: CUE reports a failure

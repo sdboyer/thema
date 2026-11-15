@@ -133,6 +133,10 @@ type Finding struct {
 	// there. It explains to an author why adding a typed optional field under
 	// ... is breaking.
 	ViaResidual bool
+	// Claimed is, for a finding ViaResidual, the field the new schema claims
+	// by name: Path, or the field above it that Path lies beneath, such as
+	// the list a finding about its elements is in.
+	Claimed cue.Path
 }
 
 func (f Finding) String() string {
@@ -755,6 +759,7 @@ func (w *walker) structs(p cue.Path, pred, succ cue.Value) {
 			w.value(fp, ov, nf.value)
 			for i := n; i < len(w.findings); i++ {
 				w.findings[i].ViaResidual = true
+				w.findings[i].Claimed = fp
 			}
 		}
 	}

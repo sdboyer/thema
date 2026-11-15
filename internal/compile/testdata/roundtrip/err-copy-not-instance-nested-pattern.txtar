@@ -1,0 +1,42 @@
+Pattern values narrowed beneath a struct the lens does not map: the finding
+is at the pattern, which names no field to copy on its own, so the struct is
+copied whole and reported as a whole. A copy field by field would copy
+nothing, and drop every value without an error.
+-- ship/history/0.0.thema --
+Schema: {
+	id: string
+	meta: {
+		[string]: string
+	}
+}
+-- ship/history/1.0.thema --
+Schema: {
+	id: string
+	meta: {
+		[string]: "a"
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		id: v0_0.id
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	id: string
+	meta: {
+		[string]: "a"
+	}
+}
+-- out/error --
+error[E0358]: the ForwardLens in history/1.0.thema would copy v0_0.meta into meta, which does not accept every value of it
+ --> history/1.0.thema:8:1
+  |
+8 | ForwardLens: {
+  | ^^^^^^^^^^^
+  |
+  = note: both 0.0 and 1.0 declare meta, so a lens that does not map it copies it
+  = note: meta.[_] in 1.0 is now "a", which does not accept every value of the prior string
+  = help: map meta in the ForwardLens: a _match, a computed value, or a constant

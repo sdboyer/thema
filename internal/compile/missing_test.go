@@ -10,8 +10,12 @@ import (
 	"github.com/sdboyer/thema/diag"
 )
 
-// history00 is the path of version 0.0's file, which the tests here write.
-const history00 = HistoryDir + "/0.0" + Ext
+// The paths of versions 0.0's and 1.0's files, which this package's tests
+// write.
+const (
+	history00 = HistoryDir + "/0.0" + Ext
+	history10 = HistoryDir + "/1.0" + Ext
+)
 
 // A finding E1001 folds in keeps its notes, after its own, each where it was,
 // or where the finding is when it has no position: nothing the finding said

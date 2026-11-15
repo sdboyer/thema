@@ -168,7 +168,7 @@ verdict: ok
 value: {"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
 -- out/cue/customer-missing-email --
 verdict: E0501
-E0501 the data lacks customer.email, which schema 0.0 declares as =~"^[^@]+@[^@]+$" @ data/customer-missing-email.json:1:1
+E0501 the data lacks customer.email, which schema 0.0 declares as =~"^[^@]+@[^@]+$" @ data/customer-missing-email.json:1:33
 -- out/cue/email-off-pattern --
 verdict: E0504
 E0504 customer.email in the data is "ada", outside the bound =~"^[^@]+@[^@]+$" that schema 0.0 sets @ data/email-off-pattern.json:1:64

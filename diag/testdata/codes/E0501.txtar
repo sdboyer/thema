@@ -1,8 +1,9 @@
 #op: validate
 The data has no value for a field the schema requires. A schema field with no
 default is required: `count: int` must be present in every instance. The
-primary position is the data document; the note points at the schema's
-declaration.
+primary position is the innermost object the data has that would hold the
+field: the data document for a field at the top level. The note points at the
+schema's declaration.
 -- lineage.cue --
 name: "ship"
 schemas: {

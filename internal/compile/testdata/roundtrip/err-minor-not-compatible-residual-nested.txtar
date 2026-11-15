@@ -1,0 +1,44 @@
+A version under history/ numbered minor that declares, beneath a struct, a
+field the one before it accepted through ...: the immutability violation
+keeps the finding at the field, and why declaring it there narrows it.
+-- ship/history/0.0.thema --
+Schema: {
+	meta: {
+		owner: string
+		...
+	}
+}
+-- ship/history/0.1.thema --
+Schema: {
+	meta: {
+		owner: string
+		size?: int
+		...
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	meta: {
+		owner: string
+		size?: int
+		...
+	}
+}
+-- out/error --
+error[E0207]: immutability violation: v0.1 is not backward compatible with v0.0
+ --> history/0.1.thema:1:1
+  |
+1 | Schema: {
+  | ^^^^^^
+...
+4 |         size?: int
+  |         ---- meta.size is now int, which does not accept every value of the prior _
+  |
+ ::: history/0.0.thema:1:1
+  |
+1 | Schema: {
+  | ------ the version before it
+  |
+  = note: v0.1 is a minor version, so it must accept all data v0.0 accepts
+  = note: v0.0 does not declare meta.size by name, but accepts it through ... or a pattern, so an instance may already hold any value there
+  = help: run thema lineage check --published to find which file changed since it was cut, restore it, and make the change in tip.thema

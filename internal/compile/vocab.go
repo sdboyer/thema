@@ -188,7 +188,7 @@ func historyMismatch(res compat.Result, prev, curr *version) *diag.Error {
 			}
 			b.Note(f.Pos, subject+" "+f.Detail)
 			if f.ViaResidual {
-				b.Notef(token.NoPos, "%s does not declare %s by name, but accepts it through ... or a pattern, so an instance may already hold any value there", prev.name(), f.Path)
+				b.Notef(token.NoPos, "%s does not declare %s by name, but accepts it through ... or a pattern, so an instance may already hold any value there", prev.name(), f.Claimed)
 			}
 		}
 	}

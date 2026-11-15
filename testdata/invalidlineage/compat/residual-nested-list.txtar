@@ -1,0 +1,52 @@
+# declaring, beneath a struct, a list the prior schema accepted through a pattern is a backwards incompatible change, found at the list's elements; the note and the declaration the help offers are the list's, the field the new schema claims, not the elements'
+#lineagePath: lin
+-- in.cue --
+
+import "github.com/sdboyer/thema"
+
+lin: thema.Lineage
+lin: name: "residualList"
+lin: schemas: {
+    "0": "0": {
+        schema: {
+            meta: {
+                [string]: [...string]
+            }
+        }
+    }
+    "0": "1": {
+        schema: {
+            meta: {
+                tags?: [...int]
+            }
+        }
+    }
+}
+
+lin: lenses: {
+    "0.1->0.0": {
+    	v0_1: _
+    	v0_0: {
+    		meta: v0_1.meta
+    	}
+    }
+}
+-- out/bindfail --
+error[E0217]: meta in schema 0.1 accepts any field name in the prior schema and is closed in the new one
+  --> /in.cue:16:13
+   |
+16 |             meta: {
+   |             ^^^^
+   |
+   = note: schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts
+   = help: make the change compatible, or make this version 1.0
+
+error[E0215]: meta.tags.[_] in schema 0.1 was string and is now int
+  --> /in.cue:17:28
+   |
+17 |                 tags?: [...int]
+   |                            ^^^
+   |
+   = note: schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts
+   = note: schema 0.0 does not declare meta.tags by name, but accepts it through ... or a pattern, so an instance may already hold any value there
+   = help: declare meta.tags as tags?: _ to accept what 0.0 accepted, or make this version 1.0

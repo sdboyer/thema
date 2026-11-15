@@ -1,0 +1,44 @@
+A field beneath a struct whose values the new version narrows, which the
+lens does not map: the copy that would carry the old value is the field's,
+not the struct's, so the diagnostic names the field.
+-- ship/history/0.0.thema --
+Schema: {
+	id: string
+	meta: {
+		owner: string
+		size:  "s" | "m" | "l"
+	}
+}
+-- ship/history/1.0.thema --
+Schema: {
+	id: string
+	meta: {
+		owner: string
+		size:  "s" | "m"
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		id: v0_0.id
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	id: string
+	meta: {
+		owner: string
+		size:  "s" | "m"
+	}
+}
+-- out/error --
+error[E0358]: the ForwardLens in history/1.0.thema would copy v0_0.meta.size into meta.size, which does not accept every value of it
+ --> history/1.0.thema:9:1
+  |
+9 | ForwardLens: {
+  | ^^^^^^^^^^^
+  |
+  = note: both 0.0 and 1.0 declare meta.size, so a lens that does not map it copies it
+  = note: meta.size in 1.0 is now "s" | "m", which has no alternative for the prior "l"
+  = help: map meta.size in the ForwardLens: a _match, a computed value, or a constant

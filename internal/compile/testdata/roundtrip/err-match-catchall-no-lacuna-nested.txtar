@@ -1,0 +1,40 @@
+A [_] arm without a lacuna, on a field beneath a struct: the lacuna the help
+offers nests the field in its struct, as lacunas are written.
+-- ship/history/0.0.thema --
+Schema: {
+	meta: {
+		kind: string
+	}
+}
+-- ship/history/1.0.thema --
+Schema: {
+	meta: {
+		kind: int
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		meta: {
+			kind: _match(v0_0.meta.kind, {
+				"a": 1
+				[_]: 0
+			})
+		}
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	meta: {
+		kind: int
+	}
+}
+-- out/error --
+error[E0414]: the [_] arm collapses every unmatched value into one, and no lacuna says what is lost
+  --> history/1.0.thema:13:5
+   |
+13 |                 [_]: 0
+   |                 ^
+   |
+   = help: declare what is lost in lacunas: {meta: {kind: [{type: Type, message: "..."}]}}

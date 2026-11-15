@@ -1,0 +1,137 @@
+A _match with a [_] arm and no lacuna, inside an each body: E0414, which asks
+for a lacuna on the arm, does not apply there, since a lacuna on a mapping
+inside _each is not supported yet (E0413). So E0414's help, which writes the
+lacuna nested at the mapping's path, is never offered with a path relative to
+the element.
+-- ship/history/0.0.thema --
+Schema: {
+	items: [...{
+		meta: {
+			kind: string
+		}
+	}]
+}
+-- ship/history/1.0.thema --
+Schema: {
+	items: [...{
+		meta: {
+			kind: "a" | "other"
+		}
+	}]
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		items: _each(v0_0.items, {meta: {kind: _match(_item.meta.kind, {"a": "a", [_]: "other"})}})
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	items: [...{
+		meta: {
+			kind: "a" | "other"
+		}
+	}]
+}
+-- out/bind --
+ok
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	items: [
+		...{
+			meta: {
+				kind: string
+			}
+		},
+	]
+}
+-- out/decompiled/history/1.0.thema --
+Schema: {
+	items: [
+		...{
+			meta: {
+				kind: "a" | "other"
+			}
+		},
+	]
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		items: _each(
+			v0_0.items,
+			{
+				meta: {
+					kind: _match(_item.meta.kind, {
+						"a": "a"
+						[_]: "other"
+					})
+				}
+			}
+		)
+	}
+}
+-- out/decompiled/tip.thema --
+Schema: {
+	items: [
+		...{
+			meta: {
+				kind: "a" | "other"
+			}
+		},
+	]
+}
+-- out/normal.cue --
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				items: [...{
+					meta: {
+						kind: string
+					}
+				}]
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				items: [...{
+					meta: {
+						kind: "a" | "other"
+					}
+				}]
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			items: [for _item in v0_0.items {
+				meta: {
+					if (_item.meta.kind & "a") != _|_ {
+						kind: "a"
+					}
+					if (_item.meta.kind & ("a")) == _|_ && (_item.meta.kind & ("a" | "other")) != _|_ {
+						kind: _item.meta.kind
+					}
+					if (_item.meta.kind & ("a")) == _|_ && (_item.meta.kind & ("a" | "other")) == _|_ {
+						kind: "other"
+					}
+				}
+			}]
+		}
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			items: v1_0.items
+		}
+	}
+}

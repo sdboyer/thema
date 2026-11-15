@@ -67,7 +67,7 @@ the Go value is {"priority":3,"due":3,"shipping":{"method":"standard"},"items":[
 the reference value is {"priority":3,"due":3,"shipping":{"method":"standard"},"items":[{"sku":"ABC-0001","quantity":1}]}
 -- out/cue/item-without-sku --
 verdict: E0501
-E0501 the data lacks items.0.sku, which schema 0.0 declares as string @ data/item-without-sku.json:1:1
+E0501 the data lacks items.0.sku, which schema 0.0 declares as string @ data/item-without-sku.json:1:11
 -- out/cue/label-without-weight --
 verdict: wrong
 the Go value is {"priority":3,"due":3,"shipping":{"method":"standard"},"items":[],"labels":{"gift":{"weight":0}}}

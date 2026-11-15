@@ -1,0 +1,49 @@
+A field the new version declares by name, beneath a struct the lens does
+not map, that the old version accepted only through ...: the source has no
+field of that name to copy, and the struct still accepts fields it does not
+name, so the struct is copied whole and reported as a whole. A copy field by
+field would copy owner alone, and drop size and every other field without an
+error.
+-- ship/history/0.0.thema --
+Schema: {
+	id: string
+	meta: {
+		owner: string
+		...
+	}
+}
+-- ship/history/1.0.thema --
+Schema: {
+	id: string
+	meta: {
+		owner: string
+		size?: int
+		...
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		id: v0_0.id
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	id: string
+	meta: {
+		owner: string
+		size?: int
+		...
+	}
+}
+-- out/error --
+error[E0358]: the ForwardLens in history/1.0.thema would copy v0_0.meta into meta, which does not accept every value of it
+  --> history/1.0.thema:10:1
+   |
+10 | ForwardLens: {
+   | ^^^^^^^^^^^
+   |
+   = note: both 0.0 and 1.0 declare meta, so a lens that does not map it copies it
+   = note: meta.size in 1.0 is now int, which does not accept every value of the prior _
+   = help: map meta in the ForwardLens: a _match, a computed value, or a constant
