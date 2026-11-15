@@ -593,22 +593,21 @@ func constraintProperties(key string, n cue.Value, s *state) {
 			// field or doc comment will cause a new section.
 			ast.SetRelPos(ast.Comments(f)[0], token.NewSection)
 		}
+		// thema: at is the property's first field, which holds its
+		// attributes: f, or for a deprecated struct the field addTag adds.
+		at := f
 		if state.deprecated {
 			switch expr.(type) {
 			case *ast.StructLit:
-				obj.Elts = append(obj.Elts, addTag(name, "deprecated", ""))
+				at = addTag(name, "deprecated", "")
+				obj.Elts = append(obj.Elts, at)
 			default:
 				f.Attrs = append(f.Attrs, &ast.Attribute{Text: "@deprecated()"})
 			}
 		}
 		if a := state.extensionsAttr(s); a != nil {
-			// thema: on the property's first field, with @deprecated(), so
-			// that every attribute of the property is on one field. For a
-			// deprecated struct, that's the field addTag just added.
-			at := f
-			if _, ok := expr.(*ast.StructLit); ok && state.deprecated {
-				at = obj.Elts[len(obj.Elts)-1].(*ast.Field)
-			}
+			// thema: with @deprecated(), so that every attribute of the
+			// property is on one field.
 			at.Attrs = append(at.Attrs, a)
 		}
 		obj.Elts = append(obj.Elts, f)

@@ -10,10 +10,11 @@ import (
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/ast"
-	"cuelang.org/go/cue/ast/astutil"
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/format"
+	"cuelang.org/go/cue/parser"
 	upopenapi "cuelang.org/go/encoding/openapi"
+	tastutil "github.com/sdboyer/thema/internal/astutil"
 	"github.com/sdboyer/thema/internal/jsonschema"
 	"golang.org/x/tools/txtar"
 )
@@ -70,22 +71,6 @@ func extractDocs(t *testing.T) map[string][]byte {
 	return docs
 }
 
-// stripExtensions removes every @openapi attribute from f.
-func stripExtensions(f *ast.File) {
-	astutil.Apply(f, func(c astutil.Cursor) bool {
-		if fd, ok := c.Node().(*ast.Field); ok {
-			attrs := fd.Attrs[:0]
-			for _, a := range fd.Attrs {
-				if a.Name() != jsonschema.ExtensionsAttr {
-					attrs = append(attrs, a)
-				}
-			}
-			fd.Attrs = attrs
-		}
-		return true
-	}, nil)
-}
-
 func formatFile(t *testing.T, f *ast.File) []byte {
 	t.Helper()
 	b, err := format.Node(f)
@@ -99,12 +84,14 @@ func formatFile(t *testing.T, f *ast.File) []byte {
 // Extract writes exactly what cuelang.org/go/encoding/openapi.Extract writes,
 // for every OpenAPI document in testdata and under each config: the fork
 // changes nothing else, including the spellings that hang on the language
-// version's experiments, which it hard-codes.
+// version's experiments, which it hard-codes. Extract's output parses as it
+// is, attributes included, and the fixtures hold some.
 func TestExtractMatchesUpstream(t *testing.T) {
 	cfgs := map[string]*ExtractConfig{
 		"nilcfg": nil,
 		"strict": {PkgName: "p", StrictFeatures: true, StrictKeywords: true},
 	}
+	stripped := 0
 	for name, doc := range extractDocs(t) {
 		for cname, cfg := range cfgs {
 			t.Run(name+"/"+cname, func(t *testing.T) {
@@ -130,11 +117,44 @@ func TestExtractMatchesUpstream(t *testing.T) {
 					}
 					return
 				}
-				stripExtensions(got)
+				if _, err := parser.ParseFile(name, formatFile(t, got)); err != nil {
+					t.Fatalf("Extract's output does not parse: %v", err)
+				}
+				stripped += tastutil.StripAttrs(got, jsonschema.ExtensionsAttr)
 				if g, w := formatFile(t, got), formatFile(t, want); !bytes.Equal(g, w) {
 					t.Errorf("Extract without its @openapi attributes differs from upstream's.\ngot:\n%s\nwant:\n%s", g, w)
 				}
 			})
 		}
 	}
+	if stripped == 0 {
+		t.Error("Extract wrote no @openapi attribute for any document, so the comparison is of output without them")
+	}
+}
+
+// TestKnownGaps: what Extract does wrong today, each case naming the issue
+// it waits on.
+func TestKnownGaps(t *testing.T) {
+	// A description holding U+FEFF is written raw into a doc comment, and
+	// CUE's scanner refuses the rune anywhere but at the start of a file, so
+	// the output doesn't parse. Upstream's Extract writes the same. A comment
+	// has no escapes, so a fix changes the text or refuses it (#366).
+	t.Run("U+FEFF in a description", func(t *testing.T) {
+		v := cuecontext.New().Encode(oneProperty(map[string]any{
+			"description": "a" + string(rune(0xfeff)) + "b",
+		}))
+		for name, extract := range map[string]func() (*ast.File, error){
+			"Extract":          func() (*ast.File, error) { return Extract(v, nil) },
+			"upstream Extract": func() (*ast.File, error) { return upopenapi.Extract(v, &upopenapi.Config{}) },
+		} {
+			f, err := extract()
+			if err != nil {
+				t.Fatalf("%s: %v", name, err)
+			}
+			_, err = parser.ParseFile("p.cue", formatFile(t, f))
+			if err == nil || !strings.Contains(err.Error(), "illegal byte order mark") {
+				t.Errorf("%s's output: %v; want it refused for its byte order mark, until the issue is fixed", name, err)
+			}
+		}
+	})
 }

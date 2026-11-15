@@ -3,6 +3,7 @@ package openapi
 import (
 	"bytes"
 	"encoding/json"
+	"maps"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -10,13 +11,17 @@ import (
 	"strings"
 	"testing"
 
+	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/ast"
 	"cuelang.org/go/cue/cuecontext"
+	cueerrors "cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/format"
 	"cuelang.org/go/cue/parser"
+	cuejson "cuelang.org/go/encoding/json"
 	"github.com/google/go-cmp/cmp"
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/authoring"
+	tastutil "github.com/sdboyer/thema/internal/astutil"
 	"github.com/sdboyer/thema/internal/jsonschema"
 )
 
@@ -166,7 +171,8 @@ var extensions31 = map[string][]string{
 // TestExtractExtensions checks the @openapi attribute Extract writes for each
 // property of the fixtures whose schema has x- keywords, and that no other
 // field has one: not a property without them, a component schema with them,
-// or an array's items with them.
+// or an array's items with them. A property's attributes are all on one of
+// its fields.
 func TestExtractExtensions(t *testing.T) {
 	cases := map[string]map[string][]string{
 		"extensions-3.0.json":  extensions30,
@@ -174,9 +180,21 @@ func TestExtractExtensions(t *testing.T) {
 	}
 	for name, want := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := extensionAttrs(extractFixture(t, name))
+			f := extractFixture(t, name)
+			got := extensionAttrs(f)
 			if diff := cmp.Diff(want, got); diff != "" {
 				t.Errorf("@openapi attributes by field (-want +got):\n%s", diff)
+			}
+			for p, fs := range fieldsByPath(f) {
+				with := 0
+				for _, fd := range fs {
+					if len(fd.Attrs) > 0 {
+						with++
+					}
+				}
+				if with > 1 {
+					t.Errorf("%s: %d of its fields have attributes, want them on one", p, with)
+				}
 			}
 		})
 	}
@@ -354,11 +372,28 @@ func TestExtensionsRoundTrip(t *testing.T) {
 	})
 }
 
+// oneProperty returns an OpenAPI document whose one schema, #S, is an
+// object with one property, p: a string, with the keywords kw.
+func oneProperty(kw map[string]any) map[string]any {
+	p := map[string]any{"type": "string"}
+	maps.Copy(p, kw)
+	return map[string]any{
+		"openapi": "3.0.0",
+		"info":    map[string]any{"title": "t", "version": "1"},
+		"paths":   map[string]any{},
+		"components": map[string]any{"schemas": map[string]any{"S": map[string]any{
+			"type":       "object",
+			"properties": map[string]any{"p": p},
+		}}},
+	}
+}
+
 // TestExtensionsEveryRune checks that a key or value holding any of the
 // runes JSON and CUE treat specially round-trips: Extract's output parses,
 // and Extensions reads back exactly what the document held. CUE's scanner
 // refuses U+FEFF anywhere but at the start of a file, and JSON leaves it
-// unescaped.
+// unescaped. Each document is read both as JSON is, through CUE's JSON
+// decoder, and as YAML is, encoded from Go values.
 func TestExtensionsEveryRune(t *testing.T) {
 	var runes []rune
 	for r := rune(0); r < 0x80; r++ {
@@ -367,45 +402,46 @@ func TestExtensionsEveryRune(t *testing.T) {
 	runes = append(runes, 0x80, 0xa0, 0xad, 0x2028, 0x2029, 0xfeff, 0xfffd, 0xfffe, 0x10ffff)
 	for _, r := range runes {
 		s := "a" + string(r) + "b"
-		// The document is encoded from Go, not parsed, as a document
-		// read from YAML is: CUE's JSON and CUE parsers refuse U+FEFF.
-		v := cuecontext.New().Encode(map[string]any{
-			"openapi": "3.0.0",
-			"info":    map[string]any{"title": "t", "version": "1"},
-			"paths":   map[string]any{},
-			"components": map[string]any{"schemas": map[string]any{"S": map[string]any{
-				"type": "object",
-				"properties": map[string]any{"p": map[string]any{
-					"type": "string", "x-v": s, "x-" + s: 1,
-				}},
-			}}},
-		})
-		if err := v.Err(); err != nil {
+		doc := oneProperty(map[string]any{"x-v": s, "x-" + s: 1})
+		// CUE's JSON decoder refuses a raw U+FEFF, as its scanner does,
+		// and reads the escape \ufeff, as a JSON document can hold it.
+		b, err := json.Marshal(doc)
+		if err != nil {
+			t.Fatal(err)
+		}
+		expr, err := cuejson.Extract("doc.json", bytes.ReplaceAll(b, []byte(string(rune(0xfeff))), []byte(`\`+`ufeff`)))
+		if err != nil {
 			t.Fatalf("U+%04X: %v", r, err)
 		}
-		f, err := Extract(v, nil)
-		if err != nil {
-			t.Errorf("U+%04X: %v", r, err)
-			continue
-		}
-		src, err := format.Node(f)
-		if err != nil {
-			t.Errorf("U+%04X: %v", r, err)
-			continue
-		}
-		pf, err := parser.ParseFile("p.cue", src)
-		if err != nil {
-			t.Errorf("U+%04X: Extract's output does not parse: %v", r, err)
-			continue
-		}
-		got, err := Extensions(fieldsByPath(pf)["#S.p"][0])
-		if err != nil {
-			t.Errorf("U+%04X: %v", r, err)
-			continue
-		}
-		want := map[string]any{"x-v": s, "x-" + s: json.Number("1")}
-		if diff := cmp.Diff(want, got); diff != "" {
-			t.Errorf("U+%04X: Extensions (-want +got):\n%s", r, diff)
+		ctx := cuecontext.New()
+		for from, v := range map[string]cue.Value{"JSON": ctx.BuildExpr(expr), "YAML": ctx.Encode(doc)} {
+			if err := v.Err(); err != nil {
+				t.Fatalf("U+%04X, read as %s: %v", r, from, err)
+			}
+			f, err := Extract(v, nil)
+			if err != nil {
+				t.Errorf("U+%04X, read as %s: %v", r, from, err)
+				continue
+			}
+			src, err := format.Node(f)
+			if err != nil {
+				t.Errorf("U+%04X, read as %s: %v", r, from, err)
+				continue
+			}
+			pf, err := parser.ParseFile("p.cue", src)
+			if err != nil {
+				t.Errorf("U+%04X, read as %s: Extract's output does not parse: %v", r, from, err)
+				continue
+			}
+			got, err := Extensions(fieldsByPath(pf)["#S.p"][0])
+			if err != nil {
+				t.Errorf("U+%04X, read as %s: %v", r, from, err)
+				continue
+			}
+			want := map[string]any{"x-v": s, "x-" + s: json.Number("1")}
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Errorf("U+%04X, read as %s: Extensions (-want +got):\n%s", r, from, diff)
+			}
 		}
 	}
 }
@@ -439,6 +475,24 @@ func TestExtractIncompleteExtension(t *testing.T) {
 			t.Errorf("a property's x- keyword whose value isn't JSON: %v; want it refused", err)
 		}
 	})
+	t.Run("every key", func(t *testing.T) {
+		_, err := Extract(cuecontext.New().CompileString(doc("", `"x-a": int, "x-b": string`)), nil)
+		for _, k := range []string{"x-a", "x-b"} {
+			if err == nil || !strings.Contains(cueerrors.Details(err, nil), `cannot encode the value of "`+k+`" as JSON`) {
+				t.Errorf("two x- keywords whose values aren't JSON: %s; want %s refused", cueerrors.Details(err, nil), k)
+			}
+		}
+	})
+	// MarshalJSON writes bytes as a base64 string, which would be kept as
+	// a different value.
+	for name, v := range map[string]string{"bytes": `'hi'`, "bytes within": `{a: [1, 'hi']}`} {
+		t.Run(name, func(t *testing.T) {
+			_, err := Extract(cuecontext.New().CompileString(doc("", `"x-b": `+v)), nil)
+			if err == nil || !strings.Contains(err.Error(), `cannot encode the value of "x-b" as JSON: it holds bytes`) {
+				t.Errorf("a property's x- keyword %s: %v; want it refused", v, err)
+			}
+		})
+	}
 }
 
 // TestExtensionsSurviveCut checks that the @openapi attributes Extract writes
@@ -566,7 +620,7 @@ func TestGenerateIgnoresExtensions(t *testing.T) {
 			t.Fatalf("Extract wrote %d fields with @openapi attributes, want 4", got)
 		}
 		if strip {
-			stripExtensions(f)
+			tastutil.StripAttrs(f, jsonschema.ExtensionsAttr)
 		}
 		tip, err := authoring.NewTip(ctx.BuildFile(f))
 		if err != nil {

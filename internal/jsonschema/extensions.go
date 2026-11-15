@@ -44,7 +44,9 @@ var rawKey = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*(-[A-Za-z_][A-Za-z0-9_]*
 // sorted and each value its compact JSON. A key matching rawKey is written
 // as it is, and any other as a JSON string. A value that isn't JSON, which
 // a document written in CUE can hold, is an error, reported on s, the
-// state of the schema with the property.
+// state of the schema with the property, for every key that has one. Bytes
+// are among them: JSON would write them as a base64 string, a different
+// value.
 func (si schemaInfo) extensionsAttr(s *state) *ast.Attribute {
 	if len(si.extensions) == 0 {
 		return nil
@@ -54,13 +56,20 @@ func (si schemaInfo) extensionsAttr(s *state) *ast.Attribute {
 	})
 	var b strings.Builder
 	b.WriteString("@" + ExtensionsAttr + "(")
+	failed := false
 	for i, e := range exts {
+		if holdsBytes(e.value) {
+			s.errf(e.value, "cannot encode the value of %q as JSON: it holds bytes", e.key)
+			failed = true
+			continue
+		}
 		// MarshalJSON writes compact JSON, keeping the order of an
 		// object's keys, and does not escape HTML.
 		v, err := e.value.MarshalJSON()
 		if err != nil {
 			s.errf(e.value, "cannot encode the value of %q as JSON: %v", e.key, err)
-			return nil
+			failed = true
+			continue
 		}
 		if i > 0 {
 			b.WriteString(", ")
@@ -73,8 +82,22 @@ func (si schemaInfo) extensionsAttr(s *state) *ast.Attribute {
 		b.WriteByte('=')
 		b.Write(escapeBOM(v))
 	}
+	if failed {
+		return nil
+	}
 	b.WriteByte(')')
 	return &ast.Attribute{Text: b.String()}
+}
+
+// holdsBytes reports whether v, or a value in it that MarshalJSON writes,
+// is bytes.
+func holdsBytes(v cue.Value) bool {
+	found := false
+	v.Walk(func(v cue.Value) bool {
+		found = found || v.Kind() == cue.BytesKind
+		return !found
+	}, nil)
+	return found
 }
 
 // jsonString returns s as a JSON string, without escaping HTML. It is a CUE
