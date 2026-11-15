@@ -258,9 +258,15 @@ func (fz frozen) immutable(err error) error {
 		return err
 	}
 	errs := cerrors.Errors(err)
+	// An error about the lineage's name is not about the file it is positioned
+	// in: the name is the directory's, positioned at a version file for want of
+	// a place of its own.
 	in := func(e cerrors.Error) (*diag.Error, string, bool) {
 		de, ok := e.(*diag.Error)
 		if !ok || de.Diagnostic().Severity != diag.SeverityError {
+			return nil, "", false
+		}
+		if a := de.Diagnostic().Address; a != nil && a.Kind == diag.AddrName {
 			return nil, "", false
 		}
 		name := de.Position().Filename()

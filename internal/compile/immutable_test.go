@@ -35,6 +35,8 @@ func TestImmutableHistory(t *testing.T) {
 		// target rejects.
 		narrow00 = "Schema: {\n\ta: int32\n}\n"
 		narrow10 = "Schema: {\n\ta: int32 & >=0\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {\n\t\ta: v0_0.a * 2\n\t}\n}\n\nBackwardLens: {\n\tv1_0: _\n\tv0_0: {\n\t\ta: v1_0.a\n\t}\n}\n"
+		// A schema whose field no value satisfies.
+		bottom = "Schema: {\n\tname: int & string\n}\n"
 	)
 	const leadOne = "immutability violation: v1.0 is under history/, and has an error"
 	// One diagnostic: its code, the file it is in, and whether it gives help.
@@ -61,14 +63,17 @@ func TestImmutableHistory(t *testing.T) {
 		checkClean run = func(fs []File, opts ...Option) error {
 			return CheckClean(ctx, fs, opts...)
 		}
-		bind run = func(fs []File, opts ...Option) error {
-			c, err := Compile(ctx, "ship", fs, opts...)
-			if err != nil {
-				return fmt.Errorf("compiling: %w", err)
+		bindAs = func(name string) run {
+			return func(fs []File, opts ...Option) error {
+				c, err := Compile(ctx, name, fs, opts...)
+				if err != nil {
+					return fmt.Errorf("compiling: %w", err)
+				}
+				_, err = thema.BindLineage(ctx.BuildFile(c.File), cue.Path{}, thema.NewRuntime(ctx), thema.WithVocabulary(Vocabulary(c)))
+				return err
 			}
-			_, err = thema.BindLineage(ctx.BuildFile(c.File), cue.Path{}, thema.NewRuntime(ctx), thema.WithVocabulary(Vocabulary(c)))
-			return err
 		}
+		bind = bindAs("ship")
 	)
 	cases := []struct {
 		name  string
@@ -126,6 +131,34 @@ func TestImmutableHistory(t *testing.T) {
 			name: "a syntax error, checking the tip is clean", run: checkClean,
 			files: files(h00, unclosed, TipFile, v00),
 			want:  []want{{diag.E0209, h00, true}, {diag.E0102, h00, false}},
+		},
+		{
+			name: "a schema error in the newest version", run: compile,
+			files: files(h00, bottom),
+			want:  []want{{diag.E0209, h00, true}, {diag.E0112, h00, false}},
+		},
+		{
+			name: "a schema error in the newest version, developing", run: develop,
+			files: files(h00, bottom, TipFile, v00),
+			want:  []want{{diag.E0209, h00, true}, {diag.E0112, h00, false}},
+		},
+		{
+			name: "a schema error in the newest version, reading the tip", run: readsTip,
+			files: files(h00, bottom, TipFile, v00),
+			want:  []want{{diag.E0209, h00, true}, {diag.E0112, h00, false}},
+		},
+		{
+			name: "a schema error in the newest version, checking the tip is clean", run: checkClean,
+			files: files(h00, bottom, TipFile, v00),
+			want:  []want{{diag.E0209, h00, true}, {diag.E0112, h00, false}},
+		},
+		{
+			// The name is the directory's, and is positioned at the newest
+			// version for want of a place of its own: renaming the directory is
+			// not an edit to the file.
+			name: "a name thema does not admit", run: bindAs("my-ship"),
+			files: files(h00, v00),
+			want:  []want{{diag.E0137, h00, true}},
 		},
 		{
 			name: "a lens binding refuses", run: bind,
