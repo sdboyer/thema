@@ -9,7 +9,7 @@ Schema: {
 		note:  string
 	}
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	id: string
 	meta: {
@@ -19,20 +19,13 @@ Schema: {
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		id: v0_0.id
 	}
 }
--- ship/tip.thema --
-Schema: {
-	id: string
-	meta: {
-		owner: string
-	}
-}
 -- out/error --
-error[E0347]: v0.0 declares meta.note and v1.0 does not, and nothing maps it
- --> history/1.0.thema:8:1
+error[E0347]: v0.0 declares meta.note and tip does not, and nothing maps it
+ --> tip.thema:8:1
   |
 8 | ForwardLens: {
   | ^^^^^^^^^^^

@@ -1,11 +1,11 @@
-#op: compile
+#op: develop
 A drop says a source field has no place in the target. Where the target
 requires a field of that name, dropping it would leave a required field absent.
 -- ship/history/0.0.thema --
 Schema: {
 	a: string
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	a: string
 	b: int
@@ -13,15 +13,10 @@ Schema: {
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		a: _drop
 		b: 1
 	}
-}
--- ship/tip.thema --
-Schema: {
-	a: string
-	b: int
 }
 -- out/json --
 {
@@ -29,12 +24,12 @@ Schema: {
     {
       "code": "E0342",
       "severity": "error",
-      "headline": "v1.0 requires a; dropping it would leave it absent",
+      "headline": "tip requires a; dropping it would leave it absent",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "tip.thema",
         "line": 9,
         "col": 3,
-        "offset": 67,
+        "offset": 66,
         "origin": "user"
       }
     }
@@ -46,8 +41,8 @@ Schema: {
   }
 }
 -- out/text --
-error[E0342]: v1.0 requires a; dropping it would leave it absent
- --> history/1.0.thema:9:3
+error[E0342]: tip requires a; dropping it would leave it absent
+ --> tip.thema:9:3
   |
 9 |         a: _drop
   |         ^

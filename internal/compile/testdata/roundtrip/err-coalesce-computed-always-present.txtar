@@ -4,25 +4,21 @@ fallback could never apply.
 Schema: {
 	count: int32
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	total: int64
 }
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		total: _coalesce(v0_0.count * 2, 0)
 		count: _drop
 	}
 }
--- ship/tip.thema --
-Schema: {
-	total: int64
-}
 -- out/error --
 error[E0348]: v0.0 always has every field v0_0.count * 2 reads, so _coalesce's fallback could never apply
- --> history/1.0.thema:8:20
+ --> tip.thema:8:20
   |
 8 |         total: _coalesce(v0_0.count * 2, 0)
   |                          ^^^^

@@ -1,4 +1,4 @@
-#op: compile
+#op: develop
 A lens body holds only mappings: a target field and where it comes from.
 Embeddings, comprehensions and let declarations are not mappings. A reference
 to an optional field is guarded for you, and coalesce decides what to use when it
@@ -7,21 +7,17 @@ is absent.
 Schema: {
 	a: string
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	b: string
 }
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		let x = v0_0.a
 		b: x
 	}
-}
--- ship/tip.thema --
-Schema: {
-	b: string
 }
 -- out/json --
 {
@@ -31,10 +27,10 @@ Schema: {
       "severity": "error",
       "headline": "let is not allowed in a lens body",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "tip.thema",
         "line": 8,
         "col": 3,
-        "offset": 59,
+        "offset": 58,
         "origin": "user"
       }
     },
@@ -43,19 +39,19 @@ Schema: {
       "severity": "error",
       "headline": "x is not defined in a lens; an expression refers to v0_0, to len, quo, rem, div, mod and to the strings functions",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "tip.thema",
         "line": 9,
         "col": 6,
-        "offset": 79,
+        "offset": 78,
         "origin": "user"
       }
     },
     {
       "code": "E0347",
       "severity": "error",
-      "headline": "v0.0 declares a and v1.0 does not, and nothing maps it",
+      "headline": "v0.0 declares a and tip does not, and nothing maps it",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "tip.thema",
         "line": 5,
         "col": 1,
         "offset": 24,
@@ -74,21 +70,21 @@ Schema: {
 }
 -- out/text --
 error[E0330]: let is not allowed in a lens body
- --> history/1.0.thema:8:3
+ --> tip.thema:8:3
   |
 8 |         let x = v0_0.a
   |         ^^^
   |
 
 error[E0418]: x is not defined in a lens; an expression refers to v0_0, to len, quo, rem, div, mod and to the strings functions
- --> history/1.0.thema:9:6
+ --> tip.thema:9:6
   |
 9 |         b: x
   |            ^
   |
 
-error[E0347]: v0.0 declares a and v1.0 does not, and nothing maps it
- --> history/1.0.thema:5:1
+error[E0347]: v0.0 declares a and tip does not, and nothing maps it
+ --> tip.thema:5:1
   |
 5 | ForwardLens: {
   | ^^^^^^^^^^^

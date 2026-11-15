@@ -1,4 +1,4 @@
-#op: compile
+#op: develop
 A lacuna on a mapping inside an each body would have to aggregate over the
 list's elements. That is not supported yet; only a DroppedField lacuna on a
 drop inside the body is, refining the drop's own.
@@ -8,7 +8,7 @@ Schema: {
 		title?: string
 	}]
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	items: [...{
 		name: string
@@ -17,7 +17,7 @@ Schema: {
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		items: _each(v0_0.items, {
 			name: _coalesce(_item.title, "untitled")
 		})
@@ -33,16 +33,12 @@ ForwardLens: {
 }
 
 BackwardLens: {
-	v1_0: _
+	tip: _
 	v0_0: {
-		items: _each(v1_0.items, {
+		items: _each(tip.items, {
 			title: _item.name
 		})
 	}
-}
--- ship/tip.thema --
-Schema: {
-	items: [...{name: string}]
 }
 -- out/json --
 {
@@ -52,10 +48,10 @@ Schema: {
       "severity": "error",
       "headline": "lacunas.items.name: a lacuna on a mapping inside _each is not supported yet; a DroppedField lacuna on a _drop refines the _drop's",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "tip.thema",
         "line": 16,
         "col": 11,
-        "offset": 193,
+        "offset": 192,
         "origin": "user"
       }
     }
@@ -68,7 +64,7 @@ Schema: {
 }
 -- out/text --
 error[E0413]: lacunas.items.name: a lacuna on a mapping inside _each is not supported yet; a DroppedField lacuna on a _drop refines the _drop's
-  --> history/1.0.thema:16:11
+  --> tip.thema:16:11
    |
 16 |             name: [{
    |                    ^

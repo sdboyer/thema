@@ -1,4 +1,4 @@
-#op: compile
+#op: develop
 A version file has at most three fields: schema, ForwardLens and BackwardLens.
 Anything else is usually a typo; when the name is close to one of the three,
 the help names it.
@@ -6,7 +6,7 @@ the help names it.
 Schema: {
 	a: string
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 scehma: {
 	a: string
 	b: int
@@ -14,14 +14,9 @@ scehma: {
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		b: 1
 	}
-}
--- ship/tip.thema --
-scehma: {
-	a: string
-	b: int
 }
 -- out/json --
 {
@@ -31,7 +26,7 @@ scehma: {
       "severity": "error",
       "headline": "scehma is not a field of a version file",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "tip.thema",
         "line": 1,
         "col": 1,
         "origin": "user"
@@ -43,9 +38,9 @@ scehma: {
     {
       "code": "E0108",
       "severity": "error",
-      "headline": "history/1.0.thema declares no Schema",
+      "headline": "tip.thema declares no Schema",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "tip.thema",
         "line": 1,
         "col": 1,
         "origin": "user"
@@ -63,15 +58,15 @@ scehma: {
 }
 -- out/text --
 error[E0105]: scehma is not a field of a version file
- --> history/1.0.thema:1:1
+ --> tip.thema:1:1
   |
 1 | scehma: {
   | ^^^^^^
   |
   = help: did you mean Schema?
 
-error[E0108]: history/1.0.thema declares no Schema
- --> history/1.0.thema:1:1
+error[E0108]: tip.thema declares no Schema
+ --> tip.thema:1:1
   |
 1 | scehma: {
   | ^^^^^^

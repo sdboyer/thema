@@ -1,4 +1,4 @@
-#op: compile
+#op: develop
 A mapping calls a function the lens language does not have. A computed
 mapping may use CUE's arithmetic, comparisons and the strings functions the
 help lists; anything else would make a lens whose totality thema cannot
@@ -8,27 +8,23 @@ Schema: {
 	name: string
 	count?: int
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	name: string
 }
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		name: strings.Reverse(v0_0.name)
 	}
 }
 
 BackwardLens: {
-	v1_0: _
+	tip: _
 	v0_0: {
-		name: v1_0.name
+		name: tip.name
 	}
-}
--- ship/tip.thema --
-Schema: {
-	name: string
 }
 -- out/json --
 {
@@ -38,10 +34,10 @@ Schema: {
       "severity": "error",
       "headline": "strings.Reverse is not a function a lens may call",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "tip.thema",
         "line": 8,
         "col": 9,
-        "offset": 68,
+        "offset": 67,
         "origin": "user"
       },
       "help": [
@@ -51,9 +47,9 @@ Schema: {
     {
       "code": "E0347",
       "severity": "error",
-      "headline": "v0.0 declares count and v1.0 does not, and nothing maps it",
+      "headline": "v0.0 declares count and tip does not, and nothing maps it",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "tip.thema",
         "line": 5,
         "col": 1,
         "offset": 27,
@@ -72,15 +68,15 @@ Schema: {
 }
 -- out/text --
 error[E0357]: strings.Reverse is not a function a lens may call
- --> history/1.0.thema:8:9
+ --> tip.thema:8:9
   |
 8 |         name: strings.Reverse(v0_0.name)
   |               ^^^^^^^
   |
   = help: the strings functions a lens may call are strings.Contains, strings.HasPrefix, strings.HasSuffix, strings.Replace, strings.ToLower, strings.ToUpper, strings.Trim, strings.TrimLeft, strings.TrimPrefix, strings.TrimRight, strings.TrimSpace, strings.TrimSuffix
 
-error[E0347]: v0.0 declares count and v1.0 does not, and nothing maps it
- --> history/1.0.thema:5:1
+error[E0347]: v0.0 declares count and tip does not, and nothing maps it
+ --> tip.thema:5:1
   |
 5 | ForwardLens: {
   | ^^^^^^^^^^^

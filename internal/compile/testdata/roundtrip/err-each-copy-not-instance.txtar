@@ -4,25 +4,23 @@ not accept every value of it.
 Schema: close({
 	u!: [...close({id!: int})]
 })
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: close({
 	u!: [...string]
 })
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		u: _each(v0_0.u, _item.id)
 	}
 }
--- ship/tip.thema --
-Schema: close({u!: [...string]})
 -- out/error --
-error[E0359]: the ForwardLens of v1.0 copies u[].id into the elements of u, which do not accept every value of it
- --> history/1.0.thema:8:20
+error[E0359]: the ForwardLens of tip copies u[].id into the elements of u, which do not accept every value of it
+ --> tip.thema:8:20
   |
 8 |         u: _each(v0_0.u, _item.id)
   |                          ^^^^^
   |
-  = note: u[] in v1.0 was int and is now string
+  = note: u[] in tip was int and is now string
   = help: copy into u a field whose values its elements accept, or map them with a struct of mappings

@@ -1,4 +1,4 @@
-#op: compile
+#op: develop
 A version's ID is computed over its schema and lenses, and must be the same
 however the lineage is loaded. CUE scopes a hidden field (_x) or a hidden
 definition (_#X) to the package it is declared in, and writes its name
@@ -9,11 +9,6 @@ input, result and lacunas of a lens declare neither. A helper in a schema is a
 definition (#X) or a let; a lens in the normal form keeps its scratch in hidden
 fields beside its input and result: its ID covers the values its result reads
 from them, but not their names.
--- ship/history/0.0.thema --
-Schema: {
-	_limit: 10
-	count:  int & <=_limit
-}
 -- ship/tip.thema --
 Schema: {
 	_limit: 10
@@ -25,7 +20,7 @@ Schema: {
     {
       "code": "E0151",
       "severity": "error",
-      "headline": "the schema of v0.0 declares _limit, a hidden field",
+      "headline": "the schema of tip declares _limit, a hidden field",
       "path": [
         "schemas",
         "0",
@@ -40,7 +35,7 @@ Schema: {
         ]
       },
       "primary": {
-        "file": "history/0.0.thema",
+        "file": "tip.thema",
         "line": 2,
         "col": 2,
         "offset": 11,
@@ -63,8 +58,8 @@ Schema: {
   }
 }
 -- out/text --
-error[E0151]: the schema of v0.0 declares _limit, a hidden field
- --> history/0.0.thema:2:2
+error[E0151]: the schema of tip declares _limit, a hidden field
+ --> tip.thema:2:2
   |
 2 |     _limit: 10
   |     ^^^^^^

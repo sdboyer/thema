@@ -1,4 +1,4 @@
-#op: compile
+#op: develop
 each takes two arguments: a reference to a list in the source instance, and a
 body of mappings over `item`, applied to each element.
 -- ship/history/0.0.thema --
@@ -7,7 +7,7 @@ Schema: {
 		title: string
 	}]
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	items: [...{
 		name: string
@@ -16,13 +16,9 @@ Schema: {
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		items: _each(v0_0.items)
 	}
-}
--- ship/tip.thema --
-Schema: {
-	items: [...{name: string}]
 }
 -- out/json --
 {
@@ -32,10 +28,10 @@ Schema: {
       "severity": "error",
       "headline": "_each takes two arguments: _each(v0_0.<list>, {...})",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "tip.thema",
         "line": 10,
         "col": 10,
-        "offset": 88,
+        "offset": 87,
         "origin": "user"
       }
     }
@@ -48,7 +44,7 @@ Schema: {
 }
 -- out/text --
 error[E0337]: _each takes two arguments: _each(v0_0.<list>, {...})
-  --> history/1.0.thema:10:10
+  --> tip.thema:10:10
    |
 10 |         items: _each(v0_0.items)
    |                ^^^^^

@@ -1,4 +1,4 @@
-#op: compile
+#op: develop
 A match's arms are a struct of `value: value` entries, each matching one
 source constant to one target constant, with at most one `[_]` catch-all arm.
 An arm's value that is not a constant is not one.
@@ -7,23 +7,19 @@ Schema: {
 	kind: "a" | "b"
 	x:    int
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	kind: int
 }
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		kind: _match(v0_0.kind, {
 			"a": v0_0.x
 			"b": 2
 		})
 	}
-}
--- ship/tip.thema --
-Schema: {
-	kind: int
 }
 -- out/json --
 {
@@ -33,19 +29,19 @@ Schema: {
       "severity": "error",
       "headline": "a _match arm's value must be a constant",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "tip.thema",
         "line": 9,
         "col": 9,
-        "offset": 93,
+        "offset": 92,
         "origin": "user"
       }
     },
     {
       "code": "E0347",
       "severity": "error",
-      "headline": "v0.0 declares x and v1.0 does not, and nothing maps it",
+      "headline": "v0.0 declares x and tip does not, and nothing maps it",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "tip.thema",
         "line": 5,
         "col": 1,
         "offset": 24,
@@ -64,14 +60,14 @@ Schema: {
 }
 -- out/text --
 error[E0338]: a _match arm's value must be a constant
- --> history/1.0.thema:9:9
+ --> tip.thema:9:9
   |
 9 |             "a": v0_0.x
   |                  ^^^^
   |
 
-error[E0347]: v0.0 declares x and v1.0 does not, and nothing maps it
- --> history/1.0.thema:5:1
+error[E0347]: v0.0 declares x and tip does not, and nothing maps it
+ --> tip.thema:5:1
   |
 5 | ForwardLens: {
   | ^^^^^^^^^^^

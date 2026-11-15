@@ -1,25 +1,21 @@
-#op: compile
+#op: develop
 Each target field is mapped once. Two mappings for one field would have to
 agree on every instance, and the lens language has no way to say which wins.
 -- ship/history/0.0.thema --
 Schema: {
 	a: string
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	b: string
 }
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		b: v0_0.a
 		b: "x"
 	}
-}
--- ship/tip.thema --
-Schema: {
-	b: string
 }
 -- out/json --
 {
@@ -29,10 +25,10 @@ Schema: {
       "severity": "error",
       "headline": "b is mapped twice",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "tip.thema",
         "line": 9,
         "col": 3,
-        "offset": 71,
+        "offset": 70,
         "origin": "user"
       }
     }
@@ -45,7 +41,7 @@ Schema: {
 }
 -- out/text --
 error[E0345]: b is mapped twice
- --> history/1.0.thema:9:3
+ --> tip.thema:9:3
   |
 9 |         b: "x"
   |         ^

@@ -1,4 +1,4 @@
-#op: compile
+#op: develop
 The lacunas field is a struct keyed like the lens body: each key names a
 mapping, and holds a list of that mapping's lacunas, or a struct of keys
 beneath it. A value of any other shape is not a lacuna declaration.
@@ -6,7 +6,7 @@ beneath it. A value of any other shape is not a lacuna declaration.
 Schema: {
 	a: string
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	a: string
 	b: int
@@ -14,17 +14,12 @@ Schema: {
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		b: -1
 	}
 	lacunas: {
 		b: 5
 	}
-}
--- ship/tip.thema --
-Schema: {
-	a: string
-	b: int
 }
 -- out/json --
 {
@@ -34,10 +29,10 @@ Schema: {
       "severity": "error",
       "headline": "lacunas.b is a list of the mapping's lacunas, or a struct of keys beneath it",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "tip.thema",
         "line": 12,
         "col": 6,
-        "offset": 93,
+        "offset": 92,
         "origin": "user"
       }
     }
@@ -50,7 +45,7 @@ Schema: {
 }
 -- out/text --
 error[E0410]: lacunas.b is a list of the mapping's lacunas, or a struct of keys beneath it
-  --> history/1.0.thema:12:6
+  --> tip.thema:12:6
    |
 12 |         b: 5
    |            ^

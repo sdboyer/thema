@@ -1,4 +1,4 @@
-#op: compile
+#op: develop
 A constant written in a lens is an instance of the target field it fills. Here
 a string is written where the target declares an int; CUE's account of the
 conflict is in the detail.
@@ -6,7 +6,7 @@ conflict is in the detail.
 Schema: {
 	a: string
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	a: string
 	b: int
@@ -14,14 +14,9 @@ Schema: {
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		b: "one"
 	}
-}
--- ship/tip.thema --
-Schema: {
-	a: string
-	b: int
 }
 -- out/json --
 {
@@ -29,18 +24,18 @@ Schema: {
     {
       "code": "E0344",
       "severity": "error",
-      "headline": "\"one\" is not an instance of v1.0's b",
+      "headline": "\"one\" is not an instance of tip's b",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "tip.thema",
         "line": 9,
         "col": 6,
-        "offset": 70,
+        "offset": 69,
         "origin": "user"
       },
       "notes": [
         {
           "pos": {
-            "file": "history/1.0.thema",
+            "file": "tip.thema",
             "line": 3,
             "col": 5,
             "offset": 25,
@@ -50,10 +45,10 @@ Schema: {
         },
         {
           "pos": {
-            "file": "history/1.0.thema",
+            "file": "tip.thema",
             "line": 9,
             "col": 6,
-            "offset": 70,
+            "offset": 69,
             "origin": "user"
           },
           "label": "also here"
@@ -69,8 +64,8 @@ Schema: {
   }
 }
 -- out/text --
-error[E0344]: "one" is not an instance of v1.0's b
- --> history/1.0.thema:9:6
+error[E0344]: "one" is not an instance of tip's b
+ --> tip.thema:9:6
   |
 3 |     b: int
   |        --- here

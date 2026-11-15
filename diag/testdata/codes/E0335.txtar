@@ -1,24 +1,20 @@
-#op: compile
+#op: develop
 coalesce takes two arguments: a reference into the source instance, and the
 fallback to use when the referenced field is absent.
 -- ship/history/0.0.thema --
 Schema: {
 	a?: string
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	b: string
 }
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		b: _coalesce(v0_0.a)
 	}
-}
--- ship/tip.thema --
-Schema: {
-	b: string
 }
 -- out/json --
 {
@@ -28,19 +24,19 @@ Schema: {
       "severity": "error",
       "headline": "_coalesce takes two arguments: _coalesce(v0_0.<path>, fallback)",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "tip.thema",
         "line": 8,
         "col": 6,
-        "offset": 62,
+        "offset": 61,
         "origin": "user"
       }
     },
     {
       "code": "E0347",
       "severity": "error",
-      "headline": "v0.0 declares a and v1.0 does not, and nothing maps it",
+      "headline": "v0.0 declares a and tip does not, and nothing maps it",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "tip.thema",
         "line": 5,
         "col": 1,
         "offset": 24,
@@ -59,14 +55,14 @@ Schema: {
 }
 -- out/text --
 error[E0335]: _coalesce takes two arguments: _coalesce(v0_0.<path>, fallback)
- --> history/1.0.thema:8:6
+ --> tip.thema:8:6
   |
 8 |         b: _coalesce(v0_0.a)
   |            ^^^^^^^^^
   |
 
-error[E0347]: v0.0 declares a and v1.0 does not, and nothing maps it
- --> history/1.0.thema:5:1
+error[E0347]: v0.0 declares a and tip does not, and nothing maps it
+ --> tip.thema:5:1
   |
 5 | ForwardLens: {
   | ^^^^^^^^^^^

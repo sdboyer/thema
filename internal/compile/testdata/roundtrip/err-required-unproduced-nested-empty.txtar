@@ -5,7 +5,7 @@ struct the author wrote, rather than the struct as if it were not written.
 Schema: {
 	id: string
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	id: string
 	meta: {
@@ -16,31 +16,23 @@ Schema: {
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		meta: {}
 	}
 }
--- ship/tip.thema --
-Schema: {
-	id: string
-	meta: {
-		owner: string
-		team:  string
-	}
-}
 -- out/error --
-error[E0346]: ForwardLens produces nothing for meta.owner, which v1.0 requires
-  --> history/1.0.thema:12:3
+error[E0346]: ForwardLens produces nothing for meta.owner, which tip requires
+  --> tip.thema:12:3
    |
 12 |         meta: {}
    |         ^^^^
    |
-   = help: add owner: <mapping> to v1_0.meta
+   = help: add owner: <mapping> to tip.meta
 
-error[E0346]: ForwardLens produces nothing for meta.team, which v1.0 requires
-  --> history/1.0.thema:12:3
+error[E0346]: ForwardLens produces nothing for meta.team, which tip requires
+  --> tip.thema:12:3
    |
 12 |         meta: {}
    |         ^^^^
    |
-   = help: add team: <mapping> to v1_0.meta
+   = help: add team: <mapping> to tip.meta

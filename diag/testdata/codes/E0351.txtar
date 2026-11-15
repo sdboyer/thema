@@ -1,4 +1,4 @@
-#op: compile
+#op: develop
 A match is exhaustive: every value the source field can hold is matched by
 an arm, or accepted by the target as it is, or caught by a `[_]` arm. Here one
 value of an enum is none of these.
@@ -6,22 +6,18 @@ value of an enum is none of these.
 Schema: {
 	kind: "a" | "b" | "c"
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	kind: "a" | "b"
 }
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		kind: _match(v0_0.kind, {
 			"a": "b"
 		})
 	}
-}
--- ship/tip.thema --
-Schema: {
-	kind: "a" | "b"
 }
 -- out/json --
 {
@@ -29,12 +25,12 @@ Schema: {
     {
       "code": "E0351",
       "severity": "error",
-      "headline": "_match on kind is not exhaustive: v0.0's kind may be \"c\", which no arm matches and v1.0's kind does not accept",
+      "headline": "_match on kind is not exhaustive: v0.0's kind may be \"c\", which no arm matches and tip's kind does not accept",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "tip.thema",
         "line": 8,
         "col": 9,
-        "offset": 71,
+        "offset": 70,
         "origin": "user"
       },
       "help": [
@@ -49,8 +45,8 @@ Schema: {
   }
 }
 -- out/text --
-error[E0351]: _match on kind is not exhaustive: v0.0's kind may be "c", which no arm matches and v1.0's kind does not accept
- --> history/1.0.thema:8:9
+error[E0351]: _match on kind is not exhaustive: v0.0's kind may be "c", which no arm matches and tip's kind does not accept
+ --> tip.thema:8:9
   |
 8 |         kind: _match(v0_0.kind, {
   |               ^^^^^^

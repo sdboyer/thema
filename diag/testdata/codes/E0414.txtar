@@ -1,27 +1,23 @@
-#op: compile
+#op: develop
 A match's `[_]` arm collapses every value no other arm matches into one, which
 loses information. It must say so, with a lacuna keyed by the mapping.
 -- ship/history/0.0.thema --
 Schema: {
 	kind: string
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	kind: int
 }
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		kind: _match(v0_0.kind, {
 			"a": 1
 			[_]: 0
 		})
 	}
-}
--- ship/tip.thema --
-Schema: {
-	kind: int
 }
 -- out/json --
 {
@@ -31,10 +27,10 @@ Schema: {
       "severity": "error",
       "headline": "the [_] arm collapses every unmatched value into one, and no lacuna says what is lost",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "tip.thema",
         "line": 10,
         "col": 4,
-        "offset": 98,
+        "offset": 97,
         "origin": "user"
       },
       "help": [
@@ -50,7 +46,7 @@ Schema: {
 }
 -- out/text --
 error[E0414]: the [_] arm collapses every unmatched value into one, and no lacuna says what is lost
-  --> history/1.0.thema:10:4
+  --> tip.thema:10:4
    |
 10 |             [_]: 0
    |             ^

@@ -4,31 +4,27 @@ the derived entry overridden by a drop, leaves 0.0 without its field.
 Schema: {
 	before: string
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	after: string
 }
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		after: v0_0.before
 	}
 }
 
 BackwardLens: {
-	v1_0: _
+	tip: _
 	v0_0: {
 		after: _drop
 	}
 }
--- ship/tip.thema --
-Schema: {
-	after: string
-}
 -- out/error --
 error[E0346]: BackwardLens produces nothing for before, which v0.0 requires
-  --> history/1.0.thema:12:1
+  --> tip.thema:12:1
    |
 12 | BackwardLens: {
    | ^^^^^^^^^^^^

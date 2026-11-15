@@ -2,32 +2,25 @@ CUE's struct shorthand on a version file's top-level fields: Schema and a
 lens block are written with their braces. Beneath them the shorthand is
 accepted and Format expands it (see shorthand-inside).
 -- ship/history/0.0.thema --
-Schema: meta: {
-	owner: string
-}
--- ship/history/1.0.thema --
 Schema: {
 	meta: {
 		owner: string
-		team:  string
 	}
 }
+-- ship/tip.thema --
+Schema: meta: {
+	owner: string
+	team:  string
+}
 
-ForwardLens: v1_0: {
+ForwardLens: tip: {
 	meta: {
 		team: "unassigned"
 	}
 }
--- ship/tip.thema --
-Schema: {
-	meta: {
-		owner: string
-		team:  string
-	}
-}
 -- out/error --
 error[E0109]: Schema: meta: ... is CUE's struct shorthand, which a version file's Schema does not use
- --> history/0.0.thema:1:9
+ --> tip.thema:1:9
   |
 1 | Schema: meta: {
   |         ^^^^
@@ -35,11 +28,11 @@ error[E0109]: Schema: meta: ... is CUE's struct shorthand, which a version file'
   = note: a version file's three fields keep their braces, so that each reads as the block it is
   = help: write Schema: {meta: ...}
 
-error[E0109]: ForwardLens: v1_0: ... is CUE's struct shorthand, which a version file's ForwardLens does not use
- --> history/1.0.thema:8:14
+error[E0109]: ForwardLens: tip: ... is CUE's struct shorthand, which a version file's ForwardLens does not use
+ --> tip.thema:6:14
   |
-8 | ForwardLens: v1_0: {
-  |              ^^^^
+6 | ForwardLens: tip: {
+  |              ^^^
   |
   = note: a version file's three fields keep their braces, so that each reads as the block it is
-  = help: write ForwardLens: {v1_0: ...}
+  = help: write ForwardLens: {tip: ...}

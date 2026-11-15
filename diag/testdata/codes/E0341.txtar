@@ -1,25 +1,21 @@
-#op: compile
+#op: develop
 A mapping produces a field its target version does not declare. A lens writes
 only what its target declares, however open the author wrote the schema.
 -- ship/history/0.0.thema --
 Schema: {
 	a: string
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	b: string
 }
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		b:    v0_0.a
 		nope: v0_0.a
 	}
-}
--- ship/tip.thema --
-Schema: {
-	b: string
 }
 -- out/json --
 {
@@ -27,12 +23,12 @@ Schema: {
     {
       "code": "E0341",
       "severity": "error",
-      "headline": "v1.0 does not declare nope",
+      "headline": "tip does not declare nope",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "tip.thema",
         "line": 9,
         "col": 3,
-        "offset": 74,
+        "offset": 73,
         "origin": "user"
       }
     }
@@ -44,8 +40,8 @@ Schema: {
   }
 }
 -- out/text --
-error[E0341]: v1.0 does not declare nope
- --> history/1.0.thema:9:3
+error[E0341]: tip does not declare nope
+ --> tip.thema:9:3
   |
 9 |         nope: v0_0.a
   |         ^^^^

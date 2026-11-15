@@ -1,20 +1,16 @@
-#op: compile
+#op: develop
 A lens maps between a version and its predecessor. The first version has no
 predecessor, so a lens in its file has nothing to map from.
--- ship/history/0.0.thema --
+-- ship/tip.thema --
 Schema: {
 	a: string
 }
 
 ForwardLens: {
-	v0_0: _
-	v0_0: {
+	tip: _
+	tip: {
 		a: "x"
 	}
-}
--- ship/tip.thema --
-Schema: {
-	a: string
 }
 -- out/json --
 {
@@ -22,9 +18,9 @@ Schema: {
     {
       "code": "E0354",
       "severity": "error",
-      "headline": "v0.0 is the first version, and has no previous version to map from",
+      "headline": "tip is the first version, and has no previous version to map from",
       "primary": {
-        "file": "history/0.0.thema",
+        "file": "tip.thema",
         "line": 5,
         "col": 1,
         "offset": 24,
@@ -42,8 +38,8 @@ Schema: {
   }
 }
 -- out/text --
-error[E0354]: v0.0 is the first version, and has no previous version to map from
- --> history/0.0.thema:5:1
+error[E0354]: tip is the first version, and has no previous version to map from
+ --> tip.thema:5:1
   |
 5 | ForwardLens: {
   | ^^^^^^^^^^^

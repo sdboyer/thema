@@ -1,4 +1,4 @@
-#op: compile
+#op: develop
 A field both versions declare, and no lens mentions, is copied. The copy has
 to produce a value the target accepts. Here kind narrows from any string to
 two of them, and the ForwardLens does not map it.
@@ -7,15 +7,17 @@ Schema: {
 	name: string
 	kind: string
 }
--- ship/history/1.0.thema --
-Schema: {
-	name: string
-	kind: "a" | "b"
-}
 -- ship/tip.thema --
 Schema: {
 	name: string
 	kind: "a" | "b"
+}
+
+ForwardLens: {
+	v0_0: _
+	tip: {
+		name: v0_0.name
+	}
 }
 -- out/json --
 {
@@ -23,20 +25,20 @@ Schema: {
     {
       "code": "E0358",
       "severity": "error",
-      "headline": "the ForwardLens of v1.0 would copy v0_0.kind into kind, which does not accept every value of it",
+      "headline": "the ForwardLens of tip would copy v0_0.kind into kind, which does not accept every value of it",
       "primary": {
-        "file": "history/1.0.thema",
-        "line": 4,
+        "file": "tip.thema",
+        "line": 6,
         "col": 1,
-        "offset": 41,
+        "offset": 44,
         "origin": "user"
       },
       "notes": [
         {
-          "label": "both v0.0 and v1.0 declare kind, so a lens that does not map it copies it"
+          "label": "both v0.0 and tip declare kind, so a lens that does not map it copies it"
         },
         {
-          "label": "kind in v1.0 is now \"a\" | \"b\", which does not accept every value of the prior string"
+          "label": "kind in tip is now \"a\" | \"b\", which does not accept every value of the prior string"
         }
       ],
       "help": [
@@ -51,12 +53,12 @@ Schema: {
   }
 }
 -- out/text --
-error[E0358]: the ForwardLens of v1.0 would copy v0_0.kind into kind, which does not accept every value of it
- --> history/1.0.thema:4:1
+error[E0358]: the ForwardLens of tip would copy v0_0.kind into kind, which does not accept every value of it
+ --> tip.thema:6:1
   |
-4 | }
-  | ^
+6 | ForwardLens: {
+  | ^^^^^^^^^^^
   |
-  = note: both v0.0 and v1.0 declare kind, so a lens that does not map it copies it
-  = note: kind in v1.0 is now "a" | "b", which does not accept every value of the prior string
+  = note: both v0.0 and tip declare kind, so a lens that does not map it copies it
+  = note: kind in tip is now "a" | "b", which does not accept every value of the prior string
   = help: map kind in the ForwardLens: a _match, a computed value, or a constant

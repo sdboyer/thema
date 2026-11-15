@@ -6,7 +6,7 @@ Schema: {
 		kind: string
 	}
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	meta: {
 		kind: int
@@ -15,7 +15,7 @@ Schema: {
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		meta: {
 			kind: _match(v0_0.meta.kind, {
 				"a": 1
@@ -24,15 +24,9 @@ ForwardLens: {
 		}
 	}
 }
--- ship/tip.thema --
-Schema: {
-	meta: {
-		kind: int
-	}
-}
 -- out/error --
 error[E0414]: the [_] arm collapses every unmatched value into one, and no lacuna says what is lost
-  --> history/1.0.thema:13:5
+  --> tip.thema:13:5
    |
 13 |                 [_]: 0
    |                 ^

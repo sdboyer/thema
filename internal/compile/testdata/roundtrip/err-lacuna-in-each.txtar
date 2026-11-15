@@ -7,7 +7,7 @@ Schema: {
 		title?: string
 	}]
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	items: [...{
 		name: string
@@ -16,7 +16,7 @@ Schema: {
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		items: _each(v0_0.items, {
 			name: _coalesce(_item.title, "untitled")
 		})
@@ -32,20 +32,16 @@ ForwardLens: {
 }
 
 BackwardLens: {
-	v1_0: _
+	tip: _
 	v0_0: {
-		items: _each(v1_0.items, {
+		items: _each(tip.items, {
 			title: _item.name
 		})
 	}
 }
--- ship/tip.thema --
-Schema: {
-	items: [...{name: string}]
-}
 -- out/error --
 error[E0413]: lacunas.items.name: a lacuna on a mapping inside _each is not supported yet; a DroppedField lacuna on a _drop refines the _drop's
-  --> history/1.0.thema:16:11
+  --> tip.thema:16:11
    |
 16 |             name: [{
    |                    ^

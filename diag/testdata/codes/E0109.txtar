@@ -1,14 +1,10 @@
-#op: compile
+#op: develop
 A version file's three fields, Schema, ForwardLens and BackwardLens, keep
 their braces, so that each reads as the block it is. CUE's struct shorthand,
 `Schema: a: b`, collapses one into a line, and is refused there. Beneath the
 three fields the shorthand is accepted; thema's formatter expands it.
--- ship/history/0.0.thema --
-Schema: name: string
 -- ship/tip.thema --
-Schema: {
-	name: string
-}
+Schema: name: string
 -- out/json --
 {
   "diagnostics": [
@@ -17,7 +13,7 @@ Schema: {
       "severity": "error",
       "headline": "Schema: name: ... is CUE's struct shorthand, which a version file's Schema does not use",
       "primary": {
-        "file": "history/0.0.thema",
+        "file": "tip.thema",
         "line": 1,
         "col": 9,
         "offset": 8,
@@ -41,7 +37,7 @@ Schema: {
 }
 -- out/text --
 error[E0109]: Schema: name: ... is CUE's struct shorthand, which a version file's Schema does not use
- --> history/0.0.thema:1:9
+ --> tip.thema:1:9
   |
 1 | Schema: name: string
   |         ^^^^

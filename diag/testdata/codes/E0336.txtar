@@ -1,24 +1,20 @@
-#op: compile
+#op: develop
 match takes two arguments: a reference into the source instance, and its
 arms, a struct of `value: value` entries with an optional `[_]` catch-all.
 -- ship/history/0.0.thema --
 Schema: {
 	kind: "a" | "b"
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	kind: 1 | 2
 }
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		kind: _match(v0_0.kind)
 	}
-}
--- ship/tip.thema --
-Schema: {
-	kind: 1 | 2
 }
 -- out/json --
 {
@@ -28,10 +24,10 @@ Schema: {
       "severity": "error",
       "headline": "_match takes two arguments: _match(v0_0.<path>, {...})",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "tip.thema",
         "line": 8,
         "col": 9,
-        "offset": 67,
+        "offset": 66,
         "origin": "user"
       }
     }
@@ -44,7 +40,7 @@ Schema: {
 }
 -- out/text --
 error[E0336]: _match takes two arguments: _match(v0_0.<path>, {...})
- --> history/1.0.thema:8:9
+ --> tip.thema:8:9
   |
 8 |         kind: _match(v0_0.kind)
   |               ^^^^^^

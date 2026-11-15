@@ -6,22 +6,20 @@ derivation, since it has nowhere to write a drop; a struct body does.
 Schema: close({
 	u!: [...close({id!: string, is_enabled!: bool})]
 })
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: close({
 	u!: [...close({key!: string})]
 })
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		u: _each(v0_0.u, {key: _item.id})
 	}
 }
--- ship/tip.thema --
-Schema: close({u!: [...close({key!: string})]})
 -- out/error --
-error[E0347]: v0.0 declares is_enabled and v1.0 does not, and nothing maps it
- --> history/1.0.thema:8:3
+error[E0347]: v0.0 declares is_enabled and tip does not, and nothing maps it
+ --> tip.thema:8:3
   |
 8 |         u: _each(v0_0.u, {key: _item.id})
   |         ^

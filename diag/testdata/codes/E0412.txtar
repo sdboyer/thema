@@ -1,4 +1,4 @@
-#op: compile
+#op: develop
 A lacunas key names a mapping of the lens. A key that names none is usually a
 typo. A derived mapping, such as the backward drop of a field the version
 added, is not one: to refine its lacuna, write the drop.
@@ -6,7 +6,7 @@ added, is not one: to refine its lacuna, write the drop.
 Schema: {
 	firstfield: string
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	firstfield:  string
 	secondfield: int
@@ -14,7 +14,7 @@ Schema: {
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		secondfield: -1
 	}
 	lacunas: {
@@ -24,11 +24,6 @@ ForwardLens: {
 		}]
 	}
 }
--- ship/tip.thema --
-Schema: {
-	firstfield:  string
-	secondfield: int
-}
 -- out/json --
 {
   "diagnostics": [
@@ -37,10 +32,10 @@ Schema: {
       "severity": "error",
       "headline": "lacunas.secondfeild: ForwardLens has no mapping keyed secondfeild",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "tip.thema",
         "line": 12,
         "col": 17,
-        "offset": 134,
+        "offset": 133,
         "origin": "user"
       }
     }
@@ -53,7 +48,7 @@ Schema: {
 }
 -- out/text --
 error[E0412]: lacunas.secondfeild: ForwardLens has no mapping keyed secondfeild
-  --> history/1.0.thema:12:17
+  --> tip.thema:12:17
    |
 12 |         secondfeild: [{
    |                       ^

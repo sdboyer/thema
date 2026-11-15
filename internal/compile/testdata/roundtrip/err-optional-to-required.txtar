@@ -5,7 +5,7 @@ Schema: {
 	a:  string
 	b?: int
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	a: string
 	b: int
@@ -14,19 +14,13 @@ Schema: {
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		c: true
 	}
 }
--- ship/tip.thema --
-Schema: {
-	a: string
-	b: int
-	c: bool
-}
 -- out/error --
-error[E0343]: b is optional in v0.0 and required in v1.0
- --> history/1.0.thema:3:2
+error[E0343]: b is optional in v0.0 and required in tip
+ --> tip.thema:3:2
   |
 3 |     b: int
   |     ^
