@@ -19,3 +19,9 @@ the Apache License, Version 2.0, and modified from the original.
 internal/gotypes is derived from cuelang.org/go/internal/encoding/gotypes at
 cuelang.org/go v0.18.0-rc.1 (https://cuelang.org), Copyright CUE Authors,
 licensed under the Apache License, Version 2.0, and modified from the original.
+
+internal/jsonschema is derived from the decoder of
+cuelang.org/go/encoding/jsonschema, and encoding/openapi/decode.go from
+cuelang.org/go/encoding/openapi, at cuelang.org/go v0.18.0-rc.3
+(https://cuelang.org), Copyright CUE Authors, licensed under the Apache
+License, Version 2.0, and modified from the original.

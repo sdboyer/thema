@@ -1,0 +1,381 @@
+// Copyright 2020 CUE Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package jsonschema
+
+import (
+	"encoding/base64"
+	"fmt"
+	"net/url"
+	"path"
+	"slices"
+	"strconv"
+	"strings"
+
+	"cuelang.org/go/cue"
+	"cuelang.org/go/cue/ast"
+	"cuelang.org/go/cue/errors"
+	"cuelang.org/go/cue/token"
+	"cuelang.org/go/encoding/json"
+)
+
+func parseRootRef(str string) (cue.Path, error) {
+	u, err := url.Parse(str)
+	if err != nil {
+		return cue.Path{}, fmt.Errorf("invalid JSON reference: %s", err)
+	}
+	if u.Host != "" || u.Path != "" || u.Opaque != "" {
+		return cue.Path{}, fmt.Errorf("external references (%s) not supported in Root", str)
+	}
+	// As a special case for backward compatibility, treat
+	// trim a final slash because the docs specifically
+	// mention that #/ refers to the root document
+	// and the openapi code uses #/components/schemas/.
+	// (technically a trailing slash `/` means there's an empty
+	// final element).
+	u.Fragment = strings.TrimSuffix(u.Fragment, "/")
+	fragmentParts := slices.Collect(json.Pointer(u.Fragment).Tokens())
+	var selectors []cue.Selector
+	for _, r := range fragmentParts {
+		if i, err := strconv.ParseUint(r, 10, 64); err == nil && strconv.FormatUint(i, 10) == r {
+			// Technically this is incorrect because a numeric element
+			// could also be a string selector and the resulting path
+			// will not allow that.
+			selectors = append(selectors, cue.Index(int64(i)))
+		} else {
+			selectors = append(selectors, cue.Str(r))
+		}
+	}
+	return cue.MakePath(selectors...), nil
+}
+
+// lookupRoot returns the value at the location identified by the JSON reference
+// str within v, for use by [Config.Roots]. Unlike [parseRootRef] it resolves
+// the pointer with kind-aware lookup, so a numeric token (e.g. an HTTP status
+// code like "200") is treated as a struct field rather than a list index. It
+// returns a non-existent value if the location does not exist.
+func lookupRoot(v cue.Value, str string) (cue.Value, error) {
+	u, err := url.Parse(str)
+	if err != nil {
+		return cue.Value{}, fmt.Errorf("invalid JSON reference: %v", err)
+	}
+	if u.Host != "" || u.Path != "" || u.Opaque != "" {
+		return cue.Value{}, fmt.Errorf("external references (%s) not supported in Roots", str)
+	}
+	// As for parseRootRef, trim a final slash for backward compatibility.
+	frag := strings.TrimSuffix(u.Fragment, "/")
+	n, err := lookupJSONPointer(v, frag)
+	if err != nil {
+		if err == errRefNotFound {
+			return cue.Value{}, nil
+		}
+		return cue.Value{}, err
+	}
+	return n, nil
+}
+
+var errRefNotFound = errors.New("JSON Pointer reference not found")
+
+func lookupJSONPointer(v cue.Value, p string) (cue.Value, error) {
+	for part := range json.Pointer(p).Tokens() {
+		// Note: a JSON Pointer doesn't distinguish between indexing
+		// and struct lookup. We have to use the value itself to decide
+		// which operation is appropriate.
+		v, _ = v.Default()
+		switch v.Kind() {
+		case cue.StructKind:
+			v = v.LookupPath(cue.MakePath(cue.Str(part)))
+		case cue.ListKind:
+			idx := int64(0)
+			if len(part) > 1 && part[0] == '0' {
+				// Leading zeros are not allowed
+				return cue.Value{}, errRefNotFound
+			}
+			idx, err := strconv.ParseInt(part, 10, 64)
+			if err != nil {
+				return cue.Value{}, errRefNotFound
+			}
+			v = v.LookupPath(cue.MakePath(cue.Index(idx)))
+		}
+		if !v.Exists() {
+			return cue.Value{}, errRefNotFound
+		}
+	}
+	return v, nil
+}
+
+// localRefTarget returns the schema referred to by the "$ref" value n,
+// as long as it is a JSON Pointer into the schema resource rooted at s.
+// Unlike [state.resolveURI], it reports no errors. Such a pointer is
+// resolved like in [cueLocationForRef], except that a target inside
+// a nested resource with an ID of its own is not returned.
+func (s *state) localRefTarget(n cue.Value) (cue.Value, bool) {
+	str, err := n.String()
+	if err != nil {
+		return cue.Value{}, false
+	}
+	u, err := url.Parse(str)
+	if err != nil {
+		return cue.Value{}, false
+	}
+	u = s.id.ResolveReference(u)
+	if !sameSchemaRoot(u, s.id) || (u.Fragment != "" && !strings.HasPrefix(u.Fragment, "/")) {
+		return cue.Value{}, false
+	}
+	target, err := lookupJSONPointer(s.pos, u.Fragment)
+	if err != nil {
+		return cue.Value{}, false
+	}
+	// A schema with its own ID on the way to the target means that the
+	// target is part of another resource.
+	v := s.pos
+	sels := relPath(target, s.pos).Selectors()
+	for _, sel := range sels[:max(len(sels)-1, 0)] {
+		v = v.LookupPath(cue.MakePath(sel))
+		if s.hasOwnID(v) {
+			return cue.Value{}, false
+		}
+	}
+	return target, true
+}
+
+// hasOwnID reports whether the schema v has an ID of its own, starting a new
+// schema resource: "$id", or "id" in the versions which define it. The ID must
+// be a string, unlike a schema for a property which happens to be named "$id".
+func (s *state) hasOwnID(v cue.Value) bool {
+	isID := func(key string) bool {
+		return v.LookupPath(cue.MakePath(cue.Str(key))).Kind() == cue.StringKind
+	}
+	return isID("$id") || s.schemaVersion.is(constraintMap["id"].versions) && isID("id")
+}
+
+// refTypes returns the types allowed by the schema referred to by the
+// "$ref" value n, as resolved by [state.localRefTarget], following any
+// chain of references. Only the "type" keyword is inspected, so the
+// result may allow more types than the schema does. It is [allTypes]
+// when nothing can be determined.
+func (s *state) refTypes(n cue.Value) cue.Kind {
+	var seen map[string]bool // Only needed for chains of references.
+	for {
+		target, ok := s.localRefTarget(n)
+		if !ok || target.Kind() != cue.StructKind {
+			return allTypes
+		}
+		path := target.Path().String()
+		if seen[path] {
+			return allTypes
+		}
+		lookup := func(key string) cue.Value {
+			return target.LookupPath(cue.MakePath(cue.Str(key)))
+		}
+		if ref := lookup("$ref"); ref.Exists() {
+			// Before 2019-09, the keywords alongside "$ref" are ignored,
+			// so follow the reference alone. A reference next to an ID
+			// is resolved against that ID instead.
+			if s.hasOwnID(target) {
+				return allTypes
+			}
+			if seen == nil {
+				seen = make(map[string]bool)
+			}
+			seen[path] = true
+			n = ref
+			continue
+		}
+		typ := lookup("type")
+		if !typ.Exists() {
+			return allTypes
+		}
+		types := typeKinds(typ)
+		if nullable := lookup("nullable"); nullable.Kind() == cue.BoolKind && s.boolValue(nullable) {
+			// OpenAPI's "nullable" also allows null.
+			types |= cue.NullKind
+		}
+		return types
+	}
+}
+
+// typeKinds returns the types allowed by the "type" keyword value typ,
+// a type or a list of types, or [allTypes] if it is neither.
+func typeKinds(typ cue.Value) cue.Kind {
+	switch typ.Kind() {
+	case cue.StringKind:
+		return typeKind(typ)
+	case cue.ListKind:
+		var types cue.Kind
+		for i, _ := typ.List(); i.Next(); {
+			types |= typeKind(i.Value())
+		}
+		return types
+	}
+	return allTypes
+}
+
+// typeKind returns the types allowed by the type name n,
+// or [allTypes] if n is not a known type.
+func typeKind(n cue.Value) cue.Kind {
+	str, _ := n.String()
+	if kind, ok := jsonSchemaTypeKinds[str]; ok {
+		return kind
+	}
+	return allTypes
+}
+
+func sameSchemaRoot(u1, u2 *url.URL) bool {
+	return u1.Host == u2.Host && u1.Path == u2.Path && u1.Opaque == u2.Opaque
+}
+
+// resolveURI parses a URI from s and resolves it in the current context.
+// To resolve it in the current context, it looks for the closest URI from
+// an $id in the parent scopes and the uses the URI resolution to get the
+// new URI.
+//
+// This method is used to resolve any URI, including those from $id and $ref.
+func (s *state) resolveURI(n cue.Value) *url.URL {
+	str, ok := s.strValue(n)
+	if !ok {
+		return nil
+	}
+
+	u, err := url.Parse(str)
+	if err != nil {
+		s.addErr(errors.Newf(n.Pos(), "invalid JSON reference: %v", err))
+		return nil
+	}
+
+	if u.IsAbs() {
+		// Absolute URI: no need to walk up the tree.
+		if u.Host == DefaultRootIDHost {
+			// No-one should be using the default root ID explicitly.
+			s.errf(n, "invalid use of default root ID host (%v) in URI", DefaultRootIDHost)
+			return nil
+		}
+		return u
+	}
+
+	return s.schemaRoot().id.ResolveReference(u)
+}
+
+// schemaRoot returns the state for the nearest enclosing
+// schema that has its own schema ID.
+func (s *state) schemaRoot() *state {
+	for ; s != nil; s = s.up {
+		if s.id != nil {
+			return s
+		}
+	}
+	// Should never happen, as we ensure there's always an absolute
+	// URI at the root.
+	panic("unreachable")
+}
+
+// DefaultMapRef implements the default logic for mapping a schema location
+// to CUE.
+// It uses a heuristic to map the URL host and path to an import path,
+// and maps the fragment part according to the following:
+//
+//	#                    <empty path>
+//	#/definitions/foo   #foo or #."foo"
+//	#/$defs/foo   #foo or #."foo"
+func DefaultMapRef(loc SchemaLoc) (importPath string, path cue.Path, err error) {
+	return defaultMapRef(loc, defaultMap, DefaultMapURL)
+}
+
+// defaultMapRef implements the default MapRef semantics
+// in terms of the default Map and MapURL functions provided
+// in the configuration.
+func defaultMapRef(
+	loc SchemaLoc,
+	mapFn func(pos token.Pos, path []string) ([]ast.Label, error),
+	mapURLFn func(u *url.URL) (importPath string, path cue.Path, err error),
+) (importPath string, path cue.Path, err error) {
+	var fragment string
+	if loc.IsLocal {
+		fragment = mustCUEPathToJSONPointer(loc.Path)
+	} else {
+		// It's external: use mapURLFn.
+		u := new(*loc.ID)
+		fragment = loc.ID.Fragment
+		u.Fragment = ""
+		var err error
+		importPath, path, err = mapURLFn(u)
+		if err != nil {
+			return "", cue.Path{}, err
+		}
+	}
+	if len(fragment) > 0 && fragment[0] != '/' {
+		return "", cue.Path{}, fmt.Errorf("anchors (%s) not supported", fragment)
+	}
+	parts := slices.Collect(json.Pointer(fragment).Tokens())
+	labels, err := mapFn(token.Pos{}, parts)
+	if err != nil {
+		return "", cue.Path{}, err
+	}
+	relPath, err := labelsToCUEPath(labels)
+	if err != nil {
+		return "", cue.Path{}, err
+	}
+	return importPath, pathConcat(path, relPath), nil
+}
+
+func defaultMap(p token.Pos, a []string) ([]ast.Label, error) {
+	if len(a) == 0 {
+		return nil, nil
+	}
+	// TODO: technically, references could reference a
+	// non-definition. We disallow this case for the standard
+	// JSON Schema interpretation. We could detect cases that
+	// are not definitions and then resolve those as literal
+	// values.
+	if len(a) != 2 || (a[0] != "definitions" && a[0] != "$defs") {
+		// It's an internal reference (or a nested definition reference).
+		// Fall back to defining it in the internal namespace.
+		// TODO this is needlessly inefficient, as we're putting something
+		// back together that was already joined before defaultMap was
+		// invoked. This does avoid dual implementations though.
+		p := json.PointerFromTokens(slices.Values(a))
+		return []ast.Label{ast.NewIdent("_#defs"), ast.NewString(string(p))}, nil
+	}
+	name := a[1]
+	if name != rootDefs[1:] && !ast.StringLabelNeedsQuoting(name) {
+		return []ast.Label{ast.NewIdent("#" + name)}, nil
+	}
+	return []ast.Label{ast.NewIdent(rootDefs), ast.NewString(name)}, nil
+}
+
+// DefaultMapURL implements the default schema ID to import
+// path mapping. It trims off any ".json" suffix and uses the
+// package name "schema" if the final component of the path
+// isn't a valid CUE identifier.
+//
+// Deprecated: The [Config.MapURL] API is superceded in
+// factor of [Config.MapRef].
+func DefaultMapURL(u *url.URL) (string, cue.Path, error) {
+	p := u.Path
+	base := path.Base(p)
+	if !ast.IsValidIdent(base) {
+		base = strings.TrimSuffix(base, ".json")
+		if !ast.IsValidIdent(base) {
+			// Find something more clever to do there. For now just
+			// pick "schema" as the package name.
+			base = "schema"
+		}
+		p += ":" + base
+	}
+	if u.Opaque != "" {
+		// TODO don't use base64 unless we really have to.
+		return base64.RawURLEncoding.EncodeToString([]byte(u.Opaque)), cue.Path{}, nil
+	}
+	return u.Host + p, cue.Path{}, nil
+}
