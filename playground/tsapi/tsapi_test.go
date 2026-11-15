@@ -57,6 +57,23 @@ func TestGenerateCollision(t *testing.T) {
 	}
 }
 
+// A type omitted while another still refers to it would leave the file
+// referring to a type it does not declare.
+func TestGenerateOmitReferred(t *testing.T) {
+	src := []Source{{Package: "github.com/sdboyer/thema/playground/tsapi/internal/omitted"}}
+	_, err := render(Config{Sources: src, Omit: []string{"Behavior"}})
+	if err == nil || !strings.Contains(err.Error(), "Behavior is omitted, but the file refers to it") {
+		t.Fatalf("want an error for the reference to Behavior, got %v", err)
+	}
+	got, err := render(Config{Sources: src, Omit: []string{"Behavior", "More"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(got, "export") {
+		t.Errorf("want both omitted:\n%s", got)
+	}
+}
+
 // UIConfig returns a copy: changing it changes neither later copies nor the
 // types other Configs import.
 func TestUIConfigCopies(t *testing.T) {

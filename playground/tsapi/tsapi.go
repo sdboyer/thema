@@ -90,7 +90,7 @@ var uiConfig = Config{
 		"lacuna.TranslationLacunas": "TranslationLacunas",
 		"json.RawMessage":           "unknown",
 	},
-	Omit: []string{"Vocabulary", "Rewriter"},
+	Omit: []string{"Vocabulary", "Rewriter", "Immutability"},
 }
 
 // UIConfig returns the Config of thema's own wire types, the file published
@@ -171,6 +171,12 @@ func render(cfg Config) (string, error) {
 		}
 		fmt.Fprintf(&body, "\n//////////\n// %s\n\n%s", src.Package, strings.TrimSpace(out)+"\n")
 	}
+	code := comment.ReplaceAllString(body.String(), "")
+	for _, name := range cfg.Omit {
+		if regexp.MustCompile(`\b` + regexp.QuoteMeta(name) + `\b`).MatchString(code) {
+			return "", fmt.Errorf("%s is omitted, but the file refers to it", name)
+		}
+	}
 
 	var imports []string
 	for _, m := range marked.FindAllStringSubmatch(body.String(), -1) {
@@ -198,6 +204,10 @@ func render(cfg Config) (string, error) {
 func omission(name string) *regexp.Regexp {
 	return regexp.MustCompile(`(?s)/\*\*(?:[^*]|\*[^/])*\*/\nexport type ` + regexp.QuoteMeta(name) + ` =[^;]*;\n`)
 }
+
+// comment matches a comment in a generated module, whose text may name a type
+// without referring to it.
+var comment = regexp.MustCompile(`(?s)/\*.*?\*/|//[^\n]*`)
 
 // generate returns the module tygo writes for each source, without tygo's
 // header.
