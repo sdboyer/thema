@@ -16,4 +16,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail ref-unresolved
+bind fail E0146

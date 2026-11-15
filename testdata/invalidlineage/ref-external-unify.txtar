@@ -33,5 +33,4 @@ error[E0141]: #Foo in schema v0.0 refers to _External, which is declared in the 
 10 |             #Foo: _External & {
    |                   ^^^^^^^^^
    |
-   = note: reference rule ref-lineage-meta
    = help: a schema may refer only to its own body and CUE's builtin packages

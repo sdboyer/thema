@@ -22,4 +22,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail source-constrained
+bind fail E0303

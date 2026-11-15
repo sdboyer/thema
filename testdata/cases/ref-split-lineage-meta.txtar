@@ -14,4 +14,4 @@ lin: schemas: {
 	}
 }
 -- expect --
-bind fail ref-lineage-meta
+bind fail E0141

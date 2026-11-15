@@ -1,7 +1,7 @@
 #op: bind
 #path: lin
-A lens reads a hidden field of another lens through the lineage (reference
-rule ref-lens-to-lens). Each lens declares what it needs.
+A lens reads a hidden field of another lens through the lineage. Each lens
+declares what it needs.
 -- lineage.cue --
 lin: {
 	name: "ship"
@@ -54,11 +54,6 @@ lin: {
         "offset": 239,
         "origin": "user"
       },
-      "notes": [
-        {
-          "label": "reference rule ref-lens-to-lens"
-        }
-      ],
       "help": [
         "a lens may refer only to v0_0, the instance it takes, its own body and CUE's builtin packages"
       ]
@@ -77,5 +72,4 @@ error[E0145]: v1_0.b in lens v0.0->v1.0 refers to lenses["1.0->0.0"]._fallback, 
 19 |             v1_0: {b: lin.lenses["1.0->0.0"]._fallback}
    |                       ^^^
    |
-   = note: reference rule ref-lens-to-lens
    = help: a lens may refer only to v0_0, the instance it takes, its own body and CUE's builtin packages

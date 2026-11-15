@@ -28,4 +28,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail computed-narrowed
+bind fail E0367

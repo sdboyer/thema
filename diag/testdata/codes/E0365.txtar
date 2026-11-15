@@ -71,7 +71,7 @@ lenses: {
       },
       "notes": [
         {
-          "label": "a lens must be total: every instance of schema v0.0 must translate to an instance of schema v1.0 (totality rule not-a-value)"
+          "label": "a lens must be total: every instance of schema v0.0 must translate to an instance of schema v1.0"
         }
       ]
     }
@@ -89,4 +89,4 @@ error[E0365]: n in the result of lens v0.0->v1.0 is int, a constraint rather tha
 24 |             n: int
    |             ^
    |
-   = note: a lens must be total: every instance of schema v0.0 must translate to an instance of schema v1.0 (totality rule not-a-value)
+   = note: a lens must be total: every instance of schema v0.0 must translate to an instance of schema v1.0

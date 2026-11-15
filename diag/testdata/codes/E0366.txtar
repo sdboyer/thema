@@ -69,7 +69,7 @@ lenses: {
       },
       "notes": [
         {
-          "label": "a lens must be total: every instance of schema v0.0 must translate to an instance of schema v1.0 (totality rule literal-not-instance)"
+          "label": "a lens must be total: every instance of schema v0.0 must translate to an instance of schema v1.0"
         }
       ]
     }
@@ -87,4 +87,4 @@ error[E0366]: l in the result of lens v0.0->v1.0 is a list of 2 elements, which 
 22 |             l: [v0_0.a, 1]
    |             ^
    |
-   = note: a lens must be total: every instance of schema v0.0 must translate to an instance of schema v1.0 (totality rule literal-not-instance)
+   = note: a lens must be total: every instance of schema v0.0 must translate to an instance of schema v1.0

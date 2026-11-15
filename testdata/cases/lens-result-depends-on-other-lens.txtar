@@ -34,4 +34,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail ref-lens-to-lens
+bind fail E0145

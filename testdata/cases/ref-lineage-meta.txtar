@@ -14,4 +14,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail ref-lineage-meta
+bind fail E0141

@@ -25,4 +25,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail copy-narrowed
+bind fail E0360

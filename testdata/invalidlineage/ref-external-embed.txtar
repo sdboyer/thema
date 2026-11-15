@@ -27,5 +27,4 @@ error[E0141]: schema v0.0 refers to #EmbedRef, which is declared in the lineage 
 7 |         schema: {
   |         ^^^^^^
   |
-  = note: reference rule ref-lineage-meta
   = help: a schema may refer only to its own body and CUE's builtin packages

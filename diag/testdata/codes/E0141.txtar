@@ -1,8 +1,8 @@
 #op: bind
 #path: lin
 A schema reads something the lineage declares outside the schema: its name,
-#LatestVersion, the joinSchema, the lenses or a helper field (reference rule
-ref-lineage-meta). The schema writes the literal it wants.
+#LatestVersion, the joinSchema, the lenses or a helper field. The schema
+writes the literal it wants.
 -- lineage.cue --
 lin: {
 	name: "ship"
@@ -39,11 +39,6 @@ lin: {
         "offset": 73,
         "origin": "user"
       },
-      "notes": [
-        {
-          "label": "reference rule ref-lineage-meta"
-        }
-      ],
       "help": [
         "a schema may refer only to its own body and CUE's builtin packages"
       ]
@@ -62,5 +57,4 @@ error[E0141]: n in schema v0.0 refers to name, which is declared in the lineage 
 5 |             schema: {a: string, n: lin.name}
   |                                    ^^^
   |
-  = note: reference rule ref-lineage-meta
   = help: a schema may refer only to its own body and CUE's builtin packages

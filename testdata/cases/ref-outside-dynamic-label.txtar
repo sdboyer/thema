@@ -18,4 +18,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail ref-outside-lineage
+bind fail E0142

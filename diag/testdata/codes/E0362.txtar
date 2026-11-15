@@ -69,7 +69,7 @@ lenses: {
       },
       "notes": [
         {
-          "label": "a lens must be total: every instance of schema v0.0 must translate to an instance of schema v1.0 (totality rule source-undeclared)"
+          "label": "a lens must be total: every instance of schema v0.0 must translate to an instance of schema v1.0"
         }
       ]
     }
@@ -87,4 +87,4 @@ error[E0362]: b in the result of lens v0.0->v1.0 copies v0_0.nope, which the sou
 22 |             b: v0_0.nope
    |                ^^^^
    |
-   = note: a lens must be total: every instance of schema v0.0 must translate to an instance of schema v1.0 (totality rule source-undeclared)
+   = note: a lens must be total: every instance of schema v0.0 must translate to an instance of schema v1.0

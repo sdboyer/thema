@@ -22,4 +22,4 @@ package common
 
 lin: {name: "other"}
 -- expect --
-bind fail ref-import
+bind fail E0143
