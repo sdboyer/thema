@@ -67,6 +67,7 @@ A code's scope says what its condition reads: `one` when one version's files, th
 | [E0206](E0206.md) | error | versions | retired: a version file named as a major version is backward compatible with its predecessor |
 | [E0207](E0207.md) | error | versions | a version under history/ has a number its compatibility with the version before it contradicts |
 | [E0208](E0208.md) | error | versions | a major version is backward compatible with its predecessor |
+| [E0209](E0209.md) | error | versions | a version under history/ has an error |
 | [E0210](E0210.md) | error | versions | a minor version requires a field its predecessor does not declare |
 | [E0211](E0211.md) | error | versions | a minor version rejects a field its predecessor declares |
 | [E0212](E0212.md) | error | versions | a minor version requires a field its predecessor left optional |

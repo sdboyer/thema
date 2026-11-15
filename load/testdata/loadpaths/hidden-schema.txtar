@@ -11,5 +11,6 @@ Schema: {
 }
 -- out/verdict --
 # bind
+E0209 immutability violation: v0.0 is under history/, and has 2 errors
 E0151 the schema of v0.0 declares _limit, a hidden field
 E0151 the schema of v0.0 declares _#Name, a hidden definition

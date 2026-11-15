@@ -144,6 +144,17 @@ func (o options) name(f File) string {
 // versionFile matches a frozen version's path: history/<major>.<minor>.thema.
 var versionFile = regexp.MustCompile(`^` + HistoryDir + `/(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\` + Ext + `$`)
 
+// frozenVersion is the version a frozen version's path names.
+func frozenVersion(p string) (thema.SyntacticVersion, bool) {
+	m := versionFile.FindStringSubmatch(p)
+	if m == nil {
+		return thema.SyntacticVersion{}, false
+	}
+	major, _ := strconv.ParseUint(m[1], 10, 64)
+	minor, _ := strconv.ParseUint(m[2], 10, 64)
+	return thema.SV(uint(major), uint(minor)), true
+}
+
 // misplacedVersion matches a version file at the top of the lineage's
 // directory, where only the tip belongs.
 var misplacedVersion = regexp.MustCompile(`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\` + Ext + `$`)
@@ -270,10 +281,8 @@ func parseVersion(f File, name string, tip bool) (*version, error) {
 		return nil, diag.Convert(err, diag.Context{Op: diag.OpCompile, Generic: diag.E0102})
 	}
 	v := &version{path: f.Path, tip: tip, file: af, tf: af.Pos().File()}
-	if m := versionFile.FindStringSubmatch(f.Path); m != nil {
-		major, _ := strconv.ParseUint(m[1], 10, 64)
-		minor, _ := strconv.ParseUint(m[2], 10, 64)
-		v.v = thema.SV(uint(major), uint(minor))
+	if fv, ok := frozenVersion(f.Path); ok {
+		v.v = fv
 	}
 
 	const only = "a version file has only Schema, ForwardLens and BackwardLens"
@@ -392,8 +401,18 @@ func noShorthand(f *ast.Field) cerrors.Error {
 
 // parseVersions parses the frozen versions and orders them, which must be
 // contiguous: each the next minor version of its predecessor, or the first
-// version of the next major. There may be none.
+// version of the next major. There may be none. Each file's errors are a
+// violation of its immutability.
 func parseVersions(files []File, o options) ([]*version, error) {
+	vs, err := parseFrozen(files, o)
+	if err != nil {
+		return nil, frozenFiles(files, o).immutable(err)
+	}
+	return vs, nil
+}
+
+// parseFrozen is parseVersions, with each error as its check reports it.
+func parseFrozen(files []File, o options) ([]*version, error) {
 	var errs cerrors.Error
 	var vs []*version
 	for _, f := range files {

@@ -1,0 +1,103 @@
+#op: compile
+A version under history/ was cut from the tip, and cutting binds the whole
+lineage, so it had no error then. A version under history/ never changes once
+cut: an error in one means that its file, another file under history/, or thema
+has changed since. Each error in the file follows, without its help, since any
+fix it could suggest edits a file that never changes; the change belongs in
+tip.thema. Here, the ForwardLens of v1.0 reads a field v0.0 does not declare,
+and maps nothing from the field v0.0 does declare.
+-- ship/history/0.0.thema --
+Schema: {
+	a: string
+}
+-- ship/history/1.0.thema --
+Schema: {
+	b: string
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		b: v0_0.nope
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	b: string
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0209",
+      "severity": "error",
+      "headline": "immutability violation: v1.0 is under history/, and has 2 errors",
+      "primary": {
+        "file": "history/1.0.thema",
+        "line": 1,
+        "col": 1,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "a version under history/ never changes once it is cut, and had no error when it was cut, so since then its file, another file under history/, or thema has changed"
+        }
+      ],
+      "help": [
+        "find which file under history/ changed since it was cut, restore it, and make the change in tip.thema"
+      ]
+    },
+    {
+      "code": "E0340",
+      "severity": "error",
+      "headline": "v0.0 does not declare nope",
+      "primary": {
+        "file": "history/1.0.thema",
+        "line": 8,
+        "col": 6,
+        "offset": 62,
+        "origin": "user"
+      }
+    },
+    {
+      "code": "E0347",
+      "severity": "error",
+      "headline": "v0.0 declares a and v1.0 does not, and nothing maps it",
+      "primary": {
+        "file": "history/1.0.thema",
+        "line": 5,
+        "col": 1,
+        "offset": 24,
+        "origin": "user"
+      }
+    }
+  ],
+  "summary": {
+    "errors": 3,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0209]: immutability violation: v1.0 is under history/, and has 2 errors
+ --> history/1.0.thema:1:1
+  |
+1 | Schema: {
+  | ^^^^^^
+  |
+  = note: a version under history/ never changes once it is cut, and had no error when it was cut, so since then its file, another file under history/, or thema has changed
+  = help: find which file under history/ changed since it was cut, restore it, and make the change in tip.thema
+
+error[E0340]: v0.0 does not declare nope
+ --> history/1.0.thema:8:6
+  |
+8 |         b: v0_0.nope
+  |            ^^^^
+  |
+
+error[E0347]: v0.0 declares a and v1.0 does not, and nothing maps it
+ --> history/1.0.thema:5:1
+  |
+5 | ForwardLens: {
+  | ^^^^^^^^^^^
+  |

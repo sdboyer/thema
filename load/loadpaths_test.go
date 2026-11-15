@@ -97,8 +97,14 @@ func TestLoadPaths(t *testing.T) {
 				}
 				if first == nil {
 					first = res
-				} else if diff := cmp.Diff(first.meaning, res.meaning); diff != "" {
-					t.Errorf("%s reports otherwise than %s (-%s +%s):\n%s", p.name, first.path, first.path, p.name, diff)
+				} else {
+					want, got := first.meaning, res.meaning
+					if first.compiled != res.compiled {
+						want, got = want.mutable(), got.mutable()
+					}
+					if diff := cmp.Diff(want, got); diff != "" {
+						t.Errorf("%s reports otherwise than %s (-%s +%s):\n%s", p.name, first.path, first.path, p.name, diff)
+					}
 				}
 				switch {
 				case p.at:
@@ -113,7 +119,12 @@ func TestLoadPaths(t *testing.T) {
 				}
 				if firstText == nil {
 					firstText = res
-				} else if diff := cmp.Diff(firstText.positions, res.positions); diff != "" {
+					continue
+				}
+				if diff := cmp.Diff(firstText.meaning, res.meaning); diff != "" {
+					t.Errorf("%s reports otherwise than %s (-%s +%s):\n%s", p.name, firstText.path, firstText.path, p.name, diff)
+				}
+				if diff := cmp.Diff(firstText.positions, res.positions); diff != "" {
 					t.Errorf("%s positions its diagnostics otherwise than %s (-%s +%s):\n%s", p.name, firstText.path, firstText.path, p.name, diff)
 				}
 			}
@@ -503,7 +514,9 @@ func overlayLoad(t *testing.T, ctx *cue.Context, fx lpFixture, extra map[string]
 // lpResult is what one path reported, split into what every path must agree
 // on and the positions only paths loading the same text can agree on.
 type lpResult struct {
-	path      string
+	path string
+	// compiled marks a result of binding the authoring form compiled.
+	compiled  bool
 	meaning   lpMeaning
 	positions []lpPositions
 	// placed are each diagnostic's positions with their files' names: its
@@ -548,6 +561,23 @@ type lpMeaning struct {
 	Programs    []string
 }
 
+// mutable is m as a lineage written in no file that never changes reports it:
+// the authoring form compiled reads only files under history/, and reports an
+// error in one as an immutability violation, E0209, that gives the help in
+// place of the errors in the file.
+func (m lpMeaning) mutable() lpMeaning {
+	out := m
+	out.Diagnostics = nil
+	for _, d := range m.Diagnostics {
+		if d.Code == diag.E0209 {
+			continue
+		}
+		d.Help = nil
+		out.Diagnostics = append(out.Diagnostics, d)
+	}
+	return out
+}
+
 // lpDiagnostic is a diagnostic without its positions.
 type lpDiagnostic struct {
 	Code     diag.Code
@@ -588,14 +618,17 @@ func (p loadPath) run(t *testing.T, fx lpFixture) *lpResult {
 	root, path := p.load(t, ctx, fx)
 	v := root.LookupPath(path)
 	var opts []thema.BindOption
-	if fx.compiled != nil {
-		// Every path binds with the authoring form's vocabulary when there is
-		// one, so that their headlines can be compared with the compiled
-		// path's.
+	switch {
+	case p.at:
+		opts = append(opts, thema.WithVocabulary(authoring.Vocabulary(fx.compiledAt)))
+	case fx.compiled != nil:
+		// Every other path binds with the authoring form's vocabulary when
+		// there is one, so that their headlines can be compared with the
+		// compiled path's.
 		opts = append(opts, thema.WithVocabulary(authoring.Vocabulary(fx.compiled)))
 	}
 	lin, err := thema.BindLineage(root, path, thema.NewRuntime(ctx), opts...)
-	res := &lpResult{path: p.name}
+	res := &lpResult{path: p.name, compiled: p.compiled}
 	ds := diag.Diagnostics(err)
 	if err != nil && len(ds) == 0 {
 		t.Fatalf("%s: bind failed without diagnostics: %v", p.name, err)

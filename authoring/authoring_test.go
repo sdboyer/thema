@@ -274,12 +274,16 @@ BackwardLens: {
 		}
 
 		_, err := thema.BindLineage(whole, cue.MakePath(cue.Str(op)), rt, thema.WithVocabulary(authoring.Vocabulary(compiled[op])))
+		// 1.0.thema is under history/, so the refusal is led by the file's
+		// immutability violation.
 		ds := diag.Diagnostics(err)
-		if len(ds) != 1 || ds[0].Code != diag.E0367 {
-			t.Fatalf("%s: want bind to refuse the forward lens (E0367), got %v", op, ds)
+		if len(ds) != 2 || ds[0].Code != diag.E0209 || ds[1].Code != diag.E0367 {
+			t.Fatalf("%s: want bind to refuse the forward lens (E0367), led by E0209, got %v", op, ds)
 		}
-		if d := ds[0]; d.Primary == nil || d.Primary.File != dir+"/history/1.0.thema" {
-			t.Errorf("%s: %s %q is positioned at %v, want %s/history/1.0.thema", op, d.Code, d.Headline, d.Primary, dir)
+		for _, d := range ds {
+			if d.Primary == nil || d.Primary.File != dir+"/history/1.0.thema" {
+				t.Errorf("%s: %s %q is positioned at %v, want %s/history/1.0.thema", op, d.Code, d.Headline, d.Primary, dir)
+			}
 		}
 	}
 }

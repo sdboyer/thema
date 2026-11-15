@@ -100,6 +100,19 @@ type Rewriter interface {
 	RewriteHelp(a Address, help string) (string, bool)
 }
 
+// An Immutability is a Vocabulary for a form that keeps each cut version in a
+// file that never changes, as the authoring form keeps them under history/.
+// An error in such a file means the file, a file it is read with, or thema
+// has changed since the version was cut, and binding reports it so: a lineage
+// bound with an Immutability passes the errors of a failed bind through
+// Immutable.
+type Immutability interface {
+	Vocabulary
+	// Immutable returns err with each of its errors in a file that never
+	// changes reported as a violation of that file's immutability.
+	Immutable(err error) error
+}
+
 // RewriteFor applies v's rewriting to sentence, when v has any.
 func RewriteFor(v Vocabulary, a Address, sentence string) string {
 	if r, ok := v.(Rewriter); ok {

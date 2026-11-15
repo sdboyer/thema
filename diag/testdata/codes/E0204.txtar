@@ -18,6 +18,25 @@ Schema: {
 {
   "diagnostics": [
     {
+      "code": "E0209",
+      "severity": "error",
+      "headline": "immutability violation: v0.0 is under history/, and has an error",
+      "primary": {
+        "file": "history/0.0.thema",
+        "line": 1,
+        "col": 1,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "a version under history/ never changes once it is cut, and had no error when it was cut, so since then its file, another file under history/, or thema has changed"
+        }
+      ],
+      "help": [
+        "find which file under history/ changed since it was cut, restore it, and make the change in tip.thema"
+      ]
+    },
+    {
       "code": "E0204",
       "severity": "error",
       "headline": "history/0.0.thema and history/0.0.thema both declare v0.0",
@@ -37,19 +56,25 @@ Schema: {
           },
           "label": "the other is here"
         }
-      ],
-      "help": [
-        "a version has one file, under history/"
       ]
     }
   ],
   "summary": {
-    "errors": 1,
+    "errors": 2,
     "warnings": 0,
     "notes": 0
   }
 }
 -- out/text --
+error[E0209]: immutability violation: v0.0 is under history/, and has an error
+ --> history/0.0.thema:1:1
+  |
+1 | Schema: {
+  | ^^^^^^
+  |
+  = note: a version under history/ never changes once it is cut, and had no error when it was cut, so since then its file, another file under history/, or thema has changed
+  = help: find which file under history/ changed since it was cut, restore it, and make the change in tip.thema
+
 error[E0204]: history/0.0.thema and history/0.0.thema both declare v0.0
  --> history/0.0.thema:1:1
   |
@@ -57,4 +82,3 @@ error[E0204]: history/0.0.thema and history/0.0.thema both declare v0.0
   | ^^^^^^
   | ------ the other is here
   |
-  = help: a version has one file, under history/

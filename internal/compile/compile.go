@@ -41,6 +41,9 @@ type Compiled struct {
 	Pending error
 	// paths is the version file each version was read from.
 	paths map[thema.SyntacticVersion]string
+	// frozen is the version each file under history/ keeps, for the
+	// vocabulary to report an error in one as an immutability violation.
+	frozen frozen
 	// provisional is the version the tip was compiled as, when the normal form
 	// includes it.
 	provisional *thema.SyntacticVersion
@@ -131,8 +134,10 @@ func evalSchema(ctx *cue.Context, v *version) (cue.Value, error) {
 }
 
 // compileVersions compiles vs, in order and contiguous, to the normal form.
-// The last may be the tip.
+// The last may be the tip. An error in a file under history/ is a violation
+// of its immutability.
 func compileVersions(ctx *cue.Context, name string, vs []*version) (*Compiled, error) {
+	fz := frozenOf(vs)
 	// Each schema evaluated alone, for the lens compiler's queries.
 	vals := make([]cue.Value, len(vs))
 	var errs cerrors.Error
@@ -145,11 +150,11 @@ func compileVersions(ctx *cue.Context, name string, vs []*version) (*Compiled, e
 		vals[i] = sv
 	}
 	if errs != nil {
-		return nil, errs
+		return nil, fz.immutable(errs)
 	}
 
 	tip := vs[len(vs)-1]
-	out := &Compiled{Name: name, paths: make(map[thema.SyntacticVersion]string, len(vs))}
+	out := &Compiled{Name: name, paths: make(map[thema.SyntacticVersion]string, len(vs)), frozen: fz}
 	imports := make(map[string]bool)
 	schemas := &ast.StructLit{}
 	lenses := &ast.StructLit{}
@@ -268,7 +273,7 @@ func compileVersions(ctx *cue.Context, name string, vs []*version) (*Compiled, e
 		lenses.Elts = append(lenses.Elts, v.tipLens(lensField(be.blockPos, v.v, prev.v, bwd)))
 	}
 	if errs != nil {
-		return nil, errs
+		return nil, fz.immutable(errs)
 	}
 
 	out.File = &ast.File{}

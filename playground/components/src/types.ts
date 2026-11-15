@@ -353,6 +353,16 @@ export interface Address {
    */
   name?: string;
 }
+/**
+ * An Immutability is a Vocabulary for a form that keeps each cut version in a
+ * file that never changes, as the authoring form keeps them under history/.
+ * An error in such a file means the file, a file it is read with, or thema
+ * has changed since the version was cut, and binding reports it so: a lineage
+ * bound with an Immutability passes the errors of a failed bind through
+ * Immutable.
+ */
+export type Immutability = 
+    Vocabulary;
 
 //////////
 // source: diag.go

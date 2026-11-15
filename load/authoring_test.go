@@ -126,7 +126,12 @@ BackwardLens: {
 	if len(ds) == 0 {
 		t.Fatalf("no diagnostics in %v", err)
 	}
-	for _, d := range ds {
+	// The lens is in history/1.0.thema, so its error is led by the file's
+	// immutability violation.
+	if ds[0].Code != diag.E0209 {
+		t.Errorf("first diagnostic is %s %q, want E0209", ds[0].Code, ds[0].Headline)
+	}
+	for _, d := range ds[1:] {
 		if strings.Contains(d.Headline, "->") || !strings.Contains(d.Headline, "the ForwardLens of v1.0") {
 			t.Errorf("headline is not in the authoring form's terms: %q", d.Headline)
 		}

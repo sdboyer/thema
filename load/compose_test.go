@@ -75,11 +75,16 @@ BackwardLens: {
 
 	for op, dir := range dirs {
 		_, err := thema.BindLineage(whole, cue.MakePath(cue.Str(op)), rt, thema.WithVocabulary(authoring.Vocabulary(compiled[op])))
+		// The lens is in history/1.0.thema, so its error is led by the file's
+		// immutability violation, at the start of the file.
 		ds := diag.Diagnostics(err)
-		if len(ds) != 1 || ds[0].Code != diag.E0367 {
-			t.Fatalf("%s: got %v, want one E0367", op, ds)
+		if len(ds) != 2 || ds[0].Code != diag.E0209 || ds[1].Code != diag.E0367 {
+			t.Fatalf("%s: got %v, want E0209 and E0367", op, ds)
 		}
-		if p := ds[0].Primary; p == nil || p.File != dir+"/history/1.0.thema" || p.Line != 8 {
+		if p := ds[0].Primary; p == nil || p.File != dir+"/history/1.0.thema" || p.Line != 1 {
+			t.Errorf("%s: E0209 is positioned at %v, want %s/history/1.0.thema:1", op, p, dir)
+		}
+		if p := ds[1].Primary; p == nil || p.File != dir+"/history/1.0.thema" || p.Line != 8 {
 			t.Errorf("%s: E0367 is positioned at %v, want %s/history/1.0.thema:8", op, p, dir)
 		}
 	}

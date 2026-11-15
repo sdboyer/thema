@@ -14,10 +14,18 @@ Schema: {
 	b: int
 }
 -- out/error --
+error[E0209]: immutability violation: v1.0 is under history/, and has an error
+ --> history/1.0.thema:1:1
+  |
+1 | Schema: {
+  | ^^^^^^
+  |
+  = note: a version under history/ never changes once it is cut, and had no error when it was cut, so since then its file, another file under history/, or thema has changed
+  = help: find which file under history/ changed since it was cut, restore it, and make the change in tip.thema
+
 error[E0346]: v1.0 has no ForwardLens, and v1.0 requires b
  --> history/1.0.thema:4:1
   |
 4 | }
   | ^
   |
-  = help: write ForwardLens: {v0_0: _, v1_0: {b: <mapping>}} in history/1.0.thema
