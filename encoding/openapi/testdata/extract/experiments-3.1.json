@@ -1,0 +1,32 @@
+{
+  "openapi": "3.1.0",
+  "info": {"title": "experiments", "description": "Exercises the spellings that depend on the language version's experiments.", "version": "1"},
+  "paths": {},
+  "components": {
+    "schemas": {
+      "Dependent": {
+        "type": "object",
+        "properties": {
+          "a-b": {"type": "string", "x-a": 1},
+          "c": {"type": "string"}
+        },
+        "dependentRequired": {
+          "a-b": ["c"]
+        },
+        "dependentSchemas": {
+          "c": {"properties": {"g": {"type": "integer", "x-g": true}}}
+        }
+      },
+      "Consts": {
+        "type": "object",
+        "properties": {
+          "one": {"const": 1, "x-c": "one"},
+          "half": {"const": 0.5},
+          "nums": {"enum": [1, 2.5, "three", null]},
+          "types": {"type": ["string", "null"], "x-t": ["string", "null"]},
+          "tuple": {"type": "array", "prefixItems": [{"type": "string"}, {"type": "integer"}], "x-p": {}}
+        }
+      }
+    }
+  }
+}

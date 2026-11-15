@@ -601,6 +601,10 @@ func constraintProperties(key string, n cue.Value, s *state) {
 				f.Attrs = append(f.Attrs, &ast.Attribute{Text: "@deprecated()"})
 			}
 		}
+		if a := state.extensionsAttr(); a != nil {
+			// thema: on the property's own field, whatever its value.
+			f.Attrs = append(f.Attrs, a)
+		}
 		obj.Elts = append(obj.Elts, f)
 	})
 	// It's not entirely clear whether it's OK to have an x-kubernetes-group-version-kind

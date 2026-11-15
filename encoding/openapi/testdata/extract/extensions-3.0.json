@@ -1,0 +1,74 @@
+{
+  "openapi": "3.0.3",
+  "info": {"title": "extensions", "version": "1"},
+  "paths": {},
+  "components": {
+    "schemas": {
+      "Scalars": {
+        "type": "object",
+        "x-on-component": "not kept",
+        "properties": {
+          "str": {"type": "string", "x-property-name": "ship-registry-id"},
+          "yes": {"type": "boolean", "x-sensitive": true},
+          "num": {"type": "number", "x-precision": 1.5e-7},
+          "int": {"type": "integer", "x-big": 100000000000000000000000},
+          "nul": {"type": "string", "x-nothing": null},
+          "obj": {"type": "string", "x-obj": {"b": "c,d", "a": [1, {"e": "f)"}], "g": {}}},
+          "arr": {"type": "string", "x-arr": [1, "(", ")", "a, b", {"k": [true]}, []]},
+          "esc": {"type": "string", "x-esc": "<a & b> \"q\" \\(x) \n \t é"},
+          "sorted": {"type": "string", "x-z": 1, "x-a": 2, "x-m": 3},
+          "odd-keys": {"type": "string", "x-1e": 1, "x-a.b": 2, "x-a//b": 3, "x-": 4, "x-a\"b": 5, "x-a b": 6},
+          "plain": {"type": "string", "description": "no extensions"},
+          "required": {"type": "string", "x-req": 1},
+          "deprecated": {"type": "string", "deprecated": true, "x-dep": 1},
+          "deprecatedObject": {"type": "object", "deprecated": true, "x-dep": 1, "properties": {"a": {"type": "string"}}},
+          "ref": {"$ref": "#/components/schemas/Nested", "x-beside-ref": "kept"},
+          "nested": {
+            "type": "object",
+            "x-outer": 1,
+            "properties": {
+              "inner": {"type": "string", "x-inner": "deep"}
+            }
+          },
+          "list": {
+            "type": "array",
+            "x-list": 1,
+            "items": {
+              "type": "object",
+              "x-items": "not kept",
+              "properties": {
+                "item": {"type": "string", "x-item": 2}
+              }
+            }
+          },
+          "enum": {"type": "integer", "enum": [1, 2], "x-enum": "e"},
+          "nullable": {"type": "string", "nullable": true, "x-nullable": 1}
+        },
+        "required": ["required"]
+      },
+      "Nested": {
+        "type": "object",
+        "properties": {
+          "n": {"type": "string", "x-n": "n"}
+        }
+      },
+      "Composed": {
+        "allOf": [
+          {"$ref": "#/components/schemas/Nested"},
+          {
+            "type": "object",
+            "properties": {
+              "inAllOf": {"type": "string", "x-all-of": [1, 2]}
+            }
+          }
+        ]
+      },
+      "non-ident": {
+        "type": "object",
+        "properties": {
+          "a-b": {"type": "string", "x-quoted-label": 1}
+        }
+      }
+    }
+  }
+}

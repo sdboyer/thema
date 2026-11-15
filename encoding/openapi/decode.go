@@ -12,7 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package openapi converts between thema schemas and OpenAPI documents:
+// [GenerateSchema] generates an OpenAPI document from a schema, and [Extract]
+// converts the schemas of an OpenAPI document to CUE.
 package openapi
+
+// Extract is forked from cuelang.org/go/encoding/openapi.Extract at
+// cuelang.org/go v0.18.0-rc.3, to decode through internal/jsonschema, which
+// keeps a property's x- keywords. Its Config is ExtractConfig, holding the
+// fields of upstream's Config that Extract reads, and may be nil.
 
 import (
 	"fmt"
@@ -22,21 +30,46 @@ import (
 	"cuelang.org/go/cue/ast"
 	"cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/token"
-	"cuelang.org/go/encoding/jsonschema"
-	"cuelang.org/go/internal"
+	"github.com/sdboyer/thema/internal/jsonschema"
 )
+
+// ExtractConfig controls the conversion of an OpenAPI document to CUE by
+// [Extract].
+type ExtractConfig struct {
+	// PkgName defines to package name for a generated CUE package.
+	PkgName string
+
+	// StrictFeatures reports an error for features that are known
+	// to be unsupported.
+	StrictFeatures bool
+
+	// StrictKeywords reports an error when unknown keywords
+	// are encountered. For OpenAPI 3.0, this is implicitly always
+	// true, as that specification explicitly prohibits unknown keywords
+	// other than "x-" prefixed keywords.
+	StrictKeywords bool
+}
 
 // Extract converts OpenAPI definitions to an equivalent CUE representation.
 //
 // It currently only converts entries in #/components/schema and extracts some
 // meta data.
 //
+// It is cuelang.org/go/encoding/openapi.Extract, except that it keeps the x-
+// keywords of each property's schema, which that skips, as one attribute on
+// the property's field; see [Extensions] for its shape. The x- keywords of
+// any other schema, such as a component schema itself or an array's items,
+// are not kept.
+//
 // The result can be converted to a [cue.Value] via [cue.Context.BuildFile].
-func Extract(data cue.InstanceOrValue, c *Config) (*ast.File, error) {
+func Extract(data cue.InstanceOrValue, c *ExtractConfig) (*ast.File, error) {
 	// TODO: find a good OpenAPI validator. Both go-openapi and kin-openapi
 	// seem outdated. The k8s one might be good, but avoid pulling in massive
 	// amounts of dependencies.
 
+	if c == nil {
+		c = &ExtractConfig{}
+	}
 	f := &ast.File{}
 	add := func(d ast.Decl) {
 		if d != nil {
@@ -71,7 +104,7 @@ func Extract(data cue.InstanceOrValue, c *Config) (*ast.File, error) {
 	if s, _ := v.LookupPath(cue.MakePath(cue.Str("info"), cue.Str("description"))).String(); s != "" {
 		doc += "\n\n" + s
 	}
-	cg := internal.NewComment(true, doc)
+	cg := jsonschema.NewComment(true, doc)
 
 	if c.PkgName != "" {
 		p := &ast.Package{Name: ast.NewIdent(c.PkgName)}
@@ -82,8 +115,7 @@ func Extract(data cue.InstanceOrValue, c *Config) (*ast.File, error) {
 	}
 
 	js, err := jsonschema.Extract(data, &jsonschema.Config{
-		//lint:ignore SA1019 MapRef would need a copy of jsonschema's fragment handling
-		Map:            openAPIMapping,
+		Map:            openAPIMapping, //nolint:staticcheck // as upstream: MapRef would need a copy of jsonschema's fragment handling
 		Root:           oapiSchemas,
 		DefaultVersion: schemaVersion,
 		StrictFeatures: c.StrictFeatures,

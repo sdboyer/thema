@@ -14,12 +14,12 @@ import (
 	cerrors "cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/load"
 	"cuelang.org/go/encoding/json"
-	"cuelang.org/go/encoding/jsonschema"
-	"cuelang.org/go/encoding/openapi"
 	"cuelang.org/go/encoding/yaml"
 	"github.com/sdboyer/jenny"
 	"github.com/sdboyer/thema/authoring"
 	"github.com/sdboyer/thema/diag"
+	"github.com/sdboyer/thema/encoding/openapi"
+	"github.com/sdboyer/thema/internal/jsonschema"
 	"github.com/spf13/cobra"
 )
 
@@ -103,6 +103,9 @@ The schema is the whole document's components, each a definition, or, with
 #/components/schemas/Foo, with the components that schema refers to as
 definitions beside it.
 
+The x- keywords of each property's schema are kept, as an @openapi(...)
+attribute on the property's field.
+
 The new lineage's tip.thema is written in its directory, given by -l, or
 printed with --stdout.
 `,
@@ -118,6 +121,9 @@ The JSON Schema document is read from <path>, or from stdin. The schema is
 the whole document, or, with --src-subpath, the one schema it points at, such
 as #/$defs/ship, with the schemas that schema refers to as definitions beside
 it.
+
+The x- keywords of each property's schema are kept, as an @openapi(...)
+attribute on the property's field.
 
 The new lineage's tip.thema is written in its directory, given by -l, or
 printed with --stdout.
@@ -341,7 +347,7 @@ func (ic *initCommand) runOpenAPI(cmd *cobra.Command, args []string) {
 		ic.err = ic.openAPISchema(v, version)
 		return
 	}
-	fo, err := openapi.Extract(v, &openapi.Config{})
+	fo, err := openapi.Extract(v, nil)
 	if err != nil {
 		ic.err = err
 		return

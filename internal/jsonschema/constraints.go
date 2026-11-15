@@ -14,8 +14,6 @@
 
 package jsonschema
 
-//go:generate go run generate_constraints.go
-
 import (
 	"cuelang.org/go/cue"
 )

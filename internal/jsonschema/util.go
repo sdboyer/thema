@@ -20,7 +20,7 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/ast"
 	"cuelang.org/go/encoding/json"
-	"cuelang.org/go/encoding/jsonschema/internal/structbuilder"
+	"github.com/sdboyer/thema/internal/jsonschema/internal/structbuilder"
 )
 
 // TODO a bunch of stuff in this file is potentially suitable

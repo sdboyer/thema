@@ -33,10 +33,7 @@ import (
 	"cuelang.org/go/cue/ast/astutil"
 	"cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/token"
-	"cuelang.org/go/encoding/jsonschema/internal/structbuilder"
-	"cuelang.org/go/internal"
-	"cuelang.org/go/internal/cueexperiment"
-	"cuelang.org/go/internal/value"
+	"github.com/sdboyer/thema/internal/jsonschema/internal/structbuilder"
 )
 
 const (
@@ -60,7 +57,7 @@ type decoder struct {
 
 	// targetExp holds the experiments of [Config.TargetLanguageVersion],
 	// which decide the spellings the extracted syntax may use.
-	targetExp *cueexperiment.File
+	targetExp *targetExperiments
 
 	root   cue.Value
 	rootID *url.URL
@@ -178,7 +175,7 @@ func (d *decoder) decode(v cue.Value) *ast.File {
 			v = root
 		} else {
 			if !root.Exists() {
-				root = value.Context(v).CompileString("{}")
+				root = v.Context().CompileString("{}")
 			}
 			if root.Kind() != cue.StructKind {
 				d.errf(root, "value at path %v must be struct containing definitions but is actually %v", d.cfg.Root, root)
@@ -690,6 +687,10 @@ type schemaInfo struct {
 	schemaVersionPresent bool
 
 	hasConstraints bool
+
+	// extensions holds the schema's x- keywords, in the order they
+	// appear; see [schemaInfo.extensionsAttr]. (thema)
+	extensions []extension
 }
 
 func (s *state) idTag() *ast.Attribute {
@@ -923,7 +924,7 @@ func (s schemaInfo) comment() *ast.CommentGroup {
 	if doc == "" {
 		return nil
 	}
-	return internal.NewComment(true, doc)
+	return NewComment(true, doc)
 }
 
 func (s *state) schema(n cue.Value) ast.Expr {
@@ -983,6 +984,10 @@ func (s0 *state) schemaState(n cue.Value, types cue.Kind, init func(*state)) (ex
 	for pass := range numPhases {
 		for _, f := range fields {
 			key, value := f.key, f.value
+			if pass == 0 && strings.HasPrefix(key, "x-") {
+				// thema: keep every x- keyword, including one beside a $ref.
+				s.addExtension(key, value)
+			}
 			if pass == 0 && key == "$ref" {
 				// Before 2019-19, keywords alongside $ref are ignored so keep
 				// track of whether we've seen any non-$ref keywords so we can

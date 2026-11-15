@@ -11,9 +11,13 @@ import (
 	"testing/fstest"
 
 	"cuelang.org/go/cue"
+	"cuelang.org/go/cue/parser"
+	"github.com/google/go-cmp/cmp"
 	"github.com/sdboyer/thema"
 	"github.com/sdboyer/thema/authoring"
 	"github.com/sdboyer/thema/diag"
+	"github.com/sdboyer/thema/encoding/openapi"
+	tastutil "github.com/sdboyer/thema/internal/astutil"
 	"github.com/sdboyer/thema/internal/util"
 	tload "github.com/sdboyer/thema/load"
 )
@@ -339,6 +343,130 @@ func TestLineageInitOpenAPISubpath(t *testing.T) {
 		if (err == nil) != tc.valid {
 			t.Errorf("validating %s: %v, want valid %v", tc.data, err, tc.valid)
 		}
+	}
+}
+
+const initTestOpenAPIExtensions = `{
+  "openapi": "3.0.0",
+  "info": {"title": "test", "version": "v1"},
+  "paths": {},
+  "components": {
+    "schemas": {
+      "Foo": {
+        "type": "object",
+        "x-component": "not kept",
+        "properties": {
+          "shipRegistryId": {"type": "string", "x-property-name": "ship-registry-id", "x-sensitive": true},
+          "bar": {"$ref": "#/components/schemas/Bar", "x-ref": {"a": [1, "b, c"]}}
+        }
+      },
+      "Bar": {"type": "object", "properties": {"z": {"type": "string", "x-z": null}}}
+    }
+  }
+}`
+
+const initTestJSONSchemaExtensions = `{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "a": {"type": "string", "x-a": ["b", 1]}
+  }
+}`
+
+// TestLineageInitExtensions checks that init openapi, with and without
+// --src-subpath, and init jsonschema keep the x- keywords of each property's
+// schema as an @openapi attribute on its field, in the tip they write, which
+// binds; Extensions reads them back.
+func TestLineageInitExtensions(t *testing.T) {
+	cases := []struct {
+		name string
+		args []string
+		want string
+		// field is the path of a field in the tip's Schema, and exts what
+		// Extensions reads from it.
+		field []string
+		exts  map[string]any
+	}{
+		{
+			name: openapiCmd,
+			args: []string{openapiCmd, writeInput(t, "oapi.json", initTestOpenAPIExtensions)},
+			want: `Schema: {
+	#Bar: {
+		z?: string @openapi(x-z=null)
+		...
+	}
+	#Foo: {
+		shipRegistryId?: string @openapi(x-property-name="ship-registry-id", x-sensitive=true)
+		bar?:            #Bar   @openapi(x-ref={"a":[1,"b, c"]})
+		...
+	}
+}
+`,
+			field: []string{"#Foo", "shipRegistryId"},
+			exts:  map[string]any{"x-property-name": "ship-registry-id", "x-sensitive": true},
+		},
+		{
+			name: "openapi --src-subpath",
+			args: []string{openapiCmd, writeInput(t, "oapi.json", initTestOpenAPIExtensions), "--src-subpath", "#/components/schemas/Foo"},
+			want: `Schema: {
+	shipRegistryId?: string @openapi(x-property-name="ship-registry-id", x-sensitive=true)
+	bar?:            #Bar   @openapi(x-ref={"a":[1,"b, c"]})
+	#Bar: {
+		z?: string @openapi(x-z=null)
+		...
+	}
+	...
+}
+`,
+			field: []string{"bar"},
+			exts:  map[string]any{"x-ref": map[string]any{"a": []any{json.Number("1"), "b, c"}}},
+		},
+		{
+			name: jsonschemaCmd,
+			args: []string{jsonschemaCmd, writeInput(t, "s.json", initTestJSONSchemaExtensions)},
+			want: `Schema: {
+	a?: string @openapi(x-a=["b",1])
+	...
+}
+`,
+			field: []string{"a"},
+			exts:  map[string]any{"x-a": []any{"b", json.Number("1")}},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			runInit(t, dir, append([]string{lineageCmd, initName}, append(tc.args, "-l", initDir)...)...)
+			text, err := os.ReadFile(filepath.Join(dir, initDir, authoring.TipFile)) //nolint:gosec // a file under t.TempDir()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(text) != tc.want {
+				t.Errorf("lineage init %s wrote:\n%s\nwant:\n%s", strings.Join(tc.args, " "), text, tc.want)
+			}
+			bindInitDir(t, dir, initDir)
+
+			f, err := parser.ParseFile(authoring.TipFile, text)
+			if err != nil {
+				t.Fatal(err)
+			}
+			fd, err := tastutil.GetFieldByLabel(f, "Schema")
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, label := range tc.field {
+				if fd, err = tastutil.GetFieldByLabel(fd.Value, label); err != nil {
+					t.Fatalf("no field %s in the tip's Schema: %v", strings.Join(tc.field, "."), err)
+				}
+			}
+			exts, err := openapi.Extensions(fd)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if diff := cmp.Diff(tc.exts, exts); diff != "" {
+				t.Errorf("Extensions of %s (-want +got):\n%s", strings.Join(tc.field, "."), diff)
+			}
+		})
 	}
 }
 

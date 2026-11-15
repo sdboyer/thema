@@ -19,8 +19,6 @@ import (
 	"strings"
 )
 
-//go:generate go tool stringer -type=Version -linecomment
-
 type Version int
 
 const (
