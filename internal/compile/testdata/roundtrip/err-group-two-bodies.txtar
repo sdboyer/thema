@@ -1,0 +1,55 @@
+Required fields missing from two structs the lens writes empty: one
+diagnostic for each struct, since each fix is written in its own body.
+-- ship/history/0.0.thema --
+Schema: {
+	id: string
+}
+-- ship/history/1.0.thema --
+Schema: {
+	id: string
+	meta: {
+		owner: string
+		team:  string
+	}
+	audit: {
+		by: string
+		at: string
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		id: v0_0.id
+		meta: {}
+		audit: {}
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	id: string
+	meta: {
+		owner: string
+		team:  string
+	}
+	audit: {
+		by: string
+		at: string
+	}
+}
+-- out/error --
+error[E0346]: ForwardLens produces nothing for meta.owner and meta.team, which v1.0 requires
+  --> history/1.0.thema:17:3
+   |
+17 |         meta: {}
+   |         ^^^^
+   |
+   = help: add owner: <mapping>, team: <mapping> to v1_0.meta
+
+error[E0346]: ForwardLens produces nothing for audit.by and audit.at, which v1.0 requires
+  --> history/1.0.thema:18:3
+   |
+18 |         audit: {}
+   |         ^^^^^
+   |
+   = help: add by: <mapping>, at: <mapping> to v1_0.audit

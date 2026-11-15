@@ -254,25 +254,39 @@ func (e *edge) bodyName(lit cue.Path) string {
 // its struct (a: {b: v}), never by a dotted path, which CUE does not parse
 // as a label.
 func nested(base cue.Path, v string, paths ...cue.Path) string {
+	return nestedf(base, func(cue.Path) string { return v }, paths...)
+}
+
+// nestedf is nested with each field's value given by v, from its path.
+func nestedf(base cue.Path, v func(cue.Path) string, paths ...cue.Path) string {
 	k := len(base.Selectors())
 	tree := &node{}
 	for _, p := range paths {
 		tree.at(cue.MakePath(p.Selectors()[k:]...))
 	}
-	var render func(n *node) string
-	render = func(n *node) string {
+	var render func(n *node, at cue.Path) string
+	render = func(n *node, at cue.Path) string {
 		parts := make([]string, len(n.order))
 		for i, name := range n.order {
-			label, c := cue.MakePath(cue.Str(name)).String(), n.fields[name]
+			label, c, p := cue.MakePath(cue.Str(name)).String(), n.fields[name], appendPath(at, cue.Str(name))
 			if len(c.order) == 0 {
-				parts[i] = label + ": " + v
+				parts[i] = label + ": " + v(p)
 			} else {
-				parts[i] = label + ": {" + render(c) + "}"
+				parts[i] = label + ": {" + render(c, p) + "}"
 			}
 		}
 		return strings.Join(parts, ", ")
 	}
-	return render(tree)
+	return render(tree, base)
+}
+
+// andList joins names as a sentence lists them: a, b and c.
+func andList(names []string) string {
+	last := len(names) - 1
+	if last < 1 {
+		return strings.Join(names, "")
+	}
+	return strings.Join(names[:last], ", ") + " and " + names[last]
 }
 
 // keyOf is the last selector of p, as the field's own key is written.
@@ -321,6 +335,9 @@ type edge struct {
 	// missing is every required target field an unwritten lens produces
 	// nothing for, reported once by unwritten.
 	missing []cue.Path
+	// groups holds the findings reported one diagnostic per code per body
+	// the author wrote, by flush.
+	groups []*group
 	// root is the identifier the author's references start from, which is
 	// also the normal form's field for the instance the lens takes: the
 	// version's parameter (v0_0), or item inside an each body.
@@ -1304,6 +1321,7 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 	e.settle(root, cue.MakePath(), b)
 	e.unwritten()
 	e.unmapped(b, consumed, out)
+	e.flush()
 	if e.each == nil {
 		e.declare(b, out)
 		out.lacunas = append(out.lacunas, out.derived...)
@@ -1755,12 +1773,8 @@ func (e *edge) fill(n *node, tbase cue.Path, b *body, consumed, dropped map[stri
 				continue
 			}
 			if e.optional(e.S, spath) && e.required(e.T, tpath) {
-				lit, _ := e.within(b, tpath)
-				fix := nested(lit, fmt.Sprintf("%s(%s.%s, <fallback>)", opCoalesce, e.root, spath), tpath)
-				if len(lit.Selectors()) > 0 {
-					fix += " in " + e.bodyName(lit)
-				}
-				e.errhf(diag.E0343, lookup(e.T, tpath).Pos(), "write "+fix+" to say what to use when it is absent", "%s is optional in %s and required in %s", spath, e.nameOf(e.sv), e.nameOf(e.tv))
+				lit, pos := e.within(b, tpath)
+				e.collect(diag.E0343, lit, pos, finding{spath: spath, tpath: tpath, decl: lookup(e.T, tpath).Pos()})
 				continue
 			}
 			c := n.child(name)
@@ -1779,9 +1793,9 @@ func (e *edge) fill(n *node, tbase cue.Path, b *body, consumed, dropped map[stri
 			// The body writes nothing, so the result gains no node for it,
 			// and a required struct with nothing required beneath is itself
 			// what the lens does not produce.
-			before := len(cerrors.Errors(e.errs))
+			before := e.reported()
 			e.fill(&node{}, tpath, b, consumed, dropped, out)
-			if e.required(e.T, tpath) && len(cerrors.Errors(e.errs)) == before {
+			if e.required(e.T, tpath) && e.reported() == before {
 				e.unproduced(b, tpath)
 			}
 			continue
@@ -1875,13 +1889,13 @@ func (e *edge) copyMisfit(code diag.Code, p token.Pos, spath, tpath cue.Path, fs
 }
 
 // unproduced reports a required target field no mapping produces, at the
-// innermost body the author wrote that holds it, which the help names. When
-// the author wrote no block, the field is collected for unwritten, which
-// reports them all at once.
+// innermost body the author wrote that holds it, which the help names; flush
+// reports it with the body's others. When the author wrote no block, the
+// field is collected for unwritten, which reports them all at once.
 func (e *edge) unproduced(b *body, tpath cue.Path) {
 	if e.written {
 		lit, pos := e.within(b, tpath)
-		e.errhf(diag.E0346, pos, fmt.Sprintf("add %s to %s", nested(lit, "<mapping>", tpath), e.bodyName(lit)), "%s produces nothing for %s, which %s requires", e.dir, tpath, e.nameOf(e.tv))
+		e.collect(diag.E0346, lit, pos, finding{tpath: tpath})
 		return
 	}
 	e.missing = append(e.missing, tpath)
@@ -1900,14 +1914,153 @@ func (e *edge) unwritten() {
 		names = append(names, p.String())
 	}
 	b := diag.New(diag.E0346).At(e.blockPos)
-	if h := fmt.Sprintf("%s has no %s, and %s requires %s", e.lensOwner(), e.dir, e.nameOf(e.tv), strings.Join(names, ", ")); len(h) <= diag.MaxHeadline {
+	if h := fmt.Sprintf("%s has no %s, and %s requires %s", e.lensOwner(), e.dir, e.nameOf(e.tv), andList(names)); len(h) <= diag.MaxHeadline {
 		b.Headline(h)
 	} else {
 		b.Headlinef("%s has no %s, and %s requires %d fields", e.lensOwner(), e.dir, e.nameOf(e.tv), len(names)).
-			Notef(token.NoPos, "%s requires %s", e.nameOf(e.tv), strings.Join(names, ", "))
+			Notef(token.NoPos, "%s requires %s", e.nameOf(e.tv), andList(names))
 	}
 	b.Helpf("write %s: {%s: _, %s: {%s}} in %s", e.dir, e.paramOf(e.sv), e.paramOf(e.tv), nested(cue.MakePath(), "<mapping>", e.missing...), e.file)
 	e.errs = cerrors.Append(e.errs, b.Err())
+}
+
+// A finding is one field of a grouped diagnostic.
+type finding struct {
+	// spath and tpath are the field in the source and target schemas, as
+	// the diagnostic names it; key is its key in the body, for a drop (see
+	// dropKey); decl is where the target declares it.
+	spath, tpath, key cue.Path
+	decl              token.Pos
+}
+
+// A group is the findings of one code in one body the author wrote, at lit,
+// which is at pos. Their fix is written in that body, so flush reports them
+// as one diagnostic, whose help writes it whole: a diagnostic per field would
+// each offer part of it.
+type group struct {
+	code diag.Code
+	lit  cue.Path
+	pos  token.Pos
+	fs   []finding
+}
+
+// collect adds f to the group of code for the body at lit.
+func (e *edge) collect(code diag.Code, lit cue.Path, pos token.Pos, f finding) {
+	for _, g := range e.groups {
+		if g.code == code && g.lit.String() == lit.String() {
+			g.fs = append(g.fs, f)
+			return
+		}
+	}
+	e.groups = append(e.groups, &group{code: code, lit: lit, pos: pos, fs: []finding{f}})
+}
+
+// reported counts what the edge has found wrong so far: its diagnostics,
+// and the findings flush has yet to report.
+func (e *edge) reported() int {
+	n := len(cerrors.Errors(e.errs))
+	for _, g := range e.groups {
+		n += len(g.fs)
+	}
+	return n
+}
+
+// flush reports each group as one diagnostic, in the order the groups were
+// first found.
+func (e *edge) flush() {
+	for _, g := range e.groups {
+		var b *diag.B
+		switch g.code {
+		case diag.E0343:
+			b = e.uncoalesced(g)
+		case diag.E0346:
+			b = e.unproducedIn(g)
+		case diag.E0347:
+			b = e.unmappedIn(g)
+		}
+		e.errs = cerrors.Append(e.errs, b.Err())
+	}
+	e.groups = nil
+}
+
+// headline is sentence, or, where it is longer than a headline may be, short
+// with sentence as a note.
+func headline(b *diag.B, sentence, short string) {
+	if len(sentence) <= diag.MaxHeadline {
+		b.Headline(sentence)
+		return
+	}
+	b.Headline(short).Note(token.NoPos, sentence)
+}
+
+// unproducedIn reports the required target fields nothing in one body
+// produces (E0346).
+func (e *edge) unproducedIn(g *group) *diag.B {
+	var names []string
+	var paths []cue.Path
+	for _, f := range g.fs {
+		names = append(names, f.tpath.String())
+		paths = append(paths, f.tpath)
+	}
+	b := diag.New(diag.E0346).At(g.pos)
+	headline(b, fmt.Sprintf("%s produces nothing for %s, which %s requires", e.dir, andList(names), e.nameOf(e.tv)),
+		fmt.Sprintf("%s produces nothing for %d fields %s requires", e.dir, len(names), e.nameOf(e.tv)))
+	return b.Helpf("add %s to %s", nested(g.lit, "<mapping>", paths...), e.bodyName(g.lit))
+}
+
+// unmappedIn reports the source fields the target does not declare that
+// nothing in one body maps or drops (E0347).
+func (e *edge) unmappedIn(g *group) *diag.B {
+	var names, moves []string
+	var keys []cue.Path
+	for _, f := range g.fs {
+		names = append(names, f.spath.String())
+		moves = append(moves, fmt.Sprintf("<field>: %s.%s", e.root, f.spath))
+		keys = append(keys, f.key)
+	}
+	drop := nested(g.lit, opDrop, keys...)
+	if len(g.lit.Selectors()) > 0 {
+		drop = "add " + drop + " to " + e.bodyName(g.lit)
+	}
+	b := diag.New(diag.E0347).At(g.pos)
+	if len(g.fs) == 1 {
+		return b.Headlinef("%s declares %s and %s does not, and nothing maps it", e.nameOf(e.sv), names[0], e.nameOf(e.tv)).
+			Helpf("write %s to move it, or %s", moves[0], drop)
+	}
+	headline(b, fmt.Sprintf("%s declares %s, which %s does not, and nothing maps them", e.nameOf(e.sv), andList(names), e.nameOf(e.tv)),
+		fmt.Sprintf("%s declares %d fields %s does not, and nothing maps them", e.nameOf(e.sv), len(names), e.nameOf(e.tv)))
+	return b.Helpf("write %s to move them, or %s", strings.Join(moves, ", "), drop)
+}
+
+// uncoalesced reports the optional source fields one body would copy into
+// required target fields with no fallback (E0343), with where the target
+// declares each.
+func (e *edge) uncoalesced(g *group) *diag.B {
+	var names []string
+	var paths []cue.Path
+	vals := make(map[string]string)
+	for _, f := range g.fs {
+		names = append(names, f.spath.String())
+		paths = append(paths, f.tpath)
+		vals[f.tpath.String()] = fmt.Sprintf("%s(%s.%s, <fallback>)", opCoalesce, e.root, f.spath)
+	}
+	fix := nestedf(g.lit, func(p cue.Path) string { return vals[p.String()] }, paths...)
+	if len(g.lit.Selectors()) > 0 {
+		fix += " in " + e.bodyName(g.lit)
+	}
+	b := diag.New(diag.E0343).At(g.pos)
+	it := "it is"
+	if len(g.fs) == 1 {
+		b.Headlinef("%s is optional in %s and required in %s", names[0], e.nameOf(e.sv), e.nameOf(e.tv))
+	} else {
+		it = "they are"
+		headline(b, fmt.Sprintf("%s are optional in %s and required in %s", andList(names), e.nameOf(e.sv), e.nameOf(e.tv)),
+			fmt.Sprintf("%d fields are optional in %s and required in %s", len(names), e.nameOf(e.sv), e.nameOf(e.tv)))
+	}
+	for _, f := range g.fs {
+		b.Notef(f.decl, "%s requires %s", e.nameOf(e.tv), f.tpath)
+	}
+	return b.Helpf("write %s to say what to use when %s absent", fix, it)
 }
 
 // unmapped applies the direction's rule to every source field the target does
@@ -1922,11 +2075,7 @@ func (e *edge) unmapped(b *body, consumed map[string]bool, out *compiledLens) {
 			}
 			key := b.dropKey(spath)
 			lit, pos := e.within(b, key)
-			drop := nested(lit, opDrop, key)
-			if len(lit.Selectors()) > 0 {
-				drop = "add " + drop + " to " + e.bodyName(lit)
-			}
-			e.errhf(diag.E0347, pos, fmt.Sprintf("write <field>: %s.%s to move it, or %s", e.root, spath, drop), "%s declares %s and %s does not, and nothing maps it", e.nameOf(e.sv), spath, e.nameOf(e.tv))
+			e.collect(diag.E0347, lit, pos, finding{spath: spath, key: key})
 		case backward:
 			if e.carries(b, consumed, spath) {
 				// Translation carries it as a field the target does not

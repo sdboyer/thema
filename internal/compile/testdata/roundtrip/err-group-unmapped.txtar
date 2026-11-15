@@ -1,0 +1,32 @@
+Two fields the source has and the target lacks, which the lens neither maps
+nor drops: one diagnostic for the body, whose help drops both, since the fix
+for both is written there.
+-- ship/history/0.0.thema --
+Schema: {
+	id:     string
+	legacy: string
+	shadow: string
+}
+-- ship/history/1.0.thema --
+Schema: {
+	id: string
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		id: v0_0.id
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	id: string
+}
+-- out/error --
+error[E0347]: v0.0 declares legacy and shadow, which v1.0 does not, and nothing maps them
+ --> history/1.0.thema:5:1
+  |
+5 | ForwardLens: {
+  | ^^^^^^^^^^^
+  |
+  = help: write <field>: v0_0.legacy, <field>: v0_0.shadow to move them, or legacy: _drop, shadow: _drop
