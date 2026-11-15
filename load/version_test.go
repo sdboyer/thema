@@ -26,7 +26,7 @@ func TestThemaVersion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := cuecontext.New().BuildInstance(inst).Err(); err != nil {
+	if err = cuecontext.New().BuildInstance(inst).Err(); err != nil {
 		t.Fatalf("requiring ThemaVersion: %v", err)
 	}
 
