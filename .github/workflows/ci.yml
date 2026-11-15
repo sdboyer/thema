@@ -140,9 +140,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
     steps:
       - uses: actions/checkout@v7
+        with:
+          # golangci-lint diffs against the base branch or the push's
+          # previous commit, so it needs the history.
+          fetch-depth: 0
 
       # scripts/ decides what is released: release.sh tags and pushes, and
       # release-check.sh also guards the release workflow. No test runs them,
@@ -161,8 +164,14 @@ jobs:
           # The existing code carries a few hundred findings spread across
           # every linter, predating this config. Only fail on issues
           # introduced by the PR (or pushed commits) until those are paid
-          # down; drop this to make lint fully enforcing.
-          only-new-issues: true
+          # down; drop the args to make lint fully enforcing. What changed
+          # comes from git: the action's only-new-issues asks GitHub for the
+          # diff, which GitHub refuses over 300 files, and then lints the
+          # whole tree.
+          args: >-
+            ${{ github.event_name == 'pull_request'
+            && format('--new-from-merge-base=origin/{0}', github.base_ref)
+            || format('--new-from-rev={0}', github.event.before) }}
 
   cue:
     runs-on: ubuntu-latest
