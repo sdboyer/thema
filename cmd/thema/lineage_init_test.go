@@ -374,9 +374,9 @@ const initTestJSONSchemaExtensions = `{
 }`
 
 // TestLineageInitExtensions checks that init openapi, with and without
-// --src-subpath, and init jsonschema keep the x- keywords of each property's
-// schema as an @openapi attribute on its field, in the tip they write, which
-// binds; Extensions reads them back.
+// --src-subpath, keeps the x- keywords of each property's schema as an
+// @openapi attribute on its field, in the tip it writes, which binds, and
+// that init jsonschema keeps none; Extensions reads them back.
 func TestLineageInitExtensions(t *testing.T) {
 	cases := []struct {
 		name string
@@ -422,15 +422,15 @@ func TestLineageInitExtensions(t *testing.T) {
 			exts:  map[string]any{"x-ref": map[string]any{"a": []any{json.Number("1"), "b, c"}}},
 		},
 		{
+			// JSON Schema gives x- keywords no meaning, so none is kept.
 			name: jsonschemaCmd,
 			args: []string{jsonschemaCmd, writeInput(t, "s.json", initTestJSONSchemaExtensions)},
 			want: `Schema: {
-	a?: string @openapi(x-a=["b",1])
+	a?: string
 	...
 }
 `,
 			field: []string{"a"},
-			exts:  map[string]any{"x-a": []any{"b", json.Number("1")}},
 		},
 	}
 	for _, tc := range cases {

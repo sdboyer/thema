@@ -984,7 +984,7 @@ func (s0 *state) schemaState(n cue.Value, types cue.Kind, init func(*state)) (ex
 	for pass := range numPhases {
 		for _, f := range fields {
 			key, value := f.key, f.value
-			if pass == 0 && strings.HasPrefix(key, "x-") {
+			if pass == 0 && s.cfg.Extensions && strings.HasPrefix(key, "x-") {
 				// thema: keep every x- keyword, including one beside a $ref.
 				s.addExtension(key, value)
 			}

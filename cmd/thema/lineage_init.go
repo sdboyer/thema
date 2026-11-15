@@ -122,9 +122,6 @@ the whole document, or, with --src-subpath, the one schema it points at, such
 as #/$defs/ship, with the schemas that schema refers to as definitions beside
 it.
 
-The x- keywords of each property's schema are kept, as an @openapi(...)
-attribute on the property's field.
-
 The new lineage's tip.thema is written in its directory, given by -l, or
 printed with --stdout.
 `,
@@ -417,6 +414,7 @@ func (ic *initCommand) openAPISchema(doc upcue.Value, version jsonschema.Version
 		// As openapi.Extract: OpenAPI 3.0 allows no keyword JSON Schema
 		// does not know.
 		StrictKeywords: version == jsonschema.VersionOpenAPI,
+		Extensions:     true,
 	})
 }
 

@@ -321,6 +321,13 @@ type Config struct {
 	// will be used.
 	DefaultVersion Version
 
+	// Extensions keeps the x- keywords of each property's schema, as an
+	// @openapi attribute on the property's field; see
+	// [schemaInfo.extensionsAttr]. OpenAPI gives x- keywords their meaning
+	// as specification extensions, and JSON Schema gives them none, so only
+	// a decoder of OpenAPI sets it. (thema)
+	Extensions bool
+
 	_ struct{} // prohibit casting from different type.
 }
 
