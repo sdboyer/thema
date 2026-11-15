@@ -2,6 +2,7 @@ package compile
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -214,6 +215,120 @@ func TestDevelopment(t *testing.T) {
 			if d.Severity != diag.SeverityWarning {
 				t.Errorf("severity = %v, want warning", d.Severity)
 			}
+		}
+	})
+	// The derivation's findings are E1001's notes, each with its code and
+	// followed by its own notes, where they were or, with no position of their
+	// own, where the finding is, so that every renderer lists them under it.
+	// Their fixes are its help, never dropped or run on into a note: the help
+	// that writes the block first, then what goes in it.
+	t.Run("a pending lens keeps each finding's code and help", func(t *testing.T) {
+		from := "Schema: {\n\tid:    string\n\tname:  string\n}\n"
+		to := "Schema: {\n\tid:   int\n\tcrew: int\n}\n"
+		c, err := Development(ctx, "ship", files("history/0.0.thema", from, TipFile, to))
+		if err != nil {
+			t.Fatal(err)
+		}
+		ds := diag.From(c.Pending, diag.Context{})
+		if len(ds) == 0 || ds[0].Code != diag.E1001 || !strings.Contains(ds[0].Headline, "ForwardLens") {
+			t.Fatalf("want the ForwardLens pending first, got %v", ds)
+		}
+		var notes []string
+		for _, n := range ds[0].Notes {
+			if n.Pos != nil {
+				notes = append(notes, fmt.Sprintf("%s:%d: %s", n.Pos.File, n.Pos.Line, n.Label))
+				continue
+			}
+			notes = append(notes, n.Label)
+		}
+		wantNotes := []string{
+			"tip.thema:4: the ForwardLens in tip.thema would copy v0_0.id into id, which does not accept every value of it (E0358)",
+			"tip.thema:4: both 0.0 and tip declare id, so a lens that does not map it copies it",
+			"tip.thema:4: id in tip was string and is now int (copying v0_0.id; compatibility rule value-narrowed)",
+			"tip.thema:4: tip.thema has no ForwardLens, and tip requires crew (E0346)",
+			"tip.thema:4: 0.0 declares name and tip does not, and nothing maps it (E0347)",
+			"translating from 0.0 to tip needs it; until tip.thema writes it, that translation fails (E1002)",
+		}
+		if !slices.Equal(notes, wantNotes) {
+			t.Errorf("notes:\n got %q\nwant %q", notes, wantNotes)
+		}
+		var text strings.Builder
+		diag.Render(&text, ds[:1], diag.RenderOptions{Source: func(f string) ([]byte, bool) { return []byte(to), f == TipFile }})
+		// The labels under the excerpt, in the order they are shown.
+		var rendered []string
+		for _, l := range strings.Split(text.String(), "\n") {
+			if _, rest, ok := strings.Cut(l, "| "); ok {
+				if label, ok := strings.CutPrefix(strings.TrimLeft(rest, " "), "- "); ok {
+					rendered = append(rendered, label)
+				}
+			}
+		}
+		var want []string
+		for _, n := range wantNotes[:5] {
+			want = append(want, strings.TrimPrefix(n, "tip.thema:4: "))
+		}
+		if !slices.Equal(rendered, want) {
+			t.Errorf("rendered notes are not each under their finding:\n%s", text.String())
+		}
+		wantHelp := []string{
+			"write ForwardLens: {v0_0: _, tip: {crew: <mapping>}} in tip.thema",
+			"map id in the ForwardLens: a _match, a computed value, or a constant",
+			"write <field>: v0_0.name to move it, or name: _drop",
+		}
+		if !slices.Equal(ds[0].Help, wantHelp) {
+			t.Errorf("help:\n got %q\nwant %q", ds[0].Help, wantHelp)
+		}
+	})
+	// A lens that is not written and must produce several fields is one
+	// finding with one block to write, not one per field each offering a
+	// different whole block.
+	t.Run("an unwritten lens names every field it must produce once", func(t *testing.T) {
+		from := "Schema: {\n\tid: string\n}\n"
+		to := "Schema: {\n\tid:   string\n\tcrew: int\n\trank: int\n}\n"
+		c, err := Development(ctx, "ship", files("history/0.0.thema", from, TipFile, to))
+		if err != nil {
+			t.Fatal(err)
+		}
+		ds := diag.From(c.Pending, diag.Context{})
+		if len(ds) == 0 || ds[0].Code != diag.E1001 {
+			t.Fatalf("want E1001 first, got %v", ds)
+		}
+		var notes []string
+		for _, n := range ds[0].Notes {
+			notes = append(notes, n.Label)
+		}
+		if want := "tip.thema has no ForwardLens, and tip requires crew, rank (E0346)"; !slices.Contains(notes, want) {
+			t.Errorf("notes: got %q, want one %q", notes, want)
+		}
+		wantHelp := []string{"write ForwardLens: {v0_0: _, tip: {crew: <mapping>, rank: <mapping>}} in tip.thema"}
+		if !slices.Equal(ds[0].Help, wantHelp) {
+			t.Errorf("help:\n got %q\nwant %q", ds[0].Help, wantHelp)
+		}
+	})
+	t.Run("an unwritten lens with many fields lists them in a note", func(t *testing.T) {
+		var fields []string
+		to := "Schema: {\n\tid: string\n"
+		for _, f := range []string{"commander", "navigator", "engineer", "quartermaster", "boatswain", "surgeon", "carpenter", "lookout", "gunner", "purser", "steward"} {
+			fields = append(fields, f)
+			to += "\t" + f + ": string\n"
+		}
+		to += "}\n"
+		_, err := Compile(ctx, "ship", files("history/0.0.thema", "Schema: {\n\tid: string\n}\n", "history/1.0.thema", to))
+		var e0346 []diag.Diagnostic
+		for _, d := range diag.From(err, diag.Context{}) {
+			if d.Code == diag.E0346 {
+				e0346 = append(e0346, d)
+			}
+		}
+		if len(e0346) != 1 {
+			t.Fatalf("want one E0346, got %v", e0346)
+		}
+		d := e0346[0]
+		if want := "history/1.0.thema has no ForwardLens, and 1.0 requires 11 fields"; d.Headline != want {
+			t.Errorf("headline:\n got %q\nwant %q", d.Headline, want)
+		}
+		if len(d.Notes) != 1 || d.Notes[0].Label != "1.0 requires "+strings.Join(fields, ", ") {
+			t.Errorf("notes: %v", d.Notes)
 		}
 	})
 	t.Run("the tip's lenses name it tip", func(t *testing.T) {

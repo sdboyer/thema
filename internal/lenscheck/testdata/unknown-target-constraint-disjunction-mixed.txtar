@@ -16,4 +16,5 @@ v1_0: {
 }
 -- out --
 unknown
-v1_0.o is a struct written to v1_0.o, a disjunction in the target schema, mixing fields with conditional fields or embeddings, so which alternative it is an instance of depends on the instance; write it as one struct per alternative, each with its fields unconditional, in its own arm (rule unknown-target-constraint) @ lens.cue:3:2
+v1_0.o is a struct written to v1_0.o, a disjunction in the target schema, mixing fields with conditional fields or embeddings, so which alternative it is an instance of depends on the instance (rule unknown-target-constraint) @ lens.cue:3:2
+  help: write it as one struct per alternative, each with its fields unconditional, in its own arm

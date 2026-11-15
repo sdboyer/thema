@@ -287,14 +287,14 @@ func (w *walker) checkPatterns(gs, outer []pattern, subj string, pos token.Pos) 
 		}
 		if !src.present && !g.safe {
 			w.add(Finding{Path: subj, Verdict: NotTotal, Rule: RulePatternAbsent,
-				Detail: fmt.Sprintf("is under the pattern %s, but %s may be absent (%s), and comparing an absent field is an error rather than false; test presence first: if %s != _|_", g, w.inputRef(g.path), src.why, w.inputRef(g.path)), Pos: pos})
+				Detail: fmt.Sprintf("is under the pattern %s, but %s may be absent (%s), and comparing an absent field is an error rather than false", g, w.inputRef(g.path), src.why), Help: fmt.Sprintf("test presence first: if %s != _|_", w.inputRef(g.path)), Pos: pos})
 		}
 		for _, b := range src.branches {
 			if b.IncompleteKind()&cue.FloatKind != 0 {
 				// CUE compares numbers by value: 5.0 == 5. The equality holds
 				// for a float the path may hold, and says nothing about its kind.
 				w.add(Finding{Path: subj, Verdict: Unknown, Rule: RuleUnknownPattern,
-					Detail: fmt.Sprintf("is under the pattern %s, but %s may be a float, and CUE compares numbers by value (5.0 == 5), so the equality does not say what %s holds; test its type first: if (%s & int) != _|_", g, w.inputRef(g.path), w.inputRef(g.path), w.inputRef(g.path)), Pos: pos})
+					Detail: fmt.Sprintf("is under the pattern %s, but %s may be a float, and CUE compares numbers by value (5.0 == 5), so the equality does not say what %s holds", g, w.inputRef(g.path), w.inputRef(g.path)), Help: fmt.Sprintf("test its type first: if (%s & int) != _|_", w.inputRef(g.path)), Pos: pos})
 				break
 			}
 		}
@@ -458,7 +458,7 @@ func (w *walker) childAlternatives(b cue.Value, rel cue.Path) (alts []cue.Value,
 // with the reason as a finding's detail, where they cannot be shown to. Within
 // a hidden field no coverage is required: an absent field leaves it
 // incomplete, as an absent input path does.
-func (w *walker) guarded(x ast.Expr, subj string, gs []pattern) (conjs []cueview.Conjunct, detail string, ok bool) {
+func (w *walker) guarded(x ast.Expr, subj string, gs []pattern) (conjs []cueview.Conjunct, detail, help string, ok bool) {
 	var cands, arms [][]pattern
 	all := w.tree.Conjuncts(x)
 	for _, c := range all {
@@ -483,9 +483,10 @@ func (w *walker) guarded(x ast.Expr, subj string, gs []pattern) (conjs []cueview
 		conjs = all
 	}
 	if len(arms) == 0 || w.hidden > 0 || w.covers(cands) {
-		return conjs, "", true
+		return conjs, "", "", true
 	}
-	return conjs, fmt.Sprintf("reads %s, which is written only under %s, and the checker cannot show that holds wherever %s is written%s; write %s under the same patterns, or %s on every path", text(x), describePatternSets(arms), subj, underPatterns(gs), subj, text(x)), false
+	return conjs, fmt.Sprintf("reads %s, which is written only under %s, and the checker cannot show that holds wherever %s is written%s", text(x), describePatternSets(arms), subj, underPatterns(gs)),
+		fmt.Sprintf("write %s under the same patterns, or %s on every path", subj, text(x)), false
 }
 
 // clausePatterns returns the patterns of the clauses of arms, in order: a

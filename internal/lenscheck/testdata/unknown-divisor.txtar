@@ -8,4 +8,5 @@ v0_0: _
 v1_0: {q: quo(10, v0_0.d)}
 -- out --
 unknown
-v1_0.q divides by v0_0.d, whose range [-5, 5] includes 0, though 0 may not be an instance; bound the divisor away from 0 (>0 or <0) (rule unknown-divisor) @ lens.cue:2:15
+v1_0.q divides by v0_0.d, whose range [-5, 5] includes 0, though 0 may not be an instance (rule unknown-divisor) @ lens.cue:2:15
+  help: bound the divisor away from 0 (>0 or <0)

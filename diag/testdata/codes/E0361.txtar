@@ -41,7 +41,7 @@ lenses: {
     {
       "code": "E0361",
       "severity": "error",
-      "headline": "a in the result of lens 0.0->1.0 is not total for some instance",
+      "headline": "a in the result of lens 0.0->1.0 copies v0_0.c, which may be absent: v0_0.c is optional in the source schema",
       "path": [
         "lenses",
         "0.0->1.0",
@@ -71,11 +71,11 @@ lenses: {
       },
       "notes": [
         {
-          "label": "a in the result of lens 0.0->1.0 copies v0_0.c, which may be absent: v0_0.c is optional in the source schema; write the field under if v0_0.c != _|_"
-        },
-        {
           "label": "a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule source-absent)"
         }
+      ],
+      "help": [
+        "write the field under if v0_0.c != _|_"
       ]
     }
   ],
@@ -86,11 +86,11 @@ lenses: {
   }
 }
 -- out/text --
-error[E0361]: a in the result of lens 0.0->1.0 is not total for some instance
+error[E0361]: a in the result of lens 0.0->1.0 copies v0_0.c, which may be absent: v0_0.c is optional in the source schema
   --> lineage.cue:23:7
    |
 23 |             a: v0_0.c
    |                ^^^^
    |
-   = note: a in the result of lens 0.0->1.0 copies v0_0.c, which may be absent: v0_0.c is optional in the source schema; write the field under if v0_0.c != _|_
    = note: a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule source-absent)
+   = help: write the field under if v0_0.c != _|_

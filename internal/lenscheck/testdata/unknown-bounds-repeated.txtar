@@ -8,4 +8,5 @@ v0_0: _
 v1_0: {z: v0_0.n - v0_0.n}
 -- out --
 unknown
-v1_0.z is an integer computed by v0_0.n - v0_0.n, in [-4294967295, 4294967295], which the checker cannot show within int64 and the target's 0 (an operand occurs more than once, and the checker treats each occurrence independently); bound the fields it reads (int32, >=0 & <=100) (rule unknown-bounds) @ lens.cue:2:11
+v1_0.z is an integer computed by v0_0.n - v0_0.n, in [-4294967295, 4294967295], which the checker cannot show within int64 and the target's 0 (an operand occurs more than once, and the checker treats each occurrence independently) (rule unknown-bounds) @ lens.cue:2:11
+  help: bound the fields it reads (int32, >=0 & <=100)

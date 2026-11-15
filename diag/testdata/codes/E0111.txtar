@@ -30,7 +30,7 @@ Schema: {
     {
       "code": "E0111",
       "severity": "error",
-      "headline": "ForwardLens takes an instance of 0.0: declare it as v0_0: _",
+      "headline": "ForwardLens takes an instance of 0.0, so v0_0 is _",
       "primary": {
         "file": "history/1.0.thema",
         "line": 7,
@@ -50,7 +50,7 @@ Schema: {
   }
 }
 -- out/text --
-error[E0111]: ForwardLens takes an instance of 0.0: declare it as v0_0: _
+error[E0111]: ForwardLens takes an instance of 0.0, so v0_0 is _
  --> history/1.0.thema:7:8
   |
 7 |     v0_0: {a: string}

@@ -14,4 +14,5 @@ v1_0: {
 }
 -- out --
 not total
-v1_0._h is written as v0_0.x and as 1, and the two unify, so one may reject the other's value; write the field once (rule write-conflict) @ lens.cue:3:2
+v1_0._h is written as v0_0.x and as 1, and the two unify, so one may reject the other's value (rule write-conflict) @ lens.cue:3:2
+  help: write the field once

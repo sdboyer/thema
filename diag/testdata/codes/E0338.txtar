@@ -43,14 +43,17 @@ Schema: {
     {
       "code": "E0347",
       "severity": "error",
-      "headline": "0.0 declares x and 1.0 does not, and nothing maps it: write <field>: v0_0.x to move it, or x: _drop",
+      "headline": "0.0 declares x and 1.0 does not, and nothing maps it",
       "primary": {
         "file": "history/1.0.thema",
         "line": 5,
         "col": 1,
         "offset": 24,
         "origin": "user"
-      }
+      },
+      "help": [
+        "write <field>: v0_0.x to move it, or x: _drop"
+      ]
     }
   ],
   "summary": {
@@ -67,9 +70,10 @@ error[E0338]: a _match arm's value must be a constant
   |                  ^^^^
   |
 
-error[E0347]: 0.0 declares x and 1.0 does not, and nothing maps it: write <field>: v0_0.x to move it, or x: _drop
+error[E0347]: 0.0 declares x and 1.0 does not, and nothing maps it
  --> history/1.0.thema:5:1
   |
 5 | ForwardLens: {
   | ^^^^^^^^^^^
   |
+  = help: write <field>: v0_0.x to move it, or x: _drop

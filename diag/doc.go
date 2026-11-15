@@ -32,7 +32,11 @@
 //     notes. A kernel-origin primary fails the reproducer tests.
 //  5. Headline = rule + violator. The headline names the invariant in the
 //     author's terms and the construct that breaks it. A note says why. Help
-//     says what to do.
+//     says what to do, and only help (lint): no headline or note runs on into
+//     a fix after a colon or a semicolon ("...: write x"), so that a reader
+//     finds the problem and the fix each in its own place. A diagnostic that
+//     folds others into its notes carries each one's notes, after it, and its
+//     help into its own.
 //  6. Mechanical style (lint). No trailing period; a lowercase first word
 //     unless it is an identifier; no Go formatting leakage; no file:line:col
 //     inside text (positions are structured); versions as 0.1, never [0 1].

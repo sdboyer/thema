@@ -151,7 +151,9 @@ section { display: flex; flex-direction: column; min-height: 0; min-width: 0; bo
 .diagnostic .code { text-decoration: none; }
 .diagnostic .code:hover { text-decoration: underline; }
 .where { color: var(--muted); margin: .15rem 0; }
-.note, .help { margin: .15rem 0 0 1rem; white-space: pre-wrap; }
+/* A note or help hangs under its label ("note: ", six characters of a
+   monospace font), so the labels stand in one column to scan down. */
+.note, .help { margin: .15rem 0 0 1rem; white-space: pre-wrap; padding-left: 6ch; text-indent: -6ch; }
 .label { font-weight: 600; }
 .help .label { color: var(--accent); }
 .detail summary { color: var(--muted); cursor: pointer; margin: .25rem 0 0 1rem; }

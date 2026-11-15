@@ -90,6 +90,10 @@ type Vocabulary interface {
 type Rewriter interface {
 	Vocabulary
 	Rewrite(a Address, sentence string) string
+	// RewriteHelp is Rewrite for a line of help, which says what to write.
+	// It reports false for help the vocabulary has no way to write, which is
+	// then not given.
+	RewriteHelp(a Address, help string) (string, bool)
 }
 
 // RewriteFor applies v's rewriting to sentence, when v has any.
@@ -98,6 +102,15 @@ func RewriteFor(v Vocabulary, a Address, sentence string) string {
 		return r.Rewrite(a, sentence)
 	}
 	return sentence
+}
+
+// RewriteHelpFor applies v's rewriting to a line of help, when v has any, and
+// reports false for help v has no way to write.
+func RewriteHelpFor(v Vocabulary, a Address, help string) (string, bool) {
+	if r, ok := v.(Rewriter); ok {
+		return r.RewriteHelp(a, help)
+	}
+	return help, true
 }
 
 // NormalForm is the Vocabulary of a lineage written as thema.Lineage CUE:

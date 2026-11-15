@@ -109,19 +109,23 @@ func TestLineageTip(t *testing.T) {
 // the excerpt from there.
 func TestLineageTipCutPositions(t *testing.T) {
 	// The tip removes name and writes no lens for it, so it is neither clean
-	// nor ready to cut.
+	// nor ready to cut. A missing lens is positioned at the end of the file,
+	// where it would be written.
 	dir := writeTipDir(t, "Schema: {\n\tcrew: int\n}\n")
-	for _, args := range [][]string{
-		{lineageCmd, tipName, "-l", shipName, "--check-clean"},
-		{lineageCmd, "cut", "-l", shipName},
+	for _, c := range []struct {
+		args    []string
+		excerpt string
+	}{
+		{[]string{lineageCmd, tipName, "-l", shipName, "--check-clean"}, "1 | Schema: {"},
+		{[]string{lineageCmd, "cut", "-l", shipName}, "3 | }"},
 	} {
-		_, errOut, err := runThema(t, filepath.Dir(dir), "", args...)
+		_, errOut, err := runThema(t, filepath.Dir(dir), "", c.args...)
 		if err == nil {
-			t.Fatalf("%v succeeded", args)
+			t.Fatalf("%v succeeded", c.args)
 		}
-		for _, want := range []string{"--> ship/tip.thema:", "1 | Schema: {"} {
+		for _, want := range []string{"--> ship/tip.thema:", c.excerpt} {
 			if !strings.Contains(errOut, want) {
-				t.Errorf("%v: stderr lacks %q:\n%s", args, want, errOut)
+				t.Errorf("%v: stderr lacks %q:\n%s", c.args, want, errOut)
 			}
 		}
 	}

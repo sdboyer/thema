@@ -14,4 +14,5 @@ lacunas: [{
 }]
 -- out --
 not total
-lacunas[0].type is v0_0.t, which is not a literal; write a lacuna's type as one of thema's lacuna types, as a string or as thema.LacunaTypes.<name> (rule not-a-value) @ lens.cue:6:11
+lacunas[0].type is v0_0.t, which is not a literal (rule not-a-value) @ lens.cue:6:11
+  help: write a lacuna's type as one of thema's lacuna types, as a string or as thema.LacunaTypes.<name>

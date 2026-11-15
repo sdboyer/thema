@@ -41,7 +41,7 @@ lenses: {
     {
       "code": "E0370",
       "severity": "error",
-      "headline": "n in the result of lens 0.0->1.0 is not total for some instance",
+      "headline": "n in the result of lens 0.0->1.0 computes v0_0.a + v0_0.b, whose result may be [-18446744073709551616, 18446744073709551614], outside int64",
       "path": [
         "lenses",
         "0.0->1.0",
@@ -71,11 +71,11 @@ lenses: {
       },
       "notes": [
         {
-          "label": "n in the result of lens 0.0->1.0 computes v0_0.a + v0_0.b, whose result may be [-18446744073709551616, 18446744073709551614], outside int64; bound the fields it reads so that the result fits"
-        },
-        {
           "label": "a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule arith-overflow)"
         }
+      ],
+      "help": [
+        "bound the fields it reads so that the result fits"
       ]
     }
   ],
@@ -86,11 +86,11 @@ lenses: {
   }
 }
 -- out/text --
-error[E0370]: n in the result of lens 0.0->1.0 is not total for some instance
+error[E0370]: n in the result of lens 0.0->1.0 computes v0_0.a + v0_0.b, whose result may be [-18446744073709551616, 18446744073709551614], outside int64
   --> lineage.cue:23:7
    |
 23 |             n: v0_0.a + v0_0.b
    |                ^^^^
    |
-   = note: n in the result of lens 0.0->1.0 computes v0_0.a + v0_0.b, whose result may be [-18446744073709551616, 18446744073709551614], outside int64; bound the fields it reads so that the result fits
    = note: a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule arith-overflow)
+   = help: bound the fields it reads so that the result fits

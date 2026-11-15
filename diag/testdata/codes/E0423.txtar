@@ -75,14 +75,17 @@ Schema: {
     {
       "code": "E0347",
       "severity": "error",
-      "headline": "0.0 declares count and 1.0 does not, and nothing maps it: write <field>: v0_0.count to move it, or count: _drop",
+      "headline": "0.0 declares count and 1.0 does not, and nothing maps it",
       "primary": {
         "file": "history/1.0.thema",
         "line": 5,
         "col": 1,
         "offset": 27,
         "origin": "user"
-      }
+      },
+      "help": [
+        "write <field>: v0_0.count to move it, or count: _drop"
+      ]
     }
   ],
   "summary": {
@@ -108,9 +111,10 @@ error[E0423]: this condition tests the presence of v0_0.count, which it also rea
    = note: a condition reading an optional field concerns only the instances that have it, so testing its presence says nothing more
    = help: drop the presence test; to test presence alone, write when: v0_0.count
 
-error[E0347]: 0.0 declares count and 1.0 does not, and nothing maps it: write <field>: v0_0.count to move it, or count: _drop
+error[E0347]: 0.0 declares count and 1.0 does not, and nothing maps it
  --> history/1.0.thema:5:1
   |
 5 | ForwardLens: {
   | ^^^^^^^^^^^
   |
+  = help: write <field>: v0_0.count to move it, or count: _drop

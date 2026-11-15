@@ -38,26 +38,32 @@ Schema: {
     {
       "code": "E0346",
       "severity": "error",
-      "headline": "ForwardLens produces nothing for b, which 1.0 requires: add b: <mapping> to v1_0",
+      "headline": "ForwardLens produces nothing for b, which 1.0 requires",
       "primary": {
         "file": "history/1.0.thema",
         "line": 5,
         "col": 1,
         "offset": 24,
         "origin": "user"
-      }
+      },
+      "help": [
+        "add b: <mapping> to v1_0"
+      ]
     },
     {
       "code": "E0347",
       "severity": "error",
-      "headline": "0.0 declares a and 1.0 does not, and nothing maps it: write <field>: v0_0.a to move it, or a: _drop",
+      "headline": "0.0 declares a and 1.0 does not, and nothing maps it",
       "primary": {
         "file": "history/1.0.thema",
         "line": 5,
         "col": 1,
         "offset": 24,
         "origin": "user"
-      }
+      },
+      "help": [
+        "write <field>: v0_0.a to move it, or a: _drop"
+      ]
     }
   ],
   "summary": {
@@ -74,16 +80,18 @@ error[E0331]: a mapping's key is a plain field name
   |         ^^^^
   |
 
-error[E0346]: ForwardLens produces nothing for b, which 1.0 requires: add b: <mapping> to v1_0
+error[E0346]: ForwardLens produces nothing for b, which 1.0 requires
  --> history/1.0.thema:5:1
   |
 5 | ForwardLens: {
   | ^^^^^^^^^^^
   |
+  = help: add b: <mapping> to v1_0
 
-error[E0347]: 0.0 declares a and 1.0 does not, and nothing maps it: write <field>: v0_0.a to move it, or a: _drop
+error[E0347]: 0.0 declares a and 1.0 does not, and nothing maps it
  --> history/1.0.thema:5:1
   |
 5 | ForwardLens: {
   | ^^^^^^^^^^^
   |
+  = help: write <field>: v0_0.a to move it, or a: _drop

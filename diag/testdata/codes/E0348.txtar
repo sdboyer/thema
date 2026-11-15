@@ -26,14 +26,17 @@ Schema: {
     {
       "code": "E0348",
       "severity": "error",
-      "headline": "0.0 always has a, so _coalesce's fallback could never apply: write b: v0_0.a",
+      "headline": "0.0 always has a, so _coalesce's fallback could never apply",
       "primary": {
         "file": "history/1.0.thema",
         "line": 8,
         "col": 6,
         "offset": 62,
         "origin": "user"
-      }
+      },
+      "help": [
+        "write b: v0_0.a"
+      ]
     }
   ],
   "summary": {
@@ -43,9 +46,10 @@ Schema: {
   }
 }
 -- out/text --
-error[E0348]: 0.0 always has a, so _coalesce's fallback could never apply: write b: v0_0.a
+error[E0348]: 0.0 always has a, so _coalesce's fallback could never apply
  --> history/1.0.thema:8:6
   |
 8 |         b: _coalesce(v0_0.a, "x")
   |            ^^^^^^^^^
   |
+  = help: write b: v0_0.a
