@@ -54,8 +54,8 @@ type targetExperiments struct {
 // The empty version is the current one, v0.18.0 at cuelang.org/go
 // v0.18.0-rc.3 (cueversion.LanguageVersion), at which StructCmp (stable from
 // v0.15.0) and AliasV2 (stable from v0.18.0) are both on. They are hard-coded
-// so that the output stays the same as upstream's; the differential test in
-// encoding/openapi fails if they drift.
+// so that the output stays the same as upstream's; the differential tests,
+// here and in encoding/openapi, fail if they drift.
 var currentExperiments = &targetExperiments{
 	AliasV2:   true,
 	StructCmp: true,
