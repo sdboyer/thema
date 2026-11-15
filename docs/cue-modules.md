@@ -16,7 +16,7 @@ Thema's Go library and its CUE depend on each other's exact shape, so the Go lib
 - thema's CUE module is served from that built-in copy, so loading never needs the network for thema itself. Other dependencies are fetched from the configured registry as usual.
 - The version of `github.com/sdboyer/thema@v0` in the module's `cue.mod/module.cue` must match the library's built-in version exactly. Any other version is an error that names the version to use.
 
-Thema's Go and CUE modules are released together under the same version, so the CUE dependency version to use is the version of the Go module.
+Thema's Go and CUE modules are released together under the same version, so the CUE dependency version to use is the version of the Go module. A Go program that writes a `cue.mod/module.cue` can take it from [`load.ThemaVersion`](https://pkg.go.dev/github.com/sdboyer/thema/load#ThemaVersion).
 
 To load CUE that imports thema with your own `load.Config`, pass it through [`load.Configure`](https://pkg.go.dev/github.com/sdboyer/thema/load#Configure), which sets up the built-in module. `load.InstanceWithThema` does this for you.
 
