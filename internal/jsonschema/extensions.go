@@ -90,14 +90,39 @@ func (si schemaInfo) extensionsAttr(s *state) *ast.Attribute {
 }
 
 // holdsBytes reports whether v, or a value in it that MarshalJSON writes,
-// is bytes.
+// is bytes. As MarshalJSON does, it takes each level's default, and reads a
+// list's elements and a struct's regular fields.
 func holdsBytes(v cue.Value) bool {
-	found := false
-	v.Walk(func(v cue.Value) bool {
-		found = found || v.Kind() == cue.BytesKind
-		return !found
-	}, nil)
-	return found
+	v, _ = v.Default()
+	var it interface {
+		Next() bool
+		Value() cue.Value
+	}
+	// An error here is MarshalJSON's too, which reports it.
+	switch v.Kind() {
+	case cue.BytesKind:
+		return true
+	case cue.ListKind:
+		l, err := v.List()
+		if err != nil {
+			return false
+		}
+		it = &l
+	case cue.StructKind:
+		fs, err := v.Fields()
+		if err != nil {
+			return false
+		}
+		it = fs
+	default:
+		return false
+	}
+	for it.Next() {
+		if holdsBytes(it.Value()) {
+			return true
+		}
+	}
+	return false
 }
 
 // jsonString returns s as a JSON string, without escaping HTML. It is a CUE

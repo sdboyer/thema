@@ -32,11 +32,20 @@ const componentsRoot = "#/components/schemas/"
 // options is an archive's comment, which holds its options. They're read as
 // upstream's decode test reads them, through cuetxtar: a tag is a line that
 // is #key once trimmed, and a value follows #key: at the start of the first
-// line that has it.
-type options []byte
+// line that has it. Each key asked for is recorded, so that unread can
+// report the options this test ignores.
+type options struct {
+	comment []byte
+	asked   map[string]bool
+}
 
-func (o options) has(key string) bool {
-	sc := bufio.NewScanner(bytes.NewReader(o))
+func newOptions(comment []byte) *options {
+	return &options{comment: comment, asked: map[string]bool{}}
+}
+
+func (o *options) has(key string) bool {
+	o.asked[key] = true
+	sc := bufio.NewScanner(bytes.NewReader(o.comment))
 	for sc.Scan() {
 		if bytes.Equal(bytes.TrimSpace(sc.Bytes()), []byte("#"+key)) {
 			return true
@@ -45,8 +54,9 @@ func (o options) has(key string) bool {
 	return false
 }
 
-func (o options) value(key string) (string, bool) {
-	sc := bufio.NewScanner(bytes.NewReader(o))
+func (o *options) value(key string) (string, bool) {
+	o.asked[key] = true
+	sc := bufio.NewScanner(bytes.NewReader(o.comment))
 	for sc.Scan() {
 		if rest, ok := bytes.CutPrefix(sc.Bytes(), []byte("#"+key+":")); ok {
 			return string(bytes.TrimSpace(rest)), true
@@ -55,28 +65,18 @@ func (o options) value(key string) (string, bool) {
 	return "", false
 }
 
-// knownOptions are the options upstream's decode test reads. noverify
-// changes only how upstream's test checks its own output.
-var knownOptions = map[string]bool{
-	"version": true, "root": true, "roots": true, "strict": true,
-	"strictFeatures": true, "strictKeywords": true, "allowNonExistentRoot": true,
-	"openOnlyWhenExplicit": true, "singleRoot": true, "pkgName": true,
-	"targetLanguageVersion": true, "noverify": true,
-}
-
-// optionLine matches a line cuetxtar would read as an option: a tag, once
+// optionLine matches a line cuetxtar could read as an option: a tag, once
 // trimmed, or a value.
-var optionLine = regexp.MustCompile(`^#(\w+)(:|$)`)
+var optionLine = regexp.MustCompile(`^#([\w-]+)(:|$)`)
 
-// unknown returns every option of o that knownOptions lacks, which this test
-// would ignore.
-func (o options) unknown() []string {
+// unread returns every option of o that this test hasn't asked for.
+func (o *options) unread() []string {
 	var keys []string
-	sc := bufio.NewScanner(bytes.NewReader(o))
+	sc := bufio.NewScanner(bytes.NewReader(o.comment))
 	for sc.Scan() {
 		line := sc.Bytes()
 		if m := optionLine.FindSubmatch(bytes.TrimSpace(line)); m != nil && (string(m[2]) == "" || bytes.HasPrefix(line, []byte("#"))) {
-			if !knownOptions[string(m[1])] {
+			if !o.asked[string(m[1])] {
 				keys = append(keys, string(m[1]))
 			}
 		}
@@ -117,9 +117,10 @@ func readSchema(ctx *cue.Context, fsys fs.FS) (cue.Value, error) {
 // configs returns the config upstream's decode test uses for an archive
 // with options o, as upstream's and as the fork's, except for
 // targetLanguageVersion: the fork hard-codes the current language
-// version's experiments and has no such option.
-func configs(t *testing.T, o options, v cue.Value) (*upjsonschema.Config, *jsonschema.Config) {
-	up, fork := &upjsonschema.Config{}, &jsonschema.Config{}
+// version's experiments and has no such option. skip is why upstream's
+// test skips the archive, if it does; every option is read first.
+func configs(t *testing.T, o *options, v cue.Value) (up *upjsonschema.Config, fork *jsonschema.Config, skip string) {
+	up, fork = &upjsonschema.Config{}, &jsonschema.Config{}
 	mapRef := func(loc jsonschema.SchemaLoc) (string, cue.Path, error) {
 		if !loc.IsLocal {
 			return "", cue.Path{}, fmt.Errorf("external reference %v not supported", loc.ID)
@@ -146,7 +147,7 @@ func configs(t *testing.T, o options, v cue.Value) (*upjsonschema.Config, *jsons
 			up.StrictKeywords, fork.StrictKeywords = true, true
 		case "k8sCRD":
 			if v.IncompleteKind() == cue.ListKind {
-				t.Skip("as upstream's test: Extract does not extract CRDs from a list")
+				skip = "as upstream's test: Extract does not extract CRDs from a list"
 			}
 			up.DefaultVersion, fork.DefaultVersion = upjsonschema.VersionKubernetesCRD, jsonschema.VersionKubernetesCRD
 			r := "#/spec/versions/0/schema/openAPIV3Schema"
@@ -183,7 +184,7 @@ func configs(t *testing.T, o options, v cue.Value) (*upjsonschema.Config, *jsons
 	}
 	up.PkgName, _ = o.value("pkgName")
 	fork.PkgName = up.PkgName
-	return up, fork
+	return up, fork, skip
 }
 
 // golden returns what upstream's decode test expects Extract to write for
@@ -243,17 +244,17 @@ func TestExtractMatchesUpstream(t *testing.T) {
 	if len(paths) < 100 {
 		t.Fatalf("found %d archives, which is fewer than upstream's corpus holds", len(paths))
 	}
-	stripped := 0
+	// ran counts the archives run, so that the check on stripped is made
+	// only when -run selects them all.
+	ran, stripped := 0, 0
 	for _, p := range paths {
 		t.Run(strings.TrimSuffix(filepath.Base(p), ".txtar"), func(t *testing.T) {
+			ran++
 			ar, err := txtar.ParseFile(p)
 			if err != nil {
 				t.Fatal(err)
 			}
-			o := options(ar.Comment)
-			if u := o.unknown(); len(u) > 0 {
-				t.Fatalf("options %v are not ones upstream's decode test reads, as this test knows it", u)
-			}
+			o := newOptions(ar.Comment)
 			fsys, err := txtar.FS(ar)
 			if err != nil {
 				t.Fatal(err)
@@ -262,24 +263,48 @@ func TestExtractMatchesUpstream(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			up, fork := configs(t, o, v)
+			up, fork, skip := configs(t, o, v)
+			tlv, _ := o.value("targetLanguageVersion")
+			// cuetxtar skips an archive tagged #skip, or #skip-<entry> for
+			// the matrix entry it runs: v3 is cuecontext.New's evaluator,
+			// with sharing, which this test runs. noverify changes only how
+			// upstream's test checks its own output, and noformat only how
+			// cuetxtar formats an archive's CUE.
+			if o.has("skip") || o.has("skip-v3") {
+				skip = "as upstream's test: the archive is tagged to skip"
+			}
+			o.has("skip-v3-noshare")
+			o.has("noverify")
+			o.has("noformat")
+			if u := o.unread(); len(u) > 0 {
+				t.Fatalf("options %v are not read by this test", u)
+			}
+			if skip != "" {
+				t.Skip(skip)
+			}
 
 			at := *up
-			at.TargetLanguageVersion, _ = o.value("targetLanguageVersion")
+			at.TargetLanguageVersion = tlv
 			g, ok := golden(ar)
 			if !ok {
 				t.Fatal("the archive has no golden for upstream's Extract")
 			}
-			if _, got := extract(t, func() (*ast.File, error) { return upjsonschema.Extract(v, &at) }); strings.TrimSpace(got) != strings.TrimSpace(g) {
+			// Upstream's test writes Extract's output trimmed, ending in a
+			// newline, and an error as it is.
+			file, got := extract(t, func() (*ast.File, error) { return upjsonschema.Extract(v, &at) })
+			if file != nil {
+				got = strings.TrimSpace(got) + "\n"
+			}
+			if got != g {
 				t.Fatalf("upstream, under the options as read here, writes:\n%s\nits golden is:\n%s", got, g)
 			}
 
 			_, want := extract(t, func() (*ast.File, error) { return upjsonschema.Extract(v, up) })
-			if _, got := extract(t, func() (*ast.File, error) { return jsonschema.Extract(v, fork) }); got != want {
-				t.Errorf("without Extensions, the fork writes:\n%s\nupstream writes:\n%s", got, want)
+			if _, plain := extract(t, func() (*ast.File, error) { return jsonschema.Extract(v, fork) }); plain != want {
+				t.Errorf("without Extensions, the fork writes:\n%s\nupstream writes:\n%s", plain, want)
 			}
 			fork.Extensions = true
-			file, got := extract(t, func() (*ast.File, error) { return jsonschema.Extract(v, fork) })
+			file, got = extract(t, func() (*ast.File, error) { return jsonschema.Extract(v, fork) })
 			if file != nil {
 				if _, err := parser.ParseFile(p, got); err != nil {
 					t.Errorf("with Extensions, the fork's output does not parse: %v\n%s", err, got)
@@ -292,7 +317,7 @@ func TestExtractMatchesUpstream(t *testing.T) {
 			}
 		})
 	}
-	if stripped == 0 {
+	if ran == len(paths) && stripped == 0 {
 		t.Error("with Extensions, the fork wrote no @openapi attribute for any archive, so that half compares output without them")
 	}
 }

@@ -91,10 +91,14 @@ func TestExtractMatchesUpstream(t *testing.T) {
 		"nilcfg": nil,
 		"strict": {PkgName: "p", StrictFeatures: true, StrictKeywords: true},
 	}
-	stripped := 0
-	for name, doc := range extractDocs(t) {
+	// ran counts the cases run, so that the check on stripped is made only
+	// when -run selects them all.
+	docs := extractDocs(t)
+	ran, stripped := 0, 0
+	for name, doc := range docs {
 		for cname, cfg := range cfgs {
 			t.Run(name+"/"+cname, func(t *testing.T) {
+				ran++
 				v := cuecontext.New().CompileBytes(doc, cue.Filename(name))
 				if err := v.Err(); err != nil {
 					t.Fatal(err)
@@ -127,7 +131,7 @@ func TestExtractMatchesUpstream(t *testing.T) {
 			})
 		}
 	}
-	if stripped == 0 {
+	if ran == len(docs)*len(cfgs) && stripped == 0 {
 		t.Error("Extract wrote no @openapi attribute for any document, so the comparison is of output without them")
 	}
 }

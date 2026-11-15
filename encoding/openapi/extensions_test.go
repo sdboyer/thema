@@ -485,7 +485,14 @@ func TestExtractIncompleteExtension(t *testing.T) {
 	})
 	// MarshalJSON writes bytes as a base64 string, which would be kept as
 	// a different value.
-	for name, v := range map[string]string{"bytes": `'hi'`, "bytes within": `{a: [1, 'hi']}`} {
+	for name, v := range map[string]string{
+		"bytes":                    `'hi'`,
+		"bytes within":             `{a: [1, 'hi']}`,
+		"bytes by default":         `*'abc' | 'def'`,
+		"bytes within by default":  `*{a: 'x'} | null`,
+		"a list element's default": `[*'q' | "r"]`,
+		"a field's default":        `{a: *'x' | 'y'}`,
+	} {
 		t.Run(name, func(t *testing.T) {
 			_, err := Extract(cuecontext.New().CompileString(doc("", `"x-b": `+v)), nil)
 			if err == nil || !strings.Contains(err.Error(), `cannot encode the value of "x-b" as JSON: it holds bytes`) {
