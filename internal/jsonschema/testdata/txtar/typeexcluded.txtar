@@ -1,0 +1,133 @@
+-- schema.json --
+{
+  "type": "object",
+  "properties": {
+    "e0": {
+      "type": [
+        "integer"
+      ],
+      "minimum": 2,
+      "maximum": 3,
+      "maxLength": 5
+    },
+    "e1": {
+      "enum": [
+        "cover",
+        "contain"
+      ],
+      "type": [
+        "array",
+        "boolean",
+        "number",
+        "object",
+        "string",
+        "null"
+      ]
+    },
+    "e2": {
+      "title": "none",
+      "type": "string",
+      "enum": [
+        "none"
+      ],
+      "required": [
+        "none"
+      ]
+    },
+    "e3": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minLength": 1
+    },
+    "e4": {
+      "type": "array",
+      "description": "Main authors of the plugin",
+      "items": {
+        "type": "string",
+        "uniqueItems": true
+      }
+    },
+    "e5": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "e6": {
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9 _.-]+$"
+      },
+      "type": "array",
+      "pattern": "^[A-Za-z0-9 _.-]+$"
+    },
+    "e7": {
+      "type": [
+        "boolean",
+        "object"
+      ],
+      "anyOf": [
+        {
+          "type": "boolean",
+          "enum": [
+            true,
+            {}
+          ]
+        },
+        {
+          "type": "object",
+          "allOf": [
+            {
+              "properties": {
+                "disableFix": {
+                  "type": "boolean"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "ignoreMediaFeatureNames": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+-- out/decode/extract --
+import (
+	"list"
+	"strings"
+)
+
+e0?: int & >=2 & <=3
+e1?: "cover" | "contain"
+
+// none
+e2?: "none"
+e3?: list.UniqueItems() & list.MinItems(1) & [...strings.MinRunes(1)]
+
+// Main authors of the plugin
+e4?: [...string]
+e5?: int & >=0
+e6?: [...=~"^[A-Za-z0-9 _.-]+$"]
+e7?: matchN(>=1, [
+	true,
+	{
+		disableFix?: bool
+		...
+	} & {
+		ignoreMediaFeatureNames?: list.MinItems(1) & list.UniqueItems() & [...string]
+		...
+	}
+])
+...

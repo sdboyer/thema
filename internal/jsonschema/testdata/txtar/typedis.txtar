@@ -1,0 +1,45 @@
+-- schema.json --
+{
+  "type": "object",
+  "title": "Main schema",
+
+  "properties": {
+    "intOrString1": {
+      "type": [ "string", "integer" ]
+    },
+    "intOrString2": {
+      "oneOf": [
+          { "type": "integer" },
+          { "type": "string" }
+      ]
+    },
+    "intOrString3": {
+      "anyOf": [
+          { "type": "integer" },
+          { "type": "string" }
+      ]
+    },
+
+    "disjunction": {
+      "oneOf": [
+        {
+            "anyOf": [
+                { "type": "integer" },
+                { "type": "string" }
+            ]
+        },
+        {
+            "type": "integer",
+            "minimum": 3
+        }
+      ]
+    }
+  }
+}
+-- out/decode/extract --
+// Main schema
+intOrString1?: int | string
+intOrString2?: matchN(1, [int, string])
+intOrString3?: matchN(>=1, [int, string])
+disjunction?:  matchN(1, [matchN(>=1, [int, string]), int & >=3])
+...

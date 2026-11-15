@@ -1,0 +1,10 @@
+-- schema.json --
+{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"anyOf": [true]
+}
+
+-- out/decode/extract --
+ERROR:
+boolean schemas not supported in http://json-schema.org/draft-04/schema#:
+    schema.json:3:12

@@ -1,0 +1,9 @@
+
+-- schema.json --
+{
+    "type": "object",
+    "const": {"a": 1}
+}
+
+-- out/decode/extract --
+close({a!: ==1})

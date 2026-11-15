@@ -1,0 +1,35 @@
+# A dependency key that is not a valid identifier needs an alias for the
+# guard to refer to it. At the current language version that is the postfix
+# form; dependentrequired_alias_oldversion.txtar covers the prefix one.
+-- schema.json --
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"type": "object",
+	"properties": {
+		"working-directory": {"type": "string"},
+		"run": {"type": "string"}
+	},
+	"dependentRequired": {
+		"working-directory": ["run"]
+	}
+}
+-- out/decode-v3/extract --
+@jsonschema(schema="https://json-schema.org/draft/2020-12/schema")
+"working-directory"?:       string
+run?:                       string
+"working-directory"~(_t0)?: _
+if _t0 != _|_ {
+	run!: _
+}
+{}
+...
+-- out/decode-v3-noshare/extract --
+@jsonschema(schema="https://json-schema.org/draft/2020-12/schema")
+"working-directory"?:       string
+run?:                       string
+"working-directory"~(_t0)?: _
+if _t0 != _|_ {
+	run!: _
+}
+{}
+...

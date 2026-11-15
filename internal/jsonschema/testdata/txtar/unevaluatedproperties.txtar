@@ -1,0 +1,207 @@
+# The properties which "unevaluatedProperties" leaves out are those
+# evaluated by the sibling keywords and by the subschemas reached
+# through "allOf" and "$ref".
+#strictFeatures
+
+-- schema.json --
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "$defs": {
+        "base": {
+            "type": "object",
+            "properties": {
+                "image": {
+                    "type": "string"
+                }
+            },
+            "patternProperties": {
+                "^x-": {}
+            }
+        },
+        "extra": {
+            "type": "object",
+            "properties": {
+                "ports": {
+                    "type": "array"
+                }
+            }
+        },
+        "named": {
+            "properties": {
+                "$id": {
+                    "type": "string"
+                },
+                "nested": {
+                    "properties": {
+                        "q": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "map": {
+            "properties": {
+                "name": {
+                    "type": "string"
+                }
+            },
+            "additionalProperties": {
+                "type": "number"
+            }
+        }
+    },
+    "allOf": [
+        {
+            "$ref": "#/$defs/base"
+        },
+        {
+            "$ref": "#/$defs/extra"
+        }
+    ],
+    "properties": {
+        "restart": {
+            "type": "string"
+        },
+        "labels": {
+            "type": "object",
+            "$ref": "#/$defs/extra",
+            "unevaluatedProperties": {
+                "type": "string"
+            }
+        },
+        "covered": {
+            "allOf": [
+                {
+                    "$ref": "#/$defs/map"
+                }
+            ],
+            "unevaluatedProperties": false
+        },
+        "open": {
+            "$ref": "#/$defs/extra",
+            "unevaluatedProperties": true
+        },
+        "nested": {
+            "type": "object",
+            "$ref": "#/$defs/named/properties/nested",
+            "unevaluatedProperties": false
+        },
+        "dependent": {
+            "type": "object",
+            "properties": {
+                "a": {
+                    "type": "string"
+                }
+            },
+            "dependencies": {
+                "a": [
+                    "b"
+                ]
+            },
+            "unevaluatedProperties": false
+        }
+    },
+    "required": [
+        "image"
+    ],
+    "unevaluatedProperties": false
+}
+-- test/ok.json --
+{
+    "image": "redis",
+    "ports": [80],
+    "restart": "always",
+    "x-custom": true,
+    "labels": {
+        "ports": [],
+        "env": "prod"
+    },
+    "covered": {
+        "name": "a",
+        "other": 1
+    },
+    "open": {
+        "other": 1
+    },
+    "nested": {
+        "q": "x"
+    },
+    "dependent": {
+        "a": "x"
+    }
+}
+-- test/err-misspelled.json --
+{
+    "image": "redis",
+    "imagee": "redis"
+}
+-- test/err-labels.json --
+{
+    "image": "redis",
+    "labels": {
+        "env": 1
+    }
+}
+-- out/decode/extract --
+@jsonschema(schema="https://json-schema.org/draft/2020-12/schema")
+
+#base & #extra & close({
+	restart?: string
+	labels?: #extra & {
+		ports?: _
+		{[!~"^(ports)$"]: string}
+	}
+	covered?: #map
+	open?:    #extra & {...}
+	nested?:  _#defs."/$defs/named/properties/nested" & close({q?: _})
+	dependent?: close({
+		"a"?: string
+		a?:   _
+		if a != _|_ {
+			b!: _
+		}
+		{}
+	})
+	image!: _
+	ports?: _
+
+	{[=~"^x-"]: _}
+})
+
+#base: {
+	image?: string
+
+	{[=~"^x-"]: _}
+	...
+}
+
+#extra: {
+	ports?: [...]
+	...
+}
+
+#map: null | bool | number | string | [...] | {
+	name?: string
+	{[!~"^(name)$"]: number}
+}
+
+#named: null | bool | number | string | [...] | {
+	$id?:    string
+	nested?: _#defs."/$defs/named/properties/nested"
+	...
+}
+
+_#defs: "/$defs/named/properties/nested": null | bool | number | string | [...] | {
+	q?: string
+	...
+}
+-- out/decode/testerr/err-labels --
+labels.env: conflicting values 1 and string (mismatched types int and string):
+    generated.cue:3:24
+    generated.cue:7:21
+    test/err-labels.json:4:16
+-- out/decode/testerr/err-misspelled --
+imagee: field not allowed:
+    test/err-misspelled.json:3:6
