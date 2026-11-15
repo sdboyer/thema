@@ -92,8 +92,9 @@ func Lint(t testing.TB, ds []diag.Diagnostic, form Form) {
 }
 
 // historyFile matches a frozen version's file, as a primary position names
-// it: history/1.0.thema, under the lineage's directory or not.
-var historyFile = regexp.MustCompile(`(^|/)history/\d+\.\d+\.thema$`)
+// it: history/1.0.thema, under the lineage's directory or not. Its numbers are
+// the compiler's: no leading zero.
+var historyFile = regexp.MustCompile(`(^|/)history/(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.thema$`)
 
 // immutability is the headline of an error that reports a file under history/
 // as changed since it was cut.

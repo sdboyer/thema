@@ -43,6 +43,9 @@ func TestLintHistory(t *testing.T) {
 		{"led for another file", []diag.Diagnostic{lead("history/0.0.thema"), detail("history/1.0.thema")}, []string{"no immutability violation for the file"}},
 		{"help on a detail", []diag.Diagnostic{lead("history/1.0.thema"), detail("history/1.0.thema", "add crew: <mapping> to v1_0")}, []string{"says how to edit history/1.0.thema"}},
 		{"in the tip, with help", []diag.Diagnostic{detail("tip.thema", "add crew: <mapping> to tip")}, nil},
+		// thema reads no version from a number with a leading zero, so the
+		// file is not one that was cut.
+		{"a file not named as a version", []diag.Diagnostic{detail("history/01.0.thema", "rename it")}, nil},
 		{"the lineage's name", []diag.Diagnostic{{Code: diag.E0254, Severity: diag.SeverityError, Headline: "the lineage is named boat, but was published as ship", Primary: at("history/1.0.thema"), Address: &diag.Address{Kind: diag.AddrName}, Help: []string{"name it ship"}}}, nil},
 		{"a warning", []diag.Diagnostic{{Code: diag.E1001, Severity: diag.SeverityWarning, Headline: "v1.0 has no ForwardLens", Primary: at("history/1.0.thema"), Help: []string{"write it"}}}, nil},
 	}

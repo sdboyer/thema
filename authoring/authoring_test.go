@@ -157,6 +157,41 @@ func TestBindDevelopmentValue(t *testing.T) {
 	}
 }
 
+// A joinSchema that contradicts a version under history/ is the tool's, not a
+// change to the file: what bind reports is positioned in the tool's file, and
+// is no immutability violation.
+func TestBindDevelopmentValueContradicted(t *testing.T) {
+	ctx := cuecontext.New()
+	rt := thema.NewRuntime(ctx)
+	c, err := authoring.CompileDevelopment(ctx, "query", []authoring.File{
+		{Path: "history/0.0.thema", Text: []byte(devHistory)},
+		{Path: authoring.TipFile, Text: []byte(devTip)},
+	})
+	if err != nil {
+		t.Fatal(cerrors.Details(err, nil))
+	}
+	// history/0.0.thema declares a string.
+	ops, err := parser.ParseFile("ops.cue", `operations: get: query: joinSchema: {a: int}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	at := cue.ParsePath("operations.get.query")
+	bi, err := tload.ComposedInstance("api", thema.Placement{File: ops}, authoring.Place(at, c))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = authoring.BindDevelopmentValue(rt, c, ctx.BuildInstance(bi), at)
+	ds := diag.Diagnostics(err)
+	if len(ds) == 0 {
+		t.Fatal("binds a joinSchema that contradicts the history")
+	}
+	for _, d := range ds {
+		if d.Code == diag.E0209 || d.Primary == nil || d.Primary.File != "ops.cue" {
+			t.Errorf("want each error in ops.cue, and none an immutability violation: %s at %v: %s", d.Code, d.Primary, d.Headline)
+		}
+	}
+}
+
 // BindDevelopmentValue binds only the lineage c compiled to: its tolerance
 // of lenses missing from the tip's edge is c's, and applied to another
 // lineage it would tolerate lenses c never reported pending.

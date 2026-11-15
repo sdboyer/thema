@@ -2,6 +2,7 @@ package load
 
 import (
 	"fmt"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -100,7 +101,7 @@ func TestLoadPaths(t *testing.T) {
 				} else {
 					want, got := first.meaning, res.meaning
 					if first.compiled != res.compiled {
-						want, got = want.mutable(), got.mutable()
+						want, got = mutable(first, res)
 					}
 					if diff := cmp.Diff(want, got); diff != "" {
 						t.Errorf("%s reports otherwise than %s (-%s +%s):\n%s", p.name, first.path, first.path, p.name, diff)
@@ -561,21 +562,35 @@ type lpMeaning struct {
 	Programs    []string
 }
 
-// mutable is m as a lineage written in no file that never changes reports it:
-// the authoring form compiled reads only files under history/, and reports an
-// error in one as an immutability violation, E0209, that gives the help in
-// place of the errors in the file.
-func (m lpMeaning) mutable() lpMeaning {
-	out := m
-	out.Diagnostics = nil
-	for _, d := range m.Diagnostics {
+// mutable is a's and b's meanings, one compiled and one not, as a lineage
+// written in no file that never changes reports them. Compiled, the authoring
+// form leads an error in a file under history/ with an immutability
+// violation, E0209, and gives the file's errors without their help; written
+// in CUE, the same errors are in no such file, and keep theirs.
+func mutable(a, b *lpResult) (lpMeaning, lpMeaning) {
+	c, x := a, b
+	if !c.compiled {
+		c, x = b, a
+	}
+	cm, xm := c.meaning, x.meaning
+	cm.Diagnostics, xm.Diagnostics = nil, slices.Clone(x.meaning.Diagnostics)
+	var frozen []bool
+	for i, d := range c.meaning.Diagnostics {
 		if d.Code == diag.E0209 {
 			continue
 		}
-		d.Help = nil
-		out.Diagnostics = append(out.Diagnostics, d)
+		cm.Diagnostics = append(cm.Diagnostics, d)
+		frozen = append(frozen, path.Base(path.Dir(c.placed[i][0].Pos.File)) == authoring.HistoryDir)
 	}
-	return out
+	for i := range xm.Diagnostics {
+		if i < len(frozen) && frozen[i] {
+			xm.Diagnostics[i].Help = nil
+		}
+	}
+	if c == a {
+		return cm, xm
+	}
+	return xm, cm
 }
 
 // lpDiagnostic is a diagnostic without its positions.
