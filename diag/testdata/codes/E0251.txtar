@@ -53,7 +53,7 @@ ForwardLens: {
     {
       "code": "E0251",
       "severity": "error",
-      "headline": "immutability violation: the ForwardLens in history/1.0.thema is not as published",
+      "headline": "immutability violation: the ForwardLens of v1.0 is not as published",
       "path": [
         "history/1.0.thema",
         "ForwardLens"
@@ -82,7 +82,7 @@ ForwardLens: {
         }
       ],
       "help": [
-        "restore the ForwardLens in history/1.0.thema as it was published"
+        "restore the ForwardLens of v1.0 as it was published"
       ]
     }
   ],
@@ -93,11 +93,11 @@ ForwardLens: {
   }
 }
 -- out/text --
-error[E0251]: immutability violation: the ForwardLens in history/1.0.thema is not as published
+error[E0251]: immutability violation: the ForwardLens of v1.0 is not as published
  --> candidate/ship/history/1.0.thema:6:1
   |
 6 | ForwardLens: {
   | ^^^^^^^^^^^
   |
   = note: a version's lenses are part of it: instances already translated through the published lens would translate differently
-  = help: restore the ForwardLens in history/1.0.thema as it was published
+  = help: restore the ForwardLens of v1.0 as it was published

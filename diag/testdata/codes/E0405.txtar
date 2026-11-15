@@ -40,7 +40,7 @@ lenses: {
     {
       "code": "E0405",
       "severity": "error",
-      "headline": "lacuna 0 of lens 0.1->0.0 names a field with targetFields[0].path, but \"a..b\" is not a path",
+      "headline": "lacuna 0 of lens v0.1->v0.0 names a field with targetFields[0].path, but \"a..b\" is not a path",
       "path": [
         "lenses",
         "0.1->0.0",
@@ -75,7 +75,7 @@ lenses: {
   }
 }
 -- out/text --
-error[E0405]: lacuna 0 of lens 0.1->0.0 names a field with targetFields[0].path, but "a..b" is not a path
+error[E0405]: lacuna 0 of lens v0.1->v0.0 names a field with targetFields[0].path, but "a..b" is not a path
   --> lineage.cue:28:21
    |
 28 |                 targetFields: [{path: "a..b", value: 1}]

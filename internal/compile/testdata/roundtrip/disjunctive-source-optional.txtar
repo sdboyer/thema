@@ -131,7 +131,7 @@ lenses: {
 					path:  "count"
 					value: v1_0.count
 				}]
-				message: "count has no equivalent in 0.0 and was dropped"
+				message: "count has no equivalent in v0.0 and was dropped"
 				type:    "DroppedField"
 			},
 			{
@@ -141,7 +141,7 @@ lenses: {
 					path:  "doubled"
 					value: v1_0.doubled
 				}]
-				message: "doubled has no equivalent in 0.0 and was dropped"
+				message: "doubled has no equivalent in v0.0 and was dropped"
 				type:    "DroppedField"
 			}
 		]
@@ -155,4 +155,4 @@ lenses: {
 []
 -- out/translate/1.0/b->0.0 --
 {"x":{"kind":"b","n":3}}
-[{"sourceFields":[{"path":"count","value":3}],"type":"DroppedField","message":"count has no equivalent in 0.0 and was dropped"},{"sourceFields":[{"path":"doubled","value":6}],"type":"DroppedField","message":"doubled has no equivalent in 0.0 and was dropped"}]
+[{"sourceFields":[{"path":"count","value":3}],"type":"DroppedField","message":"count has no equivalent in v0.0 and was dropped"},{"sourceFields":[{"path":"doubled","value":6}],"type":"DroppedField","message":"doubled has no equivalent in v0.0 and was dropped"}]

@@ -25,7 +25,7 @@ lin: thema.Lineage & {
 	}
 }
 -- out/bindfail --
-error[E0133]: schema 0.0 has a reference cycle: #Node -> #Node
+error[E0133]: schema v0.0 has a reference cycle: #Node -> #Node
  --> /in.cue:9:29
   |
 9 |             schema: {#Node: {v: int, next?: #Node}, root: #Node}

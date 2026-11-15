@@ -29,7 +29,7 @@ Schema: {
     {
       "code": "E0342",
       "severity": "error",
-      "headline": "1.0 requires a; dropping it would leave it absent",
+      "headline": "v1.0 requires a; dropping it would leave it absent",
       "primary": {
         "file": "history/1.0.thema",
         "line": 9,
@@ -46,7 +46,7 @@ Schema: {
   }
 }
 -- out/text --
-error[E0342]: 1.0 requires a; dropping it would leave it absent
+error[E0342]: v1.0 requires a; dropping it would leave it absent
  --> history/1.0.thema:9:3
   |
 9 |         a: _drop

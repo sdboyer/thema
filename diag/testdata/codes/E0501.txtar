@@ -26,7 +26,7 @@ schemas: {
     {
       "code": "E0501",
       "severity": "error",
-      "headline": "the data lacks count, which schema 0.0 declares as int",
+      "headline": "the data lacks count, which schema v0.0 declares as int",
       "path": [
         "count"
       ],
@@ -68,7 +68,7 @@ schemas: {
   }
 }
 -- out/text --
-error[E0501]: the data lacks count, which schema 0.0 declares as int
+error[E0501]: the data lacks count, which schema v0.0 declares as int
  --> data.json:1:1
   |
 1 | {

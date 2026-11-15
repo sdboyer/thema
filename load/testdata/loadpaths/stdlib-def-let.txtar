@@ -58,7 +58,7 @@ out: {
 lacuna DroppedField {
   when in.nick != "x"
   source nick = in.nick
-  message "nick has no equivalent in 1.0 and was dropped"
+  message "nick has no equivalent in v1.0 and was dropped"
 }
 lens 1.0->0.0
 out: {
@@ -68,5 +68,5 @@ out: {
 }
 lacuna DroppedField {
   source label = in.label
-  message "label has no equivalent in 0.0 and was dropped"
+  message "label has no equivalent in v0.0 and was dropped"
 }

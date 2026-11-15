@@ -19,7 +19,7 @@ schemas: {
     {
       "code": "E0134",
       "severity": "error",
-      "headline": "schema 0.0 refers to schemas, which contains it",
+      "headline": "schema v0.0 refers to schemas, which contains it",
       "path": [
         "schemas",
         "0",
@@ -54,7 +54,7 @@ schemas: {
   }
 }
 -- out/text --
-error[E0134]: schema 0.0 refers to schemas, which contains it
+error[E0134]: schema v0.0 refers to schemas, which contains it
  --> lineage.cue:6:14
   |
 6 |                 n: <=len(schemas)

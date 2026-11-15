@@ -72,7 +72,7 @@ BackwardLens: {
 				t.Fatal("want the lineage to fail to bind: the forward lens computes a value the target field may reject")
 			}
 			out := stderr.String()
-			for _, want := range []string{"the ForwardLens in history/1.0.thema", "--> " + tc.pos + "\n", "a: v0_0.a"} {
+			for _, want := range []string{"the ForwardLens of v1.0", "--> " + tc.pos + "\n", "a: v0_0.a"} {
 				if !strings.Contains(out, want) {
 					t.Errorf("output lacks %q:\n%s", want, out)
 				}

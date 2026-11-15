@@ -28,7 +28,7 @@ schemas: {
     {
       "code": "E0230",
       "severity": "error",
-      "headline": "b in schema 0.1 is constrained by a in both schemas, differently; the checker cannot compare constraints between fields",
+      "headline": "b in schema v0.1 is constrained by a in both schemas, differently; the checker cannot compare constraints between fields",
       "path": [
         "schemas",
         "0",
@@ -55,11 +55,11 @@ schemas: {
       },
       "notes": [
         {
-          "label": "schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts"
+          "label": "schema v0.1 is a minor version, so it must accept all data schema v0.0 accepts"
         }
       ],
       "help": [
-        "change the schema so the checker can decide, or make this version 1.0"
+        "change the schema so the checker can decide, or make this version v1.0"
       ]
     }
   ],
@@ -70,11 +70,11 @@ schemas: {
   }
 }
 -- out/text --
-error[E0230]: b in schema 0.1 is constrained by a in both schemas, differently; the checker cannot compare constraints between fields
+error[E0230]: b in schema v0.1 is constrained by a in both schemas, differently; the checker cannot compare constraints between fields
   --> lineage.cue:13:5
    |
 13 |                 b?: >a
    |                 ^
    |
-   = note: schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts
-   = help: change the schema so the checker can decide, or make this version 1.0
+   = note: schema v0.1 is a minor version, so it must accept all data schema v0.0 accepts
+   = help: change the schema so the checker can decide, or make this version v1.0

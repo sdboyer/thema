@@ -13,7 +13,7 @@ thema.Lineage & {
 	}
 }
 -- out/bindfail --
-error[E0133]: schema 0.0 has a reference cycle: b -> a -> b
+error[E0133]: schema v0.0 has a reference cycle: b -> a -> b
  --> /in.cue:7:4
   |
 7 |             a: b
@@ -21,7 +21,7 @@ error[E0133]: schema 0.0 has a reference cycle: b -> a -> b
   |
   = note: a schema's references may not form a cycle: no check can describe a schema whose paths are unbounded
 
-error[E0133]: schema 0.0 has a reference cycle: a -> b -> a
+error[E0133]: schema v0.0 has a reference cycle: a -> b -> a
  --> /in.cue:8:4
   |
 8 |             b: a

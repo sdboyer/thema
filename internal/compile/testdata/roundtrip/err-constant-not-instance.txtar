@@ -21,7 +21,7 @@ Schema: {
 	b: int
 }
 -- out/error --
-error[E0344]: "one" is not an instance of 1.0's b
+error[E0344]: "one" is not an instance of v1.0's b
  --> history/1.0.thema:9:6
   |
 3 |     b: int

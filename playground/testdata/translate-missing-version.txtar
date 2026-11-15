@@ -52,9 +52,9 @@ lenses: {
     {
       "code": "E0240",
       "severity": "error",
-      "headline": "lineage ship has no schema 7.0",
+      "headline": "lineage ship has no schema v7.0",
       "help": [
-        "its versions are 0.0, 1.0"
+        "its versions are v0.0, v1.0"
       ]
     }
   ]

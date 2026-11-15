@@ -12,6 +12,6 @@ package common
 #Name: string
 -- out/verdict --
 # bind
-E0143 name in schema 0.0 refers to #Name, in package "example.com/fleet/common", which is not one of CUE's builtin packages
+E0143 name in schema v0.0 refers to #Name, in package "example.com/fleet/common", which is not one of CUE's builtin packages
 # ids
 0.0 g2.c8ad094e15aaff0378491548021da7c03344338f5acaa93c977276646fcbc206:g2.44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a

@@ -292,7 +292,7 @@ type shape struct {
 	// they are for a literal, an operand whose bounds are read exactly
 	// (intervalOf) and arithmetic over these. A containing interval, such as
 	// len's (a length fits int64, but no string has every length) or a
-	// quotient's, cannot refute: a value outside the target is not shown to
+	// quotient's, cannot refute: a value outside the target is not proven to
 	// occur.
 	exact bool
 	// dead is set where a refined operand has no alternatives left: the
@@ -531,7 +531,7 @@ func (w *walker) binary(e *ast.BinaryExpr, c *exprCtx) (shape, bool) {
 // must lie within int64. An unbounded result is carried to the target check,
 // which refutes it by a finite side or reports its bounds unknown. Only an
 // exact interval over operands read once refutes; otherwise the overflow is
-// not shown to occur.
+// not proven to occur.
 func (w *walker) arith(c *exprCtx, s shape, op string) (shape, bool) {
 	if !s.iv.bounded() {
 		return s, true
@@ -1065,7 +1065,7 @@ func (w *walker) fits(s shape, c *exprCtx, repeated bool, expr string) {
 				return
 			}
 		}
-		w.failh(c, Unknown, RuleUnknownBounds, fmt.Sprintf("is an integer computed by %s, in %s, which the checker cannot show within int64 and the target's %s%s%s", expr, s.iv, fmtv(tgt), repeatedNote(repeated), exactNote(s)), "bound the fields it reads (int32, >=0 & <=100)")
+		w.failh(c, Unknown, RuleUnknownBounds, fmt.Sprintf("is an integer computed by %s, in %s, which the checker cannot prove is within int64 and the target's %s%s%s", expr, s.iv, fmtv(tgt), repeatedNote(repeated), exactNote(s)), "bound the fields it reads (int32, >=0 & <=100)")
 	}
 }
 

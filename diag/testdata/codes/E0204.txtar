@@ -20,7 +20,7 @@ Schema: {
     {
       "code": "E0204",
       "severity": "error",
-      "headline": "history/0.0.thema and history/0.0.thema both declare version 0.0",
+      "headline": "history/0.0.thema and history/0.0.thema both declare v0.0",
       "primary": {
         "file": "history/0.0.thema",
         "line": 1,
@@ -50,7 +50,7 @@ Schema: {
   }
 }
 -- out/text --
-error[E0204]: history/0.0.thema and history/0.0.thema both declare version 0.0
+error[E0204]: history/0.0.thema and history/0.0.thema both declare v0.0
  --> history/0.0.thema:1:1
   |
 1 | Schema: {

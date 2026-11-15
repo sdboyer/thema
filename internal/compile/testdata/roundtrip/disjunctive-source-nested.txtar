@@ -137,7 +137,7 @@ lenses: {
 				path:  "url"
 				value: v1_0.url
 			}]
-			message: "url has no equivalent in 0.0 and was dropped"
+			message: "url has no equivalent in v0.0 and was dropped"
 			type:    "DroppedField"
 		}]
 	}
@@ -147,7 +147,7 @@ lenses: {
 []
 -- out/translate/0.0/post->1.0 --
 {"req":{"method":"GET","route":"/things/{id}","path":{"id":"b"}},"url":"/things/b"}
-[{"sourceFields":[{"path":"req.method","value":"POST"}],"type":"DroppedField","message":"req.method set aside: the lens from 0.0 to 1.0 writes its own value for it"},{"sourceFields":[{"path":"req.body","value":{"name":"n"}}],"type":"DroppedField","message":"req.body set aside: 1.0 does not declare it in req, which it does not leave open"}]
+[{"sourceFields":[{"path":"req.method","value":"POST"}],"type":"DroppedField","message":"req.method set aside: the lens from v0.0 to v1.0 writes its own value for it"},{"sourceFields":[{"path":"req.body","value":{"name":"n"}}],"type":"DroppedField","message":"req.body set aside: v1.0 does not declare it in req, which it does not leave open"}]
 -- out/translate/1.0/get->0.0 --
 {"req":{"method":"GET","route":"/things/{id}","path":{"id":"c"}}}
-[{"sourceFields":[{"path":"url","value":"/things/c"}],"type":"DroppedField","message":"url has no equivalent in 0.0 and was dropped"}]
+[{"sourceFields":[{"path":"url","value":"/things/c"}],"type":"DroppedField","message":"url has no equivalent in v0.0 and was dropped"}]

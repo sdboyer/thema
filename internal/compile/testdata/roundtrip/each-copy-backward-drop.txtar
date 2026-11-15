@@ -168,21 +168,21 @@ lenses: {
 				@thema(derived)
 				condition:    len(_d_0) > 0
 				sourceFields: _d_0
-				message:      "u[].enabled has no equivalent in 0.0 and was dropped"
+				message:      "u[].enabled has no equivalent in v0.0 and was dropped"
 				type:         "DroppedField"
 			},
 			{
 				@thema(derived)
 				condition:    len(_d_1) > 0
 				sourceFields: _d_1
-				message:      "u[].note has no equivalent in 0.0 and was dropped"
+				message:      "u[].note has no equivalent in v0.0 and was dropped"
 				type:         "DroppedField"
 			},
 			{
 				@thema(derived)
 				condition:    len(_d_2) > 0
 				sourceFields: _d_2
-				message:      "s[].f[].note has no equivalent in 0.0 and was dropped"
+				message:      "s[].f[].note has no equivalent in v0.0 and was dropped"
 				type:         "DroppedField"
 			}
 		]
@@ -196,4 +196,4 @@ lenses: {
 []
 -- out/translate/1.0/two->0.0 --
 {"u":["a","b"],"s":[{"f":[]},{"f":["c","d"]}]}
-[{"sourceFields":[{"path":"u[0].enabled","value":true},{"path":"u[1].enabled","value":false}],"type":"DroppedField","message":"u[].enabled has no equivalent in 0.0 and was dropped"},{"sourceFields":[{"path":"u[1].note","value":"x"}],"type":"DroppedField","message":"u[].note has no equivalent in 0.0 and was dropped"},{"sourceFields":[{"path":"s[1].f[1].note","value":"y"}],"type":"DroppedField","message":"s[].f[].note has no equivalent in 0.0 and was dropped"}]
+[{"sourceFields":[{"path":"u[0].enabled","value":true},{"path":"u[1].enabled","value":false}],"type":"DroppedField","message":"u[].enabled has no equivalent in v0.0 and was dropped"},{"sourceFields":[{"path":"u[1].note","value":"x"}],"type":"DroppedField","message":"u[].note has no equivalent in v0.0 and was dropped"},{"sourceFields":[{"path":"s[1].f[1].note","value":"y"}],"type":"DroppedField","message":"s[].f[].note has no equivalent in v0.0 and was dropped"}]

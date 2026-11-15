@@ -15,7 +15,7 @@ func checkFieldRefPath(ctx *cue.Context, path string, sch *schemaDef) error {
 		return fmt.Errorf("invalid path %q: %w", path, err)
 	}
 	if !cuetil.DeclaresPath(ctx, sch.def, p) {
-		return fmt.Errorf("path %q is not declared by schema %s", path, sch.Version())
+		return fmt.Errorf("path %q is not declared by schema %s", path, sch.Version().name())
 	}
 	return nil
 }

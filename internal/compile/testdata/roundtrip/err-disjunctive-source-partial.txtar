@@ -14,7 +14,7 @@ ForwardLens: {
 	}
 }
 -- out/error --
-error[E0340]: 0.0 does not declare body.name
+error[E0340]: v0.0 does not declare body.name
  --> history/1.0.thema:6:11
   |
 6 |         name:   v0_0.body.name

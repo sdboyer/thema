@@ -102,8 +102,8 @@ func TestTranslateCarriesPatternKeys(t *testing.T) {
 			steps: []step{
 				{SV(0, 0), SV(0, 1), []lacuna.Lacuna{}},
 				{SV(0, 1), SV(1, 0), []lacuna.Lacuna{
-					lossy("counts.total not carried: its value is not an instance of what 1.0 declares for it", ref("counts.total", "5"), ref("counts.total", nil)),
-					dropped("counts.z set aside: 1.0 does not declare it in counts, which it does not leave open", ref("counts.z", "q")),
+					lossy("counts.total not carried: its value is not an instance of what v1.0 declares for it", ref("counts.total", "5"), ref("counts.total", nil)),
+					dropped("counts.z set aside: v1.0 does not declare it in counts, which it does not leave open", ref("counts.z", "q")),
 				}},
 			},
 		},
@@ -116,7 +116,7 @@ func TestTranslateCarriesPatternKeys(t *testing.T) {
 			want: `{"labels":{"env":"e"},"counts":{"n2":"s"},"meta":{"owner":"o","team":"t2"}}`,
 			steps: []step{
 				{SV(1, 0), SV(0, 1), []lacuna.Lacuna{
-					dropped("counts.n1, counts.total set aside: the pattern constraint of 0.1 in counts does not accept their values", ref("counts.n1", int64(1)), ref("counts.total", int64(2))),
+					dropped("counts.n1, counts.total set aside: the pattern constraint of v0.1 in counts does not accept their values", ref("counts.n1", int64(1)), ref("counts.total", int64(2))),
 				}},
 				{SV(0, 1), SV(0, 0), []lacuna.Lacuna{}},
 			},
@@ -188,13 +188,13 @@ func TestBindRefusesPatternKeys(t *testing.T) {
 		"writes a constant key": {
 			forward: `v1_0: {tags: {env: "prod"}}`,
 			code:    diag.E0305,
-			help:    "declare tags.env by name in schema 1.0",
+			help:    "declare tags.env by name in schema v1.0",
 		},
 		"a lacuna names a key": {
 			forward: `v1_0: {tags: v0_0.labels}
 			lacunas: [{type: "LossyFieldMapping", message: "m", sourceFields: [{path: "labels.env", value: "x"}]}]`,
 			code: diag.E0404,
-			help: "declare labels.env by name in schema 0.0",
+			help: "declare labels.env by name in schema v0.0",
 		},
 	} {
 		t.Run(name, func(t *testing.T) {

@@ -102,8 +102,14 @@ func (s *Session) codegenSchema(req CodegenRequest) (thema.Schema, CodegenRespon
 // codegenFailed describes a generator's failure on a schema the lineage
 // accepted: a construct the target language has no equivalent for.
 func codegenFailed(what string, sch thema.Schema, err error) error {
-	return diag.New(diag.E0701).Headlinef("generating %s from schema %s failed", what, sch.Version()).
+	return diag.New(diag.E0701).Headlinef("generating %s from schema %s failed", what, vname(sch.Version())).
 		Detail(err.Error()).
 		Help(fmt.Sprintf("the schema is valid; %s cannot express some construct in it", what)).
 		Err()
+}
+
+// vname is version v as messages name it: v0.1. v.String() is the version
+// as data writes it.
+func vname(v thema.SyntacticVersion) string {
+	return "v" + v.String()
 }

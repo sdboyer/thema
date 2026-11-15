@@ -21,7 +21,7 @@ Schema: {
 	total: int64
 }
 -- out/error --
-error[E0348]: 0.0 always has every field v0_0.count * 2 reads, so _coalesce's fallback could never apply
+error[E0348]: v0.0 always has every field v0_0.count * 2 reads, so _coalesce's fallback could never apply
  --> history/1.0.thema:8:20
   |
 8 |         total: _coalesce(v0_0.count * 2, 0)

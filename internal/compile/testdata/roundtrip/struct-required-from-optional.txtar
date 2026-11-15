@@ -109,7 +109,7 @@ lenses: {
 				path:  "q.y"
 				value: v0_0.q.y
 			}]
-			message: "q.y has no equivalent in 1.0 and was dropped"
+			message: "q.y has no equivalent in v1.0 and was dropped"
 			type:    "DroppedField"
 		}]
 	}
@@ -128,7 +128,7 @@ lenses: {
 []
 -- out/translate/0.0/full->1.0 --
 {"q":{"x":1}}
-[{"sourceFields":[{"path":"q.y","value":2}],"type":"DroppedField","message":"q.y has no equivalent in 1.0 and was dropped"}]
+[{"sourceFields":[{"path":"q.y","value":2}],"type":"DroppedField","message":"q.y has no equivalent in v1.0 and was dropped"}]
 -- out/translate/1.0/empty->0.0 --
 {"q":{}}
 []

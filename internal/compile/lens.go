@@ -340,7 +340,22 @@ func (e *edge) nameOf(v thema.SyntacticVersion) string {
 	if e.tip != nil && *e.tip == v {
 		return TipParam
 	}
-	return v.String()
+	return vname(v)
+}
+
+// lensName names the edge's lens as messages name it, by the version that
+// declares it, the newer of the two: the ForwardLens of v1.0.
+func (e *edge) lensName() string {
+	return fmt.Sprintf("the %s of %s", e.dir, e.lensOwner())
+}
+
+// lensOwner names the version that declares the edge's lens: the newer of
+// the two, whose file holds both its lenses.
+func (e *edge) lensOwner() string {
+	if e.dir == backward {
+		return e.nameOf(e.sv)
+	}
+	return e.nameOf(e.tv)
 }
 
 // paramOf is the name the author gives an instance of v in a lens: v0_0, or
@@ -691,7 +706,7 @@ func (e *edge) notData(f *ast.Field, name string, isIdent bool) bool {
 		kind = "definition"
 	}
 	e.errs = cerrors.Append(e.errs, diag.New(diag.E0333).At(f.Pos()).
-		Headlinef("the %s in %s declares %s, a %s, which is not data", e.dir, e.file, name, kind).
+		Headlinef("%s declares %s, a %s, which is not data", e.lensName(), name, kind).
 		Note(token.NoPos, "a lens maps data fields, so a key is a field of the target, or of its lacunas, by name").
 		Help("remove it; to map a field whose name starts with _ or #, quote the key: \""+name+"\": ...").Err())
 	return true
@@ -1637,7 +1652,7 @@ func (e *edge) eachCopy(en *entry, out *compiledLens) {
 	}
 	if fs := e.misfits(p, cue.MakePath()); len(fs) > 0 {
 		b := diag.New(diag.E0359).At(pos).
-			Headlinef("the %s in %s copies %s into the elements of %s, which do not accept every value of it", e.dir, e.file, elem, en.target).
+			Headlinef("%s copies %s into the elements of %s, which do not accept every value of it", e.lensName(), elem, en.target).
 			Helpf("copy into %s a field whose values its elements accept, or map them with a struct of mappings", en.target)
 		r := strings.NewReplacer("the prior schema", e.nameOf(e.sv), "the new schema", e.nameOf(e.tv))
 		for _, f := range fs {
@@ -1839,11 +1854,11 @@ func (e *edge) splits(tpath cue.Path, fs []compat.Finding) bool {
 func (e *edge) copyMisfit(code diag.Code, p token.Pos, spath, tpath cue.Path, fs []compat.Finding) {
 	b := diag.New(code).At(p)
 	if code == diag.E0358 {
-		b.Headlinef("the %s in %s would copy %s.%s into %s, which does not accept every value of it", e.dir, e.file, e.root, spath, tpath)
+		b.Headlinef("%s would copy %s.%s into %s, which does not accept every value of it", e.lensName(), e.root, spath, tpath)
 		b.Notef(token.NoPos, "both %s and %s declare %s, so a lens that does not map it copies it", e.nameOf(e.sv), e.nameOf(e.tv), tpath)
 		b.Helpf("map %s in the %s: a _match, a computed value, or a constant", tpath, e.dir)
 	} else {
-		b.Headlinef("the %s in %s moves %s.%s into %s, which does not accept every value of it", e.dir, e.file, e.root, spath, tpath)
+		b.Headlinef("%s moves %s.%s into %s, which does not accept every value of it", e.lensName(), e.root, spath, tpath)
 		b.Helpf("map %s from a value it accepts: a _match, or a computed value", tpath)
 	}
 	r := strings.NewReplacer("the prior schema", e.nameOf(e.sv), "the new schema", e.nameOf(e.tv))
@@ -1885,10 +1900,10 @@ func (e *edge) unwritten() {
 		names = append(names, p.String())
 	}
 	b := diag.New(diag.E0346).At(e.blockPos)
-	if h := fmt.Sprintf("%s has no %s, and %s requires %s", e.file, e.dir, e.nameOf(e.tv), strings.Join(names, ", ")); len(h) <= diag.MaxHeadline {
+	if h := fmt.Sprintf("%s has no %s, and %s requires %s", e.lensOwner(), e.dir, e.nameOf(e.tv), strings.Join(names, ", ")); len(h) <= diag.MaxHeadline {
 		b.Headline(h)
 	} else {
-		b.Headlinef("%s has no %s, and %s requires %d fields", e.file, e.dir, e.nameOf(e.tv), len(names)).
+		b.Headlinef("%s has no %s, and %s requires %d fields", e.lensOwner(), e.dir, e.nameOf(e.tv), len(names)).
 			Notef(token.NoPos, "%s requires %s", e.nameOf(e.tv), strings.Join(names, ", "))
 	}
 	b.Helpf("write %s: {%s: _, %s: {%s}} in %s", e.dir, e.paramOf(e.sv), e.paramOf(e.tv), nested(cue.MakePath(), "<mapping>", e.missing...), e.file)
@@ -2440,9 +2455,9 @@ func (e *edge) nonEmpty(p token.Pos, path cue.Path) ast.Expr {
 // dropMessage is the derived lacuna's default message for dropping p.
 func (e *edge) dropMessage(p cue.Path) string {
 	if e.each != nil {
-		return fmt.Sprintf("%s.%s has no equivalent in %s and was dropped", e.each.name(), p, e.tv)
+		return fmt.Sprintf("%s.%s has no equivalent in %s and was dropped", e.each.name(), p, vname(e.tv))
 	}
-	return fmt.Sprintf("%s has no equivalent in %s and was dropped", p, e.tv)
+	return fmt.Sprintf("%s has no equivalent in %s and was dropped", p, vname(e.tv))
 }
 
 // catchAllCondition is the condition under which a match's [_] arm applies:

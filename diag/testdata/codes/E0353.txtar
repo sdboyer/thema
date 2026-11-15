@@ -29,7 +29,7 @@ Schema: {
     {
       "code": "E0353",
       "severity": "error",
-      "headline": "_each maps a list to a list; 0.0's name and 1.0's names must both be lists",
+      "headline": "_each maps a list to a list; v0.0's name and v1.0's names must both be lists",
       "primary": {
         "file": "history/1.0.thema",
         "line": 8,
@@ -46,7 +46,7 @@ Schema: {
   }
 }
 -- out/text --
-error[E0353]: _each maps a list to a list; 0.0's name and 1.0's names must both be lists
+error[E0353]: _each maps a list to a list; v0.0's name and v1.0's names must both be lists
  --> history/1.0.thema:8:10
   |
 8 |         names: _each(v0_0.name, {

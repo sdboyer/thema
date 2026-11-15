@@ -25,7 +25,7 @@ Schema: {
 	c: bool
 }
 -- out/error --
-error[E0343]: b is optional in 0.0 and required in 1.0
+error[E0343]: b is optional in v0.0 and required in v1.0
  --> history/1.0.thema:3:2
   |
 3 |     b: int

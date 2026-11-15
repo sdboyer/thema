@@ -23,4 +23,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail declare labels.env by name in schema 0.0
+bind fail declare labels.env by name in schema v0.0

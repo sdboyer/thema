@@ -53,6 +53,6 @@ func NewUntypedMux(sch thema.Schema, dec Decoder) UntypedMux {
 			}
 		}
 
-		return nil, nil, fmt.Errorf("data invalid against all versions (%s), error against %s: %w", vstring, sch.Version(), err)
+		return nil, nil, fmt.Errorf("data invalid against all versions (%s), error against %s: %w", vstring, vname(sch.Version()), err)
 	}
 }

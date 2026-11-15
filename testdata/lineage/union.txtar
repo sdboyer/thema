@@ -37,7 +37,7 @@ lenses: {}
     }
 }
 -- out/validate/TestValidate/mapUnionWithInt --
-error[E0505]: mapUnion.foo in the data matches none of the alternatives schema 0.0 allows
+error[E0505]: mapUnion.foo in the data matches none of the alternatives schema v0.0 allows
   --> in/validate/TestValidate/mapUnionWithInt.data.json:3:16
    |
  3 |         "foo": 42
@@ -52,7 +52,7 @@ error[E0505]: mapUnion.foo in the data matches none of the alternatives schema 0
    |
    = detail: mapUnion.foo: 2 errors in empty disjunction:
 
-error[E0501]: the data lacks theUnion, which schema 0.0 declares as string | bool
+error[E0501]: the data lacks theUnion, which schema v0.0 declares as string | bool
  --> in/validate/TestValidate/mapUnionWithInt.data.json:1:1
   |
 1 | {
@@ -65,7 +65,7 @@ error[E0501]: the data lacks theUnion, which schema 0.0 declares as string | boo
   |
   = detail: theUnion: incomplete value string | bool
 -- out/validate/TestValidate/theUnionWithInt --
-error[E0505]: theUnion in the data matches none of the alternatives schema 0.0 allows
+error[E0505]: theUnion in the data matches none of the alternatives schema v0.0 allows
  --> in/validate/TestValidate/theUnionWithInt.data.json:2:17
   |
 2 |     "theUnion": 42
@@ -80,7 +80,7 @@ error[E0505]: theUnion in the data matches none of the alternatives schema 0.0 a
   |
   = detail: theUnion: 2 errors in empty disjunction:
 
-error[E0501]: the data lacks nestedStruct.structUnion, which schema 0.0 declares as string | bool
+error[E0501]: the data lacks nestedStruct.structUnion, which schema v0.0 declares as string | bool
   --> in/validate/TestValidate/theUnionWithInt.data.json:1:1
    |
  1 | {
@@ -619,7 +619,7 @@ error[E0501]: the data lacks nestedStruct.structUnion, which schema 0.0 declares
 }
 -- out/bind --
 Schema count: 1
-Schema versions: 0.0
+Schema versions: v0.0
 Lenses count: 0
 -- out/encoding/typescript/TestGenerate/nilcfg --
 export interface Union {

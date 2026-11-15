@@ -39,7 +39,7 @@ lenses: {
     {
       "code": "E0401",
       "severity": "error",
-      "headline": "the lacunas of lens 0.1->0.0 are not listed unconditionally",
+      "headline": "the lacunas of lens v0.1->v0.0 are not listed unconditionally",
       "path": [
         "lenses",
         "0.1->0.0",
@@ -77,7 +77,7 @@ lenses: {
   }
 }
 -- out/text --
-error[E0401]: the lacunas of lens 0.1->0.0 are not listed unconditionally
+error[E0401]: the lacunas of lens v0.1->v0.0 are not listed unconditionally
   --> lineage.cue:23:3
    |
 23 |         lacunas: [

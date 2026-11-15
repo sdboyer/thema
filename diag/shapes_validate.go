@@ -13,10 +13,10 @@ func joinDisjuncts(parts []string) string { return strings.Join(parts, " | ") }
 
 // The shapes of validating data against a schema. In every headline, the
 // subject is the field in the data, and the schema is named by its version:
-// "someInt16 in the data is null, but schema 0.0 declares it as int".
+// "someInt16 in the data is null, but schema v0.0 declares it as int".
 
 func schemaName(ctx Context) string {
-	return "schema " + ctx.Base.Version.String()
+	return "schema " + ctx.Base.Version.name()
 }
 
 func dataTerm(ctx Context, path []string) string {

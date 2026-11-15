@@ -23,7 +23,7 @@ schemas: {
     {
       "code": "E0505",
       "severity": "error",
-      "headline": "size in the data matches none of the alternatives schema 0.0 allows",
+      "headline": "size in the data matches none of the alternatives schema v0.0 allows",
       "path": [
         "size"
       ],
@@ -86,7 +86,7 @@ schemas: {
   }
 }
 -- out/text --
-error[E0505]: size in the data matches none of the alternatives schema 0.0 allows
+error[E0505]: size in the data matches none of the alternatives schema v0.0 allows
  --> data.json:2:10
   |
 2 |     "size": true

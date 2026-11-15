@@ -113,7 +113,7 @@ lenses: {
 			@thema(derived)
 			condition:    len(_d_0) > 0
 			sourceFields: _d_0
-			message:      "l[].legacy has no equivalent in 1.0 and was dropped"
+			message:      "l[].legacy has no equivalent in v1.0 and was dropped"
 			type:         "DroppedField"
 		}]
 	}
@@ -131,7 +131,7 @@ lenses: {
 []
 -- out/translate/0.0/present->1.0 --
 {"l":[{"u":"a"},{"u":"b"}]}
-[{"sourceFields":[{"path":"l[0].legacy","value":"x"}],"type":"DroppedField","message":"l[].legacy has no equivalent in 1.0 and was dropped"}]
+[{"sourceFields":[{"path":"l[0].legacy","value":"x"}],"type":"DroppedField","message":"l[].legacy has no equivalent in v1.0 and was dropped"}]
 -- out/translate/1.0/absent->0.0 --
 {}
 []

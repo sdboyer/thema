@@ -18,7 +18,7 @@ ForwardLens: {
 -- ship/tip.thema --
 Schema: close({u!: [...string]})
 -- out/error --
-error[E0343]: u[].id is optional in 0.0, and each element of 1.0's u needs a value
+error[E0343]: u[].id is optional in v0.0, and each element of v1.0's u needs a value
  --> history/1.0.thema:8:20
   |
 8 |         u: _each(v0_0.u, _item.id)

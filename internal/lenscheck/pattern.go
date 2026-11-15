@@ -455,7 +455,7 @@ func (w *walker) childAlternatives(b cue.Value, rel cue.Path) (alts []cue.Value,
 // hold: one whose patterns cannot hold together with gs is dropped (unless
 // every one is, when nothing is), and the rest must together hold wherever gs
 // do, or the read may find the field absent, which is an error. ok is false,
-// with the reason as a finding's detail, where they cannot be shown to. Within
+// with the reason as a finding's detail, where they cannot be proven to. Within
 // a hidden field no coverage is required: an absent field leaves it
 // incomplete, as an absent input path does.
 func (w *walker) guarded(x ast.Expr, subj string, gs []pattern) (conjs []cueview.Conjunct, detail, help string, ok bool) {
@@ -485,7 +485,7 @@ func (w *walker) guarded(x ast.Expr, subj string, gs []pattern) (conjs []cueview
 	if len(arms) == 0 || w.hidden > 0 || w.covers(cands) {
 		return conjs, "", "", true
 	}
-	return conjs, fmt.Sprintf("reads %s, which is written only under %s, and the checker cannot show that holds wherever %s is written%s", text(x), describePatternSets(arms), subj, underPatterns(gs)),
+	return conjs, fmt.Sprintf("reads %s, which is written only under %s, and the checker cannot prove that holds wherever %s is written%s", text(x), describePatternSets(arms), subj, underPatterns(gs)),
 		fmt.Sprintf("write %s under the same patterns, or %s on every path", subj, text(x)), false
 }
 

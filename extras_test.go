@@ -102,8 +102,8 @@ func TestTranslateCarriesExtras(t *testing.T) {
 			steps: []step{
 				{SV(0, 0), SV(0, 1), []lacuna.Lacuna{}},
 				{SV(0, 1), SV(1, 0), []lacuna.Lacuna{
-					dropped("items[0].color set aside: 1.0 does not declare it in items[0], which it does not leave open", ref("items[0].color", "red")),
-					dropped("top set aside: 1.0 does not declare it in the instance, which it does not leave open", ref("top", true)),
+					dropped("items[0].color set aside: v1.0 does not declare it in items[0], which it does not leave open", ref("items[0].color", "red")),
+					dropped("top set aside: v1.0 does not declare it in the instance, which it does not leave open", ref("top", true)),
 				}},
 			},
 		},
@@ -113,8 +113,8 @@ func TestTranslateCarriesExtras(t *testing.T) {
 			want: `{"a":"x","meta":{"owner":"o","lead":"l"},"items":[{"name":"n"},{"name":"m","rank":2}],"shut":{"x":1}}`,
 			steps: []step{
 				{SV(0, 1), SV(1, 0), []lacuna.Lacuna{
-					lossy("meta.team not carried: its value is not an instance of what 1.0 declares for it", ref("meta.team", "three"), ref("meta.team", nil)),
-					lossy("items[0].rank not carried: its value is not an instance of what 1.0 declares for it", ref("items[0].rank", "first"), ref("items[0].rank", nil)),
+					lossy("meta.team not carried: its value is not an instance of what v1.0 declares for it", ref("meta.team", "three"), ref("meta.team", nil)),
+					lossy("items[0].rank not carried: its value is not an instance of what v1.0 declares for it", ref("items[0].rank", "first"), ref("items[0].rank", nil)),
 				}},
 			},
 		},
@@ -124,7 +124,7 @@ func TestTranslateCarriesExtras(t *testing.T) {
 			want: `{"a":"x","meta":{"owner":"o"},"items":[],"shut":{"x":1}}`,
 			steps: []step{
 				{SV(0, 1), SV(1, 0), []lacuna.Lacuna{
-					dropped("p, q set aside: 1.0 does not declare them in the instance, which it does not leave open", ref("p", int64(1)), ref("q", []interface{}{int64(2)})),
+					dropped("p, q set aside: v1.0 does not declare them in the instance, which it does not leave open", ref("p", int64(1)), ref("q", []interface{}{int64(2)})),
 				}},
 			},
 		},
@@ -273,15 +273,15 @@ func TestTranslateFieldFates(t *testing.T) {
 				dropped("gone is gone", ref("gone", "g")),
 				// The lens writes its own name for the first item without
 				// reading the instance's.
-				dropped("items[0].name set aside: the lens from 0.0 to 1.0 writes its own value for it", ref("items[0].name", "a")),
+				dropped("items[0].name set aside: the lens from v0.0 to v1.0 writes its own value for it", ref("items[0].name", "a")),
 				// The elements past the new length are dropped whole.
-				dropped("items[1], items[2] set aside: the lens from 0.0 to 1.0 neither maps nor writes them", ref("items[1]", map[string]interface{}{"name": "b"}), ref("items[2]", map[string]interface{}{"name": "c", "color": "blue"})),
+				dropped("items[1], items[2] set aside: the lens from v0.0 to v1.0 neither maps nor writes them", ref("items[1]", map[string]interface{}{"name": "b"}), ref("items[2]", map[string]interface{}{"name": "c", "color": "blue"})),
 				// old, which 0.0 declares and the lens leaves alone, and top, an
 				// extra, are dropped by the closed instance alike; the empty e
 				// loses nothing.
-				dropped("old, top set aside: 1.0 does not declare them in the instance, which it does not leave open", ref("old", "x"), ref("top", int64(1))),
-				dropped("kept set aside: the lens from 0.0 to 1.0 neither maps nor writes it", ref("kept", "k")),
-				dropped("stamp set aside: the lens from 0.0 to 1.0 writes its own value for it", ref("stamp", "mine")),
+				dropped("old, top set aside: v1.0 does not declare them in the instance, which it does not leave open", ref("old", "x"), ref("top", int64(1))),
+				dropped("kept set aside: the lens from v0.0 to v1.0 neither maps nor writes it", ref("kept", "k")),
+				dropped("stamp set aside: the lens from v0.0 to v1.0 writes its own value for it", ref("stamp", "mine")),
 			},
 		},
 		"lossy over a default": {
@@ -294,7 +294,7 @@ func TestTranslateFieldFates(t *testing.T) {
 					SourceFields: []lacuna.FieldRef{ref("flag", "no")},
 					TargetFields: []lacuna.FieldRef{ref("flag", true)},
 					Type:         lacuna.LossyFieldMapping,
-					Message:      "flag not carried: its value is not an instance of what 1.0 declares for it",
+					Message:      "flag not carried: its value is not an instance of what v1.0 declares for it",
 				},
 			},
 		},
@@ -308,8 +308,8 @@ func TestTranslateFieldFates(t *testing.T) {
 			data: `{info: {owner: "o", tag: "t"}, conf: {a: 1, b: 2, tag: "c"}, items: [{name: "a", color: "red"}], kept: "k", flag: false, stamp: "s"}`,
 			want: `{"meta":{"owner":"o","tag":"t"},"cfg":{"a":1},"items":[{"name":"a","color":"red"}],"gone":"g","flag":false,"stamp":"s"}`,
 			lacunas: []lacuna.Lacuna{
-				dropped("conf.b, conf.tag set aside: translating from 1.0 to 0.0 produces no conf to carry them in", ref("conf.b", int64(2)), ref("conf.tag", "c")),
-				dropped("kept set aside: the lens from 1.0 to 0.0 neither maps nor writes it", ref("kept", "k")),
+				dropped("conf.b, conf.tag set aside: translating from v1.0 to v0.0 produces no conf to carry them in", ref("conf.b", int64(2)), ref("conf.tag", "c")),
+				dropped("kept set aside: the lens from v1.0 to v0.0 neither maps nor writes it", ref("kept", "k")),
 			},
 		},
 	} {
@@ -550,7 +550,7 @@ func TestTranslateReferenceIsEffect(t *testing.T) {
 		return lacuna.Lacuna{SourceFields: refs, Type: lacuna.DroppedField, Message: msg}
 	}
 	const (
-		bWritten = "b set aside: the lens from 0.0 to 1.0 writes its own value for it"
+		bWritten = "b set aside: the lens from v0.0 to v1.0 writes its own value for it"
 		kindA    = `{kind: "a"}`
 	)
 
@@ -691,7 +691,7 @@ func TestTranslateLostDefaults(t *testing.T) {
 		mixed   = defaultsLineage(`{a: string, x: *1 | int, w: *"w" | string}`, `{a: string}`, `{a: v0_0.a}`)
 		written = defaultsLineage(`{a: string, b: *0 | int}`, `{a: string, b: int}`, `{a: v0_0.a, b: 7}`)
 		fixed   = defaultsLineage(`{a: string, k: "k"}`, `{a: string}`, `{a: v0_0.a}`)
-		closedX = "x set aside: 1.0 does not declare it in the instance, which it does not leave open"
+		closedX = "x set aside: v1.0 does not declare it in the instance, which it does not leave open"
 		onlyA   = `{"a":"q"}`
 	)
 
@@ -715,41 +715,41 @@ func TestTranslateLostDefaults(t *testing.T) {
 		"minor: other than default": {
 			lineage: minorDefaultLineage, data: `{a: "q", z: 5}`, want: onlyA,
 			minor:   true,
-			lacunas: []lacuna.Lacuna{dropped("z set aside: 0.0 does not declare it in the instance, which it does not leave open", ref("z", int64(5)))},
+			lacunas: []lacuna.Lacuna{dropped("z set aside: v0.0 does not declare it in the instance, which it does not leave open", ref("z", int64(5)))},
 		},
 
 		"struct: empty":      {lineage: structs, data: `{a: "q", o: {}}`, want: onlyA},
 		"struct: empty list": {lineage: lists, data: `{a: "q", o: {l: []}}`, want: onlyA},
 		"struct: list": {
 			lineage: lists, data: `{a: "q", o: {l: [1]}}`, want: onlyA,
-			lacunas: []lacuna.Lacuna{dropped("o set aside: 1.0 does not declare it in the instance, which it does not leave open", ref("o", map[string]interface{}{"l": []interface{}{1.0}}))},
+			lacunas: []lacuna.Lacuna{dropped("o set aside: v1.0 does not declare it in the instance, which it does not leave open", ref("o", map[string]interface{}{"l": []interface{}{1.0}}))},
 		},
 		"struct: defaults written": {lineage: structs, data: `{a: "q", o: {x: 1}}`, want: onlyA},
 		"struct: other than default": {
 			lineage: structs, data: `{a: "q", o: {x: 2}}`, want: onlyA,
-			lacunas: []lacuna.Lacuna{dropped("o set aside: 1.0 does not declare it in the instance, which it does not leave open", ref("o", map[string]interface{}{"x": 2.0}))},
+			lacunas: []lacuna.Lacuna{dropped("o set aside: v1.0 does not declare it in the instance, which it does not leave open", ref("o", map[string]interface{}{"x": 2.0}))},
 		},
 		"struct: optional field present": {
 			lineage: structs, data: `{a: "q", o: {y: 3}}`, want: onlyA,
-			lacunas: []lacuna.Lacuna{dropped("o set aside: 1.0 does not declare it in the instance, which it does not leave open", ref("o", map[string]interface{}{"y": 3.0}))},
+			lacunas: []lacuna.Lacuna{dropped("o set aside: v1.0 does not declare it in the instance, which it does not leave open", ref("o", map[string]interface{}{"y": 3.0}))},
 		},
 
 		// One lacuna per struct per cause names only the fields that held
 		// more than their default.
 		"mixed: one default": {
 			lineage: mixed, data: `{a: "q", x: 1, w: "v"}`, want: onlyA,
-			lacunas: []lacuna.Lacuna{dropped("w set aside: 1.0 does not declare it in the instance, which it does not leave open", ref("w", "v"))},
+			lacunas: []lacuna.Lacuna{dropped("w set aside: v1.0 does not declare it in the instance, which it does not leave open", ref("w", "v"))},
 		},
 		"mixed: neither default": {
 			lineage: mixed, data: `{a: "q", x: 5, w: "v"}`, want: onlyA,
-			lacunas: []lacuna.Lacuna{dropped("x, w set aside: 1.0 does not declare them in the instance, which it does not leave open", ref("x", int64(5)), ref("w", "v"))},
+			lacunas: []lacuna.Lacuna{dropped("x, w set aside: v1.0 does not declare them in the instance, which it does not leave open", ref("x", int64(5)), ref("w", "v"))},
 		},
 
 		// The lens writes its own value without referring to the source's.
 		"written: source default": {lineage: written, data: `{a: "q", b: 0}`, want: `{"a":"q","b":7}`},
 		"written: other than default": {
 			lineage: written, data: `{a: "q", b: 3}`, want: `{"a":"q","b":7}`,
-			lacunas: []lacuna.Lacuna{dropped("b set aside: the lens from 0.0 to 1.0 writes its own value for it", ref("b", int64(3)))},
+			lacunas: []lacuna.Lacuna{dropped("b set aside: the lens from v0.0 to v1.0 writes its own value for it", ref("b", int64(3)))},
 		},
 	} {
 		t.Run(name, func(t *testing.T) {

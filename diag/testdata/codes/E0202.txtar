@@ -25,7 +25,7 @@ schemas: {
     {
       "code": "E0202",
       "severity": "error",
-      "headline": "schema version 0.2 does not follow 0.0",
+      "headline": "schema v0.2 does not follow v0.0",
       "path": [
         "schemas",
         "0",
@@ -47,7 +47,7 @@ schemas: {
         "origin": "user"
       },
       "help": [
-        "the next schema after 0.0 is version 0.1 or 1.0"
+        "the next schema after v0.0 is v0.1 or v1.0"
       ]
     }
   ],
@@ -58,10 +58,10 @@ schemas: {
   }
 }
 -- out/text --
-error[E0202]: schema version 0.2 does not follow 0.0
+error[E0202]: schema v0.2 does not follow v0.0
  --> lineage.cue:9:3
   |
 9 |         "2": {
   |         ^^^
   |
-  = help: the next schema after 0.0 is version 0.1 or 1.0
+  = help: the next schema after v0.0 is v0.1 or v1.0

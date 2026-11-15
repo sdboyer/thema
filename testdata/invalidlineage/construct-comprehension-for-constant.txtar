@@ -14,7 +14,7 @@ thema.Lineage & {
 	}
 }
 -- out/bindfail --
-error[E0132]: schema 0.0 uses a comprehension
+error[E0132]: schema v0.0 uses a comprehension
  --> /in.cue:7:4
   |
 7 |             for k in ["a", "b"] {

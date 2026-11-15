@@ -84,7 +84,7 @@ lenses: {
     "withDefault": "invalid value for withDefault"
 }
 -- out/validate/TestValidate/invalidEnumValue --
-error[E0505]: withDefault in the data matches none of the alternatives schema 0.3 allows
+error[E0505]: withDefault in the data matches none of the alternatives schema v0.3 allows
   --> in/validate/TestValidate/invalidEnumValue.data.json:3:20
    |
  3 |     "withDefault": "invalid value for withDefault"
@@ -428,7 +428,7 @@ error[E0505]: withDefault in the data matches none of the alternatives schema 0.
 }
 -- out/bind --
 Schema count: 4
-Schema versions: 0.0, 0.1, 0.2, 0.3
+Schema versions: v0.0, v0.1, v0.2, v0.3
 Lenses count: 3
 -- out/encoding/typescript/TestGenerate/nilcfg --
 export interface Expand {

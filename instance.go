@@ -66,8 +66,8 @@ func (i *Instance) AsSuccessor(opts ...TranslateOption) (*Instance, lacuna.Trans
 	nsch := i.Schema().Successor()
 	if nsch == nil {
 		return nil, nil, diag.New(diag.E0240).
-			Headlinef("lineage %s has no schema after %s", i.Schema().Lineage().Name(), i.Schema().Version()).
-			Helpf("%s is its latest version", i.Schema().Version()).
+			Headlinef("lineage %s has no schema after %s", i.Schema().Lineage().Name(), i.Schema().Version().name()).
+			Helpf("%s is its latest version", i.Schema().Version().name()).
 			Err()
 	}
 	if nsch.Version()[0] == i.Schema().Version()[0] {
@@ -116,8 +116,8 @@ func (i *Instance) AsPredecessor(opts ...TranslateOption) (*Instance, lacuna.Tra
 	psch := i.sch.Predecessor()
 	if psch == nil {
 		return nil, nil, diag.New(diag.E0240).
-			Headlinef("lineage %s has no schema before %s", i.Schema().Lineage().Name(), i.Schema().Version()).
-			Helpf("%s is its first version", i.Schema().Version()).
+			Headlinef("lineage %s has no schema before %s", i.Schema().Lineage().Name(), i.Schema().Version().name()).
+			Helpf("%s is its first version", i.Schema().Version().name()).
 			Err()
 	}
 	return i.Translate(psch.Version(), opts...)
@@ -303,7 +303,7 @@ func (i *Instance) translateStep(data cue.Value, from, to *schemaDef) (cue.Value
 		return cue.Value{}, lacuna.TranslationStep{}, stepInfo{}, diag.Convert(err, lin.translateContext(out))
 	}
 	if len(steps) != 1 {
-		return cue.Value{}, lacuna.TranslationStep{}, stepInfo{}, diag.InternalErr(fmt.Errorf("translating %s to %s took %d steps", from.Version(), to.Version(), len(steps)))
+		return cue.Value{}, lacuna.TranslationStep{}, stepInfo{}, diag.InternalErr(fmt.Errorf("translating %s to %s took %d steps", from.Version().name(), to.Version().name(), len(steps)))
 	}
 	step := steps[0]
 

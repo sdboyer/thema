@@ -149,7 +149,7 @@ lenses: {
 []
 -- out/translate/0.0/post->1.0 --
 {"method":"GET","route":"/things/{id}","path":{"id":"b"}}
-[{"targetFields":[{"path":"method","value":"GET"}],"type":"LossyFieldMapping","message":"1.0 has no POST; it becomes a GET, without its body"},{"sourceFields":[{"path":"method","value":"POST"}],"type":"DroppedField","message":"method set aside: the lens from 0.0 to 1.0 writes its own value for it"},{"sourceFields":[{"path":"body","value":{"name":"n"}}],"type":"DroppedField","message":"body set aside: 1.0 does not declare it in the instance, which it does not leave open"}]
+[{"targetFields":[{"path":"method","value":"GET"}],"type":"LossyFieldMapping","message":"1.0 has no POST; it becomes a GET, without its body"},{"sourceFields":[{"path":"method","value":"POST"}],"type":"DroppedField","message":"method set aside: the lens from v0.0 to v1.0 writes its own value for it"},{"sourceFields":[{"path":"body","value":{"name":"n"}}],"type":"DroppedField","message":"body set aside: v1.0 does not declare it in the instance, which it does not leave open"}]
 -- out/translate/1.0/get->0.0 --
 {"method":"GET","route":"/things/{id}","path":{"id":"c"}}
 []

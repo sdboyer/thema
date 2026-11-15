@@ -41,7 +41,7 @@ lenses: {
     {
       "code": "E0368",
       "severity": "error",
-      "headline": "b in the result of lens 0.0->1.0 is required by the target schema and never written",
+      "headline": "b in the result of lens v0.0->v1.0 is required by the target schema and never written",
       "path": [
         "lenses",
         "0.0->1.0",
@@ -71,7 +71,7 @@ lenses: {
       },
       "notes": [
         {
-          "label": "a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule required-not-written)"
+          "label": "a lens must be total: every instance of schema v0.0 must translate to an instance of schema v1.0 (totality rule required-not-written)"
         }
       ]
     }
@@ -83,10 +83,10 @@ lenses: {
   }
 }
 -- out/text --
-error[E0368]: b in the result of lens 0.0->1.0 is required by the target schema and never written
+error[E0368]: b in the result of lens v0.0->v1.0 is required by the target schema and never written
   --> lineage.cue:22:3
    |
 22 |         v1_0: {
    |         ^^^^
    |
-   = note: a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule required-not-written)
+   = note: a lens must be total: every instance of schema v0.0 must translate to an instance of schema v1.0 (totality rule required-not-written)

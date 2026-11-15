@@ -25,7 +25,7 @@ schemas: {
     {
       "code": "E0217",
       "severity": "error",
-      "headline": "schema 0.1 accepts any field name in the prior schema and is closed in the new one",
+      "headline": "schema v0.1 accepts any field name in the prior schema and is closed in the new one",
       "path": [
         "schemas",
         "0",
@@ -48,11 +48,11 @@ schemas: {
       },
       "notes": [
         {
-          "label": "schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts"
+          "label": "schema v0.1 is a minor version, so it must accept all data schema v0.0 accepts"
         }
       ],
       "help": [
-        "make the change compatible, or make this version 1.0"
+        "make the change compatible, or make this version v1.0"
       ]
     }
   ],
@@ -63,11 +63,11 @@ schemas: {
   }
 }
 -- out/text --
-error[E0217]: schema 0.1 accepts any field name in the prior schema and is closed in the new one
+error[E0217]: schema v0.1 accepts any field name in the prior schema and is closed in the new one
   --> lineage.cue:11:4
    |
 11 |             schema: {
    |             ^^^^^^
    |
-   = note: schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts
-   = help: make the change compatible, or make this version 1.0
+   = note: schema v0.1 is a minor version, so it must accept all data schema v0.0 accepts
+   = help: make the change compatible, or make this version v1.0

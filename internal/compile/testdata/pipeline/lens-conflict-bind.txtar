@@ -38,8 +38,8 @@ backward: {
 	count: to.count
 }
 -- out/error --
-count in the result of lens 0.0->1.0 is not total for some instance:
+count in the result of lens v0.0->v1.0 is not total for some instance:
     ship/history/1.0.thema:7:9
 -- out/positions --
-count in the result of lens 0.0->1.0 is not total for some instance
+count in the result of lens v0.0->v1.0 is not total for some instance
 	authored ship/history/1.0.thema:7:9

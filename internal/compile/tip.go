@@ -35,9 +35,9 @@ type Tip struct {
 // (clean at 2.0)" when it equals the newest frozen version.
 func (t Tip) String() string {
 	if t.Clean {
-		return fmt.Sprintf("tip (clean at %s)", t.Version)
+		return fmt.Sprintf("tip (clean at %s)", vname(t.Version))
 	}
-	return fmt.Sprintf("tip (cuts as %s)", t.Version)
+	return fmt.Sprintf("tip (cuts as %s)", vname(t.Version))
 }
 
 // ReadTip reads the tip of the lineage in files against its history: the
@@ -94,8 +94,8 @@ func CheckClean(ctx *cue.Context, files []File, opts ...Option) error {
 	}
 	if tip.Base == nil {
 		return diag.New(diag.E1003).At(tv.header()).
-			Headlinef("%s is not clean: there is no version under %s/ for it to equal", TipFile, HistoryDir).
-			Notef(token.NoPos, "the tip cuts as %s", tip.Version).
+			Headlinef("the tip is not clean: there is no version under %s/ for it to equal", HistoryDir).
+			Notef(token.NoPos, "the tip cuts as %s", vname(tip.Version)).
 			Helpf("cut the tip to %s/%s%s", HistoryDir, tip.Version, Ext).
 			Err()
 	}
@@ -107,9 +107,9 @@ func CheckClean(ctx *cue.Context, files []File, opts ...Option) error {
 	}
 	if !same {
 		errs = append(errs, diag.New(diag.E1003).At(tv.schema.Pos()).
-			Headlinef("the Schema in %s differs from the one in %s", TipFile, newest.path).
-			Notef(token.NoPos, "the tip cuts as %s", tip.Version).
-			Helpf("cut the tip to %s/%s%s, or make its Schema equal %s's", HistoryDir, tip.Version, Ext, newest.path).
+			Headlinef("the tip's Schema differs from %s's", newest.name()).
+			Notef(token.NoPos, "the tip cuts as %s", vname(tip.Version)).
+			Helpf("cut the tip to %s/%s%s, or make its Schema equal %s's", HistoryDir, tip.Version, Ext, newest.name()).
 			Err())
 	}
 	for _, f := range []*ast.Field{tv.forward, tv.backward} {
@@ -118,8 +118,8 @@ func CheckClean(ctx *cue.Context, files []File, opts ...Option) error {
 		}
 		name, _, _ := ast.LabelName(f.Label)
 		errs = append(errs, diag.New(diag.E1003).At(f.Pos()).
-			Headlinef("%s declares a %s", TipFile, name).
-			Notef(token.NoPos, "a lens on the edge into the tip belongs to the version the tip cuts as, %s", tip.Version).
+			Headlinef("the tip declares a %s", name).
+			Notef(token.NoPos, "a lens on the edge into the tip belongs to the version the tip cuts as, %s", vname(tip.Version)).
 			Helpf("cut the tip to %s/%s%s, which takes the lens with it", HistoryDir, tip.Version, Ext).
 			Err())
 	}
@@ -182,7 +182,7 @@ func sameSchema(ctx *cue.Context, a, b *version) (bool, error) {
 		}
 		s, err := contenthash.SchemaForm(lin, contenthash.Version{0, 0})
 		if err != nil {
-			return "", diag.InternalErr(fmt.Errorf("the canonical form of the schema in %s: %w", v.path, err))
+			return "", diag.InternalErr(fmt.Errorf("the canonical form of the schema of %s: %w", v.name(), err))
 		}
 		return s, nil
 	}

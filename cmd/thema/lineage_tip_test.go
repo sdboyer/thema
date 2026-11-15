@@ -54,7 +54,7 @@ func writeTipDir(t *testing.T, tip string) string {
 // Strings the CLI tests repeat.
 const (
 	historyV00    = "history/0.0.thema"
-	minorTipLabel = "tip (cuts as 0.1)\n"
+	minorTipLabel = "tip (cuts as v0.1)\n"
 	tipFlag       = "--tip"
 	v00           = "0.0"
 	lineageCmd    = "lineage"
@@ -80,10 +80,10 @@ func TestLineageTip(t *testing.T) {
 		out       string
 		code      string // in stderr, when the run fails
 	}{
-		{"clean", cleanTip, false, "tip (clean at 0.0)\n", ""},
-		{"clean, checked", cleanTip, true, "tip (clean at 0.0)\n", ""},
+		{"clean", cleanTip, false, "tip (clean at v0.0)\n", ""},
+		{"clean, checked", cleanTip, true, "tip (clean at v0.0)\n", ""},
 		{"minor", minorTip, false, minorTipLabel, ""},
-		{"major", majorTip, false, "tip (cuts as 1.0)\n", ""},
+		{"major", majorTip, false, "tip (cuts as v1.0)\n", ""},
 		{"not clean, checked", minorTip, true, minorTipLabel, "E1003"},
 	}
 	for _, c := range cases {

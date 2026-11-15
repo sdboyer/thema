@@ -175,7 +175,7 @@ func compileVersions(ctx *cue.Context, name string, vs []*version) (*Compiled, e
 					at = v.backward.Pos()
 				}
 				errs = cerrors.Append(errs, diag.New(diag.E0354).At(at).
-					Headlinef("%s is the first version, and has no previous version to map from", v.path).
+					Headlinef("%s is the first version, and has no previous version to map from", v.name()).
 					Help("remove the lens; a lens maps between a version and its predecessor").
 					Err())
 			}
@@ -359,7 +359,7 @@ func lensBlock(f *ast.Field, from, to *version) (body, lacunas *ast.StructLit, e
 			case TipParam:
 				// The name is reserved for the tip's instance.
 				return nil, nil, diag.New(diag.E0111).At(d.Pos()).
-					Headlinef("%s names the tip's instance, and %s is not the tip", TipParam, from.path).
+					Headlinef("%s names the tip's instance, and %s is not the tip", TipParam, from.name()).
 					Helpf("name the instance after its version: %s", shape).
 					Err()
 			default:
@@ -413,16 +413,16 @@ func numberedTipParam(f, d *ast.Field, from, to *version, param, result *ast.Fie
 	}
 	if parentField == nil && (tipField != nil || parentShaped) {
 		e := diag.New(diag.E0150).At(d.Pos()).
-			Headlinef("%s in %s names %s, but the tip's parent is %s", name, TipFile, label, parent.v)
+			Headlinef("the %s of %s names %s, but the tip's parent is %s", name, TipParam, label, parent.name())
 		if named, ok := versionOfParam(label); ok && named.Less(parent.v) {
-			e = e.Notef(token.NoPos, "the lens was written against an older parent, %s; the newest version under %s/ is now %s, %s", named, HistoryDir, parent.v, parent.path)
+			e = e.Notef(token.NoPos, "the lens was written against an older parent, %s; the newest version under %s/ is now %s", vname(named), HistoryDir, parent.name())
 		} else {
-			e = e.Notef(token.NoPos, "the tip's lenses connect it to the newest version under %s/, %s, %s", HistoryDir, parent.v, parent.path)
+			e = e.Notef(token.NoPos, "the tip's lenses connect it to the newest version under %s/, %s", HistoryDir, parent.name())
 		}
 		if parent == from {
-			e = e.Helpf("declare %s: _ in place of %s, and review the mappings against %s's schema", parent.param(), label, parent.v)
+			e = e.Helpf("declare %s: _ in place of %s, and review the mappings against %s's schema", parent.param(), label, parent.name())
 		} else {
-			e = e.Helpf("name the body %s in place of %s, and review its mappings against %s's schema", parent.param(), label, parent.v)
+			e = e.Helpf("name the body %s in place of %s, and review its mappings against %s's schema", parent.param(), label, parent.name())
 		}
 		return e.Err()
 	}
@@ -454,7 +454,13 @@ func (v *version) name() string {
 	if v.tip {
 		return TipParam
 	}
-	return "v" + v.v.String()
+	return vname(v.v)
+}
+
+// vname is version v as messages name it: v0.1. v.String() is the version as
+// data writes it, in file names and keys.
+func vname(v thema.SyntacticVersion) string {
+	return "v" + v.String()
 }
 
 // tipLens renames, in a lens on the edge into the tip, the author's name for
@@ -498,7 +504,7 @@ func missingLens(v, prev *version, block string, errs cerrors.Error) error {
 	if block == fieldBackward {
 		from, to = to, from
 	}
-	b.Headlinef("%s has no %s, and one cannot be derived", v.path, block)
+	b.Headlinef("%s has no %s, and one cannot be derived", v.name(), block)
 	// The derivation's findings say why: each keeps its code, which names its
 	// page, its notes, after its own, and its help, which says what to write
 	// in the block. The help that writes the block comes first, and the help
@@ -537,7 +543,7 @@ func missingLens(v, prev *version, block string, errs cerrors.Error) error {
 		msg, args := e.Msg()
 		b.Note(e.Position(), fmt.Sprintf(msg, args...))
 	}
-	b.Notef(token.NoPos, "translating from %s to %s needs it; until %s writes it, that translation fails (E1002)", nameOf(from, v), nameOf(to, v), v.path)
+	b.Notef(token.NoPos, "translating from %s to %s needs it; until %s writes it, that translation fails (E1002)", nameOf(from, v), nameOf(to, v), v.name())
 	switch {
 	case len(shape) > 0:
 	case block == fieldForward:
@@ -556,7 +562,7 @@ func nameOf(x thema.SyntacticVersion, t *version) string {
 	if x == t.v {
 		return TipParam
 	}
-	return x.String()
+	return vname(x)
 }
 
 // lensField builds the lenses entry for the edge from -> to.

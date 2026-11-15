@@ -218,7 +218,7 @@ func (ml *maybeLineage) compatDiag(f compat.Finding, prev, curr *schemaDef) *dia
 		subject = ml.term(addr)
 	}
 	b := ml.diag(code).Addr(addr)
-	statement(b, subject+" "+diag.RewriteFor(ml.vocab(), addr, f.Detail), subject+" is not backward compatible with "+prev.v.String())
+	statement(b, subject+" "+diag.RewriteFor(ml.vocab(), addr, f.Detail), subject+" is not backward compatible with "+prev.v.name())
 	if f.Pos.IsValid() {
 		b.At(f.Pos)
 	} else {
@@ -235,11 +235,11 @@ func (ml *maybeLineage) compatDiag(f compat.Finding, prev, curr *schemaDef) *dia
 		if f.Claimed.String() != f.Path.String() {
 			what = f.Claimed.String()
 		}
-		b.Helpf("declare %s as %s?: _ to accept what %s accepted, or make this version %d.0", what, cue.MakePath(sels[len(sels)-1]), prev.v, prev.v[0]+1)
+		b.Helpf("declare %s as %s?: _ to accept what %s accepted, or make this version %s", what, cue.MakePath(sels[len(sels)-1]), prev.v.name(), synv(prev.v[0]+1, 0).name())
 	} else if f.Verdict == compat.Unknown {
-		b.Help("change the schema so the checker can decide, or make this version " + synv(prev.v[0]+1, 0).String())
+		b.Help("change the schema so the checker can decide, or make this version " + synv(prev.v[0]+1, 0).name())
 	} else {
-		b.Help("make the change compatible, or make this version " + synv(prev.v[0]+1, 0).String())
+		b.Help("make the change compatible, or make this version " + synv(prev.v[0]+1, 0).name())
 	}
 	return b.Err()
 }

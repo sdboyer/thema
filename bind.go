@@ -85,6 +85,11 @@ func (id lensID) String() string {
 	return fmt.Sprintf("%s->%s", id.From, id.To)
 }
 
+// name is the lens as messages name it: v1.0->v0.1.
+func (id lensID) name() string {
+	return id.From.name() + "->" + id.To.name()
+}
+
 // parseVersionKey parses a major or minor version key in a lineage's schemas: a
 // non-negative decimal integer, without leading zeros, so that each version has
 // exactly one key.
@@ -148,7 +153,7 @@ func (ml *maybeLineage) checkGoValidity(cfg *bindConfig) error {
 		if len(schlist) == n {
 			return ml.at(diag.E0203, majiter.Value()).
 				Headlinef("major version %d declares no schemas", maj).
-				Helpf("declare its first schema as version %s", synv(maj, 0)).
+				Helpf("declare its first schema as %s", synv(maj, 0).name()).
 				Err()
 		}
 	}
@@ -178,8 +183,8 @@ func (ml *maybeLineage) checkGoValidity(cfg *bindConfig) error {
 			if sch.v[1] == 0 && res.Compatible() {
 				// Major version change, should be backwards incompatible
 				return ml.at(diag.E0208, sch.ref.LookupPath(pathSch)).
-					Headlinef("%s is backward compatible with %s, so it is not a major version", ml.term(schemaAddr(sch.v)), previous.v).
-					Helpf("declare it as version %s, or make a breaking change", synv(previous.v[0], previous.v[1]+1)).
+					Headlinef("%s is backward compatible with %s, so it is not a major version", ml.term(schemaAddr(sch.v)), previous.v.name()).
+					Helpf("declare it as %s, or make a breaking change", synv(previous.v[0], previous.v[1]+1).name()).
 					Err()
 			}
 			if sch.v[1] != 0 && !res.Compatible() {
@@ -213,8 +218,8 @@ func (ml *maybeLineage) checkSchemaVersions(prev, curr *schemaDef) error {
 	if prev == nil {
 		if curr.v != synv(0, 0) {
 			return ml.at(diag.E0201, curr.ref).
-				Headlinef("the first schema is version %s, not 0.0", curr.v).
-				Help("every lineage starts at version 0.0").
+				Headlinef("the first schema is %s, not v0.0", curr.v.name()).
+				Help("every lineage starts at v0.0").
 				Err()
 		}
 		return nil
@@ -223,8 +228,8 @@ func (ml *maybeLineage) checkSchemaVersions(prev, curr *schemaDef) error {
 	nextMinor, nextMajor := synv(prev.v[0], prev.v[1]+1), synv(prev.v[0]+1, 0)
 	if curr.v != nextMinor && curr.v != nextMajor {
 		return ml.at(diag.E0202, curr.ref).
-			Headlinef("schema version %s does not follow %s", curr.v, prev.v).
-			Helpf("the next schema after %s is version %s or %s", prev.v, nextMinor, nextMajor).
+			Headlinef("schema %s does not follow %s", curr.v.name(), prev.v.name()).
+			Helpf("the next schema after %s is %s or %s", prev.v.name(), nextMinor.name(), nextMajor.name()).
 			Err()
 	}
 
@@ -399,7 +404,7 @@ func (ml *maybeLineage) checkLineageShape(cfg *bindConfig) error {
 			if iter, err := val.Fields(); err == nil && !iter.Next() {
 				return ml.at(diag.E0122, val).
 					Headline("the lineage declares no schemas").
-					Help("declare at least version 0.0 under schemas").
+					Help("declare at least v0.0 under schemas").
 					Err()
 			}
 		}
@@ -658,15 +663,15 @@ func (ml *maybeLineage) checkLensResults() error {
 		input := lens.LookupPath(inputPath)
 		if !input.Exists() {
 			errs = append(errs, ml.diag(diag.E0310).AtValue(lens).Addr(lensA).
-				Headlinef("%s does not declare %s, the instance of %s it takes", ml.term(lensA), lensParam(from), from).
+				Headlinef("%s does not declare %s, the instance of %s it takes", ml.term(lensA), lensParam(from), from.name()).
 				Helpf("write %s: _", lensParam(from)).
 				Err())
 			continue
 		}
 		if !lens.LookupPath(resultPath).Exists() {
 			errs = append(errs, ml.diag(diag.E0311).AtValue(lens).Addr(lensA).
-				Headlinef("%s does not declare %s, the instance of %s it returns", ml.term(lensA), lensParam(to), to).
-				Helpf("write %s: {...}, mapping each field of %s", lensParam(to), to).
+				Headlinef("%s does not declare %s, the instance of %s it returns", ml.term(lensA), lensParam(to), to.name()).
+				Helpf("write %s: {...}, mapping each field of %s", lensParam(to), to.name()).
 				Err())
 			continue
 		}
@@ -836,7 +841,7 @@ func (ml *maybeLineage) checkReferences() error {
 
 	for _, sch := range ml.schlist {
 		rel := cue.MakePath(cue.Str(labelSchemas), cue.Str(strconv.Itoa(int(sch.v[0]))), cue.Str(strconv.Itoa(int(sch.v[1]))), cue.Str("schema"))
-		check(refOwner{name: fmt.Sprintf("schema %s", sch.v), addr: schemaAddr(sch.v), v: ml.raw.LookupPath(rel), rel: rel})
+		check(refOwner{name: "schema " + sch.v.name(), addr: schemaAddr(sch.v), v: ml.raw.LookupPath(rel), rel: rel})
 	}
 	// thema's default joinSchema is _, which joins nothing and is not the author's.
 	if rel := cue.MakePath(cue.Str(labelJoinSchema)); ml.raw.LookupPath(rel).IncompleteKind() != cue.TopKind {
@@ -852,7 +857,7 @@ func (ml *maybeLineage) checkReferences() error {
 
 	for _, cl := range ml.cueLenses() {
 		rel := cue.MakePath(cue.Str(labelLenses), cue.Str(cl.id.String()))
-		check(refOwner{name: fmt.Sprintf("lens %s", cl.id), addr: lensAddr(cl.id.From, cl.id.To), v: ml.raw.LookupPath(rel), rel: rel, lens: true, takes: lensParam(cl.id.From)})
+		check(refOwner{name: "lens " + cl.id.name(), addr: lensAddr(cl.id.From, cl.id.To), v: ml.raw.LookupPath(rel), rel: rel, lens: true, takes: lensParam(cl.id.From)})
 	}
 	return diag.Join(errs...)
 }
@@ -1300,9 +1305,9 @@ func (ml *maybeLineage) checkLensEdges() error {
 			b := ml.diag(diag.E0301).AtValue(at).Addr(a).
 				Headlinef("the lineage has no %s", ml.term(a))
 			if mlid.To.Less(mlid.From) {
-				b.Notef(token.NoPos, "every schema needs a lens back to its predecessor, so that instances of %s can be translated to %s", mlid.From, mlid.To)
+				b.Notef(token.NoPos, "every schema needs a lens back to its predecessor, so that instances of %s can be translated to %s", mlid.From.name(), mlid.To.name())
 			} else {
-				b.Notef(token.NoPos, "every major version needs a lens forward from its predecessor, so that instances of %s can be translated to %s", mlid.From, mlid.To)
+				b.Notef(token.NoPos, "every major version needs a lens forward from its predecessor, so that instances of %s can be translated to %s", mlid.From.name(), mlid.To.name())
 			}
 			errs = append(errs, b.Err())
 		}
@@ -1368,20 +1373,20 @@ func (ml *maybeLineage) cueLenses() []cueLens {
 func (ml *maybeLineage) erroneousLensReason(elid lensID) string {
 	switch {
 	case !synvExists(ml.allv, elid.To):
-		return fmt.Sprintf("there is no schema %s", elid.To)
+		return fmt.Sprintf("there is no schema %s", elid.To.name())
 	case !synvExists(ml.allv, elid.From):
-		return fmt.Sprintf("there is no schema %s", elid.From)
+		return fmt.Sprintf("there is no schema %s", elid.From.name())
 	case elid.To == elid.From:
 		return "a lens maps between two versions, never from a version to itself"
 	case elid.To.Less(elid.From):
 		// reverse lenses
 		// only possibility is non-sequential versions connected
-		return fmt.Sprintf("%s is the predecessor of %s, not %s", ml.allv[searchSynv(ml.allv, elid.From)-1], elid.From, elid.To)
+		return fmt.Sprintf("%s is the predecessor of %s, not %s", ml.allv[searchSynv(ml.allv, elid.From)-1].name(), elid.From.name(), elid.To.name())
 	case elid.To[0] == elid.From[0]:
 		// forward lens within a major version
-		return fmt.Sprintf("%s is backward compatible with %s, so translating forward is implicit", elid.To, elid.From)
+		return fmt.Sprintf("%s is backward compatible with %s, so translating forward is implicit", elid.To.name(), elid.From.name())
 	default:
 		// forward lens across major versions, between non-adjacent versions
-		return fmt.Sprintf("%s is the successor of %s, not %s", ml.allv[searchSynv(ml.allv, elid.From)+1], elid.From, elid.To)
+		return fmt.Sprintf("%s is the successor of %s, not %s", ml.allv[searchSynv(ml.allv, elid.From)+1].name(), elid.From.name(), elid.To.name())
 	}
 }

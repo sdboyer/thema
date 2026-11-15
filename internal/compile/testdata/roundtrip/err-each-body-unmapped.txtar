@@ -20,7 +20,7 @@ ForwardLens: {
 -- ship/tip.thema --
 Schema: close({u!: [...close({key!: string})]})
 -- out/error --
-error[E0347]: 0.0 declares is_enabled and 1.0 does not, and nothing maps it
+error[E0347]: v0.0 declares is_enabled and v1.0 does not, and nothing maps it
  --> history/1.0.thema:8:3
   |
 8 |         u: _each(v0_0.u, {key: _item.id})

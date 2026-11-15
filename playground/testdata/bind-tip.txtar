@@ -19,7 +19,7 @@ Schema: {
     {
       "code": "E1001",
       "severity": "warning",
-      "headline": "tip.thema has no ForwardLens, and one cannot be derived",
+      "headline": "tip has no ForwardLens, and one cannot be derived",
       "primary": {
         "file": "tip.thema",
         "line": 3,
@@ -36,10 +36,10 @@ Schema: {
             "offset": 24,
             "origin": "user"
           },
-          "label": "0.0 declares crew and tip does not, and nothing maps it (E0347)"
+          "label": "v0.0 declares crew and tip does not, and nothing maps it (E0347)"
         },
         {
-          "label": "translating from 0.0 to tip needs it; until tip.thema writes it, that translation fails (E1002)"
+          "label": "translating from v0.0 to tip needs it; until tip writes it, that translation fails (E1002)"
         }
       ],
       "help": [
@@ -50,7 +50,7 @@ Schema: {
     {
       "code": "E1001",
       "severity": "warning",
-      "headline": "tip.thema has no BackwardLens, and one cannot be derived",
+      "headline": "tip has no BackwardLens, and one cannot be derived",
       "primary": {
         "file": "tip.thema",
         "line": 3,
@@ -67,10 +67,10 @@ Schema: {
             "offset": 24,
             "origin": "user"
           },
-          "label": "tip.thema has no BackwardLens, and 0.0 requires crew (E0346)"
+          "label": "tip has no BackwardLens, and v0.0 requires crew (E0346)"
         },
         {
-          "label": "translating from tip to 0.0 needs it; until tip.thema writes it, that translation fails (E1002)"
+          "label": "translating from tip to v0.0 needs it; until tip writes it, that translation fails (E1002)"
         }
       ],
       "help": [

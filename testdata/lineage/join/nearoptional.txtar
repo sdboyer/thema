@@ -185,7 +185,7 @@ lenses: {}
 }
 -- out/bind --
 Schema count: 1
-Schema versions: 0.0
+Schema versions: v0.0
 Lenses count: 0
 -- out/encoding/typescript/TestGenerate/nilcfg --
 export interface Nearoptional {

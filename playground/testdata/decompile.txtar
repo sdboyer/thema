@@ -46,7 +46,7 @@ lenses: {
 				path:  "crew"
 				value: v1_0.crew
 			}]
-			message: "crew has no equivalent in 0.0 and was dropped"
+			message: "crew has no equivalent in v0.0 and was dropped"
 			type:    "DroppedField"
 		}]
 	}

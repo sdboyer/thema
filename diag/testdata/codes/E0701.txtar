@@ -12,7 +12,7 @@ own message.
     {
       "code": "E0701",
       "severity": "error",
-      "headline": "generating TypeScript from schema 0.0 failed",
+      "headline": "generating TypeScript from schema v0.0 failed",
       "help": [
         "the schema is valid; TypeScript cannot express some construct in it"
       ],
@@ -26,7 +26,7 @@ own message.
   }
 }
 -- out/text --
-error[E0701]: generating TypeScript from schema 0.0 failed
+error[E0701]: generating TypeScript from schema v0.0 failed
   |
   = detail: generating TS for schema root failed: Found an error in the field 'crew:6:5'. Error: not expecting op type 6
   = help: the schema is valid; TypeScript cannot express some construct in it

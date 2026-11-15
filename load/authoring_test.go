@@ -127,7 +127,7 @@ BackwardLens: {
 		t.Fatalf("no diagnostics in %v", err)
 	}
 	for _, d := range ds {
-		if strings.Contains(d.Headline, "0.0->1.0") || !strings.Contains(d.Headline, "1.0.thema") {
+		if strings.Contains(d.Headline, "->") || !strings.Contains(d.Headline, "the ForwardLens of v1.0") {
 			t.Errorf("headline is not in the authoring form's terms: %q", d.Headline)
 		}
 	}

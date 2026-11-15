@@ -17,7 +17,7 @@ Schema: {
     {
       "code": "E0250",
       "severity": "error",
-      "headline": "immutability violation: the schema in history/0.0.thema is not as published",
+      "headline": "immutability violation: the schema of v0.0 is not as published",
       "path": [
         "history/0.0.thema",
         "Schema"
@@ -41,7 +41,7 @@ Schema: {
         }
       ],
       "help": [
-        "restore the schema in history/0.0.thema as it was published, and make the change in a new version"
+        "restore the schema of v0.0 as it was published, and make the change in a new version"
       ]
     }
   ],
@@ -52,11 +52,11 @@ Schema: {
   }
 }
 -- out/text --
-error[E0250]: immutability violation: the schema in history/0.0.thema is not as published
+error[E0250]: immutability violation: the schema of v0.0 is not as published
  --> candidate/ship/history/0.0.thema:1:1
   |
 1 | Schema: {
   | ^^^^^^
   |
   = note: a published version never changes: instances were validated against it as it was published
-  = help: restore the schema in history/0.0.thema as it was published, and make the change in a new version
+  = help: restore the schema of v0.0 as it was published, and make the change in a new version

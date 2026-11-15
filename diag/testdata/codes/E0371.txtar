@@ -42,7 +42,7 @@ lenses: {
     {
       "code": "E0371",
       "severity": "error",
-      "headline": "q in the result of lens 0.0->1.0 divides by v0_0.d, which may be 0",
+      "headline": "q in the result of lens v0.0->v1.0 divides by v0_0.d, which may be 0",
       "path": [
         "lenses",
         "0.0->1.0",
@@ -72,7 +72,7 @@ lenses: {
       },
       "notes": [
         {
-          "label": "a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule division-by-zero)"
+          "label": "a lens must be total: every instance of schema v0.0 must translate to an instance of schema v1.0 (totality rule division-by-zero)"
         }
       ]
     }
@@ -84,10 +84,10 @@ lenses: {
   }
 }
 -- out/text --
-error[E0371]: q in the result of lens 0.0->1.0 divides by v0_0.d, which may be 0
+error[E0371]: q in the result of lens v0.0->v1.0 divides by v0_0.d, which may be 0
   --> lineage.cue:23:11
    |
 23 |             q: quo(v0_0.n, v0_0.d)
    |                    ^^^^
    |
-   = note: a lens must be total: every instance of schema 0.0 must translate to an instance of schema 1.0 (totality rule division-by-zero)
+   = note: a lens must be total: every instance of schema v0.0 must translate to an instance of schema v1.0 (totality rule division-by-zero)

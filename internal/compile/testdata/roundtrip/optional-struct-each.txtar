@@ -161,14 +161,14 @@ lenses: {
 				@thema(derived)
 				condition:    len(_d_0) > 0
 				sourceFields: _d_0
-				message:      "items[].q.y has no equivalent in 1.0 and was dropped"
+				message:      "items[].q.y has no equivalent in v1.0 and was dropped"
 				type:         "DroppedField"
 			},
 			{
 				@thema(derived)
 				condition:    len(_d_1) > 0
 				sourceFields: _d_1
-				message:      "items[].o has no equivalent in 1.0 and was dropped"
+				message:      "items[].o has no equivalent in v1.0 and was dropped"
 				type:         "DroppedField"
 			}
 		]
@@ -186,7 +186,7 @@ lenses: {
 }
 -- out/translate/0.0/items->1.0 --
 {"items":[{},{"q":{}},{"q":{"x":1}}]}
-[{"sourceFields":[{"path":"items[2].q.y","value":2}],"type":"DroppedField","message":"items[].q.y has no equivalent in 1.0 and was dropped"},{"sourceFields":[{"path":"items[2].o","value":{"e":true}}],"type":"DroppedField","message":"items[].o has no equivalent in 1.0 and was dropped"}]
+[{"sourceFields":[{"path":"items[2].q.y","value":2}],"type":"DroppedField","message":"items[].q.y has no equivalent in v1.0 and was dropped"},{"sourceFields":[{"path":"items[2].o","value":{"e":true}}],"type":"DroppedField","message":"items[].o has no equivalent in v1.0 and was dropped"}]
 -- out/translate/1.0/items->0.0 --
 {"items":[{},{"q":{}},{"q":{"x":1}}]}
 []

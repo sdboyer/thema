@@ -32,7 +32,7 @@ Schema: {
     {
       "code": "E0343",
       "severity": "error",
-      "headline": "b is optional in 0.0 and required in 1.0",
+      "headline": "b is optional in v0.0 and required in v1.0",
       "primary": {
         "file": "history/1.0.thema",
         "line": 3,
@@ -52,7 +52,7 @@ Schema: {
   }
 }
 -- out/text --
-error[E0343]: b is optional in 0.0 and required in 1.0
+error[E0343]: b is optional in v0.0 and required in v1.0
  --> history/1.0.thema:3:2
   |
 3 |     b: int

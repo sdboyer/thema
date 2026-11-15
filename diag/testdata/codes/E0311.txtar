@@ -30,7 +30,7 @@ lin: {
     {
       "code": "E0311",
       "severity": "error",
-      "headline": "lens 1.0->0.0 does not declare v0_0, the instance of 0.0 it returns",
+      "headline": "lens v1.0->v0.0 does not declare v0_0, the instance of v0.0 it returns",
       "path": [
         "lenses",
         "1.0->0.0"
@@ -54,7 +54,7 @@ lin: {
         "origin": "user"
       },
       "help": [
-        "write v0_0: {...}, mapping each field of 0.0"
+        "write v0_0: {...}, mapping each field of v0.0"
       ]
     }
   ],
@@ -65,10 +65,10 @@ lin: {
   }
 }
 -- out/text --
-error[E0311]: lens 1.0->0.0 does not declare v0_0, the instance of 0.0 it returns
+error[E0311]: lens v1.0->v0.0 does not declare v0_0, the instance of v0.0 it returns
   --> lineage.cue:12:3
    |
 12 |         "1.0->0.0": {
    |         ^^^^^^^^^^
    |
-   = help: write v0_0: {...}, mapping each field of 0.0
+   = help: write v0_0: {...}, mapping each field of v0.0

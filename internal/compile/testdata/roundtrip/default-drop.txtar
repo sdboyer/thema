@@ -135,7 +135,7 @@ lenses:
 					path:  "count"
 					value: v0_1.count
 				}]
-				message: "count has no equivalent in 0.0 and was dropped"
+				message: "count has no equivalent in v0.0 and was dropped"
 				type:    "DroppedField"
 			},
 			{
@@ -145,7 +145,7 @@ lenses:
 					path:  "kind"
 					value: v0_1.kind
 				}]
-				message: "kind has no equivalent in 0.0 and was dropped"
+				message: "kind has no equivalent in v0.0 and was dropped"
 				type:    "DroppedField"
 			},
 			{
@@ -155,7 +155,7 @@ lenses:
 					path:  "opts"
 					value: v0_1.opts
 				}]
-				message: "opts has no equivalent in 0.0 and was dropped"
+				message: "opts has no equivalent in v0.0 and was dropped"
 				type:    "DroppedField"
 			},
 			{
@@ -165,7 +165,7 @@ lenses:
 					path:  "nested"
 					value: v0_1.nested
 				}]
-				message: "nested has no equivalent in 0.0 and was dropped"
+				message: "nested has no equivalent in v0.0 and was dropped"
 				type:    "DroppedField"
 			},
 			{
@@ -175,14 +175,14 @@ lenses:
 					path:  "tags"
 					value: v0_1.tags
 				}]
-				message: "tags has no equivalent in 0.0 and was dropped"
+				message: "tags has no equivalent in v0.0 and was dropped"
 				type:    "DroppedField"
 			}
 		]
 	}
 -- out/translate/0.1/count->0.0 --
 {"firstfield":"x"}
-[{"sourceFields":[{"path":"count","value":3}],"type":"DroppedField","message":"count has no equivalent in 0.0 and was dropped"}]
+[{"sourceFields":[{"path":"count","value":3}],"type":"DroppedField","message":"count has no equivalent in v0.0 and was dropped"}]
 -- out/translate/0.1/defaults->0.0 --
 {"firstfield":"x"}
 []
@@ -191,13 +191,13 @@ lenses:
 []
 -- out/translate/0.1/inner-default->0.0 --
 {"firstfield":"x"}
-[{"sourceFields":[{"path":"nested","value":{"inner":{"on":false}}}],"type":"DroppedField","message":"nested has no equivalent in 0.0 and was dropped"}]
+[{"sourceFields":[{"path":"nested","value":{"inner":{"on":false}}}],"type":"DroppedField","message":"nested has no equivalent in v0.0 and was dropped"}]
 -- out/translate/0.1/level->0.0 --
 {"firstfield":"x"}
-[{"sourceFields":[{"path":"opts","value":{"level":2}}],"type":"DroppedField","message":"opts has no equivalent in 0.0 and was dropped"}]
+[{"sourceFields":[{"path":"opts","value":{"level":2}}],"type":"DroppedField","message":"opts has no equivalent in v0.0 and was dropped"}]
 -- out/translate/0.1/tag->0.0 --
 {"firstfield":"x"}
-[{"sourceFields":[{"path":"opts","value":{"level":1,"tag":"t"}}],"type":"DroppedField","message":"opts has no equivalent in 0.0 and was dropped"}]
+[{"sourceFields":[{"path":"opts","value":{"level":1,"tag":"t"}}],"type":"DroppedField","message":"opts has no equivalent in v0.0 and was dropped"}]
 -- out/translate/0.1/tags->0.0 --
 {"firstfield":"x"}
-[{"sourceFields":[{"path":"tags","value":["t"]}],"type":"DroppedField","message":"tags has no equivalent in 0.0 and was dropped"}]
+[{"sourceFields":[{"path":"tags","value":["t"]}],"type":"DroppedField","message":"tags has no equivalent in v0.0 and was dropped"}]

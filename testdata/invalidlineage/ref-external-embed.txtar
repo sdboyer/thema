@@ -21,7 +21,7 @@ lenses: {}
     refField2: 42
 }
 -- out/bindfail --
-error[E0141]: schema 0.0 refers to #EmbedRef, which is declared in the lineage outside the schema
+error[E0141]: schema v0.0 refers to #EmbedRef, which is declared in the lineage outside the schema
  --> /in.cue:7:3
   |
 7 |         schema: {

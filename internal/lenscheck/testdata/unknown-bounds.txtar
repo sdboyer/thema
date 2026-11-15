@@ -8,5 +8,5 @@ v0_0: _
 v1_0: {m: v0_0.n + 1}
 -- out --
 unknown
-v1_0.m is an integer computed by v0_0.n + 1, in [-inf, +inf], which the checker cannot show within int64 and the target's int32 (rule unknown-bounds) @ lens.cue:2:11
+v1_0.m is an integer computed by v0_0.n + 1, in [-inf, +inf], which the checker cannot prove is within int64 and the target's int32 (rule unknown-bounds) @ lens.cue:2:11
   help: bound the fields it reads (int32, >=0 & <=100)

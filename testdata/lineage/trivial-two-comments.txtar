@@ -188,7 +188,7 @@ lenses: {
 }
 -- out/bind --
 Schema count: 2
-Schema versions: 0.0, 0.1
+Schema versions: v0.0, v0.1
 Lenses count: 1
 -- out/encoding/typescript/TestGenerate/nilcfg --
 export interface TrivialTwoComments {

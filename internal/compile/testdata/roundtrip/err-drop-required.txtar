@@ -27,7 +27,7 @@ Schema: {
 	after: string
 }
 -- out/error --
-error[E0346]: BackwardLens produces nothing for before, which 0.0 requires
+error[E0346]: BackwardLens produces nothing for before, which v0.0 requires
   --> history/1.0.thema:12:1
    |
 12 | BackwardLens: {

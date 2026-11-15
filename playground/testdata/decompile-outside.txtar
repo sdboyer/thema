@@ -48,7 +48,7 @@ lenses: {
     {
       "code": "E0356",
       "severity": "error",
-      "headline": "lens 1.0-\u003e0.0 is outside the authoring form: a lacuna on a field no mapping produces",
+      "headline": "lens v1.0-\u003ev0.0 is outside the authoring form: a lacuna on a field no mapping produces",
       "primary": {
         "file": "lineage.cue",
         "line": 1,

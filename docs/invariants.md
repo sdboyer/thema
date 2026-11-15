@@ -218,7 +218,7 @@ Every finding is positioned at the referring field and reads
 
 for example
 
-    schema 0.0: color refers to #Color, which is declared outside the lineage; a schema may refer only to its own body and CUE's builtin packages (rule ref-outside-lineage)
+    schema v0.0: color refers to #Color, which is declared outside the lineage; a schema may refer only to its own body and CUE's builtin packages (rule ref-outside-lineage)
 
 | Rule | Refused when |
 |---|---|
@@ -641,7 +641,7 @@ Each place in the lens gets one of three verdicts.
 
 A lens's verdict is the worst of its places: not total if any place is, else
 unknown if any is, else total. Binding treats unknown as a failure. A lens must
-be shown total, so the author rewrites it into a form thema decides.
+be proven total, so the author rewrites it into a form thema decides.
 
 Every finding names the rule that produced it, and is positioned at the
 author's construct: the result field, the comprehension it is declared in, or
@@ -674,11 +674,11 @@ for example
 |---|---|---|
 | `unknown-copy` | the compatibility rules cannot decide whether the copied value fits the target: a constraint between fields, a pending comprehension, a validator, or a disjunction they cannot match; or a list is mapped element by element from a source list whose validator may bound its length where the target's bounds need it | copy a value whose schemas the compatibility rules decide (see their Unknown table) |
 | `unknown-pattern` | an arm's condition is not a pattern (a presence test, an equality or a type test on an input field, or a conjunction of these); a lacuna's condition is neither a pattern nor a boolean the computed rules prove; or an equality tests a field that may be a float | write the condition as a pattern, testing one input field at a time; test a number's type before comparing it |
-| `unknown-exhaustive` | a required field is written only under patterns that cannot be shown to cover every instance; or a field reads a result field written only under patterns that cannot be shown to hold wherever the reader is written | write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field; write a reader under the patterns of the field it reads |
+| `unknown-exhaustive` | a required field is written only under patterns that cannot be proven to cover every instance; or a field reads a result field written only under patterns that cannot be proven to hold wherever the reader is written | write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field; write a reader under the patterns of the field it reads |
 | `unknown-op` | a computation uses an operation outside the proven set: `/`, a float, a builtin not listed above, or `&` or `\|` within an expression; or a call constrains the result | use the listed operations, with `quo` or `div` for integer division; write the result as a struct |
 | `unknown-dynamic` | fields are produced by a `for` clause or a computed label, or list elements by a comprehension that filters, nests `for` clauses, or sits beside other elements | write each field by name; map a list with one comprehension over one source list, every element |
 | `unknown-reference` | the lens reads something that cannot be followed to the input or to a constant: a computed index or label, or a selection into a comprehension's output | select fields by name |
-| `unknown-bounds` | an integer operand has no finite bounds, so the result cannot be shown to fit `int64` or the target, or an operand occurs more than once. Bounds that contain the target's refute nothing when the result need not take them, as with `len` | bound the fields the computation reads (`int32`, `>=0 & <=100`) |
+| `unknown-bounds` | an integer operand has no finite bounds, so the result cannot be proven to fit `int64` or the target, or an operand occurs more than once. Bounds that contain the target's refute nothing when the result need not take them, as with `len` | bound the fields the computation reads (`int32`, `>=0 & <=100`) |
 | `unknown-divisor` | a divisor's bounds include zero, though zero may not be an instance | bound the divisor away from zero (`>0` or `<0`) |
 | `unknown-target-constraint` | the target constrains a computed value in a way the proof does not compare: a regular expression, a validator, or alternatives with gaps; a list literal or a mapped list is written to a target list with a validator other than `list.MinItems` and `list.MaxItems`; a struct written to a disjunctive target fits several of its alternatives, or mixes plain fields with arms or embeddings; or a list literal, a mapped list's elements, or a computed value is written beneath a disjunction | express the constraint with `>=`, `<=` or a sized type, or make a string target accept any string; at a disjunctive target write one struct per alternative, its fields unconditional, with a constant field telling the alternatives apart, each in its own arm |
 | `unknown-table-key` | a table is indexed by a value that is not a finite set of string constants | index by an input field whose alternatives are string constants |

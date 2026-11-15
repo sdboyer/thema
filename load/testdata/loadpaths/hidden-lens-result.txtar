@@ -30,5 +30,5 @@ lenses: {
 }
 -- out/verdict --
 # bind
-E0151 the result of lens 0.0->1.0 declares _tmp, a hidden field
-E0151 the result of lens 0.0->1.0 declares _seen, a hidden field
+E0151 the result of lens v0.0->v1.0 declares _tmp, a hidden field
+E0151 the result of lens v0.0->v1.0 declares _seen, a hidden field

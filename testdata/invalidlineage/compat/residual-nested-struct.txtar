@@ -27,31 +27,31 @@ lin: lenses: {
     }
 }
 -- out/bindfail --
-error[E0217]: schema 0.1 accepts any field name in the prior schema and only names matching [!~"^x$"] in the new one
+error[E0217]: schema v0.1 accepts any field name in the prior schema and only names matching [!~"^x$"] in the new one
   --> /in.cue:13:9
    |
 13 |         schema: {
    |         ^^^^^^
    |
-   = note: schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts
-   = help: make the change compatible, or make this version 1.0
+   = note: schema v0.1 is a minor version, so it must accept all data schema v0.0 accepts
+   = help: make the change compatible, or make this version v1.0
 
-error[E0217]: x in schema 0.1 accepts any field name in the prior schema and is closed in the new one
+error[E0217]: x in schema v0.1 accepts any field name in the prior schema and is closed in the new one
   --> /in.cue:14:13
    |
 14 |             x?: {a: int}
    |             ^
    |
-   = note: schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts
-   = note: schema 0.0 does not declare x by name, but accepts it through ... or a pattern, so an instance may already hold any value there
-   = help: declare it as x?: _ to accept what 0.0 accepted, or make this version 1.0
+   = note: schema v0.1 is a minor version, so it must accept all data schema v0.0 accepts
+   = note: schema v0.0 does not declare x by name, but accepts it through ... or a pattern, so an instance may already hold any value there
+   = help: declare it as x?: _ to accept what v0.0 accepted, or make this version v1.0
 
-error[E0215]: x.a in schema 0.1 was string and is now int
+error[E0215]: x.a in schema v0.1 was string and is now int
   --> /in.cue:14:18
    |
 14 |             x?: {a: int}
    |                  ^
    |
-   = note: schema 0.1 is a minor version, so it must accept all data schema 0.0 accepts
-   = note: schema 0.0 does not declare x by name, but accepts it through ... or a pattern, so an instance may already hold any value there
-   = help: declare x as x?: _ to accept what 0.0 accepted, or make this version 1.0
+   = note: schema v0.1 is a minor version, so it must accept all data schema v0.0 accepts
+   = note: schema v0.0 does not declare x by name, but accepts it through ... or a pattern, so an instance may already hold any value there
+   = help: declare x as x?: _ to accept what v0.0 accepted, or make this version v1.0

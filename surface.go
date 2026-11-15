@@ -318,6 +318,12 @@ func (sv SyntacticVersion) String() string {
 	return fmt.Sprintf("%v.%v", sv[0], sv[1])
 }
 
+// name is the version as messages name it: v0.1. String is the version as
+// data writes it, in file names, keys and JSON.
+func (sv SyntacticVersion) name() string {
+	return "v" + sv.String()
+}
+
 // ParseSyntacticVersion parses a canonical representation of a
 // [SyntacticVersion] (e.g. "0.0") from a string.
 func ParseSyntacticVersion(s string) (SyntacticVersion, error) {
@@ -345,7 +351,7 @@ type versionList []SyntacticVersion
 func (vl versionList) String() string {
 	vstrings := make([]string, 0, len(vl))
 	for _, v := range vl {
-		vstrings = append(vstrings, v.String())
+		vstrings = append(vstrings, v.name())
 	}
 	return strings.Join(vstrings, ", ")
 }

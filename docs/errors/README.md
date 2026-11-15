@@ -78,8 +78,8 @@ A code's scope says what its condition reads: `one` when one version's files, th
 | [E0218](E0218.md) | error | versions | a minor version adds or tightens a validator |
 | [E0230](E0230.md) | error | versions | a minor version constrains a field by another field's value, which the checker cannot compare |
 | [E0232](E0232.md) | error | versions | a minor version changes a validator the checker has no rule for |
-| [E0233](E0233.md) | error | versions | a minor version's disjunction cannot be shown to cover its predecessor's |
-| [E0234](E0234.md) | error | versions | a minor version's pattern constraints cannot be shown to cover its predecessor's |
+| [E0233](E0233.md) | error | versions | a minor version's disjunction cannot be proven to cover its predecessor's |
+| [E0234](E0234.md) | error | versions | a minor version's pattern constraints cannot be proven to cover its predecessor's |
 | [E0240](E0240.md) | error | one | the lineage has no schema with that version |
 | [E0242](E0242.md) | error | versions | retired: a published schema was deleted |
 | [E0243](E0243.md) | error | versions | retired: a published schema was changed |
@@ -138,9 +138,9 @@ A code's scope says what its condition reads: `one` when one version's files, th
 | [E0370](E0370.md) | error | versions | a lens's arithmetic may overflow |
 | [E0371](E0371.md) | error | versions | a lens may divide by zero |
 | [E0372](E0372.md) | error | versions | a lens indexes a table with a value that has no entry |
-| [E0380](E0380.md) | error | versions | a lens copies a value the checker cannot show its target accepts |
+| [E0380](E0380.md) | error | versions | a lens copies a value the checker cannot prove its target accepts |
 | [E0381](E0381.md) | error | versions | a lens's condition is not one the checker can read |
-| [E0382](E0382.md) | error | versions | a lens writes a required field only under conditions the checker cannot show exhaustive |
+| [E0382](E0382.md) | error | versions | a lens writes a required field only under conditions the checker cannot prove exhaustive |
 | [E0383](E0383.md) | error | versions | a lens computes with an operation the checker cannot prove |
 | [E0384](E0384.md) | error | versions | a lens produces fields or elements dynamically |
 | [E0385](E0385.md) | error | one | a lens refers to something the checker cannot follow |

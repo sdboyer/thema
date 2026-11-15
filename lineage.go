@@ -168,7 +168,7 @@ func BindLineage(root cue.Value, p cue.Path, rt *Runtime, opts ...BindOption) (L
 		return nil, err
 	}
 	if cfg.provisional != nil && *cfg.provisional != ml.allv[len(ml.allv)-1] {
-		return nil, diag.InternalErr(fmt.Errorf("the provisional version %s is not the lineage's newest, %s", *cfg.provisional, ml.allv[len(ml.allv)-1]))
+		return nil, diag.InternalErr(fmt.Errorf("the provisional version %s is not the lineage's newest, %s", cfg.provisional.name(), ml.allv[len(ml.allv)-1].name()))
 	}
 	if err := ml.checkSchemaShapes(); err != nil {
 		return nil, err
@@ -330,7 +330,7 @@ func (lin *baseLineage) Schema(v SyntacticVersion) (Schema, error) {
 
 	if !synvExists(lin.allv, v) {
 		return nil, diag.New(diag.E0240).
-			Headlinef("lineage %s has no schema %s", lin.name, v).
+			Headlinef("lineage %s has no schema %s", lin.name, v.name()).
 			Helpf("its versions are %s", versionList(lin.allv)).
 			Err()
 	}

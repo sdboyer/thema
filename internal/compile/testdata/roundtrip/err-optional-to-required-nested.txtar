@@ -32,7 +32,7 @@ Schema: {
 	}
 }
 -- out/error --
-error[E0343]: meta.owner is optional in 0.0 and required in 1.0
+error[E0343]: meta.owner is optional in v0.0 and required in v1.0
  --> history/1.0.thema:4:3
   |
 4 |         owner: string
@@ -40,7 +40,7 @@ error[E0343]: meta.owner is optional in 0.0 and required in 1.0
   |
   = help: write meta: {owner: _coalesce(v0_0.meta.owner, <fallback>)} to say what to use when it is absent
 
-error[E0346]: ForwardLens produces nothing for meta.team, which 1.0 requires
+error[E0346]: ForwardLens produces nothing for meta.team, which v1.0 requires
  --> history/1.0.thema:9:1
   |
 9 | ForwardLens: {

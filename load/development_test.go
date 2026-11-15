@@ -49,7 +49,7 @@ func TestDevelopmentLineageClean(t *testing.T) {
 	if got := strings.Join(versionsOf(d.Lineage), ","); got != "0.0,1.0" {
 		t.Errorf("versions = %s, want 0.0,1.0", got)
 	}
-	if !d.Tip.Clean || d.Tip.String() != "tip (clean at 1.0)" || d.Pending != nil {
+	if !d.Tip.Clean || d.Tip.String() != "tip (clean at v1.0)" || d.Pending != nil {
 		t.Errorf("tip = %v, pending %v; want clean at 1.0, none pending", d.Tip, d.Pending)
 	}
 	if d.Provisional(thema.SV(1, 0)) {
@@ -69,7 +69,7 @@ func TestDevelopmentLineageMinorTip(t *testing.T) {
 	if got := strings.Join(versionsOf(d.Lineage), ","); got != "0.0,1.0,1.1" {
 		t.Errorf("versions = %s, want 0.0,1.0,1.1", got)
 	}
-	if d.Tip.String() != "tip (cuts as 1.1)" || !d.Provisional(thema.SV(1, 1)) || d.Provisional(thema.SV(1, 0)) {
+	if d.Tip.String() != "tip (cuts as v1.1)" || !d.Provisional(thema.SV(1, 1)) || d.Provisional(thema.SV(1, 0)) {
 		t.Errorf("tip = %v; want 1.1, provisional", d.Tip)
 	}
 	if d.Pending != nil {
@@ -107,7 +107,7 @@ func TestDevelopmentLineageMissingLens(t *testing.T) {
 	if err != nil {
 		t.Fatal(cerrors.Details(err, nil))
 	}
-	if d.Tip.String() != "tip (cuts as 2.0)" {
+	if d.Tip.String() != "tip (cuts as v2.0)" {
 		t.Errorf("tip = %v, want cuts as 2.0", d.Tip)
 	}
 	if got := strings.Join(codesOf(d.Pending), ","); got != "E1001" {
@@ -212,7 +212,7 @@ func TestDevelopmentLineageLayout(t *testing.T) {
 		if err != nil {
 			t.Fatal(cerrors.Details(err, nil))
 		}
-		if got := strings.Join(versionsOf(d.Lineage), ","); got != "0.0" || d.Tip.String() != "tip (cuts as 0.0)" {
+		if got := strings.Join(versionsOf(d.Lineage), ","); got != "0.0" || d.Tip.String() != "tip (cuts as v0.0)" {
 			t.Errorf("versions %s, tip %v; want 0.0, cuts as 0.0", got, d.Tip)
 		}
 		_, err = AuthoringLineage(fsys, "lineages/ship", rt)

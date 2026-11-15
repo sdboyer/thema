@@ -108,7 +108,7 @@ BackwardLens: {
     {
       "code": "E0253",
       "severity": "error",
-      "headline": "immutability violation: new version 0.1 comes before published version 1.0",
+      "headline": "immutability violation: new version v0.1 comes before published version v1.0",
       "path": [
         "history/0.1.thema",
         "Schema"
@@ -128,11 +128,11 @@ BackwardLens: {
       },
       "notes": [
         {
-          "label": "versions are only appended: a new version comes after the newest published one, 1.0, so that every published version keeps its predecessor"
+          "label": "versions are only appended: a new version comes after the newest published one, v1.0, so that every published version keeps its predecessor"
         }
       ],
       "help": [
-        "remove the schema in history/0.1.thema, and make the change in a version after 1.0"
+        "remove the schema of v0.1, and make the change in a version after v1.0"
       ]
     }
   ],
@@ -143,11 +143,11 @@ BackwardLens: {
   }
 }
 -- out/text --
-error[E0253]: immutability violation: new version 0.1 comes before published version 1.0
+error[E0253]: immutability violation: new version v0.1 comes before published version v1.0
  --> candidate/ship/history/0.1.thema:1:1
   |
 1 | Schema: {
   | ^^^^^^
   |
-  = note: versions are only appended: a new version comes after the newest published one, 1.0, so that every published version keeps its predecessor
-  = help: remove the schema in history/0.1.thema, and make the change in a version after 1.0
+  = note: versions are only appended: a new version comes after the newest published one, v1.0, so that every published version keeps its predecessor
+  = help: remove the schema of v0.1, and make the change in a version after v1.0

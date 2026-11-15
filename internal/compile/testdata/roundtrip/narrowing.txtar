@@ -40,24 +40,24 @@ Schema: {
 	properbool: bool
 }
 -- out/bind --
-error[E0382]: properbool in the ForwardLens in history/1.0.thema is not total for some instance
+error[E0382]: properbool in the ForwardLens of v1.0 is not total for some instance
  --> history/1.0.thema:5:1
   |
 5 | ForwardLens: {
   | ^^^^^^^^^^^
   |
-  = note: properbool in the ForwardLens in history/1.0.thema is required by history/1.0.thema, and is written only under (v0_0.boolish & "false") != _|_; (v0_0.boolish & "true" | "false") == _|_ && (v0_0.boolish & bool) != _|_; (v0_0.boolish & "true" | "false") == _|_ && (v0_0.boolish & bool) == _|_; (v0_0.boolish & "true") != _|_, which the checker cannot show cover every instance
-  = note: a lens must be total: every instance of the schema in history/0.0.thema must translate to an instance of the schema in history/1.0.thema (totality rule unknown-exhaustive)
+  = note: properbool in the ForwardLens of v1.0 is required by v1.0, and is written only under (v0_0.boolish & "false") != _|_; (v0_0.boolish & "true" | "false") == _|_ && (v0_0.boolish & bool) != _|_; (v0_0.boolish & "true" | "false") == _|_ && (v0_0.boolish & bool) == _|_; (v0_0.boolish & "true") != _|_, which the checker cannot prove cover every instance
+  = note: a lens must be total: every instance of the schema of v0.0 must translate to an instance of the schema of v1.0 (totality rule unknown-exhaustive)
   = help: write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field
   = help: write the mapping in a form the checker can follow, or add a lacuna where it cannot decide
 
-error[E0369]: properbool in the ForwardLens in history/1.0.thema is written as true and as false, and the two unify, so one may reject the other's value
+error[E0369]: properbool in the ForwardLens of v1.0 is written as true and as false, and the two unify, so one may reject the other's value
  --> history/1.0.thema:8:3
   |
 8 |         properbool: _match(v0_0.boolish, {
   |         ^^^^^^^^^^
   |
-  = note: a lens must be total: every instance of the schema in history/0.0.thema must translate to an instance of the schema in history/1.0.thema (totality rule write-conflict)
+  = note: a lens must be total: every instance of the schema of v0.0 must translate to an instance of the schema of v1.0 (totality rule write-conflict)
   = help: write the field once
 -- out/decompiled/history/0.0.thema --
 Schema: {

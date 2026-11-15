@@ -136,7 +136,7 @@ const (
 	// neither one of those nor a boolean the computed rules prove.
 	RuleUnknownPattern Rule = "unknown-pattern"
 	// RuleUnknownExhaustive: a required field is written only under conditions the
-	// checker cannot show cover every instance.
+	// checker cannot prove cover every instance.
 	RuleUnknownExhaustive Rule = "unknown-exhaustive"
 	// RuleUnknownOp: a computed expression uses an operation outside the
 	// provable set.
@@ -1809,7 +1809,7 @@ func (w *walker) checkExhaustive() {
 			case w.covers(cands):
 			default:
 				w.add(Finding{Path: w.subject(p.q), Verdict: Unknown, Rule: RuleUnknownExhaustive,
-					Detail: fmt.Sprintf("is a disjunction in the target schema, and is given an alternative only under %s, which the checker cannot show cover every instance%s", describePatternSets(cands), underPatterns(p.patterns)), Help: "write an alternative unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field", Pos: p.pos})
+					Detail: fmt.Sprintf("is a disjunction in the target schema, and is given an alternative only under %s, which the checker cannot prove cover every instance%s", describePatternSets(cands), underPatterns(p.patterns)), Help: "write an alternative unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field", Pos: p.pos})
 			}
 			continue
 		}
@@ -1842,7 +1842,7 @@ func (w *walker) checkExhaustive() {
 			case w.covers(cands):
 			default:
 				w.add(Finding{Path: w.subject(cq), Verdict: Unknown, Rule: RuleUnknownExhaustive,
-					Detail: fmt.Sprintf("is required by the target schema, and is written only under %s, which the checker cannot show cover every instance%s", describePatternSets(cands), underPatterns(p.patterns)), Help: "write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field", Pos: p.pos})
+					Detail: fmt.Sprintf("is required by the target schema, and is written only under %s, which the checker cannot prove cover every instance%s", describePatternSets(cands), underPatterns(p.patterns)), Help: "write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field", Pos: p.pos})
 			}
 		}
 	}

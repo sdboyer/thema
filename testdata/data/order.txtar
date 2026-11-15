@@ -168,13 +168,13 @@ verdict: ok
 value: {"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
 -- out/cue/customer-missing-email --
 verdict: E0501
-E0501 the data lacks customer.email, which schema 0.0 declares as =~"^[^@]+@[^@]+$" @ data/customer-missing-email.json:1:33
+E0501 the data lacks customer.email, which schema v0.0 declares as =~"^[^@]+@[^@]+$" @ data/customer-missing-email.json:1:33
 -- out/cue/email-off-pattern --
 verdict: E0504
-E0504 customer.email in the data is "ada", outside the bound =~"^[^@]+@[^@]+$" that schema 0.0 sets @ data/email-off-pattern.json:1:64
+E0504 customer.email in the data is "ada", outside the bound =~"^[^@]+@[^@]+$" that schema v0.0 sets @ data/email-off-pattern.json:1:64
 -- out/cue/empty-name --
 verdict: E0504
-E0504 customer.name in the data is "", which fails strings.MinRunes(1) in schema 0.0 @ data/empty-name.json:1:41
+E0504 customer.name in the data is "", which fails strings.MinRunes(1) in schema v0.0 @ data/empty-name.json:1:41
 -- out/cue/full --
 verdict: ok
 value: {"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
@@ -183,13 +183,13 @@ verdict: ok
 value: {"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
 -- out/cue/id-given-twice-differently --
 verdict: E0504
-E0504 id in the data has a value schema 0.0 does not accept @ data/id-given-twice-differently.json:1:27
+E0504 id in the data has a value schema v0.0 does not accept @ data/id-given-twice-differently.json:1:27
 -- out/cue/id-off-pattern --
 verdict: E0504
-E0504 id in the data is "order-1", outside the bound =~"^ord_[a-z0-9]{8}$" that schema 0.0 sets @ data/id-off-pattern.json:1:7
+E0504 id in the data is "order-1", outside the bound =~"^ord_[a-z0-9]{8}$" that schema v0.0 sets @ data/id-off-pattern.json:1:7
 -- out/cue/item-not-an-object --
 verdict: E0503
-E0503 items.0 in the data is "ABC-0001", but schema 0.0 declares it as {sku:=~"^[A-Z]{3}-[0-9]{4}$",quantity:((int & >=1) & <=1000),priceCents:((int & >=0) & <=100000000)} @ data/item-not-an-object.json:1:121
+E0503 items.0 in the data is "ABC-0001", but schema v0.0 declares it as {sku:=~"^[A-Z]{3}-[0-9]{4}$",quantity:((int & >=1) & <=1000),priceCents:((int & >=0) & <=100000000)} @ data/item-not-an-object.json:1:121
 -- out/cue/item-quantity-given-twice --
 verdict: ok
 value: {"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
@@ -198,19 +198,19 @@ verdict: ok
 value: {"id":"ord_7k2m9x4q","customer":{"name":"éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":3}
 -- out/cue/name-over-100-runes --
 verdict: E0504
-E0504 customer.name in the data is "éééééééééééééééééééééééééééé..., which fails strings.MaxRunes(100) in schema 0.0 @ data/name-over-100-runes.json:1:41
+E0504 customer.name in the data is "éééééééééééééééééééééééééééé..., which fails strings.MaxRunes(100) in schema v0.0 @ data/name-over-100-runes.json:1:41
 -- out/cue/negative-price --
 verdict: E0504
-E0504 items.0.priceCents in the data is -1, outside the bound >=0 that schema 0.0 sets @ data/negative-price.json:1:165
+E0504 items.0.priceCents in the data is -1, outside the bound >=0 that schema v0.0 sets @ data/negative-price.json:1:165
 -- out/cue/no-id --
 verdict: E0501
-E0501 the data lacks id, which schema 0.0 declares as =~"^ord_[a-z0-9]{8}$" @ data/no-id.json:1:1
+E0501 the data lacks id, which schema v0.0 declares as =~"^ord_[a-z0-9]{8}$" @ data/no-id.json:1:1
 -- out/cue/no-items --
 verdict: ok
 value: {"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[],"note":"leave at the door","priority":3}
 -- out/cue/note-not-a-string --
 verdict: E0503
-E0503 note in the data is 5, but schema 0.0 declares it as string @ data/note-not-a-string.json:1:176
+E0503 note in the data is 5, but schema v0.0 declares it as string @ data/note-not-a-string.json:1:176
 -- out/cue/note-with-surrogate-pair --
 verdict: ok
 value: {"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave 📦 at the door","priority":3}
@@ -219,43 +219,43 @@ verdict: E0902
 E0902 CUE reported an error thema does not recognize @ data/note-with-unpaired-surrogate.json:1:176
 -- out/cue/priority-over-10 --
 verdict: E0504
-E0504 priority in the data is 11, outside the bound <=10 that schema 0.0 sets @ data/priority-over-10.json:1:207
+E0504 priority in the data is 11, outside the bound <=10 that schema v0.0 sets @ data/priority-over-10.json:1:207
 -- out/cue/priority-zero --
 verdict: ok
 value: {"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}],"note":"leave at the door","priority":0}
 -- out/cue/quantity-below-1 --
 verdict: E0504
-E0504 items.0.quantity in the data is 0, outside the bound >=1 that schema 0.0 sets @ data/quantity-below-1.json:1:150
+E0504 items.0.quantity in the data is 0, outside the bound >=1 that schema v0.0 sets @ data/quantity-below-1.json:1:150
 -- out/cue/quantity-not-integral --
 verdict: E0503
-E0503 items.0.quantity in the data is 1.5, but schema 0.0 declares it as int @ data/quantity-not-integral.json:1:150
+E0503 items.0.quantity in the data is 1.5, but schema v0.0 declares it as int @ data/quantity-not-integral.json:1:150
 -- out/cue/quantity-over-1000 --
 verdict: E0504
-E0504 items.0.quantity in the data is 1001, outside the bound <=1000 that schema 0.0 sets @ data/quantity-over-1000.json:1:150
+E0504 items.0.quantity in the data is 1001, outside the bound <=1000 that schema v0.0 sets @ data/quantity-over-1000.json:1:150
 -- out/cue/quantity-written-with-exponent --
 verdict: E0503
-E0503 items.0.quantity in the data is 1.0, but schema 0.0 declares it as int @ data/quantity-written-with-exponent.json:1:150
+E0503 items.0.quantity in the data is 1.0, but schema v0.0 declares it as int @ data/quantity-written-with-exponent.json:1:150
 -- out/cue/quantity-written-with-fraction --
 verdict: E0503
-E0503 items.0.quantity in the data is 1.0, but schema 0.0 declares it as int @ data/quantity-written-with-fraction.json:1:150
+E0503 items.0.quantity in the data is 1.0, but schema v0.0 declares it as int @ data/quantity-written-with-fraction.json:1:150
 -- out/cue/status-not-in-enum --
 verdict: E0505
-E0505 status in the data matches none of the alternatives schema 0.0 allows @ data/status-not-in-enum.json:1:105
+E0505 status in the data matches none of the alternatives schema v0.0 allows @ data/status-not-in-enum.json:1:105
 -- out/cue/ten-items --
 verdict: ok
 value: {"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0},{"sku":"ABC-0001","quantity":2,"priceCents":7919},{"sku":"ABC-0002","quantity":3,"priceCents":15838},{"sku":"ABC-0003","quantity":4,"priceCents":23757},{"sku":"ABC-0004","quantity":5,"priceCents":31676},{"sku":"ABC-0005","quantity":6,"priceCents":39595},{"sku":"ABC-0006","quantity":7,"priceCents":47514},{"sku":"ABC-0007","quantity":8,"priceCents":55433},{"sku":"ABC-0008","quantity":9,"priceCents":63352},{"sku":"ABC-0009","quantity":10,"priceCents":71271}],"note":"leave at the door","priority":3}
 -- out/cue/tier-not-in-enum --
 verdict: E0505
-E0505 customer.tier in the data matches none of the alternatives schema 0.0 allows @ data/tier-not-in-enum.json:1:89
+E0505 customer.tier in the data matches none of the alternatives schema v0.0 allows @ data/tier-not-in-enum.json:1:89
 -- out/cue/undeclared-field --
 verdict: E0502
-E0502 the data has coupon, which schema 0.0 does not declare @ data/undeclared-field.json:1:210
+E0502 the data has coupon, which schema v0.0 does not declare @ data/undeclared-field.json:1:210
 -- out/cue/undeclared-item-field --
 verdict: E0502
-E0502 the data has items.0.color, which schema 0.0 does not declare @ data/undeclared-item-field.json:1:168
+E0502 the data has items.0.color, which schema v0.0 does not declare @ data/undeclared-item-field.json:1:168
 -- out/cue/undeclared-nested-field --
 verdict: E0502
-E0502 the data has customer.phone, which schema 0.0 does not declare @ data/undeclared-nested-field.json:1:96
+E0502 the data has customer.phone, which schema v0.0 does not declare @ data/undeclared-nested-field.json:1:96
 -- out/cue/without-optional --
 verdict: ok
 value: {"id":"ord_7k2m9x4q","customer":{"name":"Ada Lovelace","email":"ada@example.com","tier":"pro"},"status":"paid","items":[{"sku":"ABC-0000","quantity":1,"priceCents":0}]}

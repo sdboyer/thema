@@ -116,17 +116,17 @@ func TestTipVersion(t *testing.T) {
 		clean bool
 		label string
 	}{
-		{"empty history", files(TipFile, v00), thema.SV(0, 0), false, "tip (cuts as 0.0)"},
-		{"a minor change", files("history/0.0.thema", v00, TipFile, v01), thema.SV(0, 1), false, "tip (cuts as 0.1)"},
-		{"a major change", files("history/0.0.thema", v00, TipFile, v10), thema.SV(1, 0), false, "tip (cuts as 1.0)"},
+		{"empty history", files(TipFile, v00), thema.SV(0, 0), false, "tip (cuts as v0.0)"},
+		{"a minor change", files("history/0.0.thema", v00, TipFile, v01), thema.SV(0, 1), false, "tip (cuts as v0.1)"},
+		{"a major change", files("history/0.0.thema", v00, TipFile, v10), thema.SV(1, 0), false, "tip (cuts as v1.0)"},
 		{"a major change after a minor", files("history/0.0.thema", v00, "history/0.1.thema", v01,
-			TipFile, "Schema: {\n\tname: string\n\tcrew: string\n}\n"), thema.SV(1, 0), false, "tip (cuts as 1.0)"},
-		{"clean", files("history/0.0.thema", v00, "history/0.1.thema", v01, TipFile, v01), thema.SV(0, 1), true, "tip (clean at 0.1)"},
+			TipFile, "Schema: {\n\tname: string\n\tcrew: string\n}\n"), thema.SV(1, 0), false, "tip (cuts as v1.0)"},
+		{"clean", files("history/0.0.thema", v00, "history/0.1.thema", v01, TipFile, v01), thema.SV(0, 1), true, "tip (clean at v0.1)"},
 		// The canonical form leaves out comments, field order and layout.
 		{"clean, written differently", files("history/0.0.thema", v00, "history/0.1.thema", v01,
-			TipFile, "// The ship.\nSchema: {crew?: int, name: string}\n"), thema.SV(0, 1), true, "tip (clean at 0.1)"},
+			TipFile, "// The ship.\nSchema: {crew?: int, name: string}\n"), thema.SV(0, 1), true, "tip (clean at v0.1)"},
 		{"the newest schema, with a lens", files("history/0.0.thema", v00,
-			TipFile, v00+"\nBackwardLens: {\n\ttip: _\n\tv0_0: {}\n}\n"), thema.SV(0, 1), false, "tip (cuts as 0.1)"},
+			TipFile, v00+"\nBackwardLens: {\n\ttip: _\n\tv0_0: {}\n}\n"), thema.SV(0, 1), false, "tip (cuts as v0.1)"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -162,9 +162,9 @@ func TestCheckCleanReportsEachDifference(t *testing.T) {
 		heads = append(heads, d.Headline)
 	}
 	want := []string{
-		"the Schema in tip.thema differs from the one in history/0.0.thema",
-		"tip.thema declares a ForwardLens",
-		"tip.thema declares a BackwardLens",
+		"the tip's Schema differs from v0.0's",
+		"the tip declares a ForwardLens",
+		"the tip declares a BackwardLens",
 	}
 	if strings.Join(heads, "\n") != strings.Join(want, "\n") {
 		t.Errorf("headlines:\n%s\nwant:\n%s", strings.Join(heads, "\n"), strings.Join(want, "\n"))
@@ -242,12 +242,12 @@ func TestDevelopment(t *testing.T) {
 			notes = append(notes, n.Label)
 		}
 		wantNotes := []string{
-			"tip.thema:4: the ForwardLens in tip.thema would copy v0_0.id into id, which does not accept every value of it (E0358)",
-			"tip.thema:4: both 0.0 and tip declare id, so a lens that does not map it copies it",
+			"tip.thema:4: the ForwardLens of tip would copy v0_0.id into id, which does not accept every value of it (E0358)",
+			"tip.thema:4: both v0.0 and tip declare id, so a lens that does not map it copies it",
 			"tip.thema:4: id in tip was string and is now int",
-			"tip.thema:4: tip.thema has no ForwardLens, and tip requires crew (E0346)",
-			"tip.thema:4: 0.0 declares name and tip does not, and nothing maps it (E0347)",
-			"translating from 0.0 to tip needs it; until tip.thema writes it, that translation fails (E1002)",
+			"tip.thema:4: tip has no ForwardLens, and tip requires crew (E0346)",
+			"tip.thema:4: v0.0 declares name and tip does not, and nothing maps it (E0347)",
+			"translating from v0.0 to tip needs it; until tip writes it, that translation fails (E1002)",
 		}
 		if !slices.Equal(notes, wantNotes) {
 			t.Errorf("notes:\n got %q\nwant %q", notes, wantNotes)
@@ -297,7 +297,7 @@ func TestDevelopment(t *testing.T) {
 		for _, n := range ds[0].Notes {
 			notes = append(notes, n.Label)
 		}
-		if want := "tip.thema has no ForwardLens, and tip requires crew, rank (E0346)"; !slices.Contains(notes, want) {
+		if want := "tip has no ForwardLens, and tip requires crew, rank (E0346)"; !slices.Contains(notes, want) {
 			t.Errorf("notes: got %q, want one %q", notes, want)
 		}
 		wantHelp := []string{"write ForwardLens: {v0_0: _, tip: {crew: <mapping>, rank: <mapping>}} in tip.thema"}
@@ -324,10 +324,10 @@ func TestDevelopment(t *testing.T) {
 			t.Fatalf("want one E0346, got %v", e0346)
 		}
 		d := e0346[0]
-		if want := "history/1.0.thema has no ForwardLens, and 1.0 requires 11 fields"; d.Headline != want {
+		if want := "v1.0 has no ForwardLens, and v1.0 requires 11 fields"; d.Headline != want {
 			t.Errorf("headline:\n got %q\nwant %q", d.Headline, want)
 		}
-		if len(d.Notes) != 1 || d.Notes[0].Label != "1.0 requires "+strings.Join(fields, ", ") {
+		if len(d.Notes) != 1 || d.Notes[0].Label != "v1.0 requires "+strings.Join(fields, ", ") {
 			t.Errorf("notes: %v", d.Notes)
 		}
 	})
@@ -345,7 +345,7 @@ func TestDevelopment(t *testing.T) {
 			t.Fatal(err)
 		}
 		if !strings.Contains(text, `"0.0->1.0"`) {
-			t.Errorf("no lens 0.0->1.0 in:\n%s", text)
+			t.Errorf("no lens v0.0->v1.0 in:\n%s", text)
 		}
 	})
 	t.Run("a written but wrong tip lens is an error, not pending", func(t *testing.T) {
@@ -411,15 +411,15 @@ func TestTipLensStaleParent(t *testing.T) {
 	}{
 		{"forward, against an older parent",
 			v10 + "\nForwardLens: {\n\tv0_0: _\n\ttip: {crew: 1}\n}\n",
-			codeOlderParent, "ForwardLens in tip.thema names v0_0, but the tip's parent is 0.1",
-			"declare v0_1: _ in place of v0_0, and review the mappings against 0.1's schema"},
+			codeOlderParent, "the ForwardLens of tip names v0_0, but the tip's parent is v0.1",
+			"declare v0_1: _ in place of v0_0, and review the mappings against v0.1's schema"},
 		{"backward, against an older parent",
 			v01 + "\nBackwardLens: {\n\ttip: _\n\tv0_0: {crew: _drop}\n}\n",
-			codeOlderParent, "BackwardLens in tip.thema names v0_0, but the tip's parent is 0.1",
-			"name the body v0_1 in place of v0_0, and review its mappings against 0.1's schema"},
+			codeOlderParent, "the BackwardLens of tip names v0_0, but the tip's parent is v0.1",
+			"name the body v0_1 in place of v0_0, and review its mappings against v0.1's schema"},
 		{"forward, naming neither end, against an older parent",
 			v10 + "\nForwardLens: {\n\tv0_0: _\n\tv1_0: {crew: 1}\n}\n",
-			codeOlderParent, "ForwardLens in tip.thema names v0_0, but the tip's parent is 0.1", ""},
+			codeOlderParent, "the ForwardLens of tip names v0_0, but the tip's parent is v0.1", ""},
 		{"forward, numbering the tip",
 			v10 + "\nForwardLens: {\n\tv0_1: _\n\tv1_0: {crew: 1}\n}\n",
 			codeNumberedTip, "ForwardLens names the tip's instance v1_0, which has no version yet", ""},

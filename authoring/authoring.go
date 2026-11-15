@@ -212,7 +212,7 @@ func compiledFrom(ctx *cue.Context, c *Compiled, v cue.Value) error {
 		})
 		out := make([]string, 0, len(vs)+len(bad))
 		for _, sv := range vs {
-			out = append(out, sv.String())
+			out = append(out, vname(sv))
 		}
 		return append(out, bad...)
 	}

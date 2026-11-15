@@ -105,14 +105,14 @@ lenses: {
 				@thema(derived)
 				condition:    len(_d_0) > 0
 				sourceFields: _d_0
-				message:      "u[].is_enabled has no equivalent in 1.0 and was dropped"
+				message:      "u[].is_enabled has no equivalent in v1.0 and was dropped"
 				type:         "DroppedField"
 			},
 			{
 				@thema(derived)
 				condition:    len(_d_1) > 0
 				sourceFields: _d_1
-				message:      "u[].note has no equivalent in 1.0 and was dropped"
+				message:      "u[].note has no equivalent in v1.0 and was dropped"
 				type:         "DroppedField"
 			}
 		]
@@ -132,7 +132,7 @@ lenses: {
 []
 -- out/translate/0.0/two->1.0 --
 {"u":["a","b"]}
-[{"sourceFields":[{"path":"u[0].is_enabled","value":true},{"path":"u[1].is_enabled","value":false}],"type":"DroppedField","message":"u[].is_enabled has no equivalent in 1.0 and was dropped"},{"sourceFields":[{"path":"u[1].note","value":"x"}],"type":"DroppedField","message":"u[].note has no equivalent in 1.0 and was dropped"}]
+[{"sourceFields":[{"path":"u[0].is_enabled","value":true},{"path":"u[1].is_enabled","value":false}],"type":"DroppedField","message":"u[].is_enabled has no equivalent in v1.0 and was dropped"},{"sourceFields":[{"path":"u[1].note","value":"x"}],"type":"DroppedField","message":"u[].note has no equivalent in v1.0 and was dropped"}]
 -- out/translate/1.0/two->0.0 --
 {"u":[{"id":"a","is_enabled":true},{"id":"b","is_enabled":true}]}
 []
