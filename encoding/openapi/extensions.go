@@ -16,7 +16,9 @@ import (
 // the property f is the field of, keyed by name, or nil if f has no @openapi
 // attribute.
 //
-// Extract writes them as one attribute on the field, after any other:
+// Extract writes them as one attribute on the property's first field, after
+// any other; a deprecated struct's property has two fields, and this is the
+// one with @deprecated():
 //
 //	shipRegistryId?: string @openapi(x-property-name="ship-registry-id", x-sensitive=true)
 //
@@ -37,33 +39,30 @@ import (
 // is not an x- keyword, an argument without a value, a key given twice, or a
 // value that is not one JSON value is an error.
 func Extensions(f *ast.Field) (map[string]any, error) {
-	var attrs []*ast.Attribute
-	for _, a := range f.Attrs {
-		if a.Name() == jsonschema.ExtensionsAttr {
-			attrs = append(attrs, &ast.Attribute{Text: a.Text})
-		}
-	}
-	if len(attrs) == 0 {
-		return nil, nil
-	}
+	var exts map[string]any
 	// The arguments are split as CUE splits them, by the attribute's own
-	// tokens, so they are read on a field of a value of CUE's.
-	v := cuecontext.New().BuildExpr(ast.NewStruct(&ast.Field{
-		Label: ast.NewIdent("f"),
-		Value: ast.NewIdent("_"),
-		Attrs: attrs,
-	}))
-	if err := v.Err(); err != nil {
-		return nil, err
-	}
-	fv := v.LookupPath(cue.MakePath(cue.Str("f")))
-	exts := map[string]any{}
-	for _, a := range fv.Attributes(cue.FieldAttr) {
-		if a.Name() != jsonschema.ExtensionsAttr {
+	// tokens, so each attribute is read on a field of a value of CUE's.
+	// Each is read on a field of its own, as CUE drops a field's second
+	// attribute of the same text.
+	ctx := cuecontext.New()
+	for _, at := range f.Attrs {
+		if at.Name() != jsonschema.ExtensionsAttr {
 			continue
 		}
+		v := ctx.BuildExpr(ast.NewStruct(&ast.Field{
+			Label: ast.NewIdent("f"),
+			Value: ast.NewIdent("_"),
+			Attrs: []*ast.Attribute{{Text: at.Text}},
+		}))
+		if err := v.Err(); err != nil {
+			return nil, err
+		}
+		a := v.LookupPath(cue.MakePath(cue.Str("f"))).Attribute(jsonschema.ExtensionsAttr)
 		if err := a.Err(); err != nil {
 			return nil, fmt.Errorf("@%s(%s): %w", a.Name(), a.Contents(), err)
+		}
+		if exts == nil {
+			exts = map[string]any{}
 		}
 		for arg := range a.Args(0) {
 			key := arg.Key

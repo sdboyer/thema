@@ -14,6 +14,7 @@ import (
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/format"
 	upopenapi "cuelang.org/go/encoding/openapi"
+	"github.com/sdboyer/thema/internal/jsonschema"
 	"golang.org/x/tools/txtar"
 )
 
@@ -75,7 +76,7 @@ func stripExtensions(f *ast.File) {
 		if fd, ok := c.Node().(*ast.Field); ok {
 			attrs := fd.Attrs[:0]
 			for _, a := range fd.Attrs {
-				if a.Name() != "openapi" {
+				if a.Name() != jsonschema.ExtensionsAttr {
 					attrs = append(attrs, a)
 				}
 			}

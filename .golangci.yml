@@ -79,9 +79,9 @@ linters:
       # Vendored-in third-party code; not ours to lint.
       - internal/cuetsy
       # CUE's decoder, copied with as few changes as will do, so that a
-      # re-sync stays a readable diff; thema's own file in it, extensions.go,
-      # is linted.
-      - ^internal/jsonschema/(internal/|(constraints.*|decode|doc|fork|jsonschema|ref|util|valuemap|version.*)\.go$)
+      # re-sync stays a readable diff. thema's own files in it, extensions.go
+      # and fork.go, are linted.
+      - ^internal/jsonschema/(internal/|(constraints.*|decode|doc|jsonschema|ref|util|valuemap|version.*)\.go$)
     rules:
       # forbidigo's rules are the CLI's contract, so they hold in the files
       # of package main in cmd/thema alone: not in cmd/thema/playground, a
@@ -94,6 +94,11 @@ linters:
       - path: _test\.go$
         linters:
           - forbidigo
+      # fork.go's table of JSON Schema type names is upstream's, copied as
+      # it is; the names are spelled out across the copied files too.
+      - path: ^internal/jsonschema/fork\.go$
+        linters:
+          - goconst
 
 formatters:
   enable:

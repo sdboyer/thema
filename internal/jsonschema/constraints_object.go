@@ -601,9 +601,15 @@ func constraintProperties(key string, n cue.Value, s *state) {
 				f.Attrs = append(f.Attrs, &ast.Attribute{Text: "@deprecated()"})
 			}
 		}
-		if a := state.extensionsAttr(); a != nil {
-			// thema: on the property's own field, whatever its value.
-			f.Attrs = append(f.Attrs, a)
+		if a := state.extensionsAttr(s); a != nil {
+			// thema: on the property's first field, with @deprecated(), so
+			// that every attribute of the property is on one field. For a
+			// deprecated struct, that's the field addTag just added.
+			at := f
+			if _, ok := expr.(*ast.StructLit); ok && state.deprecated {
+				at = obj.Elts[len(obj.Elts)-1].(*ast.Field)
+			}
+			at.Attrs = append(at.Attrs, a)
 		}
 		obj.Elts = append(obj.Elts, f)
 	})
