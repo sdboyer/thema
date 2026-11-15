@@ -36,7 +36,7 @@ Schema: {
           "label": "both 0.0 and 1.0 declare kind, so a lens that does not map it copies it"
         },
         {
-          "label": "kind in 1.0 is now \"a\" | \"b\", which does not accept every value of the prior string (copying v0_0.kind; compatibility rule value-narrowed)"
+          "label": "kind in 1.0 is now \"a\" | \"b\", which does not accept every value of the prior string"
         }
       ],
       "help": [
@@ -58,5 +58,5 @@ error[E0358]: the ForwardLens in history/1.0.thema would copy v0_0.kind into kin
   | ^
   |
   = note: both 0.0 and 1.0 declare kind, so a lens that does not map it copies it
-  = note: kind in 1.0 is now "a" | "b", which does not accept every value of the prior string (copying v0_0.kind; compatibility rule value-narrowed)
+  = note: kind in 1.0 is now "a" | "b", which does not accept every value of the prior string
   = help: map kind in the ForwardLens: a _match, a computed value, or a constant

@@ -100,7 +100,7 @@ func CheckAppendOnly(published, candidate Lineage) error {
 		cs, ok := byVersion[ps.v]
 		if !ok {
 			errs = append(errs, diag.New(diag.E0252).
-				Headlinef("the lineage removes published version %s", ps.v).
+				Headlinef("immutability violation: the lineage removes published version %s", ps.v).
 				Notef(token.NoPos, "%s was published, so instances of it may exist", pub.vocab.Term(schemaAddr(ps.v))).
 				Helpf("restore %s as it was published; a published version is never removed", pub.vocab.Term(schemaAddr(ps.v))).
 				Err())
@@ -121,7 +121,7 @@ func CheckAppendOnly(published, candidate Lineage) error {
 			}
 			a := schemaAddr(cs.v)
 			errs = append(errs, diag.New(diag.E0253).AtValue(cs.ref.LookupPath(pathSch)).Addr(a).
-				Headlinef("new version %s comes before published version %s", cs.v, newest).
+				Headlinef("immutability violation: new version %s comes before published version %s", cs.v, newest).
 				Notef(token.NoPos, "versions are only appended: a new version comes after the newest published one, %s, so that every published version keeps its predecessor", newest).
 				Helpf("remove %s, and make the change in a version after %s", cand.vocab.Term(a), newest).
 				Err())
@@ -150,7 +150,7 @@ func (lin *baseLineage) changes(ps, cs *schemaDef) ([]error, error) {
 	if pid.Schema != cid.Schema {
 		a := schemaAddr(cs.v)
 		errs = append(errs, diag.New(diag.E0250).AtValue(cs.ref.LookupPath(pathSch)).Addr(a).
-			Headlinef("%s is not as published", lin.vocab.Term(a)).
+			Headlinef("immutability violation: %s is not as published", lin.vocab.Term(a)).
 			Note(token.NoPos, "a published version never changes: instances were validated against it as it was published").
 			Helpf("restore %s as it was published, and make the change in a new version", lin.vocab.Term(a)).
 			Err())
@@ -180,7 +180,7 @@ func (lin *baseLineage) changes(ps, cs *schemaDef) ([]error, error) {
 	for _, id := range changed {
 		a := lensAddr(id.From, id.To)
 		errs = append(errs, diag.New(diag.E0251).AtValue(lin.uni.LookupPath(cue.MakePath(cue.Str("lenses"), cue.Str(id.String())))).Addr(a).
-			Headlinef("%s is not as published", lin.vocab.Term(a)).
+			Headlinef("immutability violation: %s is not as published", lin.vocab.Term(a)).
 			Note(token.NoPos, "a version's lenses are part of it: instances already translated through the published lens would translate differently").
 			Helpf("restore %s as it was published", lin.vocab.Term(a)).
 			Err())

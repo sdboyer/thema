@@ -225,7 +225,7 @@ func (ml *maybeLineage) compatDiag(f compat.Finding, prev, curr *schemaDef) *dia
 		// A finding about the whole struct has no field to point at.
 		b.AtValue(curr.ref.LookupPath(pathSch))
 	}
-	b.Notef(token.NoPos, "%s is declared as a minor version of %s, so every instance of %s must be an instance of it (compatibility rule %s)", ml.term(schema), prev.v, ml.term(prior), f.Rule)
+	b.Notef(token.NoPos, "%s is a minor version, so it must accept all data %s accepts", ml.term(schema), ml.term(prior))
 	if f.ViaResidual {
 		b.Notef(token.NoPos, "%s does not declare %s by name, but accepts it through ... or a pattern, so an instance may already hold any value there", ml.term(prior), f.Path)
 		b.Helpf("declare it as %s?: _ to accept what %s accepted, or make this version %d.0", f.Path, prev.v, prev.v[0]+1)

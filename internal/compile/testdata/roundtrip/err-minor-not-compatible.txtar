@@ -1,0 +1,36 @@
+A version under history/ numbered minor whose schema is not backward
+compatible with the one before it: an immutability violation naming both
+files, with each field it narrows where it is, in one diagnostic.
+-- ship/history/0.0.thema --
+Schema: {
+	size:  "s" | "m" | "l"
+	count: string | int
+}
+-- ship/history/0.1.thema --
+Schema: {
+	size:  "s" | "m"
+	count: string
+}
+-- ship/tip.thema --
+Schema: {
+	size:  "s" | "m"
+	count: string
+}
+-- out/error --
+error[E0207]: immutability violation: v0.1 is not backward compatible with v0.0
+ --> history/0.1.thema:1:1
+  |
+1 | Schema: {
+  | ^^^^^^
+2 |     size:  "s" | "m"
+  |     ---- size is now "s" | "m", which has no alternative for the prior "l"
+3 |     count: string
+  |     ----- count was int and is now string
+  |
+ ::: history/0.0.thema:1:1
+  |
+1 | Schema: {
+  | ------ the version before it
+  |
+  = note: v0.1 is a minor version, so it must accept all data v0.0 accepts
+  = help: run thema lineage check --published to find which file changed since it was cut, restore it, and make the change in tip.thema

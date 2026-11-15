@@ -64,7 +64,8 @@ A code's scope says what its condition reads: `one` when one version's files, th
 | [E0203](E0203.md) | error | one | a major version declares no schemas |
 | [E0204](E0204.md) | error | one | two version files declare the same version |
 | [E0205](E0205.md) | error | one | the version files skip a version |
-| [E0206](E0206.md) | error | versions | a version file named as a major version is backward compatible with its predecessor |
+| [E0206](E0206.md) | error | versions | retired: a version file named as a major version is backward compatible with its predecessor |
+| [E0207](E0207.md) | error | versions | a version under history/ has a number its compatibility with the version before it contradicts |
 | [E0208](E0208.md) | error | versions | a major version is backward compatible with its predecessor |
 | [E0210](E0210.md) | error | versions | a minor version requires a field its predecessor does not declare |
 | [E0211](E0211.md) | error | versions | a minor version rejects a field its predecessor declares |

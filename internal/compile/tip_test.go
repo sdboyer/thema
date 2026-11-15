@@ -244,7 +244,7 @@ func TestDevelopment(t *testing.T) {
 		wantNotes := []string{
 			"tip.thema:4: the ForwardLens in tip.thema would copy v0_0.id into id, which does not accept every value of it (E0358)",
 			"tip.thema:4: both 0.0 and tip declare id, so a lens that does not map it copies it",
-			"tip.thema:4: id in tip was string and is now int (copying v0_0.id; compatibility rule value-narrowed)",
+			"tip.thema:4: id in tip was string and is now int",
 			"tip.thema:4: tip.thema has no ForwardLens, and tip requires crew (E0346)",
 			"tip.thema:4: 0.0 declares name and tip does not, and nothing maps it (E0347)",
 			"translating from 0.0 to tip needs it; until tip.thema writes it, that translation fails (E1002)",

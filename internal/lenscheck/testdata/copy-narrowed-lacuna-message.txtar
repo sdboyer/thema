@@ -13,4 +13,4 @@ lacunas: [{
 }]
 -- out --
 not total
-lacunas[0].message copies v0_0.a, which was int and is now string (compat rule value-narrowed) (rule copy-narrowed) @ lens.cue:5:11
+lacunas[0].message copies v0_0.a, which was int and is now string (rule copy-narrowed) @ lens.cue:5:11

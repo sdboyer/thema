@@ -23,7 +23,7 @@ lin2: schemas: {
 	}
 }
 -- out/appendonly-fail --
-error[E0250]: schema 0.0 is not as published
+error[E0250]: immutability violation: schema 0.0 is not as published
   --> /in.cue:17:3
    |
 17 |         schema: {

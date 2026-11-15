@@ -17,7 +17,7 @@ Schema: {
     {
       "code": "E0250",
       "severity": "error",
-      "headline": "the schema in history/0.0.thema is not as published",
+      "headline": "immutability violation: the schema in history/0.0.thema is not as published",
       "path": [
         "history/0.0.thema",
         "Schema"
@@ -52,7 +52,7 @@ Schema: {
   }
 }
 -- out/text --
-error[E0250]: the schema in history/0.0.thema is not as published
+error[E0250]: immutability violation: the schema in history/0.0.thema is not as published
  --> candidate/ship/history/0.0.thema:1:1
   |
 1 | Schema: {
