@@ -509,8 +509,9 @@ func missingLens(v, prev *version, block string, errs cerrors.Error) error {
 	// page, its notes, after its own, and its help, which says what to write
 	// in the block. The help that writes the block comes first, and the help
 	// about what goes in it after: the fields the block must produce (E0346)
-	// write the block out whole, with those fields in it, in place of the
-	// block's bare shape.
+	// and the fallbacks it must write (E0343) write the block out whole, with
+	// those fields in it, in place of the block's bare shape. Each such
+	// finding writes the same block, which is given once.
 	var shape, helps []string
 	for _, e := range cerrors.Errors(errs) {
 		if de, ok := e.(*diag.Error); ok {
@@ -533,8 +534,12 @@ func missingLens(v, prev *version, block string, errs cerrors.Error) error {
 				}
 				b.Note(np, n.Label)
 			}
-			if d.Code == diag.E0346 {
-				shape = append(shape, d.Help...)
+			if d.Code == diag.E0346 || d.Code == diag.E0343 {
+				for _, h := range d.Help {
+					if !slices.Contains(shape, h) {
+						shape = append(shape, h)
+					}
+				}
 			} else {
 				helps = append(helps, d.Help...)
 			}

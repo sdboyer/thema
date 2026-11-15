@@ -1,0 +1,38 @@
+Two required fields missing from a body under a label that has to be
+quoted: the help writes both in the body, which it names quoted.
+-- ship/history/0.0.thema --
+Schema: {
+	id: string
+}
+-- ship/history/1.0.thema --
+Schema: {
+	id: string
+	"crew-roster": {
+		owner: string
+		team:  string
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		id: v0_0.id
+		"crew-roster": {}
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	id: string
+	"crew-roster": {
+		owner: string
+		team:  string
+	}
+}
+-- out/error --
+error[E0346]: ForwardLens produces nothing for "crew-roster".owner and "crew-roster".team, which v1.0 requires
+  --> history/1.0.thema:13:3
+   |
+13 |         "crew-roster": {}
+   |         ^^^^^^^^^^^^^
+   |
+   = help: add owner: <mapping>, team: <mapping> to v1_0."crew-roster"

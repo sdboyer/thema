@@ -1,0 +1,62 @@
+One field per code, each with a path too long for a headline: the headline
+names the problem without the path, and a note holds the sentence.
+-- ship/history/0.0.thema --
+Schema: {
+	id: string
+	quartermasterresponsibleforprovisioningandstoresaboardtheshipduringtheentirelengthofthevoyageacrossthesea?: string
+	boatswainresponsibleforriggingsailsanchorsandcablesaboardtheshipduringtheentirelengthofthevoyage: string
+}
+-- ship/history/1.0.thema --
+Schema: {
+	id: string
+	quartermasterresponsibleforprovisioningandstoresaboardtheshipduringtheentirelengthofthevoyageacrossthesea: string
+	shipmanifestandcrewroster: {
+		carpenterresponsibleforhullmastsandsparsrepairsaboardtheshipduringthevoyage: string
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		id: v0_0.id
+		shipmanifestandcrewroster: {}
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	id: string
+	quartermasterresponsibleforprovisioningandstoresaboardtheshipduringtheentirelengthofthevoyageacrossthesea: string
+	shipmanifestandcrewroster: {
+		carpenterresponsibleforhullmastsandsparsrepairsaboardtheshipduringthevoyage: string
+	}
+}
+-- out/error --
+error[E0343]: a field is optional in v0.0 and required in v1.0
+ --> history/1.0.thema:9:1
+  |
+3 |     quartermasterresponsibleforprovisioningandstoresaboardtheshipduringtheentirelengthofthevoyageacrossthesea: string
+  |     --------------------------------------------------------------------------------------------------------- v1.0 requires quartermasterresponsibleforprovisioningandstoresaboardtheshipduringtheentirelengthofthevoyageacrossthesea
+...
+9 | ForwardLens: {
+  | ^^^^^^^^^^^
+  |
+  = note: quartermasterresponsibleforprovisioningandstoresaboardtheshipduringtheentirelengthofthevoyageacrossthesea is optional in v0.0 and required in v1.0
+  = help: write quartermasterresponsibleforprovisioningandstoresaboardtheshipduringtheentirelengthofthevoyageacrossthesea: _coalesce(v0_0.quartermasterresponsibleforprovisioningandstoresaboardtheshipduringtheentirelengthofthevoyageacrossthesea, <fallback>) to say what to use when it is absent
+
+error[E0346]: ForwardLens produces nothing for a field v1.0 requires
+  --> history/1.0.thema:13:3
+   |
+13 |         shipmanifestandcrewroster: {}
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: ForwardLens produces nothing for shipmanifestandcrewroster.carpenterresponsibleforhullmastsandsparsrepairsaboardtheshipduringthevoyage, which v1.0 requires
+   = help: add carpenterresponsibleforhullmastsandsparsrepairsaboardtheshipduringthevoyage: <mapping> to v1_0.shipmanifestandcrewroster
+
+error[E0347]: v0.0 declares a field v1.0 does not, and nothing maps it
+ --> history/1.0.thema:9:1
+  |
+9 | ForwardLens: {
+  | ^^^^^^^^^^^
+  |
+  = note: v0.0 declares boatswainresponsibleforriggingsailsanchorsandcablesaboardtheshipduringtheentirelengthofthevoyage and v1.0 does not, and nothing maps it
+  = help: write <field>: v0_0.boatswainresponsibleforriggingsailsanchorsandcablesaboardtheshipduringtheentirelengthofthevoyage to move it, or boatswainresponsibleforriggingsailsanchorsandcablesaboardtheshipduringtheentirelengthofthevoyage: _drop

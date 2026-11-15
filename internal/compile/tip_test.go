@@ -305,6 +305,22 @@ func TestDevelopment(t *testing.T) {
 			t.Errorf("help:\n got %q\nwant %q", ds[0].Help, wantHelp)
 		}
 	})
+	t.Run("an unwritten lens writes its fallbacks in the one block it gives", func(t *testing.T) {
+		from := "Schema: {\n\tid:    string\n\trank?: int\n}\n"
+		to := "Schema: {\n\tid:   string\n\trank: int\n\tcrew: int\n}\n"
+		c, err := Development(ctx, "ship", files("history/0.0.thema", from, TipFile, to))
+		if err != nil {
+			t.Fatal(err)
+		}
+		ds := diag.From(c.Pending, diag.Context{})
+		if len(ds) == 0 || ds[0].Code != diag.E1001 {
+			t.Fatalf("want E1001 first, got %v", ds)
+		}
+		wantHelp := []string{"write ForwardLens: {v0_0: _, tip: {crew: <mapping>, rank: _coalesce(v0_0.rank, <fallback>)}} in tip.thema"}
+		if !slices.Equal(ds[0].Help, wantHelp) {
+			t.Errorf("help:\n got %q\nwant %q", ds[0].Help, wantHelp)
+		}
+	})
 	t.Run("an unwritten lens with many fields lists them in a note", func(t *testing.T) {
 		var fields []string
 		to := "Schema: {\n\tid: string\n"
