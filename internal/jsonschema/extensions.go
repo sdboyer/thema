@@ -19,22 +19,18 @@ import (
 // keywords: @openapi(x-a=1, x-b="b").
 const ExtensionsAttr = "openapi"
 
-// extension is one x- keyword of a schema, with its value as compact JSON.
+// extension is one x- keyword of a schema, with its value.
 type extension struct {
 	key   string
-	value []byte
+	value cue.Value
 }
 
-// addExtension records the x- keyword key, whose value is n.
+// addExtension records the x- keyword key, whose value is n. It's encoded
+// only if the schema is a property's, by extensionsAttr: every other
+// schema's x- keywords are dropped, as upstream drops them, whatever their
+// values.
 func (s *state) addExtension(key string, n cue.Value) {
-	// MarshalJSON writes compact JSON, keeping the order of an object's
-	// keys, and does not escape HTML.
-	b, err := n.MarshalJSON()
-	if err != nil {
-		s.errf(n, "cannot encode the value of %q as JSON: %v", key, err)
-		return
-	}
-	s.extensions = append(s.extensions, extension{key, b})
+	s.extensions = append(s.extensions, extension{key, n})
 }
 
 // rawKey matches the keys an attribute holds as written: words of letters,
@@ -43,20 +39,38 @@ func (s *state) addExtension(key string, n cue.Value) {
 // not scan as an attribute's tokens.
 var rawKey = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*(-[A-Za-z_][A-Za-z0-9_]*)*$`)
 
-// extensionsAttr returns the attribute that holds the schema's x- keywords,
-// or nil if it has none: @openapi(key=value, ...), with the keys sorted and
-// each value its compact JSON, as written. A key matching rawKey is written
-// as it is, and any other as a JSON string.
-func (s schemaInfo) extensionsAttr() *ast.Attribute {
-	if len(s.extensions) == 0 {
+// extensionsAttr returns the attribute that holds the property schema's x-
+// keywords, or nil if it has none: @openapi(key=value, ...), with the keys
+// sorted and each value its compact JSON. A key matching rawKey is written
+// as it is, and any other as a JSON string. A value that isn't JSON, which
+// a document written in CUE can hold, is an error, reported on s, the
+// state of the schema with the property, for every key that has one. Bytes
+// are among them: JSON would write them as a base64 string, a different
+// value.
+func (si schemaInfo) extensionsAttr(s *state) *ast.Attribute {
+	if len(si.extensions) == 0 {
 		return nil
 	}
-	exts := slices.SortedFunc(slices.Values(s.extensions), func(a, b extension) int {
+	exts := slices.SortedFunc(slices.Values(si.extensions), func(a, b extension) int {
 		return cmp.Compare(a.key, b.key)
 	})
 	var b strings.Builder
 	b.WriteString("@" + ExtensionsAttr + "(")
+	failed := false
 	for i, e := range exts {
+		if holdsBytes(e.value) {
+			s.errf(e.value, "cannot encode the value of %q as JSON: it holds bytes", e.key)
+			failed = true
+			continue
+		}
+		// MarshalJSON writes compact JSON, keeping the order of an
+		// object's keys, and does not escape HTML.
+		v, err := e.value.MarshalJSON()
+		if err != nil {
+			s.errf(e.value, "cannot encode the value of %q as JSON: %v", e.key, err)
+			failed = true
+			continue
+		}
 		if i > 0 {
 			b.WriteString(", ")
 		}
@@ -66,20 +80,70 @@ func (s schemaInfo) extensionsAttr() *ast.Attribute {
 			b.Write(jsonString(e.key))
 		}
 		b.WriteByte('=')
-		b.Write(e.value)
+		b.Write(escapeBOM(v))
+	}
+	if failed {
+		return nil
 	}
 	b.WriteByte(')')
 	return &ast.Attribute{Text: b.String()}
 }
 
+// holdsBytes reports whether v, or a value in it that MarshalJSON writes,
+// is bytes. As MarshalJSON does, it takes each level's default, and reads a
+// list's elements and a struct's regular fields.
+func holdsBytes(v cue.Value) bool {
+	v, _ = v.Default()
+	var it interface {
+		Next() bool
+		Value() cue.Value
+	}
+	// An error here is MarshalJSON's too, which reports it.
+	switch v.Kind() {
+	case cue.BytesKind:
+		return true
+	case cue.ListKind:
+		l, err := v.List()
+		if err != nil {
+			return false
+		}
+		it = &l
+	case cue.StructKind:
+		fs, err := v.Fields()
+		if err != nil {
+			return false
+		}
+		it = fs
+	default:
+		return false
+	}
+	for it.Next() {
+		if holdsBytes(it.Value()) {
+			return true
+		}
+	}
+	return false
+}
+
 // jsonString returns s as a JSON string, without escaping HTML. It is a CUE
 // string too: JSON writes a \ as \\, so it holds no interpolation, which an
-// attribute may not hold.
+// attribute may not hold, and escapeBOM escapes the one rune JSON leaves
+// that CUE's scanner refuses.
 func jsonString(s string) []byte {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
 	// Encoding a string cannot fail.
 	_ = enc.Encode(s)
-	return bytes.TrimSuffix(buf.Bytes(), []byte("\n"))
+	return escapeBOM(bytes.TrimSuffix(buf.Bytes(), []byte("\n")))
+}
+
+// bom is U+FEFF in UTF-8.
+var bom = []byte{0xEF, 0xBB, 0xBF}
+
+// escapeBOM escapes each U+FEFF in the JSON b, which JSON leaves as it is
+// and CUE's scanner refuses anywhere but at the start of a file. In JSON it
+// can only be inside a string, where \ufeff is the same string.
+func escapeBOM(b []byte) []byte {
+	return bytes.ReplaceAll(b, bom, []byte(`\ufeff`))
 }

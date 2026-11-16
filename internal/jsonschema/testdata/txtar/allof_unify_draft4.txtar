@@ -1,0 +1,42 @@
+# Before draft-06, "id" starts a schema resource of its own, like "$id"
+# does later. Unifying a subschema which is such a resource leaves the
+# references inside it resolving against its own ID.
+
+-- schema.json --
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "id": "http://example.test/root",
+  "definitions": {
+    "foo": {"type": "string"},
+    "other": {
+      "id": "http://example.test/other",
+      "definitions": {"foo": {"type": "integer"}},
+      "properties": {"a": {"$ref": "#/definitions/foo"}}
+    }
+  },
+  "allOf": [
+    {"$ref": "#/definitions/other"},
+    {"properties": {"b": {"type": "string"}}}
+  ]
+}
+-- test/ok.json --
+{"a": 1, "b": "x"}
+-- out/decode/extract --
+@jsonschema(schema="http://json-schema.org/draft-04/schema#")
+@jsonschema(id="http://example.test/root")
+#other & (null | bool | number | string | [...] | {
+	b?: string
+	...
+})
+
+#foo: string
+
+#other: {
+	@jsonschema(id="http://example.test/other")
+	null | bool | number | string | [...] | {
+		a?: _#defs."/definitions/other/definitions/foo"
+		...
+	}
+}
+
+_#defs: "/definitions/other/definitions/foo": int

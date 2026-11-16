@@ -1,0 +1,35 @@
+An allOf member which only restricts the type adds no subschema to the
+matchN validator, so it does not count towards the number of subschemas
+which must match.
+
+-- schema.json --
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "allOf": [
+        {"type": "string"},
+        {"minLength": 1},
+        {"maxLength": 5}
+    ]
+}
+-- test/valid.json --
+"abc"
+-- test/err-empty.json --
+""
+-- test/err-number.json --
+5
+-- out/decode/extract --
+import "strings"
+
+@jsonschema(schema="https://json-schema.org/draft/2020-12/schema")
+
+strings.MinRunes(1) & strings.MaxRunes(5)
+-- out/decode/testerr/err-empty --
+invalid value "" (does not satisfy strings.MinRunes(1)):
+    generated.cue:5:1
+    generated.cue:1:1
+    generated.cue:5:18
+    test/err-empty.json:1:1
+-- out/decode/testerr/err-number --
+conflicting values 5 and strings.MinRunes(1) (mismatched types int and string):
+    generated.cue:5:1
+    test/err-number.json:1:1

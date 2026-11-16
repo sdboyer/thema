@@ -1,0 +1,10 @@
+# Test that we can use a "number" type constraint with a numeric enum.
+# See issue #3173.
+
+-- schema.json --
+{
+    "type": "number",
+    "enum": [ 1, 2, 3]
+}
+-- out/decode/extract --
+==1 | ==2 | ==3

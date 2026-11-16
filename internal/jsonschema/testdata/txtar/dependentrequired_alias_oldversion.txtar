@@ -1,0 +1,36 @@
+# Extracting into a module below language version v0.18.0 must emit the
+# prefix alias form, as the postfix one does not parse there. Compare
+# dependentrequired_alias.txtar, which targets the current version.
+#targetLanguageVersion: v0.14.0
+-- schema.json --
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"type": "object",
+	"properties": {
+		"working-directory": {"type": "string"},
+		"run": {"type": "string"}
+	},
+	"dependentRequired": {
+		"working-directory": ["run"]
+	}
+}
+-- out/decode-v3/extract --
+@jsonschema(schema="https://json-schema.org/draft/2020-12/schema")
+"working-directory"?:     string
+run?:                     string
+_t0="working-directory"?: _
+if _t0 != _|_ {
+	run!: _
+}
+{}
+...
+-- out/decode-v3-noshare/extract --
+@jsonschema(schema="https://json-schema.org/draft/2020-12/schema")
+"working-directory"?:     string
+run?:                     string
+_t0="working-directory"?: _
+if _t0 != _|_ {
+	run!: _
+}
+{}
+...

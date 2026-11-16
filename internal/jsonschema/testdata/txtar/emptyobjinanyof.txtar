@@ -1,0 +1,27 @@
+-- schema.json --
+{
+ "$defs": {
+   "shell": {
+      "description": "Specify a shell.",
+      "type": "string",
+      "anyOf": [
+        {
+        },
+        {
+          "enum": [
+            "bash",
+            "sh",
+            "cmd",
+            "powershell"
+          ]
+        }
+      ]
+   }
+ }
+}
+
+-- out/decode/extract --
+_
+
+// Specify a shell.
+#shell: matchN(>=1, [string, "bash" | "sh" | "cmd" | "powershell"])

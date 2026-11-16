@@ -1,0 +1,33 @@
+The list literal generated for the "items" prefix already requires as
+many elements as "minItems" does, so no list.MinItems constraint is
+generated, and with it goes the only use of the list package.
+
+-- schema.json --
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "array",
+    "items": [
+        {"type": "integer"},
+        {"type": "string"}
+    ],
+    "minItems": 2
+}
+-- test/exact.json --
+[1, "a"]
+-- test/longer.json --
+[1, "a", true]
+-- test/err-too-short.json --
+[1]
+-- test/err-wrong-type.json --
+["a", "b"]
+-- out/decode/extract --
+@jsonschema(schema="http://json-schema.org/draft-07/schema#")
+
+[int, string, ...]
+-- out/decode/testerr/err-too-short --
+incompatible list lengths (1 and 2):
+    test/err-too-short.json:1:1
+-- out/decode/testerr/err-wrong-type --
+0: conflicting values int and "a" (mismatched types int and string):
+    generated.cue:3:2
+    test/err-wrong-type.json:1:2

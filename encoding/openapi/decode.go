@@ -59,7 +59,9 @@ type ExtractConfig struct {
 // keywords of each property's schema, which that skips, as one attribute on
 // the property's field; see [Extensions] for its shape. The x- keywords of
 // any other schema, such as a component schema itself or an array's items,
-// are not kept.
+// are not kept. And text it writes into a comment, such as a description,
+// has each U+FEFF written as U+2060 WORD JOINER: CUE's scanner refuses
+// U+FEFF anywhere but at the start of a file, and a comment has no escapes.
 //
 // The result can be converted to a [cue.Value] via [cue.Context.BuildFile].
 func Extract(data cue.InstanceOrValue, c *ExtractConfig) (*ast.File, error) {

@@ -1,0 +1,50 @@
+-- schema.json --
+{
+    "$defs": {
+        "enum": {
+            "type": "string",
+            "enum": [ "a", "b", "c" ]
+        },
+        "lists": {
+            "description": "Single item or lists of various lengths.",
+            "oneOf": [
+                {
+                    "type": "string",
+                    "enum": [ "a", "b", "c" ]
+                },
+                {
+                    "type": "array",
+                    "oneOf": [
+                        {
+                            "items": [ { "const": "X" } ]
+                        },
+                        {
+                            "items": [
+                                { "const": "X" },
+                                {
+                                    "type": "string",
+                                    "enum": [ "a", "b", "c" ]
+                                }
+                            ]
+                        },
+                        {
+                            "items": [
+                                { "const": "X" },
+                                { "enum": [ "d", "e", "f" ] }
+                            ]
+                        }
+                    ],
+                    "additionalItems": false
+                }
+            ]
+        }
+    }
+}
+-- out/decode/extract --
+ERROR:
+from version https://json-schema.org/draft/2020-12/schema onwards, the value of "items" must be an object or a boolean:
+    schema.json:18:30
+from version https://json-schema.org/draft/2020-12/schema onwards, the value of "items" must be an object or a boolean:
+    schema.json:21:30
+from version https://json-schema.org/draft/2020-12/schema onwards, the value of "items" must be an object or a boolean:
+    schema.json:30:30
