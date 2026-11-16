@@ -1,0 +1,44 @@
+Optional fields a body written empty would copy into required ones: the
+copies are refused (E0343), and the struct holding them is not then
+reported as one the target lacks, since the target declares it.
+-- ship/history/0.0.thema --
+Schema: {
+	"crew-roster": {
+		owner?: string
+		team?:  string
+	}
+}
+-- ship/history/1.0.thema --
+Schema: {
+	"crew-roster": {
+		owner: string
+		team:  string
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		"crew-roster": {}
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	"crew-roster": {
+		owner: string
+		team:  string
+	}
+}
+-- out/error --
+error[E0343]: "crew-roster".owner and "crew-roster".team are optional in v0.0 and required in v1.0
+  --> history/1.0.thema:11:3
+   |
+ 3 |         owner: string
+   |         ----- v1.0 requires "crew-roster".owner
+ 4 |         team:  string
+   |         ---- v1.0 requires "crew-roster".team
+...
+11 |         "crew-roster": {}
+   |         ^^^^^^^^^^^^^
+   |
+   = help: write owner: _coalesce(v0_0."crew-roster".owner, <fallback>), team: _coalesce(v0_0."crew-roster".team, <fallback>) in v1_0."crew-roster" to say what to use when they are absent

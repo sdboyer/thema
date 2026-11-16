@@ -1244,11 +1244,13 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 			if fs := e.misfits(en.source, en.target); len(fs) > 0 {
 				// The source is accounted for; only the move is wrong.
 				consumed[en.source.String()] = true
-				e.copyMisfit(diag.E0359, en.expr.Pos(), en.source, en.target, fs)
+				e.moveMisfit(en.expr.Pos(), en.source, en.target, fs)
 				continue
 			}
 			if e.optional(e.S, en.source) {
 				if e.required(e.T, en.target) {
+					// The source is accounted for; only the move is wrong.
+					consumed[en.source.String()] = true
 					e.errhf(diag.E0343, en.pos, fmt.Sprintf("write _coalesce(%s.%s, <fallback>) to say what to use when it is absent", e.root, en.source), "%s is optional in %s and %s requires %s", en.source, e.nameOf(e.sv), e.nameOf(e.tv), en.target)
 					continue
 				}
@@ -1773,11 +1775,14 @@ func (e *edge) fill(n *node, tbase cue.Path, b *body, consumed, dropped map[stri
 			}
 			en := entry{kind: kindMove, target: tpath, source: spath, pos: e.blockPos, derived: true}
 			if misfit := blocking(fs); len(misfit) > 0 {
-				_, pos := e.within(b, tpath)
-				e.copyMisfit(diag.E0358, pos, spath, tpath, misfit)
+				// The source is accounted for; only the copy is wrong.
+				consumed[spath.String()] = true
+				lit, pos := e.within(b, tpath)
+				e.collect(diag.E0358, e.misfitIn, lit, pos, finding{spath: spath, tpath: tpath, misfit: misfit})
 				continue
 			}
 			if e.optional(e.S, spath) && e.required(e.T, tpath) {
+				consumed[spath.String()] = true
 				lit, pos := e.within(b, tpath)
 				e.collect(diag.E0343, e.uncoalesced, lit, pos, finding{spath: spath, tpath: tpath, decl: lookup(e.T, tpath).Pos()})
 				continue
@@ -1867,19 +1872,46 @@ func (e *edge) splits(tpath cue.Path, fs []compat.Finding) bool {
 	return true
 }
 
-// copyMisfit reports a copy or a move (code says which) of spath into tpath
-// that would produce a value the target rejects, with the checker's findings
+// moveMisfit reports a move of spath into tpath that would produce a value
+// the target rejects (E0359), with the checker's findings as notes.
+func (e *edge) moveMisfit(p token.Pos, spath, tpath cue.Path, fs []compat.Finding) {
+	b := diag.New(diag.E0359).At(p)
+	b.Headlinef("%s moves %s.%s into %s, which does not accept every value of it", e.lensName(), e.root, spath, tpath)
+	b.Helpf("map %s from a value it accepts: a _match, or a computed value", tpath)
+	e.misfitNotes(b, tpath, fs)
+	e.errs = cerrors.Append(e.errs, b.Err())
+}
+
+// misfitIn reports the fields one body would copy into ones that do not
+// accept every value of them (E0358), with the checker's findings for each
 // as notes.
-func (e *edge) copyMisfit(code diag.Code, p token.Pos, spath, tpath cue.Path, fs []compat.Finding) {
-	b := diag.New(code).At(p)
-	if code == diag.E0358 {
-		b.Headlinef("%s would copy %s.%s into %s, which does not accept every value of it", e.lensName(), e.root, spath, tpath)
-		b.Notef(token.NoPos, "both %s and %s declare %s, so a lens that does not map it copies it", e.nameOf(e.sv), e.nameOf(e.tv), tpath)
-		b.Helpf("map %s in the %s: a _match, a computed value, or a constant", tpath, e.dir)
-	} else {
-		b.Headlinef("%s moves %s.%s into %s, which does not accept every value of it", e.lensName(), e.root, spath, tpath)
-		b.Helpf("map %s from a value it accepts: a _match, or a computed value", tpath)
+func (e *edge) misfitIn(g *group) *diag.B {
+	var srcs, tgts []string
+	for _, f := range g.fs {
+		srcs = append(srcs, e.root+"."+f.spath.String())
+		tgts = append(tgts, f.tpath.String())
 	}
+	b := diag.New(diag.E0358).At(g.pos)
+	if len(g.fs) == 1 {
+		headline(b, fmt.Sprintf("%s would copy %s into %s, which does not accept every value of it", e.lensName(), srcs[0], tgts[0]),
+			fmt.Sprintf("%s would copy a field into one that does not accept every value of it", e.lensName()))
+		b.Notef(token.NoPos, "both %s and %s declare %s, so a lens that does not map it copies it", e.nameOf(e.sv), e.nameOf(e.tv), tgts[0])
+		b.Helpf("map %s in the %s: a _match, a computed value, or a constant", tgts[0], e.dir)
+	} else {
+		headline(b, fmt.Sprintf("%s would copy %s into %s, which do not accept every value of them", e.lensName(), andList(srcs), andList(tgts)),
+			fmt.Sprintf("%s would copy %d fields into ones that do not accept every value of them", e.lensName(), len(g.fs)))
+		b.Notef(token.NoPos, "both %s and %s declare %s, so a lens that does not map them copies them", e.nameOf(e.sv), e.nameOf(e.tv), andList(tgts))
+		b.Helpf("map %s in the %s, each with a _match, a computed value, or a constant", andList(tgts), e.dir)
+	}
+	for _, f := range g.fs {
+		e.misfitNotes(b, f.tpath, f.misfit)
+	}
+	return b
+}
+
+// misfitNotes adds the checker's findings against a copy into tpath, as the
+// author reads them.
+func (e *edge) misfitNotes(b *diag.B, tpath cue.Path, fs []compat.Finding) {
 	r := strings.NewReplacer("the prior schema", e.nameOf(e.sv), "the new schema", e.nameOf(e.tv))
 	for _, f := range fs {
 		// The checker's sentence describes the target's value, against the
@@ -1890,7 +1922,6 @@ func (e *edge) copyMisfit(code diag.Code, p token.Pos, spath, tpath cue.Path, fs
 		}
 		b.Notef(token.NoPos, "%s in %s %s", subject, e.nameOf(e.tv), r.Replace(f.Detail))
 	}
-	e.errs = cerrors.Append(e.errs, b.Err())
 }
 
 // unproduced reports a required target field no mapping produces, at the
@@ -1961,9 +1992,11 @@ func (e *edge) coalesceOf(f finding) string {
 type finding struct {
 	// spath and tpath are the field in the source and target schemas, as
 	// the diagnostic names it; key is its key in the body, for a drop (see
-	// dropKey); decl is where the target declares it.
+	// dropKey); decl is where the target declares it; misfit is why the
+	// target does not accept a copy of it.
 	spath, tpath, key cue.Path
 	decl              token.Pos
+	misfit            []compat.Finding
 }
 
 // A group is the findings of one code in one body the author wrote, at lit,

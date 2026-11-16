@@ -1,0 +1,41 @@
+Two fields the lens would copy into ones that do not accept every value of
+them: one diagnostic at the lens, whose help names both, with each field's
+reason as a note.
+-- ship/history/0.0.thema --
+Schema: {
+	id:    string
+	count: int
+	limit: int
+}
+-- ship/history/1.0.thema --
+Schema: {
+	id:    string
+	count: int & <10
+	limit: int & >0
+	owner: string
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		owner: "nobody"
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	id:    string
+	count: int & <10
+	limit: int & >0
+	owner: string
+}
+-- out/error --
+error[E0358]: the ForwardLens of v1.0 would copy v0_0.count and v0_0.limit into count and limit, which do not accept every value of them
+ --> history/1.0.thema:8:1
+  |
+8 | ForwardLens: {
+  | ^^^^^^^^^^^
+  |
+  = note: both v0.0 and v1.0 declare count and limit, so a lens that does not map them copies them
+  = note: count in v1.0 is now int & <10, which does not accept every value of the prior int
+  = note: limit in v1.0 is now int & >0, which does not accept every value of the prior int
+  = help: map count and limit in the ForwardLens, each with a _match, a computed value, or a constant
