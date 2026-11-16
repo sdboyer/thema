@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -118,7 +119,7 @@ func readSchema(ctx *cue.Context, fsys fs.FS) (cue.Value, error) {
 // with options o, as upstream's and as the fork's, except for
 // targetLanguageVersion: the fork hard-codes the current language
 // version's experiments and has no such option. skip is why upstream's
-// test skips the archive, if it does; every option is read first.
+// test skips the archive after reading it, if it does.
 func configs(t *testing.T, o *options, v cue.Value) (up *upjsonschema.Config, fork *jsonschema.Config, skip string) {
 	up, fork = &upjsonschema.Config{}, &jsonschema.Config{}
 	mapRef := func(loc jsonschema.SchemaLoc) (string, cue.Path, error) {
@@ -223,12 +224,61 @@ func formatFile(t *testing.T, f *ast.File) string {
 	return string(b)
 }
 
+// taggedSkip reports whether cuetxtar skips the archive before upstream's
+// test reads it: it's tagged #skip, or #skip-<entry> for the matrix entry
+// cuetxtar runs. That's v3, cuecontext.New's evaluator, with sharing, which
+// this test runs. Every skip tag is read, whichever is present.
+func taggedSkip(o *options) bool {
+	skip, v3 := o.has("skip"), o.has("skip-v3")
+	o.has("skip-v3-noshare")
+	return skip || v3
+}
+
+// TestOptions checks that an archive's options are read as cuetxtar reads
+// them, and that unread reports what this test never asks for.
+func TestOptions(t *testing.T) {
+	o := newOptions([]byte(`#strict
+  #strictKeywords
+# prose, not an option
+#version: openapi
+#version: k8sAPI
+  #root: indented, so not read
+#skip
+#skip-v3
+#not-asked
+#unasked: value
+`))
+	if !o.has("strict") || !o.has("strictKeywords") {
+		t.Error("a tag, trimmed or not, isn't read")
+	}
+	if v, ok := o.value("version"); !ok || v != "openapi" {
+		t.Errorf("version: %q, %v; want the first line's", v, ok)
+	}
+	if v, ok := o.value("root"); ok {
+		t.Errorf("an indented value is read: %q", v)
+	}
+	if !taggedSkip(o) {
+		t.Error("an archive tagged #skip and #skip-v3 isn't skipped")
+	}
+	if got, want := o.unread(), []string{"not-asked", "unasked"}; !slices.Equal(got, want) {
+		t.Errorf("unread: %v, want %v", got, want)
+	}
+	for _, tags := range []string{"#skip", "#skip-v3"} {
+		if !taggedSkip(newOptions([]byte(tags + "\n"))) {
+			t.Errorf("an archive tagged %s isn't skipped", tags)
+		}
+	}
+	if taggedSkip(newOptions([]byte("#skip-v3-noshare\n"))) {
+		t.Error("an archive tagged #skip-v3-noshare is skipped")
+	}
+}
+
 // TestExtractMatchesUpstream checks that the fork writes exactly what
 // cuelang.org/go/encoding/jsonschema.Extract writes, or fails as it does,
 // for every archive of upstream's own decoder corpus (testdata/txtar, copied
 // from cuelang.org/go v0.18.0-rc.3), under each archive's options: every
 // JSON Schema dialect, OpenAPI, and Kubernetes. Without Extensions the
-// output is the same; with it, it parses, attributes included, and is the
+// output is the same, as the corpus holds no U+FEFF (TestCommentBOM); with it, it parses, attributes included, and is the
 // same once they're removed, and the corpus holds some.
 //
 // The options are checked by upstream's output: under them, with the
@@ -255,6 +305,9 @@ func TestExtractMatchesUpstream(t *testing.T) {
 				t.Fatal(err)
 			}
 			o := newOptions(ar.Comment)
+			if taggedSkip(o) {
+				t.Skip("as upstream's test: the archive is tagged to skip")
+			}
 			fsys, err := txtar.FS(ar)
 			if err != nil {
 				t.Fatal(err)
@@ -265,15 +318,9 @@ func TestExtractMatchesUpstream(t *testing.T) {
 			}
 			up, fork, skip := configs(t, o, v)
 			tlv, _ := o.value("targetLanguageVersion")
-			// cuetxtar skips an archive tagged #skip, or #skip-<entry> for
-			// the matrix entry it runs: v3 is cuecontext.New's evaluator,
-			// with sharing, which this test runs. noverify changes only how
-			// upstream's test checks its own output, and noformat only how
-			// cuetxtar formats an archive's CUE.
-			if o.has("skip") || o.has("skip-v3") {
-				skip = "as upstream's test: the archive is tagged to skip"
-			}
-			o.has("skip-v3-noshare")
+			// noverify changes only how upstream's test checks its own
+			// output, and noformat only how cuetxtar formats an archive's
+			// CUE.
 			o.has("noverify")
 			o.has("noformat")
 			if u := o.unread(); len(u) > 0 {

@@ -2,6 +2,7 @@ package openapi
 
 import (
 	"bytes"
+	"fmt"
 	"io/fs"
 	"path/filepath"
 	"regexp"
@@ -14,6 +15,7 @@ import (
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/format"
 	"cuelang.org/go/cue/parser"
+	upjsonschema "cuelang.org/go/encoding/jsonschema"
 	upopenapi "cuelang.org/go/encoding/openapi"
 	tastutil "github.com/sdboyer/thema/internal/astutil"
 	"github.com/sdboyer/thema/internal/jsonschema"
@@ -85,8 +87,10 @@ func formatFile(t *testing.T, f *ast.File) []byte {
 // Extract writes exactly what cuelang.org/go/encoding/openapi.Extract writes,
 // for every OpenAPI document in testdata and under each config: the fork
 // changes nothing else, including the spellings that hang on the language
-// version's experiments, which it hard-codes. Extract's output parses as it
-// is, attributes included, and the fixtures hold some.
+// version's experiments, which it hard-codes. (It writes U+FEFF in a
+// comment as U+2060, which no document here holds; see TestCommentBOM.)
+// Extract's output parses as it is, attributes included, and the fixtures
+// hold some.
 func TestExtractMatchesUpstream(t *testing.T) {
 	cfgs := map[string]*ExtractConfig{
 		"nilcfg": nil,
@@ -137,6 +141,58 @@ func TestExtractMatchesUpstream(t *testing.T) {
 	}
 }
 
+// fromOpenAPI and fromJSONSchema name the decoders thema's init commands
+// run, as test cases.
+const fromOpenAPI, fromJSONSchema = "openapi", "jsonschema"
+
+// TestCommentEveryRune checks that Extract's output parses whichever rune
+// the text it writes into a comment holds: a title or description, in an
+// OpenAPI document and in a JSON Schema, holding any ASCII rune or the
+// others JSON or CUE treat specially. NUL is TestKnownGaps' (#368).
+func TestCommentEveryRune(t *testing.T) {
+	var runes []rune
+	for r := rune(1); r < 0x80; r++ {
+		runes = append(runes, r)
+	}
+	runes = append(runes, 0x80, 0xa0, 0xad, 0x2028, 0x2029, 0xfeff, 0xfffd, 0xfffe, 0x10ffff)
+	for _, r := range runes {
+		// R is CUE's escape for r, in a string.
+		esc := fmt.Sprintf(`\`+"U%08x", r)
+		src := func(s string) string { return strings.ReplaceAll(s, "R", esc) }
+		for name, c := range map[string]struct {
+			doc     string
+			extract func(v cue.Value) (*ast.File, error)
+		}{
+			fromOpenAPI: {
+				doc: src(`{
+					openapi: "3.0.0"
+					info: {title: "aRb", version: "1", description: "aRb"}
+					paths: {}
+					components: schemas: S: {type: "object", properties: p: {type: "string", description: "aRb"}}
+				}`),
+				extract: func(v cue.Value) (*ast.File, error) { return Extract(v, &ExtractConfig{PkgName: "p"}) },
+			},
+			fromJSONSchema: {
+				doc:     src(`{type: "object", properties: p: {type: "string", title: "aRb", description: "aRb"}}`),
+				extract: func(v cue.Value) (*ast.File, error) { return jsonschema.Extract(v, &jsonschema.Config{}) },
+			},
+		} {
+			v := cuecontext.New().CompileString(c.doc)
+			if err := v.Err(); err != nil {
+				t.Fatalf("U+%04X, %s: %v", r, name, err)
+			}
+			f, err := c.extract(v)
+			if err != nil {
+				t.Errorf("U+%04X, %s: %v", r, name, err)
+				continue
+			}
+			if _, err := parser.ParseFile("p.cue", formatFile(t, f)); err != nil {
+				t.Errorf("U+%04X, %s: Extract's output does not parse: %v", r, name, err)
+			}
+		}
+	}
+}
+
 // TestCommentBOM checks that text holding U+FEFF, which Extract writes into
 // a comment, is written with U+2060 in its place, so that the output parses.
 // CUE's scanner refuses U+FEFF anywhere but at the start of a file, and a
@@ -151,7 +207,7 @@ func TestCommentBOM(t *testing.T) {
 		// want is text the decoder writes into a comment.
 		want []string
 	}{
-		"openapi": {
+		fromOpenAPI: {
 			doc: src(`{
 				openapi: "3.0.0"
 				info: {title: "tBOM", version: "1", description: "iBOMd"}
@@ -161,7 +217,7 @@ func TestCommentBOM(t *testing.T) {
 			extract: func(v cue.Value) (*ast.File, error) { return Extract(v, &ExtractConfig{PkgName: "p"}) },
 			want:    []string{"t" + wj, "i" + wj + "d", "p" + wj + "d"},
 		},
-		"jsonschema": {
+		fromJSONSchema: {
 			doc:     src(`{type: "object", properties: p: {type: "string", title: "pBOMt", description: "pBOMd"}}`),
 			extract: func(v cue.Value) (*ast.File, error) { return jsonschema.Extract(v, &jsonschema.Config{}) },
 			want:    []string{"p" + wj + "t", "p" + wj + "d"},
@@ -201,4 +257,37 @@ func TestCommentBOM(t *testing.T) {
 			}
 		})
 	}
+	// This is where the fork's output differs from upstream's, which the
+	// differential tests' corpora don't show: upstream writes U+FEFF as it
+	// is, and its output doesn't parse.
+	t.Run("upstream", func(t *testing.T) {
+		v := cuecontext.New().CompileString(src(`{type: "object", properties: p: {type: "string", description: "pBOMd"}}`))
+		f, err := upjsonschema.Extract(v, &upjsonschema.Config{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = parser.ParseFile("p.cue", formatFile(t, f))
+		if err == nil || !strings.Contains(err.Error(), "illegal byte order mark") {
+			t.Errorf("upstream's output: %v; want it refused for its byte order mark", err)
+		}
+	})
+}
+
+// TestKnownGaps: what Extract does wrong today, each case naming the issue
+// it waits on.
+func TestKnownGaps(t *testing.T) {
+	// A description holding NUL is written raw into a doc comment, which
+	// CUE's scanner refuses, so the output doesn't parse. A comment has no
+	// escapes, so a fix changes the text or refuses it (#368).
+	t.Run("NUL in a description", func(t *testing.T) {
+		v := cuecontext.New().CompileString(`{type: "object", properties: p: {type: "string", description: "a` + `\` + `u0000b"}}`)
+		f, err := jsonschema.Extract(v, &jsonschema.Config{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = parser.ParseFile("p.cue", formatFile(t, f))
+		if err == nil || !strings.Contains(err.Error(), "illegal character NUL") {
+			t.Errorf("Extract's output: %v; want it refused for its NUL, until the issue is fixed", err)
+		}
+	})
 }
