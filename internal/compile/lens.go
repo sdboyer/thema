@@ -254,10 +254,20 @@ func (e *edge) bodyName(lit cue.Path) string {
 // its struct (a: {b: v}), never by a dotted path, which CUE does not parse
 // as a label.
 func nested(base cue.Path, v string, paths ...cue.Path) string {
+	vals := make([]string, len(paths))
+	for i := range vals {
+		vals[i] = v
+	}
+	return nestedv(base, paths, vals)
+}
+
+// nestedv is nested with a value for each field: vals[i] is paths[i]'s.
+func nestedv(base cue.Path, paths []cue.Path, vals []string) string {
 	k := len(base.Selectors())
 	tree := &node{}
-	for _, p := range paths {
-		tree.at(cue.MakePath(p.Selectors()[k:]...))
+	leaf := make(map[*node]string, len(paths))
+	for i, p := range paths {
+		leaf[tree.at(cue.MakePath(p.Selectors()[k:]...))] = vals[i]
 	}
 	var render func(n *node) string
 	render = func(n *node) string {
@@ -265,7 +275,7 @@ func nested(base cue.Path, v string, paths ...cue.Path) string {
 		for i, name := range n.order {
 			label, c := cue.MakePath(cue.Str(name)).String(), n.fields[name]
 			if len(c.order) == 0 {
-				parts[i] = label + ": " + v
+				parts[i] = label + ": " + leaf[c]
 			} else {
 				parts[i] = label + ": {" + render(c) + "}"
 			}
@@ -273,6 +283,15 @@ func nested(base cue.Path, v string, paths ...cue.Path) string {
 		return strings.Join(parts, ", ")
 	}
 	return render(tree)
+}
+
+// andList joins names as a sentence lists them: a, b and c.
+func andList(names []string) string {
+	last := len(names) - 1
+	if last < 1 {
+		return strings.Join(names, "")
+	}
+	return strings.Join(names[:last], ", ") + " and " + names[last]
 }
 
 // keyOf is the last selector of p, as the field's own key is written.
@@ -321,6 +340,9 @@ type edge struct {
 	// missing is every required target field an unwritten lens produces
 	// nothing for, reported once by unwritten.
 	missing []cue.Path
+	// groups holds the findings reported one diagnostic per code per body
+	// the author wrote, by flush.
+	groups []*group
 	// root is the identifier the author's references start from, which is
 	// also the normal form's field for the instance the lens takes: the
 	// version's parameter (v0_0), or item inside an each body.
@@ -1222,11 +1244,13 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 			if fs := e.misfits(en.source, en.target); len(fs) > 0 {
 				// The source is accounted for; only the move is wrong.
 				consumed[en.source.String()] = true
-				e.copyMisfit(diag.E0359, en.expr.Pos(), en.source, en.target, fs)
+				e.moveMisfit(en.expr.Pos(), en.source, en.target, fs)
 				continue
 			}
 			if e.optional(e.S, en.source) {
 				if e.required(e.T, en.target) {
+					// The source is accounted for; only the move is wrong.
+					consumed[en.source.String()] = true
 					e.errhf(diag.E0343, en.pos, fmt.Sprintf("write _coalesce(%s.%s, <fallback>) to say what to use when it is absent", e.root, en.source), "%s is optional in %s and %s requires %s", en.source, e.nameOf(e.sv), e.nameOf(e.tv), en.target)
 					continue
 				}
@@ -1304,6 +1328,7 @@ func (e *edge) assembleInto(b *body, out *compiledLens) {
 	e.settle(root, cue.MakePath(), b)
 	e.unwritten()
 	e.unmapped(b, consumed, out)
+	e.flush()
 	if e.each == nil {
 		e.declare(b, out)
 		out.lacunas = append(out.lacunas, out.derived...)
@@ -1750,17 +1775,16 @@ func (e *edge) fill(n *node, tbase cue.Path, b *body, consumed, dropped map[stri
 			}
 			en := entry{kind: kindMove, target: tpath, source: spath, pos: e.blockPos, derived: true}
 			if misfit := blocking(fs); len(misfit) > 0 {
-				_, pos := e.within(b, tpath)
-				e.copyMisfit(diag.E0358, pos, spath, tpath, misfit)
+				// The source is accounted for; only the copy is wrong.
+				consumed[spath.String()] = true
+				lit, pos := e.within(b, tpath)
+				e.collect(diag.E0358, e.misfitIn, lit, pos, finding{spath: spath, tpath: tpath, misfit: misfit})
 				continue
 			}
 			if e.optional(e.S, spath) && e.required(e.T, tpath) {
-				lit, _ := e.within(b, tpath)
-				fix := nested(lit, fmt.Sprintf("%s(%s.%s, <fallback>)", opCoalesce, e.root, spath), tpath)
-				if len(lit.Selectors()) > 0 {
-					fix += " in " + e.bodyName(lit)
-				}
-				e.errhf(diag.E0343, lookup(e.T, tpath).Pos(), "write "+fix+" to say what to use when it is absent", "%s is optional in %s and required in %s", spath, e.nameOf(e.sv), e.nameOf(e.tv))
+				consumed[spath.String()] = true
+				lit, pos := e.within(b, tpath)
+				e.collect(diag.E0343, e.uncoalesced, lit, pos, finding{spath: spath, tpath: tpath, decl: lookup(e.T, tpath).Pos()})
 				continue
 			}
 			c := n.child(name)
@@ -1779,9 +1803,9 @@ func (e *edge) fill(n *node, tbase cue.Path, b *body, consumed, dropped map[stri
 			// The body writes nothing, so the result gains no node for it,
 			// and a required struct with nothing required beneath is itself
 			// what the lens does not produce.
-			before := len(cerrors.Errors(e.errs))
+			before := e.reported()
 			e.fill(&node{}, tpath, b, consumed, dropped, out)
-			if e.required(e.T, tpath) && len(cerrors.Errors(e.errs)) == before {
+			if e.required(e.T, tpath) && e.reported() == before {
 				e.unproduced(b, tpath)
 			}
 			continue
@@ -1848,19 +1872,46 @@ func (e *edge) splits(tpath cue.Path, fs []compat.Finding) bool {
 	return true
 }
 
-// copyMisfit reports a copy or a move (code says which) of spath into tpath
-// that would produce a value the target rejects, with the checker's findings
+// moveMisfit reports a move of spath into tpath that would produce a value
+// the target rejects (E0359), with the checker's findings as notes.
+func (e *edge) moveMisfit(p token.Pos, spath, tpath cue.Path, fs []compat.Finding) {
+	b := diag.New(diag.E0359).At(p)
+	b.Headlinef("%s moves %s.%s into %s, which does not accept every value of it", e.lensName(), e.root, spath, tpath)
+	b.Helpf("map %s from a value it accepts: a _match, or a computed value", tpath)
+	e.misfitNotes(b, tpath, fs)
+	e.errs = cerrors.Append(e.errs, b.Err())
+}
+
+// misfitIn reports the fields one body would copy into ones that do not
+// accept every value of them (E0358), with the checker's findings for each
 // as notes.
-func (e *edge) copyMisfit(code diag.Code, p token.Pos, spath, tpath cue.Path, fs []compat.Finding) {
-	b := diag.New(code).At(p)
-	if code == diag.E0358 {
-		b.Headlinef("%s would copy %s.%s into %s, which does not accept every value of it", e.lensName(), e.root, spath, tpath)
-		b.Notef(token.NoPos, "both %s and %s declare %s, so a lens that does not map it copies it", e.nameOf(e.sv), e.nameOf(e.tv), tpath)
-		b.Helpf("map %s in the %s: a _match, a computed value, or a constant", tpath, e.dir)
-	} else {
-		b.Headlinef("%s moves %s.%s into %s, which does not accept every value of it", e.lensName(), e.root, spath, tpath)
-		b.Helpf("map %s from a value it accepts: a _match, or a computed value", tpath)
+func (e *edge) misfitIn(g *group) *diag.B {
+	var srcs, tgts []string
+	for _, f := range g.fs {
+		srcs = append(srcs, e.root+"."+f.spath.String())
+		tgts = append(tgts, f.tpath.String())
 	}
+	b := diag.New(diag.E0358).At(g.pos)
+	if len(g.fs) == 1 {
+		headline(b, fmt.Sprintf("%s would copy %s into %s, which does not accept every value of it", e.lensName(), srcs[0], tgts[0]),
+			fmt.Sprintf("%s would copy a field into one that does not accept every value of it", e.lensName()))
+		b.Notef(token.NoPos, "both %s and %s declare %s, so a lens that does not map it copies it", e.nameOf(e.sv), e.nameOf(e.tv), tgts[0])
+		b.Helpf("map %s in the %s: a _match, a computed value, or a constant", tgts[0], e.dir)
+	} else {
+		headline(b, fmt.Sprintf("%s would copy %s into %s, which do not accept every value of them", e.lensName(), andList(srcs), andList(tgts)),
+			fmt.Sprintf("%s would copy %d fields into ones that do not accept every value of them", e.lensName(), len(g.fs)))
+		b.Notef(token.NoPos, "both %s and %s declare %s, so a lens that does not map them copies them", e.nameOf(e.sv), e.nameOf(e.tv), andList(tgts))
+		b.Helpf("map %s in the %s, each with a _match, a computed value, or a constant", andList(tgts), e.dir)
+	}
+	for _, f := range g.fs {
+		e.misfitNotes(b, f.tpath, f.misfit)
+	}
+	return b
+}
+
+// misfitNotes adds the checker's findings against a copy into tpath, as the
+// author reads them.
+func (e *edge) misfitNotes(b *diag.B, tpath cue.Path, fs []compat.Finding) {
 	r := strings.NewReplacer("the prior schema", e.nameOf(e.sv), "the new schema", e.nameOf(e.tv))
 	for _, f := range fs {
 		// The checker's sentence describes the target's value, against the
@@ -1871,17 +1922,16 @@ func (e *edge) copyMisfit(code diag.Code, p token.Pos, spath, tpath cue.Path, fs
 		}
 		b.Notef(token.NoPos, "%s in %s %s", subject, e.nameOf(e.tv), r.Replace(f.Detail))
 	}
-	e.errs = cerrors.Append(e.errs, b.Err())
 }
 
 // unproduced reports a required target field no mapping produces, at the
-// innermost body the author wrote that holds it, which the help names. When
-// the author wrote no block, the field is collected for unwritten, which
-// reports them all at once.
+// innermost body the author wrote that holds it, which the help names; flush
+// reports it with the body's others. When the author wrote no block, the
+// field is collected for unwritten, which reports them all at once.
 func (e *edge) unproduced(b *body, tpath cue.Path) {
 	if e.written {
 		lit, pos := e.within(b, tpath)
-		e.errhf(diag.E0346, pos, fmt.Sprintf("add %s to %s", nested(lit, "<mapping>", tpath), e.bodyName(lit)), "%s produces nothing for %s, which %s requires", e.dir, tpath, e.nameOf(e.tv))
+		e.collect(diag.E0346, e.unproducedIn, lit, pos, finding{tpath: tpath})
 		return
 	}
 	e.missing = append(e.missing, tpath)
@@ -1900,14 +1950,201 @@ func (e *edge) unwritten() {
 		names = append(names, p.String())
 	}
 	b := diag.New(diag.E0346).At(e.blockPos)
-	if h := fmt.Sprintf("%s has no %s, and %s requires %s", e.lensOwner(), e.dir, e.nameOf(e.tv), strings.Join(names, ", ")); len(h) <= diag.MaxHeadline {
+	if h := fmt.Sprintf("%s has no %s, and %s requires %s", e.lensOwner(), e.dir, e.nameOf(e.tv), andList(names)); len(h) <= diag.MaxHeadline {
 		b.Headline(h)
 	} else {
 		b.Headlinef("%s has no %s, and %s requires %d fields", e.lensOwner(), e.dir, e.nameOf(e.tv), len(names)).
-			Notef(token.NoPos, "%s requires %s", e.nameOf(e.tv), strings.Join(names, ", "))
+			Notef(token.NoPos, "%s requires %s", e.nameOf(e.tv), andList(names))
 	}
-	b.Helpf("write %s: {%s: _, %s: {%s}} in %s", e.dir, e.paramOf(e.sv), e.paramOf(e.tv), nested(cue.MakePath(), "<mapping>", e.missing...), e.file)
+	b.Help(e.blockHelp())
 	e.errs = cerrors.Append(e.errs, b.Err())
+}
+
+// blockHelp writes the block a lens the author did not write needs: every
+// field it must produce, and a fallback for every optional field it would
+// copy into a required one. Each diagnostic about the unwritten block gives
+// it whole, so that following any one of them fixes them all.
+func (e *edge) blockHelp() string {
+	paths := slices.Clone(e.missing)
+	vals := make([]string, len(paths))
+	for i := range vals {
+		vals[i] = "<mapping>"
+	}
+	for _, g := range e.groups {
+		if g.code != diag.E0343 {
+			continue
+		}
+		for _, f := range g.fs {
+			paths = append(paths, f.tpath)
+			vals = append(vals, e.coalesceOf(f))
+		}
+	}
+	return fmt.Sprintf("write %s: {%s: _, %s: {%s}} in %s", e.dir, e.paramOf(e.sv), e.paramOf(e.tv), nestedv(cue.MakePath(), paths, vals), e.file)
+}
+
+// coalesceOf is the mapping that copies f's optional source field, with a
+// fallback for when it is absent.
+func (e *edge) coalesceOf(f finding) string {
+	return fmt.Sprintf("%s(%s.%s, <fallback>)", opCoalesce, e.root, f.spath)
+}
+
+// A finding is one field of a grouped diagnostic.
+type finding struct {
+	// spath and tpath are the field in the source and target schemas, as
+	// the diagnostic names it; key is its key in the body, for a drop (see
+	// dropKey); decl is where the target declares it; misfit is why the
+	// target does not accept a copy of it.
+	spath, tpath, key cue.Path
+	decl              token.Pos
+	misfit            []compat.Finding
+}
+
+// A group is the findings of one code in one body the author wrote, at lit,
+// which is at pos. Their fix is written in that body, so flush reports them
+// as one diagnostic, built by render, whose help writes it whole: a
+// diagnostic per field would each offer part of it. at is how many
+// diagnostics the edge had when the group was begun, where flush puts its
+// own, so that diagnostics keep the order the lens is walked in.
+type group struct {
+	code   diag.Code
+	render func(*group) *diag.B
+	lit    cue.Path
+	pos    token.Pos
+	at     int
+	fs     []finding
+}
+
+// collect adds f to the group of code for the body at lit, which render
+// reports.
+func (e *edge) collect(code diag.Code, render func(*group) *diag.B, lit cue.Path, pos token.Pos, f finding) {
+	for _, g := range e.groups {
+		if g.code == code && g.lit.String() == lit.String() {
+			g.fs = append(g.fs, f)
+			return
+		}
+	}
+	e.groups = append(e.groups, &group{code: code, render: render, lit: lit, pos: pos, at: len(cerrors.Errors(e.errs)), fs: []finding{f}})
+}
+
+// reported counts what the edge has found wrong so far: its diagnostics,
+// and the findings flush has yet to report.
+func (e *edge) reported() int {
+	n := len(cerrors.Errors(e.errs))
+	for _, g := range e.groups {
+		n += len(g.fs)
+	}
+	return n
+}
+
+// flush reports each group as one diagnostic, among the edge's others where
+// the group was begun.
+func (e *edge) flush() {
+	errs := cerrors.Errors(e.errs)
+	var out cerrors.Error
+	gi := 0
+	for i := 0; i <= len(errs); i++ {
+		for ; gi < len(e.groups) && e.groups[gi].at == i; gi++ {
+			g := e.groups[gi]
+			out = cerrors.Append(out, g.render(g).Err())
+		}
+		if i < len(errs) {
+			out = cerrors.Append(out, errs[i])
+		}
+	}
+	e.errs, e.groups = out, nil
+}
+
+// headline is sentence, or, where it is longer than a headline may be, short
+// with sentence as a note.
+func headline(b *diag.B, sentence, short string) {
+	if len(sentence) <= diag.MaxHeadline {
+		b.Headline(sentence)
+		return
+	}
+	b.Headline(short).Note(token.NoPos, sentence)
+}
+
+// countFields counts n fields as a short headline does: a field, 3 fields.
+func countFields(n int) string {
+	if n == 1 {
+		return "a field"
+	}
+	return fmt.Sprintf("%d fields", n)
+}
+
+// unproducedIn reports the required target fields nothing in one body
+// produces (E0346).
+func (e *edge) unproducedIn(g *group) *diag.B {
+	var names []string
+	var paths []cue.Path
+	for _, f := range g.fs {
+		names = append(names, f.tpath.String())
+		paths = append(paths, f.tpath)
+	}
+	b := diag.New(diag.E0346).At(g.pos)
+	headline(b, fmt.Sprintf("%s produces nothing for %s, which %s requires", e.dir, andList(names), e.nameOf(e.tv)),
+		fmt.Sprintf("%s produces nothing for %s %s requires", e.dir, countFields(len(names)), e.nameOf(e.tv)))
+	return b.Helpf("add %s to %s", nested(g.lit, "<mapping>", paths...), e.bodyName(g.lit))
+}
+
+// unmappedIn reports the source fields the target does not declare that
+// nothing in one body maps or drops (E0347).
+func (e *edge) unmappedIn(g *group) *diag.B {
+	var names, moves []string
+	var keys []cue.Path
+	for _, f := range g.fs {
+		names = append(names, f.spath.String())
+		moves = append(moves, fmt.Sprintf("<field>: %s.%s", e.root, f.spath))
+		keys = append(keys, f.key)
+	}
+	drop := nested(g.lit, opDrop, keys...)
+	if len(g.lit.Selectors()) > 0 {
+		drop = "add " + drop + " to " + e.bodyName(g.lit)
+	}
+	b := diag.New(diag.E0347).At(g.pos)
+	if len(g.fs) == 1 {
+		headline(b, fmt.Sprintf("%s declares %s and %s does not, and nothing maps it", e.nameOf(e.sv), names[0], e.nameOf(e.tv)),
+			fmt.Sprintf("%s declares a field %s does not, and nothing maps it", e.nameOf(e.sv), e.nameOf(e.tv)))
+		return b.Helpf("write %s to move it, or %s", moves[0], drop)
+	}
+	headline(b, fmt.Sprintf("%s declares %s, which %s does not, and nothing maps them", e.nameOf(e.sv), andList(names), e.nameOf(e.tv)),
+		fmt.Sprintf("%s declares %d fields %s does not, and nothing maps them", e.nameOf(e.sv), len(names), e.nameOf(e.tv)))
+	return b.Helpf("write %s to move them, or %s", strings.Join(moves, ", "), drop)
+}
+
+// uncoalesced reports the optional source fields one body would copy into
+// required target fields with no fallback (E0343), with where the target
+// declares each. Where the author wrote no block, its help writes the block.
+func (e *edge) uncoalesced(g *group) *diag.B {
+	var names []string
+	var paths []cue.Path
+	var vals []string
+	for _, f := range g.fs {
+		names = append(names, f.spath.String())
+		paths = append(paths, f.tpath)
+		vals = append(vals, e.coalesceOf(f))
+	}
+	b := diag.New(diag.E0343).At(g.pos)
+	it := "it is"
+	if len(g.fs) == 1 {
+		headline(b, fmt.Sprintf("%s is optional in %s and required in %s", names[0], e.nameOf(e.sv), e.nameOf(e.tv)),
+			fmt.Sprintf("a field is optional in %s and required in %s", e.nameOf(e.sv), e.nameOf(e.tv)))
+	} else {
+		it = "they are"
+		headline(b, fmt.Sprintf("%s are optional in %s and required in %s", andList(names), e.nameOf(e.sv), e.nameOf(e.tv)),
+			fmt.Sprintf("%d fields are optional in %s and required in %s", len(names), e.nameOf(e.sv), e.nameOf(e.tv)))
+	}
+	for _, f := range g.fs {
+		b.Notef(f.decl, "%s requires %s", e.nameOf(e.tv), f.tpath)
+	}
+	if !e.written {
+		return b.Help(e.blockHelp())
+	}
+	fix := nestedv(g.lit, paths, vals)
+	if len(g.lit.Selectors()) > 0 {
+		fix += " in " + e.bodyName(g.lit)
+	}
+	return b.Helpf("write %s to say what to use when %s absent", fix, it)
 }
 
 // unmapped applies the direction's rule to every source field the target does
@@ -1922,11 +2159,7 @@ func (e *edge) unmapped(b *body, consumed map[string]bool, out *compiledLens) {
 			}
 			key := b.dropKey(spath)
 			lit, pos := e.within(b, key)
-			drop := nested(lit, opDrop, key)
-			if len(lit.Selectors()) > 0 {
-				drop = "add " + drop + " to " + e.bodyName(lit)
-			}
-			e.errhf(diag.E0347, pos, fmt.Sprintf("write <field>: %s.%s to move it, or %s", e.root, spath, drop), "%s declares %s and %s does not, and nothing maps it", e.nameOf(e.sv), spath, e.nameOf(e.tv))
+			e.collect(diag.E0347, e.unmappedIn, lit, pos, finding{spath: spath, key: key})
 		case backward:
 			if e.carries(b, consumed, spath) {
 				// Translation carries it as a field the target does not

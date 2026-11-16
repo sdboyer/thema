@@ -1,0 +1,40 @@
+Two fields of a nested struct the source has and the target lacks, which the
+lens's body for the struct neither maps nor drops: one diagnostic at that
+body, whose help drops both in it.
+-- ship/history/0.0.thema --
+Schema: {
+	meta: {
+		owner:  string
+		legacy: string
+		shadow: string
+	}
+}
+-- ship/history/1.0.thema --
+Schema: {
+	meta: {
+		owner: string
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		meta: {
+			owner: v0_0.meta.owner
+		}
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	meta: {
+		owner: string
+	}
+}
+-- out/error --
+error[E0347]: v0.0 declares meta.legacy and meta.shadow, which v1.0 does not, and nothing maps them
+  --> history/1.0.thema:10:3
+   |
+10 |         meta: {
+   |         ^^^^
+   |
+   = help: write <field>: v0_0.meta.legacy, <field>: v0_0.meta.shadow to move them, or add legacy: _drop, shadow: _drop to v1_0.meta

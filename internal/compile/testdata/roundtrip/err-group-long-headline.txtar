@@ -1,0 +1,49 @@
+More required fields missing from a body than a headline can name: the
+headline counts them, and a note names them all.
+-- ship/history/0.0.thema --
+Schema: {
+	id: string
+}
+-- ship/history/1.0.thema --
+Schema: {
+	id: string
+	crew: {
+		commander:     string
+		navigator:     string
+		engineer:      string
+		quartermaster: string
+		boatswain:     string
+		surgeon:       string
+		carpenter:     string
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		id: v0_0.id
+		crew: {}
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	id: string
+	crew: {
+		commander:     string
+		navigator:     string
+		engineer:      string
+		quartermaster: string
+		boatswain:     string
+		surgeon:       string
+		carpenter:     string
+	}
+}
+-- out/error --
+error[E0346]: ForwardLens produces nothing for 7 fields v1.0 requires
+  --> history/1.0.thema:18:3
+   |
+18 |         crew: {}
+   |         ^^^^
+   |
+   = note: ForwardLens produces nothing for crew.commander, crew.navigator, crew.engineer, crew.quartermaster, crew.boatswain, crew.surgeon and crew.carpenter, which v1.0 requires
+   = help: add commander: <mapping>, navigator: <mapping>, engineer: <mapping>, quartermaster: <mapping>, boatswain: <mapping>, surgeon: <mapping>, carpenter: <mapping> to v1_0.crew

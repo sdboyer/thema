@@ -1,0 +1,49 @@
+An optional field the lens moves into a required one, and another it would
+copy: the move is reported at its mapping, where its fix is written, and the
+copy at the lens, where its own is. The two are not grouped, since their
+fixes are written in different places.
+-- ship/history/0.0.thema --
+Schema: {
+	id:     string
+	owner?: string
+	team?:  string
+}
+-- ship/history/1.0.thema --
+Schema: {
+	id:    string
+	owner: string
+	team:  string
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		id:    v0_0.id
+		owner: v0_0.owner
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	id:    string
+	owner: string
+	team:  string
+}
+-- out/error --
+error[E0343]: owner is optional in v0.0 and v1.0 requires owner
+  --> history/1.0.thema:11:3
+   |
+11 |         owner: v0_0.owner
+   |         ^^^^^
+   |
+   = help: write _coalesce(v0_0.owner, <fallback>) to say what to use when it is absent
+
+error[E0343]: team is optional in v0.0 and required in v1.0
+ --> history/1.0.thema:7:1
+  |
+4 |     team:  string
+  |     ---- v1.0 requires team
+...
+7 | ForwardLens: {
+  | ^^^^^^^^^^^
+  |
+  = help: write team: _coalesce(v0_0.team, <fallback>) to say what to use when it is absent

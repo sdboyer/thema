@@ -1,0 +1,34 @@
+An optional field the lens moves into a required one, under another name:
+the move is refused (E0343), and the field is not then reported as one
+nothing maps, since the lens does map it.
+-- ship/history/0.0.thema --
+Schema: {
+	id:     string
+	owner?: string
+}
+-- ship/history/1.0.thema --
+Schema: {
+	id:   string
+	lead: string
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		id:   v0_0.id
+		lead: v0_0.owner
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	id:   string
+	lead: string
+}
+-- out/error --
+error[E0343]: owner is optional in v0.0 and v1.0 requires lead
+  --> history/1.0.thema:10:3
+   |
+10 |         lead: v0_0.owner
+   |         ^^^^
+   |
+   = help: write _coalesce(v0_0.owner, <fallback>) to say what to use when it is absent

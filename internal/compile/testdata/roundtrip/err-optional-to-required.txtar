@@ -26,9 +26,12 @@ Schema: {
 }
 -- out/error --
 error[E0343]: b is optional in v0.0 and required in v1.0
- --> history/1.0.thema:3:2
+ --> history/1.0.thema:7:1
   |
 3 |     b: int
-  |     ^
+  |     - v1.0 requires b
+...
+7 | ForwardLens: {
+  | ^^^^^^^^^^^
   |
   = help: write b: _coalesce(v0_0.b, <fallback>) to say what to use when it is absent

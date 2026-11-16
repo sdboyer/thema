@@ -1,0 +1,53 @@
+A body missing a required field, and a later field whose implicit copy the
+target does not accept: the diagnostics come in the order the lens is
+walked, the body's first.
+-- ship/history/0.0.thema --
+Schema: {
+	meta: {
+		x: string
+	}
+	count: int
+}
+-- ship/history/1.0.thema --
+Schema: {
+	meta: {
+		x:     string
+		owner: string
+	}
+	count: int & <10
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		meta: {
+			x: v0_0.meta.x
+		}
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	meta: {
+		x:     string
+		owner: string
+	}
+	count: int & <10
+}
+-- out/error --
+error[E0346]: ForwardLens produces nothing for meta.owner, which v1.0 requires
+  --> history/1.0.thema:12:3
+   |
+12 |         meta: {
+   |         ^^^^
+   |
+   = help: add owner: <mapping> to v1_0.meta
+
+error[E0358]: the ForwardLens of v1.0 would copy v0_0.count into count, which does not accept every value of it
+ --> history/1.0.thema:9:1
+  |
+9 | ForwardLens: {
+  | ^^^^^^^^^^^
+  |
+  = note: both v0.0 and v1.0 declare count, so a lens that does not map it copies it
+  = note: count in v1.0 is now int & <10, which does not accept every value of the prior int
+  = help: map count in the ForwardLens: a _match, a computed value, or a constant

@@ -1,7 +1,8 @@
 #op: compile
 A field optional in the source and required in the target cannot simply be
 copied: an instance that lacks it would have nothing to put there. coalesce says
-what to use when it is absent.
+what to use when it is absent. Several such fields in one body are reported
+together, in one diagnostic whose help writes a fallback for each.
 -- ship/history/0.0.thema --
 Schema: {
 	a:  string
@@ -35,11 +36,23 @@ Schema: {
       "headline": "b is optional in v0.0 and required in v1.0",
       "primary": {
         "file": "history/1.0.thema",
-        "line": 3,
-        "col": 2,
-        "offset": 22,
+        "line": 7,
+        "col": 1,
+        "offset": 41,
         "origin": "user"
       },
+      "notes": [
+        {
+          "pos": {
+            "file": "history/1.0.thema",
+            "line": 3,
+            "col": 2,
+            "offset": 22,
+            "origin": "user"
+          },
+          "label": "v1.0 requires b"
+        }
+      ],
       "help": [
         "write b: _coalesce(v0_0.b, <fallback>) to say what to use when it is absent"
       ]
@@ -53,9 +66,12 @@ Schema: {
 }
 -- out/text --
 error[E0343]: b is optional in v0.0 and required in v1.0
- --> history/1.0.thema:3:2
+ --> history/1.0.thema:7:1
   |
 3 |     b: int
-  |     ^
+  |     - v1.0 requires b
+...
+7 | ForwardLens: {
+  | ^^^^^^^^^^^
   |
   = help: write b: _coalesce(v0_0.b, <fallback>) to say what to use when it is absent

@@ -1,6 +1,8 @@
 #op: compile
 A lens produces every field its target requires. Here the new version adds a
 required field the source lacks, and no lens says where it comes from.
+Several required fields missing from one body are reported together, in one
+diagnostic whose help writes them all.
 -- ship/history/0.0.thema --
 Schema: {
 	a: string

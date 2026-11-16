@@ -33,10 +33,13 @@ Schema: {
 }
 -- out/error --
 error[E0343]: meta.owner is optional in v0.0 and required in v1.0
- --> history/1.0.thema:4:3
+ --> history/1.0.thema:9:1
   |
 4 |         owner: string
-  |         ^^^^^
+  |         ----- v1.0 requires meta.owner
+...
+9 | ForwardLens: {
+  | ^^^^^^^^^^^
   |
   = help: write meta: {owner: _coalesce(v0_0.meta.owner, <fallback>)} to say what to use when it is absent
 

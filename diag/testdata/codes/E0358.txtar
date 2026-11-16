@@ -1,7 +1,8 @@
 #op: compile
 A field both versions declare, and no lens mentions, is copied. The copy has
 to produce a value the target accepts. Here kind narrows from any string to
-two of them, and the ForwardLens does not map it.
+two of them, and the ForwardLens does not map it. Several such fields in one
+body are reported together, in one diagnostic whose help names them all.
 -- ship/history/0.0.thema --
 Schema: {
 	name: string

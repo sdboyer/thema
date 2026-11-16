@@ -1,0 +1,45 @@
+A field a body written empty would copy into one that does not accept every
+value of it: the copy is refused (E0358), and the struct holding it is not
+then reported as one the target lacks, since the target declares it.
+-- ship/history/0.0.thema --
+Schema: {
+	meta: {
+		count: int
+		x:     string
+	}
+}
+-- ship/history/1.0.thema --
+Schema: {
+	meta: {
+		count: int & <10
+		x:     string
+		owner: string
+	}
+}
+
+ForwardLens: {
+	v0_0: _
+	v1_0: {
+		meta: {
+			owner: "nobody"
+		}
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	meta: {
+		count: int & <10
+		x:     string
+		owner: string
+	}
+}
+-- out/error --
+error[E0358]: the ForwardLens of v1.0 would copy v0_0.meta.count into meta.count, which does not accept every value of it
+  --> history/1.0.thema:12:3
+   |
+12 |         meta: {
+   |         ^^^^
+   |
+   = note: both v0.0 and v1.0 declare meta.count, so a lens that does not map it copies it
+   = note: meta.count in v1.0 is now int & <10, which does not accept every value of the prior int
+   = help: map meta.count in the ForwardLens: a _match, a computed value, or a constant

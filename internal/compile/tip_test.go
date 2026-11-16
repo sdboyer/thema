@@ -297,10 +297,26 @@ func TestDevelopment(t *testing.T) {
 		for _, n := range ds[0].Notes {
 			notes = append(notes, n.Label)
 		}
-		if want := "tip has no ForwardLens, and tip requires crew, rank (E0346)"; !slices.Contains(notes, want) {
+		if want := "tip has no ForwardLens, and tip requires crew and rank (E0346)"; !slices.Contains(notes, want) {
 			t.Errorf("notes: got %q, want one %q", notes, want)
 		}
 		wantHelp := []string{"write ForwardLens: {v0_0: _, tip: {crew: <mapping>, rank: <mapping>}} in tip.thema"}
+		if !slices.Equal(ds[0].Help, wantHelp) {
+			t.Errorf("help:\n got %q\nwant %q", ds[0].Help, wantHelp)
+		}
+	})
+	t.Run("an unwritten lens writes its fallbacks in the one block it gives", func(t *testing.T) {
+		from := "Schema: {\n\tid:    string\n\trank?: int\n}\n"
+		to := "Schema: {\n\tid:   string\n\trank: int\n\tcrew: int\n}\n"
+		c, err := Development(ctx, "ship", files("history/0.0.thema", from, TipFile, to))
+		if err != nil {
+			t.Fatal(err)
+		}
+		ds := diag.From(c.Pending, diag.Context{})
+		if len(ds) == 0 || ds[0].Code != diag.E1001 {
+			t.Fatalf("want E1001 first, got %v", ds)
+		}
+		wantHelp := []string{"write ForwardLens: {v0_0: _, tip: {crew: <mapping>, rank: _coalesce(v0_0.rank, <fallback>)}} in tip.thema"}
 		if !slices.Equal(ds[0].Help, wantHelp) {
 			t.Errorf("help:\n got %q\nwant %q", ds[0].Help, wantHelp)
 		}
@@ -327,8 +343,8 @@ func TestDevelopment(t *testing.T) {
 		if want := "v1.0 has no ForwardLens, and v1.0 requires 11 fields"; d.Headline != want {
 			t.Errorf("headline:\n got %q\nwant %q", d.Headline, want)
 		}
-		if len(d.Notes) != 1 || d.Notes[0].Label != "v1.0 requires "+strings.Join(fields, ", ") {
-			t.Errorf("notes: %v", d.Notes)
+		if want := "v1.0 requires " + strings.Join(fields[:len(fields)-1], ", ") + " and " + fields[len(fields)-1]; len(d.Notes) != 1 || d.Notes[0].Label != want {
+			t.Errorf("notes:\n got %v\nwant %q", d.Notes, want)
 		}
 	})
 	t.Run("the tip's lenses name it tip", func(t *testing.T) {
