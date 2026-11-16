@@ -130,20 +130,6 @@ type refFinding struct {
 	pos token.Pos
 }
 
-// String renders the finding in the house format:
-//
-//	<path> <what is wrong> (rule <name>)
-func (f refFinding) String(o refOwner) string {
-	subject := o.name
-	if len(f.field) > 0 {
-		subject = o.name + ": " + strings.Join(f.field, ".")
-	}
-	if f.rule == refUnresolved {
-		return fmt.Sprintf("%s refers to %s, %s; %s (rule %s)", subject, f.expr, f.what(o), f.help(o), f.rule)
-	}
-	return fmt.Sprintf("%s refers to %s, %s; %s (rule %s)", subject, f.expr, f.what(o), o.may(), f.rule)
-}
-
 // what says what the reference reaches, as the end of "<subject> refers to
 // <expr>, ...".
 func (f refFinding) what(o refOwner) string {
