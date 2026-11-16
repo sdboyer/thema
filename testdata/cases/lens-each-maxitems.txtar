@@ -30,4 +30,5 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail E0360
+bind fail error[E0360]: l in the result of lens v0.0->v1.0 is not total for some instance
+bind fail has one element per element of v0_0.l, whose length may be [0, +inf], where the target list's length must be [0, 2]

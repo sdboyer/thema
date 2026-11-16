@@ -26,4 +26,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail E0360
+bind fail error[E0360]: the result of lens v0.0->v1.0 copies v0_0, whose zzz is now string
