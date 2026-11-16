@@ -43,7 +43,7 @@ Schema: {
       },
       "notes": [
         {
-          "label": "a version under history/ never changes once it is cut, and had no error when it was cut, so since then its file, another file under history/, or thema has changed"
+          "label": "a version under history/ never changes once it is cut, and had no error when it was cut, so since then its file, another file under history/, or thema has changed, or the file was never cut"
         }
       ],
       "help": [

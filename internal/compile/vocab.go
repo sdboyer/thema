@@ -314,7 +314,7 @@ func violation(v thema.SyntacticVersion, n int, at token.Pos) error {
 	}
 	b := diag.New(diag.E0209).At(at).
 		Headlinef("immutability violation: %s is under %s/, and has %s", vname(v), HistoryDir, errs).
-		Notef(token.NoPos, "a version under %s/ never changes once it is cut, and had no error when it was cut, so since then its file, another file under %s/, or thema has changed", HistoryDir, HistoryDir)
+		Notef(token.NoPos, "a version under %s/ never changes once it is cut, and had no error when it was cut, so since then its file, another file under %s/, or thema has changed, or the file was never cut", HistoryDir, HistoryDir)
 	restoreHelp(b)
 	return b.Err()
 }

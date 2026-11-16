@@ -46,7 +46,7 @@ error[E0209]: immutability violation: v1.0 is under history/, and has 2 errors
 1 | Schema: {
   | ^^^^^^
   |
-  = note: a version under history/ never changes once it is cut, and had no error when it was cut, so since then its file, another file under history/, or thema has changed
+  = note: a version under history/ never changes once it is cut, and had no error when it was cut, so since then its file, another file under history/, or thema has changed, or the file was never cut
   = help: find which file under history/ changed since it was cut, restore it, and make the change in tip.thema
 
 error[E0382]: properbool in the ForwardLens of v1.0 is not total for some instance

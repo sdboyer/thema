@@ -20,7 +20,7 @@ error[E0209]: immutability violation: v0.2 is under history/, and has an error
 1 | Schema: {
   | ^^^^^^
   |
-  = note: a version under history/ never changes once it is cut, and had no error when it was cut, so since then its file, another file under history/, or thema has changed
+  = note: a version under history/ never changes once it is cut, and had no error when it was cut, so since then its file, another file under history/, or thema has changed, or the file was never cut
   = help: find which file under history/ changed since it was cut, restore it, and make the change in tip.thema
 
 error[E0205]: history/0.2.thema skips a version: after v0.0 comes v0.1
