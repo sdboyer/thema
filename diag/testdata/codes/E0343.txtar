@@ -1,4 +1,4 @@
-#op: compile
+#op: develop
 A field optional in the source and required in the target cannot simply be
 copied: an instance that lacks it would have nothing to put there. coalesce says
 what to use when it is absent.
@@ -7,7 +7,7 @@ Schema: {
 	a:  string
 	b?: int
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	a: string
 	b: int
@@ -16,15 +16,9 @@ Schema: {
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		c: true
 	}
-}
--- ship/tip.thema --
-Schema: {
-	a: string
-	b: int
-	c: bool
 }
 -- out/json --
 {
@@ -32,9 +26,9 @@ Schema: {
     {
       "code": "E0343",
       "severity": "error",
-      "headline": "b is optional in v0.0 and required in v1.0",
+      "headline": "b is optional in v0.0 and required in tip",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "tip.thema",
         "line": 3,
         "col": 2,
         "offset": 22,
@@ -52,8 +46,8 @@ Schema: {
   }
 }
 -- out/text --
-error[E0343]: b is optional in v0.0 and required in v1.0
- --> history/1.0.thema:3:2
+error[E0343]: b is optional in v0.0 and required in tip
+ --> tip.thema:3:2
   |
 3 |     b: int
   |     ^

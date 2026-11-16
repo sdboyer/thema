@@ -144,7 +144,7 @@ func readTip(ctx *cue.Context, vs []*version, f File, o options) (*version, *Tip
 		tip.Base = &base
 		nval, err := evalSchema(ctx, newest)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, frozenOf(vs).immutable(err)
 		}
 		if compat.Check(ctx, nval, tval).Compatible() {
 			tip.Version = thema.SV(base[0], base[1]+1)

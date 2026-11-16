@@ -1,11 +1,11 @@
 The example from #102 and #105: tags changes from a list to a map and no lens
-maps it, so the implicit copy would put a list where 1.0 wants a map. Refused
+maps it, so the implicit copy would put a list where the tip wants a map. Refused
 at compile, in the authoring form's terms, rather than at bind.
 -- ship/history/0.0.thema --
 Schema: {
 	tags: [...string] | null
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	tags: {
 		[string]: string
@@ -14,22 +14,16 @@ Schema: {
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {}
-}
--- ship/tip.thema --
-Schema: {
-	tags: {
-		[string]: string
-	}
+	tip: {}
 }
 -- out/error --
-error[E0358]: the ForwardLens of v1.0 would copy v0_0.tags into tags, which does not accept every value of it
- --> history/1.0.thema:7:1
+error[E0358]: the ForwardLens of tip would copy v0_0.tags into tags, which does not accept every value of it
+ --> tip.thema:7:1
   |
 7 | ForwardLens: {
   | ^^^^^^^^^^^
   |
-  = note: both v0.0 and v1.0 declare tags, so a lens that does not map it copies it
-  = note: tags in v1.0 was list and is now struct
-  = note: tags in v1.0 was null and is now struct
+  = note: both v0.0 and tip declare tags, so a lens that does not map it copies it
+  = note: tags in tip was list and is now struct
+  = note: tags in tip was null and is now struct
   = help: map tags in the ForwardLens: a _match, a computed value, or a constant

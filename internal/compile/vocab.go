@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	cerrors "cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/token"
 
 	"github.com/sdboyer/thema"
@@ -15,16 +16,21 @@ import (
 // name version files, the ForwardLens or BackwardLens in them, and the lens
 // parameters (v0_0) the author wrote, rather than the normal form's schemas,
 // lenses, input and result. Pass it to thema.BindLineage as
-// thema.WithVocabulary.
+// thema.WithVocabulary. It is a [diag.Immutability]: binding reports an error
+// in a file under history/ as a violation of that file's immutability.
 func Vocabulary(c *Compiled) diag.Vocabulary {
-	return vocab{paths: c.paths, tip: c.provisional}
+	return vocab{paths: c.paths, tip: c.provisional, frozen: c.frozen}
 }
 
 type vocab struct {
 	paths map[thema.SyntacticVersion]string
 	// tip is the version the tip was compiled as, on the development path.
-	tip *thema.SyntacticVersion
+	tip    *thema.SyntacticVersion
+	frozen frozen
 }
+
+// Immutable implements [diag.Immutability].
+func (v vocab) Immutable(err error) error { return v.frozen.immutable(err) }
 
 // param is the name the author gives an instance of ver in a lens: its
 // version's, or TipParam for the tip's.
@@ -209,7 +215,106 @@ func historyMismatch(res compat.Result, prev, curr *version) *diag.Error {
 }
 
 // restoreHelp says what to do about a version under history/ that no longer
-// agrees with what was cut: find which file changed, and restore it.
+// agrees with what was cut: find which file changed, and restore it. It names
+// no command: thema lineage check --published compiles the lineage first, and
+// so reports the same error rather than the file.
 func restoreHelp(b *diag.B) {
-	b.Helpf("run thema lineage check --published to find which file changed since it was cut, restore it, and make the change in %s", TipFile)
+	b.Helpf("find which file under %s/ changed since it was cut, restore it, and make the change in %s", HistoryDir, TipFile)
+}
+
+// frozen is the version each file under history/ keeps, keyed by the name the
+// file's positions carry.
+type frozen map[string]thema.SyntacticVersion
+
+// frozenFiles is the version each of the history's files keeps.
+func frozenFiles(history []File, o options) frozen {
+	fz := make(frozen, len(history))
+	for _, f := range history {
+		if v, ok := frozenVersion(f.Path); ok {
+			fz[o.name(f)] = v
+		}
+	}
+	return fz
+}
+
+// frozenOf is the version each of vs's files under history/ keeps.
+func frozenOf(vs []*version) frozen {
+	fz := make(frozen, len(vs))
+	for _, v := range vs {
+		if !v.tip {
+			fz[v.tf.Name()] = v.v
+		}
+	}
+	return fz
+}
+
+// immutable reports each error in err positioned in a file under history/ as
+// a violation of that file's immutability: the file's first error is led by
+// one E0209, naming its version, and every error in it is given without its
+// help, which would edit the file. A file with an error already worded as a
+// violation, E0207 or E0355, gets no E0209, and that error keeps its help.
+func (fz frozen) immutable(err error) error {
+	if err == nil || len(fz) == 0 {
+		return err
+	}
+	errs := cerrors.Errors(err)
+	// An error about the lineage's name is not about the file it is positioned
+	// in: the name is the directory's, positioned at a version file for want of
+	// a place of its own.
+	in := func(e cerrors.Error) (*diag.Error, string, bool) {
+		de, ok := e.(*diag.Error)
+		if !ok || de.Diagnostic().Severity != diag.SeverityError {
+			return nil, "", false
+		}
+		if a := de.Diagnostic().Address; a != nil && a.Kind == diag.AddrName {
+			return nil, "", false
+		}
+		name := de.Position().Filename()
+		_, ok = fz[name]
+		return de, name, ok
+	}
+	// E0207 names both versions; E0355, in a file under history/, the version
+	// before it too.
+	violates := func(de *diag.Error) bool {
+		return de.Diagnostic().Code == diag.E0207 || de.Diagnostic().Code == diag.E0355
+	}
+	count := make(map[string]int)
+	led := make(map[string]bool)
+	for _, e := range errs {
+		if de, name, ok := in(e); ok {
+			count[name]++
+			led[name] = led[name] || violates(de)
+		}
+	}
+	out := make([]error, 0, len(errs)+len(count))
+	for _, e := range errs {
+		de, name, ok := in(e)
+		switch {
+		case !ok:
+			out = append(out, e)
+		case violates(de):
+			out = append(out, de)
+		default:
+			if !led[name] {
+				led[name] = true
+				out = append(out, violation(fz[name], count[name], de.Position().File().Pos(0, token.NoRelPos)))
+			}
+			out = append(out, de.WithoutHelp())
+		}
+	}
+	return diag.Join(out...)
+}
+
+// violation is the E0209 that leads the n errors in the file under history/
+// that keeps v, positioned at the start of the file.
+func violation(v thema.SyntacticVersion, n int, at token.Pos) error {
+	errs := "an error"
+	if n > 1 {
+		errs = fmt.Sprintf("%d errors", n)
+	}
+	b := diag.New(diag.E0209).At(at).
+		Headlinef("immutability violation: %s is under %s/, and has %s", vname(v), HistoryDir, errs).
+		Notef(token.NoPos, "a version under %s/ never changes once it is cut, and had no error when it was cut, so since then its file, another file under %s/, or thema has changed, or the file was never cut", HistoryDir, HistoryDir)
+	restoreHelp(b)
+	return b.Err()
 }

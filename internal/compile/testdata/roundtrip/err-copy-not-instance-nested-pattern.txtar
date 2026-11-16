@@ -9,7 +9,7 @@ Schema: {
 		[string]: string
 	}
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	id: string
 	meta: {
@@ -19,24 +19,17 @@ Schema: {
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		id: v0_0.id
 	}
 }
--- ship/tip.thema --
-Schema: {
-	id: string
-	meta: {
-		[string]: "a"
-	}
-}
 -- out/error --
-error[E0358]: the ForwardLens of v1.0 would copy v0_0.meta into meta, which does not accept every value of it
- --> history/1.0.thema:8:1
+error[E0358]: the ForwardLens of tip would copy v0_0.meta into meta, which does not accept every value of it
+ --> tip.thema:8:1
   |
 8 | ForwardLens: {
   | ^^^^^^^^^^^
   |
-  = note: both v0.0 and v1.0 declare meta, so a lens that does not map it copies it
-  = note: meta.[_] in v1.0 is now "a", which does not accept every value of the prior string
+  = note: both v0.0 and tip declare meta, so a lens that does not map it copies it
+  = note: meta.[_] in tip is now "a", which does not accept every value of the prior string
   = help: map meta in the ForwardLens: a _match, a computed value, or a constant

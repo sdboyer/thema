@@ -5,7 +5,7 @@ the struct itself is reported as one the lens does not produce.
 Schema: {
 	id: string
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	id: string
 	meta!: {
@@ -15,23 +15,16 @@ Schema: {
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		id: v0_0.id
 		meta: {}
 	}
 }
--- ship/tip.thema --
-Schema: {
-	id: string
-	meta!: {
-		note?: string
-	}
-}
 -- out/error --
-error[E0346]: ForwardLens produces nothing for meta, which v1.0 requires
- --> history/1.0.thema:8:1
+error[E0346]: ForwardLens produces nothing for meta, which tip requires
+ --> tip.thema:8:1
   |
 8 | ForwardLens: {
   | ^^^^^^^^^^^
   |
-  = help: add meta: <mapping> to v1_0
+  = help: add meta: <mapping> to tip

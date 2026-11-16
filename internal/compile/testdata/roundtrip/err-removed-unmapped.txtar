@@ -5,7 +5,7 @@ Schema: {
 	before:    string
 	unchanged: string
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	after:     string
 	unchanged: string
@@ -13,18 +13,13 @@ Schema: {
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		after: "x"
 	}
 }
--- ship/tip.thema --
-Schema: {
-	after:     string
-	unchanged: string
-}
 -- out/error --
-error[E0347]: v0.0 declares before and v1.0 does not, and nothing maps it
- --> history/1.0.thema:6:1
+error[E0347]: v0.0 declares before and tip does not, and nothing maps it
+ --> tip.thema:6:1
   |
 6 | ForwardLens: {
   | ^^^^^^^^^^^

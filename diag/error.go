@@ -96,6 +96,15 @@ func AddHelp(err error, help string) {
 	}
 }
 
+// WithoutHelp returns a copy of e with no help and no fix, for a caller that
+// knows the fixes e's site would suggest are edits the author may not make:
+// the authoring form's compiler, for one, knows which files never change.
+func (e *Error) WithoutHelp() *Error {
+	c := *e
+	c.d.Help, c.d.Fix = nil, nil
+	return &c
+}
+
 // OSReason is the reason an operating system call failed, without the path a
 // *fs.PathError repeats: the detail for a diagnostic whose headline already
 // names the file, in the author's terms rather than as an absolute path.

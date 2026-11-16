@@ -22,7 +22,9 @@ import (
 // says how to declare one. Declaring it optional in a minor version first lets
 // the values instances carry there land in it, for the next lens to map.
 func TestAuthoringPatternKeys(t *testing.T) {
-	const first, last = "history/0.0.thema", "history/1.0.thema"
+	// A lineage that fails is written in its tip: a version under history/
+	// never changes, so an error in one gives no help.
+	const first, last, tip = "history/0.0.thema", "history/1.0.thema", "tip.thema"
 	const labels = "Schema: {\n\tlabels: [string]: string\n}\n"
 	type translation struct {
 		from, to thema.SyntacticVersion
@@ -33,8 +35,8 @@ func TestAuthoringPatternKeys(t *testing.T) {
 	for name, c := range map[string]struct {
 		files        map[string]string
 		translations []translation
-		// err, if set, is the code loading the lineage fails with, and help
-		// text its help must contain.
+		// err, if set, is the code loading the lineage on the development
+		// path fails with, and help text its help must contain.
 		err  diag.Code
 		help string
 	}{
@@ -53,7 +55,7 @@ func TestAuthoringPatternKeys(t *testing.T) {
 		"reads a key": {
 			files: map[string]string{
 				first: labels,
-				last:  "Schema: {\n\tlabels: [string]: string\n\tenv:    string\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {\n\t\tenv: _coalesce(v0_0.labels.env, \"none\")\n\t}\n}\n",
+				tip:   "Schema: {\n\tlabels: [string]: string\n\tenv:    string\n}\n\nForwardLens: {\n\tv0_0: _\n\ttip: {\n\t\tenv: _coalesce(v0_0.labels.env, \"none\")\n\t}\n}\n",
 			},
 			err:  diag.E0340,
 			help: "declare labels.env as an optional field in a new minor version",
@@ -61,10 +63,10 @@ func TestAuthoringPatternKeys(t *testing.T) {
 		"writes a key": {
 			files: map[string]string{
 				first: "Schema: {\n\tenv: string\n}\n",
-				last:  "Schema: {\n\tlabels: [string]: string\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {\n\t\tlabels: {\n\t\t\tenv: v0_0.env\n\t\t}\n\t}\n}\n",
+				tip:   "Schema: {\n\tlabels: [string]: string\n}\n\nForwardLens: {\n\tv0_0: _\n\ttip: {\n\t\tlabels: {\n\t\t\tenv: v0_0.env\n\t\t}\n\t}\n}\n",
 			},
 			err:  diag.E0341,
-			help: "declare labels.env in v1.0, or copy the struct that holds it whole",
+			help: "declare labels.env in tip, or copy the struct that holds it whole",
 		},
 		// The remedy: 0.1 declares labels.env, so a value instances carry
 		// there is promoted into it, and the lens from 0.1 moves it to env.
@@ -89,8 +91,8 @@ func TestAuthoringPatternKeys(t *testing.T) {
 				dir["ship/"+p] = &fstest.MapFile{Data: []byte(text)}
 			}
 			ctx := cuecontext.New()
-			lin, err := AuthoringLineage(dir, "ship", thema.NewRuntime(ctx))
 			if c.err != "" {
+				_, err := DevelopmentLineage(dir, "ship", thema.NewRuntime(ctx))
 				var found bool
 				for _, d := range diag.Diagnostics(err) {
 					if d.Code != c.err {
@@ -106,6 +108,7 @@ func TestAuthoringPatternKeys(t *testing.T) {
 				}
 				return
 			}
+			lin, err := AuthoringLineage(dir, "ship", thema.NewRuntime(ctx))
 			if err != nil {
 				t.Fatal(cerrors.Details(err, nil))
 			}

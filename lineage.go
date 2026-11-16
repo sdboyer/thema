@@ -84,14 +84,23 @@ func isLineageDef(v cue.Value) bool {
 // all non-nil instances of Lineage in any Go program are guaranteed to follow
 // Thema invariants.
 func BindLineage(root cue.Value, p cue.Path, rt *Runtime, opts ...BindOption) (Lineage, error) {
-	orig := root.LookupPath(p)
-	rt.bind.Lock()
-	defer rt.bind.Unlock()
-
 	cfg := &bindConfig{}
 	for _, opt := range opts {
 		opt(cfg)
 	}
+	lin, err := bindLineage(root, p, rt, cfg)
+	if iv, ok := cfg.vocab.(diag.Immutability); ok && err != nil {
+		return nil, iv.Immutable(err)
+	}
+	return lin, err
+}
+
+// bindLineage is [BindLineage] with its options applied.
+func bindLineage(root cue.Value, p cue.Path, rt *Runtime, cfg *bindConfig) (Lineage, error) {
+	orig := root.LookupPath(p)
+	rt.bind.Lock()
+	defer rt.bind.Unlock()
+
 	lindef := rt.linDef()
 
 	var raw, uni cue.Value

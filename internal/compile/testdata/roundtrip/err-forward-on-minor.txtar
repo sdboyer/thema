@@ -35,4 +35,4 @@ error[E0355]: immutability violation: v0.1 has a ForwardLens, and is backward co
   | ------ the version before it
   |
   = note: an instance of a version is already an instance of its minor successor; translating forward is implicit
-  = help: run thema lineage check --published to find which file changed since it was cut, restore it, and make the change in tip.thema
+  = help: find which file under history/ changed since it was cut, restore it, and make the change in tip.thema

@@ -1,4 +1,4 @@
-#op: compile
+#op: develop
 A lacuna on a match applies when its `[_]` arm does. A match with no `[_]`
 arm implies no condition, so a lacuna on it must say when it applies with
 `when`.
@@ -6,14 +6,14 @@ arm implies no condition, so a lacuna on it must say when it applies with
 Schema: {
 	aunion: *"foo" | "bar" | "baz"
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	aunion: "foo" | *"bar" | "baz"
 }
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		aunion: _match(v0_0.aunion, {"foo": "bar"})
 	}
 	lacunas: {
@@ -25,21 +25,17 @@ ForwardLens: {
 }
 
 BackwardLens: {
-	v1_0: _
+	tip: _
 	v0_0: {
-		aunion: _match(v1_0.aunion, {"bar": "foo"})
+		aunion: _match(tip.aunion, {"bar": "foo"})
 	}
 	lacunas: {
 		aunion: [{
 			type:    ChangedDefault
 			message: "the default changed"
-			when:    v1_0.aunion == "bar"
+			when:    tip.aunion == "bar"
 		}]
 	}
-}
--- ship/tip.thema --
-Schema: {
-	aunion: "foo" | *"bar" | "baz"
 }
 -- out/json --
 {
@@ -49,10 +45,10 @@ Schema: {
       "severity": "error",
       "headline": "lacunas.aunion: a lacuna on a _match applies when its [_] arm does, and this _match has none",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "tip.thema",
         "line": 11,
         "col": 12,
-        "offset": 150,
+        "offset": 149,
         "origin": "user"
       },
       "help": [
@@ -68,7 +64,7 @@ Schema: {
 }
 -- out/text --
 error[E0420]: lacunas.aunion: a lacuna on a _match applies when its [_] arm does, and this _match has none
-  --> history/1.0.thema:11:12
+  --> tip.thema:11:12
    |
 11 |         aunion: [{
    |                  ^

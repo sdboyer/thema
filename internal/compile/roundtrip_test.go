@@ -30,8 +30,11 @@ import (
 //   - out/bind: "ok", or BindLineage's error;
 //   - out/decompiled/<path>: the authoring files decompiled from the normal
 //     form, which must equal the input up to formatting;
-//   - out/error: the compile error, for an archive that must not compile; the
-//     other sections are then absent;
+//   - out/error: the error compiling the archive on the development path, its
+//     history with its tip, for an archive that must not compile; the other
+//     sections are then absent. A lens in error is written in the tip, where
+//     the diagnostic's help applies, unless the error is one only a file
+//     under history/ can have;
 //   - out/translate/<version>/<name>-><to>: for each instance data/<version>/<name>
 //     the archive holds, as JSON, the result of translating it to every other
 //     version and the lacunas reported, as JSON on a line each.
@@ -47,8 +50,7 @@ func TestRoundTrip(t *testing.T) {
 			got := make(map[string]string)
 
 			ctx := cuecontext.New()
-			c, err := Compile(ctx, name, inputs)
-			if err != nil {
+			if _, err := Development(ctx, name, inputs); err != nil {
 				ds := diag.Diagnostics(err)
 				if len(ds) == 0 {
 					t.Fatalf("a compile failure is made of diagnostics, got: %v", err)
@@ -57,6 +59,10 @@ func TestRoundTrip(t *testing.T) {
 				got["out/error"] = rendered(ds, a)
 				a.compare(t, got)
 				return
+			}
+			c, err := Compile(ctx, name, inputs)
+			if err != nil {
+				t.Fatalf("compiles with its tip, but not from its history alone: %v", cerrors.Details(err, nil))
 			}
 			text, terr := c.Text()
 			if terr != nil {

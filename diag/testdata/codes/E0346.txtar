@@ -1,19 +1,22 @@
-#op: compile
-A lens produces every field its target requires. Here the new version adds a
-required field the source lacks, and no lens says where it comes from.
+#op: develop
+A lens produces every field its target requires. Here the tip adds a required
+field the source lacks, and the ForwardLens does not say where it
+comes from.
 -- ship/history/0.0.thema --
 Schema: {
 	a: string
-}
--- ship/history/1.0.thema --
-Schema: {
-	a: string
-	b: int
 }
 -- ship/tip.thema --
 Schema: {
 	a: string
 	b: int
+}
+
+ForwardLens: {
+	v0_0: _
+	tip: {
+		a: v0_0.a
+	}
 }
 -- out/json --
 {
@@ -21,16 +24,16 @@ Schema: {
     {
       "code": "E0346",
       "severity": "error",
-      "headline": "v1.0 has no ForwardLens, and v1.0 requires b",
+      "headline": "ForwardLens produces nothing for b, which tip requires",
       "primary": {
-        "file": "history/1.0.thema",
-        "line": 4,
+        "file": "tip.thema",
+        "line": 6,
         "col": 1,
-        "offset": 29,
+        "offset": 32,
         "origin": "user"
       },
       "help": [
-        "write ForwardLens: {v0_0: _, v1_0: {b: <mapping>}} in history/1.0.thema"
+        "add b: <mapping> to tip"
       ]
     }
   ],
@@ -41,10 +44,10 @@ Schema: {
   }
 }
 -- out/text --
-error[E0346]: v1.0 has no ForwardLens, and v1.0 requires b
- --> history/1.0.thema:4:1
+error[E0346]: ForwardLens produces nothing for b, which tip requires
+ --> tip.thema:6:1
   |
-4 | }
-  | ^
+6 | ForwardLens: {
+  | ^^^^^^^^^^^
   |
-  = help: write ForwardLens: {v0_0: _, v1_0: {b: <mapping>}} in history/1.0.thema
+  = help: add b: <mapping> to tip

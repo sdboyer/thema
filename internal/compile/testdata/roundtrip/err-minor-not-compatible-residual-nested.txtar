@@ -41,4 +41,4 @@ error[E0207]: immutability violation: v0.1 is not backward compatible with v0.0
   |
   = note: v0.1 is a minor version, so it must accept all data v0.0 accepts
   = note: v0.0 does not declare meta.size by name, but accepts it through ... or a pattern, so an instance may already hold any value there
-  = help: run thema lineage check --published to find which file changed since it was cut, restore it, and make the change in tip.thema
+  = help: find which file under history/ changed since it was cut, restore it, and make the change in tip.thema

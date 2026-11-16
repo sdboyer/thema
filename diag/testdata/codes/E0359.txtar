@@ -1,4 +1,4 @@
-#op: compile
+#op: develop
 A move takes a source field's value as it is, so the target field must
 accept every value the source field may hold. Here count may be any integer,
 and total accepts only non-negative ones.
@@ -6,20 +6,16 @@ and total accepts only non-negative ones.
 Schema: {
 	count: int
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	total: int & >=0
 }
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		total: v0_0.count
 	}
-}
--- ship/tip.thema --
-Schema: {
-	total: int & >=0
 }
 -- out/json --
 {
@@ -27,17 +23,17 @@ Schema: {
     {
       "code": "E0359",
       "severity": "error",
-      "headline": "the ForwardLens of v1.0 moves v0_0.count into total, which does not accept every value of it",
+      "headline": "the ForwardLens of tip moves v0_0.count into total, which does not accept every value of it",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "tip.thema",
         "line": 8,
         "col": 10,
-        "offset": 73,
+        "offset": 72,
         "origin": "user"
       },
       "notes": [
         {
-          "label": "total in v1.0 is now uint, which does not accept every value of the prior int"
+          "label": "total in tip is now uint, which does not accept every value of the prior int"
         }
       ],
       "help": [
@@ -52,11 +48,11 @@ Schema: {
   }
 }
 -- out/text --
-error[E0359]: the ForwardLens of v1.0 moves v0_0.count into total, which does not accept every value of it
- --> history/1.0.thema:8:10
+error[E0359]: the ForwardLens of tip moves v0_0.count into total, which does not accept every value of it
+ --> tip.thema:8:10
   |
 8 |         total: v0_0.count
   |                ^^^^
   |
-  = note: total in v1.0 is now uint, which does not accept every value of the prior int
+  = note: total in tip is now uint, which does not accept every value of the prior int
   = help: map total from a value it accepts: a _match, or a computed value

@@ -1,28 +1,26 @@
-#op: compile
+#op: develop
 Every version file declares a schema; that is what a version is. A file with
 only lenses has nothing for them to map to.
 -- ship/history/0.0.thema --
 Schema: {
 	a: string
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		a: v0_0.a
 	}
 }
--- ship/tip.thema --
-
 -- out/json --
 {
   "diagnostics": [
     {
       "code": "E0108",
       "severity": "error",
-      "headline": "history/1.0.thema declares no Schema",
+      "headline": "tip.thema declares no Schema",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "tip.thema",
         "line": 1,
         "col": 1,
         "origin": "user"
@@ -39,8 +37,8 @@ ForwardLens: {
   }
 }
 -- out/text --
-error[E0108]: history/1.0.thema declares no Schema
- --> history/1.0.thema:1:1
+error[E0108]: tip.thema declares no Schema
+ --> tip.thema:1:1
   |
 1 | ForwardLens: {
   | ^^^^^^^^^^^

@@ -1,24 +1,20 @@
-#op: compile
+#op: develop
 coalesce supplies a fallback for a field that may be absent. Over a field the
 source always has, the fallback could never apply; write the reference alone.
 -- ship/history/0.0.thema --
 Schema: {
 	a: string
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	b: string
 }
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		b: _coalesce(v0_0.a, "x")
 	}
-}
--- ship/tip.thema --
-Schema: {
-	b: string
 }
 -- out/json --
 {
@@ -28,10 +24,10 @@ Schema: {
       "severity": "error",
       "headline": "v0.0 always has a, so _coalesce's fallback could never apply",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "tip.thema",
         "line": 8,
         "col": 6,
-        "offset": 62,
+        "offset": 61,
         "origin": "user"
       },
       "help": [
@@ -47,7 +43,7 @@ Schema: {
 }
 -- out/text --
 error[E0348]: v0.0 always has a, so _coalesce's fallback could never apply
- --> history/1.0.thema:8:6
+ --> tip.thema:8:6
   |
 8 |         b: _coalesce(v0_0.a, "x")
   |            ^^^^^^^^^

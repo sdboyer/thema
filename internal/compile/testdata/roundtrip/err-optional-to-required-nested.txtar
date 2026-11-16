@@ -8,7 +8,7 @@ Schema: {
 		owner?: string
 	}
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	id: string
 	meta: {
@@ -19,31 +19,23 @@ Schema: {
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		id: v0_0.id
 	}
 }
--- ship/tip.thema --
-Schema: {
-	id: string
-	meta: {
-		owner: string
-		team:  string
-	}
-}
 -- out/error --
-error[E0343]: meta.owner is optional in v0.0 and required in v1.0
- --> history/1.0.thema:4:3
+error[E0343]: meta.owner is optional in v0.0 and required in tip
+ --> tip.thema:4:3
   |
 4 |         owner: string
   |         ^^^^^
   |
   = help: write meta: {owner: _coalesce(v0_0.meta.owner, <fallback>)} to say what to use when it is absent
 
-error[E0346]: ForwardLens produces nothing for meta.team, which v1.0 requires
- --> history/1.0.thema:9:1
+error[E0346]: ForwardLens produces nothing for meta.team, which tip requires
+ --> tip.thema:9:1
   |
 9 | ForwardLens: {
   | ^^^^^^^^^^^
   |
-  = help: add meta: {team: <mapping>} to v1_0
+  = help: add meta: {team: <mapping>} to tip

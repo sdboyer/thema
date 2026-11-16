@@ -20,6 +20,25 @@ Schema: {
 {
   "diagnostics": [
     {
+      "code": "E0209",
+      "severity": "error",
+      "headline": "immutability violation: v0.2 is under history/, and has an error",
+      "primary": {
+        "file": "history/0.2.thema",
+        "line": 1,
+        "col": 1,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "a version under history/ never changes once it is cut, and had no error when it was cut, so since then its file, another file under history/, or thema has changed, or the file was never cut"
+        }
+      ],
+      "help": [
+        "find which file under history/ changed since it was cut, restore it, and make the change in tip.thema"
+      ]
+    },
+    {
       "code": "E0205",
       "severity": "error",
       "headline": "history/0.2.thema skips a version: after v0.0 comes v0.1",
@@ -28,23 +47,28 @@ Schema: {
         "line": 1,
         "col": 1,
         "origin": "user"
-      },
-      "help": [
-        "rename the file history/0.1.thema, or add the versions between"
-      ]
+      }
     }
   ],
   "summary": {
-    "errors": 1,
+    "errors": 2,
     "warnings": 0,
     "notes": 0
   }
 }
 -- out/text --
+error[E0209]: immutability violation: v0.2 is under history/, and has an error
+ --> history/0.2.thema:1:1
+  |
+1 | Schema: {
+  | ^^^^^^
+  |
+  = note: a version under history/ never changes once it is cut, and had no error when it was cut, so since then its file, another file under history/, or thema has changed, or the file was never cut
+  = help: find which file under history/ changed since it was cut, restore it, and make the change in tip.thema
+
 error[E0205]: history/0.2.thema skips a version: after v0.0 comes v0.1
  --> history/0.2.thema:1:1
   |
 1 | Schema: {
   | ^^^^^^
   |
-  = help: rename the file history/0.1.thema, or add the versions between

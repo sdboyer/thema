@@ -11,4 +11,5 @@ Schema: {
 }
 -- out/verdict --
 # bind
+E0209 immutability violation: v0.0 is under history/, and has an error
 E0151 the schema of v0.0 declares _#def, a hidden definition

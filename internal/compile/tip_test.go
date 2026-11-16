@@ -61,7 +61,7 @@ func TestTipLayout(t *testing.T) {
 		{"a history lens naming the tip", files(
 			"history/0.0.thema", v00,
 			"history/1.0.thema", v10+"\nForwardLens: {\n\tv0_0: _\n\ttip: {crew: 1}\n}\n",
-			TipFile, v10), false, []string{codeNumberedTip}},
+			TipFile, v10), false, []string{"E0209", codeNumberedTip}},
 		{"a tip lens naming its version", files(
 			"history/0.0.thema", v00,
 			TipFile, v10+"\nForwardLens: {\n\tv0_0: _\n\tv1_0: {crew: 1}\n}\n"), true, []string{codeNumberedTip}},

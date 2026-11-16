@@ -65,6 +65,50 @@ func TestLineageCheck(t *testing.T) {
 	}
 }
 
+// A candidate whose history has an immutability violation does not compile, so
+// thema lineage check reports the violation, not how the candidate's history
+// differs from the published lineage's.
+func TestLineageCheckViolation(t *testing.T) {
+	const (
+		// crew is optional at v0.0 and a string, which v0.1's int does not
+		// accept: v0.1 is numbered minor, and is not backward compatible.
+		ship00Edit = "Schema: {\n\tname:  string\n\tcrew?: string\n}\n"
+		v10        = "1.0"
+		ship10     = "Schema: {\n\tcrew: string\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {\n\t\tcrew: v0_0.name\n\t}\n}\n\nBackwardLens: {\n\tv1_0: _\n\tv0_0: {\n\t\tname: v1_0.crew\n\t}\n}\n"
+		// The same lenses, with the ForwardLens reading a field v0.0 does not
+		// declare.
+		ship10Edit = "Schema: {\n\tcrew: string\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {\n\t\tcrew: v0_0.nope\n\t}\n}\n\nBackwardLens: {\n\tv1_0: _\n\tv0_0: {\n\t\tname: v1_0.crew\n\t}\n}\n"
+	)
+	root := t.TempDir()
+	for name, c := range map[string]struct {
+		published, candidate map[string]string
+		tip, code            string
+	}{
+		"a number the schemas contradict": {
+			published: map[string]string{v00: cleanTip, "0.1": minorTip},
+			candidate: map[string]string{v00: ship00Edit, "0.1": minorTip},
+			tip:       minorTip, code: "E0207",
+		},
+		"a lens error": {
+			published: map[string]string{v00: cleanTip, v10: ship10},
+			candidate: map[string]string{v00: cleanTip, v10: ship10Edit},
+			tip:       "Schema: {\n\tcrew: string\n}\n", code: "E0209",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			published := writeHistory(t, filepath.Join(root, name, "published"), "ship", c.tip, c.published)
+			if _, errOut, err := runThema(t, root, "", "lineage", "check", "-l", published, "--published", published); err != nil {
+				t.Fatalf("the published lineage does not check against itself: %v\n%s", err, errOut)
+			}
+			candidate := writeHistory(t, filepath.Join(root, name, "candidate"), "ship", c.tip, c.candidate)
+			_, errOut, err := runThema(t, root, "", "lineage", "check", "-l", candidate, "--published", published)
+			if err == nil || !strings.Contains(errOut, c.code) || strings.Contains(errOut, "E025") {
+				t.Errorf("err = %v, stderr:\n%s\nwant %s and no E025x", err, errOut, c.code)
+			}
+		})
+	}
+}
+
 // --published is required, and must bind.
 func TestLineageCheckPublished(t *testing.T) {
 	root := t.TempDir()

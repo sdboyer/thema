@@ -3,18 +3,18 @@ whatever the other alternatives say, so it cannot be moved into a field the
 target requires without a fallback.
 -- ship/history/0.0.thema --
 Schema: {kind!: "a", n!: int} | {kind!: "b", n?: int}
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {count!: int}
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {count: v0_0.n}
+	tip: {count: v0_0.n}
 }
 -- out/error --
-error[E0343]: n is optional in v0.0 and v1.0 requires count
- --> history/1.0.thema:5:9
+error[E0343]: n is optional in v0.0 and tip requires count
+ --> tip.thema:5:8
   |
-5 |     v1_0: {count: v0_0.n}
-  |            ^^^^^
+5 |     tip: {count: v0_0.n}
+  |           ^^^^^
   |
   = help: write _coalesce(v0_0.n, <fallback>) to say what to use when it is absent

@@ -32,6 +32,25 @@ Schema: {
   "ok": false,
   "diagnostics": [
     {
+      "code": "E0209",
+      "severity": "error",
+      "headline": "immutability violation: v1.0 is under history/, and has an error",
+      "primary": {
+        "file": "history/1.0.thema",
+        "line": 1,
+        "col": 1,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "a version under history/ never changes once it is cut, and had no error when it was cut, so since then its file, another file under history/, or thema has changed, or the file was never cut"
+        }
+      ],
+      "help": [
+        "find which file under history/ changed since it was cut, restore it, and make the change in tip.thema"
+      ]
+    },
+    {
       "code": "E0367",
       "severity": "error",
       "headline": "a in the ForwardLens of v1.0 is v0_0.a * 2, which may be as low as -4294967296, where v1.0 requires \u003e=0",

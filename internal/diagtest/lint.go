@@ -88,6 +88,48 @@ func Lint(t testing.TB, ds []diag.Diagnostic, form Form) {
 			}
 		}
 	}
+	lintHistory(t, ds)
+}
+
+// historyFile matches a frozen version's file, as a primary position names
+// it: history/1.0.thema, under the lineage's directory or not. Its numbers are
+// the compiler's: no leading zero.
+var historyFile = regexp.MustCompile(`(^|/)history/(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.thema$`)
+
+// immutability is the headline of an error that reports a file under history/
+// as changed since it was cut.
+const immutability = "immutability violation:"
+
+// lintHistory checks the errors positioned in files under history/, which
+// never change: each such file has an immutability violation among its
+// errors, and no other error in it says what to do, since every fix would
+// edit the file. An error about the lineage's name is not about the file: the
+// authoring form's name is its directory's, positioned at a version file for
+// want of a place of its own.
+func lintHistory(t testing.TB, ds []diag.Diagnostic) {
+	t.Helper()
+	inHistory := func(d diag.Diagnostic) bool {
+		return d.Severity == diag.SeverityError && d.Primary != nil && historyFile.MatchString(d.Primary.File) &&
+			(d.Address == nil || d.Address.Kind != diag.AddrName)
+	}
+	violated := make(map[string]bool)
+	for _, d := range ds {
+		if inHistory(d) && strings.HasPrefix(d.Headline, immutability) {
+			violated[d.Primary.File] = true
+		}
+	}
+	for i, d := range ds {
+		if !inHistory(d) {
+			continue
+		}
+		where := fmt.Sprintf("diagnostic %d (%s)", i, d.Code)
+		if !violated[d.Primary.File] {
+			t.Errorf("%s: an error in %s, and no immutability violation for the file: %q", where, d.Primary.File, d.Headline)
+		}
+		if !strings.HasPrefix(d.Headline, immutability) && (len(d.Help) > 0 || d.Fix != nil) {
+			t.Errorf("%s: says how to edit %s, which never changes: %q", where, d.Primary.File, d.Help)
+		}
+	}
 }
 
 func lintText(t testing.TB, where, s string, form Form, headline, help bool) {

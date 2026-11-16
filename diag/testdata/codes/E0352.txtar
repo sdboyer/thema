@@ -1,4 +1,4 @@
-#op: compile
+#op: develop
 A value no arm of a match matches passes through where the target accepts it.
 To decide that, the compiler tests the source's values against the target
 field's type, which must be self-contained: a type that refers to other fields
@@ -8,7 +8,7 @@ arm.
 Schema: {
 	kind: "a" | "b" | "c"
 }
--- ship/history/1.0.thema --
+-- ship/tip.thema --
 Schema: {
 	allowed: [...string]
 	kind:    or(allowed)
@@ -16,17 +16,12 @@ Schema: {
 
 ForwardLens: {
 	v0_0: _
-	v1_0: {
+	tip: {
 		allowed: ["a", "b"]
 		kind: _match(v0_0.kind, {
 			"c": "a"
 		})
 	}
-}
--- ship/tip.thema --
-Schema: {
-	allowed: [...string]
-	kind:    or(allowed)
 }
 -- out/json --
 {
@@ -34,12 +29,12 @@ Schema: {
     {
       "code": "E0352",
       "severity": "error",
-      "headline": "_match on kind: v1.0's kind is not a self-contained type",
+      "headline": "_match on kind: tip's kind is not a self-contained type",
       "primary": {
-        "file": "history/1.0.thema",
+        "file": "tip.thema",
         "line": 10,
         "col": 9,
-        "offset": 120,
+        "offset": 119,
         "origin": "user"
       },
       "notes": [
@@ -59,8 +54,8 @@ Schema: {
   }
 }
 -- out/text --
-error[E0352]: _match on kind: v1.0's kind is not a self-contained type
-  --> history/1.0.thema:10:9
+error[E0352]: _match on kind: tip's kind is not a self-contained type
+  --> tip.thema:10:9
    |
 10 |         kind: _match(v0_0.kind, {
    |               ^^^^^^

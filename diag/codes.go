@@ -124,6 +124,7 @@ var Codes = []CodeInfo{
 	{Code: E0206, Severity: SeverityError, Scope: ScopeVersions, Title: "a version file named as a major version is backward compatible with its predecessor", Sentinels: []error{terrors.ErrInvalidLineage}, Retired: "It told the author to rename the file. Only a file under history/ has a number to disagree with, since the tip's is derived, and a file under history/ never changes: the disagreement is an immutability violation, E0207, in either direction."},
 	{Code: E0207, Severity: SeverityError, Scope: ScopeVersions, Title: "a version under history/ has a number its compatibility with the version before it contradicts", Sentinels: []error{terrors.ErrInvalidLineage}},
 	{Code: E0208, Severity: SeverityError, Scope: ScopeVersions, Title: "a major version is backward compatible with its predecessor", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0209, Severity: SeverityError, Scope: ScopeVersions, Title: "a version under history/ has an error", Sentinels: []error{terrors.ErrInvalidLineage}},
 	{Code: E0210, Severity: SeverityError, Scope: ScopeVersions, Title: "a minor version requires a field its predecessor does not declare", Sentinels: []error{terrors.ErrInvalidLineage}},
 	{Code: E0211, Severity: SeverityError, Scope: ScopeVersions, Title: "a minor version rejects a field its predecessor declares", Sentinels: []error{terrors.ErrInvalidLineage}},
 	{Code: E0212, Severity: SeverityError, Scope: ScopeVersions, Title: "a minor version requires a field its predecessor left optional", Sentinels: []error{terrors.ErrInvalidLineage}},
@@ -327,6 +328,7 @@ const (
 	E0206 Code = "E0206" // retired: N.0.thema whose schema is compatible with its predecessor
 	E0207 Code = "E0207" // a history/ version numbered minor and incompatible, or major and compatible
 	E0208 Code = "E0208" // a .0 version that is compatible with its predecessor
+	E0209 Code = "E0209" // an error in a history/ version, which was cut without one
 	// E0210 to E0218: one per rule of internal/compat that finds an
 	// incompatibility; E0230 to E0234: one per rule that leaves the verdict
 	// Unknown, which thema treats as incompatible.
