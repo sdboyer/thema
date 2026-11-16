@@ -1,6 +1,6 @@
 #description: A schema in the text refers to a definition in another package of the author's module, which the text imports. A package that is not one of CUE's builtins is ref-import.
 #expect: E0143
-#spec: docs/invariants.md:116-120, docs/invariants.md:222
+#spec: docs/invariants.md:116-120, docs/invariants.md:223
 #at: lin.h
 -- in.cue --
 import "github.com/sdboyer/thema"

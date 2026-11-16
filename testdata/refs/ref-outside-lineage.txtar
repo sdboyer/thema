@@ -1,6 +1,6 @@
 #description: A schema in the text refers to #Color, a definition declared at the top of the use package, outside the lineage. That is ref-outside-lineage.
 #expect: E0142
-#spec: docs/invariants.md:116-118, docs/invariants.md:221
+#spec: docs/invariants.md:116-118, docs/invariants.md:222
 #at: lin.h
 -- in.cue --
 import "github.com/sdboyer/thema"

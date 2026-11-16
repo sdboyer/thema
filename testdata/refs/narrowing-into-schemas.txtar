@@ -1,6 +1,6 @@
 #description: The use narrows the lineage's joinSchema with a field whose type is read from the lineage's schema 0.0. A narrowing that reads one of the lineage's schemas is refused like a schema that does.
 #expect: E0140
-#spec: docs/invariants.md:178-180, docs/invariants.md:219
+#spec: docs/invariants.md:178-180, docs/invariants.md:220
 #at: lin.h
 -- in.cue --
 import "github.com/sdboyer/thema"

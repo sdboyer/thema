@@ -1,8 +1,11 @@
 package thema
 
 import (
+	"fmt"
+	"maps"
 	"os"
 	"regexp"
+	"slices"
 	"testing"
 
 	"github.com/sdboyer/thema/diag"
@@ -89,6 +92,49 @@ func TestRefCodes(t *testing.T) {
 	}
 	if len(rules) != len(refCodes) {
 		t.Errorf("refCodes has %d entries for %d rules", len(refCodes), len(rules))
+	}
+}
+
+// TestInvariantsRuleCodes: docs/invariants.md gives each checker rule the code
+// binding reports it under, since a diagnostic carries the code and not the
+// rule.
+func TestInvariantsRuleCodes(t *testing.T) {
+	src, err := os.ReadFile("docs/invariants.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]diag.Code{}
+	for r, c := range rulecodes.Compat {
+		want[string(r)] = c
+	}
+	for r, c := range rulecodes.Lenscheck {
+		want[string(r)] = c
+	}
+	for r, c := range refCodes {
+		want[string(r)] = c
+	}
+	codeCell := regexp.MustCompile(`^\[E\d{4}\]\(errors/E\d{4}\.md\)$`)
+	got := map[string]string{}
+	for _, m := range regexp.MustCompile("(?m)^\\| `([a-z-]+)` \\| (.*?) \\|").FindAllStringSubmatch(string(src), -1) {
+		if _, ok := want[m[1]]; !ok {
+			if codeCell.MatchString(m[2]) {
+				t.Errorf("docs/invariants.md gives a code to %s, which no checker has", m[1])
+			}
+			continue
+		}
+		if _, dup := got[m[1]]; dup {
+			t.Errorf("docs/invariants.md has two rows for rule %s", m[1])
+		}
+		got[m[1]] = m[2]
+	}
+	for _, r := range slices.Sorted(maps.Keys(want)) {
+		c := want[r]
+		switch cell, ok := got[r]; {
+		case !ok:
+			t.Errorf("docs/invariants.md has no row for rule %s", r)
+		case cell != fmt.Sprintf("[%s](errors/%s.md)", c, c):
+			t.Errorf("docs/invariants.md gives rule %s the code %q; binding reports it under %s", r, cell, c)
+		}
 	}
 }
 

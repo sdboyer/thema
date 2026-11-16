@@ -1,6 +1,6 @@
 #description: Schema 0.1 in the text refers to a field of schema 0.0 through schemas. A schema referring to another schema of the lineage is ref-sibling-schema.
 #expect: E0140
-#spec: docs/invariants.md:116-118, docs/invariants.md:219
+#spec: docs/invariants.md:116-118, docs/invariants.md:220
 #at: lin.h
 -- in.cue --
 import "github.com/sdboyer/thema"

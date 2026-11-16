@@ -207,31 +207,26 @@ today.
 Each reference in a schema or lens gets one of three verdicts.
 
 - **allowed**: the reference stays within what the rules name.
-- **refused**: the reference leaves it. Binding fails, and the finding names
-  the rule and what the reference denotes.
+- **refused**: the reference leaves it. Binding fails, and the error says what
+  the reference denotes.
 - **unknown**: thema cannot tell from the schema's or lens's text what the
   reference denotes. Binding treats unknown as a failure.
 
-Every finding is positioned at the referring field and reads
+Each finding is reported at the referring field, under its rule's code in the
+tables below.
 
-    <owner>: <path> refers to <reference>, <what it denotes>; <the rule> (rule <name>)
-
-for example
-
-    schema v0.0: color refers to #Color, which is declared outside the lineage; a schema may refer only to its own body and CUE's builtin packages (rule ref-outside-lineage)
-
-| Rule | Refused when |
-|---|---|
-| `ref-sibling-schema` | a schema refers to another schema of the lineage through `schemas`, such as a field of the version before it |
-| `ref-lineage-meta` | a schema or lens refers to something declared in the lineage outside itself: `name`, `#LatestVersion`, the `joinSchema`, a helper field or definition declared in the lineage, or `schemas` or `lenses` as a whole |
-| `ref-outside-lineage` | a schema or lens refers to something declared outside the lineage, such as a definition at the top of the file |
-| `ref-import` | a schema or lens refers to a package other than CUE's builtins and thema's own, including another package of the author's module |
-| `ref-lens-to-schema` | a lens refers to a schema of the lineage |
-| `ref-lens-to-lens` | a lens refers to another lens of the lineage |
-
-| Rule | Unknown when | What to do |
+| Rule | Code | Refused when |
 |---|---|---|
-| `ref-unresolved` | a reference selects into the lineage by a label only an instance decides (`lin[a]`, with `a` a field of the schema; a label the evaluator can fold, such as `lin["na"+"me"]`, resolves), or through a construct thema does not read | write the reference with constant labels, or declare what it needs inside the schema or lens |
+| `ref-sibling-schema` | [E0140](errors/E0140.md) | a schema refers to another schema of the lineage through `schemas`, such as a field of the version before it |
+| `ref-lineage-meta` | [E0141](errors/E0141.md) | a schema or lens refers to something declared in the lineage outside itself: `name`, `#LatestVersion`, the `joinSchema`, a helper field or definition declared in the lineage, or `schemas` or `lenses` as a whole |
+| `ref-outside-lineage` | [E0142](errors/E0142.md) | a schema or lens refers to something declared outside the lineage, such as a definition at the top of the file |
+| `ref-import` | [E0143](errors/E0143.md) | a schema or lens refers to a package other than CUE's builtins and thema's own, including another package of the author's module |
+| `ref-lens-to-schema` | [E0144](errors/E0144.md) | a lens refers to a schema of the lineage |
+| `ref-lens-to-lens` | [E0145](errors/E0145.md) | a lens refers to another lens of the lineage |
+
+| Rule | Code | Unknown when | What to do |
+|---|---|---|---|
+| `ref-unresolved` | [E0146](errors/E0146.md) | a reference selects into the lineage by a label only an instance decides (`lin[a]`, with `a` a field of the schema; a label the evaluator can fold, such as `lin["na"+"me"]`, resolves), or through a construct thema does not read | write the reference with constant labels, or declare what it needs inside the schema or lens |
 
 Every rule has a recorded case in the repository's case corpus
 (`testdata/cases/ref-*`), alongside a case for each allowed form.
@@ -344,26 +339,19 @@ unknown if any is, else compatible. Binding a lineage treats unknown as
 incompatible: a minor step must be *shown* compatible, so the author either
 rewrites the schema so that the checker can decide, or makes it a major step.
 
-Every finding names the rule that produced it, so that it can be looked up in
-the tables below, and reads
+Each finding is reported under its rule's code in the tables below.
 
-    <path> <what changed> (rule <name>)
-
-for example
-
-    added is required in the new schema but not declared in the prior one (rule field-added-required)
-
-| Rule | Incompatible when |
-|---|---|
-| `field-added-required` | *new* requires a field *prior* does not declare |
-| `field-removed` | *prior* declares a field *new* neither declares nor accepts through a pattern or `...` |
-| `field-now-required` | an optional or defaulted field became required |
-| `default-removed` | a defaulted field became optional |
-| `default-changed` | a defaulted field fills with a different value |
-| `value-narrowed` | *new* does not accept every value *prior* does at a path: a kind, bound, alternative or constant changed |
-| `length-narrowed` | a list's length bounds narrowed |
-| `labels-narrowed` | *prior* accepts field names (through `...` or a pattern) that *new* rejects |
-| `validator-added` | *new* adds, or tightens, a builtin validator the checker knows (see below) |
+| Rule | Code | Incompatible when |
+|---|---|---|
+| `field-added-required` | [E0210](errors/E0210.md) | *new* requires a field *prior* does not declare |
+| `field-removed` | [E0211](errors/E0211.md) | *prior* declares a field *new* neither declares nor accepts through a pattern or `...` |
+| `field-now-required` | [E0212](errors/E0212.md) | an optional or defaulted field became required |
+| `default-removed` | [E0213](errors/E0213.md) | a defaulted field became optional |
+| `default-changed` | [E0214](errors/E0214.md) | a defaulted field fills with a different value |
+| `value-narrowed` | [E0215](errors/E0215.md) | *new* does not accept every value *prior* does at a path: a kind, bound, alternative or constant changed |
+| `length-narrowed` | [E0216](errors/E0216.md) | a list's length bounds narrowed |
+| `labels-narrowed` | [E0217](errors/E0217.md) | *prior* accepts field names (through `...` or a pattern) that *new* rejects |
+| `validator-added` | [E0218](errors/E0218.md) | *new* adds, or tightens, a builtin validator the checker knows (see below) |
 
 Compatible changes include adding an optional or defaulted field, making a
 required field optional or defaulted, making an optional field defaulted,
@@ -374,13 +362,13 @@ the label with any value. The converse, declaring a type narrower than `_` for
 a label `...` accepted, narrows what *prior* admitted there, even as an
 optional field.
 
-| Rule | Unknown when | What to do |
-|---|---|---|
-| `unknown-crossfield` | either schema constrains a field by another field's value (`b?: a`, `c: >a`, a reference to a defaulted field or an open list), and the two differ | keep such constraints identical across minor versions |
-| `unknown-comprehension` | a comprehension over data (`if kind == "x" {...}`) is pending in either schema, and the two differ | bind refuses comprehensions in schemas before the checker runs (see Schema constructs); the rule keeps the checker sound on its own |
-| `unknown-validator` | *new* adds or changes a validator the checker has no rule for (`matchIf`, `matchN`, `regexp.Match`, `path.Match`, `net.InCIDR`, ...) | keep it identical across minor versions, or express the constraint with bounds |
-| `unknown-disjunction` | no single alternative of *new* covers an alternative of *prior*, though together they might (`int` → `>=0 \| <0`) | write *new*'s alternatives so that each *prior* alternative fits one |
-| `unknown-patterns` | pattern constraints differ in a way the checker compares only for identity: several patterns on one side, or a narrower pattern replacing a wider one | keep patterns identical across minor versions |
+| Rule | Code | Unknown when | What to do |
+|---|---|---|---|
+| `unknown-crossfield` | [E0230](errors/E0230.md) | either schema constrains a field by another field's value (`b?: a`, `c: >a`, a reference to a defaulted field or an open list), and the two differ | keep such constraints identical across minor versions |
+| `unknown-comprehension` | [E0132](errors/E0132.md) | a comprehension over data (`if kind == "x" {...}`) is pending in either schema, and the two differ | bind refuses comprehensions in schemas before the checker runs (see Schema constructs); the rule keeps the checker sound on its own |
+| `unknown-validator` | [E0232](errors/E0232.md) | *new* adds or changes a validator the checker has no rule for (`matchIf`, `matchN`, `regexp.Match`, `path.Match`, `net.InCIDR`, ...) | keep it identical across minor versions, or express the constraint with bounds |
+| `unknown-disjunction` | [E0233](errors/E0233.md) | no single alternative of *new* covers an alternative of *prior*, though together they might (`int` → `>=0 \| <0`) | write *new*'s alternatives so that each *prior* alternative fits one |
+| `unknown-patterns` | [E0234](errors/E0234.md) | pattern constraints differ in a way the checker compares only for identity: several patterns on one side, or a narrower pattern replacing a wider one | keep patterns identical across minor versions |
 
 The validators the checker has rules for, and how each may change between
 compatible versions:
@@ -643,46 +631,40 @@ A lens's verdict is the worst of its places: not total if any place is, else
 unknown if any is, else total. Binding treats unknown as a failure. A lens must
 be proven total, so the author rewrites it into a form thema decides.
 
-Every finding names the rule that produced it, and is positioned at the
-author's construct: the result field, the comprehension it is declared in, or
-the lacuna field. It reads
+Each finding is reported under its rule's code in the tables below,
+positioned at the author's construct: the result field, the comprehension it
+is declared in, or the lacuna field.
 
-    <path> <what is wrong> (rule <name>)
-
-for example
-
-    v1_0.a copies v0_0.c, which may be absent: v0_0.c is optional in the source schema; write the field under if v0_0.c != _|_ (rule source-absent)
-
-| Rule | Not total when |
-|---|---|
-| `source-constrained` | the lens constrains the field it takes with anything but `_`: a type, a field or a default |
-| `copy-narrowed` | a copied value has an instance the target rejects: a kind, bound, alternative, constant or field the target lacks, a field it requires that the source does not declare, or a default differing from the source's. The finding names the compatibility rule |
-| `source-absent` | a path the lens reads may be absent where it is read: an optional field, an element past a list's minimum length, or a field beneath `_`, with no presence or type test establishing it |
-| `source-undeclared` | the lens reads a path the source schema does not declare, such as a key only a pattern constraint matches |
-| `target-undeclared` | the lens writes a path the target schema does not declare, such as a key only a pattern constraint matches |
-| `pattern-absent` | an equality tests a path that may be absent. CUE makes comparing an absent field an error, not `false` |
-| `not-a-value` | a result field is a constraint (`int`, `_`), an error (`_\|_`), or a disjunction, where an instance needs one concrete value; or a lacuna's type is not a literal |
-| `literal-not-instance` | a literal, struct or list is not an instance of the target at its path: a wrong kind, a value outside the target, a list of the wrong length, a struct no alternative of a disjunctive target accepts |
-| `computed-narrowed` | a computed value has a possible result the target rejects: a kind the target lacks, a boolean it does not accept, or an integer outside its bounds |
-| `required-not-written` | a field the target requires is never written on some path through the lens |
-| `write-conflict` | a path, a hidden field's included, is written twice with values that may disagree, or as instances of two alternatives of a disjunctive target |
-| `arith-overflow` | an integer operation's result may exceed `int64` |
-| `division-by-zero` | a divisor is zero for some instance |
-| `table-key-missing` | a table is indexed by a value with no entry |
-
-| Rule | Unknown when | What to do |
+| Rule | Code | Not total when |
 |---|---|---|
-| `unknown-copy` | the compatibility rules cannot decide whether the copied value fits the target: a constraint between fields, a pending comprehension, a validator, or a disjunction they cannot match; or a list is mapped element by element from a source list whose validator may bound its length where the target's bounds need it | copy a value whose schemas the compatibility rules decide (see their Unknown table) |
-| `unknown-pattern` | an arm's condition is not a pattern (a presence test, an equality or a type test on an input field, or a conjunction of these); a lacuna's condition is neither a pattern nor a boolean the computed rules prove; or an equality tests a field that may be a float | write the condition as a pattern, testing one input field at a time; test a number's type before comparing it |
-| `unknown-exhaustive` | a required field is written only under patterns that cannot be proven to cover every instance; or a field reads a result field written only under patterns that cannot be proven to hold wherever the reader is written | write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field; write a reader under the patterns of the field it reads |
-| `unknown-op` | a computation uses an operation outside the proven set: `/`, a float, a builtin not listed above, or `&` or `\|` within an expression; or a call constrains the result | use the listed operations, with `quo` or `div` for integer division; write the result as a struct |
-| `unknown-dynamic` | fields are produced by a `for` clause or a computed label, or list elements by a comprehension that filters, nests `for` clauses, or sits beside other elements | write each field by name; map a list with one comprehension over one source list, every element |
-| `unknown-reference` | the lens reads something that cannot be followed to the input or to a constant: a computed index or label, or a selection into a comprehension's output | select fields by name |
-| `unknown-bounds` | an integer operand has no finite bounds, so the result cannot be proven to fit `int64` or the target, or an operand occurs more than once. Bounds that contain the target's refute nothing when the result need not take them, as with `len` | bound the fields the computation reads (`int32`, `>=0 & <=100`) |
-| `unknown-divisor` | a divisor's bounds include zero, though zero may not be an instance | bound the divisor away from zero (`>0` or `<0`) |
-| `unknown-target-constraint` | the target constrains a computed value in a way the proof does not compare: a regular expression, a validator, or alternatives with gaps; a list literal or a mapped list is written to a target list with a validator other than `list.MinItems` and `list.MaxItems`; a struct written to a disjunctive target fits several of its alternatives, or mixes plain fields with arms or embeddings; or a list literal, a mapped list's elements, or a computed value is written beneath a disjunction | express the constraint with `>=`, `<=` or a sized type, or make a string target accept any string; at a disjunctive target write one struct per alternative, its fields unconditional, with a constant field telling the alternatives apart, each in its own arm |
-| `unknown-table-key` | a table is indexed by a value that is not a finite set of string constants | index by an input field whose alternatives are string constants |
-| `unknown-head` | the first element of a list built by a comprehension is taken with no unconditional fallback, or with one that is itself conditional | add an unconditional fallback element: `[if c {x}, y][0]` |
+| `source-constrained` | [E0303](errors/E0303.md) | the lens constrains the field it takes with anything but `_`: a type, a field or a default |
+| `copy-narrowed` | [E0360](errors/E0360.md) | a copied value has an instance the target rejects: a kind, bound, alternative, constant or field the target lacks, a field it requires that the source does not declare, or a default differing from the source's |
+| `source-absent` | [E0361](errors/E0361.md) | a path the lens reads may be absent where it is read: an optional field, an element past a list's minimum length, or a field beneath `_`, with no presence or type test establishing it |
+| `source-undeclared` | [E0362](errors/E0362.md) | the lens reads a path the source schema does not declare, such as a key only a pattern constraint matches |
+| `target-undeclared` | [E0305](errors/E0305.md) | the lens writes a path the target schema does not declare, such as a key only a pattern constraint matches |
+| `pattern-absent` | [E0364](errors/E0364.md) | an equality tests a path that may be absent. CUE makes comparing an absent field an error, not `false` |
+| `not-a-value` | [E0365](errors/E0365.md) | a result field is a constraint (`int`, `_`), an error (`_\|_`), or a disjunction, where an instance needs one concrete value; or a lacuna's type is not a literal |
+| `literal-not-instance` | [E0366](errors/E0366.md) | a literal, struct or list is not an instance of the target at its path: a wrong kind, a value outside the target, a list of the wrong length, a struct no alternative of a disjunctive target accepts |
+| `computed-narrowed` | [E0367](errors/E0367.md) | a computed value has a possible result the target rejects: a kind the target lacks, a boolean it does not accept, or an integer outside its bounds |
+| `required-not-written` | [E0368](errors/E0368.md) | a field the target requires is never written on some path through the lens |
+| `write-conflict` | [E0369](errors/E0369.md) | a path, a hidden field's included, is written twice with values that may disagree, or as instances of two alternatives of a disjunctive target |
+| `arith-overflow` | [E0370](errors/E0370.md) | an integer operation's result may exceed `int64` |
+| `division-by-zero` | [E0371](errors/E0371.md) | a divisor is zero for some instance |
+| `table-key-missing` | [E0372](errors/E0372.md) | a table is indexed by a value with no entry |
+
+| Rule | Code | Unknown when | What to do |
+|---|---|---|---|
+| `unknown-copy` | [E0380](errors/E0380.md) | the compatibility rules cannot decide whether the copied value fits the target: a constraint between fields, a pending comprehension, a validator, or a disjunction they cannot match; or a list is mapped element by element from a source list whose validator may bound its length where the target's bounds need it | copy a value whose schemas the compatibility rules decide (see their Unknown table) |
+| `unknown-pattern` | [E0381](errors/E0381.md) | an arm's condition is not a pattern (a presence test, an equality or a type test on an input field, or a conjunction of these); a lacuna's condition is neither a pattern nor a boolean the computed rules prove; or an equality tests a field that may be a float | write the condition as a pattern, testing one input field at a time; test a number's type before comparing it |
+| `unknown-exhaustive` | [E0382](errors/E0382.md) | a required field is written only under patterns that cannot be proven to cover every instance; or a field reads a result field written only under patterns that cannot be proven to hold wherever the reader is written | write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field; write a reader under the patterns of the field it reads |
+| `unknown-op` | [E0383](errors/E0383.md) | a computation uses an operation outside the proven set: `/`, a float, a builtin not listed above, or `&` or `\|` within an expression; or a call constrains the result | use the listed operations, with `quo` or `div` for integer division; write the result as a struct |
+| `unknown-dynamic` | [E0384](errors/E0384.md) | fields are produced by a `for` clause or a computed label, or list elements by a comprehension that filters, nests `for` clauses, or sits beside other elements | write each field by name; map a list with one comprehension over one source list, every element |
+| `unknown-reference` | [E0385](errors/E0385.md) | the lens reads something that cannot be followed to the input or to a constant: a computed index or label, or a selection into a comprehension's output | select fields by name |
+| `unknown-bounds` | [E0386](errors/E0386.md) | an integer operand has no finite bounds, so the result cannot be proven to fit `int64` or the target, or an operand occurs more than once. Bounds that contain the target's refute nothing when the result need not take them, as with `len` | bound the fields the computation reads (`int32`, `>=0 & <=100`) |
+| `unknown-divisor` | [E0387](errors/E0387.md) | a divisor's bounds include zero, though zero may not be an instance | bound the divisor away from zero (`>0` or `<0`) |
+| `unknown-target-constraint` | [E0388](errors/E0388.md) | the target constrains a computed value in a way the proof does not compare: a regular expression, a validator, or alternatives with gaps; a list literal or a mapped list is written to a target list with a validator other than `list.MinItems` and `list.MaxItems`; a struct written to a disjunctive target fits several of its alternatives, or mixes plain fields with arms or embeddings; or a list literal, a mapped list's elements, or a computed value is written beneath a disjunction | express the constraint with `>=`, `<=` or a sized type, or make a string target accept any string; at a disjunctive target write one struct per alternative, its fields unconditional, with a constant field telling the alternatives apart, each in its own arm |
+| `unknown-table-key` | [E0389](errors/E0389.md) | a table is indexed by a value that is not a finite set of string constants | index by an input field whose alternatives are string constants |
+| `unknown-head` | [E0390](errors/E0390.md) | the first element of a list built by a comprehension is taken with no unconditional fallback, or with one that is itself conditional | add an unconditional fallback element: `[if c {x}, y][0]` |
 
 Every rule has a recorded case in the repository's lens corpus
 (`internal/lenscheck/testdata`).

@@ -20,7 +20,7 @@ lineage declared in another package and imported or re-exported. A change to
 ```
 #description: A schema in the text refers to the lineage's name. A schema may refer only to its own body, so this is ref-lineage-meta.
 #expect: E0141
-#spec: docs/invariants.md:116-118, docs/invariants.md:220
+#spec: docs/invariants.md:116-118, docs/invariants.md:221
 #at: lin.h
 -- in.cue --
 import "github.com/sdboyer/thema"
