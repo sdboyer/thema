@@ -10,6 +10,7 @@ import (
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/ast"
+	"cuelang.org/go/cue/ast/astutil"
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/format"
 	"cuelang.org/go/cue/parser"
@@ -136,29 +137,68 @@ func TestExtractMatchesUpstream(t *testing.T) {
 	}
 }
 
-// TestKnownGaps: what Extract does wrong today, each case naming the issue
-// it waits on.
-func TestKnownGaps(t *testing.T) {
-	// A description holding U+FEFF is written raw into a doc comment, and
-	// CUE's scanner refuses the rune anywhere but at the start of a file, so
-	// the output doesn't parse. Upstream's Extract writes the same. A comment
-	// has no escapes, so a fix changes the text or refuses it (#366).
-	t.Run("U+FEFF in a description", func(t *testing.T) {
-		v := cuecontext.New().Encode(oneProperty(map[string]any{
-			"description": "a" + string(rune(0xfeff)) + "b",
-		}))
-		for name, extract := range map[string]func() (*ast.File, error){
-			"Extract":          func() (*ast.File, error) { return Extract(v, nil) },
-			"upstream Extract": func() (*ast.File, error) { return upopenapi.Extract(v, &upopenapi.Config{}) },
-		} {
-			f, err := extract()
+// TestCommentBOM checks that text holding U+FEFF, which Extract writes into
+// a comment, is written with U+2060 in its place, so that the output parses.
+// CUE's scanner refuses U+FEFF anywhere but at the start of a file, and a
+// comment has no escapes.
+func TestCommentBOM(t *testing.T) {
+	bom, wj := string(rune(0xfeff)), string(rune(0x2060))
+	// Each BOM in a document is CUE's escape for U+FEFF.
+	src := func(s string) string { return strings.ReplaceAll(s, "BOM", `\u`+"feff") }
+	for name, c := range map[string]struct {
+		doc     string
+		extract func(v cue.Value) (*ast.File, error)
+		// want is text the decoder writes into a comment.
+		want []string
+	}{
+		"openapi": {
+			doc: src(`{
+				openapi: "3.0.0"
+				info: {title: "tBOM", version: "1", description: "iBOMd"}
+				paths: {}
+				components: schemas: S: {type: "object", properties: p: {type: "string", description: "pBOMd"}}
+			}`),
+			extract: func(v cue.Value) (*ast.File, error) { return Extract(v, &ExtractConfig{PkgName: "p"}) },
+			want:    []string{"t" + wj, "i" + wj + "d", "p" + wj + "d"},
+		},
+		"jsonschema": {
+			doc:     src(`{type: "object", properties: p: {type: "string", title: "pBOMt", description: "pBOMd"}}`),
+			extract: func(v cue.Value) (*ast.File, error) { return jsonschema.Extract(v, &jsonschema.Config{}) },
+			want:    []string{"p" + wj + "t", "p" + wj + "d"},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			v := cuecontext.New().CompileString(c.doc)
+			if err := v.Err(); err != nil {
+				t.Fatal(err)
+			}
+			f, err := c.extract(v)
 			if err != nil {
-				t.Fatalf("%s: %v", name, err)
+				t.Fatal(err)
 			}
-			_, err = parser.ParseFile("p.cue", formatFile(t, f))
-			if err == nil || !strings.Contains(err.Error(), "illegal byte order mark") {
-				t.Errorf("%s's output: %v; want it refused for its byte order mark, until the issue is fixed", name, err)
+			out := formatFile(t, f)
+			if _, err := parser.ParseFile("p.cue", out); err != nil {
+				t.Fatalf("Extract's output does not parse: %v\n%s", err, out)
 			}
-		}
-	})
+			var texts []string
+			for _, cg := range ast.Comments(f) {
+				texts = append(texts, cg.Text())
+			}
+			astutil.Apply(f, func(c astutil.Cursor) bool {
+				for _, cg := range ast.Comments(c.Node()) {
+					texts = append(texts, cg.Text())
+				}
+				return true
+			}, nil)
+			all := strings.Join(texts, "\n")
+			if strings.Contains(all, bom) {
+				t.Errorf("comments %q hold U+FEFF", all)
+			}
+			for _, w := range c.want {
+				if !strings.Contains(all, w) {
+					t.Errorf("comments %q: want %q, its U+FEFF written as U+2060", all, w)
+				}
+			}
+		})
+	}
 }

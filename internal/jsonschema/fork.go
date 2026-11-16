@@ -61,7 +61,8 @@ var currentExperiments = &targetExperiments{
 	StructCmp: true,
 }
 
-// NewComment is cuelang.org/go/internal.NewComment, copied.
+// NewComment is cuelang.org/go/internal.NewComment, copied, but for U+FEFF
+// (thema).
 //
 // NewComment creates a new CommentGroup from the given text.
 // Each line is prefixed with "//" and the last newline is removed.
@@ -70,6 +71,11 @@ func NewComment(isDoc bool, s string) *ast.CommentGroup {
 	if s == "" {
 		return nil
 	}
+	// thema: U+FEFF is written as U+2060 WORD JOINER, which Unicode
+	// recommends in its place as a zero-width no-break space. CUE's scanner
+	// refuses U+FEFF anywhere but at the start of a file, and a comment has
+	// no escapes.
+	s = strings.ReplaceAll(s, "\uFEFF", "\u2060")
 	cg := &ast.CommentGroup{Doc: isDoc}
 	if !isDoc {
 		cg.Line = true
