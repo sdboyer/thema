@@ -1,6 +1,6 @@
 #description: A schema in the text uses Kind, a let the text declares beside its schemas and binds to a literal. The let is declared in the lineage outside the schema, so this is ref-lineage-meta, as testdata/known/ref-lineage-let-literal.txtar records.
 #expect: E0141
-#spec: docs/invariants.md:116-118, docs/invariants.md:220
+#spec: docs/invariants.md:116-118, docs/invariants.md:221
 #at: lin.h
 #known/together: #130 the evaluator substitutes a let bound to a literal, and the reference check does not compare the let's declaration position with the schema's span, so it sees a literal.
 #known/compose: #130 the evaluator substitutes a let bound to a literal, and the reference check does not compare the let's declaration position with the schema's span, so it sees a literal.

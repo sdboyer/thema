@@ -70,7 +70,7 @@ lenses: {
       },
       "notes": [
         {
-          "label": "a lens must be total: every instance of schema v0.0 must translate to an instance of schema v1.0 (totality rule table-key-missing)"
+          "label": "a lens must be total: every instance of schema v0.0 must translate to an instance of schema v1.0"
         }
       ]
     }
@@ -88,4 +88,4 @@ error[E0372]: u in the result of lens v0.0->v1.0 indexes a table by v0_0.t, whic
 23 |             u: _T[v0_0.t]
    |                ^^
    |
-   = note: a lens must be total: every instance of schema v0.0 must translate to an instance of schema v1.0 (totality rule table-key-missing)
+   = note: a lens must be total: every instance of schema v0.0 must translate to an instance of schema v1.0

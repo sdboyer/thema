@@ -30,5 +30,4 @@ error[E0141]: joinSchema refers to _EmbedRef, which is declared in the lineage o
 5 | joinSchema: {
   | ^^^^^^^^^^
   |
-  = note: reference rule ref-lineage-meta
   = help: a joinSchema may refer only to its own body and CUE's builtin packages

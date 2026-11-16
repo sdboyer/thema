@@ -24,4 +24,4 @@ package common
 
 #Name: string
 -- expect --
-bind fail ref-import
+bind fail E0143

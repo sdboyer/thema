@@ -39,4 +39,4 @@ shipLineage: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail ref-lens-to-schema
+bind fail E0144

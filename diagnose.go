@@ -283,7 +283,7 @@ func (ml *maybeLineage) totalityDiag(f lenscheck.Finding, from, to SyntacticVers
 	addr := lensAddress(f.Path, from, to)
 	b := ml.diag(code).Addr(addr).At(f.Pos)
 	statement(b, ml.term(addr)+" "+diag.RewriteFor(ml.vocab(), addr, f.Detail), ml.term(addr)+" is not total for some instance")
-	b.Notef(token.NoPos, "a lens must be total: every instance of %s must translate to an instance of %s (totality rule %s)", ml.term(schemaAddr(from)), ml.term(schemaAddr(to)), f.Rule)
+	b.Notef(token.NoPos, "a lens must be total: every instance of %s must translate to an instance of %s", ml.term(schemaAddr(from)), ml.term(schemaAddr(to)))
 	if h, ok := diag.RewriteHelpFor(ml.vocab(), addr, f.Help); f.Help != "" && ok {
 		b.Help(h)
 	}
@@ -464,5 +464,5 @@ func (ml *maybeLineage) refDiag(o refOwner, f refFinding) error {
 	} else {
 		b.Headlinef("%s refers to %s", subject, f.expr).Note(token.NoPos, sentence)
 	}
-	return b.Notef(token.NoPos, "reference rule %s", f.rule).Help(f.help(o)).Err()
+	return b.Help(f.help(o)).Err()
 }

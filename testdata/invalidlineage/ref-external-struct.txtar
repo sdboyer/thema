@@ -28,5 +28,4 @@ error[E0141]: aBaz in schema v0.0 refers to #Baz, which is declared in the linea
 8 |             aBaz: #Baz
   |                   ^^^^
   |
-  = note: reference rule ref-lineage-meta
   = help: a schema may refer only to its own body and CUE's builtin packages

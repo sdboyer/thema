@@ -24,5 +24,4 @@ error[E0141]: someField in schema v0.0 refers to #Baz, which is declared in the 
 8 |             someField: #Baz
   |                        ^^^^
   |
-  = note: reference rule ref-lineage-meta
   = help: a schema may refer only to its own body and CUE's builtin packages

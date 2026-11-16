@@ -26,4 +26,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail unknown-exhaustive
+bind fail E0382

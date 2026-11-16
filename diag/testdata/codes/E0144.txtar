@@ -1,9 +1,8 @@
 #op: bind
 #path: lin
 A lens returns a field of a schema, read through the lineage. A lens may
-refer only to the instance it takes, its own body and CUE's builtin packages
-(reference rule ref-lens-to-schema); it builds what it returns from the
-instance it takes.
+refer only to the instance it takes, its own body and CUE's builtin
+packages; it builds what it returns from the instance it takes.
 -- lineage.cue --
 lin: {
 	name: "ship"
@@ -55,11 +54,6 @@ lin: {
         "offset": 221,
         "origin": "user"
       },
-      "notes": [
-        {
-          "label": "reference rule ref-lens-to-schema"
-        }
-      ],
       "help": [
         "a lens may refer only to v0_0, the instance it takes, its own body and CUE's builtin packages"
       ]
@@ -78,5 +72,4 @@ error[E0144]: v1_0.b in lens v0.0->v1.0 refers to schemas["0"]["0"].schema.a, a 
 18 |             v1_0: {b: lin.schemas["0"]["0"].schema.a}
    |                       ^^^
    |
-   = note: reference rule ref-lens-to-schema
    = help: a lens may refer only to v0_0, the instance it takes, its own body and CUE's builtin packages

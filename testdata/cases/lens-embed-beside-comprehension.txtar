@@ -27,4 +27,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail copy-narrowed
+bind fail error[E0360]: the result of lens v0.0->v1.0 copies v0_0, whose a is now int & <10

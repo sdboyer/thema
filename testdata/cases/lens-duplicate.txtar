@@ -30,4 +30,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail write-conflict
+bind fail E0369

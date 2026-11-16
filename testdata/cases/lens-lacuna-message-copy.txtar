@@ -26,4 +26,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail copy-narrowed
+bind fail error[E0360]: message of lacuna 0 of lens v0.0->v1.0 copies v0_0.a, which was int and is now string

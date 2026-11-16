@@ -1,6 +1,6 @@
 #description: The lens from 0.0 to 1.0 in the text takes its field's value from schema 0.0 instead of from the instance it takes. A lens referring to a schema of the lineage is ref-lens-to-schema.
 #expect: E0144
-#spec: docs/invariants.md:124-130, docs/invariants.md:223
+#spec: docs/invariants.md:124-130, docs/invariants.md:224
 #at: lin.h
 -- in.cue --
 import "github.com/sdboyer/thema"

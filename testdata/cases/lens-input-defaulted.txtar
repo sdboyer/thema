@@ -22,4 +22,5 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail source-constrained
+bind fail error[E0303]: the input of lens v0.0->v1.0 is not total for some instance
+bind fail the input of lens v0.0->v1.0 is {a: *"y" | string}, a constraint on what the lens receives

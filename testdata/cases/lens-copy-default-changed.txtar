@@ -23,4 +23,5 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail copy-narrowed
+bind fail error[E0360]: the result of lens v0.0->v1.0 is not total for some instance
+bind fail whose a fills with 2 when absent, where the source schema filled it with 1

@@ -5,11 +5,13 @@ package diagtest
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"unicode"
 
 	"github.com/sdboyer/thema/diag"
+	"github.com/sdboyer/thema/internal/rulecodes"
 )
 
 // Form is the authoring form a corpus's input was written in. It decides which
@@ -26,7 +28,8 @@ const (
 )
 
 // Terms no headline, note or help may use, whatever the form: thema's kernel
-// and pipeline.
+// and pipeline. A term is matched where it begins a word, so that an author's
+// identifier ending in one (shipLineage.schemas) is not taken for it.
 var kernelTerms = []string{
 	"_accum", "_schema", "_join", "_lens", "_version", "_ordered", "_counts", "#closed",
 	"steps.", "Translate.out", "Lineage.", "SchemaDef", "/github.com/sdboyer/thema",
@@ -55,10 +58,22 @@ var (
 	// do is help, on its own line, so that a reader finds the problem and the
 	// fix each in its own place.
 	fixInText = regexp.MustCompile(`[:;] (write|add|declare|say|use|make|compare|remove|map|give|rename|move|drop|bound|mark|cut|select|iterate|unify|choose|express|index|test|split|keep) `)
-	// The compatibility checker's name for one of its rules. The rule is the
-	// checker's vocabulary, not the author's: a diagnostic says what is wrong,
-	// and its code's page explains the rule.
-	ruleName = regexp.MustCompile(`\(rule [a-z-]+\)|\bcompat(ibility)? rule [a-z-]+`)
+	// A checker's identifier for one of its rules, or the "(rule x)" its
+	// findings end in: the compatibility and totality checkers' rules, which
+	// rulecodes maps to their codes, and the reference checker's, which all
+	// begin ref-. The rule is the checker's vocabulary, not the author's: a
+	// diagnostic says what is wrong, and its code's page explains the rule.
+	ruleName = func() *regexp.Regexp {
+		var names []string
+		for r := range rulecodes.Compat {
+			names = append(names, regexp.QuoteMeta(string(r)))
+		}
+		for r := range rulecodes.Lenscheck {
+			names = append(names, regexp.QuoteMeta(string(r)))
+		}
+		slices.Sort(names)
+		return regexp.MustCompile(`\(rule [a-z-]+\)|(^|[^a-z0-9-])(` + strings.Join(names, "|") + `|ref-[a-z]+(-[a-z]+)*)($|[^a-z0-9-])`)
+	}()
 )
 
 // Lint checks ds against the mechanical authoring rules, failing t for each
@@ -79,6 +94,12 @@ func Lint(t testing.TB, ds []diag.Diagnostic, form Form) {
 		for j, h := range d.Help {
 			lintText(t, fmt.Sprintf("%s help %d", where, j), h, form, false, true)
 		}
+		// The detail is CUE's text or a cause's, held so as not to drop it;
+		// only a rule name is out of place there. An internal error's detail is
+		// for whoever fixes thema, and names what they need.
+		if d.Code != diag.E0901 && ruleName.MatchString(d.Detail) {
+			t.Errorf("%s detail: names a checker's rule; say what is wrong instead: %q", where, d.Detail)
+		}
 		if d.Primary != nil && d.Primary.Origin == diag.OriginThema {
 			t.Errorf("%s: primary position is in thema's own CUE (%s); the primary is always the author's", where, d.Primary)
 		}
@@ -97,7 +118,7 @@ func lintText(t testing.TB, where, s string, form Form, headline, help bool) {
 		return
 	}
 	for _, term := range kernelTerms {
-		if strings.Contains(s, term) {
+		if beginsWord(s, term) {
 			t.Errorf("%s: uses the kernel term %q: %q", where, term, s)
 		}
 	}
@@ -120,7 +141,7 @@ func lintText(t testing.TB, where, s string, form Form, headline, help bool) {
 		t.Errorf("%s: says what to do after the problem; move it to help: %q", where, s)
 	}
 	if ruleName.MatchString(s) {
-		t.Errorf("%s: names a compatibility rule; say what is wrong instead: %q", where, s)
+		t.Errorf("%s: names a checker's rule; say what is wrong instead: %q", where, s)
 	}
 	if !headline {
 		return
@@ -167,6 +188,26 @@ func containsWord(s, term string) bool {
 
 func isWordByte(b byte) bool {
 	return b == '_' || ('a' <= b && b <= 'z') || ('A' <= b && b <= 'Z') || ('0' <= b && b <= '9')
+}
+
+// beginsWord reports whether s contains term where a word begins. A term that
+// begins with a letter must not follow one, so that "Lineage." is found in
+// "Lineage.schemas" but not in an author's "shipLineage.schemas"; a term that
+// begins with a separator (_accum, #closed, /github.com/...) is found anywhere.
+func beginsWord(s, term string) bool {
+	if term == "" || !unicode.IsLetter(rune(term[0])) {
+		return strings.Contains(s, term)
+	}
+	for i := 0; ; {
+		j := strings.Index(s[i:], term)
+		if j < 0 {
+			return false
+		}
+		if start := i + j; start == 0 || !isWordByte(s[start-1]) {
+			return true
+		}
+		i += j + 1
+	}
 }
 
 // startsWithIdentifier allows a headline to begin with a capitalized name the

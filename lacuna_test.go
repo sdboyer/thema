@@ -163,7 +163,7 @@ func TestLacunaBindChecks(t *testing.T) {
 		errText string
 	}{
 		"well-formed":                    {`[thema.Lacuna & {condition: v0_1.b != _|_, sourceFields: [{path: "b", value: v0_1.b}], targetFields: [{path: "nested.x", value: v0_0.nested.x}], message: "m", type: "DroppedField"}]`, ""},
-		"value may be absent":            {`[thema.Lacuna & {sourceFields: [{path: "b", value: v0_1.b}], message: "m", type: "DroppedField"}]`, "source-absent"},
+		"value may be absent":            {`[thema.Lacuna & {sourceFields: [{path: "b", value: v0_1.b}], message: "m", type: "DroppedField"}]`, "error[E0361]"},
 		"conditional list":               {`[if v0_1.b != _|_ {thema.Lacuna & {message: "m", type: "DroppedField"}}]`, "listed unconditionally"},
 		"conditional list via let":       {"L\n\t\tlet L = [if v0_1.b != _|_ {thema.Lacuna & {message: \"m\", type: \"DroppedField\"}}]", "listed unconditionally"},
 		"source path not in from schema": {`[thema.Lacuna & {sourceFields: [{path: "nope", value: 1}], message: "m", type: "DroppedField"}]`, `names nope in sourceFields[0], which schema v0.1 does not declare`},

@@ -28,4 +28,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail source-absent
+bind fail E0361

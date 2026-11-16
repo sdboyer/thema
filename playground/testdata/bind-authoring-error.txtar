@@ -64,7 +64,7 @@ Schema: {
       },
       "notes": [
         {
-          "label": "a lens must be total: every instance of the schema of v0.0 must translate to an instance of the schema of v1.0 (totality rule computed-narrowed)"
+          "label": "a lens must be total: every instance of the schema of v0.0 must translate to an instance of the schema of v1.0"
         }
       ]
     }

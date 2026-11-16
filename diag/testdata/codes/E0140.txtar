@@ -3,8 +3,7 @@
 A schema reads a field of another schema through the lineage. A schema may
 refer only to its own body and CUE's builtin packages: one reached through the
 lineage's schemas is another schema, and this schema's meaning would then live
-in that one (reference rule ref-sibling-schema). Each schema declares its own
-fields.
+in that one. Each schema declares its own fields.
 -- lineage.cue --
 lin: {
 	name: "ship"
@@ -50,11 +49,6 @@ lin: {
         "offset": 100,
         "origin": "user"
       },
-      "notes": [
-        {
-          "label": "reference rule ref-sibling-schema"
-        }
-      ],
       "help": [
         "a schema may refer only to its own body and CUE's builtin packages"
       ]
@@ -73,5 +67,4 @@ error[E0140]: a in schema v0.1 refers to schemas["0"]["0"].schema.a, a schema in
 8 |             schema: {a: lin.schemas["0"]["0"].schema.a, b?: int}
   |                         ^^^
   |
-  = note: reference rule ref-sibling-schema
   = help: a schema may refer only to its own body and CUE's builtin packages

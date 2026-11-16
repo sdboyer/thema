@@ -34,7 +34,6 @@ error[E0141]: ref in joinSchema refers to _ExRef, which is declared in the linea
 6 |     ref: _ExRef
   |          ^^^^^^
   |
-  = note: reference rule ref-lineage-meta
   = help: a joinSchema may refer only to its own body and CUE's builtin packages
 
 error[E0141]: refdef in joinSchema refers to #ExRefDef, which is declared in the lineage outside the joinSchema
@@ -43,5 +42,4 @@ error[E0141]: refdef in joinSchema refers to #ExRefDef, which is declared in the
 7 |     refdef: #ExRefDef
   |             ^^^^^^^^^
   |
-  = note: reference rule ref-lineage-meta
   = help: a joinSchema may refer only to its own body and CUE's builtin packages

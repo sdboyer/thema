@@ -30,4 +30,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail arith-overflow
+bind fail E0370

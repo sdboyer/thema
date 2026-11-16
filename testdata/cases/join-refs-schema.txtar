@@ -26,4 +26,4 @@ lin: thema.Lineage & {
 	}
 }
 -- expect --
-bind fail ref-sibling-schema
+bind fail E0140

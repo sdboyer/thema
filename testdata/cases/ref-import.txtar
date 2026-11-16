@@ -23,4 +23,4 @@ package common
 
 #Color: "red" | "blue"
 -- expect --
-bind fail ref-import
+bind fail E0143
