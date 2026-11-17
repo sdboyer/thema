@@ -24,14 +24,14 @@ Schema: {
     {
       "code": "E0629",
       "severity": "error",
-      "headline": "operations/get/query/history holds version files, but the lineage's history is .history/operations/get/query/history",
+      "headline": "operations/get/query/history holds .thema files, but the lineage's history is .history/operations/get/query/history",
       "notes": [
         {
           "label": "it holds 0.0.thema"
         }
       ],
       "help": [
-        "keep the lineage's versions in one history/, .history/operations/get/query/history"
+        "keep the lineage's history in one directory, .history/operations/get/query/history"
       ]
     }
   ],
@@ -42,7 +42,7 @@ Schema: {
   }
 }
 -- out/text --
-error[E0629]: operations/get/query/history holds version files, but the lineage's history is .history/operations/get/query/history
+error[E0629]: operations/get/query/history holds .thema files, but the lineage's history is .history/operations/get/query/history
   |
   = note: it holds 0.0.thema
-  = help: keep the lineage's versions in one history/, .history/operations/get/query/history
+  = help: keep the lineage's history in one directory, .history/operations/get/query/history

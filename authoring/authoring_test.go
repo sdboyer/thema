@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"maps"
+	"path"
 	"slices"
 	"strings"
 	"testing"
@@ -290,10 +291,13 @@ BackwardLens: {
 // A lineage whose history is kept in a tree of its own, HistoryAt's: loaded
 // from there, compiled with its versions positioned there, and cut to
 // history/ as File.Path, for the caller to write there.
+// v00File is where 0.0 is in a lineage, by File.Path.
+var v00File = path.Join(authoring.HistoryDir, "0.0.thema")
+
 func TestHistoryAt(t *testing.T) {
 	const dir, hist = "ship", ".history/ship"
 	split := fstest.MapFS{
-		hist + "/history/0.0.thema": {Data: []byte(v00)},
+		hist + "/" + v00File:        {Data: []byte(v00)},
 		hist + "/history/1.0.thema": {Data: []byte(v10)},
 		dir + "/tip.thema":          {Data: []byte(tip)},
 	}
@@ -309,7 +313,7 @@ func TestHistoryAt(t *testing.T) {
 		for _, f := range files {
 			paths = append(paths, f.Path)
 		}
-		if want := []string{authoring.TipFile, "history/0.0.thema", "history/1.0.thema"}; name != dir || !slices.Equal(paths, want) {
+		if want := []string{authoring.TipFile, v00File, "history/1.0.thema"}; name != dir || !slices.Equal(paths, want) {
 			t.Fatalf("Load: %q %v, want %q %v", name, paths, dir, want)
 		}
 		c, err := authoring.Compile(ctx, name, files, opts...)
@@ -337,8 +341,8 @@ func TestHistoryAt(t *testing.T) {
 
 	t.Run("cut", func(t *testing.T) {
 		fsys := fstest.MapFS{
-			hist + "/history/0.0.thema": {Data: []byte(v00)},
-			dir + "/tip.thema":          {Data: []byte(renameTip)},
+			hist + "/" + v00File: {Data: []byte(v00)},
+			dir + "/tip.thema":   {Data: []byte(renameTip)},
 		}
 		_, files, err := authoring.Load(fsys, dir, opts...)
 		if err != nil {
@@ -348,8 +352,22 @@ func TestHistoryAt(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got := []string{cut.Written[0].Path, cut.Written[1].Path}; !slices.Equal(got, []string{"history/1.0.thema", authoring.TipFile}) {
+		var got []string
+		for _, f := range cut.Written {
+			got = append(got, f.Path)
+		}
+		if !slices.Equal(got, []string{"history/1.0.thema", authoring.TipFile}) {
 			t.Errorf("wrote %v", got)
+		}
+	})
+
+	t.Run("the lineage's own directory", func(t *testing.T) {
+		local := fstest.MapFS{
+			dir + "/history/0.0.thema": {Data: []byte(v00)},
+			dir + "/tip.thema":         {Data: []byte(v00)},
+		}
+		if _, files, err := authoring.Load(local, dir, authoring.HistoryAt(dir)); err != nil || len(files) != 2 {
+			t.Errorf("HistoryAt(%q): %d files, %v", dir, len(files), diag.Diagnostics(err))
 		}
 	})
 
@@ -385,11 +403,21 @@ func TestHistoryAt(t *testing.T) {
 		}{
 			{"invalid HistoryAt", dir, authoring.HistoryAt("../ship"), diag.E0625},
 			{"no lineage directory", "boat", authoring.HistoryAt(hist), diag.E0601},
+			{"invalid At", dir, authoring.At("../ship"), diag.E0625},
 		} {
 			_, _, err := authoring.Load(split, c.dir, c.opt)
 			if got := diag.Diagnostics(err); len(got) != 1 || got[0].Code != c.want {
 				t.Errorf("%s: %v, want %s", c.name, got, c.want)
 			}
+		}
+
+		// A lineage directory that is a file is reported as itself, before
+		// its own history/ is looked for.
+		file := fstest.MapFS{"boat": {Data: []byte(v00)}}
+		maps.Copy(file, split)
+		_, _, err := authoring.Load(file, "boat", authoring.HistoryAt(hist))
+		if got := diag.Diagnostics(err); len(got) != 1 || got[0].Code != diag.E0601 || got[0].Headline != "boat cannot be read" {
+			t.Errorf("a file for the lineage's directory: %v, want E0601 naming boat", got)
 		}
 	})
 }

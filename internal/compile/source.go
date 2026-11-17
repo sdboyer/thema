@@ -57,45 +57,44 @@ const (
 // the files are laid out as a lineage is for the compiler to say, so that
 // every misplaced file is reported with the others.
 //
-// With [HistoryAt], the frozen versions are read from its directory's
+// With [HistoryAt], the files under history/ are read from its directory's
 // history/ in place of dir's, and given the same File.Path,
-// history/<major>.<minor>.thema. A version file in dir/history as well is an
-// error (E0629): the lineage would have two histories.
+// history/<major>.<minor>.thema. A file with [Ext] in dir/history as well is
+// an error (E0629): the lineage would have two histories.
 func Load(fsys fs.FS, dir string, opts ...Option) (name string, files []File, err error) {
-	var o options
-	for _, opt := range opts {
-		opt(&o)
+	o, err := resolve(opts, nil)
+	if err != nil {
+		return "", nil, err
 	}
-	hist := dir
+	top, err := themaFiles(fsys, dir, false)
+	if err != nil {
+		return "", nil, err
+	}
+	own, hist := path.Join(dir, HistoryDir), path.Join(dir, HistoryDir)
 	if o.setHistory {
-		if err = checkDir(o.history, historyWhat, historyHelp); err != nil {
-			return "", nil, err
-		}
-		hist = o.history
+		hist = path.Join(o.history, HistoryDir)
+	}
+	if hist != own {
 		var stray []string
-		switch stray, err = listVersions(fsys, path.Join(dir, HistoryDir), true); {
+		switch stray, err = themaFiles(fsys, own, true); {
 		case err != nil:
 			return "", nil, err
 		case len(stray) > 0:
 			return "", nil, diag.New(diag.E0629).
-				Headlinef("%s/%s holds version files, but the lineage's history is %s/%s", dir, HistoryDir, o.history, HistoryDir).
+				Headlinef("%s holds %s files, but the lineage's history is %s", own, Ext, hist).
 				Notef(token.NoPos, "it holds %s", strings.Join(stray, ", ")).
-				Helpf("keep the lineage's versions in one history/, %s/%s", o.history, HistoryDir).
+				Helpf("keep the lineage's history in one directory, %s", hist).
 				Err()
 		}
 	}
-	top, err := listVersions(fsys, dir, false)
-	if err != nil {
-		return "", nil, err
-	}
-	versions, err := listVersions(fsys, path.Join(hist, HistoryDir), true)
+	versions, err := themaFiles(fsys, hist, true)
 	if err != nil {
 		return "", nil, err
 	}
 	for _, d := range []struct {
 		dir, as string
 		names   []string
-	}{{dir, "", top}, {path.Join(hist, HistoryDir), HistoryDir, versions}} {
+	}{{dir, "", top}, {hist, HistoryDir, versions}} {
 		for _, n := range d.names {
 			p := path.Join(d.dir, n)
 			b, err := fs.ReadFile(fsys, p)
@@ -108,10 +107,10 @@ func Load(fsys fs.FS, dir string, opts ...Option) (name string, files []File, er
 	return path.Base(dir), files, nil
 }
 
-// listVersions lists the names of the files with [Ext] in d, a directory of
+// themaFiles lists the names of the files with [Ext] in d, a directory of
 // fsys. A missing d lists none when optional: a lineage with no history/ has
 // no versions to read.
-func listVersions(fsys fs.FS, d string, optional bool) ([]string, error) {
+func themaFiles(fsys fs.FS, d string, optional bool) ([]string, error) {
 	ents, err := fs.ReadDir(fsys, d)
 	if err != nil {
 		if optional && errors.Is(err, fs.ErrNotExist) {

@@ -105,7 +105,10 @@ func At(dir string) Option {
 // file under history/ is positioned under dir in place of the directory At
 // gives, as dir/history/0.0.thema; the tip is positioned as At says. A dir
 // that is not a valid path is an error (E0625). A cut's File.Path is the
-// same with HistoryAt and without: it is the caller's to write under dir.
+// same with HistoryAt and without: the caller writes the frozen version,
+// history/<major>.<minor>.thema, under dir, and the tip in the lineage's
+// directory. Load, and every call that compiles the lineage, must be given
+// the same HistoryAt: without it, the lineage reads as having no history.
 func HistoryAt(dir string) Option {
 	return compile.HistoryAt(dir)
 }
