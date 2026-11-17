@@ -110,7 +110,7 @@ func At(dir string) Option {
 // same with HistoryAt and without: the caller writes the frozen version,
 // history/<major>.<minor>.thema, under dir, and the tip in the lineage's
 // directory. Load, and every call that compiles the lineage, must be given
-// the same HistoryAt, as the load package's functions are given
+// the same HistoryAt, and so must the load package's functions, as
 // [github.com/sdboyer/thema/load.HistoryAt]: Load without it reads the
 // lineage as having no history, and compiling without it positions the
 // versions where they are not.

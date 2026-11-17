@@ -98,21 +98,21 @@ func TestAuthoringLineageErrorPosition(t *testing.T) {
 var narrowingShip = fstest.MapFS{
 	"ship/history/0.0.thema": {Data: []byte("Schema: {\n\ta: int32\n}\n")},
 	"ship/history/1.0.thema": {Data: []byte(`Schema: {
-a: int32 & >=0
+	a: int32 & >=0
 }
 
 ForwardLens: {
-v0_0: _
-v1_0: {
-	a: v0_0.a * 2
-}
+	v0_0: _
+	v1_0: {
+		a: v0_0.a * 2
+	}
 }
 
 BackwardLens: {
-v1_0: _
-v0_0: {
-	a: v1_0.a
-}
+	v1_0: _
+	v0_0: {
+		a: v1_0.a
+	}
 }
 `)},
 	"ship/tip.thema": {Data: []byte("Schema: {\n\ta: int32 & >=0\n}\n")},
