@@ -49,6 +49,24 @@ lacunas: [{condition: true, sourceFields: [{path: "l", value: v0_0.l}], message:
 	}
 }
 
+// Rewrite renames a path rooted at one of the lens's instances, and leaves a
+// field of the same name alone: one selected from a struct, or named alone as
+// the subject of a sentence.
+func TestRewriteRenamesOnlyRoots(t *testing.T) {
+	v := vocab{paths: map[thema.SyntacticVersion]string{thema.SV(0, 0): "history/0.0.thema", thema.SV(1, 0): "history/1.0.thema"}}
+	a := diag.Address{Kind: diag.AddrLensResultField, From: diag.Version(thema.SV(0, 0)), To: diag.Version(thema.SV(1, 0)), Field: []string{"x"}}
+	for in, want := range map[string]string{
+		"copies v0_0.v0_0[0], which may be absent": "copies prev.v0_0[0], which may be absent",
+		"reads v0_0[0] and v1_0.m.v1_0":            "reads prev[0] and self.m.v1_0",
+		"v1_0 in the ForwardLens of v1.0 is x":     "v1_0 in the ForwardLens of v1.0 is x",
+		"v2_0.a is another lens's":                 "v2_0.a is another lens's",
+	} {
+		if got := v.Rewrite(a, in); got != want {
+			t.Errorf("Rewrite(%q):\n got %q\nwant %q", in, got, want)
+		}
+	}
+}
+
 // A sentence that describes presence tests the author's lens is written under
 // keeps every one of them: only help is ever dropped, never a clause of what
 // is wrong.

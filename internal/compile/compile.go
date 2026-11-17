@@ -238,7 +238,12 @@ func compileVersions(ctx *cue.Context, name string, vs []*version) (*Compiled, e
 			errs = cerrors.Append(errs, fe.errs)
 			continue
 		case !minor:
-			lenses.Elts = append(lenses.Elts, v.normalLens(lensField(fe.blockPos, prev.v, v.v, fwd), prev))
+			lf := lensField(fe.blockPos, prev.v, v.v, fwd)
+			if cerr := captured(lf, prev, v, fieldForward); cerr != nil {
+				errs = cerrors.Append(errs, cerr)
+				continue
+			}
+			lenses.Elts = append(lenses.Elts, v.normalLens(lf, prev))
 		}
 
 		// Backward: this version to the previous one, derived from the forward
@@ -263,7 +268,12 @@ func compileVersions(ctx *cue.Context, name string, vs []*version) (*Compiled, e
 			continue
 		}
 		errs = cerrors.Append(errs, be.errs)
-		lenses.Elts = append(lenses.Elts, v.normalLens(lensField(be.blockPos, v.v, prev.v, bwd), prev))
+		lb := lensField(be.blockPos, v.v, prev.v, bwd)
+		if cerr := captured(lb, prev, v, fieldBackward); cerr != nil {
+			errs = cerrors.Append(errs, cerr)
+			continue
+		}
+		lenses.Elts = append(lenses.Elts, v.normalLens(lb, prev))
 	}
 	if errs != nil {
 		return nil, errs
@@ -365,6 +375,14 @@ func lensBlock(f *ast.Field, from, to *version) (body, lacunas *ast.StructLit, e
 		}
 	}
 	if param == nil {
+		for _, d := range stray {
+			// A field declared _ is the instance the lens takes, written as
+			// a field rather than as the parameter.
+			if id, ok := d.Value.(*ast.Ident); ok && id.Name == "_" {
+				label, _, _ := ast.LabelName(d.Label)
+				return nil, nil, fail(d.Pos(), "%s takes its instance as its parameter, (%s), not as a field %s: _", name, in, label)
+			}
+		}
 		p := f.Pos()
 		if len(stray) > 0 {
 			p = stray[0].Pos()
@@ -379,8 +397,13 @@ func lensBlock(f *ast.Field, from, to *version) (body, lacunas *ast.StructLit, e
 		return nil, nil, fail(stray[0].Pos(), "%s is not part of %s; write it inside the braces after (%s)", label, name, in)
 	}
 	px := param.Label.(*ast.ParenExpr)
-	if id, ok := px.X.(*ast.Ident); !ok || id.Name != in || param.Constraint != token.ILLEGAL {
+	switch id, ok := px.X.(*ast.Ident); {
+	case !ok:
+		return nil, nil, fail(px.X.Pos(), "the parameter of %s is the name %s, not %s", name, in, exprText(px.X))
+	case id.Name != in:
 		return nil, nil, fail(px.X.Pos(), "%s takes an instance of %s, so its parameter is %s", name, from.name(), in)
+	case param.Constraint != token.ILLEGAL:
+		return nil, nil, fail(px.Pos(), "the parameter of %s is (%s), not (%s)%s", name, in, in, param.Constraint)
 	}
 	inner, ok := param.Value.(*ast.StructLit)
 	if !ok {
@@ -447,6 +470,69 @@ func vname(v thema.SyntacticVersion) string {
 func (v *version) normalLens(f *ast.Field, prev *version) *ast.Field {
 	renameInstances(f, map[string]string{paramPrev: paramName(prev.v), paramSelf: paramName(v.v)})
 	return f
+}
+
+// captured refuses (E0339) a field the compiled lens f writes whose name is
+// the one the normal form gives the instance the lens takes: v<prev> for a
+// ForwardLens, v<v> for a BackwardLens. CUE resolves a reference by the
+// nearest field of its name, so such a field would stand in for the instance
+// in every reference beside and beneath it, and the lens would read the field
+// where its author wrote prev or self. The instance the lens produces is
+// referred to only by its lacunas, which no field of its body is above, and a
+// quoted label is no reference's target.
+func captured(f *ast.Field, prev, v *version, block string) cerrors.Error {
+	names := map[string]string{paramName(prev.v): paramPrev}
+	if block == fieldBackward {
+		names = map[string]string{paramName(v.v): paramSelf}
+	}
+	lens := f.Value.(*ast.StructLit)
+	var errs cerrors.Error
+	for _, d := range lens.Elts {
+		switch d := d.(type) {
+		case *ast.LetClause:
+			errs = cerrors.Append(errs, capturedIn(d.Expr, f.Pos(), names, block, v))
+		case *ast.Field:
+			if name, _, _ := ast.LabelName(d.Label); name != fieldLacunas {
+				errs = cerrors.Append(errs, capturedIn(d.Value, f.Pos(), names, block, v))
+			}
+		}
+	}
+	return errs
+}
+
+// capturedIn is captured for the fields beneath n, positioned at each field
+// where it has a position, and at the lens block, p, otherwise: an implicit
+// copy is written where the author wrote nothing.
+func capturedIn(n ast.Node, p token.Pos, names map[string]string, block string, v *version) cerrors.Error {
+	var errs cerrors.Error
+	ast.Walk(n, func(n ast.Node) bool {
+		fd, ok := n.(*ast.Field)
+		if !ok {
+			return true
+		}
+		id, ok := fd.Label.(*ast.Ident)
+		if !ok {
+			return true
+		}
+		param, ok := names[id.Name]
+		if !ok {
+			return true
+		}
+		at := p
+		for _, q := range []token.Pos{fd.Label.Pos(), fd.Value.Pos()} {
+			if q.IsValid() {
+				at = q
+				break
+			}
+		}
+		errs = cerrors.Append(errs, diag.New(diag.E0339).At(at).
+			Headlinef("the %s of %s writes a field named %s, the name %s compiles to", block, v.name(), id.Name, param).
+			Notef(token.NoPos, "the compiled lens names %s %s, after its version, and a field of that name hides %s from every mapping beside and beneath it", param, id.Name, param).
+			Helpf("rename the field %s", id.Name).
+			Err())
+		return true
+	}, nil)
+	return errs
 }
 
 // renameInstances renames, in n, every reference to an instance of a lens by

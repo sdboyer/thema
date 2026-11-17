@@ -403,7 +403,7 @@ func TestLensBlockShape(t *testing.T) {
 	}{
 		{"version-named instances",
 			"ForwardLens: {\n\tv0_0: _\n\tv1_0: {crew: 1}\n}\n",
-			codeShape, noParam,
+			codeShape, "ForwardLens takes its instance as its parameter, (prev), not as a field v0_0: _",
 			"write ForwardLens: (prev): {self: {...}}, with an optional lacunas: {...} beside self"},
 		{"no parameter",
 			"ForwardLens: {\n\tself: {crew: 1}\n}\n",
@@ -416,10 +416,10 @@ func TestLensBlockShape(t *testing.T) {
 			codeShape, wrongParam, ""},
 		{"a quoted parameter",
 			"ForwardLens: (\"prev\"): {\n\tself: {crew: 1}\n}\n",
-			codeShape, wrongParam, ""},
+			codeShape, "the parameter of ForwardLens is the name prev, not \"prev\"", ""},
 		{"an optional parameter",
 			"ForwardLens: (prev)?: {\n\tself: {crew: 1}\n}\n",
-			codeShape, wrongParam, ""},
+			codeShape, "the parameter of ForwardLens is (prev), not (prev)?", ""},
 		{"a backward lens taking prev",
 			"BackwardLens: (prev): {\n\tprev: {}\n}\n",
 			codeShape, "BackwardLens takes an instance of v1.0, so its parameter is self", ""},
@@ -441,6 +441,9 @@ func TestLensBlockShape(t *testing.T) {
 		{"a parameter without a struct",
 			"ForwardLens: (prev): 5\n",
 			codeShape, "the parameter of ForwardLens is followed by a struct holding self", ""},
+		{"the parameter's struct in shorthand, in braces",
+			"ForwardLens: {\n\t(prev): self: {crew: 1}\n}\n",
+			"E0109", "ForwardLens: (prev): self: ... is CUE's struct shorthand, which a version file's ForwardLens does not use", ""},
 		{"the parameter's struct in shorthand",
 			"ForwardLens: (prev): self: {crew: 1}\n",
 			"E0109", "ForwardLens: (prev): self: ... is CUE's struct shorthand, which a version file's ForwardLens does not use",
@@ -471,6 +474,59 @@ func TestLensBlockShape(t *testing.T) {
 			}
 			if c.help != "" && (len(d.Help) != 1 || d.Help[0] != c.help) {
 				t.Errorf("help = %q, want %q", d.Help, c.help)
+			}
+		})
+	}
+}
+
+// A field a lens writes may not have the name the compiled lens gives the
+// instance it takes, v<major>_<minor>, whether the author wrote it or it is
+// an implicit copy, in either direction (E0339). The produced instance's name,
+// and a field the lens only reads, hide nothing.
+func TestCapturedFieldNames(t *testing.T) {
+	const (
+		captures = "E0339"
+		justA    = "Schema: {\n\ta: string\n}\n"
+	)
+	ctx := cuecontext.New()
+	cases := []struct {
+		name, v0, v1 string
+		want         string
+	}{
+		{"a written field",
+			justA,
+			"Schema: {\n\tv0_0: string\n\ty: string\n}\n\nForwardLens: (prev): {\n\tself: {\n\t\tv0_0: \"x\"\n\t\ty: prev.a\n\t}\n}\n",
+			captures},
+		{"a nested written field",
+			justA,
+			"Schema: {\n\tm: {v0_0: string}\n}\n\nForwardLens: (prev): {\n\tself: {\n\t\tm: {v0_0: prev.a}\n\t\ta: _drop\n\t}\n}\n",
+			captures},
+		{"the produced instance's name",
+			justA,
+			"Schema: {\n\tm: {v1_0: string}\n}\n\nForwardLens: (prev): {\n\tself: {\n\t\tm: {v1_0: prev.a}\n\t\ta: _drop\n\t}\n}\n",
+			""},
+		{"an implicit copy",
+			"Schema: {\n\ta: string\n\tv1_0: string\n}\n",
+			"Schema: {\n\tv1_0: string\n\ty: string\n}\n\nForwardLens: (prev): {\n\tself: {\n\t\ty: prev.a\n\t}\n}\n",
+			captures},
+		{"a backward field",
+			"Schema: {\n\tv1_0: string\n}\n",
+			"Schema: {\n\tb: string\n}\n\nForwardLens: (prev): {\n\tself: {\n\t\tb: prev.v1_0\n\t}\n}\n",
+			captures},
+		{"a field the lens only reads",
+			"Schema: {\n\tv0_0: string\n}\n",
+			"Schema: {\n\tb: string\n}\n\nForwardLens: (prev): {\n\tself: {\n\t\tb: prev.v0_0\n\t}\n}\n",
+			""},
+		{"another version's name",
+			justA,
+			"Schema: {\n\tv2_0: string\n\ty: string\n}\n\nForwardLens: (prev): {\n\tself: {\n\t\tv2_0: \"x\"\n\t\ty: prev.a\n\t}\n}\n",
+			""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, err := Compile(ctx, "ship", files("history/0.0.thema", c.v0, "history/1.0.thema", c.v1))
+			if got := strings.Join(codes(err), ","); got != c.want {
+				t.Fatalf("codes = %q, want %q; err: %v", got, c.want, err)
 			}
 		})
 	}

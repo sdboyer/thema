@@ -158,12 +158,27 @@ func (v vocab) Rewrite(a diag.Address, sentence string) string {
 		paramName(thema.SyntacticVersion(a.From)): param,
 		paramName(thema.SyntacticVersion(a.To)):   v.param(a, a.To),
 	}
-	return normalParam.ReplaceAllStringFunc(r.Replace(sentence), func(id string) string {
-		if to, ok := names[id]; ok {
-			return to
+	return renameRoots(r.Replace(sentence), names)
+}
+
+// renameRoots renames, in an expression quoted in s, each path rooted at an
+// instance of a lens by its name in to: v0_0.a and v0_0[0] are paths into
+// the instance, while x.v0_0 selects a field of that name, and v0_0 alone,
+// in a sentence, names the field the message is about.
+func renameRoots(s string, to map[string]string) string {
+	var b strings.Builder
+	last := 0
+	for _, m := range normalParam.FindAllStringIndex(s, -1) {
+		name, ok := to[s[m[0]:m[1]]]
+		if !ok || (m[0] > 0 && s[m[0]-1] == '.') || m[1] == len(s) || (s[m[1]] != '.' && s[m[1]] != '[') {
+			continue
 		}
-		return id
-	})
+		b.WriteString(s[last:m[0]])
+		b.WriteString(name)
+		last = m[1]
+	}
+	b.WriteString(s[last:])
+	return b.String()
 }
 
 // normalParam matches a name the normal form gives a lens's instance, v1_0.

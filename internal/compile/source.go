@@ -377,27 +377,44 @@ func parseVersion(f File, name string, tip bool) (*version, error) {
 // a brace position.
 func noShorthand(f *ast.Field) cerrors.Error {
 	outer, _, _ := ast.LabelName(f.Label)
-	inner := shorthand(f)
-	if inner == nil {
-		return nil
-	}
 	if outer == fieldSchema {
+		inner := shorthand(f)
+		if inner == nil {
+			return nil
+		}
 		label, _, _ := ast.LabelName(inner.Label)
 		return shorthandErr(inner, outer, label, outer, "a version file's three fields keep their braces, so that each reads as the block it is")
 	}
-	// A lens block's own shorthand is its parameter's. A field of any other
-	// label in its place is a block without a parameter, which lensBlock
-	// reports.
-	param, ok := inner.Label.(*ast.ParenExpr)
+	// A lens block's own shorthand is its parameter's, and the braces it
+	// keeps are the ones after the parameter, whether or not the block's own
+	// are written. A block whose parameter is missing or not alone is
+	// lensBlock's to report.
+	s, ok := f.Value.(*ast.StructLit)
 	if !ok {
 		return nil
 	}
-	body := shorthand(inner)
+	var param *ast.Field
+	for _, d := range s.Elts {
+		switch d := d.(type) {
+		case *ast.CommentGroup:
+		case *ast.Field:
+			if _, ok := d.Label.(*ast.ParenExpr); !ok || param != nil {
+				return nil
+			}
+			param = d
+		default:
+			return nil
+		}
+	}
+	if param == nil {
+		return nil
+	}
+	body := shorthand(param)
 	if body == nil {
 		return nil
 	}
 	label, _, _ := ast.LabelName(body.Label)
-	return shorthandErr(body, outer+": "+exprText(param), label, outer, "a lens keeps the braces after its parameter, so that it reads as a function of it")
+	return shorthandErr(body, outer+": "+exprText(param.Label.(*ast.ParenExpr)), label, outer, "a lens keeps the braces after its parameter, so that it reads as a function of it")
 }
 
 // shorthand is the one field of f's value when that is CUE's shorthand,

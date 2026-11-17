@@ -1,8 +1,9 @@
 #op: compile
-A version file's three fields, Schema, ForwardLens and BackwardLens, keep
-their braces, so that each reads as the block it is. CUE's struct shorthand,
-`Schema: a: b`, collapses one into a line, and is refused there. Beneath the
-three fields the shorthand is accepted; thema's formatter expands it.
+A version file's Schema keeps its braces, so that it reads as the block it
+is, and so does a lens after its parameter: `ForwardLens: (prev): {self: ...}`.
+CUE's struct shorthand, `Schema: a: b` or `ForwardLens: (prev): self: ...`,
+collapses one into a line, and is refused there. Beneath them the shorthand
+is accepted; thema's formatter expands it.
 -- ship/history/0.0.thema --
 Schema: name: string
 -- ship/tip.thema --

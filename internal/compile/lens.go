@@ -967,7 +967,7 @@ func (e *edge) expression(x ast.Expr, inCondition bool) (reads, optional []cue.P
 				e.unbind(n)
 				return false
 			}
-			if out := e.paramOf(e.tv); n.Name == out {
+			if out := e.paramOf(e.tv); n.Name == out && e.each == nil {
 				// The other instance is the one the lens produces, which
 				// its mappings write and never read.
 				e.errhf(diag.E0418, n.Pos(), fmt.Sprintf("read %s, the instance %s takes", e.root, e.lensName()), "%s is the instance %s produces, which its mappings do not read", out, e.lensName())

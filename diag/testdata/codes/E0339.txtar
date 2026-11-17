@@ -1,0 +1,66 @@
+#op: compile
+The compiled lens names its instances after their versions: in the lenses
+between 0.0 and 1.0, prev is v0_0 and self is v1_0. CUE resolves a reference
+by the nearest field of its name, so a field the lens writes under either name
+would stand in for the instance: here `y: prev.a` would read the constant
+written into the field `v0_0` beside it, not the instance's `a`.
+-- ship/history/0.0.thema --
+Schema: {
+	a: string
+}
+-- ship/history/1.0.thema --
+Schema: {
+	v0_0: string
+	y:    string
+}
+
+ForwardLens: (prev): {
+	self: {
+		v0_0: "x"
+		y:    prev.a
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	v0_0: string
+	y:    string
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0339",
+      "severity": "error",
+      "headline": "the ForwardLens of v1.0 writes a field named v0_0, the name prev compiles to",
+      "primary": {
+        "file": "history/1.0.thema",
+        "line": 8,
+        "col": 3,
+        "offset": 75,
+        "origin": "user"
+      },
+      "notes": [
+        {
+          "label": "the compiled lens names prev v0_0, after its version, and a field of that name hides prev from every mapping beside and beneath it"
+        }
+      ],
+      "help": [
+        "rename the field v0_0"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0339]: the ForwardLens of v1.0 writes a field named v0_0, the name prev compiles to
+ --> history/1.0.thema:8:3
+  |
+8 |         v0_0: "x"
+  |         ^^^^
+  |
+  = note: the compiled lens names prev v0_0, after its version, and a field of that name hides prev from every mapping beside and beneath it
+  = help: rename the field v0_0

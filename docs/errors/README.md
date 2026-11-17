@@ -106,6 +106,7 @@ A code's scope says what its condition reads: `one` when one version's files, th
 | [E0336](E0336.md) | error | one | a _match is not _match(source path, arms) |
 | [E0337](E0337.md) | error | one | an _each is not _each(source list, body) |
 | [E0338](E0338.md) | error | one | a _match's arms are not constant arms with at most one catch-all |
+| [E0339](E0339.md) | error | versions | a lens writes a field with the name its compiled lens gives one of its instances |
 | [E0340](E0340.md) | error | versions | a lens reads a field its source version does not declare |
 | [E0341](E0341.md) | error | versions | a lens maps a field its target version does not declare |
 | [E0342](E0342.md) | error | versions | a lens drops a field its target version requires |
