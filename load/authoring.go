@@ -15,10 +15,10 @@ import (
 type LineageOption func(*lineageConfig)
 
 type lineageConfig struct {
-	// history is where the lineage's history is read from and positioned:
-	// HistoryAt, when given.
-	history []authoring.Option
-	bind    []thema.BindOption
+	// history is the directory HistoryAt gives, when set.
+	history    string
+	setHistory bool
+	bind       []thema.BindOption
 }
 
 // HistoryAt reads the lineage's history from dir/history, in place of the
@@ -26,7 +26,7 @@ type lineageConfig struct {
 // path of the same fs.FS, as the lineage's directory is. It is for a lineage
 // whose history is kept in a tree of its own. See [authoring.HistoryAt].
 func HistoryAt(dir string) LineageOption {
-	return func(c *lineageConfig) { c.history = []authoring.Option{authoring.HistoryAt(dir)} }
+	return func(c *lineageConfig) { c.history, c.setHistory = dir, true }
 }
 
 // BindOptions passes opts to binding the lineage.
@@ -42,10 +42,19 @@ func configure(opts []LineageOption) lineageConfig {
 	return c
 }
 
+// loading is what the lineage is loaded with: its history where HistoryAt
+// says.
+func (c lineageConfig) loading() []authoring.Option {
+	if !c.setHistory {
+		return nil
+	}
+	return []authoring.Option{authoring.HistoryAt(c.history)}
+}
+
 // compiling is what the lineage in dir is compiled with: its files
 // positioned under dir, and its history where HistoryAt says.
 func (c lineageConfig) compiling(dir string) []authoring.Option {
-	return append([]authoring.Option{authoring.At(dir)}, c.history...)
+	return append([]authoring.Option{authoring.At(dir)}, c.loading()...)
 }
 
 // AuthoringLineage loads the authoring files of the lineage in dir, a
@@ -57,7 +66,7 @@ func (c lineageConfig) compiling(dir string) []authoring.Option {
 // [github.com/sdboyer/thema/authoring].
 func AuthoringLineage(fsys fs.FS, dir string, rt *thema.Runtime, opts ...LineageOption) (thema.Lineage, error) {
 	cfg := configure(opts)
-	name, files, err := authoring.Load(fsys, dir, cfg.history...)
+	name, files, err := authoring.Load(fsys, dir, cfg.loading()...)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +114,7 @@ func (d *Development) Provisional(v thema.SyntacticVersion) bool {
 // [authoring.BindDevelopment].
 func DevelopmentLineage(fsys fs.FS, dir string, rt *thema.Runtime, opts ...LineageOption) (*Development, error) {
 	cfg := configure(opts)
-	name, files, err := authoring.Load(fsys, dir, cfg.history...)
+	name, files, err := authoring.Load(fsys, dir, cfg.loading()...)
 	if err != nil {
 		return nil, err
 	}

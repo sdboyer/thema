@@ -492,7 +492,7 @@ const (
 	E0626 Code = "E0626" // authoring.BindDevelopmentValue given a value that is not the lineage its Compiled compiled to
 	E0627 Code = "E0627" // thema.Compose given a package name that is not an identifier, no placements, or a path field labels cannot write
 	E0628 Code = "E0628" // gen --check found a generated file missing from disk, or different there
-	E0629 Code = "E0629" // authoring.Load (or a load function) with HistoryAt another directory, and .thema files in the lineage's own history/ too
+	E0629 Code = "E0629" // authoring.Load with HistoryAt another directory (as load.AuthoringLineage and DevelopmentLineage with load.HistoryAt), and .thema files in the lineage's own history/ too
 
 	// E07xx: code generation.
 	E0701 Code = "E0701" // a generator failed on the schema
