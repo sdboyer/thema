@@ -325,6 +325,25 @@ var reproducers = map[string]func(t *testing.T, a *diagtest.Archive) []diag.Diag
 		}
 		return diag.Diagnostics(err)
 	},
+	// load: read the lineage in the directory #dir names from the archive's
+	// files (compile.Load), its history from the directory #history-at
+	// names, when there is one (compile.HistoryAt), and report what fails.
+	"load": func(t *testing.T, a *diagtest.Archive) []diag.Diagnostic {
+		dirs, _ := a.Directives()
+		fsys := fstest.MapFS{}
+		for _, f := range a.Inputs() {
+			fsys[f.Name] = &fstest.MapFile{Data: f.Data}
+		}
+		var opts []compile.Option
+		if h, ok := dirs["history-at"]; ok {
+			opts = append(opts, compile.HistoryAt(h))
+		}
+		_, _, err := compile.Load(fsys, dirs["dir"], opts...)
+		if err == nil {
+			t.Fatal("the lineage loaded")
+		}
+		return diag.Diagnostics(err)
+	},
 	// develop: compile the authoring files under the archive's one directory
 	// with their tip (compile.Development) and bind the result on the
 	// development path, reporting what fails, or else the warnings the

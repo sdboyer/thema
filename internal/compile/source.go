@@ -56,28 +56,81 @@ const (
 // in dir and in dir/history. The lineage's name is dir's base name. Whether
 // the files are laid out as a lineage is for the compiler to say, so that
 // every misplaced file is reported with the others.
-func Load(fsys fs.FS, dir string) (name string, files []File, err error) {
-	for _, d := range []string{dir, path.Join(dir, HistoryDir)} {
-		ents, err := fs.ReadDir(fsys, d)
-		if err != nil {
-			if d != dir && errors.Is(err, fs.ErrNotExist) {
-				continue
-			}
-			return "", nil, diag.New(diag.E0601).Headlinef("%s cannot be read", d).Detail(diag.OSReason(err)).Err()
+//
+// With [HistoryAt] another directory, the files under history/ are read
+// from its history/ in place of dir's, and given the same File.Path,
+// history/<major>.<minor>.thema. A file with [Ext] in dir/history as well is
+// then an error (E0629): the lineage would have two histories. The options
+// are checked as compiling checks them, so that what Load accepts compiles
+// with the same options.
+func Load(fsys fs.FS, dir string, opts ...Option) (name string, files []File, err error) {
+	o, err := apply(opts)
+	if err != nil {
+		return "", nil, err
+	}
+	top, err := themaFiles(fsys, dir, false)
+	if err != nil {
+		return "", nil, err
+	}
+	own := path.Join(dir, HistoryDir)
+	hist := own
+	if o.setHistory {
+		hist = path.Join(o.history, HistoryDir)
+	}
+	if hist != own {
+		var stray []string
+		switch stray, err = themaFiles(fsys, own, true); {
+		case err != nil:
+			return "", nil, err
+		case len(stray) > 0:
+			return "", nil, diag.New(diag.E0629).
+				Headlinef("%s holds %s files, but the lineage's history is %s", own, Ext, hist).
+				Notef(token.NoPos, "it holds %s", strings.Join(stray, ", ")).
+				Helpf("keep the lineage's history in one directory, %s", hist).
+				Err()
 		}
-		for _, e := range ents {
-			if e.IsDir() || !strings.HasSuffix(e.Name(), Ext) {
-				continue
-			}
-			p := path.Join(d, e.Name())
+	}
+	versions, err := themaFiles(fsys, hist, true)
+	if err != nil {
+		return "", nil, err
+	}
+	for _, d := range []struct {
+		dir, as string
+		names   []string
+	}{{dir, "", top}, {hist, HistoryDir, versions}} {
+		for _, n := range d.names {
+			p := path.Join(d.dir, n)
 			b, err := fs.ReadFile(fsys, p)
 			if err != nil {
 				return "", nil, diag.New(diag.E0601).Headlinef("%s cannot be read", p).Detail(diag.OSReason(err)).Err()
 			}
-			files = append(files, File{Path: strings.TrimPrefix(p, dir+"/"), Text: b})
+			files = append(files, File{Path: path.Join(d.as, n), Text: b})
 		}
 	}
+	if err := o.check(files); err != nil {
+		return "", nil, err
+	}
 	return path.Base(dir), files, nil
+}
+
+// themaFiles lists the names of the files with [Ext] in d, a directory of
+// fsys. A missing d lists none when optional: a lineage with no history/ has
+// no versions to read.
+func themaFiles(fsys fs.FS, d string, optional bool) ([]string, error) {
+	ents, err := fs.ReadDir(fsys, d)
+	if err != nil {
+		if optional && errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, diag.New(diag.E0601).Headlinef("%s cannot be read", d).Detail(diag.OSReason(err)).Err()
+	}
+	var names []string
+	for _, e := range ents {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), Ext) {
+			names = append(names, e.Name())
+		}
+	}
+	return names, nil
 }
 
 // An Option configures how a lineage's files are compiled.
@@ -87,6 +140,10 @@ type options struct {
 	// at is the directory the files are positioned under, when setAt.
 	at    string
 	setAt bool
+	// history is the directory the files under history/ are positioned
+	// under instead, when setHistory.
+	history    string
+	setHistory bool
 }
 
 // At positions the lineage's files under dir: each is parsed under
@@ -100,45 +157,108 @@ func At(dir string) Option {
 	return func(o *options) { o.at, o.setAt = dir, true }
 }
 
+// HistoryAt keeps the lineage's history, its frozen versions, in dir/history
+// in place of the lineage's own directory's, for a tool that keeps history
+// apart from the tip, in a tree of its own. [Load] reads the versions from
+// there. Compiling, each file under history/ is positioned under dir in place
+// of the directory [At] gives: it is parsed under path.Join(dir, File.Path),
+// so history/0.0.thema is positioned as dir/history/0.0.thema. dir is a path
+// of an fs.FS, as At's is. The other files are positioned as At, or its
+// absence, says.
+func HistoryAt(dir string) Option {
+	return func(o *options) { o.history, o.setHistory = dir, true }
+}
+
 // resolve applies opts and checks them against the lineage's files.
 func resolve(opts []Option, files []File) (options, error) {
+	o, err := apply(opts)
+	if err != nil {
+		return o, err
+	}
+	return o, o.check(files)
+}
+
+// apply applies opts and checks the directories they give.
+func apply(opts []Option) (options, error) {
 	var o options
 	for _, opt := range opts {
 		opt(&o)
 	}
-	if !o.setAt {
-		return o, nil
+	if o.setAt {
+		if err := checkDir(o.at, atWhat, atHelp); err != nil {
+			return o, err
+		}
 	}
-	const help = "pass the lineage's directory as a path of its fs.FS, such as operations/get/query"
-	if !fs.ValidPath(o.at) || strings.Contains(o.at, `\`) {
-		return o, diag.New(diag.E0625).
-			Headlinef("%q is not a directory to position the lineage's files under", o.at).
-			Note(token.NoPos, "the directory is a path of an fs.FS: relative and separated by /, with no . or .. elements").
-			Help(help).
-			Err()
-	}
-	// thema tells its own CUE from an author's by the file a position names
-	// (embedreg.IsKernelFile). Its roots are absolute, so no valid path falls
-	// under them; were one to, every position in the lineage would read as
-	// thema's, and none could be a diagnostic's primary.
-	for _, f := range files {
-		if name := o.name(f); embedreg.IsKernelFile(name) {
-			return o, diag.New(diag.E0625).
-				Headlinef("%q would position the lineage's files in thema's own CUE", o.at).
-				Notef(token.NoPos, "%s is a file of thema's own CUE module", name).
-				Help(help).
-				Err()
+	if o.setHistory {
+		if err := checkDir(o.history, historyWhat, historyHelp); err != nil {
+			return o, err
 		}
 	}
 	return o, nil
 }
 
+// check checks o against the lineage's files.
+func (o options) check(files []File) error {
+	// thema tells its own CUE from an author's by the file a position names
+	// (embedreg.IsKernelFile). Its roots are absolute, so no valid path falls
+	// under them; were one to, every position in the lineage would read as
+	// thema's, and none could be a diagnostic's primary.
+	for _, f := range files {
+		name := o.name(f)
+		if !embedreg.IsKernelFile(name) {
+			continue
+		}
+		dir, what, help := o.at, atWhat, atHelp
+		if o.inHistory(f) {
+			dir, what, help = o.history, historyWhat, historyHelp
+		}
+		return diag.New(diag.E0625).
+			Headlinef("%q would position %s in thema's own CUE", dir, what).
+			Notef(token.NoPos, "%s is a file of thema's own CUE module", name).
+			Help(help).
+			Err()
+	}
+	return nil
+}
+
+// What At's and HistoryAt's directories position, and what to pass in place
+// of one that can't.
+const (
+	atWhat      = "the lineage's files"
+	atHelp      = "pass the lineage's directory as a path of its fs.FS, such as operations/get/query"
+	historyWhat = "the lineage's history"
+	historyHelp = "pass the directory its history/ is in as a path of its fs.FS, such as .history/operations/get/query"
+)
+
+// checkDir refuses dir, the directory to position what under, when it isn't
+// a path of an fs.FS; help says what to pass.
+func checkDir(dir, what, help string) error {
+	if fs.ValidPath(dir) && !strings.Contains(dir, `\`) {
+		return nil
+	}
+	return diag.New(diag.E0625).
+		Headlinef("%q is not a directory to position %s under", dir, what).
+		Note(token.NoPos, "the directory is a path of an fs.FS: relative and separated by /, with no . or .. elements").
+		Help(help).
+		Err()
+}
+
+// inHistory reports whether f is positioned by HistoryAt: it is under
+// history/, and HistoryAt was given.
+func (o options) inHistory(f File) bool {
+	return o.setHistory && strings.HasPrefix(f.Path, HistoryDir+"/")
+}
+
 // name is the name f is parsed under, which its positions carry.
 func (o options) name(f File) string {
-	if !o.setAt {
+	switch {
+	case o.inHistory(f):
+		return path.Join(o.history, f.Path)
+	case o.setAt:
+		return path.Join(o.at, f.Path)
+	default:
 		return f.Path
 	}
-	return path.Join(o.at, f.Path)
 }
 
 // versionFile matches a frozen version's path: history/<major>.<minor>.thema.

@@ -2,6 +2,7 @@ package compile
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"testing"
@@ -568,6 +569,130 @@ func TestAt(t *testing.T) {
 			for name, run := range entries {
 				if got := codes(run(At(bad))); !slices.Equal(got, []string{string(diag.E0625)}) {
 					t.Errorf("%s with At(%q): %v, want [E0625]", name, bad, got)
+				}
+			}
+		}
+	})
+}
+
+// HistoryAt positions the files under history/ under its directory, and
+// leaves the tip to At.
+func TestHistoryAt(t *testing.T) {
+	ctx := cuecontext.New()
+	const dir, hist = "operations/get/query", ".history/operations/get/query"
+	lin := files("history/0.0.thema", v00, "history/0.1.thema", v01, TipFile, v10)
+	under := func(name string) string {
+		if strings.Contains(name, "/"+HistoryDir+"/") {
+			return hist + "/"
+		}
+		return dir + "/"
+	}
+
+	t.Run("compiled positions", func(t *testing.T) {
+		c, err := Development(ctx, "query", lin, At(dir), HistoryAt(hist))
+		if err != nil {
+			t.Fatal(err)
+		}
+		seen := map[string]bool{}
+		ast.Walk(c.File, func(n ast.Node) bool {
+			p := n.Pos()
+			if !p.IsValid() {
+				return true
+			}
+			seen[p.Filename()] = true
+			if want := under(p.Filename()); !strings.HasPrefix(p.Filename(), want) {
+				t.Errorf("%T at %s is not positioned under %s", n, p, want)
+			}
+			return true
+		}, nil)
+		for _, want := range []string{hist + "/history/0.0.thema", hist + "/history/0.1.thema", dir + "/" + TipFile} {
+			if !seen[want] {
+				t.Errorf("nothing is positioned in %s; positioned in %v", want, slices.Sorted(maps.Keys(seen)))
+			}
+		}
+		for _, p := range cerrors.Positions(c.Pending) {
+			if p.Filename() != dir+"/"+TipFile {
+				t.Errorf("a pending lens is positioned at %s, want %s/%s", p, dir, TipFile)
+			}
+		}
+	})
+
+	t.Run("without At", func(t *testing.T) {
+		c, err := Development(ctx, "query", lin, HistoryAt(hist))
+		if err != nil {
+			t.Fatal(err)
+		}
+		seen := map[string]bool{}
+		ast.Walk(c.File, func(n ast.Node) bool {
+			if p := n.Pos(); p.IsValid() {
+				seen[p.Filename()] = true
+			}
+			return true
+		}, nil)
+		want := []string{hist + "/history/0.0.thema", hist + "/history/0.1.thema", TipFile}
+		if got := slices.Sorted(maps.Keys(seen)); !slices.Equal(got, want) {
+			t.Errorf("positioned in %v, want %v", got, want)
+		}
+	})
+
+	t.Run("a version's diagnostic", func(t *testing.T) {
+		// 0.1 drops 0.0's name, so it is not a minor version of it.
+		bad := files("history/0.0.thema", v00, "history/0.1.thema", "Schema: {\n\tcrew?: int\n}\n", TipFile, "Schema: {\n\tcrew?: int\n}\n")
+		_, err := Compile(ctx, "query", bad, At(dir), HistoryAt(hist))
+		ds := diag.Diagnostics(err)
+		if len(ds) != 1 || ds[0].Code != diag.E0207 {
+			t.Fatalf("want E0207, got %v", ds)
+		}
+		if d := ds[0]; d.Primary == nil || d.Primary.File != hist+"/history/0.1.thema" {
+			t.Errorf("%s %q is positioned at %v, want %s/history/0.1.thema", d.Code, d.Headline, d.Primary, hist)
+		}
+	})
+
+	t.Run("clean check", func(t *testing.T) {
+		ds := diag.Diagnostics(CheckClean(ctx, lin, At(dir), HistoryAt(hist)))
+		if len(ds) == 0 {
+			t.Fatal("want the tip not clean")
+		}
+		for _, d := range ds {
+			if d.Primary == nil || d.Primary.File != dir+"/"+TipFile {
+				t.Errorf("%s %q is positioned at %v, want %s/%s", d.Code, d.Headline, d.Primary, dir, TipFile)
+			}
+		}
+	})
+
+	t.Run("layout headlines", func(t *testing.T) {
+		_, err := Compile(ctx, "query", files("history/0.0.thema", v00, "history/v1.thema", v10), At(dir), HistoryAt(hist))
+		ds := diag.Diagnostics(err)
+		if len(ds) != 1 || ds[0].Code != diag.E0101 || !strings.HasPrefix(ds[0].Headline, "history/v1.thema ") {
+			t.Errorf("want E0101 naming history/v1.thema, got %v", ds)
+		}
+	})
+
+	t.Run("invalid directories", func(t *testing.T) {
+		entries := map[string]func(Option) error{
+			"Compile": func(o Option) error {
+				_, err := Compile(ctx, "query", lin, At(dir), o)
+				return err
+			},
+			"Development": func(o Option) error {
+				_, err := Development(ctx, "query", lin, At(dir), o)
+				return err
+			},
+			"ReadTip": func(o Option) error {
+				_, err := ReadTip(ctx, lin, At(dir), o)
+				return err
+			},
+			"CheckClean": func(o Option) error { return CheckClean(ctx, lin, At(dir), o) },
+		}
+		for _, bad := range []string{"", "/.history/get", "../query", ".history/../query", "./query", ".history//query", "query/", `.history\get`} {
+			for name, run := range entries {
+				err := run(HistoryAt(bad))
+				if got := codes(err); !slices.Equal(got, []string{string(diag.E0625)}) {
+					t.Errorf("%s with HistoryAt(%q): %v, want [E0625]", name, bad, got)
+					continue
+				}
+				if ds := diag.Diagnostics(err); !strings.Contains(ds[0].Headline, "history") {
+					t.Errorf("%s with HistoryAt(%q): %q does not say it is the history's directory", name, bad, ds[0].Headline)
 				}
 			}
 		}
