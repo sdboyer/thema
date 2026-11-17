@@ -10,11 +10,10 @@ Schema: {
 	b: string
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		b:    v0_0.a
-		nope: v0_0.a
+ForwardLens: (prev): {
+	self: {
+		b:    prev.a
+		nope: prev.a
 	}
 }
 -- ship/tip.thema --
@@ -30,9 +29,9 @@ Schema: {
       "headline": "v1.0 does not declare nope",
       "primary": {
         "file": "history/1.0.thema",
-        "line": 9,
+        "line": 8,
         "col": 3,
-        "offset": 74,
+        "offset": 73,
         "origin": "user"
       }
     }
@@ -45,8 +44,8 @@ Schema: {
 }
 -- out/text --
 error[E0341]: v1.0 does not declare nope
- --> history/1.0.thema:9:3
+ --> history/1.0.thema:8:3
   |
-9 |         nope: v0_0.a
+8 |         nope: prev.a
   |         ^^^^
   |

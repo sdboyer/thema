@@ -11,10 +11,9 @@ Schema: {
 	env:    string
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		env: _coalesce(v0_0.labels.env, "none")
+ForwardLens: (prev): {
+	self: {
+		env: _coalesce(prev.labels.env, "none")
 	}
 }
 -- ship/tip.thema --
@@ -24,9 +23,9 @@ Schema: {
 }
 -- out/error --
 error[E0340]: v0.0 does not declare labels.env
- --> history/1.0.thema:9:8
+ --> history/1.0.thema:8:8
   |
-9 |         env: _coalesce(v0_0.labels.env, "none")
+8 |         env: _coalesce(prev.labels.env, "none")
   |              ^^^^^^^^^
   |
   = note: only a pattern constraint of v0.0 matches labels.env, and a pattern constraint declares no field

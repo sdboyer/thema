@@ -22,10 +22,9 @@ Schema: {
 	created: time.Format(time.RFC3339)
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		label:   strings.ToUpper(v0_0.name)
+ForwardLens: (prev): {
+	self: {
+		label:   strings.ToUpper(prev.name)
 		created: "1970-01-01T00:00:00Z"
 	}
 	lacunas: {
@@ -66,10 +65,9 @@ Schema: {
 	created: time.Format(time.RFC3339)
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		label:   strings.ToUpper(v0_0.name)
+ForwardLens: (prev): {
+	self: {
+		label:   strings.ToUpper(prev.name)
 		created: "1970-01-01T00:00:00Z"
 	}
 	lacunas: {

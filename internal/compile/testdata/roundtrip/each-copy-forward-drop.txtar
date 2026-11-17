@@ -14,17 +14,15 @@ Schema: close({
 	u!: [...string]
 })
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		u: _each(v0_0.u, _item.id)
+ForwardLens: (prev): {
+	self: {
+		u: _each(prev.u, _item.id)
 	}
 }
 
-BackwardLens: {
-	v1_0: _
-	v0_0: {
-		u: _each(v1_0.u, {id: _item, is_enabled: true})
+BackwardLens: (self): {
+	prev: {
+		u: _each(self.u, {id: _item, is_enabled: true})
 	}
 }
 -- ship/tip.thema --
@@ -48,17 +46,15 @@ Schema: close({
 -- out/decompiled/history/1.0.thema --
 Schema: close({u!: [...string]})
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		u: _each(v0_0.u, _item.id)
+ForwardLens: (prev): {
+	self: {
+		u: _each(prev.u, _item.id)
 	}
 }
 
-BackwardLens: {
-	v1_0: _
-	v0_0: {
-		u: _each(v1_0.u, {
+BackwardLens: (self): {
+	prev: {
+		u: _each(self.u, {
 			id:         _item
 			is_enabled: true
 		})

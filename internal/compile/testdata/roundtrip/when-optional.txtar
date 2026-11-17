@@ -17,26 +17,25 @@ Schema: {
 	flag?:      bool
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		name:  v0_0.name
-		count: _coalesce(v0_0.count, 0)
+ForwardLens: (prev): {
+	self: {
+		name:  prev.name
+		count: _coalesce(prev.count, 0)
 	}
 	lacunas: {
 		name: [{
 			type:    AmbiguousMapping
 			message: "flagged records were renamed by hand"
-			when:    v0_0.flag
+			when:    prev.flag
 		}, {
 			type:    LossyFieldMapping
 			message: "deprecated records are archived"
-			when:    v0_0.deprecated
+			when:    prev.deprecated
 		}]
 		count: [{
 			type:    PrecisionLoss
 			message: "counts above 1000 are rounded downstream"
-			when:    v0_0.count > 1000
+			when:    prev.count > 1000
 		}]
 	}
 }
@@ -64,26 +63,25 @@ Schema: {
 	flag?:      bool
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		name:  v0_0.name
-		count: _coalesce(v0_0.count, 0)
+ForwardLens: (prev): {
+	self: {
+		name:  prev.name
+		count: _coalesce(prev.count, 0)
 	}
 	lacunas: {
 		name: [{
 			type:    AmbiguousMapping
 			message: "flagged records were renamed by hand"
-			when:    v0_0.flag
+			when:    prev.flag
 		}, {
 			type:    LossyFieldMapping
 			message: "deprecated records are archived"
-			when:    v0_0.deprecated
+			when:    prev.deprecated
 		}]
 		count: [{
 			type:    PrecisionLoss
 			message: "counts above 1000 are rounded downstream"
-			when:    v0_0.count > 1000
+			when:    prev.count > 1000
 		}]
 	}
 }

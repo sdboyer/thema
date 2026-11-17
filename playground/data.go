@@ -87,7 +87,7 @@ func instance(lin thema.Lineage, data cue.Value, version string) (*thema.Instanc
 // version it cuts as; otherwise v, and cutsAs is empty.
 func versionName(tip *authoring.Tip, v thema.SyntacticVersion) (name, cutsAs string) {
 	if tip != nil && !tip.Clean && v == tip.Version {
-		return authoring.TipParam, v.String()
+		return authoring.TipName, v.String()
 	}
 	return v.String(), ""
 }

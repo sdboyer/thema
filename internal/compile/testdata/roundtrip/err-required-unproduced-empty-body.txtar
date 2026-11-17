@@ -13,10 +13,9 @@ Schema: {
 	}
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		id: v0_0.id
+ForwardLens: (prev): {
+	self: {
+		id: prev.id
 		meta: {}
 	}
 }
@@ -31,7 +30,7 @@ Schema: {
 error[E0346]: ForwardLens produces nothing for meta, which v1.0 requires
  --> history/1.0.thema:8:1
   |
-8 | ForwardLens: {
+8 | ForwardLens: (prev): {
   | ^^^^^^^^^^^
   |
-  = help: add meta: <mapping> to v1_0
+  = help: add meta: <mapping> to self

@@ -12,9 +12,8 @@ Schema: {
 	secondfield: int
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		secondfield: -1
 	}
 	lacunas: {
@@ -38,9 +37,9 @@ Schema: {
       "headline": "lacunas.secondfeild: ForwardLens has no mapping keyed secondfeild",
       "primary": {
         "file": "history/1.0.thema",
-        "line": 12,
+        "line": 11,
         "col": 17,
-        "offset": 134,
+        "offset": 133,
         "origin": "user"
       }
     }
@@ -53,8 +52,8 @@ Schema: {
 }
 -- out/text --
 error[E0412]: lacunas.secondfeild: ForwardLens has no mapping keyed secondfeild
-  --> history/1.0.thema:12:17
+  --> history/1.0.thema:11:17
    |
-12 |         secondfeild: [{
+11 |         secondfeild: [{
    |                       ^
    |

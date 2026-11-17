@@ -13,9 +13,8 @@ Schema: {
 	size: int
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		size: 0
 	}
 	lacunas: {
@@ -35,9 +34,8 @@ Schema: {
 	size: int
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		size: -1
 	}
 	lacunas: {
@@ -96,7 +94,7 @@ ForwardLens: {
 error[E0251]: immutability violation: the ForwardLens of v1.0 is not as published
  --> candidate/ship/history/1.0.thema:6:1
   |
-6 | ForwardLens: {
+6 | ForwardLens: (prev): {
   | ^^^^^^^^^^^
   |
   = note: a version's lenses are part of it: instances already translated through the published lens would translate differently

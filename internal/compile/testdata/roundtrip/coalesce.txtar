@@ -13,11 +13,10 @@ Schema: {
 	rank: int
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		nick: _coalesce(v0_0.nick, v0_0.name)
-		rank: _coalesce(v0_0.rank, 0)
+ForwardLens: (prev): {
+	self: {
+		nick: _coalesce(prev.nick, prev.name)
+		rank: _coalesce(prev.rank, 0)
 	}
 	lacunas: {
 		rank: [{
@@ -47,11 +46,10 @@ Schema: {
 	rank: int
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		nick: _coalesce(v0_0.nick, v0_0.name)
-		rank: _coalesce(v0_0.rank, 0)
+ForwardLens: (prev): {
+	self: {
+		nick: _coalesce(prev.nick, prev.name)
+		rank: _coalesce(prev.rank, 0)
 	}
 	lacunas: {
 		rank: [{

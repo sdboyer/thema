@@ -114,13 +114,13 @@ describe.skipIf(!haveThema())("the tour, against thema", () => {
     const empty = await t.call("bind", { lineage: lineage(withLens(majorLens)) });
     expect(empty.ok).toBe(false);
     expect(codes(empty)[0]).toBe(named(step("lens-check"))[0]);
-    const fixed = await t.call("bind", { lineage: lineage(withLens(majorLens.replace("tip: {}", `tip: {${lensFix}}`))) });
+    const fixed = await t.call("bind", { lineage: lineage(withLens(majorLens.replace("self: {}", `self: {${lensFix}}`))) });
     expect(fixed.diagnostics).toEqual([]);
     expect(summary(fixed)).toBe("binds: 0.0, 1.0, tip (cuts as 2.0)");
   });
 
   it("compiles to a normal form with the implied lenses written out", async () => {
-    const r = await t.call("compile", { name: "ship", files: withLens(majorLens.replace("tip: {}", `tip: {${lensFix}}`)) });
+    const r = await t.call("compile", { name: "ship", files: withLens(majorLens.replace("self: {}", `self: {${lensFix}}`)) });
     expect(r.normal).toContain('"2.0->1.0"');
     expect(r.normal).toContain("@thema(derived)");
   });

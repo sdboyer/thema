@@ -23,10 +23,9 @@ Schema: {
 	tag:   string & strings.MaxRunes(4)
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		label: strings.ToUpper(v0_0.name)
+ForwardLens: (prev): {
+	self: {
+		label: strings.ToUpper(prev.name)
 		nick:  _drop
 	}
 }

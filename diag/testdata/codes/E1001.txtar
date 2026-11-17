@@ -46,8 +46,8 @@ Schema: {
         }
       ],
       "help": [
-        "write ForwardLens: {v0_0: _, tip: {...}} in tip.thema",
-        "write <field>: v0_0.b to move it, or b: _drop"
+        "write ForwardLens: (prev): {self: {...}} in tip.thema",
+        "write <field>: prev.b to move it, or b: _drop"
       ]
     },
     {
@@ -77,7 +77,7 @@ Schema: {
         }
       ],
       "help": [
-        "write BackwardLens: {tip: _, v0_0: {b: <mapping>}} in tip.thema"
+        "write BackwardLens: (self): {prev: {b: <mapping>}} in tip.thema"
       ]
     }
   ],
@@ -96,8 +96,8 @@ warning[E1001]: tip has no ForwardLens, and one cannot be derived
   | - v0.0 declares b and tip does not, and nothing maps it (E0347)
   |
   = note: translating from v0.0 to tip needs it; until tip writes it, that translation fails (E1002)
-  = help: write ForwardLens: {v0_0: _, tip: {...}} in tip.thema
-  = help: write <field>: v0_0.b to move it, or b: _drop
+  = help: write ForwardLens: (prev): {self: {...}} in tip.thema
+  = help: write <field>: prev.b to move it, or b: _drop
 
 warning[E1001]: tip has no BackwardLens, and one cannot be derived
  --> tip.thema:3:1
@@ -107,4 +107,4 @@ warning[E1001]: tip has no BackwardLens, and one cannot be derived
   | - tip has no BackwardLens, and v0.0 requires b (E0346)
   |
   = note: translating from tip to v0.0 needs it; until tip writes it, that translation fails (E1002)
-  = help: write BackwardLens: {tip: _, v0_0: {b: <mapping>}} in tip.thema
+  = help: write BackwardLens: (self): {prev: {b: <mapping>}} in tip.thema

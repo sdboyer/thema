@@ -297,7 +297,9 @@ func TestDisjunctiveSourceWrittenCopy(t *testing.T) {
 			{Path: "history/0.0.thema", Text: []byte(a.file(t, "ship/history/0.0.thema"))},
 			{Path: "history/1.0.thema", Text: []byte(`Schema: {method!: "GET", route!: "/things/{id}", path!: {id!: string}}
 
-ForwardLens: {v0_0: _, v1_0: ` + lens + `}
+ForwardLens: (prev): {
+	self: ` + lens + `
+}
 `)},
 		}
 		c, err := Compile(cuecontext.New(), "ship", files)
@@ -310,7 +312,7 @@ ForwardLens: {v0_0: _, v1_0: ` + lens + `}
 		}
 		return text
 	}
-	written := compiled(`{method: "GET", route: v0_0.route, path: v0_0.path}`)
+	written := compiled(`{method: "GET", route: prev.route, path: prev.path}`)
 	if diff := cmp.Diff(compiled(`{method: "GET"}`), written); diff != "" {
 		t.Errorf("the written copies compile differently from the implicit ones (-implicit +written):\n%s", diff)
 	}

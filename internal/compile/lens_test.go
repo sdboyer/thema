@@ -25,10 +25,9 @@ func TestEmptyBodyWritesNothing(t *testing.T) {
 	}
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		name: v0_0.id
+ForwardLens: (prev): {
+	self: {
+		name: prev.id
 		meta: {}
 	}
 }

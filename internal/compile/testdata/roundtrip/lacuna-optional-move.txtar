@@ -19,23 +19,22 @@ Schema: {
 	label?:     string
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		dimension: v0_0.size
-		area:      v0_0.w * v0_0.h
-		label:     v0_0.tag
+ForwardLens: (prev): {
+	self: {
+		dimension: prev.size
+		area:      prev.w * prev.h
+		label:     prev.tag
 	}
 	lacunas: {
 		dimension: [{
 			type:    LossyFieldMapping
 			message: "large sizes are clamped"
-			when:    v0_0.size > 100
+			when:    prev.size > 100
 		}]
 		area: [{
 			type:    PrecisionLoss
 			message: "large areas are rounded"
-			when:    v0_0.w > 10
+			when:    prev.w > 10
 		}, {
 			type:    LossyFieldMapping
 			message: "areas are approximate"
@@ -76,23 +75,22 @@ Schema: {
 	label?:     string
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		dimension: v0_0.size
-		area:      v0_0.w * v0_0.h
-		label:     v0_0.tag
+ForwardLens: (prev): {
+	self: {
+		dimension: prev.size
+		area:      prev.w * prev.h
+		label:     prev.tag
 	}
 	lacunas: {
 		dimension: [{
 			type:    LossyFieldMapping
 			message: "large sizes are clamped"
-			when:    v0_0.size > 100
+			when:    prev.size > 100
 		}]
 		area: [{
 			type:    PrecisionLoss
 			message: "large areas are rounded"
-			when:    v0_0.w > 10
+			when:    prev.w > 10
 		}, {
 			type:    LossyFieldMapping
 			message: "areas are approximate"

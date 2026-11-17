@@ -15,9 +15,8 @@ Schema: {
 
 extra: 1
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		b: 1
 	}
 }

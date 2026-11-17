@@ -24,10 +24,9 @@ const v10 = `Schema: {
 	after: string
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		after: v0_0.before
+ForwardLens: (prev): {
+	self: {
+		after: prev.before
 	}
 }
 `
@@ -177,7 +176,7 @@ func TestBindDevelopmentValueGuard(t *testing.T) {
 	pending := compileDev("query", devTip)
 	// written is the same lineage with the tip's lenses written: nothing is
 	// pending, but its tip is still provisional.
-	written := compileDev("query", devTip+"\nForwardLens: {\n\tv0_0: _\n\ttip: {\n\t\tb: _drop\n\t}\n}\n\nBackwardLens: {\n\ttip: _\n\tv0_0: {\n\t\tb: 0\n\t}\n}\n")
+	written := compileDev("query", devTip+"\nForwardLens: (prev): {\n\tself: {\n\t\tb: _drop\n\t}\n}\n\nBackwardLens: (self): {\n\tprev: {\n\t\tb: 0\n\t}\n}\n")
 	if written.Pending != nil {
 		t.Fatalf("want nothing pending: %v", written.Pending)
 	}
@@ -222,17 +221,15 @@ func TestAtComposed(t *testing.T) {
 	a: int32 & >=0
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		a: v0_0.a * 2
+ForwardLens: (prev): {
+	self: {
+		a: prev.a * 2
 	}
 }
 
-BackwardLens: {
-	v1_0: _
-	v0_0: {
-		a: v1_0.a
+BackwardLens: (self): {
+	prev: {
+		a: self.a
 	}
 }
 `

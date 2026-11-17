@@ -14,22 +14,20 @@ Schema: {method!: "GET", route!: "/things/{id}", path!: {id!: string}} |
 -- ship/history/1.0.thema --
 Schema: {method!: "GET", route!: "/things/{id}", path!: {id!: string}}
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {method: "GET"}
+ForwardLens: (prev): {
+	self: {method: "GET"}
 	lacunas: method: [{
 		type:    LossyFieldMapping
 		message: "1.0 has no POST; it becomes a GET, without its body"
-		when:    v0_0.method == "POST"
+		when:    prev.method == "POST"
 	}]
 }
 
-BackwardLens: {
-	v1_0: _
-	v0_0: {
+BackwardLens: (self): {
+	prev: {
 		method: "GET"
-		route:  v1_0.route
-		path:   v1_0.path
+		route:  self.route
+		path:   self.path
 	}
 }
 -- ship/tip.thema --
@@ -74,26 +72,24 @@ Schema: {
 	}
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		method: "GET"
 	}
 	lacunas: {
 		method: [{
 			type:    LossyFieldMapping
 			message: "1.0 has no POST; it becomes a GET, without its body"
-			when:    v0_0.method == "POST"
+			when:    prev.method == "POST"
 		}]
 	}
 }
 
-BackwardLens: {
-	v1_0: _
-	v0_0: {
+BackwardLens: (self): {
+	prev: {
 		method: "GET"
-		route:  v1_0.route
-		path:   v1_0.path
+		route:  self.route
+		path:   self.path
 	}
 }
 -- out/decompiled/tip.thema --

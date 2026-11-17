@@ -23,10 +23,9 @@ Schema: {
 	}]
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		items: _each(v0_0.items, {
+ForwardLens: (prev): {
+	self: {
+		items: _each(prev.items, {
 			q: {
 				y: _drop
 			}
@@ -35,10 +34,9 @@ ForwardLens: {
 	}
 }
 
-BackwardLens: {
-	v1_0: _
-	v0_0: {
-		items: _each(v1_0.items, {})
+BackwardLens: (self): {
+	prev: {
+		items: _each(self.items, {})
 	}
 }
 -- ship/tip.thema --
@@ -78,10 +76,9 @@ Schema: {
 	]
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		items: _each(v0_0.items, {
+ForwardLens: (prev): {
+	self: {
+		items: _each(prev.items, {
 			q: {
 				y: _drop
 			}
@@ -90,10 +87,9 @@ ForwardLens: {
 	}
 }
 
-BackwardLens: {
-	v1_0: _
-	v0_0: {
-		items: _each(v1_0.items, {})
+BackwardLens: (self): {
+	prev: {
+		items: _each(self.items, {})
 	}
 }
 -- out/decompiled/tip.thema --

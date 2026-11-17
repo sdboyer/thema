@@ -28,17 +28,15 @@ Schema: {
 }
 
 // The rename, both ways.
-ForwardLens: {
-	v0_0: _
-	tip: {
-		after: v0_0.before
+ForwardLens: (prev): {
+	self: {
+		after: prev.before
 	}
 }
 
-BackwardLens: {
-	tip: _
-	v0_0: {
-		before: tip.after
+BackwardLens: (self): {
+	prev: {
+		before: self.after
 	}
 }
 `
@@ -55,17 +53,15 @@ Schema: {
 }
 
 // The rename, both ways.
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		after: v0_0.before
+ForwardLens: (prev): {
+	self: {
+		after: prev.before
 	}
 }
 
-BackwardLens: {
-	v1_0: _
-	v0_0: {
-		before: v1_0.after
+BackwardLens: (self): {
+	prev: {
+		before: self.after
 	}
 }
 `

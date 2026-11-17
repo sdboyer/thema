@@ -11,10 +11,9 @@ Schema: {
 	"_kind": string
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		"_kind": v0_0.kind
+ForwardLens: (prev): {
+	self: {
+		"_kind": prev.kind
 	}
 }
 -- ship/tip.thema --
@@ -35,10 +34,9 @@ Schema: {
 	"_kind": string
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		"_kind": v0_0.kind
+ForwardLens: (prev): {
+	self: {
+		"_kind": prev.kind
 	}
 }
 -- out/decompiled/tip.thema --

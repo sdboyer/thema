@@ -27,17 +27,15 @@ func TestComposedPositions(t *testing.T) {
 	a: int32 & >=0
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		a: v0_0.a * 2
+ForwardLens: (prev): {
+	self: {
+		a: prev.a * 2
 	}
 }
 
-BackwardLens: {
-	v1_0: _
-	v0_0: {
-		a: v1_0.a
+BackwardLens: (self): {
+	prev: {
+		a: self.a
 	}
 }
 `
@@ -79,8 +77,8 @@ BackwardLens: {
 		if len(ds) != 1 || ds[0].Code != diag.E0367 {
 			t.Fatalf("%s: got %v, want one E0367", op, ds)
 		}
-		if p := ds[0].Primary; p == nil || p.File != dir+"/history/1.0.thema" || p.Line != 8 {
-			t.Errorf("%s: E0367 is positioned at %v, want %s/history/1.0.thema:8", op, p, dir)
+		if p := ds[0].Primary; p == nil || p.File != dir+"/history/1.0.thema" || p.Line != 7 {
+			t.Errorf("%s: E0367 is positioned at %v, want %s/history/1.0.thema:7", op, p, dir)
 		}
 	}
 }

@@ -11,9 +11,8 @@ Schema: {
 	b?: int
 }
 
-ForwardLens: {
-	v0_0: _
-	v0_1: {
+ForwardLens: (prev): {
+	self: {
 		b: 1
 	}
 }
@@ -26,7 +25,7 @@ Schema: {
 error[E0355]: immutability violation: v0.1 has a ForwardLens, and is backward compatible with v0.0
  --> history/0.1.thema:6:1
   |
-6 | ForwardLens: {
+6 | ForwardLens: (prev): {
   | ^^^^^^^^^^^
   |
  ::: history/0.0.thema:1:1

@@ -9,16 +9,14 @@ Schema: {
 	after: string
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		after: v0_0.before
+ForwardLens: (prev): {
+	self: {
+		after: prev.before
 	}
 }
 
-BackwardLens: {
-	v1_0: _
-	v0_0: {
+BackwardLens: (self): {
+	prev: {
 		after: _drop
 	}
 }
@@ -28,9 +26,9 @@ Schema: {
 }
 -- out/error --
 error[E0346]: BackwardLens produces nothing for before, which v0.0 requires
-  --> history/1.0.thema:12:1
+  --> history/1.0.thema:11:1
    |
-12 | BackwardLens: {
+11 | BackwardLens: (self): {
    | ^^^^^^^^^^^^
    |
-   = help: add before: <mapping> to v0_0
+   = help: add before: <mapping> to prev

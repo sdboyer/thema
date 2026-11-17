@@ -22,20 +22,19 @@ Schema: {
 	count: int
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		name: v0_0.name
+ForwardLens: (prev): {
+	self: {
+		name: prev.name
 		meta: {
 			team: "unassigned"
 		}
-		count: _coalesce(v0_0.count, 0)
+		count: _coalesce(prev.count, 0)
 	}
 	lacunas: {
 		name: [{
 			type:    LossyFieldMapping
 			message: "names longer than 64 characters are truncated downstream"
-			when:    len(v0_0.name) > 64
+			when:    len(prev.name) > 64
 		}]
 		meta: {
 			team: [{
@@ -49,7 +48,7 @@ ForwardLens: {
 		}, {
 			type:    AmbiguousMapping
 			message: "legacy records never recorded a count, so 0 may be real"
-			when:    v0_0.name == "legacy"
+			when:    prev.name == "legacy"
 		}]
 	}
 }
@@ -82,20 +81,19 @@ Schema: {
 	count: int
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		name: v0_0.name
+ForwardLens: (prev): {
+	self: {
+		name: prev.name
 		meta: {
 			team: "unassigned"
 		}
-		count: _coalesce(v0_0.count, 0)
+		count: _coalesce(prev.count, 0)
 	}
 	lacunas: {
 		name: [{
 			type:    LossyFieldMapping
 			message: "names longer than 64 characters are truncated downstream"
-			when:    len(v0_0.name) > 64
+			when:    len(prev.name) > 64
 		}]
 		meta: {
 			team: [{
@@ -109,7 +107,7 @@ ForwardLens: {
 		}, {
 			type:    AmbiguousMapping
 			message: "legacy records never recorded a count, so 0 may be real"
-			when:    v0_0.name == "legacy"
+			when:    prev.name == "legacy"
 		}]
 	}
 }

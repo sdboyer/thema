@@ -46,10 +46,19 @@ const (
 	TipFile = "tip" + Ext
 	// HistoryDir holds the frozen versions, one <major>.<minor>.thema each.
 	HistoryDir = "history"
-	// TipParam is the name a lens on the edge into the tip gives the tip's
-	// instance, in place of a version's v<major>_<minor>: the tip has no
-	// version to name it by until it is cut.
-	TipParam = "tip"
+	// TipName is the tip's name where a version's number would be: in
+	// messages, and in output that names versions. The tip has no number
+	// until it is cut.
+	TipName = "tip"
+)
+
+// The names a lens gives its two instances. In every version file, self is an
+// instance of the file's own version and prev one of the version before it: a
+// ForwardLens takes prev and produces self, and a BackwardLens takes self and
+// produces prev.
+const (
+	paramSelf = "self"
+	paramPrev = "prev"
 )
 
 // Load reads the authoring files of the lineage in dir: every file with [Ext]
@@ -189,7 +198,7 @@ type version struct {
 	// v is the version's number: from its file name for a frozen version,
 	// and derived for the tip.
 	v thema.SyntacticVersion
-	// tip marks the tip, whose lenses name its instance TipParam.
+	// tip marks the tip, whose version is derived.
 	tip  bool
 	path string
 	file *ast.File
@@ -198,15 +207,6 @@ type version struct {
 	schema, forward, backward *ast.Field
 	// imports are the file's imports, each of one of CUE's builtin packages.
 	imports []*ast.ImportSpec
-}
-
-// param is the name the version's lenses give its instance: v0_0 for 0.0,
-// and TipParam for the tip.
-func (v *version) param() string {
-	if v.tip {
-		return TipParam
-	}
-	return paramName(v.v)
 }
 
 // header is the position of the start of the file, where constructs the file
@@ -332,7 +332,7 @@ func parseVersion(f File, name string, tip bool) (*version, error) {
 			}
 			if name != fieldSchema {
 				if _, ok := d.Value.(*ast.StructLit); !ok {
-					report(diag.E0107, d.Value.Pos(), "%s is not a struct", name).Helpf("a lens block is {v<from>: _, v<to>: {...}}, naming the tip's instance %s", TipParam)
+					report(diag.E0107, d.Value.Pos(), "%s is not a struct", name).Helpf("write %s", lensShape(name))
 					continue
 				}
 			}
@@ -370,23 +370,54 @@ func parseVersion(f File, name string, tip bool) (*version, error) {
 // noShorthand rejects CUE's struct shorthand on a version file's top-level
 // field: Schema: a: int collapses the field into one line, and the file's
 // three fields are written with their braces so that each reads as the block
-// it is. Beneath them the shorthand is accepted; Format expands it. The
-// parser leaves a shorthand's struct without a brace position.
+// it is. A lens block is written as its parameter, ForwardLens: (prev): {...},
+// which is CUE's shorthand for a struct holding one field labeled (prev); the
+// braces it keeps are its parameter's. Beneath them the shorthand is
+// accepted; Format expands it. The parser leaves a shorthand's struct without
+// a brace position.
 func noShorthand(f *ast.Field) cerrors.Error {
+	outer, _, _ := ast.LabelName(f.Label)
+	inner := shorthand(f)
+	if inner == nil {
+		return nil
+	}
+	if outer == fieldSchema {
+		label, _, _ := ast.LabelName(inner.Label)
+		return shorthandErr(inner, outer, label, outer, "a version file's three fields keep their braces, so that each reads as the block it is")
+	}
+	// A lens block's own shorthand is its parameter's. A field of any other
+	// label in its place is a block without a parameter, which lensBlock
+	// reports.
+	param, ok := inner.Label.(*ast.ParenExpr)
+	if !ok {
+		return nil
+	}
+	body := shorthand(inner)
+	if body == nil {
+		return nil
+	}
+	label, _, _ := ast.LabelName(body.Label)
+	return shorthandErr(body, outer+": "+exprText(param), label, outer, "a lens keeps the braces after its parameter, so that it reads as a function of it")
+}
+
+// shorthand is the one field of f's value when that is CUE's shorthand,
+// a: b: c, and nil otherwise.
+func shorthand(f *ast.Field) *ast.Field {
 	s, ok := f.Value.(*ast.StructLit)
 	if !ok || s.Lbrace.IsValid() || len(s.Elts) != 1 {
 		return nil
 	}
-	inner, ok := s.Elts[0].(*ast.Field)
-	if !ok {
-		return nil
-	}
-	outer, _, _ := ast.LabelName(f.Label)
-	label, _, _ := ast.LabelName(inner.Label)
+	inner, _ := s.Elts[0].(*ast.Field)
+	return inner
+}
+
+// shorthandErr is the E0109 for inner, written as prefix: inner: ..., in the
+// version file's field block, with why as its note.
+func shorthandErr(inner *ast.Field, prefix, label, block, why string) cerrors.Error {
 	return diag.New(diag.E0109).At(inner.Pos()).
-		Headlinef("%s: %s: ... is CUE's struct shorthand, which a version file's %s does not use", outer, label, outer).
-		Note(token.NoPos, "a version file's three fields keep their braces, so that each reads as the block it is").
-		Helpf("write %s: {%s: ...}", outer, label).
+		Headlinef("%s: %s: ... is CUE's struct shorthand, which a version file's %s does not use", prefix, label, block).
+		Note(token.NoPos, why).
+		Helpf("write %s: {%s: ...}", prefix, label).
 		Err()
 }
 

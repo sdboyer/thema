@@ -15,10 +15,9 @@ Schema: {
 	}
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		q: _coalesce(v0_0.q, {
+ForwardLens: (prev): {
+	self: {
+		q: _coalesce(prev.q, {
 			a: 0
 		})
 	}
@@ -56,10 +55,9 @@ Schema: {
 	}
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		q: _coalesce(v0_0.q, {a: 0})
+ForwardLens: (prev): {
+	self: {
+		q: _coalesce(prev.q, {a: 0})
 	}
 	lacunas: {
 		q: [{

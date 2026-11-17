@@ -15,9 +15,8 @@ Schema: {
 	}
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		meta: {
 			defaults
 			team: "unassigned"
@@ -37,12 +36,12 @@ Schema: {
     {
       "code": "E0334",
       "severity": "error",
-      "headline": "a nested body may embed only v0_0.<path>, to copy from it",
+      "headline": "a nested body may embed only prev.<path>, to copy from it",
       "primary": {
         "file": "history/1.0.thema",
-        "line": 12,
+        "line": 11,
         "col": 4,
-        "offset": 103,
+        "offset": 102,
         "origin": "user"
       }
     }
@@ -54,9 +53,9 @@ Schema: {
   }
 }
 -- out/text --
-error[E0334]: a nested body may embed only v0_0.<path>, to copy from it
-  --> history/1.0.thema:12:4
+error[E0334]: a nested body may embed only prev.<path>, to copy from it
+  --> history/1.0.thema:11:4
    |
-12 |             defaults
+11 |             defaults
    |             ^^^^^^^^
    |

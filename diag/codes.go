@@ -113,7 +113,7 @@ var Codes = []CodeInfo{
 	{Code: E0147, Severity: SeverityError, Scope: ScopeOne, Title: "a version file imports a package its Schema does not use", Sentinels: []error{terrors.ErrInvalidLineage}},
 	{Code: E0148, Severity: SeverityError, Scope: ScopeOne, Title: "a numbered version file is at the top of the lineage's directory, not under history/", Sentinels: []error{terrors.ErrInvalidLineage}, Positionless: true},
 	{Code: E0149, Severity: SeverityError, Scope: ScopeOne, Title: "the lineage's directory has no tip.thema", Sentinels: []error{terrors.ErrInvalidLineage}, Positionless: true},
-	{Code: E0150, Severity: SeverityError, Scope: ScopeVersions, Title: "a lens of the tip names a version other than the tip's parent, the newest version under history/", Sentinels: []error{terrors.ErrInvalidLineage}},
+	{Code: E0150, Severity: SeverityError, Scope: ScopeVersions, Title: "a lens of the tip names a version other than the tip's parent, the newest version under history/", Sentinels: []error{terrors.ErrInvalidLineage}, Retired: "A lens names its instances prev and self, never a version, so nothing in it names a parent that can go stale. A lens rebased onto a newer parent is checked against that parent like any lens: a mapping that reads a field the parent does not declare is E0340, and a field of the parent the lens leaves unmapped is E0347."},
 	{Code: E0151, Severity: SeverityError, Scope: ScopeOne, Title: "a schema or lens declares a hidden field or a hidden definition", Sentinels: []error{terrors.ErrInvalidLineage}},
 	{Code: E0152, Severity: SeverityError, Scope: ScopeOne, Title: "the value a lineage is bound from is not the root of a value CUE built from source", Positionless: true},
 	{Code: E0201, Severity: SeverityError, Scope: ScopeOne, Title: "the first schema is not version 0.0", Sentinels: []error{terrors.ErrNonContiguousVersions}},
@@ -286,7 +286,7 @@ const (
 	E0108 Code = "E0108" // no schema field
 	E0109 Code = "E0109" // CUE's a: b: c shorthand
 	E0110 Code = "E0110" // no version files at all
-	E0111 Code = "E0111" // a lens block not shaped {v<from>: _, v<to>: {...}, lacunas?: {...}}
+	E0111 Code = "E0111" // a lens block not shaped ForwardLens: (prev): {self: {...}, lacunas?: {...}}
 	E0112 Code = "E0112" // a schema that fails to evaluate on its own
 
 	E0120 Code = "E0120" // the lineage lacks name or schemas

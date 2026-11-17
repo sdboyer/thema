@@ -20,7 +20,7 @@ func writeAuthoringDir(t *testing.T) string {
 	}
 	files := map[string]string{
 		historyV00:          "Schema: {\n\tbefore: string\n}\n",
-		"history/1.0.thema": "Schema: {after: string}\nForwardLens: {v0_0: _, v1_0: {after: v0_0.before}}\n",
+		"history/1.0.thema": "Schema: {after: string}\nForwardLens: (prev): {self: {after: prev.before}}\n",
 		authoring.TipFile:   "Schema: {\n\tafter: string\n}\n",
 	}
 	for name, text := range files {
@@ -48,7 +48,7 @@ func TestLineageFmt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "Schema: {\n\tafter: string\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {\n\t\tafter: v0_0.before\n\t}\n}\n"
+	want := "Schema: {\n\tafter: string\n}\n\nForwardLens: (prev): {\n\tself: {\n\t\tafter: prev.before\n\t}\n}\n"
 	if string(got) != want {
 		t.Errorf("history/1.0.thema formatted as\n%s\nwant\n%s", got, want)
 	}

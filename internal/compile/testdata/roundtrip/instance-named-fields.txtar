@@ -1,0 +1,180 @@
+A lens's instances are named prev and self, and nothing stops a schema from
+declaring fields of those names. A label names a field, and so does a
+selector, prev.self: only a reference standing alone names an instance. Here
+each version declares both, at the top and nested, and the lenses swap them;
+the backward lens computes two of them, and derives the third.
+-- ship/history/0.0.thema --
+Schema: {
+	self: string
+	prev: string
+	n: {
+		prev: string
+	}
+}
+-- ship/history/1.0.thema --
+Schema: {
+	prev: string
+	self: string
+	m: {
+		self: string
+	}
+	k: int
+}
+
+ForwardLens: (prev): {
+	self: {
+		prev: prev.self
+		self: prev.prev
+		m: {
+			self: prev.n.prev
+		}
+		k: len(prev.self)
+		n: _drop
+	}
+}
+
+BackwardLens: (self): {
+	prev: {
+		prev: self.self + "!"
+		n: {
+			prev: strings.ToUpper(self.m.self)
+		}
+	}
+}
+-- ship/tip.thema --
+Schema: {
+	prev: string
+	self: string
+	m: {
+		self: string
+	}
+	k: int
+}
+-- data/0.0/a.json --
+{"self": "sss", "prev": "p", "n": {"prev": "q"}}
+-- data/1.0/b.json --
+{"prev": "x", "self": "y", "m": {"self": "z"}, "k": 9}
+-- out/bind --
+ok
+-- out/decompiled/history/0.0.thema --
+Schema: {
+	self: string
+	prev: string
+	n: {
+		prev: string
+	}
+}
+-- out/decompiled/history/1.0.thema --
+Schema: {
+	prev: string
+	self: string
+	m: {
+		self: string
+	}
+	k: int
+}
+
+ForwardLens: (prev): {
+	self: {
+		prev: prev.self
+		self: prev.prev
+		m: {
+			self: prev.n.prev
+		}
+		k: len(prev.self)
+		n: _drop
+	}
+}
+
+BackwardLens: (self): {
+	prev: {
+		prev: self.self + "!"
+		n: {
+			prev: strings.ToUpper(self.m.self)
+		}
+	}
+}
+-- out/decompiled/tip.thema --
+Schema: {
+	prev: string
+	self: string
+	m: {
+		self: string
+	}
+	k: int
+}
+-- out/normal.cue --
+import "strings"
+
+name: "ship"
+schemas: {
+	"0": {
+		"0": {
+			schema: {
+				self: string
+				prev: string
+				n: {
+					prev: string
+				}
+			}
+		}
+	}
+	"1": {
+		"0": {
+			schema: {
+				prev: string
+				self: string
+				m: {
+					self: string
+				}
+				k: int
+			}
+		}
+	}
+}
+lenses: {
+	"0.0->1.0": {
+		v0_0: _
+		v1_0: {
+			prev: v0_0.self
+			self: v0_0.prev
+			m:
+				self: v0_0.n.prev
+			k: len(v0_0.self)
+		}
+		lacunas: [{
+			@thema(derived)
+			condition: len(v0_0.n) > 0
+			sourceFields: [{
+				path:  "n"
+				value: v0_0.n
+			}]
+			message: "n has no equivalent in v1.0 and was dropped"
+			type:    "DroppedField"
+		}]
+	}
+	"1.0->0.0": {
+		v1_0: _
+		v0_0: {
+			self: v1_0.prev
+			prev: v1_0.self + "!"
+			n:
+				prev: strings.ToUpper(v1_0.m.self)
+		}
+		lacunas: [{
+			@thema(derived)
+			sourceFields: [{
+				path:  "k"
+				value: v1_0.k
+			}]
+			message: "k has no equivalent in v0.0 and was dropped"
+			type:    "DroppedField"
+		}]
+	}
+}
+-- out/translate/0.0/a->1.0 --
+{"prev":"sss","self":"p","m":{"self":"q"},"k":3}
+[{"sourceFields":[{"path":"n","value":{"prev":"q"}}],"type":"DroppedField","message":"n has no equivalent in v1.0 and was dropped"}]
+-- out/translate/1.0/b->0.0 --
+{"self":"x","prev":"y!","n":{"prev":"Z"}}
+[{"sourceFields":[{"path":"k","value":9}],"type":"DroppedField","message":"k has no equivalent in v0.0 and was dropped"}]

@@ -10,9 +10,8 @@ Schema: {
 	secondfield: int
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		// 0.0 has no data for secondfield.
 		secondfield: -1
 	}
@@ -24,9 +23,8 @@ ForwardLens: {
 	}
 }
 
-BackwardLens: {
-	v1_0: _
-	v0_0: {
+BackwardLens: (self): {
+	prev: {
 		secondfield: _drop
 	}
 	lacunas: {
@@ -53,9 +51,8 @@ Schema: {
 	secondfield: int
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		// 0.0 has no data for secondfield.
 		secondfield: -1
 	}
@@ -67,9 +64,8 @@ ForwardLens: {
 	}
 }
 
-BackwardLens: {
-	v1_0: _
-	v0_0: {
+BackwardLens: (self): {
+	prev: {
 		secondfield: _drop
 	}
 	lacunas: {

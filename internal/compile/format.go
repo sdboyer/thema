@@ -32,6 +32,10 @@ var layoutFile = token.NewFile("", 1, 1)
 // field's value gets positions on its braces so that it is expanded too
 // rather than collapsed.
 //
+// A lens block is the one exception: ForwardLens: (prev): {...} keeps CUE's
+// shorthand for the struct holding its parameter, so that the block reads as
+// a function of it, and the braces are its parameter's.
+//
 // Comments keep the line breaks they had, which are not layout: a blank
 // line between two comment groups keeps them apart, and a comment's own line
 // keeps it off the line before. See [arrange] for the line breaks between
@@ -43,6 +47,17 @@ func layout(root ast.Node) {
 		top = x.Decls
 	case *ast.StructLit:
 		top = x.Elts
+	}
+	// The version file's own fields: the top-level declarations, or root
+	// itself when it is one of them.
+	block := make(map[*ast.Field]bool)
+	if f, ok := root.(*ast.Field); ok {
+		block[f] = true
+	}
+	for _, d := range top {
+		if f, ok := d.(*ast.Field); ok {
+			block[f] = true
+		}
 	}
 	ast.Walk(root, func(n ast.Node) bool {
 		if cg, ok := n.(*ast.CommentGroup); ok {
@@ -62,6 +77,9 @@ func layout(root ast.Node) {
 	}, func(n ast.Node) {
 		switch x := n.(type) {
 		case *ast.Field:
+			if block[x] && lensParam(x) != nil {
+				return
+			}
 			if s, ok := x.Value.(*ast.StructLit); ok && len(s.Elts) == 1 {
 				s.Lbrace = layoutFile.Pos(0, token.NoRelPos)
 				s.Rbrace = layoutFile.Pos(0, token.Newline)
@@ -126,4 +144,26 @@ func endsWithOwnComment(d ast.Decl) bool {
 	}
 	last := cgs[len(cgs)-1]
 	return last.Position > 0 && !last.Line
+}
+
+// lensParam is the parameter of the lens block f, the field labeled (prev)
+// or (self) that is the only element of its value, or nil when f is not a
+// lens block written so.
+func lensParam(f *ast.Field) *ast.Field {
+	name, _, _ := ast.LabelName(f.Label)
+	if name != fieldForward && name != fieldBackward {
+		return nil
+	}
+	s, ok := f.Value.(*ast.StructLit)
+	if !ok || len(s.Elts) != 1 {
+		return nil
+	}
+	p, ok := s.Elts[0].(*ast.Field)
+	if !ok {
+		return nil
+	}
+	if _, ok := p.Label.(*ast.ParenExpr); !ok {
+		return nil
+	}
+	return p
 }

@@ -24,9 +24,8 @@ var shipDir = fstest.MapFS{
 	secondfield: int
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		secondfield: -1
 	}
 	lacunas: {
@@ -102,17 +101,15 @@ func TestAuthoringLineageVocabulary(t *testing.T) {
 	a: int32 & >=0
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		a: v0_0.a * 2
+ForwardLens: (prev): {
+	self: {
+		a: prev.a * 2
 	}
 }
 
-BackwardLens: {
-	v1_0: _
-	v0_0: {
-		a: v1_0.a
+BackwardLens: (self): {
+	prev: {
+		a: self.a
 	}
 }
 `)},
@@ -202,9 +199,8 @@ func TestAuthoringOpenStructs(t *testing.T) {
 	...
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		b: true
 	}
 }
@@ -243,16 +239,15 @@ ForwardLens: {
 		},
 		"open target, written drop": {
 			files: map[string]string{first: open, history10: addedRequired + `
-BackwardLens: {
-	v1_0: _
-	v0_0: {
+BackwardLens: (self): {
+	prev: {
 		b: _drop
 	}
 	lacunas: {
 		b: [{
 			type:    LossyFieldMapping
 			message: "b was false, which 0.0 cannot say"
-			when:    !v1_0.b
+			when:    !self.b
 		}]
 	}
 }
@@ -275,7 +270,7 @@ BackwardLens: {
 			},
 		},
 		"open source, closed target": {
-			files: map[string]string{first: open, history10: "Schema: {\n\ta!: string\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {}\n}\n"},
+			files: map[string]string{first: open, history10: "Schema: {\n\ta!: string\n}\n\nForwardLens: (prev): {\n\tself: {}\n}\n"},
 			translations: []translation{
 				{from: thema.SV(0, 0), to: thema.SV(1, 0), data: `{a: "x", z: 1, y: "s"}`, want: axOut, lacunas: []lacuna.Type{lacuna.DroppedField}},
 			},
@@ -293,7 +288,7 @@ BackwardLens: {
 		"open target, removed field unmapped": {
 			files: map[string]string{
 				first:     "Schema: {\n\tbefore: string\n\t...\n}\n",
-				history10: "Schema: {\n\tafter: string\n\t...\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {\n\t\tafter: \"x\"\n\t}\n}\n",
+				history10: "Schema: {\n\tafter: string\n\t...\n}\n\nForwardLens: (prev): {\n\tself: {\n\t\tafter: \"x\"\n\t}\n}\n",
 			},
 			err: diag.E0347,
 		},

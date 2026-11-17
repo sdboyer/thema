@@ -46,10 +46,10 @@ const (
 	TipFile = compile.TipFile
 	// HistoryDir holds the frozen versions, each <major>.<minor>.thema.
 	HistoryDir = compile.HistoryDir
-	// TipParam is the name a lens on the edge into the tip gives the tip's
-	// instance, as in ForwardLens: {v2_0: _, tip: {...}}. It is reserved: no
-	// other lens may use it.
-	TipParam = compile.TipParam
+	// TipName is the tip's name where a version's number would be: in
+	// messages, and in output that names versions, such as the CLI's JSON
+	// "tip". The tip has no number until it is cut.
+	TipName = compile.TipName
 )
 
 // A File is one authoring file: its path relative to the lineage's directory

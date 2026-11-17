@@ -6,15 +6,14 @@ Schema: {kind!: "a", n!: int} | {kind!: "b", n?: int}
 -- ship/history/1.0.thema --
 Schema: {count!: int}
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {count: v0_0.n}
+ForwardLens: (prev): {
+	self: {count: prev.n}
 }
 -- out/error --
 error[E0343]: n is optional in v0.0 and v1.0 requires count
- --> history/1.0.thema:5:9
+ --> history/1.0.thema:4:9
   |
-5 |     v1_0: {count: v0_0.n}
+4 |     self: {count: prev.n}
   |            ^^^^^
   |
-  = help: write _coalesce(v0_0.n, <fallback>) to say what to use when it is absent
+  = help: write _coalesce(prev.n, <fallback>) to say what to use when it is absent

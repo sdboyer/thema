@@ -6,17 +6,16 @@ Schema: {method!: "GET", path!: {id!: string}} |
 -- ship/history/1.0.thema --
 Schema: {path!: {id!: string}, name?: string}
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		name:   v0_0.body.name
+ForwardLens: (prev): {
+	self: {
+		name:   prev.body.name
 		method: _drop
 	}
 }
 -- out/error --
 error[E0340]: v0.0 does not declare body.name
- --> history/1.0.thema:6:11
+ --> history/1.0.thema:5:11
   |
-6 |         name:   v0_0.body.name
+5 |         name:   prev.body.name
   |                 ^^^^
   |

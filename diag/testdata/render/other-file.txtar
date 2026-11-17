@@ -19,18 +19,17 @@ schema: {
 schema: {
 	naïve: string
 }
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		naïve: v0_0.missing
+ForwardLens: (prev): {
+	self: {
+		naïve: prev.missing
 	}
 }
 -- out/text --
 error[E0340]: the mapping for naïve reads v0_0.missing, which schema 0.0 does not declare
  --> history/1.0.thema:7:11
   |
-7 |         naïve: v0_0.missing
-  |                ^^^^
+7 |     }
+  |      ^
   |
  ::: history/0.0.thema:2:2
   |

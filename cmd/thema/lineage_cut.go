@@ -23,8 +23,7 @@ var cutLineageCmd = &cobra.Command{
 
 The tip, tip.thema in the lineage's directory given by -l, is frozen as
 history/<major>.<minor>.thema at the version it cuts as (see thema lineage
-tip): the whole file, its notes included, with its lenses naming the tip's
-instance by that version, v<major>_<minor>, in place of tip. tip.thema is
+tip): the whole file, its notes and lenses included. tip.thema is
 then reset to clean: its Schema, with its doc comment and the comments within
 it, and the imports the Schema uses. The lenses and the notes stay in the
 frozen file.

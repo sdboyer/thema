@@ -268,8 +268,9 @@ type dentry struct {
 }
 
 // A dbody is a lens body read back from the normal form, in result order
-// with drops last. root is the field references start from, the same in the
-// normal and the authoring form (v0_0, or item). lacunas are the lens's
+// with drops last. root is the field references start from, in the normal
+// form (v0_0, or item); the decompiled block is renamed to the authoring
+// form's prev and self once it is built. lacunas are the lens's
 // declared lacunas in list order, keyed by full path; only the lens's body
 // holds them, not an each body's.
 type dbody struct {
@@ -1475,13 +1476,16 @@ func versionText(v dversion, prev thema.SyntacticVersion, fwd, bwd *dbody) (stri
 			if block.name == fieldBackward {
 				from, to = v.v, prev
 			}
-			param := &ast.Field{Label: ast.NewIdent(paramName(from)), Value: ast.NewIdent("_")}
-			result := &ast.Field{Label: ast.NewIdent(paramName(to)), Value: block.b.syntax()}
-			lens := &ast.StructLit{Elts: []ast.Decl{param, result}}
+			in, out := lensParams(block.name)
+			result := &ast.Field{Label: ast.NewIdent(out), Value: block.b.syntax()}
+			lens := &ast.StructLit{Elts: []ast.Decl{result}}
 			if len(block.b.lacunas) > 0 {
 				lens.Elts = append(lens.Elts, &ast.Field{Label: ast.NewIdent(fieldLacunas), Value: block.b.lacunasSyntax()})
 			}
-			val = lens
+			// The normal form names the instances by their versions, and
+			// the authoring form by their roles.
+			renameInstances(lens, map[string]string{paramName(from): in, paramName(to): out})
+			val = &ast.StructLit{Elts: []ast.Decl{&ast.Field{Label: &ast.ParenExpr{X: ast.NewIdent(in)}, Value: lens}}}
 		}
 		field := &ast.Field{Label: ast.NewIdent(block.name), Value: val}
 		layout(field)

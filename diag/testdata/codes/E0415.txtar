@@ -15,10 +15,9 @@ Schema: {
 	}]
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		items: _each(v0_0.items, {
+ForwardLens: (prev): {
+	self: {
+		items: _each(prev.items, {
 			name: _item.title
 		})
 	}
@@ -30,10 +29,9 @@ ForwardLens: {
 	}
 }
 
-BackwardLens: {
-	v1_0: _
-	v0_0: {
-		items: _each(v1_0.items, {
+BackwardLens: (self): {
+	prev: {
+		items: _each(self.items, {
 			title: _item.name
 		})
 	}
@@ -51,9 +49,9 @@ Schema: {
       "headline": "lacunas.items: a lacuna on _each has no when",
       "primary": {
         "file": "history/1.0.thema",
-        "line": 15,
+        "line": 14,
         "col": 11,
-        "offset": 159,
+        "offset": 158,
         "origin": "user"
       },
       "help": [
@@ -69,9 +67,9 @@ Schema: {
 }
 -- out/text --
 error[E0415]: lacunas.items: a lacuna on _each has no when
-  --> history/1.0.thema:15:11
+  --> history/1.0.thema:14:11
    |
-15 |         items: [{
+14 |         items: [{
    |                 ^
    |
    = help: say when it applies with when: <condition>

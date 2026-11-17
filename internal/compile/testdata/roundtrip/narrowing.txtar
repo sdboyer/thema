@@ -12,10 +12,9 @@ Schema: {
 	properbool: bool
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		properbool: _match(v0_0.boolish, {
+ForwardLens: (prev): {
+	self: {
+		properbool: _match(prev.boolish, {
 			"true":  true
 			"false": false
 			[_]:     false
@@ -29,10 +28,9 @@ ForwardLens: {
 	}
 }
 
-BackwardLens: {
-	v1_0: _
-	v0_0: {
-		boolish: v1_0.properbool
+BackwardLens: (self): {
+	prev: {
+		boolish: self.properbool
 	}
 }
 -- ship/tip.thema --
@@ -43,18 +41,18 @@ Schema: {
 error[E0382]: properbool in the ForwardLens of v1.0 is not total for some instance
  --> history/1.0.thema:5:1
   |
-5 | ForwardLens: {
+5 | ForwardLens: (prev): {
   | ^^^^^^^^^^^
   |
-  = note: properbool in the ForwardLens of v1.0 is required by v1.0, and is written only under (v0_0.boolish & "false") != _|_; (v0_0.boolish & "true" | "false") == _|_ && (v0_0.boolish & bool) != _|_; (v0_0.boolish & "true" | "false") == _|_ && (v0_0.boolish & bool) == _|_; (v0_0.boolish & "true") != _|_, which the checker cannot prove cover every instance
+  = note: properbool in the ForwardLens of v1.0 is required by v1.0, and is written only under (prev.boolish & "false") != _|_; (prev.boolish & "true" | "false") == _|_ && (prev.boolish & bool) != _|_; (prev.boolish & "true" | "false") == _|_ && (prev.boolish & bool) == _|_; (prev.boolish & "true") != _|_, which the checker cannot prove cover every instance
   = note: a lens must be total: every instance of the schema of v0.0 must translate to an instance of the schema of v1.0 (totality rule unknown-exhaustive)
   = help: write it unconditionally, under a condition and its negation, or under type tests covering every alternative of the tested field
   = help: write the mapping in a form the checker can follow, or add a lacuna where it cannot decide
 
 error[E0369]: properbool in the ForwardLens of v1.0 is written as true and as false, and the two unify, so one may reject the other's value
- --> history/1.0.thema:8:3
+ --> history/1.0.thema:7:3
   |
-8 |         properbool: _match(v0_0.boolish, {
+7 |         properbool: _match(prev.boolish, {
   |         ^^^^^^^^^^
   |
   = note: a lens must be total: every instance of the schema of v0.0 must translate to an instance of the schema of v1.0 (totality rule write-conflict)
@@ -68,10 +66,9 @@ Schema: {
 	properbool: bool
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		properbool: _match(v0_0.boolish, {
+ForwardLens: (prev): {
+	self: {
+		properbool: _match(prev.boolish, {
 			"true":  true
 			"false": false
 			[_]:     false
@@ -85,10 +82,9 @@ ForwardLens: {
 	}
 }
 
-BackwardLens: {
-	v1_0: _
-	v0_0: {
-		boolish: v1_0.properbool
+BackwardLens: (self): {
+	prev: {
+		boolish: self.properbool
 	}
 }
 -- out/decompiled/tip.thema --

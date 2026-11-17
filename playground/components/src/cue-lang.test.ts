@@ -28,7 +28,7 @@ function tokens(text: string): [string, string | null][] {
 
 describe("the CUE tokenizer", () => {
   it("advances on every line of a version file", () => {
-    const text = 'Schema: {\n\tname: string // the name\n\tn?: int & >0 | *1\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {\n\t\t\n\t\tbogus: 1\n\t\ts: "a \\" b"\n\t\tt: """\n\t\t\tmulti\n\t\t\t"""\n\t\t#D: [...string]\n\t\t@attr(x)\n\t}\n}\n';
+    const text = 'Schema: {\n\tname: string // the name\n\tn?: int & >0 | *1\n}\n\nForwardLens: (prev): {\n\tself: {\n\t\t\n\t\tbogus: 1\n\t\ts: "a \\" b"\n\t\tt: """\n\t\t\tmulti\n\t\t\t"""\n\t\t#D: [...string]\n\t\t@attr(x)\n\t}\n}\n';
     expect(() => tokens(text)).not.toThrow();
   });
 
@@ -43,8 +43,13 @@ describe("the CUE tokenizer", () => {
   });
 
   it("marks the lens language's operations, and not the old names", () => {
-    const style = (w: string) => tokens(`x: ${w}(v0_0.a)`).find(([t]) => t === w)?.[1];
+    const style = (w: string) => tokens(`x: ${w}(prev.a)`).find(([t]) => t === w)?.[1];
     for (const op of ["_drop", "_coalesce", "_match", "_each", "_item"]) expect(style(op), op).toBe("keyword");
     for (const old of ["drop", "coalesce", "match", "each"]) expect(style(old), old).toBe("variableName");
+  });
+
+  it("marks a lens's instances", () => {
+    const t = tokens("ForwardLens: (prev): {\n\tself: {a: prev.b}\n}\n");
+    expect(t.filter(([w]) => w === "prev" || w === "self").map(([, s]) => s)).toEqual(["keyword", "keyword", "keyword"]);
   });
 });

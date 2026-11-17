@@ -29,17 +29,15 @@ func TestAuthoringDiagnosticExcerpt(t *testing.T) {
 	a: int32 & >=0
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		a: v0_0.a * 2
+ForwardLens: (prev): {
+	self: {
+		a: prev.a * 2
 	}
 }
 
-BackwardLens: {
-	v1_0: _
-	v0_0: {
-		a: v1_0.a
+BackwardLens: (self): {
+	prev: {
+		a: self.a
 	}
 }
 `,
@@ -58,8 +56,8 @@ BackwardLens: {
 	cases := []struct {
 		name, wd, lineage, pos string
 	}{
-		{"beneath the working directory", parent, filepath.Join("fleet", "ship"), "fleet/ship/history/1.0.thema:8:6"},
-		{"elsewhere", t.TempDir(), dir, "ship/history/1.0.thema:8:6"},
+		{"beneath the working directory", parent, filepath.Join("fleet", "ship"), "fleet/ship/history/1.0.thema:7:6"},
+		{"elsewhere", t.TempDir(), dir, "ship/history/1.0.thema:7:6"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -72,7 +70,7 @@ BackwardLens: {
 				t.Fatal("want the lineage to fail to bind: the forward lens computes a value the target field may reject")
 			}
 			out := stderr.String()
-			for _, want := range []string{"the ForwardLens of v1.0", "--> " + tc.pos + "\n", "a: v0_0.a"} {
+			for _, want := range []string{"the ForwardLens of v1.0", "--> " + tc.pos + "\n", "a: prev.a"} {
 				if !strings.Contains(out, want) {
 					t.Errorf("output lacks %q:\n%s", want, out)
 				}

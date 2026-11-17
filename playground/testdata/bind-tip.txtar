@@ -43,8 +43,8 @@ Schema: {
         }
       ],
       "help": [
-        "write ForwardLens: {v0_0: _, tip: {...}} in tip.thema",
-        "write \u003cfield\u003e: v0_0.crew to move it, or crew: _drop"
+        "write ForwardLens: (prev): {self: {...}} in tip.thema",
+        "write \u003cfield\u003e: prev.crew to move it, or crew: _drop"
       ]
     },
     {
@@ -74,7 +74,7 @@ Schema: {
         }
       ],
       "help": [
-        "write BackwardLens: {tip: _, v0_0: {crew: \u003cmapping\u003e}} in tip.thema"
+        "write BackwardLens: (self): {prev: {crew: \u003cmapping\u003e}} in tip.thema"
       ]
     }
   ],

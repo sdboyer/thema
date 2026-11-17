@@ -11,10 +11,9 @@ Schema: {
 	total: int & >=0
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		total: v0_0.count
+ForwardLens: (prev): {
+	self: {
+		total: prev.count
 	}
 }
 -- ship/tip.thema --
@@ -27,12 +26,12 @@ Schema: {
     {
       "code": "E0359",
       "severity": "error",
-      "headline": "the ForwardLens of v1.0 moves v0_0.count into total, which does not accept every value of it",
+      "headline": "the ForwardLens of v1.0 moves prev.count into total, which does not accept every value of it",
       "primary": {
         "file": "history/1.0.thema",
-        "line": 8,
+        "line": 7,
         "col": 10,
-        "offset": 73,
+        "offset": 72,
         "origin": "user"
       },
       "notes": [
@@ -52,10 +51,10 @@ Schema: {
   }
 }
 -- out/text --
-error[E0359]: the ForwardLens of v1.0 moves v0_0.count into total, which does not accept every value of it
- --> history/1.0.thema:8:10
+error[E0359]: the ForwardLens of v1.0 moves prev.count into total, which does not accept every value of it
+ --> history/1.0.thema:7:10
   |
-8 |         total: v0_0.count
+7 |         total: prev.count
   |                ^^^^
   |
   = note: total in v1.0 is now uint, which does not accept every value of the prior int

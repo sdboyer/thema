@@ -15,12 +15,6 @@ import (
 	terrors "github.com/sdboyer/thema/errors"
 )
 
-// The codes the tip tests expect.
-const (
-	codeNumberedTip = "E0111"
-	codeOlderParent = "E0150"
-)
-
 // files builds a lineage's files from path, text pairs.
 func files(pairs ...string) []File {
 	var fs []File
@@ -58,13 +52,6 @@ func TestTipLayout(t *testing.T) {
 		{"a numbered file at the top, on the development path", files("1.0.thema", v10, "history/0.0.thema", v00, TipFile, v10), true, []string{"E0148"}},
 		{"no tip, on the development path", files("history/0.0.thema", v00), true, []string{"E0149"}},
 		{"no history", files(TipFile, v00), false, []string{"E0110"}},
-		{"a history lens naming the tip", files(
-			"history/0.0.thema", v00,
-			"history/1.0.thema", v10+"\nForwardLens: {\n\tv0_0: _\n\ttip: {crew: 1}\n}\n",
-			TipFile, v10), false, []string{codeNumberedTip}},
-		{"a tip lens naming its version", files(
-			"history/0.0.thema", v00,
-			TipFile, v10+"\nForwardLens: {\n\tv0_0: _\n\tv1_0: {crew: 1}\n}\n"), true, []string{codeNumberedTip}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -126,7 +113,7 @@ func TestTipVersion(t *testing.T) {
 		{"clean, written differently", files("history/0.0.thema", v00, "history/0.1.thema", v01,
 			TipFile, "// The ship.\nSchema: {crew?: int, name: string}\n"), thema.SV(0, 1), true, "tip (clean at v0.1)"},
 		{"the newest schema, with a lens", files("history/0.0.thema", v00,
-			TipFile, v00+"\nBackwardLens: {\n\ttip: _\n\tv0_0: {}\n}\n"), thema.SV(0, 1), false, "tip (cuts as v0.1)"},
+			TipFile, v00+"\nBackwardLens: (self): {\n\tprev: {}\n}\n"), thema.SV(0, 1), false, "tip (cuts as v0.1)"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -152,7 +139,7 @@ func TestTipVersion(t *testing.T) {
 func TestCheckCleanReportsEachDifference(t *testing.T) {
 	ctx := cuecontext.New()
 	fs := files("history/0.0.thema", v00, TipFile, v10+
-		"\nForwardLens: {\n\tv0_0: _\n\ttip: {crew: 1}\n}\n\nBackwardLens: {\n\ttip: _\n\tv0_0: {crew: _drop}\n}\n")
+		"\nForwardLens: (prev): {\n\tself: {crew: 1}\n}\n\nBackwardLens: (self): {\n\tprev: {crew: _drop}\n}\n")
 	ds := diag.From(CheckClean(ctx, fs), diag.Context{})
 	var heads []string
 	for _, d := range ds {
@@ -242,7 +229,7 @@ func TestDevelopment(t *testing.T) {
 			notes = append(notes, n.Label)
 		}
 		wantNotes := []string{
-			"tip.thema:4: the ForwardLens of tip would copy v0_0.id into id, which does not accept every value of it (E0358)",
+			"tip.thema:4: the ForwardLens of tip would copy prev.id into id, which does not accept every value of it (E0358)",
 			"tip.thema:4: both v0.0 and tip declare id, so a lens that does not map it copies it",
 			"tip.thema:4: id in tip was string and is now int",
 			"tip.thema:4: tip has no ForwardLens, and tip requires crew (E0346)",
@@ -271,9 +258,9 @@ func TestDevelopment(t *testing.T) {
 			t.Errorf("rendered notes are not each under their finding:\n%s", text.String())
 		}
 		wantHelp := []string{
-			"write ForwardLens: {v0_0: _, tip: {crew: <mapping>}} in tip.thema",
+			"write ForwardLens: (prev): {self: {crew: <mapping>}} in tip.thema",
 			"map id in the ForwardLens: a _match, a computed value, or a constant",
-			"write <field>: v0_0.name to move it, or name: _drop",
+			"write <field>: prev.name to move it, or name: _drop",
 		}
 		if !slices.Equal(ds[0].Help, wantHelp) {
 			t.Errorf("help:\n got %q\nwant %q", ds[0].Help, wantHelp)
@@ -300,7 +287,7 @@ func TestDevelopment(t *testing.T) {
 		if want := "tip has no ForwardLens, and tip requires crew, rank (E0346)"; !slices.Contains(notes, want) {
 			t.Errorf("notes: got %q, want one %q", notes, want)
 		}
-		wantHelp := []string{"write ForwardLens: {v0_0: _, tip: {crew: <mapping>, rank: <mapping>}} in tip.thema"}
+		wantHelp := []string{"write ForwardLens: (prev): {self: {crew: <mapping>, rank: <mapping>}} in tip.thema"}
 		if !slices.Equal(ds[0].Help, wantHelp) {
 			t.Errorf("help:\n got %q\nwant %q", ds[0].Help, wantHelp)
 		}
@@ -333,7 +320,7 @@ func TestDevelopment(t *testing.T) {
 	})
 	t.Run("the tip's lenses name it tip", func(t *testing.T) {
 		c, err := Development(ctx, "ship", files("history/0.0.thema", v00,
-			TipFile, v10+"\nForwardLens: {\n\tv0_0: _\n\ttip: {crew: len(v0_0.name)}\n}\n"))
+			TipFile, v10+"\nForwardLens: (prev): {\n\tself: {crew: len(prev.name)}\n}\n"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -350,7 +337,7 @@ func TestDevelopment(t *testing.T) {
 	})
 	t.Run("a written but wrong tip lens is an error, not pending", func(t *testing.T) {
 		_, err := Development(ctx, "ship", files("history/0.0.thema", v00,
-			TipFile, v10+"\nForwardLens: {\n\tv0_0: _\n\ttip: {}\n}\n"))
+			TipFile, v10+"\nForwardLens: (prev): {\n\tself: {}\n}\n"))
 		if err == nil {
 			t.Fatal("no error")
 		}
@@ -363,7 +350,7 @@ func TestDevelopment(t *testing.T) {
 func TestDecompileWritesTip(t *testing.T) {
 	ctx := cuecontext.New()
 	c, err := Compile(ctx, "ship", files("history/0.0.thema", v00,
-		"history/1.0.thema", v10+"\nForwardLens: {\n\tv0_0: _\n\tv1_0: {crew: 1}\n}\n"))
+		"history/1.0.thema", v10+"\nForwardLens: (prev): {\n\tself: {crew: 1}\n}\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -398,38 +385,82 @@ func equalVersions(a, b []thema.SyntacticVersion) bool {
 	return slices.Equal(a, b)
 }
 
-// A lens of the tip that names a version at the parent's end, other than the
-// newest under history/, was written against an older parent (E0150); a
-// version named at the tip's end names the tip, whose instance is tip (E0111).
-func TestTipLensStaleParent(t *testing.T) {
+// A lens block is ForwardLens: (prev): {self: {...}} or BackwardLens:
+// (self): {prev: {...}}: every other shape is refused, with the shape as help,
+// and a mapping that reads the instance its lens produces is told which one
+// it reads.
+func TestLensBlockShape(t *testing.T) {
+	const (
+		codeShape  = "E0111"
+		noParam    = "ForwardLens does not declare the instance it takes"
+		wrongParam = "ForwardLens takes an instance of v0.0, so its parameter is prev"
+	)
 	ctx := cuecontext.New()
-	history := []string{"history/0.0.thema", v00, "history/0.1.thema", v01}
-	withTip := func(tip string) []File { return files(append(history, TipFile, tip)...) }
 	cases := []struct {
-		name, tip            string
-		code, headline, help string
+		name, lens     string
+		code, headline string
+		help           string
 	}{
-		{"forward, against an older parent",
-			v10 + "\nForwardLens: {\n\tv0_0: _\n\ttip: {crew: 1}\n}\n",
-			codeOlderParent, "the ForwardLens of tip names v0_0, but the tip's parent is v0.1",
-			"declare v0_1: _ in place of v0_0, and review the mappings against v0.1's schema"},
-		{"backward, against an older parent",
-			v01 + "\nBackwardLens: {\n\ttip: _\n\tv0_0: {crew: _drop}\n}\n",
-			codeOlderParent, "the BackwardLens of tip names v0_0, but the tip's parent is v0.1",
-			"name the body v0_1 in place of v0_0, and review its mappings against v0.1's schema"},
-		{"forward, naming neither end, against an older parent",
-			v10 + "\nForwardLens: {\n\tv0_0: _\n\tv1_0: {crew: 1}\n}\n",
-			codeOlderParent, "the ForwardLens of tip names v0_0, but the tip's parent is v0.1", ""},
-		{"forward, numbering the tip",
-			v10 + "\nForwardLens: {\n\tv0_1: _\n\tv1_0: {crew: 1}\n}\n",
-			codeNumberedTip, "ForwardLens names the tip's instance v1_0, which has no version yet", ""},
-		{"backward, numbering the tip",
-			v01 + "\nBackwardLens: {\n\tv0_2: _\n\tv0_1: {}\n}\n",
-			codeNumberedTip, "BackwardLens names the tip's instance v0_2, which has no version yet", ""},
+		{"version-named instances",
+			"ForwardLens: {\n\tv0_0: _\n\tv1_0: {crew: 1}\n}\n",
+			codeShape, noParam,
+			"write ForwardLens: (prev): {self: {...}}, with an optional lacunas: {...} beside self"},
+		{"no parameter",
+			"ForwardLens: {\n\tself: {crew: 1}\n}\n",
+			codeShape, noParam, ""},
+		{"no parameter, shorthand",
+			"ForwardLens: self: {crew: 1}\n",
+			codeShape, noParam, ""},
+		{"the other parameter",
+			"ForwardLens: (self): {\n\tself: {crew: 1}\n}\n",
+			codeShape, wrongParam, ""},
+		{"a quoted parameter",
+			"ForwardLens: (\"prev\"): {\n\tself: {crew: 1}\n}\n",
+			codeShape, wrongParam, ""},
+		{"an optional parameter",
+			"ForwardLens: (prev)?: {\n\tself: {crew: 1}\n}\n",
+			codeShape, wrongParam, ""},
+		{"a backward lens taking prev",
+			"BackwardLens: (prev): {\n\tprev: {}\n}\n",
+			codeShape, "BackwardLens takes an instance of v1.0, so its parameter is self", ""},
+		{"the body named after the parameter",
+			"ForwardLens: (prev): {\n\tprev: {crew: 1}\n}\n",
+			codeShape, "ForwardLens takes prev and produces self, so its body is self", ""},
+		{"the body named after its version",
+			"ForwardLens: (prev): {\n\tv1_0: {crew: 1}\n}\n",
+			codeShape, "v1_0 is not part of ForwardLens", ""},
+		{"lacunas beside the parameter",
+			"ForwardLens: {\n\t(prev): {\n\t\tself: {crew: 1}\n\t}\n\tlacunas: {}\n}\n",
+			codeShape, "lacunas is not part of ForwardLens; write it inside the braces after (prev)", ""},
+		{"two parameters",
+			"ForwardLens: {\n\t(prev): {\n\t\tself: {crew: 1}\n\t}\n\t(prev): {}\n}\n",
+			codeShape, "ForwardLens declares the instance it takes twice", ""},
+		{"no body",
+			"ForwardLens: (prev): {}\n",
+			codeShape, "ForwardLens does not declare the instance it produces", ""},
+		{"a parameter without a struct",
+			"ForwardLens: (prev): 5\n",
+			codeShape, "the parameter of ForwardLens is followed by a struct holding self", ""},
+		{"the parameter's struct in shorthand",
+			"ForwardLens: (prev): self: {crew: 1}\n",
+			"E0109", "ForwardLens: (prev): self: ... is CUE's struct shorthand, which a version file's ForwardLens does not use",
+			"write ForwardLens: (prev): {self: ...}"},
+		{"a forward mapping reading self",
+			"ForwardLens: (prev): {\n\tself: {\n\t\tcrew: 1\n\t\tname: self.name\n\t}\n}\n",
+			"E0418", "self is the instance the ForwardLens of v1.0 produces, which its mappings do not read",
+			"read prev, the instance the ForwardLens of v1.0 takes"},
+		{"a backward mapping reading prev",
+			"BackwardLens: (self): {\n\tprev: {\n\t\tname: prev.name\n\t\tcrew: _drop\n\t}\n}\n",
+			"E0418", "prev is the instance the BackwardLens of v1.0 produces, which its mappings do not read",
+			"read self, the instance the BackwardLens of v1.0 takes"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			_, err := Development(ctx, "ship", withTip(c.tip))
+			lens := c.lens
+			if !strings.HasPrefix(lens, "ForwardLens") {
+				lens = "ForwardLens: (prev): {\n\tself: {crew: 1}\n}\n\n" + lens
+			}
+			_, err := Compile(ctx, "ship", files("history/0.0.thema", v00, "history/1.0.thema", v10+"\n"+lens))
 			ds := diag.From(err, diag.Context{})
 			if len(ds) != 1 {
 				t.Fatalf("%d diagnostics, want 1: %v", len(ds), err)
@@ -441,10 +472,37 @@ func TestTipLensStaleParent(t *testing.T) {
 			if c.help != "" && (len(d.Help) != 1 || d.Help[0] != c.help) {
 				t.Errorf("help = %q, want %q", d.Help, c.help)
 			}
-			if d.Primary == nil || d.Primary.File != TipFile {
-				t.Errorf("primary = %v, want in %s", d.Primary, TipFile)
-			}
 		})
+	}
+}
+
+// The parameter's struct may be written in braces of its own, {(prev): ...},
+// which is the same lens as the parameter written bare; Format writes it bare.
+func TestLensBlockBraced(t *testing.T) {
+	ctx := cuecontext.New()
+	compiled := func(lens string) string {
+		t.Helper()
+		c, err := Compile(ctx, "ship", files("history/0.0.thema", v00, "history/1.0.thema", v10+"\n"+lens))
+		if err != nil {
+			t.Fatalf("compiling %s: %v", lens, err)
+		}
+		text, err := c.Text()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return text
+	}
+	bare := "ForwardLens: (prev): {\n\tself: {\n\t\tcrew: 1\n\t}\n}\n"
+	braced := "ForwardLens: {\n\t(prev): {\n\t\tself: {\n\t\t\tcrew: 1\n\t\t}\n\t}\n}\n"
+	if a, b := compiled(bare), compiled(braced); a != b {
+		t.Errorf("the braced lens compiles to\n%s\nand the bare one to\n%s", b, a)
+	}
+	got, err := Format([]byte(braced))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != bare {
+		t.Errorf("Format wrote\n%s\nwant\n%s", got, bare)
 	}
 }
 

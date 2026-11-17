@@ -10,17 +10,15 @@ Schema: {
 	a: int32 & >=0
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		a: v0_0.a * 2
+ForwardLens: (prev): {
+	self: {
+		a: prev.a * 2
 	}
 }
 
-BackwardLens: {
-	v1_0: _
-	v0_0: {
-		a: v1_0.a
+BackwardLens: (self): {
+	prev: {
+		a: self.a
 	}
 }
 -- ship/tip.thema --
@@ -34,7 +32,7 @@ Schema: {
     {
       "code": "E0367",
       "severity": "error",
-      "headline": "a in the ForwardLens of v1.0 is v0_0.a * 2, which may be as low as -4294967296, where v1.0 requires \u003e=0",
+      "headline": "a in the ForwardLens of v1.0 is prev.a * 2, which may be as low as -4294967296, where v1.0 requires \u003e=0",
       "path": [
         "lenses",
         "0.0-\u003e1.0",
@@ -57,9 +55,9 @@ Schema: {
       },
       "primary": {
         "file": "history/1.0.thema",
-        "line": 8,
+        "line": 7,
         "col": 6,
-        "offset": 67,
+        "offset": 66,
         "origin": "user"
       },
       "notes": [

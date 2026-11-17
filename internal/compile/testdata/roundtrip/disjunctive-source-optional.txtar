@@ -14,11 +14,10 @@ Schema: {
 	doubled?: int
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		count:   _coalesce(v0_0.x.n, 0)
-		doubled: v0_0.x.n * 2
+ForwardLens: (prev): {
+	self: {
+		count:   _coalesce(prev.x.n, 0)
+		doubled: prev.x.n * 2
 	}
 }
 -- ship/tip.thema --
@@ -64,11 +63,10 @@ Schema: {
 	doubled?: int
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		count:   _coalesce(v0_0.x.n, 0)
-		doubled: v0_0.x.n * 2
+ForwardLens: (prev): {
+	self: {
+		count:   _coalesce(prev.x.n, 0)
+		doubled: prev.x.n * 2
 	}
 }
 -- out/decompiled/tip.thema --

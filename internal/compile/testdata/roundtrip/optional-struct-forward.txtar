@@ -28,11 +28,10 @@ Schema: {
 	}
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		q: {
-			x2: v0_0.q.x
+			x2: prev.q.x
 			y:  _drop
 		}
 		r: {
@@ -89,11 +88,10 @@ Schema: {
 	}
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		q: {
-			x2: v0_0.q.x
+			x2: prev.q.x
 			y:  _drop
 		}
 		r: {

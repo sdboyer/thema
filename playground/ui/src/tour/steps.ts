@@ -46,9 +46,8 @@ export const minorDefault = ` | *"medium"`;
 // The ForwardLens the tour adds once the tip is a major version, without the
 // field it needs and then with it.
 export const majorLens = `
-ForwardLens: {
-	v1_0: _
-	tip: {}
+ForwardLens: (prev): {
+	self: {}
 }
 `;
 export const lensFix = `size: "medium"`;
@@ -165,8 +164,8 @@ export const defaultShip: Partial<Ship> = {
     id: "lens-check",
     title: "Lenses are checked",
     about:
-      "thema refuses a lens that could fail on some valid instance. In the tip's lenses, `tip` names the tip's instance, since it has no version number yet; `v1_0` names the 1.0 instance.",
-    todo: ["Add this ForwardLens to the end of `tip.thema`.", `Then write \`${lensFix}\` between the braces after \`tip:\`.`],
+      "thema refuses a lens that could fail on some valid instance. In a lens, `self` names an instance of its file's own version, here the tip, and `prev` an instance of the version before it, here 1.0. A ForwardLens takes `prev` and produces `self`.",
+    todo: ["Add this ForwardLens to the end of `tip.thema`.", `Then write \`${lensFix}\` between the braces after \`self:\`.`],
     snippets: [{ label: "tip.thema", text: majorLens }],
     see: "First `E0346`: the ForwardLens produces nothing for `size`, which the tip requires, and the editor marks the lens. With `size` written, the warning is gone and the tip binds as 2.0.",
     doc: "bind",

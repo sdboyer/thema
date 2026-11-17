@@ -14,20 +14,18 @@ Schema: {
 	l?: [...{u!: string}]
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		l: _each(v0_0.l, {
+ForwardLens: (prev): {
+	self: {
+		l: _each(prev.l, {
 			u:      _item.t
 			legacy: _drop
 		})
 	}
 }
 
-BackwardLens: {
-	v1_0: _
-	v0_0: {
-		l: _each(v1_0.l, {t: _item.u})
+BackwardLens: (self): {
+	prev: {
+		l: _each(self.l, {t: _item.u})
 	}
 }
 -- ship/tip.thema --
@@ -56,20 +54,18 @@ Schema: {
 	l?: [...{u!: string}]
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		l: _each(v0_0.l, {
+ForwardLens: (prev): {
+	self: {
+		l: _each(prev.l, {
 			u:      _item.t
 			legacy: _drop
 		})
 	}
 }
 
-BackwardLens: {
-	v1_0: _
-	v0_0: {
-		l: _each(v1_0.l, {t: _item.u})
+BackwardLens: (self): {
+	prev: {
+		l: _each(self.l, {t: _item.u})
 	}
 }
 -- out/decompiled/tip.thema --

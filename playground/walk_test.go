@@ -19,7 +19,7 @@ func lineages() fstest.MapFS {
 	file := func(s string) *fstest.MapFile { return &fstest.MapFile{Data: []byte(s)} }
 	return fstest.MapFS{
 		"lineages/pets/dog/history/0.0.thema":    file("Schema: {\n\tname: string\n}\n"),
-		"lineages/pets/dog/history/1.0.thema":    file("Schema: {\n\tname:  string\n\tbreed: string\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {\n\t\tbreed: \"unknown\"\n\t}\n}\n"),
+		"lineages/pets/dog/history/1.0.thema":    file("Schema: {\n\tname:  string\n\tbreed: string\n}\n\nForwardLens: (prev): {\n\tself: {\n\t\tbreed: \"unknown\"\n\t}\n}\n"),
 		"lineages/pets/dog/tip.thema":            file("Schema: {\n\tname:  string\n\tbreed: string\n}\n"),
 		"lineages/pets/dog/example.cue":          file("// A dog.\ncategory: \"Pets\"\ntitle:    \"Dog\"\nsummary:  \"A dog, and a breed added at 1.0.\"\n"),
 		"lineages/pets/broken/history/0.0.thema": file("Schema: {\n\tname: string\n}\n"),

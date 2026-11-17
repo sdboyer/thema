@@ -10,10 +10,9 @@ Schema: {
 	b: string
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		b: _coalesce(v0_0.a)
+ForwardLens: (prev): {
+	self: {
+		b: _coalesce(prev.a)
 	}
 }
 -- ship/tip.thema --
@@ -26,12 +25,12 @@ Schema: {
     {
       "code": "E0335",
       "severity": "error",
-      "headline": "_coalesce takes two arguments: _coalesce(v0_0.<path>, fallback)",
+      "headline": "_coalesce takes two arguments: _coalesce(prev.<path>, fallback)",
       "primary": {
         "file": "history/1.0.thema",
-        "line": 8,
+        "line": 7,
         "col": 6,
-        "offset": 62,
+        "offset": 61,
         "origin": "user"
       }
     },
@@ -47,7 +46,7 @@ Schema: {
         "origin": "user"
       },
       "help": [
-        "write <field>: v0_0.a to move it, or a: _drop"
+        "write <field>: prev.a to move it, or a: _drop"
       ]
     }
   ],
@@ -58,17 +57,17 @@ Schema: {
   }
 }
 -- out/text --
-error[E0335]: _coalesce takes two arguments: _coalesce(v0_0.<path>, fallback)
- --> history/1.0.thema:8:6
+error[E0335]: _coalesce takes two arguments: _coalesce(prev.<path>, fallback)
+ --> history/1.0.thema:7:6
   |
-8 |         b: _coalesce(v0_0.a)
+7 |         b: _coalesce(prev.a)
   |            ^^^^^^^^^
   |
 
 error[E0347]: v0.0 declares a and v1.0 does not, and nothing maps it
  --> history/1.0.thema:5:1
   |
-5 | ForwardLens: {
+5 | ForwardLens: (prev): {
   | ^^^^^^^^^^^
   |
-  = help: write <field>: v0_0.a to move it, or a: _drop
+  = help: write <field>: prev.a to move it, or a: _drop
