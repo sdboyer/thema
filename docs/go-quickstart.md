@@ -81,7 +81,7 @@ var shipFS embed.FS
 
 // Lineage loads and binds the ship lineage.
 func Lineage(rt *thema.Runtime, opts ...thema.BindOption) (thema.Lineage, error) {
-	return load.AuthoringLineage(shipFS, "ship", rt, opts...)
+	return load.AuthoringLineage(shipFS, "ship", rt, load.BindOptions(opts...))
 }
 ```
 
