@@ -182,7 +182,7 @@ A lens has no other regular fields (`E0123`). It may declare hidden fields besid
 
 **Translation.** Translating an instance from one version to another steps through every version between them, one edge at a time. A step across a declared lens evaluates the lens; a step forward within a major version unifies the instance with the next schema. Each step's result is closed against its target schema, and each step reports its own lacunas.
 
-**In the authoring form.** A version file holds the lenses between its version and its predecessor: `ForwardLens`, for a major version only, and `BackwardLens`, which is derived from the forward lens unless written. The lens language is described under [Lenses](../authoring-form.md#lenses); a lens's fields keep their names, `v0_0` and `v1_0`, in both forms. In the tip's lenses, the tip's instance is named `tip`, and compiles to the name of the version the tip cuts as ([The tip](../authoring-form.md#the-tip)).
+**In the authoring form.** A version file holds the lenses between its version and its predecessor: `ForwardLens`, for a major version only, and `BackwardLens`, which is derived from the forward lens unless written. The lens language is described under [Lenses](../authoring-form.md#lenses). There a lens names its instances by their roles, `self` for the file's own version and `prev` for its predecessor, written `ForwardLens: (prev): {self: {...}}` and `BackwardLens: (self): {prev: {...}}`; each compiles to the field named after its version, `v1_0` and `v0_0`, and in the tip's lenses `self` compiles to the name of the version the tip cuts as ([The tip](../authoring-form.md#the-tip)).
 
 ## Forms
 
@@ -255,7 +255,7 @@ Binding takes a lineage in the normal form, checks that it satisfies every invar
 
 Where step 8 finds a result that is not an instance of its target, and the totality proof can name the rule broken, the totality finding is reported in place of `E0304`. The rules behind steps 5, 10 and 11 are stated in [invariants](../invariants.md): [Schema constructs](../invariants.md#schema-constructs), [Backwards compatibility](../invariants.md#backwards-compatibility), [References](../invariants.md#references) and [Lens totality](../invariants.md#lens-totality). Every code is listed in [Error codes](../errors/README.md).
 
-A lineage in the authoring form is checked by the compiler before it is bound: the files, their version numbering, whether each version is minor or major, and each lens's mappings and lacunas (`E0101`–`E0112`, `E0148`–`E0150`, `E0204`, `E0205`, `E0207`, `E0330`–`E0357`, `E0410`–`E0423`). Binding then runs every step above on the compiled normal form. On the development path, the tip's missing lenses and its cleanness are reported as `E1001`–`E1003`, and cutting a tip that still lacks a lens as `E1004`.
+A lineage in the authoring form is checked by the compiler before it is bound: the files, their version numbering, whether each version is minor or major, and each lens's mappings and lacunas (`E0101`–`E0112`, `E0148`, `E0149`, `E0204`, `E0205`, `E0207`, `E0330`–`E0357`, `E0410`–`E0423`). Binding then runs every step above on the compiled normal form. On the development path, the tip's missing lenses and its cleanness are reported as `E1001`–`E1003`, and cutting a tip that still lacks a lens as `E1004`.
 
 **Options.**
 

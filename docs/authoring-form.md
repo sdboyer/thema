@@ -26,9 +26,9 @@ ship/
 
 `tip.thema` is the one file an author edits. The development path requires one, and decompiling writes one. It is written like any version file, and its version is never written down: thema derives it by checking the tip against the newest version under `history/`. If the tip is backwards compatible with that version, it is the next minor version, and otherwise the next major version. With no history at all, it is `0.0`. Tools show it as `tip (cuts as 2.1)`.
 
-- The tip's lenses are its edge to the newest version in history. In them, the tip's instance is named `tip`, since it has no version number yet: `ForwardLens: {v1_0: _, tip: {...}}` and `BackwardLens: {tip: _, v1_0: {...}}`. `tip` names nothing in a file under `history/`, and a tip's lens that names its instance by a version number is an error (`E0111`). The other end names the tip's parent, the newest version under `history/`. A lens written against an older parent, as after a rebase onto a branch that cut a newer version, is an error (`E0150`) that names the parent to declare; its mappings then need review against that version's schema.
+- The tip's lenses are its edge to its parent, the newest version under `history/`. They are written as any version file's are: `self` is the tip's instance, and `prev` its parent's. A tip rebased onto a branch that cut a newer version has that version as its parent, and its lenses connect it to that version; binding checks their mappings against its schema as it does any lens's, and they need review against it.
 - A tip is *clean* when its `Schema` equals the newest version's, and it declares no lenses. Formatting, comments and field order do not count. A clean tip has nothing to cut, and tools show it as `tip (clean at v2.0)`. `thema lineage tip -l <dir> --check-clean` fails with `E1003` for a tip that is not clean, for CI to check that the tip was cut before merging; in Go, `authoring.CheckClean`.
-- Cutting a tip writes it to `history/` at its derived version: `thema lineage cut -l <dir>` writes the files in place, and `--dry-run` prints the version and the files it would write; in Go, `authoring.CutTip` returns the files after the cut. The frozen file, `history/<major>.<minor>.thema`, is the whole tip file, its notes included, with its lenses naming the tip's instance by the new version, `v<major>_<minor>`, in place of `tip`. `tip.thema` is then clean: its `Schema`, with the doc comment above it and the comments within it, and the imports the `Schema` uses. The lenses and the notes stay in the frozen file alone. A tip is cut only once nothing about it is provisional: a lens its edge needs and does not write (`E1001`) refuses the cut (`E1004`), since a version that has been cut never changes. Cutting a clean tip does nothing. A tip whose parent moved is refused by binding (`E0150`) before the cut is tried.
+- Cutting a tip writes it to `history/` at its derived version: `thema lineage cut -l <dir>` writes the files in place, and `--dry-run` prints the version and the files it would write; in Go, `authoring.CutTip` returns the files after the cut. The frozen file, `history/<major>.<minor>.thema`, is the whole tip file, its notes and lenses included. `tip.thema` is then clean: its `Schema`, with the doc comment above it and the comments within it, and the imports the `Schema` uses. The lenses and the notes stay in the frozen file alone. A tip is cut only once nothing about it is provisional: a lens its edge needs and does not write (`E1001`) refuses the cut (`E1004`), since a version that has been cut never changes. Cutting a clean tip does nothing.
 
 A lineage is read in one of two ways:
 
@@ -43,9 +43,8 @@ Schema: {
 	secondfield: int
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		secondfield: -1
 	}
 	lacunas: {
@@ -56,9 +55,8 @@ ForwardLens: {
 	}
 }
 
-BackwardLens: {
-	v1_0: _
-	v0_0: {
+BackwardLens: (self): {
+	prev: {
 		secondfield: _drop
 	}
 }
@@ -68,41 +66,48 @@ BackwardLens: {
 - `ForwardLens` maps instances of the previous version to this one. Only a major version has one: a minor version is backwards compatible, so translating to it needs no lens.
 - `BackwardLens` maps instances of this version to the previous one. Every version after the first has one. It is derived from the forward lens unless written, as described under [the backward lens](#the-backward-lens).
 
-Each of the three is written as a block in braces. The file has no package clause. It may import CUE's standard packages for its `Schema`'s constraints, such as `strings.MinRunes(1)` or `time.Format(time.RFC3339)`; it imports nothing else, and only what the `Schema` uses, since a lens calls the `strings` functions without an import. A standard constraint is written alone, `name: strings.MinRunes(1)`, since it already says the value is a string.
+`Schema` is written as a block in braces, and each lens as its parameter followed by a block, `ForwardLens: (prev): {...}`. The file has no package clause. It may import CUE's standard packages for its `Schema`'s constraints, such as `strings.MinRunes(1)` or `time.Format(time.RFC3339)`; it imports nothing else, and only what the `Schema` uses, since a lens calls the `strings` functions without an import. A standard constraint is written alone, `name: strings.MinRunes(1)`, since it already says the value is a string.
 
 ## Lenses
 
 A lens reads like a function from one version to the next:
 
 ```cue
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		after: v0_0.before
+ForwardLens: (prev): {
+	self: {
+		after: prev.before
+	}
+}
+
+BackwardLens: (self): {
+	prev: {
+		before: self.after
 	}
 }
 ```
 
-The field whose value is `_` names the instance the lens takes, after its version: `v0_0` is an instance of version `0.0`. The other version field is the body, and produces the instance the lens returns, shaped like that version's schema. An optional `lacunas` field declares what the mappings lose, described under [lacunas](#lacunas).
+In every version file, `self` is an instance of the file's own version, and `prev` an instance of the version before it. `ForwardLens` takes `prev` and produces `self`, and `BackwardLens` takes `self` and produces `prev`. The parameter in parentheses names the instance the lens takes. The block after it holds the body, under the name of the instance the lens returns, shaped like that version's schema, and an optional `lacunas` field beside it that declares what the mappings lose, described under [lacunas](#lacunas). A block in any other shape is an error (`E0111`) that shows this one.
 
-The body holds the target schema's fields. Each entry is a *mapping*: it names a field of the target and says where that field's value comes from. A field of the instance the lens takes is written by its path, `v0_0.before`, or `v0_0.meta.owner` for a field inside a field.
+To CUE, `(prev):` is a field whose label is computed from an expression; thema reads it as the lens's parameter. A version file is the authoring form's syntax, compiled by thema, and is not evaluated as CUE on its own.
+
+The body holds the target schema's fields. Each entry is a *mapping*: it names a field of the target and says where that field's value comes from. A field of the instance the lens takes is written by its path, `prev.before`, or `prev.meta.owner` for a field inside a field. A mapping reads only the instance its lens takes: in a `ForwardLens`, a reference to `self` is an error (`E0418`). The names stand alone: a schema may declare fields named `self` or `prev`, which a mapping writes, `self: prev.name`, and reads, `prev.self`, like any other.
 
 ### Mappings
 
 | Written as | Meaning |
 |---|---|
-| `after: v0_0.before` | **Move.** The field takes the value at a path in the source instance. |
+| `after: prev.before` | **Move.** The field takes the value at a path in the source instance. |
 | `kind: "v2"` | **Constant.** The field takes a fixed value: a number, a string, `true`, `false`, `null`, or a list of these. The value must be one the target field accepts. |
-| `area: v0_0.width * v0_0.height` | **Computed.** The field takes a value computed from source fields: arithmetic (`+`, `-`, `*`, and whole-number division with `quo`, `rem`, `div`, `mod`), comparisons, `&&`, `||` and `!`, joining strings with `+` or `"\(...)"`, `len` for the length of a string or list, and the string functions `strings.ToUpper`, `ToLower`, `TrimSpace`, `Trim`, `TrimLeft`, `TrimRight`, `TrimPrefix`, `TrimSuffix`, `Replace`, `HasPrefix`, `HasSuffix` and `Contains`. These are exactly the computations thema can prove never fail; anything else is an error naming what is allowed. |
-| `meta: {owner: v0_0.name}` | **Nested body.** A block is a body for the target field it names, holding mappings for the fields inside. To copy the rest of its fields from a different part of the source, name that part first: `{v0_0.m, x: 1}`. |
+| `area: prev.width * prev.height` | **Computed.** The field takes a value computed from source fields: arithmetic (`+`, `-`, `*`, and whole-number division with `quo`, `rem`, `div`, `mod`), comparisons, `&&`, `||` and `!`, joining strings with `+` or `"\(...)"`, `len` for the length of a string or list, and the string functions `strings.ToUpper`, `ToLower`, `TrimSpace`, `Trim`, `TrimLeft`, `TrimRight`, `TrimPrefix`, `TrimSuffix`, `Replace`, `HasPrefix`, `HasSuffix` and `Contains`. These are exactly the computations thema can prove never fail; anything else is an error naming what is allowed. |
+| `meta: {owner: prev.name}` | **Nested body.** A block is a body for the target field it names, holding mappings for the fields inside. To copy the rest of its fields from a different part of the source, name that part first: `{prev.m, x: 1}`. |
 | `legacy: _drop` | **Drop.** The source field named by the key has no place in the target and is dropped. A field the target requires cannot be dropped. |
-| `nick: _coalesce(v0_0.nick, v0_0.name)` | **Fallback.** The source field is optional; when the instance lacks it, the fallback is used. It is SQL's `COALESCE` with absence in place of null: a field the instance has is used whatever its value, `null` included. The first argument may also be a computed value, `_coalesce(v0_0.count * 2, 0)`, and the fallback is used when any field it reads is absent. The fallback is a constant, or a field the source always has; for a struct, a struct of constants, `q: _coalesce(v0_0.q, {a: 0})`. A `_coalesce` whose first argument reads only fields the source always has is an error. |
-| `kind: _match(v0_0.kind, {"a": 1, [_]: 0})` | **Match.** The source value is matched against the arms. A value an arm matches becomes that arm's constant. A value no arm matches passes through unchanged where the target accepts it, and otherwise takes the wildcard arm `[_]`, which must declare a lacuna. Without a wildcard arm the arms must be exhaustive: every value the source may hold is matched or accepted. |
-| `items: _each(v0_0.items, {name: _item.title})` | **Each.** A list is mapped element by element. The block is a lens body over `_item`, the element, and every mapping above is available in it, `_each` included: in `_each(v0_0.steps, {fields: _each(_item.fields, {...})})`, the inner `_item` is an element of the step's `fields`. Instead of a block, the body may copy the element, `_each(v0_0.tags, _item)`, or a field of it, `ids: _each(v0_0.users, _item.id)`; the copy is the whole target element, so the field must be one every element has, and the target's element must accept every value of it, as for any copy. Since the copy is the whole element, the rest of the element is lost: in either direction every other field is dropped, with a derived `DroppedField` lacuna naming each element that had it. `_each` applies to lists of any length (`[...T]`). |
+| `nick: _coalesce(prev.nick, prev.name)` | **Fallback.** The source field is optional; when the instance lacks it, the fallback is used. It is SQL's `COALESCE` with absence in place of null: a field the instance has is used whatever its value, `null` included. The first argument may also be a computed value, `_coalesce(prev.count * 2, 0)`, and the fallback is used when any field it reads is absent. The fallback is a constant, or a field the source always has; for a struct, a struct of constants, `q: _coalesce(prev.q, {a: 0})`. A `_coalesce` whose first argument reads only fields the source always has is an error. |
+| `kind: _match(prev.kind, {"a": 1, [_]: 0})` | **Match.** The source value is matched against the arms. A value an arm matches becomes that arm's constant. A value no arm matches passes through unchanged where the target accepts it, and otherwise takes the wildcard arm `[_]`, which must declare a lacuna. Without a wildcard arm the arms must be exhaustive: every value the source may hold is matched or accepted. |
+| `items: _each(prev.items, {name: _item.title})` | **Each.** A list is mapped element by element. The block is a lens body over `_item`, the element, and every mapping above is available in it, `_each` included: in `_each(prev.steps, {fields: _each(_item.fields, {...})})`, the inner `_item` is an element of the step's `fields`. Instead of a block, the body may copy the element, `_each(prev.tags, _item)`, or a field of it, `ids: _each(prev.users, _item.id)`; the copy is the whole target element, so the field must be one every element has, and the target's element must accept every value of it, as for any copy. Since the copy is the whole element, the rest of the element is lost: in either direction every other field is dropped, with a derived `DroppedField` lacuna naming each element that had it. `_each` applies to lists of any length (`[...T]`). |
 
 A mapping's key is a plain field name, and its value is one of the forms above. Nothing else attaches to a mapping.
 
-The operations, `_drop`, `_coalesce`, `_match` and `_each`, and `_item` inside an `_each` body, start with `_` so that they can never be mistaken for a field. In CUE, a name that starts with `_` is a hidden field, which is not data, and a lens body never declares one: a key there names a field of the target. A field whose name starts with `_` is mapped by quoting its key, `"_x": v0_0.y`.
+The operations, `_drop`, `_coalesce`, `_match` and `_each`, and `_item` inside an `_each` body, start with `_` so that they can never be mistaken for a field. In CUE, a name that starts with `_` is a hidden field, which is not data, and a lens body never declares one: a key there names a field of the target. A field whose name starts with `_` is mapped by quoting its key, `"_x": prev.y`.
 
 ### What is written and what is implied
 
@@ -112,10 +117,10 @@ What a lens does to an instance is defined in [translation](translation.md), fie
 - **`...` and patterns declare nothing.** An open struct admits names it does not declare, as does a pattern constraint (`labels: [string]: string`), and a lens treats a name it only admits as absent from the schema: only a field with a predictable name is declared ([A4](translation.md#what-an-instance-may-hold)). A map both versions declare is copied whole, keys and all, but no mapping reads or writes a key under a pattern by name. To use one, declare it as an optional field in a minor version first, so that the values instances carry there land in it, and map from it in the lens that follows. A field one version declares and the other only admits is added or removed, exactly as between closed structs: it is never copied implicitly, and a major version's forward lens must move or drop a field it removed. A lens reads, drops and writes only fields its schemas declare.
 - **What `...` and patterns admit is carried.** Fields an instance holds under an open struct or a pattern constraint that its schema does not declare are not the lens's to translate: translation carries them around the lens, with their struct wherever the lens moves or embeds it whole, into the target's struct where it is open or has a pattern constraint that accepts them. It promotes one into a field the target declares when the value is an instance of it and the lens does not write that field; where the lens writes it, the lens's value stands. One it cannot place is set aside, with a lacuna. The same goes, in either direction, for a field the source declares that the lens leaves alone, where the target's struct is open and does not declare it ([fields no lens maps](invariants.md#fields-no-lens-maps)).
 - **Optional sources are used only when present.** A copy, a move, a computed value or an `_each` that reads a field the source may omit is written only when the instance has it. Where the target requires the field, the author must say what to use when it is absent, with `_coalesce`; an `_each` has no fallback yet, so it maps an optional list only into a list the target does not require.
-- **A struct is written where there is enough data for it.** A struct the target may omit is written where any of its content is written, and only where every field it requires is satisfied, written by the lens or filled by the target's default. The struct of the source it copies is content of its own, so translation keeps the form a struct had: absent stays absent, and empty stays empty. That holds for a struct copied whole, one the copy descends into, and a nested body (`q: {b: v0_0.q.a}`, or `q: {y: _drop}`). A struct filled from inside and outside an optional struct of the source, such as the backward lens of a move out of it, is written where any of its sources is present; a constant in it is content the struct always has.
+- **A struct is written where there is enough data for it.** A struct the target may omit is written where any of its content is written, and only where every field it requires is satisfied, written by the lens or filled by the target's default. The struct of the source it copies is content of its own, so translation keeps the form a struct had: absent stays absent, and empty stays empty. That holds for a struct copied whole, one the copy descends into, and a nested body (`q: {b: prev.q.a}`, or `q: {y: _drop}`). A struct filled from inside and outside an optional struct of the source, such as the backward lens of a move out of it, is written where any of its sources is present; a constant in it is content the struct always has.
 - **A struct that cannot be written is not written.** Where some of a struct's content is present but a field it requires is not, the struct is not written. No lacuna is derived for the values that would have gone into it: the lens refers to them, so they have an effect on the target ([translation](translation.md)). With `q?: {a!: int, b?: int}` in 0.0 and `q?: {a!: int}`, `b?: int` in 1.0, `{b: 2}` translates back to `{}` with no lacuna, and `{q: {a: 1}, b: 2}` to `{q: {a: 1, b: 2}}`. An author who wants to report `b` writes a `DroppedField` with a `when`.
-- **A struct the target requires is written always.** Copied from a struct the source may omit, it is `{}` where the instance lacks it, since an empty struct and an absent one carry the same information. Where it requires a field of its own that the instance lacks with it, the lens is not total and bind refuses it; `_coalesce(v0_0.q, {a: 0})` says what to write instead.
-- **Removed fields must be accounted for.** In the forward direction, a field the source declares and the target does not must be moved somewhere or dropped. A forgotten rename is an error, not a silent loss. A struct the target lacks is one field: it is accounted for as a whole, unless a mapping reads something beneath it, in which case each of its other fields is. The one exception is an `_each` whose body copies a field of the element, `_each(v0_0.users, _item.id)`: the copy says what the element becomes, and the body has nowhere to write a drop, so the element's other fields are dropped by derivation, each with its `DroppedField` lacuna. An `_each` whose body is a block must account for them as any body does.
+- **A struct the target requires is written always.** Copied from a struct the source may omit, it is `{}` where the instance lacks it, since an empty struct and an absent one carry the same information. Where it requires a field of its own that the instance lacks with it, the lens is not total and bind refuses it; `_coalesce(prev.q, {a: 0})` says what to write instead.
+- **Removed fields must be accounted for.** In the forward direction, a field the source declares and the target does not must be moved somewhere or dropped. A forgotten rename is an error, not a silent loss. A struct the target lacks is one field: it is accounted for as a whole, unless a mapping reads something beneath it, in which case each of its other fields is. The one exception is an `_each` whose body copies a field of the element, `_each(prev.users, _item.id)`: the copy says what the element becomes, and the body has nowhere to write a drop, so the element's other fields are dropped by derivation, each with its `DroppedField` lacuna. An `_each` whose body is a block must account for them as any body does.
 - **Required fields must be produced.** A field the target requires that no mapping and no copy produces is an error, naming the lens and the field.
 
 ### The backward lens
@@ -124,7 +129,7 @@ The derived backward lens is a derivation like those above, and must produce wha
 
 The backward lens is derived from the forward lens:
 
-- every move whose source is used once is inverted (`after: v0_0.before` forward derives `before: v1_0.after` backward);
+- every move whose source is used once is inverted (`after: prev.before` forward derives `before: self.after` backward);
 - every field the new version added is dropped, with a derived `DroppedField` lacuna saying so (a struct the new version added is dropped whole, with one lacuna about the struct, reported where it is present and holds more than its fields fill, whose value holds the fields beneath it), unless the old version's struct is open: there the field is left alone, and translation carries it into the old version as a field it does not declare, to be promoted again on the way forward unless the forward lens writes it. A field that a backward mapping reads part of is dropped all the same;
 - a value moved into a struct that is not written, for want of a field the struct requires, goes with it, and no lacuna is derived: the lens refers to the value, which counts as an effect ([E3a](translation.md#structs-and-presence)). An author who wants one writes it in `BackwardLens`;
 - fields both versions share are copied, as always.
@@ -149,20 +154,19 @@ What the author writes in `BackwardLens` overrides the derivation at the same ke
 A lacuna records something a translation loses or guesses. The `lacunas` field of a lens is keyed exactly like the body, and each key lists the lacunas of that mapping:
 
 ```cue
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		name: v0_0.name
+ForwardLens: (prev): {
+	self: {
+		name: prev.name
 		meta: {
 			team: "unassigned"
 		}
-		count: _coalesce(v0_0.count, 0)
+		count: _coalesce(prev.count, 0)
 	}
 	lacunas: {
 		name: [{
 			type:    LossyFieldMapping
 			message: "names longer than 64 characters are truncated downstream"
-			when:    len(v0_0.name) > 64
+			when:    len(prev.name) > 64
 		}]
 		meta: {
 			team: [{
@@ -176,7 +180,7 @@ ForwardLens: {
 		}, {
 			type:    PrecisionLoss
 			message: "counts above 1000 are rounded downstream"
-			when:    v0_0.count > 1000
+			when:    prev.count > 1000
 		}]
 	}
 }
@@ -184,7 +188,7 @@ ForwardLens: {
 
 A lacuna has a `type`, a `message`, and optionally a `when`. The types are `Placeholder`, `DroppedField`, `LossyFieldMapping`, `ChangedDefault`, `PrecisionLoss`, `AmbiguousMapping` and `Defaulted`.
 
-A key must name a mapping the author wrote. A copy the author wants a lacuna on is written out as a move from the field to itself, as `name: v0_0.name` above.
+A key must name a mapping the author wrote. A copy the author wants a lacuna on is written out as a move from the field to itself, as `name: prev.name` above.
 
 **When a lacuna applies.** Without a `when`, a lacuna applies under the condition its mapping implies:
 
@@ -198,15 +202,15 @@ A key must name a mapping the author wrote. A copy the author wants a lacuna on 
 
 A `when` replaces the implied condition. It is a comparison or combination of source fields, built from the usual operators (`==`, `!=`, `<`, `>`, `<=`, `>=`, `&&`, `||`, `!`, `+`, `-`, `*`), `len` for the length of a string or list, and whole-number division (`quo`, `rem`, `div`, `mod`). Three rules govern the fields it reads:
 
-- **A `when` that reads a field the source may omit concerns only the instances that have it.** `when: v0_0.count > 1000` above applies when `count` is present and exceeds 1000, and never when it is absent. The author does not test for presence.
-- **A field the source may omit, named bare, tests its presence.** `when: v0_0.flag` applies to the instances that have `flag`, whatever its value. To test a bare optional field's value, compare it: `when: v0_0.flag == true`.
-- **A required true-or-false field named bare is its value.** `when: v0_0.deprecated` applies when `deprecated` is true. Any other field named bare is an error: compare it.
+- **A `when` that reads a field the source may omit concerns only the instances that have it.** `when: prev.count > 1000` above applies when `count` is present and exceeds 1000, and never when it is absent. The author does not test for presence.
+- **A field the source may omit, named bare, tests its presence.** `when: prev.flag` applies to the instances that have `flag`, whatever its value. To test a bare optional field's value, compare it: `when: prev.flag == true`.
+- **A required true-or-false field named bare is its value.** `when: prev.deprecated` applies when `deprecated` is true. Any other field named bare is an error: compare it.
 
 **The fields a lacuna reports.** A lacuna reports the source fields its mapping reads and the target field it writes, each only where the translation has it. A move or computed value that reads a field the source may omit writes its target field only where the instance has what it reads, so a lacuna on it reports the target field only there. Without a `when`, such a lacuna applies only where the mapping writes, so an instance that lacks what it reads raises none; a `when` replaces that condition, as it does any other.
 
 **Drops.** A drop derives a `DroppedField` lacuna by itself. A `DroppedField` lacuna declared on a drop replaces the derived message. A lacuna of another type on a drop is added beside the derived one. A drop of a struct derives one lacuna, about the struct, not one for each field beneath it. An empty struct or list carries no information: an empty container and an absent one are not told apart as data, so dropping an empty one raises no lacuna. Nor does dropping a value the source fills in by itself, its default or a struct of defaults: the filled value and absence are the same information ([translation](translation.md)). The implied condition compares each defaulted field with its default, so it grows with the schema, never with the data.
 
-**Matches.** A wildcard arm must have a lacuna: one on the match's key without a `when`, which applies when the arm does. A lacuna on an arm other than the wildcard is written with a `when` naming the value, `when: v0_0.kind == "a"`. A match without a wildcard arm has no implied condition, so every lacuna on it needs a `when`.
+**Matches.** A wildcard arm must have a lacuna: one on the match's key without a `when`, which applies when the arm does. A lacuna on an arm other than the wildcard is written with a `when` naming the value, `when: prev.kind == "a"`. A match without a wildcard arm has no implied condition, so every lacuna on it needs a `when`.
 
 **Inside `_each`.** A lacuna on a mapping in an `_each` body is keyed through the list, `items: {legacy: [...]}`, and through each list in turn for an `_each` inside another, `steps: {fields: {legacy: [...]}}`. Only the `DroppedField` refinement of a drop in the body is supported today; it applies to the drop's derived lacuna, which is reported once for the whole list, naming every element that had the field (`steps[0].fields[1].legacy`).
 
@@ -223,7 +227,7 @@ Each of these is refused with an error naming what to write instead, rather than
 
 ## What it compiles to
 
-The compiler produces the normal form that the tutorial shows: a `thema.Lineage` with schemas keyed by version and lenses keyed by edge. A lens's fields keep their names, `v0_0` and `v1_0`, so a normal-form lens reads as its authoring form did. Implicit copies are written out, a copy of an optional field or struct is written under a presence test, `_coalesce` and `_match` become one branch per case, `_each` becomes a loop over the list, and each lacuna becomes an entry of the lens's `lacunas` list with its condition and the fields it reports.
+The compiler produces the normal form that the tutorial shows: a `thema.Lineage` with schemas keyed by version and lenses keyed by edge. The normal form names a lens's instances after their versions: in the lenses between 0.0 and 1.0, `prev` is `v0_0` and `self` is `v1_0`, and decompiling names them `prev` and `self` again. Implicit copies are written out, a copy of an optional field or struct is written under a presence test, `_coalesce` and `_match` become one branch per case, `_each` becomes a loop over the list, and each lacuna becomes an entry of the lens's `lacunas` list with its condition and the fields it reports.
 
 Every part of the normal form is positioned in the authoring file it came from. An error from the evaluator, from binding or from translation points at the author's line, and the compiler's own errors are worded in these terms: the file, the lens block and the mapping.
 
@@ -231,4 +235,4 @@ Binding a lineage proves every lens [total](invariants.md#lens-totality). Every 
 
 ## Layout
 
-The authoring form has one layout: every block keeps its braces, and every field has its own line. The formatter produces it, and decompiling a formatted file gives back its text exactly. A file in another layout compiles the same; formatting it is a layout change and nothing else.
+The authoring form has one layout: every block keeps its braces, a lens's block follows its parameter, `ForwardLens: (prev): {`, and every field has its own line, the body's mappings included. The formatter produces it, and decompiling a formatted file gives back its text exactly. A file in another layout compiles the same; formatting it is a layout change and nothing else.
