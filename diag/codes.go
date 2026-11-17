@@ -258,6 +258,7 @@ var Codes = []CodeInfo{
 	{Code: E0626, Severity: SeverityError, Scope: ScopeOne, Title: "the lineage bound on the development path is not the one that was compiled", Positionless: true},
 	{Code: E0627, Severity: SeverityError, Scope: ScopeOne, Title: "the placements given to Compose cannot be written as one package", Positionless: true},
 	{Code: E0628, Severity: SeverityError, Scope: ScopeOne, Title: "a generated file on disk is not what would be generated", Positionless: true},
+	{Code: E0629, Severity: SeverityError, Scope: ScopeOne, Title: "the lineage's directory holds version files, and its history is read from another", Positionless: true},
 	{Code: E0701, Severity: SeverityError, Scope: ScopeOne, Title: "generating code from the schema failed", Positionless: true},
 	{Code: E0801, Severity: SeverityError, Scope: ScopeOne, Title: "the playground request is malformed", Positionless: true},
 	{Code: E0802, Severity: SeverityError, Scope: ScopeOne, Title: "the playground request gives the lineage in neither form, or in both", Positionless: true},
@@ -487,10 +488,11 @@ const (
 	E0622 Code = "E0622" // an examples directory with no example in it, or not a directory
 	E0623 Code = "E0623" // lineage init into a directory that already holds version files
 	E0624 Code = "E0624" // lineage init openapi: no openapi version, or one other than 3.0 and 3.1
-	E0625 Code = "E0625" // authoring.At given a path that is not fs.ValidPath, or that falls in thema's own CUE
+	E0625 Code = "E0625" // authoring.At or HistoryAt given a path that is not fs.ValidPath, or that falls in thema's own CUE
 	E0626 Code = "E0626" // authoring.BindDevelopmentValue given a value that is not the lineage its Compiled compiled to
 	E0627 Code = "E0627" // thema.Compose given a package name that is not an identifier, no placements, or a path field labels cannot write
 	E0628 Code = "E0628" // gen --check found a generated file missing from disk, or different there
+	E0629 Code = "E0629" // authoring.Load with HistoryAt, and version files in the lineage's own history/ too
 
 	// E07xx: code generation.
 	E0701 Code = "E0701" // a generator failed on the schema

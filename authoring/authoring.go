@@ -68,13 +68,16 @@ type Compiled = compile.Compiled
 
 // Load reads the authoring files of the lineage in dir, a directory of fsys:
 // every .thema file at the top of dir and under dir/history. The lineage's
-// name is dir's base name.
-func Load(fsys fs.FS, dir string) (name string, files []File, err error) {
-	return compile.Load(fsys, dir)
+// name is dir's base name. Of opts, only [HistoryAt] bears on reading: with
+// it, the versions are read from its directory's history/ instead, and a
+// version in dir/history as well is an error (E0629).
+func Load(fsys fs.FS, dir string, opts ...Option) (name string, files []File, err error) {
+	return compile.Load(fsys, dir, opts...)
 }
 
-// An Option configures how a lineage's files are compiled, by [Compile],
-// [CompileDevelopment], [ReadTip], [CheckClean] and [CutTip].
+// An Option configures how a lineage's files are read, by [Load], and
+// compiled, by [Compile], [CompileDevelopment], [ReadTip], [CheckClean] and
+// [CutTip].
 type Option = compile.Option
 
 // At positions the lineage's files under dir, the lineage's directory as a
@@ -92,6 +95,19 @@ type Option = compile.Option
 // programs, are the same with At and without.
 func At(dir string) Option {
 	return compile.At(dir)
+}
+
+// HistoryAt keeps the lineage's history apart from its tip, in dir/history,
+// for a tool that keeps every lineage's history in a tree of its own: dir is
+// a path of the fs.FS the lineage is loaded from, as At's is. [Load] reads
+// the versions from dir/history, and gives each the File.Path it has in the
+// lineage's own directory, history/<major>.<minor>.thema. Compiling, each
+// file under history/ is positioned under dir in place of the directory At
+// gives, as dir/history/0.0.thema; the tip is positioned as At says. A dir
+// that is not a valid path is an error (E0625). A cut's File.Path is the
+// same with HistoryAt and without: it is the caller's to write under dir.
+func HistoryAt(dir string) Option {
+	return compile.HistoryAt(dir)
 }
 
 // Place returns the placement of c's normal form at p, for composing

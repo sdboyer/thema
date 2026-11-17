@@ -3,6 +3,9 @@ package authoring_test
 import (
 	"bytes"
 	"errors"
+	"maps"
+	"slices"
+	"strings"
 	"testing"
 	"testing/fstest"
 
@@ -282,4 +285,111 @@ BackwardLens: {
 			t.Errorf("%s: %s %q is positioned at %v, want %s/history/1.0.thema", op, d.Code, d.Headline, d.Primary, dir)
 		}
 	}
+}
+
+// A lineage whose history is kept in a tree of its own, HistoryAt's: loaded
+// from there, compiled with its versions positioned there, and cut to
+// history/ as File.Path, for the caller to write there.
+func TestHistoryAt(t *testing.T) {
+	const dir, hist = "ship", ".history/ship"
+	split := fstest.MapFS{
+		hist + "/history/0.0.thema": {Data: []byte(v00)},
+		hist + "/history/1.0.thema": {Data: []byte(v10)},
+		dir + "/tip.thema":          {Data: []byte(tip)},
+	}
+	opts := []authoring.Option{authoring.At(dir), authoring.HistoryAt(hist)}
+	ctx := cuecontext.New()
+
+	t.Run("load and compile", func(t *testing.T) {
+		name, files, err := authoring.Load(split, dir, opts...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var paths []string
+		for _, f := range files {
+			paths = append(paths, f.Path)
+		}
+		if want := []string{authoring.TipFile, "history/0.0.thema", "history/1.0.thema"}; name != dir || !slices.Equal(paths, want) {
+			t.Fatalf("Load: %q %v, want %q %v", name, paths, dir, want)
+		}
+		c, err := authoring.Compile(ctx, name, files, opts...)
+		if err != nil {
+			t.Fatal(cerrors.Details(err, nil))
+		}
+		v := ctx.BuildFile(c.File)
+		if got, want := v.LookupPath(cue.ParsePath(`schemas."0"."0".schema.before`)).Pos().Filename(), hist+"/history/0.0.thema"; got != want {
+			t.Errorf("0.0's before is positioned in %s, want %s", got, want)
+		}
+		if err := authoring.CheckClean(ctx, files, opts...); err != nil {
+			t.Errorf("the tip is clean: %v", diag.Diagnostics(err))
+		}
+	})
+
+	t.Run("never cut", func(t *testing.T) {
+		_, files, err := authoring.Load(fstest.MapFS{dir + "/tip.thema": {Data: []byte(tip)}}, dir, opts...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(files) != 1 || files[0].Path != authoring.TipFile {
+			t.Errorf("Load: %v, want the tip alone", files)
+		}
+	})
+
+	t.Run("cut", func(t *testing.T) {
+		fsys := fstest.MapFS{
+			hist + "/history/0.0.thema": {Data: []byte(v00)},
+			dir + "/tip.thema":          {Data: []byte(renameTip)},
+		}
+		_, files, err := authoring.Load(fsys, dir, opts...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cut, err := authoring.CutTip(thema.NewRuntime(ctx), dir, files, opts...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := []string{cut.Written[0].Path, cut.Written[1].Path}; !slices.Equal(got, []string{"history/1.0.thema", authoring.TipFile}) {
+			t.Errorf("wrote %v", got)
+		}
+	})
+
+	t.Run("two histories", func(t *testing.T) {
+		both := fstest.MapFS{dir + "/history/0.0.thema": {Data: []byte(v00)}}
+		maps.Copy(both, split)
+		_, _, err := authoring.Load(both, dir, opts...)
+		ds := diag.Diagnostics(err)
+		if len(ds) != 1 || ds[0].Code != diag.E0629 {
+			t.Fatalf("want E0629, got %v", ds)
+		}
+		if !strings.Contains(ds[0].Headline, dir+"/history") || !strings.Contains(ds[0].Headline, hist+"/history") {
+			t.Errorf("%q names both histories", ds[0].Headline)
+		}
+	})
+
+	t.Run("a history/ with no versions", func(t *testing.T) {
+		// Only version files make a history: the directory a tool left
+		// behind, or one holding another file, is not one.
+		fsys := fstest.MapFS{dir + "/history/README": {Data: []byte("moved\n")}}
+		maps.Copy(fsys, split)
+		if _, files, err := authoring.Load(fsys, dir, opts...); err != nil || len(files) != 3 {
+			t.Errorf("Load: %d files, %v", len(files), err)
+		}
+	})
+
+	t.Run("errors", func(t *testing.T) {
+		for _, c := range []struct {
+			name string
+			dir  string
+			opt  authoring.Option
+			want diag.Code
+		}{
+			{"invalid HistoryAt", dir, authoring.HistoryAt("../ship"), diag.E0625},
+			{"no lineage directory", "boat", authoring.HistoryAt(hist), diag.E0601},
+		} {
+			_, _, err := authoring.Load(split, c.dir, c.opt)
+			if got := diag.Diagnostics(err); len(got) != 1 || got[0].Code != c.want {
+				t.Errorf("%s: %v, want %s", c.name, got, c.want)
+			}
+		}
+	})
 }

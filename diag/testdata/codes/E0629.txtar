@@ -1,0 +1,48 @@
+#op: load
+#dir: operations/get/query
+#history-at: .history/operations/get/query
+A tool that keeps a lineage's history apart from its tip reads it with
+`authoring.HistoryAt`: the versions are read from the history/ under that
+directory, in place of the lineage's own. A lineage has one history, so
+versions in its own directory's history/ as well are refused rather than
+ignored. Here 0.0 is in both.
+-- operations/get/query/tip.thema --
+Schema: {
+	a: string
+}
+-- operations/get/query/history/0.0.thema --
+Schema: {
+	a: string
+}
+-- .history/operations/get/query/history/0.0.thema --
+Schema: {
+	a: string
+}
+-- out/json --
+{
+  "diagnostics": [
+    {
+      "code": "E0629",
+      "severity": "error",
+      "headline": "operations/get/query/history holds version files, but the lineage's history is .history/operations/get/query/history",
+      "notes": [
+        {
+          "label": "it holds 0.0.thema"
+        }
+      ],
+      "help": [
+        "keep the lineage's versions in one history/, .history/operations/get/query/history"
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "notes": 0
+  }
+}
+-- out/text --
+error[E0629]: operations/get/query/history holds version files, but the lineage's history is .history/operations/get/query/history
+  |
+  = note: it holds 0.0.thema
+  = help: keep the lineage's versions in one history/, .history/operations/get/query/history
