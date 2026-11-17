@@ -57,12 +57,14 @@ const (
 // the files are laid out as a lineage is for the compiler to say, so that
 // every misplaced file is reported with the others.
 //
-// With [HistoryAt], the files under history/ are read from its directory's
-// history/ in place of dir's, and given the same File.Path,
+// With [HistoryAt] another directory, the files under history/ are read
+// from its history/ in place of dir's, and given the same File.Path,
 // history/<major>.<minor>.thema. A file with [Ext] in dir/history as well is
-// an error (E0629): the lineage would have two histories.
+// then an error (E0629): the lineage would have two histories. The options
+// are checked as compiling checks them, so that what Load accepts compiles
+// with the same options.
 func Load(fsys fs.FS, dir string, opts ...Option) (name string, files []File, err error) {
-	o, err := resolve(opts, nil)
+	o, err := apply(opts)
 	if err != nil {
 		return "", nil, err
 	}
@@ -70,7 +72,8 @@ func Load(fsys fs.FS, dir string, opts ...Option) (name string, files []File, er
 	if err != nil {
 		return "", nil, err
 	}
-	own, hist := path.Join(dir, HistoryDir), path.Join(dir, HistoryDir)
+	own := path.Join(dir, HistoryDir)
+	hist := own
 	if o.setHistory {
 		hist = path.Join(o.history, HistoryDir)
 	}
@@ -103,6 +106,9 @@ func Load(fsys fs.FS, dir string, opts ...Option) (name string, files []File, er
 			}
 			files = append(files, File{Path: path.Join(d.as, n), Text: b})
 		}
+	}
+	if err := o.check(files); err != nil {
+		return "", nil, err
 	}
 	return path.Base(dir), files, nil
 }
@@ -165,6 +171,15 @@ func HistoryAt(dir string) Option {
 
 // resolve applies opts and checks them against the lineage's files.
 func resolve(opts []Option, files []File) (options, error) {
+	o, err := apply(opts)
+	if err != nil {
+		return o, err
+	}
+	return o, o.check(files)
+}
+
+// apply applies opts and checks the directories they give.
+func apply(opts []Option) (options, error) {
 	var o options
 	for _, opt := range opts {
 		opt(&o)
@@ -179,6 +194,11 @@ func resolve(opts []Option, files []File) (options, error) {
 			return o, err
 		}
 	}
+	return o, nil
+}
+
+// check checks o against the lineage's files.
+func (o options) check(files []File) error {
 	// thema tells its own CUE from an author's by the file a position names
 	// (embedreg.IsKernelFile). Its roots are absolute, so no valid path falls
 	// under them; were one to, every position in the lineage would read as
@@ -192,13 +212,13 @@ func resolve(opts []Option, files []File) (options, error) {
 		if o.inHistory(f) {
 			dir, what, help = o.history, historyWhat, historyHelp
 		}
-		return o, diag.New(diag.E0625).
+		return diag.New(diag.E0625).
 			Headlinef("%q would position %s in thema's own CUE", dir, what).
 			Notef(token.NoPos, "%s is a file of thema's own CUE module", name).
 			Help(help).
 			Err()
 	}
-	return o, nil
+	return nil
 }
 
 // What At's and HistoryAt's directories position, and what to pass in place

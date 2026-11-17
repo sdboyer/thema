@@ -201,7 +201,7 @@ A code's scope says what its condition reads: `one` when one version's files, th
 | [E0626](E0626.md) | error | one | the lineage bound on the development path is not the one that was compiled |
 | [E0627](E0627.md) | error | one | the placements given to Compose cannot be written as one package |
 | [E0628](E0628.md) | error | one | a generated file on disk is not what would be generated |
-| [E0629](E0629.md) | error | one | the lineage's directory holds version files, and its history is read from another |
+| [E0629](E0629.md) | error | one | the lineage's directory holds .thema files under history/, and its history is read from another |
 | [E0701](E0701.md) | error | one | generating code from the schema failed |
 | [E0801](E0801.md) | error | one | the playground request is malformed |
 | [E0802](E0802.md) | error | one | the playground request gives the lineage in neither form, or in both |

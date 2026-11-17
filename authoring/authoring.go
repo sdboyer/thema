@@ -68,9 +68,11 @@ type Compiled = compile.Compiled
 
 // Load reads the authoring files of the lineage in dir, a directory of fsys:
 // every .thema file at the top of dir and under dir/history. The lineage's
-// name is dir's base name. Of opts, only [HistoryAt] bears on reading: with
-// it, the versions are read from its directory's history/ instead, and a
-// version in dir/history as well is an error (E0629).
+// name is dir's base name. Of opts, only [HistoryAt] bears on reading: given
+// another directory, the versions are read from its history/ instead, and a
+// .thema file in dir/history as well is an error (E0629). The options are
+// checked as compiling checks them (E0625), so that what Load accepts
+// compiles with the same options.
 func Load(fsys fs.FS, dir string, opts ...Option) (name string, files []File, err error) {
 	return compile.Load(fsys, dir, opts...)
 }
@@ -108,7 +110,9 @@ func At(dir string) Option {
 // same with HistoryAt and without: the caller writes the frozen version,
 // history/<major>.<minor>.thema, under dir, and the tip in the lineage's
 // directory. Load, and every call that compiles the lineage, must be given
-// the same HistoryAt: without it, the lineage reads as having no history.
+// the same HistoryAt: Load without it reads the lineage as having no
+// history, and compiling without it positions the versions where they are
+// not.
 func HistoryAt(dir string) Option {
 	return compile.HistoryAt(dir)
 }
