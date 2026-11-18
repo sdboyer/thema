@@ -10,19 +10,67 @@ import (
 	"github.com/sdboyer/thema/diag"
 )
 
+// A LineageOption configures how [AuthoringLineage] and [DevelopmentLineage]
+// load and bind a lineage.
+type LineageOption func(*lineageConfig)
+
+type lineageConfig struct {
+	// history is the directory HistoryAt gives, when set.
+	history    string
+	setHistory bool
+	bind       []thema.BindOption
+}
+
+// HistoryAt reads the lineage's history from dir/history, in place of the
+// lineage's own directory's, and positions its versions there: dir is a
+// path of the same fs.FS, as the lineage's directory is. It is for a lineage
+// whose history is kept in a tree of its own. See [authoring.HistoryAt].
+func HistoryAt(dir string) LineageOption {
+	return func(c *lineageConfig) { c.history, c.setHistory = dir, true }
+}
+
+// BindOptions passes opts to binding the lineage.
+func BindOptions(opts ...thema.BindOption) LineageOption {
+	return func(c *lineageConfig) { c.bind = append(c.bind, opts...) }
+}
+
+func configure(opts []LineageOption) lineageConfig {
+	var c lineageConfig
+	for _, opt := range opts {
+		opt(&c)
+	}
+	return c
+}
+
+// loading is what the lineage is loaded with: its history where HistoryAt
+// says.
+func (c lineageConfig) loading() []authoring.Option {
+	if !c.setHistory {
+		return nil
+	}
+	return []authoring.Option{authoring.HistoryAt(c.history)}
+}
+
+// compiling is what the lineage in dir is compiled with: its files
+// positioned under dir, and its history where HistoryAt says.
+func (c lineageConfig) compiling(dir string) []authoring.Option {
+	return append([]authoring.Option{authoring.At(dir)}, c.loading()...)
+}
+
 // AuthoringLineage loads the authoring files of the lineage in dir, a
-// directory of fsys, compiles its frozen versions, those under history/, to
-// the normal form and binds the result. The tip is not read.
-// Errors are positioned in the authoring files, by their paths in fsys
-// (dir/history/0.0.thema; see [authoring.At]), and worded in the authoring
-// form's terms. For the pieces of that sequence, see
+// directory of fsys, compiles its frozen versions, those under history/ (or
+// under the directory [HistoryAt] gives), to the normal form and binds the
+// result. The tip is not read. Errors are positioned in the authoring files,
+// by their paths in fsys (dir/history/0.0.thema; see [authoring.At]), and
+// worded in the authoring form's terms. For the pieces of that sequence, see
 // [github.com/sdboyer/thema/authoring].
-func AuthoringLineage(fsys fs.FS, dir string, rt *thema.Runtime, opts ...thema.BindOption) (thema.Lineage, error) {
-	name, files, err := authoring.Load(fsys, dir)
+func AuthoringLineage(fsys fs.FS, dir string, rt *thema.Runtime, opts ...LineageOption) (thema.Lineage, error) {
+	cfg := configure(opts)
+	name, files, err := authoring.Load(fsys, dir, cfg.loading()...)
 	if err != nil {
 		return nil, err
 	}
-	c, err := authoring.Compile(rt.Context(), name, files, authoring.At(dir))
+	c, err := authoring.Compile(rt.Context(), name, files, cfg.compiling(dir)...)
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +78,7 @@ func AuthoringLineage(fsys fs.FS, dir string, rt *thema.Runtime, opts ...thema.B
 	if err := v.Err(); err != nil {
 		return nil, diag.Convert(err, diag.Context{Op: diag.OpCompile, Vocabulary: authoring.Vocabulary(c), Generic: diag.E0112})
 	}
-	return thema.BindLineage(v, cue.Path{}, rt, append([]thema.BindOption{thema.WithVocabulary(authoring.Vocabulary(c))}, opts...)...)
+	return thema.BindLineage(v, cue.Path{}, rt, append([]thema.BindOption{thema.WithVocabulary(authoring.Vocabulary(c))}, cfg.bind...)...)
 }
 
 // Development is a lineage bound with its tip, on the development path.
@@ -59,20 +107,22 @@ func (d *Development) Provisional(v thema.SyntacticVersion) bool {
 // tip, compiles it and binds it on the development path: the tip is the
 // newest version, provisional, at the version it cuts as. It is for
 // developing and testing a lineage, never for serving it: what is published
-// is what [AuthoringLineage] binds, the versions under history/. A lineage
-// with no tip.thema is an error (E0149). Errors are positioned as
-// [AuthoringLineage] positions them. For the pieces, see
-// [authoring.CompileDevelopment] and [authoring.BindDevelopment].
-func DevelopmentLineage(fsys fs.FS, dir string, rt *thema.Runtime, opts ...thema.BindOption) (*Development, error) {
-	name, files, err := authoring.Load(fsys, dir)
+// is what [AuthoringLineage] binds, the versions under history/ (or under
+// the directory [HistoryAt] gives). A lineage with no tip.thema is an error
+// (E0149). Errors are positioned as [AuthoringLineage] positions them. For
+// the pieces, see [authoring.CompileDevelopment] and
+// [authoring.BindDevelopment].
+func DevelopmentLineage(fsys fs.FS, dir string, rt *thema.Runtime, opts ...LineageOption) (*Development, error) {
+	cfg := configure(opts)
+	name, files, err := authoring.Load(fsys, dir, cfg.loading()...)
 	if err != nil {
 		return nil, err
 	}
-	c, err := authoring.CompileDevelopment(rt.Context(), name, files, authoring.At(dir))
+	c, err := authoring.CompileDevelopment(rt.Context(), name, files, cfg.compiling(dir)...)
 	if err != nil {
 		return nil, err
 	}
-	lin, err := authoring.BindDevelopment(rt, c, opts...)
+	lin, err := authoring.BindDevelopment(rt, c, cfg.bind...)
 	if err != nil {
 		return nil, err
 	}

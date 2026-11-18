@@ -93,12 +93,11 @@ func TestAuthoringLineageErrorPosition(t *testing.T) {
 	}
 }
 
-// Bind's findings about a compiled lineage are worded in the authoring form's
-// terms: the ForwardLens in its version file, not the normal form's lens edge.
-func TestAuthoringLineageVocabulary(t *testing.T) {
-	narrowing := fstest.MapFS{
-		"ship/history/0.0.thema": {Data: []byte("Schema: {\n\ta: int32\n}\n")},
-		"ship/history/1.0.thema": {Data: []byte(`Schema: {
+// narrowingShip's forward lens computes a value its target field may
+// reject, which binding refuses.
+var narrowingShip = fstest.MapFS{
+	"ship/history/0.0.thema": {Data: []byte("Schema: {\n\ta: int32\n}\n")},
+	"ship/history/1.0.thema": {Data: []byte(`Schema: {
 	a: int32 & >=0
 }
 
@@ -116,9 +115,13 @@ BackwardLens: {
 	}
 }
 `)},
-		"ship/tip.thema": {Data: []byte("Schema: {\n\ta: int32 & >=0\n}\n")},
-	}
-	_, err := AuthoringLineage(narrowing, "ship", thema.NewRuntime(cuecontext.New()))
+	"ship/tip.thema": {Data: []byte("Schema: {\n\ta: int32 & >=0\n}\n")},
+}
+
+// Bind's findings about a compiled lineage are worded in the authoring form's
+// terms: the ForwardLens in its version file, not the normal form's lens edge.
+func TestAuthoringLineageVocabulary(t *testing.T) {
+	_, err := AuthoringLineage(narrowingShip, "ship", thema.NewRuntime(cuecontext.New()))
 	if err == nil {
 		t.Fatal("want an error: the forward lens computes a value the target field may reject")
 	}
