@@ -24,20 +24,21 @@ import (
 	"cuelang.org/go/mod/modconfig"
 	"cuelang.org/go/mod/modfile"
 	"cuelang.org/go/mod/module"
+	"golang.org/x/mod/semver"
 
 	"github.com/sdboyer/thema/internal/util"
 )
 
 // VersionSkewError is returned when a CUE module requires a version of thema's
-// CUE module other than the one embedded in the running thema Go module.
+// CUE module newer than the one embedded in the running thema Go module.
 type VersionSkewError struct {
 	Required string
 	Embedded string
 }
 
 func (e *VersionSkewError) Error() string {
-	return fmt.Sprintf("CUE module requires %s version %s, but this program embeds version %s; set deps[%q].v to %q in cue.mod/module.cue",
-		util.ThemaModulePath, e.Required, e.Embedded, util.ThemaModulePath, e.Embedded)
+	return fmt.Sprintf("CUE module requires %s version %s, but this program embeds version %s, which is older; set deps[%q].v to %q or older in cue.mod/module.cue, or use a thema at %s or newer",
+		util.ThemaModulePath, e.Required, e.Embedded, util.ThemaModulePath, e.Embedded, e.Required)
 }
 
 // Root is the virtual absolute path at which the embedded thema CUE module is
@@ -52,7 +53,10 @@ func Root() string {
 // the root of thema's CUE module (containing cue.mod/module.cue). It adds the
 // files of themaFS to cfg.Overlay at [Root], and sets cfg.Registry to a registry
 // that serves thema's module from there at [util.ThemaModuleVersion]. A request
-// for any other version of thema's module fails with a [*VersionSkewError].
+// for an older version of thema's module is served the same embedded copy, as
+// a module's requirement is a minimum; a request for a newer version fails
+// with a [*VersionSkewError], since the embedded copy may lack what the module
+// relies on.
 //
 // Requests for all other modules go to the registry already set in cfg, if any,
 // or else to a registry configured from cfg.Env, as [load.Config] would do by
@@ -151,7 +155,7 @@ func (r *registry) isThema(m module.Version) (bool, error) {
 	if m.Path() != util.ThemaModulePath {
 		return false, nil
 	}
-	if m.Version() != util.ThemaModuleVersion {
+	if semver.Compare(m.Version(), util.ThemaModuleVersion) > 0 {
 		return true, &VersionSkewError{Required: m.Version(), Embedded: util.ThemaModuleVersion}
 	}
 	return true, nil

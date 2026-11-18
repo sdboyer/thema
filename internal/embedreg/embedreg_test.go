@@ -49,14 +49,43 @@ func TestResolvesWithoutRegistry(t *testing.T) {
 	}
 }
 
+// requiring is a module file for example.com/m that requires thema's CUE at
+// version v.
+func requiring(v string) string {
+	return fmt.Sprintf("module: %q\nlanguage: version: %q\ndeps: %q: v: %q\n",
+		"example.com/m", util.LanguageVersion, util.ThemaModulePath, v)
+}
+
+// A module that requires an older version of thema's CUE than the embedded one
+// is served the embedded copy: a requirement is a minimum. That it is the
+// embedded copy shows in its errors in thema's CUE, which are at Root, the
+// embedded version's path.
+func TestOlderVersion(t *testing.T) {
+	v := loadWithThema(t, requiring("v0.0.1"), "lin: thema.Lineage & {name: 42}\n")
+	err := v.Validate()
+	if err == nil {
+		t.Fatal("expected a conflict with thema.Lineage")
+	}
+	want := embedreg.Root() + "/lineage.cue"
+	for _, e := range cerrors.Errors(err) {
+		for _, p := range e.InputPositions() {
+			if p.Filename() == want {
+				return
+			}
+		}
+	}
+	t.Fatalf("expected an error position in %s, got: %v", want, cerrors.Details(err, nil))
+}
+
+// A module that requires a newer version of thema's CUE than the embedded one
+// is refused: the embedded copy may lack what it relies on.
 func TestVersionSkew(t *testing.T) {
-	modfile := fmt.Sprintf("module: %q\nlanguage: version: %q\ndeps: %q: v: %q\n",
-		"example.com/m", util.LanguageVersion, util.ThemaModulePath, "v0.0.1")
+	const newer = "v0.999.0"
 	cfg := &load.Config{
 		Dir: "/m",
 		Env: []string{"CUE_REGISTRY=none"},
 		Overlay: map[string]load.Source{
-			"/m/cue.mod/module.cue": load.FromString(modfile),
+			"/m/cue.mod/module.cue": load.FromString(requiring(newer)),
 			"/m/in.cue":             load.FromString("package m\n\nimport \"github.com/sdboyer/thema\"\n\nlin: thema.Lineage\n"),
 		},
 	}
@@ -65,11 +94,11 @@ func TestVersionSkew(t *testing.T) {
 	}
 	err := load.Instances([]string{"."}, cfg)[0].Err
 	if err == nil {
-		t.Fatal("expected loading to fail on a thema version other than the embedded one")
+		t.Fatal("expected loading to fail on a thema version newer than the embedded one")
 	}
 	// The CUE loader flattens the registry's error into its own, so match on the
 	// message rather than the type.
-	if !strings.Contains(cerrors.Details(err, nil), (&embedreg.VersionSkewError{Required: "v0.0.1", Embedded: util.ThemaModuleVersion}).Error()) {
+	if !strings.Contains(cerrors.Details(err, nil), (&embedreg.VersionSkewError{Required: newer, Embedded: util.ThemaModuleVersion}).Error()) {
 		t.Fatalf("expected a version skew error, got: %v", cerrors.Details(err, nil))
 	}
 }

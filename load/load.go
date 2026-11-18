@@ -58,8 +58,9 @@ func AsModFS(in fs.FS, modname string) fs.FS {
 // module and version, e.g. /github.com/sdboyer/thema@v0.1.0; that path appears in
 // error positions for thema's CUE.
 //
-// The loaded module must declare a dependency on thema's CUE module at exactly
-// the version embedded in this Go module; any other version is an error. All
+// The loaded module's dependency on thema's CUE module is a minimum, as every
+// CUE dependency is: any version up to the one embedded in this Go module is
+// served the embedded copy, and a newer version is an error. All
 // other dependencies are fetched through cfg.Registry if set, or else through a
 // registry configured from cfg.Env, as [load.Config] would by default.
 //

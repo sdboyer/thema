@@ -1,13 +1,14 @@
 #op: cli
 #args: data validate -l mod -p lin data.json
 The cue.mod/module.cue above the lineage depends on a version of thema's
-CUE module other than the one this program embeds. thema's CLI resolves
-github.com/sdboyer/thema to its own embedded copy, and only to that; the help
-names the version to declare.
+CUE module newer than the one this program embeds. thema's CLI resolves
+github.com/sdboyer/thema to its own embedded copy, which serves a module
+requiring that version or an older one; the help names the newest version to
+declare.
 -- mod/cue.mod/module.cue --
 module: "example.com/skew"
 language: version: "v0.9.0"
-deps: "github.com/sdboyer/thema@v0": {v: "v0.0.1"}
+deps: "github.com/sdboyer/thema@v0": {v: "v0.999.0"}
 -- mod/x.cue --
 package x
 
@@ -33,7 +34,7 @@ lin: thema.Lineage & {
     {
       "code": "E0607",
       "severity": "error",
-      "headline": "the CUE module requires thema v0.0.1, but this program embeds v0.2.1",
+      "headline": "the CUE module requires thema v0.999.0, newer than the v0.2.1 this program embeds",
       "primary": {
         "file": "mod/x.cue",
         "line": 3,
@@ -42,7 +43,7 @@ lin: thema.Lineage & {
         "origin": "user"
       },
       "help": [
-        "set deps[\"github.com/sdboyer/thema@v0\"].v to \"v0.2.1\" in cue.mod/module.cue"
+        "set deps[\"github.com/sdboyer/thema@v0\"].v to \"v0.2.1\" or older in cue.mod/module.cue, or use a thema at v0.999.0 or newer"
       ]
     }
   ],
@@ -53,10 +54,10 @@ lin: thema.Lineage & {
   }
 }
 -- out/text --
-error[E0607]: the CUE module requires thema v0.0.1, but this program embeds v0.2.1
+error[E0607]: the CUE module requires thema v0.999.0, newer than the v0.2.1 this program embeds
  --> mod/x.cue:3:8
   |
 3 | import "github.com/sdboyer/thema"
   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
   |
-  = help: set deps["github.com/sdboyer/thema@v0"].v to "v0.2.1" in cue.mod/module.cue
+  = help: set deps["github.com/sdboyer/thema@v0"].v to "v0.2.1" or older in cue.mod/module.cue, or use a thema at v0.999.0 or newer
