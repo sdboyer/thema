@@ -40,7 +40,7 @@ type Digest = contenthash.Digest
 
 // ID returns the identity of the schema's version. See [VersionID].
 func (sch *schemaDef) ID() (VersionID, error) {
-	id, err := contenthash.VersionID(sch.lin.raw, contenthash.Version(sch.v))
+	id, err := contenthash.VersionID(sch.lin.orig, contenthash.Version(sch.v))
 	if err != nil {
 		return id, diag.InternalErr(fmt.Errorf("the identity of %s: %w", sch.v.name(), err))
 	}
@@ -158,11 +158,11 @@ func (lin *baseLineage) changes(ps, cs *schemaDef) ([]error, error) {
 	if pid.Lens == cid.Lens {
 		return errs, nil
 	}
-	pf, pb, err := contenthash.LensForms(ps.lin.raw, contenthash.Version(ps.v))
+	pf, pb, err := contenthash.LensForms(ps.lin.orig, contenthash.Version(ps.v))
 	if err != nil {
 		return nil, diag.InternalErr(fmt.Errorf("the lenses into %s: %w", ps.v.name(), err))
 	}
-	cf, cb, err := contenthash.LensForms(lin.raw, contenthash.Version(cs.v))
+	cf, cb, err := contenthash.LensForms(lin.orig, contenthash.Version(cs.v))
 	if err != nil {
 		return nil, diag.InternalErr(fmt.Errorf("the lenses into %s: %w", cs.v.name(), err))
 	}

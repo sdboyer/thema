@@ -71,16 +71,39 @@ const maxAuthoredDepth = 16
 //
 // The lineage's conjuncts are split, a reference among them is followed to the
 // value it names, and what thema contributes is dropped: a reference into
-// thema's package, or a conjunct declared in thema's own CUE. The rest are
-// unified again. A lineage with nothing of thema's in it is returned as it is.
-func authored(lin cue.Value) cue.Value {
+// thema's package, or a conjunct declared in thema's own CUE. The rest are the
+// lineage's parts. A lineage with nothing of thema's in it is its one part.
+//
+// The parts are not unified again into a lineage: what holds a lineage may
+// close it, as a definition does a struct literal written beside
+// thema.Lineage (#H: [string]: thema.Lineage & {name: N}), and with thema's
+// conjunct dropped nothing declares the lineage's fields in that closed
+// struct. Each field is read from the parts instead (see lookup).
+func authored(lin cue.Value) authoredLineage {
 	parts, dropped := authoredParts(lin, 0)
 	if !dropped || len(parts) == 0 {
-		return lin
+		return authoredLineage{lin}
 	}
-	v := parts[0]
-	for _, p := range parts[1:] {
-		v = v.Unify(p)
+	return parts
+}
+
+// An authoredLineage is a lineage's parts, as authored splits them.
+type authoredLineage []cue.Value
+
+// lookup returns the value at p beneath the lineage: the unification of the
+// value each part has at p, or an invalid cue.Value when no part has one.
+func (a authoredLineage) lookup(p cue.Path) cue.Value {
+	var v cue.Value
+	found := false
+	for _, part := range a {
+		pv := part.LookupPath(p)
+		switch {
+		case !pv.Exists():
+		case !found:
+			v, found = pv, true
+		default:
+			v = v.Unify(pv)
+		}
 	}
 	return v
 }
@@ -112,12 +135,12 @@ func authoredParts(v cue.Value, depth int) (parts []cue.Value, dropped bool) {
 // versionSchema returns the schema of version v in the lineage lin, unified
 // with lin's joinSchema if it has one: the schema instances of v are validated
 // against. Schemas are keyed by major, then minor version.
-func versionSchema(lin cue.Value, v Version) (cue.Value, error) {
-	sch := lin.LookupPath(pathSchemas).LookupPath(cue.MakePath(cue.Str(fmt.Sprint(v[0])), cue.Str(fmt.Sprint(v[1])), cue.Str("schema")))
+func versionSchema(lin authoredLineage, v Version) (cue.Value, error) {
+	sch := lin.lookup(pathSchemas).LookupPath(cue.MakePath(cue.Str(fmt.Sprint(v[0])), cue.Str(fmt.Sprint(v[1])), cue.Str("schema")))
 	if !sch.Exists() {
 		return cue.Value{}, fmt.Errorf("lineage has no schema with version %s", v)
 	}
-	if join := lin.LookupPath(pathJoinSchema); join.Exists() {
+	if join := lin.lookup(pathJoinSchema); join.Exists() {
 		return join.Unify(sch), nil
 	}
 	return sch, nil
@@ -134,8 +157,8 @@ type edgeLens struct {
 // predecessor. Either may be absent (an invalid cue.Value): the first version
 // has no predecessor, a minor version's forward lens is implicit, and a tip
 // under development may lack lenses it will need. Lenses are keyed by edge.
-func versionLenses(lin cue.Value, v Version) (forward, backward edgeLens, err error) {
-	lenses := lin.LookupPath(pathLenses)
+func versionLenses(lin authoredLineage, v Version) (forward, backward edgeLens, err error) {
+	lenses := lin.lookup(pathLenses)
 	if !lenses.Exists() {
 		return forward, backward, nil
 	}
