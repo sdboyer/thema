@@ -163,7 +163,7 @@ func LensForm(lin cue.Value, v Version) (string, error) {
 // an edge's lenses differs between two lineages whose lens digests differ.
 // The digest is of [LensForm], not of these.
 func LensForms(lin cue.Value, v Version) (forward, backward string, err error) {
-	fwd, back, err := versionLenses(lin, v)
+	fwd, back, err := versionLenses(authored(lin), v)
 	if err != nil {
 		return "", "", err
 	}

@@ -30,6 +30,13 @@ type baseLineage struct {
 	// original raw input cue.Value containing lineage definition
 	raw cue.Value
 
+	// orig is the value at the path the lineage was bound from, as it is held
+	// there. Its version IDs are computed from it: raw unifies the lineage's
+	// conjuncts other than thema.Lineage again, and for a lineage held in a
+	// definition that unification is closed as a whole, hiding where the
+	// author declared the lineage.
+	orig cue.Value
+
 	// input cue.Value, unified with thema.Lineage
 	uni cue.Value
 
@@ -200,6 +207,7 @@ func BindLineage(root cue.Value, p cue.Path, rt *Runtime, opts ...BindOption) (L
 		rt:         rt,
 		name:       nam,
 		raw:        ml.raw,
+		orig:       orig,
 		uni:        ml.uni,
 		allsch:     ml.schlist,
 		allv:       ml.allv,
