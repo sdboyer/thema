@@ -19,14 +19,13 @@ Schema: {
 	total:  int64
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		label: strings.ToUpper(v0_0.name)
-		area:  v0_0.width * v0_0.height
-		wide:  v0_0.width > v0_0.height
-		tag:   strings.TrimSpace(v0_0.tag)
-		total: _coalesce(v0_0.count * 2, 0)
+ForwardLens: (prev): {
+	self: {
+		label: strings.ToUpper(prev.name)
+		area:  prev.width * prev.height
+		wide:  prev.width > prev.height
+		tag:   strings.TrimSpace(prev.tag)
+		total: _coalesce(prev.count * 2, 0)
 		width:  _drop
 		height: _drop
 		count:  _drop
@@ -39,9 +38,8 @@ ForwardLens: {
 	}
 }
 
-BackwardLens: {
-	v1_0: _
-	v0_0: {
+BackwardLens: (self): {
+	prev: {
 		width:  0
 		height: 0
 	}
@@ -75,14 +73,13 @@ Schema: {
 	total: int64
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		label:  strings.ToUpper(v0_0.name)
-		area:   v0_0.width * v0_0.height
-		wide:   v0_0.width > v0_0.height
-		tag:    strings.TrimSpace(v0_0.tag)
-		total:  _coalesce(v0_0.count * 2, 0)
+ForwardLens: (prev): {
+	self: {
+		label:  strings.ToUpper(prev.name)
+		area:   prev.width * prev.height
+		wide:   prev.width > prev.height
+		tag:    strings.TrimSpace(prev.tag)
+		total:  _coalesce(prev.count * 2, 0)
 		width:  _drop
 		height: _drop
 		count:  _drop
@@ -95,9 +92,8 @@ ForwardLens: {
 	}
 }
 
-BackwardLens: {
-	v1_0: _
-	v0_0: {
+BackwardLens: (self): {
+	prev: {
 		width:  0
 		height: 0
 	}

@@ -12,10 +12,9 @@ Schema: {
 	b: string
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		let x = v0_0.a
+ForwardLens: (prev): {
+	self: {
+		let x = prev.a
 		b: x
 	}
 }
@@ -32,21 +31,21 @@ Schema: {
       "headline": "let is not allowed in a lens body",
       "primary": {
         "file": "history/1.0.thema",
-        "line": 8,
+        "line": 7,
         "col": 3,
-        "offset": 59,
+        "offset": 58,
         "origin": "user"
       }
     },
     {
       "code": "E0418",
       "severity": "error",
-      "headline": "x is not defined in a lens; an expression refers to v0_0, to len, quo, rem, div, mod and to the strings functions",
+      "headline": "x is not defined in a lens; an expression refers to prev, to len, quo, rem, div, mod and to the strings functions",
       "primary": {
         "file": "history/1.0.thema",
-        "line": 9,
+        "line": 8,
         "col": 6,
-        "offset": 79,
+        "offset": 78,
         "origin": "user"
       }
     },
@@ -62,7 +61,7 @@ Schema: {
         "origin": "user"
       },
       "help": [
-        "write <field>: v0_0.a to move it, or a: _drop"
+        "write <field>: prev.a to move it, or a: _drop"
       ]
     }
   ],
@@ -74,23 +73,23 @@ Schema: {
 }
 -- out/text --
 error[E0330]: let is not allowed in a lens body
- --> history/1.0.thema:8:3
+ --> history/1.0.thema:7:3
   |
-8 |         let x = v0_0.a
+7 |         let x = prev.a
   |         ^^^
   |
 
-error[E0418]: x is not defined in a lens; an expression refers to v0_0, to len, quo, rem, div, mod and to the strings functions
- --> history/1.0.thema:9:6
+error[E0418]: x is not defined in a lens; an expression refers to prev, to len, quo, rem, div, mod and to the strings functions
+ --> history/1.0.thema:8:6
   |
-9 |         b: x
+8 |         b: x
   |            ^
   |
 
 error[E0347]: v0.0 declares a and v1.0 does not, and nothing maps it
  --> history/1.0.thema:5:1
   |
-5 | ForwardLens: {
+5 | ForwardLens: (prev): {
   | ^^^^^^^^^^^
   |
-  = help: write <field>: v0_0.a to move it, or a: _drop
+  = help: write <field>: prev.a to move it, or a: _drop

@@ -55,7 +55,7 @@ func TestLensDigestDerivedDropRenumbered(t *testing.T) {
 	// are 1.0 and 1.1, with the same schemas, and 1.1's edge is to 1.0.
 	renumbered := compileHistory(t, map[string]string{
 		"history/0.0.thema": "Schema: {\n\ttitle: string\n}\n",
-		"history/1.0.thema": "Schema: {\n\tname: string\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {\n\t\tname: v0_0.title\n\t}\n}\n",
+		"history/1.0.thema": "Schema: {\n\tname: string\n}\n\nForwardLens: (prev): {\n\tself: {\n\t\tname: prev.title\n\t}\n}\n",
 		"history/1.1.thema": crew,
 	})
 

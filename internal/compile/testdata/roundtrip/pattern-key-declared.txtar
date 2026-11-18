@@ -22,10 +22,9 @@ Schema: {
 	env:    string
 }
 
-ForwardLens: {
-	v0_1: _
-	v1_0: {
-		env: _coalesce(v0_1.labels.env, "none")
+ForwardLens: (prev): {
+	self: {
+		env: _coalesce(prev.labels.env, "none")
 	}
 }
 -- ship/tip.thema --
@@ -56,10 +55,9 @@ Schema: {
 	env: string
 }
 
-ForwardLens: {
-	v0_1: _
-	v1_0: {
-		env: _coalesce(v0_1.labels.env, "none")
+ForwardLens: (prev): {
+	self: {
+		env: _coalesce(prev.labels.env, "none")
 	}
 }
 -- out/decompiled/tip.thema --

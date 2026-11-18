@@ -20,10 +20,9 @@ Schema: {
 	}]
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		items: _each(v0_0.items, {meta: {kind: _match(_item.meta.kind, {"a": "a", [_]: "other"})}})
+ForwardLens: (prev): {
+	self: {
+		items: _each(prev.items, {meta: {kind: _match(_item.meta.kind, {"a": "a", [_]: "other"})}})
 	}
 }
 -- ship/tip.thema --
@@ -57,11 +56,10 @@ Schema: {
 	]
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		items: _each(
-			v0_0.items,
+			prev.items,
 			{
 				meta: {
 					kind: _match(_item.meta.kind, {

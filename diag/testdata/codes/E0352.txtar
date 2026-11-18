@@ -14,11 +14,10 @@ Schema: {
 	kind:    or(allowed)
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		allowed: ["a", "b"]
-		kind: _match(v0_0.kind, {
+		kind: _match(prev.kind, {
 			"c": "a"
 		})
 	}
@@ -37,9 +36,9 @@ Schema: {
       "headline": "_match on kind: v1.0's kind is not a self-contained type",
       "primary": {
         "file": "history/1.0.thema",
-        "line": 10,
+        "line": 9,
         "col": 9,
-        "offset": 120,
+        "offset": 119,
         "origin": "user"
       },
       "notes": [
@@ -60,10 +59,10 @@ Schema: {
 }
 -- out/text --
 error[E0352]: _match on kind: v1.0's kind is not a self-contained type
-  --> history/1.0.thema:10:9
-   |
-10 |         kind: _match(v0_0.kind, {
-   |               ^^^^^^
-   |
-   = note: a value no arm matches passes through where the target accepts it, which cannot be tested against a type that refers to other fields
-   = help: match every value with an arm, or add a [_] arm
+ --> history/1.0.thema:9:9
+  |
+9 |         kind: _match(prev.kind, {
+  |               ^^^^^^
+  |
+  = note: a value no arm matches passes through where the target accepts it, which cannot be tested against a type that refers to other fields
+  = help: match every value with an arm, or add a [_] arm

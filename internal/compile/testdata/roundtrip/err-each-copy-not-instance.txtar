@@ -9,19 +9,18 @@ Schema: close({
 	u!: [...string]
 })
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		u: _each(v0_0.u, _item.id)
+ForwardLens: (prev): {
+	self: {
+		u: _each(prev.u, _item.id)
 	}
 }
 -- ship/tip.thema --
 Schema: close({u!: [...string]})
 -- out/error --
 error[E0359]: the ForwardLens of v1.0 copies u[].id into the elements of u, which do not accept every value of it
- --> history/1.0.thema:8:20
+ --> history/1.0.thema:7:20
   |
-8 |         u: _each(v0_0.u, _item.id)
+7 |         u: _each(prev.u, _item.id)
   |                          ^^^^^
   |
   = note: u[] in v1.0 was int and is now string

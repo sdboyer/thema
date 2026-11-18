@@ -22,10 +22,9 @@ Schema: {
 	}
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		id: v0_0.id
+ForwardLens: (prev): {
+	self: {
+		id: prev.id
 	}
 }
 -- ship/tip.thema --
@@ -38,10 +37,10 @@ Schema: {
 	}
 }
 -- out/error --
-error[E0358]: the ForwardLens of v1.0 would copy v0_0.meta into meta, which does not accept every value of it
+error[E0358]: the ForwardLens of v1.0 would copy prev.meta into meta, which does not accept every value of it
   --> history/1.0.thema:10:1
    |
-10 | ForwardLens: {
+10 | ForwardLens: (prev): {
    | ^^^^^^^^^^^
    |
    = note: both v0.0 and v1.0 declare meta, so a lens that does not map it copies it

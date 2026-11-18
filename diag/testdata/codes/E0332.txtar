@@ -11,9 +11,8 @@ Schema: {
 	secondfield: int
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		secondfield: -1 @lacuna(Placeholder, "-1 is a placeholder")
 	}
 }
@@ -31,9 +30,9 @@ Schema: {
       "headline": "a mapping has no attributes; a lacuna is declared in the lens's lacunas field, keyed by the mapping",
       "primary": {
         "file": "history/1.0.thema",
-        "line": 9,
+        "line": 8,
         "col": 19,
-        "offset": 103,
+        "offset": 102,
         "origin": "user"
       }
     }
@@ -46,8 +45,8 @@ Schema: {
 }
 -- out/text --
 error[E0332]: a mapping has no attributes; a lacuna is declared in the lens's lacunas field, keyed by the mapping
- --> history/1.0.thema:9:19
+ --> history/1.0.thema:8:19
   |
-9 |         secondfield: -1 @lacuna(Placeholder, "-1 is a placeholder")
+8 |         secondfield: -1 @lacuna(Placeholder, "-1 is a placeholder")
   |                         ^
   |

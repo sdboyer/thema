@@ -10,23 +10,33 @@
 // three fields:
 //
 //	Schema: {...}
-//	ForwardLens:  {v0_0: _, v1_0: {...}, lacunas: {...}}   // from the previous version to this one
-//	BackwardLens: {v1_0: _, v0_0: {...}, lacunas: {...}}   // from this version to the previous one
+//	ForwardLens: (prev): {       // from the previous version to this one
+//		self: {...}
+//		lacunas: {...}
+//	}
+//	BackwardLens: (self): {      // from this version to the previous one
+//		prev: {...}
+//		lacunas: {...}
+//	}
 //
-// A lens reads like a function: the field whose value is _ declares the
-// instance it takes, named by its version, and the other version field is the
-// body producing the instance it returns, shaped like that version's schema.
-// Each entry of the body is a target field, and its value says where the
-// field comes from. The vocabulary is
+// A lens reads like a function: its parameter, (prev) or (self), names the
+// instance it takes, and the struct after it holds the body producing the
+// instance it returns, under that instance's name, shaped like its version's
+// schema. In every version file, self is an instance of the file's own
+// version, and prev one of the version before it. The parameter is CUE's
+// syntax for a field labeled by an expression; the compiler reads it as
+// syntax, and the normal form names both instances by their versions (v0_0,
+// v1_0). Each entry of the body is a target field, and its value says where
+// the field comes from. The vocabulary is
 //
-//	after: v0_0.before                      // a move: a reference into the instance
+//	after: prev.before                      // a move: a reference into the instance
 //	kind:  "v2"                             // a constant
-//	area:  v0_0.w * v0_0.h                  // a computed value
-//	meta: {owner: v0_0.name}                // a nested body; {v0_0.m, x: 1} copies from m
+//	area:  prev.w * prev.h                  // a computed value
+//	meta: {owner: prev.name}                // a nested body; {prev.m, x: 1} copies from m
 //	legacy: _drop                           // a drop, keyed by the source field
-//	nick:  _coalesce(v0_0.nick, v0_0.name)    // an optional source: the fallback when absent
-//	kind:  _match(v0_0.kind, {"a": 1, [_]: 0})     // a match on the value, with an optional [_] arm
-//	items: _each(v0_0.items, {name: _item.title})  // a list, mapped element by element
+//	nick:  _coalesce(prev.nick, prev.name)    // an optional source: the fallback when absent
+//	kind:  _match(prev.kind, {"a": 1, [_]: 0})     // a match on the value, with an optional [_] arm
+//	items: _each(prev.items, {name: _item.title})  // a list, mapped element by element
 //
 // The operations and _item start with _, a hidden identifier in CUE: a lens
 // body declares no hidden field (E0333), so nothing in it can shadow them.
@@ -58,7 +68,7 @@
 //
 //	lacunas: {
 //		count: [{type: Placeholder, message: "count was absent; 0 is a placeholder"}]
-//		meta: {team: [{type: LossyFieldMapping, message: "...", when: len(v0_0.name) > 64}]}
+//		meta: {team: [{type: LossyFieldMapping, message: "...", when: len(prev.name) > 64}]}
 //	}
 //
 // Without a when, a lacuna applies under the condition its mapping implies:
@@ -71,7 +81,7 @@
 // fields with CUE's operators, len and the integer divisions (quo, rem, div,
 // mod): what the totality proof proves a boolean. A when that reads an
 // optional field concerns only the instances that have it; an optional field
-// named bare, when: v0_0.x, tests its presence, and a required bool named
+// named bare, when: prev.x, tests its presence, and a required bool named
 // bare is its value. Inside an each body, only the DroppedField refinement is
 // supported yet, keyed through the list (items: {legacy: [...]}).
 //
@@ -87,9 +97,9 @@
 //
 // The tip's version is never written: readTip derives it by the
 // compatibility check against the newest version under history/, the next
-// minor version or the next major one, or 0.0 with no history. In its lenses
-// the tip's instance is named tip (TipParam), which compiles to the name of
-// the version it cuts as; tip names nothing in a file under history/. A tip is
+// minor version or the next major one, or 0.0 with no history. Its lenses are
+// written as any version's: self compiles to the name of the version the tip
+// cuts as, and cutting it renames nothing. A tip is
 // clean when its schema's canonical form (internal/contenthash) equals the
 // newest version's and it declares no lenses.
 //

@@ -16,11 +16,10 @@ Schema: {
 	}
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		meta: {
-			owner: v0_0.meta.owner
+			owner: prev.meta.owner
 		}
 	}
 }
@@ -33,9 +32,9 @@ Schema: {
 }
 -- out/error --
 error[E0347]: v0.0 declares meta.note and v1.0 does not, and nothing maps it
-  --> history/1.0.thema:11:3
+  --> history/1.0.thema:10:3
    |
-11 |         meta: {
+10 |         meta: {
    |         ^^^^
    |
-   = help: write <field>: v0_0.meta.note to move it, or add note: _drop to v1_0.meta
+   = help: write <field>: prev.meta.note to move it, or add note: _drop to self.meta

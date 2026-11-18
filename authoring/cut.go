@@ -37,9 +37,8 @@ type Cut struct {
 // The tip is bound on the development path first, and is cut only when
 // nothing about it is provisional: a lens its edge needs and does not write
 // (E1001) is an error here (E1004), and every error binding reports is
-// returned as it is. The frozen version is the whole tip file, its notes
-// included, with its lenses naming the tip's instance by the new version,
-// v<major>_<minor>, in place of tip, laid out as [Format] lays it out. The tip
+// returned as it is. The frozen version is the whole tip file, its notes and
+// lenses included, laid out as [Format] lays it out. The tip
 // after the cut is clean: its Schema, with its doc comment and the comments
 // within it, and the imports the Schema uses. The lenses and the notes stay in
 // the frozen file alone.

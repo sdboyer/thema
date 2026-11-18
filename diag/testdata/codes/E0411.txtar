@@ -11,9 +11,8 @@ Schema: {
 	b: int
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		b: -1
 	}
 	lacunas: {
@@ -37,9 +36,9 @@ Schema: {
       "headline": "the lacuna's type Guess is not a lacuna type",
       "primary": {
         "file": "history/1.0.thema",
-        "line": 13,
+        "line": 12,
         "col": 13,
-        "offset": 108,
+        "offset": 107,
         "origin": "user"
       },
       "help": [
@@ -55,9 +54,9 @@ Schema: {
 }
 -- out/text --
 error[E0411]: the lacuna's type Guess is not a lacuna type
-  --> history/1.0.thema:13:13
+  --> history/1.0.thema:12:13
    |
-13 |             type:    Guess
+12 |             type:    Guess
    |                      ^^^^^
    |
    = help: the lacuna types are Placeholder, DroppedField, LossyFieldMapping, ChangedDefault, PrecisionLoss, AmbiguousMapping, Defaulted

@@ -11,9 +11,8 @@ Schema: {
 	b: int
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		b: 0
 	}
 	lacunas: {
@@ -35,12 +34,12 @@ Schema: {
     {
       "code": "E0418",
       "severity": "error",
-      "headline": "threshold is not defined in a lens; an expression refers to v0_0, to len, quo, rem, div, mod and to the strings functions",
+      "headline": "threshold is not defined in a lens; an expression refers to prev, to len, quo, rem, div, mod and to the strings functions",
       "primary": {
         "file": "history/1.0.thema",
-        "line": 15,
+        "line": 14,
         "col": 13,
-        "offset": 164,
+        "offset": 163,
         "origin": "user"
       }
     }
@@ -52,9 +51,9 @@ Schema: {
   }
 }
 -- out/text --
-error[E0418]: threshold is not defined in a lens; an expression refers to v0_0, to len, quo, rem, div, mod and to the strings functions
-  --> history/1.0.thema:15:13
+error[E0418]: threshold is not defined in a lens; an expression refers to prev, to len, quo, rem, div, mod and to the strings functions
+  --> history/1.0.thema:14:13
    |
-15 |             when:    threshold > 1
+14 |             when:    threshold > 1
    |                      ^^^^^^^^^
    |

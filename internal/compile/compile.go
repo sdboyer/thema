@@ -3,9 +3,7 @@ package compile
 import (
 	"fmt"
 	"maps"
-	"regexp"
 	"slices"
-	"strconv"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/ast"
@@ -196,7 +194,7 @@ func compileVersions(ctx *cue.Context, name string, vs []*version) (*Compiled, e
 			tipV = &v.v
 		}
 		// Forward: previous version to this one. Only a major version has one.
-		fe := &edge{ctx: ctx, S: vals[i-1], T: vals[i], sv: prev.v, tv: v.v, tip: tipV, dir: forward, identity: minor, file: v.path, blockPos: v.end(), root: prev.param(), lacunas: &lacunaTable{}, imports: imports}
+		fe := &edge{ctx: ctx, S: vals[i-1], T: vals[i], sv: prev.v, tv: v.v, tip: tipV, dir: forward, identity: minor, file: v.path, blockPos: v.end(), root: paramPrev, lacunas: &lacunaTable{}, imports: imports}
 		fb := &body{}
 		if v.forward != nil {
 			fe.written, fe.blockPos = true, v.forward.Pos()
@@ -240,12 +238,17 @@ func compileVersions(ctx *cue.Context, name string, vs []*version) (*Compiled, e
 			errs = cerrors.Append(errs, fe.errs)
 			continue
 		case !minor:
-			lenses.Elts = append(lenses.Elts, v.tipLens(lensField(fe.blockPos, prev.v, v.v, fwd)))
+			lf := lensField(fe.blockPos, prev.v, v.v, fwd)
+			if cerr := captured(lf, prev, v, fieldForward); cerr != nil {
+				errs = cerrors.Append(errs, cerr)
+				continue
+			}
+			lenses.Elts = append(lenses.Elts, v.normalLens(lf, prev))
 		}
 
 		// Backward: this version to the previous one, derived from the forward
 		// lens and overridden by what the author wrote.
-		be := &edge{ctx: ctx, S: vals[i], T: vals[i-1], sv: v.v, tv: prev.v, tip: tipV, dir: backward, file: v.path, blockPos: v.end(), root: v.param(), lacunas: &lacunaTable{}, imports: imports}
+		be := &edge{ctx: ctx, S: vals[i], T: vals[i-1], sv: v.v, tv: prev.v, tip: tipV, dir: backward, file: v.path, blockPos: v.end(), root: paramSelf, lacunas: &lacunaTable{}, imports: imports}
 		ab := &body{}
 		if v.backward != nil {
 			be.written, be.blockPos = true, v.backward.Pos()
@@ -265,7 +268,12 @@ func compileVersions(ctx *cue.Context, name string, vs []*version) (*Compiled, e
 			continue
 		}
 		errs = cerrors.Append(errs, be.errs)
-		lenses.Elts = append(lenses.Elts, v.tipLens(lensField(be.blockPos, v.v, prev.v, bwd)))
+		lb := lensField(be.blockPos, v.v, prev.v, bwd)
+		if cerr := captured(lb, prev, v, fieldBackward); cerr != nil {
+			errs = cerrors.Append(errs, cerr)
+			continue
+		}
+		lenses.Elts = append(lenses.Elts, v.normalLens(lb, prev))
 	}
 	if errs != nil {
 		return nil, errs
@@ -309,30 +317,100 @@ func compileVersions(ctx *cue.Context, name string, vs []*version) (*Compiled, e
 // authoring form writes it as Schema.
 const normalSchema = "schema"
 
-// paramName is the identifier a lens binds an instance of version v to:
-// v0_0 for 0.0.
+// paramName is the normal form's name for a lens's instance of version v:
+// v0_0 for 0.0. The authoring form names it prev or self.
 func paramName(v thema.SyntacticVersion) string {
 	return fmt.Sprintf("v%d_%d", v[0], v[1])
 }
 
+// lensParams are the names a lens block gives the instance it takes and
+// the one it produces: a ForwardLens takes prev and produces self, and a
+// BackwardLens takes self and produces prev.
+func lensParams(block string) (in, out string) {
+	if block == fieldBackward {
+		return paramSelf, paramPrev
+	}
+	return paramPrev, paramSelf
+}
+
+// lensShape is a lens block as help writes it: ForwardLens: (prev): {self:
+// {...}}.
+func lensShape(block string) string {
+	in, out := lensParams(block)
+	return fmt.Sprintf("%s: (%s): {%s: {...}}", block, in, out)
+}
+
 // lensBlock reads a ForwardLens or BackwardLens block for the edge from -> to:
-// {v<from>: _, v<to>: {...}, lacunas: {...}}, where the tip's instance is
-// named tip. The first field declares the instance the lens takes, the second
-// is the body producing the instance it returns, and the optional third
-// declares the lacunas of the body's mappings.
+// ForwardLens: (prev): {self: {...}, lacunas: {...}}, or BackwardLens:
+// (self): {prev: {...}}. The parameter names the instance the lens takes, and
+// the struct after it holds the body producing the instance it returns,
+// under that instance's name, and the optional lacunas of the body's
+// mappings. The parameter is a field labeled by an expression, which CUE
+// would read as a field named by the value of prev; the compiler reads it as
+// syntax, and the normal form names both instances by their versions.
 func lensBlock(f *ast.Field, from, to *version) (body, lacunas *ast.StructLit, err cerrors.Error) {
 	name, _, _ := ast.LabelName(f.Label)
-	fromName, toName := from.param(), to.param()
-	shape := fmt.Sprintf("%s for the lens from %s to %s is {%s: _, %s: {...}}, with an optional %s: {...}", name, from.name(), to.name(), fromName, toName, fieldLacunas)
+	in, out := lensParams(name)
+	shape := fmt.Sprintf("write %s, with an optional %s: {...} beside %s", lensShape(name), fieldLacunas, out)
+	roles := fmt.Sprintf("in %s, %s is an instance of %s, and %s one of %s", name, in, from.name(), out, to.name())
 	fail := func(p token.Pos, format string, args ...any) cerrors.Error {
-		return diag.New(diag.E0111).At(p).Headlinef(format, args...).Help(shape).Err()
+		return diag.New(diag.E0111).At(p).Headlinef(format, args...).Note(token.NoPos, roles).Help(shape).Err()
 	}
-	var param, result, lac *ast.Field
-	// numbered holds the fields of a lens on the tip's edge named after a
-	// version that is neither end's; which end each stands for is decided
-	// once every field is read.
-	var numbered []*ast.Field
+	var param *ast.Field
+	var stray []*ast.Field
 	for _, d := range f.Value.(*ast.StructLit).Elts {
+		switch d := d.(type) {
+		case *ast.CommentGroup:
+		case *ast.Field:
+			if _, ok := d.Label.(*ast.ParenExpr); !ok {
+				stray = append(stray, d)
+				continue
+			}
+			if param != nil {
+				return nil, nil, fail(d.Pos(), "%s declares the instance it takes twice", name)
+			}
+			param = d
+		default:
+			return nil, nil, fail(d.Pos(), "%s holds a declaration that is not a field", name)
+		}
+	}
+	if param == nil {
+		for _, d := range stray {
+			// A field declared _ is the instance the lens takes, written as
+			// a field rather than as the parameter.
+			if id, ok := d.Value.(*ast.Ident); ok && id.Name == "_" {
+				label, _, _ := ast.LabelName(d.Label)
+				return nil, nil, fail(d.Pos(), "%s takes its instance as its parameter, (%s), not as a field %s: _", name, in, label)
+			}
+		}
+		p := f.Pos()
+		if len(stray) > 0 {
+			p = stray[0].Pos()
+		}
+		return nil, nil, fail(p, "%s does not declare the instance it takes", name)
+	}
+	if len(stray) > 0 {
+		label, _, lerr := ast.LabelName(stray[0].Label)
+		if lerr != nil {
+			return nil, nil, fail(stray[0].Pos(), "%s has a field whose label is not a name", name)
+		}
+		return nil, nil, fail(stray[0].Pos(), "%s is not part of %s; write it inside the braces after (%s)", label, name, in)
+	}
+	px := param.Label.(*ast.ParenExpr)
+	switch id, ok := px.X.(*ast.Ident); {
+	case !ok:
+		return nil, nil, fail(px.X.Pos(), "the parameter of %s is the name %s, not %s", name, in, exprText(px.X))
+	case id.Name != in:
+		return nil, nil, fail(px.X.Pos(), "%s takes an instance of %s, so its parameter is %s", name, from.name(), in)
+	case param.Constraint != token.ILLEGAL:
+		return nil, nil, fail(px.Pos(), "the parameter of %s is (%s), not (%s)%s", name, in, in, param.Constraint)
+	}
+	inner, ok := param.Value.(*ast.StructLit)
+	if !ok {
+		return nil, nil, fail(param.Value.Pos(), "the parameter of %s is followed by a struct holding %s", name, out)
+	}
+	var result, lac *ast.Field
+	for _, d := range inner.Elts {
 		switch d := d.(type) {
 		case *ast.CommentGroup:
 		case *ast.Field:
@@ -341,46 +419,27 @@ func lensBlock(f *ast.Field, from, to *version) (body, lacunas *ast.StructLit, e
 				return nil, nil, fail(d.Pos(), "%s has a field whose label is not a name", name)
 			}
 			switch label {
-			case fromName:
-				if id, ok := d.Value.(*ast.Ident); !ok || id.Name != "_" {
-					return nil, nil, fail(d.Value.Pos(), "%s takes an instance of %s, so %s is _", name, from.name(), fromName)
-				}
-				param = d
-			case toName:
+			case out:
 				if _, ok := d.Value.(*ast.StructLit); !ok {
-					return nil, nil, fail(d.Value.Pos(), "%s produces an instance of %s: %s must be a struct of mappings", name, to.name(), toName)
+					return nil, nil, fail(d.Value.Pos(), "%s produces an instance of %s: %s must be a struct of mappings", name, to.name(), out)
 				}
 				result = d
 			case fieldLacunas:
 				if _, ok := d.Value.(*ast.StructLit); !ok {
-					return nil, nil, fail(d.Value.Pos(), "%s is a struct, keyed by the mappings of %s", fieldLacunas, toName)
+					return nil, nil, fail(d.Value.Pos(), "%s is a struct, keyed by the mappings of %s", fieldLacunas, out)
 				}
 				lac = d
-			case TipParam:
-				// The name is reserved for the tip's instance.
-				return nil, nil, diag.New(diag.E0111).At(d.Pos()).
-					Headlinef("%s names the tip's instance, and %s is not the tip", TipParam, from.name()).
-					Helpf("name the instance after its version: %s", shape).
-					Err()
+			case in:
+				return nil, nil, fail(d.Pos(), "%s takes %s and produces %s, so its body is %s", name, in, out, out)
 			default:
-				if (from.tip || to.tip) && paramPattern.MatchString(label) {
-					numbered = append(numbered, d)
-					continue
-				}
 				return nil, nil, fail(d.Pos(), "%s is not part of %s", label, name)
 			}
 		default:
 			return nil, nil, fail(d.Pos(), "%s holds a declaration that is not a field", name)
 		}
 	}
-	if len(numbered) > 0 {
-		return nil, nil, numberedTipParam(f, numbered[0], from, to, param, result, shape)
-	}
-	if param == nil {
-		return nil, nil, fail(f.Pos(), "%s does not declare the instance it takes", name)
-	}
 	if result == nil {
-		return nil, nil, fail(f.Pos(), "%s does not declare the instance it produces", name)
+		return nil, nil, fail(param.Pos(), "%s does not declare the instance it produces", name)
 	}
 	if lac != nil {
 		lacunas = lac.Value.(*ast.StructLit)
@@ -388,71 +447,11 @@ func lensBlock(f *ast.Field, from, to *version) (body, lacunas *ast.StructLit, e
 	return result.Value.(*ast.StructLit), lacunas, nil
 }
 
-// numberedTipParam is the error for d, a field of the lens f on the tip's
-// edge named after a version that is neither end's, given the fields read as
-// the instance the lens takes and the one it produces. d stands for the tip's
-// parent, the newest version under history/, when the lens names the tip but
-// not the parent, or when, naming neither, d is shaped as the parent's end:
-// the instance the ForwardLens takes, or the BackwardLens's body. That is a
-// lens written against an older parent, as after a rebase onto a cut of a
-// newer version (E0150). Otherwise d stands for the tip, whose instance is
-// named tip, since its version is derived (E0111).
-func numberedTipParam(f, d *ast.Field, from, to *version, param, result *ast.Field, shape string) cerrors.Error {
-	name, _, _ := ast.LabelName(f.Label)
-	label, _, _ := ast.LabelName(d.Label)
-	parent, parentField, tipField := from, param, result
-	if from.tip {
-		parent, parentField, tipField = to, result, param
-	}
-	var parentShaped bool
-	if parent == from {
-		id, ok := d.Value.(*ast.Ident)
-		parentShaped = ok && id.Name == "_"
-	} else {
-		_, parentShaped = d.Value.(*ast.StructLit)
-	}
-	if parentField == nil && (tipField != nil || parentShaped) {
-		e := diag.New(diag.E0150).At(d.Pos()).
-			Headlinef("the %s of %s names %s, but the tip's parent is %s", name, TipParam, label, parent.name())
-		if named, ok := versionOfParam(label); ok && named.Less(parent.v) {
-			e = e.Notef(token.NoPos, "the lens was written against an older parent, %s; the newest version under %s/ is now %s", vname(named), HistoryDir, parent.name())
-		} else {
-			e = e.Notef(token.NoPos, "the tip's lenses connect it to the newest version under %s/, %s", HistoryDir, parent.name())
-		}
-		if parent == from {
-			e = e.Helpf("declare %s: _ in place of %s, and review the mappings against %s's schema", parent.param(), label, parent.name())
-		} else {
-			e = e.Helpf("name the body %s in place of %s, and review its mappings against %s's schema", parent.param(), label, parent.name())
-		}
-		return e.Err()
-	}
-	return diag.New(diag.E0111).At(d.Pos()).
-		Headlinef("%s names the tip's instance %s, which has no version yet", name, label).
-		Notef(token.NoPos, "the tip's version is derived when it is cut, so its lenses name its instance %s", TipParam).
-		Help(shape).
-		Err()
-}
-
-// versionOfParam is the version a lens parameter named after one names:
-// 2.1 for v2_1.
-func versionOfParam(label string) (thema.SyntacticVersion, bool) {
-	m := paramPattern.FindStringSubmatch(label)
-	if m == nil {
-		return thema.SyntacticVersion{}, false
-	}
-	a, _ := strconv.ParseUint(m[1], 10, 32)
-	b, _ := strconv.ParseUint(m[2], 10, 32)
-	return thema.SV(uint(a), uint(b)), true
-}
-
-// paramPattern matches a lens parameter named after a version, v0_0.
-var paramPattern = regexp.MustCompile(`^v(0|[1-9][0-9]*)_(0|[1-9][0-9]*)$`)
-
 // name is the version as messages name it: v0.1, or the tip. A message
 // names the version's file only where it means the file.
 func (v *version) name() string {
 	if v.tip {
-		return TipParam
+		return TipName
 	}
 	return vname(v.v)
 }
@@ -463,19 +462,87 @@ func vname(v thema.SyntacticVersion) string {
 	return "v" + v.String()
 }
 
-// tipLens renames, in a lens on the edge into the tip, the author's name for
-// the tip's instance to the normal form's, which names it after the version
-// the tip was compiled as: tip.a becomes v2_1.a. A lens refers to nothing but
-// its instance, the operations and the strings functions (E0418), so every
-// identifier tip that is neither a label nor a selector is the instance. On
-// any other version's lens it does nothing.
-func (v *version) tipLens(f *ast.Field) *ast.Field {
-	if !v.tip {
-		return f
+// normalLens renames, in the lens f on the edge between prev and v, the
+// author's names for its instances to the normal form's, which names each
+// after its version: prev.a becomes v1_0.a and self.a becomes v2_0.a, in
+// either direction. On the edge into the tip, self is named after the version
+// the tip was compiled as.
+func (v *version) normalLens(f *ast.Field, prev *version) *ast.Field {
+	renameInstances(f, map[string]string{paramPrev: paramName(prev.v), paramSelf: paramName(v.v)})
+	return f
+}
+
+// captured refuses (E0339) a field the compiled lens f writes whose name is
+// the one the normal form gives the instance the lens takes: v<prev> for a
+// ForwardLens, v<v> for a BackwardLens. CUE resolves a reference by the
+// nearest field of its name, so such a field would stand in for the instance
+// in every reference beside and beneath it, and the lens would read the field
+// where its author wrote prev or self. The instance the lens produces is
+// referred to only by its lacunas, which no field of its body is above, and a
+// quoted label is no reference's target.
+func captured(f *ast.Field, prev, v *version, block string) cerrors.Error {
+	names := map[string]string{paramName(prev.v): paramPrev}
+	if block == fieldBackward {
+		names = map[string]string{paramName(v.v): paramSelf}
 	}
-	to := paramName(v.v)
+	lens := f.Value.(*ast.StructLit)
+	var errs cerrors.Error
+	for _, d := range lens.Elts {
+		switch d := d.(type) {
+		case *ast.LetClause:
+			errs = cerrors.Append(errs, capturedIn(d.Expr, f.Pos(), names, block, v))
+		case *ast.Field:
+			if name, _, _ := ast.LabelName(d.Label); name != fieldLacunas {
+				errs = cerrors.Append(errs, capturedIn(d.Value, f.Pos(), names, block, v))
+			}
+		}
+	}
+	return errs
+}
+
+// capturedIn is captured for the fields beneath n, positioned at each field
+// where it has a position, and at the lens block, p, otherwise: an implicit
+// copy is written where the author wrote nothing.
+func capturedIn(n ast.Node, p token.Pos, names map[string]string, block string, v *version) cerrors.Error {
+	var errs cerrors.Error
+	ast.Walk(n, func(n ast.Node) bool {
+		fd, ok := n.(*ast.Field)
+		if !ok {
+			return true
+		}
+		id, ok := fd.Label.(*ast.Ident)
+		if !ok {
+			return true
+		}
+		param, ok := names[id.Name]
+		if !ok {
+			return true
+		}
+		at := p
+		for _, q := range []token.Pos{fd.Label.Pos(), fd.Value.Pos()} {
+			if q.IsValid() {
+				at = q
+				break
+			}
+		}
+		errs = cerrors.Append(errs, diag.New(diag.E0339).At(at).
+			Headlinef("the %s of %s writes a field named %s, the name %s compiles to", block, v.name(), id.Name, param).
+			Notef(token.NoPos, "the compiled lens names %s %s, after its version, and a field of that name hides %s from every mapping beside and beneath it", param, id.Name, param).
+			Helpf("rename the field %s", id.Name).
+			Err())
+		return true
+	}, nil)
+	return errs
+}
+
+// renameInstances renames, in n, every reference to an instance of a lens by
+// the names in to. A lens refers to nothing but its instance, the operations
+// and the strings functions (E0418), so every identifier that is neither a
+// label nor a selector is a reference to an instance. Labels and selectors
+// name fields of the instances, and are left alone.
+func renameInstances(n ast.Node, to map[string]string) {
 	skip := make(map[*ast.Ident]bool)
-	ast.Walk(f, func(n ast.Node) bool {
+	ast.Walk(n, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.SelectorExpr:
 			if id, ok := n.Sel.(*ast.Ident); ok {
@@ -486,13 +553,12 @@ func (v *version) tipLens(f *ast.Field) *ast.Field {
 				skip[id] = true
 			}
 		case *ast.Ident:
-			if !skip[n] && n.Name == TipParam {
-				n.Name = to
+			if name, ok := to[n.Name]; ok && !skip[n] {
+				n.Name = name
 			}
 		}
 		return true
 	}, nil)
-	return f
 }
 
 // missingLens is the E1001 warning for the lens in block on the edge between
@@ -546,10 +612,8 @@ func missingLens(v, prev *version, block string, errs cerrors.Error) error {
 	b.Notef(token.NoPos, "translating from %s to %s needs it; until %s writes it, that translation fails (E1002)", nameOf(from, v), nameOf(to, v), v.name())
 	switch {
 	case len(shape) > 0:
-	case block == fieldForward:
-		shape = []string{fmt.Sprintf("write %s: {%s: _, %s: {...}} in %s", block, prev.param(), TipParam, v.path)}
 	default:
-		shape = []string{fmt.Sprintf("write %s: {%s: _, %s: {...}} in %s", block, TipParam, prev.param(), v.path)}
+		shape = []string{fmt.Sprintf("write %s in %s", lensShape(block), v.path)}
 	}
 	for _, h := range append(shape, helps...) {
 		b.Help(h)
@@ -560,7 +624,7 @@ func missingLens(v, prev *version, block string, errs cerrors.Error) error {
 // nameOf names version x for a message about the edge into the tip t.
 func nameOf(x thema.SyntacticVersion, t *version) string {
 	if x == t.v {
-		return TipParam
+		return TipName
 	}
 	return vname(x)
 }

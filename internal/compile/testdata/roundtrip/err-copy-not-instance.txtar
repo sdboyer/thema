@@ -12,9 +12,8 @@ Schema: {
 	}
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {}
+ForwardLens: (prev): {
+	self: {}
 }
 -- ship/tip.thema --
 Schema: {
@@ -23,10 +22,10 @@ Schema: {
 	}
 }
 -- out/error --
-error[E0358]: the ForwardLens of v1.0 would copy v0_0.tags into tags, which does not accept every value of it
+error[E0358]: the ForwardLens of v1.0 would copy prev.tags into tags, which does not accept every value of it
  --> history/1.0.thema:7:1
   |
-7 | ForwardLens: {
+7 | ForwardLens: (prev): {
   | ^^^^^^^^^^^
   |
   = note: both v0.0 and v1.0 declare tags, so a lens that does not map it copies it

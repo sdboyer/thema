@@ -10,10 +10,9 @@ Schema: {
 	aunion: "foo" | *"bar" | "baz"
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		aunion: _match(v0_0.aunion, {"foo": "bar"})
+ForwardLens: (prev): {
+	self: {
+		aunion: _match(prev.aunion, {"foo": "bar"})
 	}
 	lacunas: {
 		aunion: [{
@@ -23,16 +22,15 @@ ForwardLens: {
 	}
 }
 
-BackwardLens: {
-	v1_0: _
-	v0_0: {
-		aunion: _match(v1_0.aunion, {"bar": "foo"})
+BackwardLens: (self): {
+	prev: {
+		aunion: _match(self.aunion, {"bar": "foo"})
 	}
 	lacunas: {
 		aunion: [{
 			type:    ChangedDefault
 			message: "the default changed"
-			when:    v1_0.aunion == "bar"
+			when:    self.aunion == "bar"
 		}]
 	}
 }
@@ -42,9 +40,9 @@ Schema: {
 }
 -- out/error --
 error[E0420]: lacunas.aunion: a lacuna on a _match applies when its [_] arm does, and this _match has none
-  --> history/1.0.thema:11:12
+  --> history/1.0.thema:10:12
    |
-11 |         aunion: [{
+10 |         aunion: [{
    |                  ^
    |
    = help: say when it applies with when: <condition>

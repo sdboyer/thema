@@ -9,10 +9,9 @@ Schema: {
 	total: int64
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		total: v0_0.count * 2
+ForwardLens: (prev): {
+	self: {
+		total: prev.count * 2
 		count: _drop
 	}
 }
@@ -21,10 +20,10 @@ Schema: {
 	total: int64
 }
 -- out/error --
-error[E0343]: v0_0.count * 2 reads v0_0.count, which v0.0 may omit, and v1.0 requires total
- --> history/1.0.thema:8:3
+error[E0343]: prev.count * 2 reads prev.count, which v0.0 may omit, and v1.0 requires total
+ --> history/1.0.thema:7:3
   |
-8 |         total: v0_0.count * 2
+7 |         total: prev.count * 2
   |         ^^^^^
   |
-  = help: write _coalesce(v0_0.count * 2, <fallback>) to say what to use when it is absent
+  = help: write _coalesce(prev.count * 2, <fallback>) to say what to use when it is absent

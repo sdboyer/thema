@@ -10,10 +10,9 @@ Schema: {
 	b: string
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		b: v0_0.a
+ForwardLens: (prev): {
+	self: {
+		b: prev.a
 		b: "x"
 	}
 }
@@ -30,9 +29,9 @@ Schema: {
       "headline": "b is mapped twice",
       "primary": {
         "file": "history/1.0.thema",
-        "line": 9,
+        "line": 8,
         "col": 3,
-        "offset": 71,
+        "offset": 70,
         "origin": "user"
       }
     }
@@ -45,8 +44,8 @@ Schema: {
 }
 -- out/text --
 error[E0345]: b is mapped twice
- --> history/1.0.thema:9:3
+ --> history/1.0.thema:8:3
   |
-9 |         b: "x"
+8 |         b: "x"
   |         ^
   |

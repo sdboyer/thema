@@ -236,8 +236,8 @@ func (e *edge) within(b *body, p cue.Path) (cue.Path, token.Pos) {
 }
 
 // bodyName names the nested body at target path lit as the author reads it:
-// the instance the lens returns (v1_0), a struct in it (v1_0.meta), or, in an
-// each body, the element of the list it builds (v1_0.items[].meta).
+// the instance the lens returns (self), a struct in it (self.meta), or, in an
+// each body, the element of the list it builds (self.items[].meta).
 func (e *edge) bodyName(lit cue.Path) string {
 	name := e.paramOf(e.tv)
 	if e.each != nil {
@@ -321,9 +321,10 @@ type edge struct {
 	// missing is every required target field an unwritten lens produces
 	// nothing for, reported once by unwritten.
 	missing []cue.Path
-	// root is the identifier the author's references start from, which is
-	// also the normal form's field for the instance the lens takes: the
-	// version's parameter (v0_0), or item inside an each body.
+	// root is the identifier the author's references start from: the
+	// instance the lens takes, prev or self, or item inside an each body.
+	// The normal form names the instance after its version, and the
+	// compiled lens is renamed to it once it is built (normalLens).
 	root string
 	// lacunas is the lens's declared lacunas.
 	lacunas *lacunaTable
@@ -338,7 +339,7 @@ type edge struct {
 // nameOf names version v in a message: its number, or tip for the tip's.
 func (e *edge) nameOf(v thema.SyntacticVersion) string {
 	if e.tip != nil && *e.tip == v {
-		return TipParam
+		return TipName
 	}
 	return vname(v)
 }
@@ -358,13 +359,14 @@ func (e *edge) lensOwner() string {
 	return e.nameOf(e.tv)
 }
 
-// paramOf is the name the author gives an instance of v in a lens: v0_0, or
-// tip for the tip's.
+// paramOf is the name the author gives an instance of v, one end of the
+// edge, in its lens: self for the newer version, whose file holds the lens,
+// and prev for the older.
 func (e *edge) paramOf(v thema.SyntacticVersion) string {
-	if e.tip != nil && *e.tip == v {
-		return TipParam
+	if e.sv.Less(e.tv) == (v == e.tv) {
+		return paramSelf
 	}
-	return paramName(v)
+	return paramPrev
 }
 
 // key is the lacunas key of an entry of e: its target path, under the lists'
@@ -845,7 +847,7 @@ func (e *edge) parseLacuna(x ast.Expr, p cue.Path) *lacunaDecl {
 // A condition that reads an optional field concerns only the instances that
 // have it: it is compiled to [if <field> != _|_ {<when>}, false][0], since
 // CUE's && does not short-circuit over an absent field. An optional field
-// named bare, when: v0_0.p, tests its presence; a required bool named bare is
+// named bare, when: prev.p, tests its presence; a required bool named bare is
 // its value; any other bare reference is an error. A presence test written
 // out (<ref> != _|_) is refused in favor of the bare form, while an absence
 // test (<ref> == _|_) is a condition like any other. Beyond references, a
@@ -965,7 +967,13 @@ func (e *edge) expression(x ast.Expr, inCondition bool) (reads, optional []cue.P
 				e.unbind(n)
 				return false
 			}
-			e.errf(diag.E0418, n.Pos(), "%s is not defined in a lens; an expression refers to %s, to %s and to the strings functions", n.Name, e.root, strings.Join(lenscheck.Builtins, ", "))
+			if out := e.paramOf(e.tv); n.Name == out && e.each == nil {
+				// The other instance is the one the lens produces, which
+				// its mappings write and never read.
+				e.errhf(diag.E0418, n.Pos(), fmt.Sprintf("read %s, the instance %s takes", e.root, e.lensName()), "%s is the instance %s produces, which its mappings do not read", out, e.lensName())
+			} else {
+				e.errf(diag.E0418, n.Pos(), "%s is not defined in a lens; an expression refers to %s, to %s and to the strings functions", n.Name, e.root, strings.Join(lenscheck.Builtins, ", "))
+			}
 			ok = false
 		}
 		return true
@@ -1906,7 +1914,7 @@ func (e *edge) unwritten() {
 		b.Headlinef("%s has no %s, and %s requires %d fields", e.lensOwner(), e.dir, e.nameOf(e.tv), len(names)).
 			Notef(token.NoPos, "%s requires %s", e.nameOf(e.tv), strings.Join(names, ", "))
 	}
-	b.Helpf("write %s: {%s: _, %s: {%s}} in %s", e.dir, e.paramOf(e.sv), e.paramOf(e.tv), nested(cue.MakePath(), "<mapping>", e.missing...), e.file)
+	b.Helpf("write %s: (%s): {%s: {%s}} in %s", e.dir, e.paramOf(e.sv), e.paramOf(e.tv), nested(cue.MakePath(), "<mapping>", e.missing...), e.file)
 	e.errs = cerrors.Append(e.errs, b.Err())
 }
 

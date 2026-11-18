@@ -16,7 +16,7 @@ const lens: Diagnostic = {
     { pos: at, label: "0.0 declares b and tip does not, and nothing maps it (E0347)" },
     { pos: { file: "tip.thema", line: 3, col: 2, origin: "user" }, label: "size is optional in 0.0 and required in tip (E0343)" },
   ],
-  help: ["write ForwardLens: {v0_0: _, tip: {...}} in tip.thema"],
+  help: ["write ForwardLens: (prev): {self: {...}} in tip.thema"],
 };
 
 // Each row of a diagnostic as the reader meets it: its class, then its text.
@@ -35,7 +35,7 @@ describe("Diagnostics", () => {
       "note: note: 0.0 declares b and tip does not, and nothing maps it (E0347) ",
       "note: note: size is optional in 0.0 and required in tip (E0343) (tip.thema:3:2)",
       "note: note: translating from 0.0 to tip needs it ",
-      "help: help: write ForwardLens: {v0_0: _, tip: {...}} in tip.thema",
+      "help: help: write ForwardLens: (prev): {self: {...}} in tip.thema",
     ]);
   });
 });
@@ -50,7 +50,7 @@ describe("markerDOM", () => {
       "headline: E1001 tip.thema has no ForwardLens, and one cannot be derived",
       "note: note: 0.0 declares b and tip does not, and nothing maps it (E0347)",
       "note: note: translating from 0.0 to tip needs it",
-      "help: help: write ForwardLens: {v0_0: _, tip: {...}} in tip.thema",
+      "help: help: write ForwardLens: (prev): {self: {...}} in tip.thema",
     ]);
     expect(markerDOM(primary).querySelector(".headline .code")!.textContent).toBe("E1001");
     expect(markerDOM(primary).querySelector(".help .label")!.textContent).toBe("help:");

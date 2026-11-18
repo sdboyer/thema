@@ -26,10 +26,9 @@ Schema: {
 	}]
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		steps: _each(v0_0.steps, {
+ForwardLens: (prev): {
+	self: {
+		steps: _each(prev.steps, {
 			fields: _each(_item.fields, {
 				name:   _item.label
 				legacy: _drop
@@ -48,10 +47,9 @@ ForwardLens: {
 	}
 }
 
-BackwardLens: {
-	v1_0: _
-	v0_0: {
-		steps: _each(v1_0.steps, {
+BackwardLens: (self): {
+	prev: {
+		steps: _each(self.steps, {
 			fields: _each(_item.fields, {
 				label: _item.name
 			})
@@ -95,11 +93,10 @@ Schema: {
 	}]
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		steps: _each(
-			v0_0.steps,
+			prev.steps,
 			{
 				fields: _each(_item.fields, {
 					name:   _item.label
@@ -120,10 +117,9 @@ ForwardLens: {
 	}
 }
 
-BackwardLens: {
-	v1_0: _
-	v0_0: {
-		steps: _each(v1_0.steps, {fields: _each(_item.fields, {label: _item.name})})
+BackwardLens: (self): {
+	prev: {
+		steps: _each(self.steps, {fields: _each(_item.fields, {label: _item.name})})
 	}
 }
 -- out/decompiled/tip.thema --

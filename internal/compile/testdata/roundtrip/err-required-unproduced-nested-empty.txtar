@@ -14,9 +14,8 @@ Schema: {
 	}
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		meta: {}
 	}
 }
@@ -30,17 +29,17 @@ Schema: {
 }
 -- out/error --
 error[E0346]: ForwardLens produces nothing for meta.owner, which v1.0 requires
-  --> history/1.0.thema:12:3
+  --> history/1.0.thema:11:3
    |
-12 |         meta: {}
+11 |         meta: {}
    |         ^^^^
    |
-   = help: add owner: <mapping> to v1_0.meta
+   = help: add owner: <mapping> to self.meta
 
 error[E0346]: ForwardLens produces nothing for meta.team, which v1.0 requires
-  --> history/1.0.thema:12:3
+  --> history/1.0.thema:11:3
    |
-12 |         meta: {}
+11 |         meta: {}
    |         ^^^^
    |
-   = help: add team: <mapping> to v1_0.meta
+   = help: add team: <mapping> to self.meta

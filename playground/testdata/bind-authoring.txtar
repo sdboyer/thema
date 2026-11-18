@@ -11,10 +11,9 @@ Schema: {
 	crew: int
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		name: v0_0.name
+ForwardLens: (prev): {
+	self: {
+		name: prev.name
 		crew: 1
 	}
 	lacunas: {

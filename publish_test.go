@@ -30,9 +30,8 @@ const (
 	c?: int
 }
 
-ForwardLens: {
-	v0_1: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		b: -1
 	}
 	lacunas: {
@@ -48,18 +47,16 @@ ForwardLens: {
 	b: int
 }
 
-ForwardLens: {
-	v1_1: _
-	v2_0: {
+ForwardLens: (prev): {
+	self: {
 		a: _drop
 		c: _drop
 		d: _drop
 	}
 }
 
-BackwardLens: {
-	v2_0: _
-	v1_1: {
+BackwardLens: (self): {
+	prev: {
 		a: "unknown"
 	}
 	lacunas: {
@@ -121,9 +118,8 @@ func TestCheckAppendOnly(t *testing.T) {
 	c?: int
 }
 
-ForwardLens: {
-	v0_1: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		b: -2
 	}
 	lacunas: {
@@ -218,9 +214,8 @@ func TestVersionID(t *testing.T) {
 	c?: int
 }
 
-ForwardLens: {
-	v0_1: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		b: 0
 	}
 }

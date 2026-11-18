@@ -9,10 +9,9 @@ Schema: {
 	total: int64
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		total: _coalesce(v0_0.count * 2, 0)
+ForwardLens: (prev): {
+	self: {
+		total: _coalesce(prev.count * 2, 0)
 		count: _drop
 	}
 }
@@ -21,10 +20,10 @@ Schema: {
 	total: int64
 }
 -- out/error --
-error[E0348]: v0.0 always has every field v0_0.count * 2 reads, so _coalesce's fallback could never apply
- --> history/1.0.thema:8:20
+error[E0348]: v0.0 always has every field prev.count * 2 reads, so _coalesce's fallback could never apply
+ --> history/1.0.thema:7:20
   |
-8 |         total: _coalesce(v0_0.count * 2, 0)
+7 |         total: _coalesce(prev.count * 2, 0)
   |                          ^^^^
   |
-  = help: write total: v0_0.count * 2
+  = help: write total: prev.count * 2

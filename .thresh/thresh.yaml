@@ -52,7 +52,7 @@ seams:
     consult:
       - "every consumer that matches on a code: the CLI's --diag-format json readers, docs/errors links, the playground; retire and allocate rather than change a code's meaning"
       - "the lockstep tests in diag/codes_test.go: one reproducer per code, diag/testdata/codes/<code>.txtar, which runs the operation (#op) and records the rendering; docs/errors generated from them (THEMA_UPDATE_GOLDEN=1 go test ./diag); read the rendered text before considering a diagnostic done"
-      - "the author's vocabulary only: headlines, notes and help use the terms of the form the author wrote (version file, schema, ForwardLens, v0_0 for the authoring form; schemas, lenses, input, result for the normal form), never kernel or pipeline terms (_accum, steps, Lineage., #closed, embedreg paths); internal/diagtest.Lint fails a headline that leaks"
+      - "the author's vocabulary only: headlines, notes and help use the terms of the form the author wrote (version file, schema, ForwardLens, prev and self for the authoring form; schemas, lenses, input, result for the normal form), never kernel or pipeline terms (_accum, steps, Lineage., #closed, embedreg paths); internal/diagtest.Lint fails a headline that leaks"
       - "CUE's own text is never embedded: CUE's message is the Detail or a note, never interpolated into a headline, and no cerrors.Details in message construction"
       - "nothing is dropped: every entry of cerrors.Errors(err) becomes a headline or a note of some diagnostic"
       - "the primary position is the author's: a thema-origin position is never a primary, it becomes a note, and only codes declared Positionless may have none"

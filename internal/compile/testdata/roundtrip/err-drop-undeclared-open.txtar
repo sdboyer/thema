@@ -13,9 +13,8 @@ Schema: {
 	...
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		b: _drop
 	}
 }
@@ -27,8 +26,8 @@ Schema: {
 }
 -- out/error --
 error[E0340]: v0.0 does not declare b, so there is nothing to drop
-  --> history/1.0.thema:10:3
-   |
-10 |         b: _drop
-   |         ^
-   |
+ --> history/1.0.thema:9:3
+  |
+9 |         b: _drop
+  |         ^
+  |

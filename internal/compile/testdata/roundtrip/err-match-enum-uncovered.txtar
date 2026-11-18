@@ -9,10 +9,9 @@ Schema: {
 	kind: "a" | "b"
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		kind: _match(v0_0.kind, {
+ForwardLens: (prev): {
+	self: {
+		kind: _match(prev.kind, {
 			"a": "b"
 		})
 	}
@@ -23,9 +22,9 @@ Schema: {
 }
 -- out/error --
 error[E0351]: _match on kind is not exhaustive: v0.0's kind may be "c", which no arm matches and v1.0's kind does not accept
- --> history/1.0.thema:8:9
+ --> history/1.0.thema:7:9
   |
-8 |         kind: _match(v0_0.kind, {
+7 |         kind: _match(prev.kind, {
   |               ^^^^^^
   |
   = help: add an arm for "c", or a [_] arm

@@ -19,10 +19,9 @@ Schema: {
 	b?: int
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		b: v0_0.q.b
+ForwardLens: (prev): {
+	self: {
+		b: prev.q.b
 	}
 }
 -- ship/tip.thema --
@@ -63,10 +62,9 @@ Schema: {
 	b?: int
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		b: v0_0.q.b
+ForwardLens: (prev): {
+	self: {
+		b: prev.q.b
 	}
 }
 -- out/decompiled/tip.thema --

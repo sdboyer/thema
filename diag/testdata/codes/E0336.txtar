@@ -10,10 +10,9 @@ Schema: {
 	kind: 1 | 2
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		kind: _match(v0_0.kind)
+ForwardLens: (prev): {
+	self: {
+		kind: _match(prev.kind)
 	}
 }
 -- ship/tip.thema --
@@ -26,12 +25,12 @@ Schema: {
     {
       "code": "E0336",
       "severity": "error",
-      "headline": "_match takes two arguments: _match(v0_0.<path>, {...})",
+      "headline": "_match takes two arguments: _match(prev.<path>, {...})",
       "primary": {
         "file": "history/1.0.thema",
-        "line": 8,
+        "line": 7,
         "col": 9,
-        "offset": 67,
+        "offset": 66,
         "origin": "user"
       }
     }
@@ -43,9 +42,9 @@ Schema: {
   }
 }
 -- out/text --
-error[E0336]: _match takes two arguments: _match(v0_0.<path>, {...})
- --> history/1.0.thema:8:9
+error[E0336]: _match takes two arguments: _match(prev.<path>, {...})
+ --> history/1.0.thema:7:9
   |
-8 |         kind: _match(v0_0.kind)
+7 |         kind: _match(prev.kind)
   |               ^^^^^^
   |

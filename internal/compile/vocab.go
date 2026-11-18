@@ -2,6 +2,7 @@ package compile
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"cuelang.org/go/cue/token"
@@ -13,7 +14,7 @@ import (
 
 // Vocabulary is the authoring form's: diagnostics about the compiled lineage
 // name version files, the ForwardLens or BackwardLens in them, and the lens
-// parameters (v0_0) the author wrote, rather than the normal form's schemas,
+// parameters (prev, self) the author wrote, rather than the normal form's schemas,
 // lenses, input and result. Pass it to thema.BindLineage as
 // thema.WithVocabulary.
 func Vocabulary(c *Compiled) diag.Vocabulary {
@@ -26,13 +27,18 @@ type vocab struct {
 	tip *thema.SyntacticVersion
 }
 
-// param is the name the author gives an instance of ver in a lens: its
-// version's, or TipParam for the tip's.
-func (v vocab) param(ver diag.Version) string {
-	if v.tip != nil && *v.tip == thema.SyntacticVersion(ver) {
-		return TipParam
+// param is the name the author gives an instance of ver, one end of a's
+// lens, in it: self for the newer version, whose file holds the lens, and
+// prev for the older.
+func (v vocab) param(a diag.Address, ver diag.Version) string {
+	newer := a.To
+	if thema.SyntacticVersion(a.To).Less(thema.SyntacticVersion(a.From)) {
+		newer = a.From
 	}
-	return paramName(thema.SyntacticVersion(ver))
+	if ver == newer {
+		return paramSelf
+	}
+	return paramPrev
 }
 
 func (v vocab) file(ver diag.Version) string {
@@ -45,7 +51,7 @@ func (v vocab) file(ver diag.Version) string {
 // name is version ver as messages name it: v0.1, or the tip.
 func (v vocab) name(ver diag.Version) string {
 	if v.tip != nil && *v.tip == thema.SyntacticVersion(ver) {
-		return TipParam
+		return TipName
 	}
 	return vname(thema.SyntacticVersion(ver))
 }
@@ -87,13 +93,13 @@ func (v vocab) Path(a diag.Address) []string {
 		return []string{file, block}
 	case diag.AddrLensInput:
 		file, block := v.lens(a)
-		return []string{file, block, v.param(a.From)}
+		return []string{file, block, v.param(a, a.From)}
 	case diag.AddrLensResult:
 		file, block := v.lens(a)
-		return []string{file, block, v.param(a.To)}
+		return []string{file, block, v.param(a, a.To)}
 	case diag.AddrLensResultField:
 		file, block := v.lens(a)
-		return append([]string{file, block, v.param(a.To)}, field...)
+		return append([]string{file, block, v.param(a, a.To)}, field...)
 	case diag.AddrLacuna:
 		file, block := v.lens(a)
 		return []string{file, block, fieldLacunas}
@@ -118,7 +124,7 @@ func (v vocab) Term(a diag.Address) string {
 	case diag.AddrLens, diag.AddrStep:
 		return v.lensName(a)
 	case diag.AddrLensInput:
-		return fmt.Sprintf("%s, the input of %s", v.param(a.From), v.lensName(a))
+		return fmt.Sprintf("%s, the input of %s", v.param(a, a.From), v.lensName(a))
 	case diag.AddrLensResult:
 		return "the body of " + v.lensName(a)
 	case diag.AddrLensResultField:
@@ -132,13 +138,15 @@ func (v vocab) Term(a diag.Address) string {
 }
 
 // Rewrite renders a checker's sentence about a lens in the author's terms:
-// the normal form's input is the parameter the author named after the
-// source version, v0_0, and "the target schema" is the target version.
+// the normal form's input is the instance the author's lens takes, prev or
+// self, "the target schema" is the target version, and an expression quoted
+// from the normal form names the instances by their versions, v1_0.a, where
+// the author wrote self.a.
 func (v vocab) Rewrite(a diag.Address, sentence string) string {
 	if !lensAddr(a) {
 		return sentence
 	}
-	param := v.param(a.From)
+	param := v.param(a, a.From)
 	r := strings.NewReplacer(
 		"input.", param+".",
 		"an input field", "a field of "+param,
@@ -146,8 +154,35 @@ func (v vocab) Rewrite(a diag.Address, sentence string) string {
 		"the source schema", v.name(a.From),
 		"the target schema", v.name(a.To),
 	)
-	return r.Replace(sentence)
+	names := map[string]string{
+		paramName(thema.SyntacticVersion(a.From)): param,
+		paramName(thema.SyntacticVersion(a.To)):   v.param(a, a.To),
+	}
+	return renameRoots(r.Replace(sentence), names)
 }
+
+// renameRoots renames, in an expression quoted in s, each path rooted at an
+// instance of a lens by its name in to: v0_0.a and v0_0[0] are paths into
+// the instance, while x.v0_0 selects a field of that name, and v0_0 alone,
+// in a sentence, names the field the message is about.
+func renameRoots(s string, to map[string]string) string {
+	var b strings.Builder
+	last := 0
+	for _, m := range normalParam.FindAllStringIndex(s, -1) {
+		name, ok := to[s[m[0]:m[1]]]
+		if !ok || (m[0] > 0 && s[m[0]-1] == '.') || m[1] == len(s) || (s[m[1]] != '.' && s[m[1]] != '[') {
+			continue
+		}
+		b.WriteString(s[last:m[0]])
+		b.WriteString(name)
+		last = m[1]
+	}
+	b.WriteString(s[last:])
+	return b.String()
+}
+
+// normalParam matches a name the normal form gives a lens's instance, v1_0.
+var normalParam = regexp.MustCompile(`\bv(0|[1-9][0-9]*)_(0|[1-9][0-9]*)\b`)
 
 // RewriteHelp is Rewrite for a line of help about a lens. Help written in the
 // normal form's syntax, such as a presence test to write a field under, is not

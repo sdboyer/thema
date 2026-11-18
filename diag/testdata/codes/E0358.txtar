@@ -23,7 +23,7 @@ Schema: {
     {
       "code": "E0358",
       "severity": "error",
-      "headline": "the ForwardLens of v1.0 would copy v0_0.kind into kind, which does not accept every value of it",
+      "headline": "the ForwardLens of v1.0 would copy prev.kind into kind, which does not accept every value of it",
       "primary": {
         "file": "history/1.0.thema",
         "line": 4,
@@ -51,7 +51,7 @@ Schema: {
   }
 }
 -- out/text --
-error[E0358]: the ForwardLens of v1.0 would copy v0_0.kind into kind, which does not accept every value of it
+error[E0358]: the ForwardLens of v1.0 would copy prev.kind into kind, which does not accept every value of it
  --> history/1.0.thema:4:1
   |
 4 | }

@@ -9,17 +9,15 @@ Schema: close({
 	s!: [...close({f!: [...close({m!: string})]})]
 })
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		s: _each(v0_0.s, {f: _each(_item.f, {m: _item.n})})
+ForwardLens: (prev): {
+	self: {
+		s: _each(prev.s, {f: _each(_item.f, {m: _item.n})})
 	}
 }
 
-BackwardLens: {
-	v1_0: _
-	v0_0: {
-		s: _each(v1_0.s, {f: _each(_item.f, {n: _item.m})})
+BackwardLens: (self): {
+	prev: {
+		s: _each(self.s, {f: _each(_item.f, {n: _item.m})})
 	}
 }
 -- ship/tip.thema --
@@ -35,17 +33,15 @@ Schema: close({s!: [...close({f!: [...close({n!: string})]})]})
 -- out/decompiled/history/1.0.thema --
 Schema: close({s!: [...close({f!: [...close({m!: string})]})]})
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		s: _each(v0_0.s, {f: _each(_item.f, {m: _item.n})})
+ForwardLens: (prev): {
+	self: {
+		s: _each(prev.s, {f: _each(_item.f, {m: _item.n})})
 	}
 }
 
-BackwardLens: {
-	v1_0: _
-	v0_0: {
-		s: _each(v1_0.s, {f: _each(_item.f, {n: _item.m})})
+BackwardLens: (self): {
+	prev: {
+		s: _each(self.s, {f: _each(_item.f, {n: _item.m})})
 	}
 }
 -- out/decompiled/tip.thema --

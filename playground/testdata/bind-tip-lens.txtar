@@ -13,17 +13,15 @@ Schema: {
 	name: string
 }
 
-ForwardLens: {
-	v0_0: _
-	tip: {
+ForwardLens: (prev): {
+	self: {
 		crew: _drop
 	}
 }
 
-BackwardLens: {
-	tip: _
-	v0_0: {
-		crew: len(tip.name)
+BackwardLens: (self): {
+	prev: {
+		crew: len(self.name)
 	}
 }
 -- data.json --

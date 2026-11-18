@@ -15,9 +15,8 @@ Schema: {
 	...
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		b: true
 	}
 }
@@ -41,9 +40,8 @@ Schema: {
 	...
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		b: true
 	}
 }

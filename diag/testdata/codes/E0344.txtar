@@ -12,9 +12,8 @@ Schema: {
 	b: int
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		b: "one"
 	}
 }
@@ -32,9 +31,9 @@ Schema: {
       "headline": "\"one\" is not an instance of v1.0's b",
       "primary": {
         "file": "history/1.0.thema",
-        "line": 9,
+        "line": 8,
         "col": 6,
-        "offset": 70,
+        "offset": 69,
         "origin": "user"
       },
       "notes": [
@@ -51,9 +50,9 @@ Schema: {
         {
           "pos": {
             "file": "history/1.0.thema",
-            "line": 9,
+            "line": 8,
             "col": 6,
-            "offset": 70,
+            "offset": 69,
             "origin": "user"
           },
           "label": "also here"
@@ -70,12 +69,12 @@ Schema: {
 }
 -- out/text --
 error[E0344]: "one" is not an instance of v1.0's b
- --> history/1.0.thema:9:6
+ --> history/1.0.thema:8:6
   |
 3 |     b: int
   |        --- here
 ...
-9 |         b: "one"
+8 |         b: "one"
   |            ^^^^^
   |            ----- also here
   |

@@ -34,7 +34,7 @@ describe("markersFor", () => {
     const across: Diagnostic = {
       code: "E0358",
       severity: "error",
-      headline: "the ForwardLens in tip.thema would copy v0_0.count into count",
+      headline: "the ForwardLens in tip.thema would copy prev.count into count",
       primary: at,
       notes: [
         { pos: { file: "history/0.0.thema", line: 2, col: 2, origin: "user" }, label: "0.0 declares count as string" },
@@ -44,7 +44,7 @@ describe("markersFor", () => {
     const ms = markersFor([across], "tip.thema", text);
     expect(ms).toHaveLength(1);
     expect(ms[0]!.lines).toEqual([
-      { kind: "headline", text: "the ForwardLens in tip.thema would copy v0_0.count into count" },
+      { kind: "headline", text: "the ForwardLens in tip.thema would copy prev.count into count" },
       { kind: "note", text: "0.0 declares count as string", where: "history/0.0.thema:2:2" },
       { kind: "note", text: "tip declares it as int" },
     ]);
@@ -65,7 +65,7 @@ describe("markersFor", () => {
         { label: "translating from 0.0 to tip needs it" },
         { pos: at, label: "0.0 declares b and tip does not, and nothing maps it (E0347)" },
       ],
-      help: ["write ForwardLens: {v0_0: _, tip: {...}} in tip.thema", "write <field>: v0_0.b to move it, or b: _drop"],
+      help: ["write ForwardLens: (prev): {self: {...}} in tip.thema", "write <field>: prev.b to move it, or b: _drop"],
     };
     const ms = markersFor([lens], "1.0.thema", text);
     expect(ms).toHaveLength(1);
@@ -73,8 +73,8 @@ describe("markersFor", () => {
       { kind: "headline", text: "tip.thema has no ForwardLens, and one cannot be derived" },
       { kind: "note", text: "0.0 declares b and tip does not, and nothing maps it (E0347)" },
       { kind: "note", text: "translating from 0.0 to tip needs it" },
-      { kind: "help", text: "write ForwardLens: {v0_0: _, tip: {...}} in tip.thema" },
-      { kind: "help", text: "write <field>: v0_0.b to move it, or b: _drop" },
+      { kind: "help", text: "write ForwardLens: (prev): {self: {...}} in tip.thema" },
+      { kind: "help", text: "write <field>: prev.b to move it, or b: _drop" },
     ]);
     expect(ms[0]!.message.split("\n").map((l) => l.split(":")[0])).toEqual(["E1001", "note", "note", "help", "help"]);
   });

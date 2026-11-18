@@ -14,9 +14,8 @@ Schema: {
 	...
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		after: "x"
 	}
 }
@@ -30,7 +29,7 @@ Schema: {
 error[E0347]: v0.0 declares before and v1.0 does not, and nothing maps it
  --> history/1.0.thema:7:1
   |
-7 | ForwardLens: {
+7 | ForwardLens: (prev): {
   | ^^^^^^^^^^^
   |
-  = help: write <field>: v0_0.before to move it, or before: _drop
+  = help: write <field>: prev.before to move it, or before: _drop

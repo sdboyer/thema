@@ -10,11 +10,10 @@ Schema: {
 	...
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		a:     len(v0_0.a)
-		extra: v0_0.a
+ForwardLens: (prev): {
+	self: {
+		a:     len(prev.a)
+		extra: prev.a
 	}
 }
 -- ship/tip.thema --
@@ -24,8 +23,8 @@ Schema: {
 }
 -- out/error --
 error[E0341]: v1.0 does not declare extra
-  --> history/1.0.thema:10:3
-   |
-10 |         extra: v0_0.a
-   |         ^^^^^
-   |
+ --> history/1.0.thema:9:3
+  |
+9 |         extra: prev.a
+  |         ^^^^^
+  |

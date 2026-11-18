@@ -16,9 +16,8 @@ Schema: {
 	}
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		o: {
 			y: _drop
 		}
@@ -33,9 +32,9 @@ Schema: {
 }
 -- out/error --
 error[E0346]: ForwardLens produces nothing for o.z, which v1.0 requires
-  --> history/1.0.thema:11:3
+  --> history/1.0.thema:10:3
    |
-11 |         o: {
+10 |         o: {
    |         ^
    |
-   = help: add z: <mapping> to v1_0.o
+   = help: add z: <mapping> to self.o

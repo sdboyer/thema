@@ -11,17 +11,15 @@ Schema: {
 	big:  bool
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		big:  v0_0.size > 10
+ForwardLens: (prev): {
+	self: {
+		big:  prev.size > 10
 		size: _drop
 	}
 }
 
-BackwardLens: {
-	v1_0: _
-	v0_0: {
+BackwardLens: (self): {
+	prev: {
 		size: 0
 	}
 }

@@ -150,18 +150,16 @@ func TestDevelopmentLineageTipLenses(t *testing.T) {
 	size:       string
 }
 
-ForwardLens: {
-	v1_0: _
-	tip: {
+ForwardLens: (prev): {
+	self: {
 		size: "medium"
 		secondfield: _drop
 	}
 }
 
-BackwardLens: {
-	tip: _
-	v1_0: {
-		secondfield: len(tip.size)
+BackwardLens: (self): {
+	prev: {
+		secondfield: len(self.size)
 		size: _drop
 	}
 }

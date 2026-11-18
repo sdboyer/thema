@@ -56,7 +56,7 @@ A code's scope says what its condition reads: `one` when one version's files, th
 | [E0147](E0147.md) | error | one | a version file imports a package its Schema does not use |
 | [E0148](E0148.md) | error | one | a numbered version file is at the top of the lineage's directory, not under history/ |
 | [E0149](E0149.md) | error | one | the lineage's directory has no tip.thema |
-| [E0150](E0150.md) | error | versions | a lens of the tip names a version other than the tip's parent, the newest version under history/ |
+| [E0150](E0150.md) | error | versions | retired: a lens of the tip names a version other than the tip's parent, the newest version under history/ |
 | [E0151](E0151.md) | error | one | a schema or lens declares a hidden field or a hidden definition |
 | [E0152](E0152.md) | error | one | the value a lineage is bound from is not the root of a value CUE built from source |
 | [E0201](E0201.md) | error | one | the first schema is not version 0.0 |
@@ -106,6 +106,7 @@ A code's scope says what its condition reads: `one` when one version's files, th
 | [E0336](E0336.md) | error | one | a _match is not _match(source path, arms) |
 | [E0337](E0337.md) | error | one | an _each is not _each(source list, body) |
 | [E0338](E0338.md) | error | one | a _match's arms are not constant arms with at most one catch-all |
+| [E0339](E0339.md) | error | versions | a lens writes a field with the name its compiled lens gives one of its instances |
 | [E0340](E0340.md) | error | versions | a lens reads a field its source version does not declare |
 | [E0341](E0341.md) | error | versions | a lens maps a field its target version does not declare |
 | [E0342](E0342.md) | error | versions | a lens drops a field its target version requires |

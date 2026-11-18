@@ -10,10 +10,9 @@ Schema: {
 	label: string
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
-		label: strings.Title(v0_0.name)
+ForwardLens: (prev): {
+	self: {
+		label: strings.Title(prev.name)
 	}
 }
 -- ship/tip.thema --
@@ -23,9 +22,9 @@ Schema: {
 }
 -- out/error --
 error[E0357]: strings.Title is not a function a lens may call
- --> history/1.0.thema:9:10
+ --> history/1.0.thema:8:10
   |
-9 |         label: strings.Title(v0_0.name)
+8 |         label: strings.Title(prev.name)
   |                ^^^^^^^
   |
   = help: the strings functions a lens may call are strings.Contains, strings.HasPrefix, strings.HasSuffix, strings.Replace, strings.ToLower, strings.ToUpper, strings.Trim, strings.TrimLeft, strings.TrimPrefix, strings.TrimRight, strings.TrimSpace, strings.TrimSuffix

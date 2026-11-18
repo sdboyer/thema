@@ -41,7 +41,7 @@ func TestAuthoringPatternKeys(t *testing.T) {
 		"implicit copy carries the keys": {
 			files: map[string]string{
 				first: "Schema: {\n\tlabels: [string]: string\n\ta: string\n}\n",
-				last:  "Schema: {\n\tlabels: [string]: string\n\ta: int\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {\n\t\ta: 1\n\t}\n}\n\nBackwardLens: {\n\tv1_0: _\n\tv0_0: {\n\t\ta: \"x\"\n\t}\n}\n",
+				last:  "Schema: {\n\tlabels: [string]: string\n\ta: int\n}\n\nForwardLens: (prev): {\n\tself: {\n\t\ta: 1\n\t}\n}\n\nBackwardLens: (self): {\n\tprev: {\n\t\ta: \"x\"\n\t}\n}\n",
 			},
 			// Each lens writes its own a without referring to the source's,
 			// so the source's a is set aside (B6).
@@ -53,7 +53,7 @@ func TestAuthoringPatternKeys(t *testing.T) {
 		"reads a key": {
 			files: map[string]string{
 				first: labels,
-				last:  "Schema: {\n\tlabels: [string]: string\n\tenv:    string\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {\n\t\tenv: _coalesce(v0_0.labels.env, \"none\")\n\t}\n}\n",
+				last:  "Schema: {\n\tlabels: [string]: string\n\tenv:    string\n}\n\nForwardLens: (prev): {\n\tself: {\n\t\tenv: _coalesce(prev.labels.env, \"none\")\n\t}\n}\n",
 			},
 			err:  diag.E0340,
 			help: "declare labels.env as an optional field in a new minor version",
@@ -61,7 +61,7 @@ func TestAuthoringPatternKeys(t *testing.T) {
 		"writes a key": {
 			files: map[string]string{
 				first: "Schema: {\n\tenv: string\n}\n",
-				last:  "Schema: {\n\tlabels: [string]: string\n}\n\nForwardLens: {\n\tv0_0: _\n\tv1_0: {\n\t\tlabels: {\n\t\t\tenv: v0_0.env\n\t\t}\n\t}\n}\n",
+				last:  "Schema: {\n\tlabels: [string]: string\n}\n\nForwardLens: (prev): {\n\tself: {\n\t\tlabels: {\n\t\t\tenv: prev.env\n\t\t}\n\t}\n}\n",
 			},
 			err:  diag.E0341,
 			help: "declare labels.env in v1.0, or copy the struct that holds it whole",
@@ -73,7 +73,7 @@ func TestAuthoringPatternKeys(t *testing.T) {
 			files: map[string]string{
 				first:               labels,
 				"history/0.1.thema": "Schema: {\n\tlabels: {\n\t\tenv?: string\n\t\t[string]: string\n\t}\n}\n",
-				last:                "Schema: {\n\tlabels: [string]: string\n\tenv:    string\n}\n\nForwardLens: {\n\tv0_1: _\n\tv1_0: {\n\t\tenv: _coalesce(v0_1.labels.env, \"none\")\n\t}\n}\n",
+				last:                "Schema: {\n\tlabels: [string]: string\n\tenv:    string\n}\n\nForwardLens: (prev): {\n\tself: {\n\t\tenv: _coalesce(prev.labels.env, \"none\")\n\t}\n}\n",
 			},
 			translations: []translation{
 				{from: thema.SV(0, 0), to: thema.SV(1, 0), data: `{labels: {env: "prod", x: "y"}}`, want: `{"labels":{"x":"y"},"env":"prod"}`},

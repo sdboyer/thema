@@ -17,11 +17,10 @@ Schema: {
 	url!: string
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		req: {method: "GET"}
-		url: "/things/" + v0_0.req.path.id
+		url: "/things/" + prev.req.path.id
 	}
 }
 -- ship/tip.thema --
@@ -74,13 +73,12 @@ Schema: {
 	url!: string
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		req: {
 			method: "GET"
 		}
-		url: "/things/" + v0_0.req.path.id
+		url: "/things/" + prev.req.path.id
 	}
 }
 -- out/decompiled/tip.thema --

@@ -11,9 +11,8 @@ Schema: {
 	secondfield: int
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		secondfield: -1
 	}
 	lacunas: {
@@ -24,9 +23,8 @@ ForwardLens: {
 	}
 }
 
-BackwardLens: {
-	v1_0: _
-	v0_0: {}
+BackwardLens: (self): {
+	prev: {}
 	lacunas: {
 		secondfield: [{
 			type:    DroppedField
@@ -41,8 +39,8 @@ Schema: {
 }
 -- out/error --
 error[E0412]: lacunas.secondfeild: ForwardLens has no mapping keyed secondfeild
-  --> history/1.0.thema:12:17
+  --> history/1.0.thema:11:17
    |
-12 |         secondfeild: [{
+11 |         secondfeild: [{
    |                       ^
    |

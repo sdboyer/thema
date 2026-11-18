@@ -13,9 +13,8 @@ Schema: {
 	}
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: meta: team: "unassigned"
+ForwardLens: (prev): {
+	self: meta: team: "unassigned"
 }
 -- ship/tip.thema --
 Schema: {
@@ -40,9 +39,8 @@ Schema: {
 	}
 }
 
-ForwardLens: {
-	v0_0: _
-	v1_0: {
+ForwardLens: (prev): {
+	self: {
 		meta: {
 			team: "unassigned"
 		}

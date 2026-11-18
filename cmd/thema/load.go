@@ -280,7 +280,7 @@ func vname(v thema.SyntacticVersion) string {
 // cuts as; otherwise v, and cutsAs is empty.
 func (dl *dynamicLoader) versionName(v thema.SyntacticVersion) (name, cutsAs string) {
 	if dl.dev != nil && dl.dev.Provisional(v) {
-		return authoring.TipParam, v.String()
+		return authoring.TipName, v.String()
 	}
 	return v.String(), ""
 }
@@ -292,7 +292,7 @@ func (lla *lineageLoadArgs) attachSchema(dl *dynamicLoader) (*dynamicLoader, err
 	switch {
 	case lla.verstr == "":
 		dl.sch = dl.lin.Latest()
-	case lla.verstr == authoring.TipParam && dl.dev != nil:
+	case lla.verstr == authoring.TipName && dl.dev != nil:
 		dl.sch = thema.SchemaP(dl.lin, dl.dev.Tip.Version)
 	default:
 		synv, err := thema.ParseSyntacticVersion(lla.verstr)
