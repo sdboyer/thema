@@ -240,7 +240,7 @@ var Codes = []CodeInfo{
 	{Code: E0604, Severity: SeverityError, Scope: ScopeOne, Title: "the CUE path given for the lineage is not a path", Positionless: true},
 	{Code: E0605, Severity: SeverityError, Scope: ScopeOne, Title: "there is no value at the CUE path given for the lineage", Positionless: true},
 	{Code: E0606, Severity: SeverityError, Scope: ScopeOne, Title: "a cue.mod/module.cue above the lineage is not valid", Positionless: true},
-	{Code: E0607, Severity: SeverityError, Scope: ScopeOne, Title: "the CUE module requires a version of thema's CUE other than the one this program embeds", Positionless: true},
+	{Code: E0607, Severity: SeverityError, Scope: ScopeOne, Title: "the CUE module requires a version of thema's CUE newer than the one this program embeds", Positionless: true},
 	{Code: E0608, Severity: SeverityError, Scope: ScopeOne, Title: "the lineage imports a package that is not available here", Positionless: true},
 	{Code: E0609, Severity: SeverityError, Scope: ScopeOne, Title: "loading the lineage's CUE failed", Positionless: true},
 	{Code: E0611, Severity: SeverityError, Scope: ScopeOne, Title: "the data's format could not be recognized", Positionless: true},
@@ -475,7 +475,7 @@ const (
 	E0604 Code = "E0604" // -p is not a CUE path
 	E0605 Code = "E0605" // nothing at -p
 	E0606 Code = "E0606" // cue.mod/module.cue invalid
-	E0607 Code = "E0607" // thema module version skew
+	E0607 Code = "E0607" // thema module required is newer than the embedded
 	E0608 Code = "E0608" // import of a package not available (the playground)
 	E0609 Code = "E0609" // CUE's loader failed
 	E0611 Code = "E0611" // data format unrecognized

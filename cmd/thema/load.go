@@ -379,7 +379,7 @@ func findCueMod(path string) (*parentCueMod, error) {
 
 // loadDiag describes a failure of CUE's loader. Three are recognized by the
 // message the loader gives them: a path with no CUE package, an import of a
-// package that cannot be found, and, inside that, a cue.mod requiring another
+// package that cannot be found, and, inside that, a cue.mod requiring a newer
 // version of thema's CUE than the one this program embeds. The rest are
 // reported as the loader states them.
 func loadDiag(err error) error {
@@ -400,8 +400,8 @@ func loadDiag(err error) error {
 		text := fmt.Sprintf(format, args...)
 		if m := skewText.FindStringSubmatch(text); m != nil {
 			return diag.New(diag.E0607).At(pe.Pos).
-				Headlinef("the CUE module requires thema %s, but this program embeds %s", m[1], m[2]).
-				Helpf("set deps[%q].v to %q in cue.mod/module.cue", util.ThemaModulePath, m[2]).
+				Headlinef("the CUE module requires thema %s, newer than the %s this program embeds", m[1], m[2]).
+				Helpf("set deps[%q].v to %q or older in cue.mod/module.cue, or use a thema at %s or newer", util.ThemaModulePath, m[2], m[1]).
 				Err()
 		}
 		if rest, ok := strings.CutPrefix(text, `cannot find package "`); ok {
@@ -417,7 +417,7 @@ func loadDiag(err error) error {
 
 // skewText recognizes the text of an *embedreg.VersionSkewError inside the
 // loader's message, and captures the required and embedded versions.
-var skewText = regexp.MustCompile(regexp.QuoteMeta(util.ThemaModulePath) + ` version (\S+), but this program embeds version (\S+);`)
+var skewText = regexp.MustCompile(regexp.QuoteMeta(util.ThemaModulePath) + ` version (\S+), but this program embeds version (\S+), which is older;`)
 
 type ppathf func(*build.Instance) string
 

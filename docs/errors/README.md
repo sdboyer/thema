@@ -183,7 +183,7 @@ A code's scope says what its condition reads: `one` when one version's files, th
 | [E0604](E0604.md) | error | one | the CUE path given for the lineage is not a path |
 | [E0605](E0605.md) | error | one | there is no value at the CUE path given for the lineage |
 | [E0606](E0606.md) | error | one | a cue.mod/module.cue above the lineage is not valid |
-| [E0607](E0607.md) | error | one | the CUE module requires a version of thema's CUE other than the one this program embeds |
+| [E0607](E0607.md) | error | one | the CUE module requires a version of thema's CUE newer than the one this program embeds |
 | [E0608](E0608.md) | error | one | the lineage imports a package that is not available here |
 | [E0609](E0609.md) | error | one | loading the lineage's CUE failed |
 | [E0611](E0611.md) | error | one | the data's format could not be recognized |
