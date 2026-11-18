@@ -44,7 +44,7 @@ We'll use the `Ship` lineage throughout this tutorial.
 cue mod get github.com/sdboyer/thema@v0
 ```
 
-Use the same version of thema's CUE module as of its Go module: when the Go library loads `ship.cue`, it uses its own built-in copy of thema's CUE, and requires the versions to match. See [CUE modules](cue-modules.md).
+Require a version of thema's CUE module no newer than its Go module: when the Go library loads `ship.cue`, it uses its own built-in copy of thema's CUE, and refuses a module that requires a newer one. See [CUE modules](cue-modules.md).
 
 ## Goal: The Lineage Factory
 

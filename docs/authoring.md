@@ -20,7 +20,7 @@ cue mod init github.com/example/ships
 cue mod get github.com/sdboyer/thema@v0
 ```
 
-When lineages are loaded through thema's Go library, thema serves its own CUE module from the copy built into the library, and the version in your `cue.mod/module.cue` must match it exactly. See [CUE modules](cue-modules.md).
+When lineages are loaded through thema's Go library, thema serves its own CUE module from the copy built into the library, and the version in your `cue.mod/module.cue` must be that version or an older one. See [CUE modules](cue-modules.md).
 
 ## Scaffolding
 

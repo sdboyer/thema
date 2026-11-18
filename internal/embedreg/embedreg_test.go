@@ -56,51 +56,71 @@ func requiring(v string) string {
 		"example.com/m", util.LanguageVersion, util.ThemaModulePath, v)
 }
 
+// patch is the embedded version with its patch number moved by d.
+func patch(t *testing.T, d int) string {
+	t.Helper()
+	var maj, minor, p int
+	if _, err := fmt.Sscanf(util.ThemaModuleVersion, "v%d.%d.%d", &maj, &minor, &p); err != nil {
+		t.Fatal(err)
+	}
+	return fmt.Sprintf("v%d.%d.%d", maj, minor, p+d)
+}
+
 // A module that requires an older version of thema's CUE than the embedded one
 // is served the embedded copy: a requirement is a minimum. That it is the
 // embedded copy shows in its errors in thema's CUE, which are at Root, the
-// embedded version's path.
+// embedded version's path, whatever version was required.
 func TestOlderVersion(t *testing.T) {
-	v := loadWithThema(t, requiring("v0.0.1"), "lin: thema.Lineage & {name: 42}\n")
-	err := v.Validate()
-	if err == nil {
-		t.Fatal("expected a conflict with thema.Lineage")
+	older := []string{"v0.0.1"}
+	if prev := patch(t, -1); !strings.HasSuffix(prev, ".-1") {
+		older = append(older, prev)
 	}
-	want := embedreg.Root() + "/lineage.cue"
+	for _, req := range older {
+		v := loadWithThema(t, requiring(req), "lin: thema.Lineage & {name: 42}\n")
+		if !positionAt(v.Validate(), embedreg.Root()+"/lineage.cue") {
+			t.Errorf("%s: expected an error position in %s, got: %v", req, embedreg.Root()+"/lineage.cue", cerrors.Details(v.Validate(), nil))
+		}
+	}
+}
+
+func positionAt(err error, file string) bool {
 	for _, e := range cerrors.Errors(err) {
 		for _, p := range e.InputPositions() {
-			if p.Filename() == want {
-				return
+			if p.Filename() == file {
+				return true
 			}
 		}
 	}
-	t.Fatalf("expected an error position in %s, got: %v", want, cerrors.Details(err, nil))
+	return false
 }
 
 // A module that requires a newer version of thema's CUE than the embedded one
 // is refused: the embedded copy may lack what it relies on.
 func TestVersionSkew(t *testing.T) {
-	const newer = "v0.999.0"
+	for _, newer := range []string{patch(t, 1), "v0.999.0"} {
+		if err := loadRequiring(newer); err == nil || !strings.Contains(cerrors.Details(err, nil), (&embedreg.VersionSkewError{Required: newer, Embedded: util.ThemaModuleVersion}).Error()) {
+			t.Errorf("%s: expected a version skew error, got: %v", newer, cerrors.Details(err, nil))
+		}
+	}
+}
+
+// loadRequiring loads a module that requires thema's CUE at version req, and
+// returns the loader's error.
+func loadRequiring(req string) error {
 	cfg := &load.Config{
 		Dir: "/m",
 		Env: []string{"CUE_REGISTRY=none"},
 		Overlay: map[string]load.Source{
-			"/m/cue.mod/module.cue": load.FromString(requiring(newer)),
+			"/m/cue.mod/module.cue": load.FromString(requiring(req)),
 			"/m/in.cue":             load.FromString("package m\n\nimport \"github.com/sdboyer/thema\"\n\nlin: thema.Lineage\n"),
 		},
 	}
 	if err := embedreg.Configure(cfg, thema.CueJointFS); err != nil {
-		t.Fatal(err)
+		return err
 	}
-	err := load.Instances([]string{"."}, cfg)[0].Err
-	if err == nil {
-		t.Fatal("expected loading to fail on a thema version newer than the embedded one")
-	}
-	// The CUE loader flattens the registry's error into its own, so match on the
-	// message rather than the type.
-	if !strings.Contains(cerrors.Details(err, nil), (&embedreg.VersionSkewError{Required: newer, Embedded: util.ThemaModuleVersion}).Error()) {
-		t.Fatalf("expected a version skew error, got: %v", cerrors.Details(err, nil))
-	}
+	// The CUE loader flattens the registry's error into its own, so callers
+	// match on the message rather than the type.
+	return load.Instances([]string{"."}, cfg)[0].Err
 }
 
 func TestErrorPositionsUseRoot(t *testing.T) {

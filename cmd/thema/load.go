@@ -20,6 +20,7 @@ import (
 	"github.com/sdboyer/thema/authoring"
 	"github.com/sdboyer/thema/diag"
 	terrors "github.com/sdboyer/thema/errors"
+	"github.com/sdboyer/thema/internal/embedreg"
 	"github.com/sdboyer/thema/internal/util"
 	tload "github.com/sdboyer/thema/load"
 )
@@ -401,7 +402,7 @@ func loadDiag(err error) error {
 		if m := skewText.FindStringSubmatch(text); m != nil {
 			return diag.New(diag.E0607).At(pe.Pos).
 				Headlinef("the CUE module requires thema %s, newer than the %s this program embeds", m[1], m[2]).
-				Helpf("set deps[%q].v to %q or older in cue.mod/module.cue, or use a thema at %s or newer", util.ThemaModulePath, m[2], m[1]).
+				Help(embedreg.SkewHelp(m[1], m[2])).
 				Err()
 		}
 		if rest, ok := strings.CutPrefix(text, `cannot find package "`); ok {

@@ -37,8 +37,17 @@ type VersionSkewError struct {
 }
 
 func (e *VersionSkewError) Error() string {
-	return fmt.Sprintf("CUE module requires %s version %s, but this program embeds version %s, which is older; set deps[%q].v to %q or older in cue.mod/module.cue, or use a thema at %s or newer",
-		util.ThemaModulePath, e.Required, e.Embedded, util.ThemaModulePath, e.Embedded, e.Required)
+	return fmt.Sprintf("CUE module requires %s version %s, but this program embeds version %s, which is older; %s",
+		util.ThemaModulePath, e.Required, e.Embedded, SkewHelp(e.Required, e.Embedded))
+}
+
+// SkewHelp says how to resolve a requirement of thema's CUE at version required
+// that a program embedding version embedded can't serve. The requirement may be
+// a dependency's rather than the loaded module's own, as the newest of all of
+// them is the one loaded.
+func SkewHelp(required, embedded string) string {
+	return fmt.Sprintf("use a thema at %s or newer, or require %s or older of %s in each cue.mod/module.cue that requires %s",
+		required, embedded, util.ThemaModulePath, required)
 }
 
 // Root is the virtual absolute path at which the embedded thema CUE module is
@@ -155,7 +164,9 @@ func (r *registry) isThema(m module.Version) (bool, error) {
 	if m.Path() != util.ThemaModulePath {
 		return false, nil
 	}
-	if semver.Compare(m.Version(), util.ThemaModuleVersion) > 0 {
+	// A version that isn't one, as an empty one, is refused: semver would
+	// order it before every version and serve it.
+	if !semver.IsValid(m.Version()) || semver.Compare(m.Version(), util.ThemaModuleVersion) > 0 {
 		return true, &VersionSkewError{Required: m.Version(), Embedded: util.ThemaModuleVersion}
 	}
 	return true, nil
