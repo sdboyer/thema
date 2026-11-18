@@ -15,5 +15,5 @@ displays as thema/<file>.
 error[E0902]: CUE reported an error thema does not recognize
    |
    = note: in thema's own CUE
-    --> thema/lineage.cue:62:30
+    --> /github.com/sdboyer/thema@v0.1.2/lineage.cue:62:30
    = detail: schemas."0".x: "x" is not a minor version; schemas are keyed by major, then minor version, each a non-negative integer such as "0"
