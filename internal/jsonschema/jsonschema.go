@@ -328,6 +328,20 @@ type Config struct {
 	// a decoder of OpenAPI sets it. (thema)
 	Extensions bool
 
+	// Closed writes an object that declares a property closed, whatever
+	// its additionalProperties says unless it's a schema: a typed
+	// additionalProperties or patternProperties stays, as the pattern
+	// constraint it is otherwise. An object that declares none stays open,
+	// unless additionalProperties is false. An allOf is one object: its
+	// parts are embedded, not conjoined, a definition with a postfix ...,
+	// and when one of them or the schema beside them declares a property,
+	// the parts that declare none close with it, a reference to one decoded
+	// in place. An alternative of a oneOf or an anyOf that declares a
+	// property is closed alone, unless something beside the oneOf or anyOf
+	// declares one. Every decoder thema runs sets it; the comparisons with
+	// upstream leave it off. (thema)
+	Closed bool
+
 	_ struct{} // prohibit casting from different type.
 }
 

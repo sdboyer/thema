@@ -63,8 +63,25 @@ type ExtractConfig struct {
 // has each U+FEFF written as U+2060 WORD JOINER: CUE's scanner refuses
 // U+FEFF anywhere but at the start of a file, and a comment has no escapes.
 //
+// And it writes an object that declares a property closed, whatever its
+// additionalProperties says, unless that is a schema, which constrains the
+// properties it doesn't declare as upstream does. An object that declares
+// none stays open, unless additionalProperties is false. An allOf is one
+// object: its parts are embedded, not conjoined, a reference with a
+// postfix ..., and when one of them or the schema beside them declares a
+// property, the parts that declare none close with it, one that is a
+// reference as the schema it refers to. An alternative of a oneOf or an
+// anyOf that declares a property is closed alone, unless something beside
+// the oneOf or anyOf declares one.
+//
 // The result can be converted to a [cue.Value] via [cue.Context.BuildFile].
 func Extract(data cue.InstanceOrValue, c *ExtractConfig) (*ast.File, error) {
+	return extract(data, c, true)
+}
+
+// extract is [Extract], with closed saying whether it closes objects; the
+// comparison with upstream extracts without.
+func extract(data cue.InstanceOrValue, c *ExtractConfig, closed bool) (*ast.File, error) {
 	// TODO: find a good OpenAPI validator. Both go-openapi and kin-openapi
 	// seem outdated. The k8s one might be good, but avoid pulling in massive
 	// amounts of dependencies.
@@ -124,6 +141,7 @@ func Extract(data cue.InstanceOrValue, c *ExtractConfig) (*ast.File, error) {
 		// OpenAPI 3.0 is stricter than JSON Schema about allowed keywords.
 		StrictKeywords: schemaVersion == jsonschema.VersionOpenAPI || c.StrictKeywords,
 		Extensions:     true,
+		Closed:         closed,
 	})
 	if err != nil {
 		return nil, err

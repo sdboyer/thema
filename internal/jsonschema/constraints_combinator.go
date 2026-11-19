@@ -32,8 +32,13 @@ func constraintAllOf(key string, n cue.Value, s *state) {
 		return
 	}
 	a := make([]ast.Expr, 0, len(items))
+	// thema: under Config.Closed, an allOf that declares a property, or
+	// that is part of one that does, is one closed object.
+	closing := s.cfg.Closed && !s.preserveUnknownFields && (s.closeWith || s.schemaRoot().declares(s.pos, map[string]bool{}))
 	for _, v := range items {
-		x, sub := s.schemaState(v, s.allowedTypes, nil)
+		x, sub := s.schemaState(v, s.allowedTypes, func(sub *state) {
+			sub.closeWith = closing
+		})
 		s.allowedTypes &= sub.allowedTypes
 		if sub.hasConstraints {
 			// This might seem a little odd, since the actual
@@ -51,6 +56,14 @@ func constraintAllOf(key string, n cue.Value, s *state) {
 	// as that's a known-impossible assertion?
 	if len(a) > 0 {
 		s.knownTypes &= knownTypes
+		if closing {
+			// thema: the parts are embedded, in [state.finalize].
+			s.embedParts = true
+			for _, x := range a {
+				s.all.add(n, x)
+			}
+			return
+		}
 		// Unify the subschemas so that their fields and docs stay reachable,
 		// unless the object is closed: unifying would then declare fields only
 		// to disallow them, which the generator cannot tell from allowed ones.
@@ -126,6 +139,50 @@ func (s *state) closesRoot(n cue.Value, seen map[string]bool, preserve bool) boo
 	return false
 }
 
+// declares reports whether the schema n declares a property: its
+// properties name one, or a schema it refers to does, or one of its allOf
+// parts, or the only alternative of its anyOf or oneOf, which is unified
+// with it. s is the schema root, as for [state.closesRoot]. (thema)
+func (s *state) declares(n cue.Value, seen map[string]bool) bool {
+	path := n.Path().String()
+	if n.Kind() != cue.StructKind || seen[path] {
+		return false
+	}
+	seen[path] = true
+	lookup := func(key string) cue.Value {
+		return n.LookupPath(cue.MakePath(cue.Str(key)))
+	}
+	if props := lookup("properties"); props.Kind() == cue.StructKind {
+		if i, err := props.Fields(); err == nil && i.Next() {
+			return true
+		}
+	}
+	if target, ok := s.localRefTarget(lookup("$ref")); ok && s.declares(target, seen) {
+		return true
+	}
+	for _, key := range []string{"allOf", "anyOf", "oneOf"} {
+		subs := lookup(key)
+		if count, _ := subs.Len().Int64(); key != "allOf" && count > 1 {
+			continue
+		}
+		for i, _ := subs.List(); i.Next(); {
+			if s.declares(i.Value(), seen) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// alone reports whether each of the n alternatives of s's anyOf or oneOf
+// matches alone, so that one declaring a property is closed: there is more
+// than one, and nothing beside them declares a property. Where something
+// does, the object an alternative matches holds those properties too, so
+// closing it alone would refuse them. (thema)
+func (s *state) alone(n int) bool {
+	return n > 1 && !s.closeWith && !s.schemaRoot().declares(s.pos, map[string]bool{})
+}
+
 func constraintAnyOf(key string, n cue.Value, s *state) {
 	var types cue.Kind
 	var knownTypes cue.Kind
@@ -135,8 +192,11 @@ func constraintAnyOf(key string, n cue.Value, s *state) {
 		return
 	}
 	a := make([]ast.Expr, 0, len(items))
+	alone := s.alone(len(items))
 	for _, v := range items {
-		x, sub := s.schemaState(v, s.allowedTypes, nil)
+		x, sub := s.schemaState(v, s.allowedTypes, func(sub *state) {
+			sub.alternative = alone
+		})
 		if sub.allowedTypes == 0 {
 			// Nothing is allowed; omit.
 			continue
@@ -178,8 +238,11 @@ func constraintOneOf(key string, n cue.Value, s *state) {
 		return
 	}
 	a := make([]ast.Expr, 0, len(items))
+	alone := s.alone(len(items))
 	for _, v := range items {
-		x, sub := s.schemaState(v, s.allowedTypes, nil)
+		x, sub := s.schemaState(v, s.allowedTypes, func(sub *state) {
+			sub.alternative = alone
+		})
 		if sub.allowedTypes == 0 {
 			// Nothing is allowed; omit
 			continue

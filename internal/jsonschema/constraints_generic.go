@@ -122,6 +122,31 @@ func constraintRef(key string, n cue.Value, s *state) {
 		s.all.add(n, s.refExpr(n, "", cue.Path{}))
 		return
 	}
+	if s.cfg.Closed && s.closeWith && !s.preserveUnknownFields {
+		// thema: an allOf part that refers to a schema declaring no
+		// property closes with the parts that declare one, but the
+		// schema's definition stays as open as the document has it, so
+		// the part is the schema decoded here.
+		if target, ok := schemaRoot.localRefTarget(n); ok && !schemaRoot.declares(target, map[string]bool{}) {
+			if key := target.Path().String(); !s.expanding[key] {
+				if s.expanding == nil {
+					s.expanding = map[string]bool{}
+				}
+				s.expanding[key] = true
+				s.decoder.inPlace++
+				x, sub := s.schemaState(target, s.allowedTypes, func(t *state) {
+					t.closeWith = true
+					t.inPlace = true
+				})
+				s.decoder.inPlace--
+				delete(s.expanding, key)
+				s.all.add(n, x)
+				s.allowedTypes &= sub.allowedTypes
+				s.knownTypes &= sub.knownTypes
+				return
+			}
+		}
+	}
 	importPath, path, err := cueLocationForRef(s, n, u, schemaRoot)
 	if err != nil {
 		s.errf(n, "%v", err)

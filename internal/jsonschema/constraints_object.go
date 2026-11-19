@@ -567,6 +567,7 @@ func constraintProperties(key string, n cue.Value, s *state) {
 	hasAPIVersion := false
 	s.processMap(n, func(key string, n cue.Value) {
 		// property?: value
+		s.declaresProperty = true // thema
 		name := ast.NewString(key)
 		expr, state := s.schemaState(n, allTypes, func(s *state) {
 			s.preserveUnknownFields = false

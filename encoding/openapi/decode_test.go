@@ -113,7 +113,7 @@ func TestExtractMatchesUpstream(t *testing.T) {
 					upcfg = &upopenapi.Config{PkgName: cfg.PkgName, StrictFeatures: cfg.StrictFeatures, StrictKeywords: cfg.StrictKeywords}
 				}
 				want, werr := upopenapi.Extract(v, upcfg)
-				got, gerr := Extract(v, cfg)
+				got, gerr := extract(v, cfg, false)
 				if (werr != nil) != (gerr != nil) || (werr != nil && werr.Error() != gerr.Error()) {
 					t.Fatalf("Extract's error is %v, upstream's %v", gerr, werr)
 				}
@@ -288,6 +288,44 @@ func TestKnownGaps(t *testing.T) {
 		_, err = parser.ParseFile("p.cue", formatFile(t, f))
 		if err == nil || !strings.Contains(err.Error(), "illegal character NUL") {
 			t.Errorf("Extract's output: %v; want it refused for its NUL, until the issue is fixed", err)
+		}
+	})
+
+	// An object that declares properties beside a oneOf or an anyOf admits
+	// ones it doesn't declare: a definition that holds matchN stays open
+	// (cue-lang/cue#4538), and the alternatives' properties are declared
+	// only inside it (#386). Each case admits its valid data as well.
+	t.Run("properties beside a oneOf or an anyOf", func(t *testing.T) {
+		ctx := cuecontext.New()
+		doc := ctx.CompileString(`
+openapi: "3.0.3"
+info: {title: "ships", version: "1"}
+paths: {}
+components: schemas: {
+	Ship: {type: "object", properties: name: type: "string"}
+	Either: {type: "object", properties: {name: type: "string", sail: type: "string"}, oneOf: [{required: ["name"]}, {required: ["sail"]}]}
+	AnyEither: {type: "object", properties: {name: type: "string", sail: type: "string"}, anyOf: [{required: ["name"]}, {required: ["sail"]}]}
+	Oared: {type: "object", properties: name: type: "string", oneOf: [{required: ["sail"], properties: sail: type: "string"}, {required: ["oar"], properties: oar: type: "string"}]}
+	Rigged: allOf: [{$ref: "#/components/schemas/Ship"}, {oneOf: [{required: ["sail"], properties: sail: type: "string"}, {required: ["oar"], properties: oar: type: "string"}]}]
+}
+`)
+		f, err := Extract(doc, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		v := ctx.BuildFile(f)
+		for def, valid := range map[string]string{
+			"Either":    `name: "x"`,
+			"AnyEither": `name: "x"`,
+			"Oared":     `name: "x", sail: "y"`,
+			"Rigged":    `name: "x", sail: "y"`,
+		} {
+			for _, data := range []string{"{" + valid + "}", "{" + valid + ", z: 1}"} {
+				err := v.LookupPath(cue.MakePath(cue.Def(def))).Unify(ctx.CompileString(data)).Validate(cue.Concrete(true))
+				if err != nil {
+					t.Errorf("#%s refuses %s: %v; want it admitted, until the issues are fixed\n%s", def, data, err, formatFile(t, f))
+				}
+			}
 		}
 	})
 }

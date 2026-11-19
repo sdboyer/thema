@@ -180,7 +180,7 @@ schemas: "0": "0": schema: {}
 		{
 			name: "jsonschema",
 			args: []string{"jsonschema", writeInput(t, "s.json", initTestJSONSchema)},
-			want: "Schema: {\n\ta!: string\n\tb?: int\n\t...\n}\n",
+			want: "Schema: {\n\ta!: string\n\tb?: int\n}\n",
 			normalForm: `package foo
 
 import "github.com/sdboyer/thema"
@@ -190,14 +190,13 @@ name: "foo"
 schemas: "0": "0": schema: {
 	a!: string
 	b?: int
-	...
 }
 `,
 		},
 		{
 			name: openapiCmd,
 			args: []string{openapiCmd, writeInput(t, "oapi.json", initTestOpenAPI)},
-			want: "Schema: {\n\t#Foo: {\n\t\ta!: string\n\t\tb?: int\n\t\t...\n\t}\n}\n",
+			want: "Schema: {\n\t#Foo: {\n\t\ta!: string\n\t\tb?: int\n\t}\n}\n",
 			normalForm: `package foo
 
 import "github.com/sdboyer/thema"
@@ -207,7 +206,6 @@ name: "foo"
 schemas: "0": "0": schema: #Foo: {
 	a!: string
 	b?: int
-	...
 }
 `,
 		},
@@ -285,8 +283,8 @@ const initTestOpenAPIRefs = `{
 }`
 
 // TestLineageInitOpenAPISubpath checks that init openapi --src-subpath makes
-// the schema it points at the lineage's schema: a regular value, open or
-// closed as the document says, not the definition openapi.Extract makes of a
+// the schema it points at the lineage's schema: a regular value, closed as
+// openapi.Extract closes it, not the definition Extract makes of a
 // component, which CUE exports wrapped as {_#def, _#def: ...}.
 func TestLineageInitOpenAPISubpath(t *testing.T) {
 	dir := t.TempDir()
@@ -302,9 +300,7 @@ func TestLineageInitOpenAPISubpath(t *testing.T) {
 	bar?:    #Bar
 	#Bar: {
 		z?: string
-		...
 	}
-	...
 }
 `
 	if string(text) != want {
@@ -313,9 +309,6 @@ func TestLineageInitOpenAPISubpath(t *testing.T) {
 
 	sch := bindInitDir(t, dir, initDir).Lineage.Latest()
 	v := sch.Underlying().LookupPath(cue.MakePath(cue.Str("schema")))
-	if v.IsClosed() {
-		t.Error("the bound schema is closed; the OpenAPI schema allows other properties")
-	}
 	iter, err := v.Fields(cue.Hidden(true), cue.Definitions(true), cue.Optional(true))
 	if err != nil {
 		t.Fatal(err)
@@ -333,8 +326,8 @@ func TestLineageInitOpenAPISubpath(t *testing.T) {
 		valid bool
 	}{
 		{`{"a": "x"}`, true},
-		{`{"a": "x", "other": 1}`, true},
-		{`{"a": "x", "bar": {"z": "y", "other": 1}}`, true},
+		{`{"a": "x", "other": 1}`, false},
+		{`{"a": "x", "bar": {"z": "y", "other": 1}}`, false},
 		{`{"a": "x", "closed": {"c": "y"}}`, true},
 		{`{"a": "x", "closed": {"c": "y", "other": 1}}`, false},
 		{`{}`, false},
@@ -393,12 +386,10 @@ func TestLineageInitExtensions(t *testing.T) {
 			want: `Schema: {
 	#Bar: {
 		z?: string @openapi(x-z=null)
-		...
 	}
 	#Foo: {
 		shipRegistryId?: string @openapi(x-property-name="ship-registry-id", x-sensitive=true)
 		bar?:            #Bar   @openapi(x-ref={"a":[1,"b, c"]})
-		...
 	}
 }
 `,
@@ -413,9 +404,7 @@ func TestLineageInitExtensions(t *testing.T) {
 	bar?:            #Bar   @openapi(x-ref={"a":[1,"b, c"]})
 	#Bar: {
 		z?: string @openapi(x-z=null)
-		...
 	}
-	...
 }
 `,
 			field: []string{"bar"},
@@ -427,7 +416,6 @@ func TestLineageInitExtensions(t *testing.T) {
 			args: []string{jsonschemaCmd, writeInput(t, "s.json", initTestJSONSchemaExtensions)},
 			want: `Schema: {
 	a?: string
-	...
 }
 `,
 			field: []string{"a"},
@@ -601,7 +589,7 @@ func TestLineageInitNameRendered(t *testing.T) {
 // file, by its extension, or from stdin, as JSON or YAML; and that it
 // reports an input it cannot convert.
 func TestLineageInitInput(t *testing.T) {
-	const fooSchema = "Schema: {\n\ta!: string\n\tb?: int\n\t...\n}\n"
+	const fooSchema = "Schema: {\n\ta!: string\n\tb?: int\n}\n"
 	yamlDoc := `openapi: "3.0.0"
 info: {title: test, version: v1}
 paths: {}
@@ -721,11 +709,10 @@ const initTestJSONSchemaOpenness = `{
   "required": ["a"]
 }`
 
-// TestLineageInitJSONSchemaOpenness checks that init jsonschema keeps the
-// document's openness in the bound schema, which Validate closes: an object
-// allows other properties unless its additionalProperties is false, at the
-// root and nested, for the whole document and for the one schema
-// --src-subpath points at.
+// TestLineageInitJSONSchemaOpenness checks that init jsonschema closes each
+// object of the bound schema that declares a property, whatever its
+// additionalProperties says, at the root and nested, for the whole document
+// and for the one schema --src-subpath points at.
 func TestLineageInitJSONSchemaOpenness(t *testing.T) {
 	type check struct {
 		data  string
@@ -740,8 +727,8 @@ func TestLineageInitJSONSchemaOpenness(t *testing.T) {
 			name: "document",
 			checks: []check{
 				{`{"a": "x"}`, true},
-				{`{"a": "x", "other": 1}`, true},
-				{`{"a": "x", "inner": {"x": 1, "other": 1}}`, true},
+				{`{"a": "x", "other": 1}`, false},
+				{`{"a": "x", "inner": {"x": 1, "other": 1}}`, false},
 				{`{"a": "x", "shut": {"y": "z"}}`, true},
 				{`{"a": "x", "shut": {"y": "z", "other": 1}}`, false},
 				{`{}`, false},
@@ -752,8 +739,8 @@ func TestLineageInitJSONSchemaOpenness(t *testing.T) {
 			subpath: "#/$defs/ship",
 			checks: []check{
 				{`{"name": "x"}`, true},
-				{`{"name": "x", "other": 1}`, true},
-				{`{"name": "x", "deck": {"d": 1, "other": 1}}`, true},
+				{`{"name": "x", "other": 1}`, false},
+				{`{"name": "x", "deck": {"d": 1, "other": 1}}`, false},
 				{`{"name": "x", "hold": {"c": "y"}}`, true},
 				{`{"name": "x", "hold": {"c": "y", "other": 1}}`, false},
 				{`{"name": "x", "crew": {"n": "y"}}`, true},
