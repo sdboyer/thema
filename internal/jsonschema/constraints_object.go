@@ -453,7 +453,8 @@ func constraintDependencies(key string, n cue.Value, s *state) {
 			consequence = required
 
 		case (k == cue.StructKind || k == cue.BoolKind) && allowSchemas:
-			switch s := s.schema(n).(type) {
+			x, _ := s.besideSchema(n, allTypes, false)
+			switch s := x.(type) {
 			case *ast.StructLit:
 				consequence = s
 			default:
@@ -567,9 +568,14 @@ func constraintProperties(key string, n cue.Value, s *state) {
 	hasAPIVersion := false
 	s.processMap(n, func(key string, n cue.Value) {
 		// property?: value
+		s.declaresProperty = true // thema
 		name := ast.NewString(key)
+		// thema: the value is beside another schema only where another
+		// schema declares the property too.
+		merges := s.closing() && s.merges(key)
 		expr, state := s.schemaState(n, allTypes, func(s *state) {
 			s.preserveUnknownFields = false
+			s.beside = merges
 		})
 		f := &ast.Field{Label: name, Value: expr}
 		if doc := state.comment(); doc != nil {

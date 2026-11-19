@@ -92,6 +92,17 @@ type decoder struct {
 	// if a $ref is found to be referring to a node that would not normally
 	// be considered part of the schema data.
 	needAnotherPass bool
+
+	// inPlace counts the referenced schemas being decoded where they are
+	// referred to, for [Config.Closed], and expanding holds their
+	// pointers, so that a cycle of them is referred to instead. A schema
+	// decoded in place defines nothing: its definitions are written where
+	// the schema itself is decoded. (thema)
+	inPlace   int
+	expanding map[string]bool
+
+	// declared holds what [state.declaresAt] found. (thema)
+	declared map[declaredKey]bool
 }
 
 // definedSchema records information for a schema or subschema.
@@ -327,6 +338,11 @@ func (d *decoder) warnf(p token.Pos, format string, args ...interface{}) {
 }
 
 func (d *decoder) addErr(err errors.Error) {
+	if d.inPlace > 0 {
+		// thema: a schema decoded in place is decoded where it is
+		// defined too, which reports its errors.
+		return
+	}
 	d.errs = errors.Append(d.errs, err)
 }
 
@@ -651,6 +667,41 @@ type state struct {
 	// Keep track of whether the object has been explicitly
 	// closed or opened (see [Config.OpenOnlyWhenExplicit]).
 	openness openness
+
+	// The following fields hold what [Config.Closed] reads. (thema)
+	//
+	// declaresProperty holds whether the schema's properties name one.
+	// closeWith holds whether the schema is a part of an allOf that
+	// declares a property, so that its object closes though it declares
+	// none. beside holds whether the object the schema matches may hold
+	// properties that schemas beside it declare: it is one of several
+	// allOf parts, an alternative that doesn't match alone, a conditional,
+	// a not, a dependent schema or contains, or beneath one, unless it is
+	// the value of a property no other schema declares, as
+	// [state.merges] says. alternative holds whether it is an alternative of a oneOf that
+	// matches alone, as [state.alone] says, and inAlternatives
+	// whether it is one of several, alone or not. embedParts holds
+	// whether its allOf parts are embedded, as one object. inPlace holds
+	// whether it is a referenced schema decoded where the reference is,
+	// which defines nothing.
+	declaresProperty bool
+	closeWith        bool
+	beside           bool
+	alternative      bool
+	inAlternatives   bool
+	embedParts       bool
+	inPlace          bool
+
+	// level is the state of the schema that holds, through allOf, oneOf,
+	// anyOf, then, else, dependent schemas and references decoded in
+	// place, every schema that applies to the instance this one's matches;
+	// nil where that is this one. declared counts the schemas there that
+	// declare each property, and undeclared holds whether one may match
+	// properties it doesn't name, so that any property may be declared
+	// twice. [state.merges] sets them. (thema)
+	level      *state
+	declared   map[string]int
+	undeclared bool
 }
 
 type openness int
@@ -727,10 +778,201 @@ func (s *state) finalizeObject() {
 		// possible fields.
 	} else if s.openness == explicitlyClosed {
 		e = ast.NewCall(ast.NewIdent("close"), s.obj)
+	} else if s.closes() {
+		// thema: closed whatever additionalProperties: true says. A struct
+		// in matchN's list is not closed by the definition it is in, nor
+		// one beneath it, so those are closed by close. One whose allOf
+		// parts are embedded is closed whole, in [state.finalize].
+		if s.declaresProperty && !s.embedParts && s.closesInMatchN() {
+			e = ast.NewCall(ast.NewIdent("close"), s.obj)
+		}
 	} else {
 		s.obj.Elts = append(s.obj.Elts, &ast.Ellipsis{})
 	}
 	s.add(s.objN, objectType, e)
+}
+
+// isDefinition reports whether e refers to a definition or to a field
+// beneath one, which is closed as the definition is: #a, _#a, x.#a,
+// _#defs."/a", or #a["b"]. (thema)
+func isDefinition(e ast.Expr) bool {
+	switch e := e.(type) {
+	case *ast.Ident:
+		return strings.HasPrefix(e.Name, "#") || strings.HasPrefix(e.Name, "_#")
+	case *ast.SelectorExpr:
+		if name, _, _ := ast.LabelName(e.Sel); strings.HasPrefix(name, "#") || strings.HasPrefix(name, "_#") {
+			return true
+		}
+		return isDefinition(e.X)
+	case *ast.IndexExpr:
+		return isDefinition(e.X)
+	}
+	return false
+}
+
+// embedOpen embeds e with a postfix ..., which adds the fields of the
+// definition it refers to without closing the struct it is embedded in to
+// them. (thema)
+func embedOpen(e ast.Expr) ast.Expr {
+	return &ast.PostfixExpr{X: e, Op: token.ELLIPSIS}
+}
+
+// closing reports whether the schema's objects can close: under
+// [Config.Closed], where unknown fields aren't preserved. (thema)
+func (s *state) closing() bool {
+	return s.cfg.Closed && !s.preserveUnknownFields
+}
+
+// closesInMatchN reports whether the schema's object, which closes, is
+// written with close: it is in matchN's list, or beneath it, where no
+// definition closes it; it is the whole object an instance is, an
+// alternative that matches alone or what is beneath one, not beside
+// another schema; and it holds no oneOf, anyOf or conditional, whose
+// properties close would refuse. (thema)
+func (s *state) closesInMatchN() bool {
+	if s.closeWith || s.beside {
+		return false
+	}
+	for _, k := range []string{"oneOf", "anyOf", "if", "then", "else", "dependentSchemas", "dependencies"} {
+		if s.pos.LookupPath(cue.MakePath(cue.Str(k))).Exists() {
+			return false
+		}
+	}
+	if s.alternative {
+		return true
+	}
+	for u := s.up; u != nil; u = u.up {
+		if u.inAlternatives {
+			return true
+		}
+	}
+	return false
+}
+
+// closes reports whether, under [Config.Closed], the schema's object is
+// written closed: it declares a property, it is an allOf part that closes
+// with one that does, or it holds such an allOf; it doesn't preserve
+// unknown fields; and no pattern was skipped, which leaves the properties
+// it matches unknown. (thema)
+func (s *state) closes() bool {
+	return s.closing() && !s.patternSkipped && (s.declaresProperty || s.closeWith || s.embedParts)
+}
+
+// openDefinition returns x, under [Config.Closed], with a definition it
+// refers to embedded in a struct as #a..., for a schema the instance must
+// match with others whose properties the definition doesn't declare.
+// (thema)
+func (s *state) openDefinition(x ast.Expr) ast.Expr {
+	if s.closing() && isDefinition(x) {
+		return &ast.StructLit{Elts: []ast.Decl{&ast.EmbedDecl{Expr: embedOpen(x)}}}
+	}
+	return x
+}
+
+// besideSchema is [state.schemaState] for a schema that applies beside
+// s's: then, else or a dependent schema, which apply to the same instance,
+// or, where tested is set, if, not or contains, whose objects are tested
+// rather than declared, or are elements, and so are never closed alone.
+// (thema)
+func (s *state) besideSchema(n cue.Value, types cue.Kind, tested bool) (ast.Expr, schemaInfo) {
+	return s.schemaState(n, types, func(sub *state) {
+		sub.beside = true
+		if !tested {
+			sub.level = s.levelOf()
+		}
+	})
+}
+
+// levelOf returns the schema whose instance s's matches. (thema)
+func (s *state) levelOf() *state {
+	if s.level != nil {
+		return s.level
+	}
+	return s
+}
+
+// merges reports whether the property name may be declared, with
+// properties of its own, by two schemas that apply to the same instance,
+// so that the object its value matches may hold properties either
+// declares: two schemas at s's level declare it, or one there may match
+// properties it doesn't name, or the level is beside another schema
+// itself. (thema)
+func (s *state) merges(name string) bool {
+	l := s.levelOf()
+	if l.beside {
+		return true
+	}
+	if l.declared == nil {
+		l.declared = map[string]int{}
+		l.undeclared = !l.countDeclared(l.pos, l.declared, map[string]bool{})
+	}
+	return l.undeclared || l.declared[name] > 1
+}
+
+// countDeclared adds to counts, for each property name, the schemas that
+// apply with n, n included, that declare it, following $ref. It reports
+// false if one of them may match properties it doesn't name, by a pattern,
+// a schema for additional properties, or a reference it can't follow.
+// (thema)
+func (s *state) countDeclared(n cue.Value, counts map[string]int, seen map[string]bool) bool {
+	path := n.Path().String()
+	if n.Kind() != cue.StructKind || seen[path] {
+		return true
+	}
+	seen[path] = true
+	lookup := func(key string) cue.Value {
+		return n.LookupPath(cue.MakePath(cue.Str(key)))
+	}
+	if ref := lookup("$ref"); ref.Exists() {
+		target, ok := s.schemaRoot().localRefTarget(ref)
+		if !ok || !s.countDeclared(target, counts, seen) {
+			return false
+		}
+		if !s.refSiblings() {
+			return true
+		}
+	}
+	if lookup("patternProperties").Exists() {
+		return false
+	}
+	for _, key := range []string{"additionalProperties", "unevaluatedProperties"} {
+		if lookup(key).Kind() == cue.StructKind {
+			return false
+		}
+	}
+	if props := lookup("properties"); props.Kind() == cue.StructKind {
+		for i, _ := props.Fields(cue.Optional(true)); i.Next(); {
+			counts[i.Selector().Unquoted()]++
+		}
+	}
+	for _, key := range []string{"allOf", "anyOf", "oneOf"} {
+		for i, _ := lookup(key).List(); i.Next(); {
+			if !s.countDeclared(i.Value(), counts, seen) {
+				return false
+			}
+		}
+	}
+	for _, key := range []string{"if", "then", "else", "not"} {
+		if !s.countDeclared(lookup(key), counts, seen) {
+			return false
+		}
+	}
+	for _, key := range []string{"dependentSchemas", "dependencies"} {
+		for i, _ := lookup(key).Fields(); i.Next(); {
+			if !s.countDeclared(i.Value(), counts, seen) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// structOpen reports whether an object the schema allows but doesn't
+// constrain, written {...}, is open: not under
+// [Config.OpenOnlyWhenExplicit], nor where the schema is part of an allOf
+// that declares a property or holds one. (thema)
+func (s *state) structOpen() bool {
+	return !s.cfg.OpenOnlyWhenExplicit && !(s.closing() && (s.closeWith || s.embedParts))
 }
 
 func (s *state) hasConstraints() bool {
@@ -824,7 +1066,7 @@ func (s *state) finalize() (e ast.Expr) {
 			case allowed:
 				npossible++
 				if s.knownTypes&k != 0 {
-					disjuncts = append(disjuncts, kindToAST(k, s.cfg.OpenOnlyWhenExplicit))
+					disjuncts = append(disjuncts, kindToAST(k, !s.structOpen()))
 				}
 			}
 		}
@@ -854,6 +1096,24 @@ func (s *state) finalize() (e ast.Expr) {
 		// it's not bottom) and we need _some_ expression
 		// to be part of the subequent syntax, we use top.
 		e = top()
+	} else if s.embedParts {
+		// thema: an allOf is one object, which embedding its parts makes:
+		// a conjunction of definitions, each closed, would admit only the
+		// fields every one of them declares. A definition is embedded with
+		// a postfix ..., as embedding it bare would close the struct to its
+		// fields alone. A struct in matchN's list is not closed by the
+		// definition it is in, so an alternative is closed here.
+		st := ast.NewStruct()
+		for _, c := range conjuncts {
+			if isDefinition(c) {
+				c = embedOpen(c)
+			}
+			st.Elts = append(st.Elts, &ast.EmbedDecl{Expr: c})
+		}
+		e = st
+		if s.closesInMatchN() {
+			e = ast.NewCall(ast.NewIdent("close"), st)
+		}
 	} else {
 		e = ast.NewBinExpr(token.AND, conjuncts...)
 	}
@@ -950,6 +1210,7 @@ func (s0 *state) schemaState(n cue.Value, types cue.Kind, init func(*state)) (ex
 		pos:                   n,
 		isRoot:                s0.isRoot && n == s0.pos,
 		preserveUnknownFields: s0.preserveUnknownFields,
+		beside:                s0.beside,
 	}
 	if init != nil {
 		init(s)
@@ -1091,9 +1352,19 @@ func (s *state) warnUnrecognizedKeyword(key string, n cue.Value, msg string, arg
 // TODO also report whether the schema has been defined at a place
 // where it can be unified with something else?
 func (s *state) maybeDefine(expr ast.Expr, info schemaInfo) ast.Expr {
+	if s.inPlace {
+		// thema: a referenced schema decoded where it is referred to is
+		// that expression, not its definition.
+		return expr
+	}
 	def := s.definedSchemaForNode(s.pos)
 	if def == nil || len(def.path.Selectors()) == 0 {
 		return expr
+	}
+	if s.decoder.inPlace > 0 {
+		// thema: a definition beneath a schema decoded in place is written
+		// where that schema itself is decoded.
+		return s.refExpr(s.pos, def.importPath, def.path)
 	}
 	def.schema = expr
 	def.comment = info.comment()

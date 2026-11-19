@@ -122,12 +122,65 @@ func constraintRef(key string, n cue.Value, s *state) {
 		s.all.add(n, s.refExpr(n, "", cue.Path{}))
 		return
 	}
+	// thema: under Config.Closed, a $ref beside keywords that apply with
+	// it is beside them, as an allOf's parts are. Where they declare a
+	// property, it is a part of one object with them, unless something
+	// disallows or constrains the properties it doesn't declare.
+	applies := s.closing() && s.refSiblings() && !s.pure("$ref")
+	siblings := applies && s.declaresAt(s.pos) &&
+		!schemaRoot.closesRoot(s.pos, make(map[string]bool), s.preserveUnknownFields)
+	if siblings {
+		s.embedParts = true
+	}
+	if s.closing() && (s.closeWith || s.beside || siblings) {
+		// thema: a schema that declares no property and is referred to
+		// beside other schemas is decoded here. Its definition is open, or
+		// closes its alternatives alone, and the object it matches holds
+		// the properties beside it: in an allOf that declares one, the
+		// part closes with them.
+		if target, ok := schemaRoot.localRefTarget(n); ok && !s.declaresAt(target) {
+			if key := target.Path().String(); !s.expanding[key] {
+				// The reference is recorded, so that the schema is
+				// decoded where it is defined as well, defining the
+				// schemas beneath it and reporting its errors, which the
+				// decoding here doesn't.
+				if _, _, err := cueLocationForRef(s, n, u, schemaRoot); err != nil {
+					s.errf(n, "%v", err)
+					return
+				}
+				if s.expanding == nil {
+					s.expanding = map[string]bool{}
+				}
+				s.expanding[key] = true
+				s.decoder.inPlace++
+				x, sub := s.schemaState(target, s.allowedTypes, func(t *state) {
+					t.closeWith = s.closeWith || siblings
+					t.beside = true
+					t.inPlace = true
+					t.level = s.levelOf()
+				})
+				s.decoder.inPlace--
+				delete(s.expanding, key)
+				s.all.add(n, x)
+				s.allowedTypes &= sub.allowedTypes
+				s.knownTypes &= sub.knownTypes
+				return
+			}
+		}
+	}
 	importPath, path, err := cueLocationForRef(s, n, u, schemaRoot)
 	if err != nil {
 		s.errf(n, "%v", err)
 		return
 	}
 	if e := s.refExpr(n, importPath, path); e != nil {
+		if s.beside || applies && !siblings {
+			// thema: conjoined with schemas beside it, which may declare
+			// properties it doesn't, unless it refuses them too.
+			if target, ok := schemaRoot.localRefTarget(n); !ok || !schemaRoot.closesRoot(target, make(map[string]bool), false) {
+				e = s.openDefinition(e)
+			}
+		}
 		s.all.add(n, e)
 		// The reference only allows the types of the schema it refers to,
 		// so other keywords need not allow any other types.

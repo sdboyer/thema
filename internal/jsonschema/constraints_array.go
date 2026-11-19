@@ -121,7 +121,7 @@ func constraintMaxContains(key string, n cue.Value, s *state) {
 
 func constraintContains(key string, n cue.Value, s *state) {
 	list := s.addImport(n, "list")
-	x := s.schema(n)
+	x, _ := s.besideSchema(n, allTypes, true)
 
 	var min uint64 = 1
 	if s.minContains != nil {

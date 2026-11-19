@@ -260,10 +260,13 @@ func (ic *initCommand) runJSONSchema(cmd *cobra.Command, args []string) {
 }
 
 // extractTip makes ic.tip from the schema jsonschema.Extract makes of doc
-// with cfg, as the extraction writes it: ... for an object that allows other
-// properties, and close() for one that does not. Evaluating the result first
-// would drop both, and every object would close with the schema.
+// with cfg and Closed, as the extraction writes it: ... for an object that
+// declares no property and doesn't disallow others, and close() for an
+// alternative that matches alone and for an object beneath one. Evaluating
+// the result first would drop both, and every object would close with the
+// schema.
 func (ic *initCommand) extractTip(doc upcue.Value, cfg *jsonschema.Config) error {
+	cfg.Closed = true
 	f, err := jsonschema.Extract(doc, cfg)
 	if err != nil {
 		return err
@@ -380,10 +383,9 @@ func (ic *initCommand) runOpenAPI(cmd *cobra.Command, args []string) {
 // recursively closed, and exporting it, as NewTip does, wraps it as
 // {_#def, _#def: ...}. So the schema is extracted on its own, as the root of
 // the result, the way init jsonschema --src-subpath extracts one, and is a
-// regular value. Its openness is the document's: the extraction writes ...
-// for an object that allows other properties, and close() for one that does
-// not. The component schemas it refers to are definitions beside it, named
-// as openapi.Extract names them.
+// regular value, whose objects close as openapi.Extract closes them. The
+// component schemas it refers to are definitions beside it, named as
+// openapi.Extract names them.
 func (ic *initCommand) openAPISchema(doc upcue.Value, version jsonschema.Version) error {
 	frag, ok := strings.CutPrefix(ic.srcpath, "#/")
 	if !ok {
