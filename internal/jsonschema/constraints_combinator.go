@@ -16,6 +16,7 @@ package jsonschema
 
 import (
 	"strconv"
+	"strings"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/ast"
@@ -34,10 +35,12 @@ func constraintAllOf(key string, n cue.Value, s *state) {
 	a := make([]ast.Expr, 0, len(items))
 	// thema: under Config.Closed, an allOf that declares a property, or
 	// that is part of one that does, is one closed object.
-	closing := s.cfg.Closed && !s.preserveUnknownFields && (s.closeWith || s.schemaRoot().declares(s.pos, map[string]bool{}))
+	closing := s.cfg.Closed && !s.preserveUnknownFields && (s.closeWith || s.schemaRoot().declaresAt(s.pos))
+	beside := s.beside || s.closeWith || len(items) > 1 || !s.pure("allOf")
 	for _, v := range items {
 		x, sub := s.schemaState(v, s.allowedTypes, func(sub *state) {
 			sub.closeWith = closing
+			sub.beside = beside
 		})
 		s.allowedTypes &= sub.allowedTypes
 		if sub.hasConstraints {
@@ -139,6 +142,21 @@ func (s *state) closesRoot(n cue.Value, seen map[string]bool, preserve bool) boo
 	return false
 }
 
+// declaresAt is [state.declares] for the schema n, remembered by its path.
+// (thema)
+func (s *state) declaresAt(n cue.Value) bool {
+	path := n.Path().String()
+	if d, ok := s.decoder.declared[path]; ok {
+		return d
+	}
+	if s.decoder.declared == nil {
+		s.decoder.declared = map[string]bool{}
+	}
+	d := s.declares(n, map[string]bool{})
+	s.decoder.declared[path] = d
+	return d
+}
+
 // declares reports whether the schema n declares a property: its
 // properties name one, or a schema it refers to does, or one of its allOf
 // parts, or the only alternative of its anyOf or oneOf, which is unified
@@ -174,13 +192,51 @@ func (s *state) declares(n cue.Value, seen map[string]bool) bool {
 	return false
 }
 
-// alone reports whether each of the n alternatives of s's anyOf or oneOf
-// matches alone, so that one declaring a property is closed: there is more
-// than one, and nothing beside them declares a property. Where something
-// does, the object an alternative matches holds those properties too, so
-// closing it alone would refuse them. (thema)
-func (s *state) alone(n int) bool {
-	return n > 1 && !s.closeWith && !s.schemaRoot().declares(s.pos, map[string]bool{})
+// alone reports whether each of the n alternatives of s's key, anyOf or
+// oneOf, matches alone, so that one declaring a property is closed: there
+// is more than one, and the object an alternative matches holds no
+// property another schema can declare. That holds when the schema holds
+// nothing beside key but annotations, and isn't beside another schema
+// itself. (thema)
+func (s *state) alone(key string, n int) bool {
+	return n > 1 && !s.beside && !s.closeWith && s.pure(key)
+}
+
+// annotations are the keywords that say nothing about the properties of
+// the object a schema matches. (thema)
+var annotations = map[string]bool{
+	"$comment": true, "$id": true, "$schema": true, "$anchor": true,
+	"$defs": true, "definitions": true, "type": true, "nullable": true,
+	"title": true, "description": true, "default": true, "example": true,
+	"examples": true, "deprecated": true, "readOnly": true, "writeOnly": true,
+	"externalDocs": true, "xml": true, "discriminator": true,
+}
+
+// pure reports whether the schema holds no keyword beside key but
+// annotations and x- extensions. (thema)
+func (s *state) pure(key string) bool {
+	i, err := s.pos.Fields()
+	if err != nil {
+		return false
+	}
+	for i.Next() {
+		k := i.Selector().Unquoted()
+		if k != key && !annotations[k] && !strings.HasPrefix(k, "x-") {
+			return false
+		}
+	}
+	return true
+}
+
+// writeAlternative returns x, an alternative of a oneOf or an anyOf, as it is
+// written into matchN's list. One that doesn't match alone and refers to a
+// definition is embedded in a struct, as #a..., since the object it
+// matches may hold properties the definition doesn't declare. (thema)
+func (s *state) writeAlternative(x ast.Expr, alone bool) ast.Expr {
+	if s.cfg.Closed && !alone && isDefinition(x) {
+		return &ast.StructLit{Elts: []ast.Decl{&ast.EmbedDecl{Expr: embedOpen(x)}}}
+	}
+	return x
 }
 
 func constraintAnyOf(key string, n cue.Value, s *state) {
@@ -192,11 +248,13 @@ func constraintAnyOf(key string, n cue.Value, s *state) {
 		return
 	}
 	a := make([]ast.Expr, 0, len(items))
-	alone := s.alone(len(items))
+	alone := s.alone("anyOf", len(items))
 	for _, v := range items {
 		x, sub := s.schemaState(v, s.allowedTypes, func(sub *state) {
 			sub.alternative = alone
+			sub.beside = !alone
 		})
+		x = s.writeAlternative(x, alone)
 		if sub.allowedTypes == 0 {
 			// Nothing is allowed; omit.
 			continue
@@ -238,11 +296,13 @@ func constraintOneOf(key string, n cue.Value, s *state) {
 		return
 	}
 	a := make([]ast.Expr, 0, len(items))
-	alone := s.alone(len(items))
+	alone := s.alone("oneOf", len(items))
 	for _, v := range items {
 		x, sub := s.schemaState(v, s.allowedTypes, func(sub *state) {
 			sub.alternative = alone
+			sub.beside = !alone
 		})
+		x = s.writeAlternative(x, alone)
 		if sub.allowedTypes == 0 {
 			// Nothing is allowed; omit
 			continue

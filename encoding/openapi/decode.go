@@ -71,8 +71,12 @@ type ExtractConfig struct {
 // postfix ..., and when one of them or the schema beside them declares a
 // property, the parts that declare none close with it, one that is a
 // reference as the schema it refers to. An alternative of a oneOf or an
-// anyOf that declares a property is closed alone, unless something beside
-// the oneOf or anyOf declares one.
+// anyOf that declares a property is closed alone, when the schema holding
+// them holds nothing else but annotations and isn't beside another schema,
+// as an allOf part beside others is. Otherwise the object an alternative
+// matches may hold properties declared beside it, so an alternative stays
+// open, one that is a reference as the schema it refers to. Its output is
+// CUE at language version v0.18.0: the postfix ... needs it.
 //
 // The result can be converted to a [cue.Value] via [cue.Context.BuildFile].
 func Extract(data cue.InstanceOrValue, c *ExtractConfig) (*ast.File, error) {

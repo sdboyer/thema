@@ -337,9 +337,13 @@ type Config struct {
 	// and when one of them or the schema beside them declares a property,
 	// the parts that declare none close with it, a reference to one decoded
 	// in place. An alternative of a oneOf or an anyOf that declares a
-	// property is closed alone, unless something beside the oneOf or anyOf
-	// declares one. Every decoder thema runs sets it; the comparisons with
-	// upstream leave it off. (thema)
+	// property is closed alone where the alternatives match alone: the
+	// schema holding them holds nothing else but annotations, and isn't
+	// beside another schema, as an allOf part beside others is. Where they
+	// don't, an alternative that refers to a definition is embedded as
+	// {#a...}, and one that refers to a schema declaring no property is
+	// decoded in place. Every decoder thema runs sets it; the comparisons
+	// with upstream leave it off. (thema)
 	Closed bool
 
 	_ struct{} // prohibit casting from different type.

@@ -100,6 +100,10 @@ type decoder struct {
 	// the schema itself is decoded. (thema)
 	inPlace   int
 	expanding map[string]bool
+
+	// declared holds what [state.declaresAt] found, by schema path.
+	// (thema)
+	declared map[string]bool
 }
 
 // definedSchema records information for a schema or subschema.
@@ -335,6 +339,11 @@ func (d *decoder) warnf(p token.Pos, format string, args ...interface{}) {
 }
 
 func (d *decoder) addErr(err errors.Error) {
+	if d.inPlace > 0 {
+		// thema: a schema decoded in place is decoded where it is
+		// defined too, which reports its errors.
+		return
+	}
 	d.errs = errors.Append(d.errs, err)
 }
 
@@ -550,7 +559,7 @@ func (s *state) setTypeUsed(n cue.Value, t coreType) {
 	if int(t) >= len(s.types) {
 		panic(fmt.Errorf("type out of range %v/%v", int(t), len(s.types)))
 	}
-	s.types[t].setTypeUsed(n, t, !s.structOpen())
+	s.types[t].setTypeUsed(n, t, s.cfg.OpenOnlyWhenExplicit)
 }
 
 type state struct {
@@ -665,13 +674,17 @@ type state struct {
 	// declaresProperty holds whether the schema's properties name one.
 	// closeWith holds whether the schema is a part of an allOf that
 	// declares a property, so that its object closes though it declares
-	// none. alternative holds whether it is an alternative of a oneOf or
-	// an anyOf that matches alone, as [state.alone] says. embedParts holds whether its allOf
-	// parts are embedded, as one object. inPlace holds whether it is a
-	// referenced schema decoded where the reference is, which defines
-	// nothing.
+	// none. beside holds whether the object the schema matches may hold
+	// properties that schemas beside it declare: it is one of several
+	// allOf parts, or an alternative that doesn't match alone, or beneath
+	// one. alternative holds whether it is an alternative of a oneOf or an
+	// anyOf that matches alone, as [state.alone] says. embedParts holds
+	// whether its allOf parts are embedded, as one object. inPlace holds
+	// whether it is a referenced schema decoded where the reference is,
+	// which defines nothing.
 	declaresProperty bool
 	closeWith        bool
+	beside           bool
 	alternative      bool
 	embedParts       bool
 	inPlace          bool
@@ -755,7 +768,9 @@ func (s *state) finalizeObject() {
 		// thema: closed whatever additionalProperties: true says; an
 		// alternative, which matches alone, by close, since a struct in
 		// matchN's list is not closed by the definition it is in.
-		if s.alternative && s.declaresProperty {
+		// An alternative whose allOf parts are embedded is closed whole,
+		// in [state.finalize].
+		if s.alternative && s.declaresProperty && !s.embedParts {
 			e = ast.NewCall(ast.NewIdent("close"), s.obj)
 		}
 	} else {
@@ -764,25 +779,35 @@ func (s *state) finalizeObject() {
 	s.add(s.objN, objectType, e)
 }
 
-// closes reports whether, under [Config.Closed], the schema's object is
-// written closed: it declares a property, it is an allOf part that closes
-// with one that does, or it holds such an allOf, and it doesn't preserve
-// unknown fields. (thema)
-// isDefinition reports whether e refers to a definition: #a, x.#a, or a
-// field of one, as #a["b"]. (thema)
+// isDefinition reports whether e refers to a definition or to a field
+// beneath one, which is closed as the definition is: #a, _#a, x.#a,
+// _#defs."/a", or #a["b"]. (thema)
 func isDefinition(e ast.Expr) bool {
 	switch e := e.(type) {
 	case *ast.Ident:
-		return strings.HasPrefix(e.Name, "#")
+		return strings.HasPrefix(e.Name, "#") || strings.HasPrefix(e.Name, "_#")
 	case *ast.SelectorExpr:
-		name, _, _ := ast.LabelName(e.Sel)
-		return strings.HasPrefix(name, "#")
+		if name, _, _ := ast.LabelName(e.Sel); strings.HasPrefix(name, "#") || strings.HasPrefix(name, "_#") {
+			return true
+		}
+		return isDefinition(e.X)
 	case *ast.IndexExpr:
 		return isDefinition(e.X)
 	}
 	return false
 }
 
+// embedOpen embeds e with a postfix ..., which adds the fields of the
+// definition it refers to without closing the struct it is embedded in to
+// them. (thema)
+func embedOpen(e ast.Expr) ast.Expr {
+	return &ast.PostfixExpr{X: e, Op: token.ELLIPSIS}
+}
+
+// closes reports whether, under [Config.Closed], the schema's object is
+// written closed: it declares a property, it is an allOf part that closes
+// with one that does, or it holds such an allOf, and it doesn't preserve
+// unknown fields. (thema)
 func (s *state) closes() bool {
 	return s.cfg.Closed && !s.preserveUnknownFields && (s.declaresProperty || s.closeWith || s.embedParts)
 }
@@ -926,7 +951,7 @@ func (s *state) finalize() (e ast.Expr) {
 		st := ast.NewStruct()
 		for _, c := range conjuncts {
 			if isDefinition(c) {
-				c = &ast.PostfixExpr{X: c, Op: token.ELLIPSIS}
+				c = embedOpen(c)
 			}
 			st.Elts = append(st.Elts, &ast.EmbedDecl{Expr: c})
 		}

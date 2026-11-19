@@ -291,40 +291,34 @@ func TestKnownGaps(t *testing.T) {
 		}
 	})
 
-	// An object that declares properties beside a oneOf or an anyOf admits
-	// ones it doesn't declare: a definition that holds matchN stays open
+	// An object whose oneOf or anyOf has properties beside it, in the
+	// object or in the allOf parts beside it, admits properties it doesn't
+	// declare: a definition that holds matchN stays open
 	// (cue-lang/cue#4538), and the alternatives' properties are declared
-	// only inside it (#386). Each case admits its valid data as well.
+	// only inside it (#386). TestExtractClosed checks that each admits its
+	// valid data.
 	t.Run("properties beside a oneOf or an anyOf", func(t *testing.T) {
 		ctx := cuecontext.New()
-		doc := ctx.CompileString(`
-openapi: "3.0.3"
-info: {title: "ships", version: "1"}
-paths: {}
-components: schemas: {
-	Ship: {type: "object", properties: name: type: "string"}
-	Either: {type: "object", properties: {name: type: "string", sail: type: "string"}, oneOf: [{required: ["name"]}, {required: ["sail"]}]}
-	AnyEither: {type: "object", properties: {name: type: "string", sail: type: "string"}, anyOf: [{required: ["name"]}, {required: ["sail"]}]}
-	Oared: {type: "object", properties: name: type: "string", oneOf: [{required: ["sail"], properties: sail: type: "string"}, {required: ["oar"], properties: oar: type: "string"}]}
-	Rigged: allOf: [{$ref: "#/components/schemas/Ship"}, {oneOf: [{required: ["sail"], properties: sail: type: "string"}, {required: ["oar"], properties: oar: type: "string"}]}]
-}
-`)
-		f, err := Extract(doc, nil)
+		f, err := Extract(ctx.CompileString(closedDoc), nil)
 		if err != nil {
 			t.Fatal(err)
 		}
 		v := ctx.BuildFile(f)
-		for def, valid := range map[string]string{
-			"Either":    `name: "x"`,
-			"AnyEither": `name: "x"`,
-			"Oared":     `name: "x", sail: "y"`,
-			"Rigged":    `name: "x", sail: "y"`,
+		for def, data := range map[string]string{
+			"Either":       `{name: "x", z: 1}`,
+			"AnyEither":    `{name: "x", z: 1}`,
+			"Oared":        `{name: "x", sail: "y", z: 1}`,
+			"Rigged":       `{name: "x", sail: "y", z: 1}`,
+			"Pair":         `{a: "x", c: "y", z: 1}`,
+			"Both":         `{a: "x", c: "y", z: 1}`,
+			"RefBeside":    `{k: "x", name: "y", z: 1}`,
+			"UnionPart":    `{sail: "x", k: "y", z: 1}`,
+			"UnionPair":    `{sail: "x", c: "y", z: 1}`,
+			"NestedBeside": `{a: "x", k: "y", z: 1}`,
 		} {
-			for _, data := range []string{"{" + valid + "}", "{" + valid + ", z: 1}"} {
-				err := v.LookupPath(cue.MakePath(cue.Def(def))).Unify(ctx.CompileString(data)).Validate(cue.Concrete(true))
-				if err != nil {
-					t.Errorf("#%s refuses %s: %v; want it admitted, until the issues are fixed\n%s", def, data, err, formatFile(t, f))
-				}
+			err := v.LookupPath(cue.MakePath(cue.Def(def))).Unify(ctx.CompileString(data)).Validate(cue.Concrete(true))
+			if err != nil {
+				t.Errorf("#%s refuses %s: %v; want it admitted, until the issues are fixed\n%s", def, data, err, formatFile(t, f))
 			}
 		}
 	})

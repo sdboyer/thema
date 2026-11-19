@@ -122,12 +122,13 @@ func constraintRef(key string, n cue.Value, s *state) {
 		s.all.add(n, s.refExpr(n, "", cue.Path{}))
 		return
 	}
-	if s.cfg.Closed && s.closeWith && !s.preserveUnknownFields {
-		// thema: an allOf part that refers to a schema declaring no
-		// property closes with the parts that declare one, but the
-		// schema's definition stays as open as the document has it, so
-		// the part is the schema decoded here.
-		if target, ok := schemaRoot.localRefTarget(n); ok && !schemaRoot.declares(target, map[string]bool{}) {
+	if s.cfg.Closed && (s.closeWith || s.beside) && !s.preserveUnknownFields {
+		// thema: a schema that declares no property and is referred to
+		// beside other schemas is decoded here. Its definition is open, or
+		// closes its alternatives alone, and the object it matches holds
+		// the properties beside it: in an allOf that declares one, the
+		// part closes with them.
+		if target, ok := schemaRoot.localRefTarget(n); ok && !schemaRoot.declaresAt(target) {
 			if key := target.Path().String(); !s.expanding[key] {
 				if s.expanding == nil {
 					s.expanding = map[string]bool{}
@@ -135,7 +136,8 @@ func constraintRef(key string, n cue.Value, s *state) {
 				s.expanding[key] = true
 				s.decoder.inPlace++
 				x, sub := s.schemaState(target, s.allowedTypes, func(t *state) {
-					t.closeWith = true
+					t.closeWith = s.closeWith
+					t.beside = true
 					t.inPlace = true
 				})
 				s.decoder.inPlace--
