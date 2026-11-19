@@ -122,12 +122,13 @@ func constraintRef(key string, n cue.Value, s *state) {
 		s.all.add(n, s.refExpr(n, "", cue.Path{}))
 		return
 	}
-	// thema: under Config.Closed, a $ref beside keywords that declare a
-	// property is a part of one object with them, as an allOf's parts
-	// are, unless something disallows or constrains the properties it
-	// doesn't declare.
-	siblings := s.closing() && s.refSiblings() && !s.pure("$ref") &&
-		s.declaresAt(s.pos) && !schemaRoot.closesRoot(s.pos, make(map[string]bool), s.preserveUnknownFields)
+	// thema: under Config.Closed, a $ref beside keywords that apply with
+	// it is beside them, as an allOf's parts are. Where they declare a
+	// property, it is a part of one object with them, unless something
+	// disallows or constrains the properties it doesn't declare.
+	applies := s.closing() && s.refSiblings() && !s.pure("$ref")
+	siblings := applies && s.declaresAt(s.pos) &&
+		!schemaRoot.closesRoot(s.pos, make(map[string]bool), s.preserveUnknownFields)
 	if siblings {
 		s.embedParts = true
 	}
@@ -156,6 +157,7 @@ func constraintRef(key string, n cue.Value, s *state) {
 					t.closeWith = s.closeWith || siblings
 					t.beside = true
 					t.inPlace = true
+					t.level = s.levelOf()
 				})
 				s.decoder.inPlace--
 				delete(s.expanding, key)
@@ -172,6 +174,13 @@ func constraintRef(key string, n cue.Value, s *state) {
 		return
 	}
 	if e := s.refExpr(n, importPath, path); e != nil {
+		if s.beside || applies && !siblings {
+			// thema: conjoined with schemas beside it, which may declare
+			// properties it doesn't, unless it refuses them too.
+			if target, ok := schemaRoot.localRefTarget(n); !ok || !schemaRoot.closesRoot(target, make(map[string]bool), false) {
+				e = s.openDefinition(e)
+			}
+		}
 		s.all.add(n, e)
 		// The reference only allows the types of the schema it refers to,
 		// so other keywords need not allow any other types.

@@ -675,9 +675,11 @@ type state struct {
 	// declares a property, so that its object closes though it declares
 	// none. beside holds whether the object the schema matches may hold
 	// properties that schemas beside it declare: it is one of several
-	// allOf parts, or an alternative that doesn't match alone, or beneath
-	// one. alternative holds whether it is an alternative of a oneOf or an
-	// anyOf that matches alone, as [state.alone] says, and inAlternatives
+	// allOf parts, an alternative that doesn't match alone, a conditional,
+	// a not, a dependent schema or contains, or beneath one, unless it is
+	// the value of a property no other schema declares, as
+	// [state.merges] says. alternative holds whether it is an alternative of a oneOf that
+	// matches alone, as [state.alone] says, and inAlternatives
 	// whether it is one of several, alone or not. embedParts holds
 	// whether its allOf parts are embedded, as one object. inPlace holds
 	// whether it is a referenced schema decoded where the reference is,
@@ -689,6 +691,17 @@ type state struct {
 	inAlternatives   bool
 	embedParts       bool
 	inPlace          bool
+
+	// level is the state of the schema that holds, through allOf, oneOf,
+	// anyOf, then, else, dependent schemas and references decoded in
+	// place, every schema that applies to the instance this one's matches;
+	// nil where that is this one. declared counts the schemas there that
+	// declare each property, and undeclared holds whether one may match
+	// properties it doesn't name, so that any property may be declared
+	// twice. [state.merges] sets them. (thema)
+	level      *state
+	declared   map[string]int
+	undeclared bool
 }
 
 type openness int
@@ -813,9 +826,9 @@ func (s *state) closing() bool {
 // closesInMatchN reports whether the schema's object, which closes, is
 // written with close: it is in matchN's list, or beneath it, where no
 // definition closes it; it is the whole object an instance is, an
-// alternative that matches alone or the value of a property, not a part
-// of one; and it holds no oneOf, anyOf or conditional, whose properties
-// close would refuse. (thema)
+// alternative that matches alone or what is beneath one, not beside
+// another schema; and it holds no oneOf, anyOf or conditional, whose
+// properties close would refuse. (thema)
 func (s *state) closesInMatchN() bool {
 	if s.closeWith || s.beside {
 		return false
@@ -838,10 +851,120 @@ func (s *state) closesInMatchN() bool {
 
 // closes reports whether, under [Config.Closed], the schema's object is
 // written closed: it declares a property, it is an allOf part that closes
-// with one that does, or it holds such an allOf, and it doesn't preserve
-// unknown fields. (thema)
+// with one that does, or it holds such an allOf; it doesn't preserve
+// unknown fields; and no pattern was skipped, which leaves the properties
+// it matches unknown. (thema)
 func (s *state) closes() bool {
-	return s.closing() && (s.declaresProperty || s.closeWith || s.embedParts)
+	return s.closing() && !s.patternSkipped && (s.declaresProperty || s.closeWith || s.embedParts)
+}
+
+// openDefinition returns x, under [Config.Closed], with a definition it
+// refers to embedded in a struct as #a..., for a schema the instance must
+// match with others whose properties the definition doesn't declare.
+// (thema)
+func (s *state) openDefinition(x ast.Expr) ast.Expr {
+	if s.closing() && isDefinition(x) {
+		return &ast.StructLit{Elts: []ast.Decl{&ast.EmbedDecl{Expr: embedOpen(x)}}}
+	}
+	return x
+}
+
+// besideSchema is [state.schemaState] for a schema that applies beside
+// s's: then, else or a dependent schema, which apply to the same instance,
+// or, where tested is set, if, not or contains, whose objects are tested
+// rather than declared, or are elements, and so are never closed alone.
+// (thema)
+func (s *state) besideSchema(n cue.Value, types cue.Kind, tested bool) (ast.Expr, schemaInfo) {
+	return s.schemaState(n, types, func(sub *state) {
+		sub.beside = true
+		if !tested {
+			sub.level = s.levelOf()
+		}
+	})
+}
+
+// levelOf returns the schema whose instance s's matches. (thema)
+func (s *state) levelOf() *state {
+	if s.level != nil {
+		return s.level
+	}
+	return s
+}
+
+// merges reports whether the property name may be declared, with
+// properties of its own, by two schemas that apply to the same instance,
+// so that the object its value matches may hold properties either
+// declares: two schemas at s's level declare it, or one there may match
+// properties it doesn't name, or the level is beside another schema
+// itself. (thema)
+func (s *state) merges(name string) bool {
+	l := s.levelOf()
+	if l.beside {
+		return true
+	}
+	if l.declared == nil {
+		l.declared = map[string]int{}
+		l.undeclared = !l.countDeclared(l.pos, l.declared, map[string]bool{})
+	}
+	return l.undeclared || l.declared[name] > 1
+}
+
+// countDeclared adds to counts, for each property name, the schemas that
+// apply with n, n included, that declare it, following $ref. It reports
+// false if one of them may match properties it doesn't name, by a pattern,
+// a schema for additional properties, or a reference it can't follow.
+// (thema)
+func (s *state) countDeclared(n cue.Value, counts map[string]int, seen map[string]bool) bool {
+	path := n.Path().String()
+	if n.Kind() != cue.StructKind || seen[path] {
+		return true
+	}
+	seen[path] = true
+	lookup := func(key string) cue.Value {
+		return n.LookupPath(cue.MakePath(cue.Str(key)))
+	}
+	if ref := lookup("$ref"); ref.Exists() {
+		target, ok := s.schemaRoot().localRefTarget(ref)
+		if !ok || !s.countDeclared(target, counts, seen) {
+			return false
+		}
+		if !s.refSiblings() {
+			return true
+		}
+	}
+	if lookup("patternProperties").Exists() {
+		return false
+	}
+	for _, key := range []string{"additionalProperties", "unevaluatedProperties"} {
+		if lookup(key).Kind() == cue.StructKind {
+			return false
+		}
+	}
+	if props := lookup("properties"); props.Kind() == cue.StructKind {
+		for i, _ := props.Fields(cue.Optional(true)); i.Next(); {
+			counts[i.Selector().Unquoted()]++
+		}
+	}
+	for _, key := range []string{"allOf", "anyOf", "oneOf"} {
+		for i, _ := lookup(key).List(); i.Next(); {
+			if !s.countDeclared(i.Value(), counts, seen) {
+				return false
+			}
+		}
+	}
+	for _, key := range []string{"if", "then", "else", "not"} {
+		if !s.countDeclared(lookup(key), counts, seen) {
+			return false
+		}
+	}
+	for _, key := range []string{"dependentSchemas", "dependencies"} {
+		for i, _ := lookup(key).Fields(); i.Next(); {
+			if !s.countDeclared(i.Value(), counts, seen) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // structOpen reports whether an object the schema allows but doesn't
@@ -1087,6 +1210,7 @@ func (s0 *state) schemaState(n cue.Value, types cue.Kind, init func(*state)) (ex
 		pos:                   n,
 		isRoot:                s0.isRoot && n == s0.pos,
 		preserveUnknownFields: s0.preserveUnknownFields,
+		beside:                s0.beside,
 	}
 	if init != nil {
 		init(s)

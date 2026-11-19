@@ -339,16 +339,21 @@ type Config struct {
 	// in place, unless it or a part disallows or constrains the properties
 	// it doesn't declare, when it is a conjunction as upstream's is. A $ref
 	// beside keywords that apply with it and declare a property is one
-	// object with them, as an allOf is. An alternative of a oneOf or an
-	// anyOf that declares a property is closed alone where the alternatives
-	// match alone: the schema holding them holds nothing else but
-	// annotations, and isn't beside another schema, as an allOf part beside
-	// others is. Where they don't, an alternative that refers to a
-	// definition is embedded as {#a...}, and one that refers to a schema
-	// declaring no property is decoded in place. An object beneath an
+	// object with them, as an allOf is. A reference beside other schemas,
+	// in a conjunction, an alternative that doesn't match alone or beside
+	// keywords, is embedded as {#a...}, unless its schema disallows or
+	// constrains the properties it doesn't declare; one beside them that
+	// refers to a schema declaring no property is decoded in place. An
+	// alternative of a oneOf that declares a property is closed alone where
+	// the alternatives match alone: the schema holding them holds nothing
+	// else but annotations, and isn't beside another schema. An anyOf's
+	// alternatives may match together, so none is. An object beneath an
 	// alternative is closed with close, which a definition doesn't do in
-	// matchN's list. Every decoder thema runs sets it; the comparisons with
-	// upstream leave it off. (thema)
+	// matchN's list, unless another schema applying to the same instance
+	// declares the property whose value it is, or it is tested by an if or
+	// a not, or is an element contains tests. An object stays open where a
+	// pattern was skipped. Every decoder thema runs sets it; the
+	// comparisons with upstream leave it off. (thema)
 	Closed bool
 
 	_ struct{} // prohibit casting from different type.

@@ -262,8 +262,9 @@ func (ic *initCommand) runJSONSchema(cmd *cobra.Command, args []string) {
 // extractTip makes ic.tip from the schema jsonschema.Extract makes of doc
 // with cfg and Closed, as the extraction writes it: ... for an object that
 // declares no property and doesn't disallow others, and close() for an
-// alternative that matches alone. Evaluating the result first would drop
-// both, and every object would close with the schema.
+// alternative that matches alone and for an object beneath one. Evaluating
+// the result first would drop both, and every object would close with the
+// schema.
 func (ic *initCommand) extractTip(doc upcue.Value, cfg *jsonschema.Config) error {
 	cfg.Closed = true
 	f, err := jsonschema.Extract(doc, cfg)

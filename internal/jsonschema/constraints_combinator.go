@@ -45,6 +45,7 @@ func constraintAllOf(key string, n cue.Value, s *state) {
 		x, sub := s.schemaState(v, s.allowedTypes, func(sub *state) {
 			sub.closeWith = closing
 			sub.beside = beside
+			sub.level = s.levelOf()
 		})
 		s.allowedTypes &= sub.allowedTypes
 		if sub.hasConstraints {
@@ -215,13 +216,14 @@ func (s *state) refSiblings() bool {
 }
 
 // alone reports whether each of the n alternatives of s's key, anyOf or
-// oneOf, matches alone, so that one declaring a property is closed: there
-// is more than one, and the object an alternative matches holds no
-// property another schema can declare. That holds when the schema holds
-// nothing beside key but annotations, and isn't beside another schema
-// itself. (thema)
+// oneOf, matches alone, so that one declaring a property is closed: key
+// is oneOf, as the alternatives of an anyOf may match together, each
+// declaring properties of the object; there is more than one; and the
+// object an alternative matches holds no property another schema can
+// declare. That holds when the schema holds nothing beside key but
+// annotations, and isn't beside another schema itself. (thema)
 func (s *state) alone(key string, n int) bool {
-	return n > 1 && !s.beside && !s.closeWith && s.pure(key)
+	return key == "oneOf" && n > 1 && !s.beside && !s.closeWith && s.pure(key)
 }
 
 // annotations are the keywords that say nothing about the properties of
@@ -255,10 +257,10 @@ func (s *state) pure(key string) bool {
 // definition is embedded in a struct, as #a..., since the object it
 // matches may hold properties the definition doesn't declare. (thema)
 func (s *state) writeAlternative(x ast.Expr, alone bool) ast.Expr {
-	if s.closing() && !alone && isDefinition(x) {
-		return &ast.StructLit{Elts: []ast.Decl{&ast.EmbedDecl{Expr: embedOpen(x)}}}
+	if alone {
+		return x
 	}
-	return x
+	return s.openDefinition(x)
 }
 
 func constraintAnyOf(key string, n cue.Value, s *state) {
@@ -276,6 +278,7 @@ func constraintAnyOf(key string, n cue.Value, s *state) {
 			sub.alternative = alone
 			sub.beside = !alone
 			sub.inAlternatives = len(items) > 1
+			sub.level = s.levelOf()
 		})
 		x = s.writeAlternative(x, alone)
 		if sub.allowedTypes == 0 {
@@ -325,6 +328,7 @@ func constraintOneOf(key string, n cue.Value, s *state) {
 			sub.alternative = alone
 			sub.beside = !alone
 			sub.inAlternatives = len(items) > 1
+			sub.level = s.levelOf()
 		})
 		x = s.writeAlternative(x, alone)
 		if sub.allowedTypes == 0 {
@@ -368,7 +372,7 @@ func constraintOneOf(key string, n cue.Value, s *state) {
 }
 
 func constraintNot(key string, n cue.Value, s *state) {
-	subSchema := s.schema(n)
+	subSchema, _ := s.besideSchema(n, allTypes, true)
 	s.all.add(n, matchN(
 		&ast.BasicLit{
 			Kind:  token.INT,
@@ -399,14 +403,14 @@ func constraintIfThenElse(s *state) {
 		return
 	}
 	var ifExpr, thenExpr, elseExpr ast.Expr
-	ifExpr, ifSub := s.schemaState(s.ifConstraint, s.allowedTypes, nil)
+	ifExpr, ifSub := s.besideSchema(s.ifConstraint, s.allowedTypes, true)
 	if hasThen {
 		// The allowed types of the "then" constraint are constrained both
 		// by the current constraints and the "if" constraint.
-		thenExpr, _ = s.schemaState(s.thenConstraint, s.allowedTypes&ifSub.allowedTypes, nil)
+		thenExpr, _ = s.besideSchema(s.thenConstraint, s.allowedTypes&ifSub.allowedTypes, false)
 	}
 	if hasElse {
-		elseExpr, _ = s.schemaState(s.elseConstraint, s.allowedTypes, nil)
+		elseExpr, _ = s.besideSchema(s.elseConstraint, s.allowedTypes, false)
 	}
 	if thenExpr == nil {
 		thenExpr = top()

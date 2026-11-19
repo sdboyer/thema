@@ -65,22 +65,45 @@ components: schemas: {
 	NestItems: oneOf: [{type: "object", properties: l: {type: "array", items: {type: "object", properties: x: type: "string"}}}, req.b]
 	NestBeside: {type: "object", required: ["kind"], oneOf: [{properties: meta: {type: "object", properties: x: type: "string"}}, req.b]}
 	NestPart: oneOf: [{allOf: [{$ref: "#/components/schemas/Ship"}, {properties: inner: {type: "object", properties: x: type: "string"}}]}, req.b]
+	ShutPart: allOf: [{$ref: "#/components/schemas/Ship"}, {type: "object", properties: crew: type: "integer", additionalProperties: false}]
+	TypedPart: allOf: [{$ref: "#/components/schemas/Ship"}, {type: "object", properties: crew: type: "integer", additionalProperties: type: "integer"}]
+	ShutBeside: {type: "object", additionalProperties: false, properties: crew: type: "integer", allOf: [{$ref: "#/components/schemas/Ship"}]}
+	AnyReq: anyOf: [req.a, req.b]
+	AnyNest: {type: "object", properties: p: anyOf: [req.a, req.b]}
+	NotBeside: {type: "object", properties: a: type: "string", not: required: ["b"]}
+	NotAlt: oneOf: [{type: "object", properties: {a: type: "string", b: type: "string"}, not: {required: ["b"], properties: b: enum: ["bad"]}}, req.c]
+	MergeAlt: oneOf: [{allOf: [{properties: inner: {type: "object", properties: x: type: "string"}}, {properties: inner: {type: "object", properties: y: type: "string"}}]}, req.b]
+	MergeRef: oneOf: [{allOf: [{$ref: "#/components/schemas/Deep"}, {properties: inner: {type: "object", properties: y: type: "string"}}]}, req.b]
+	Inner: {type: "object", properties: p: {type: "object", properties: z: type: "string"}}
+	UnionMerge: allOf: [{$ref: "#/components/schemas/Inner"}, {properties: p: oneOf: [req.a, req.b]}]
+	UnionBase: {type: "object", properties: p: oneOf: [req.a, req.b]}
+	UnionRev: allOf: [{$ref: "#/components/schemas/UnionBase"}, {properties: p: {type: "object", properties: z: type: "string"}}]
+	MergeItems: oneOf: [{allOf: [{properties: l: {type: "array", items: {type: "object", properties: x: type: "string"}}}, {properties: l: {type: "array", items: {type: "object", properties: y: type: "string"}}}]}, req.b]
+	RefMerge: allOf: [{properties: p: $ref: "#/components/schemas/Ship"}, {properties: p: {type: "object", properties: z: type: "string"}}]
+	UnionOwn: allOf: [{$ref: "#/components/schemas/Ship"}, {properties: p: oneOf: [req.a, req.b]}]
 }
 `
 
 // named is data every Ship-like schema of closedDoc admits, undeclared
 // that data with a property none of them declares, and crewed that data
-// with a crew.
-const named, undeclared, crewed = `{name: "x"}`, `{name: "x", z: 1}`, `{name: "x", crew: 2}`
+// with a crew. crewOnly is a crew alone, ab and ac data with properties
+// of two alternatives, and aUndeclared a with a property no schema
+// declares.
+const (
+	named, undeclared, crewed = `{name: "x"}`, `{name: "x", z: 1}`, `{name: "x", crew: 2}`
+	crewOnly                  = `{crew: 1}`
+	ab, ac, aUndeclared       = `{a: "x", b: "y"}`, `{a: "x", c: "y"}`, `{a: "x", z: 1}`
+)
 
 // TestExtractClosed checks what Extract's objects admit: an object that
 // declares a property is closed, whatever additionalProperties says unless
 // it's a schema; one that declares none stays open; an allOf is one object,
 // whose parts close with those that declare a property, a reference as the
-// schema it refers to; and each alternative of a oneOf or an anyOf with
-// nothing beside it is closed alone, while alternatives beside other
-// schemas admit the properties those declare. TestKnownGaps has what the
-// latter admit beyond them.
+// schema it refers to; and each alternative of a oneOf with nothing beside
+// it is closed alone, while alternatives beside other schemas, and those of
+// an anyOf, admit the properties those declare. An object beneath an
+// alternative is closed too, unless another schema declares the property
+// whose value it is. TestKnownGaps has what is admitted beyond that.
 func TestExtractClosed(t *testing.T) {
 	ctx := cuecontext.New()
 	doc := ctx.CompileString(closedDoc)
@@ -119,14 +142,14 @@ func TestExtractClosed(t *testing.T) {
 		{"Nested", []string{crewed}, []string{`{name: "x", crew: 2, z: 1}`}},
 		{"Beside", []string{crewed}, []string{`{name: "x", crew: 2, z: 1}`}},
 		{"Frees", []string{`{name: 1, z: 1}`}, nil},
-		{"Choice", []string{`{a: "x"}`}, []string{`{a: "x", z: 1}`, `{a: "x", b: "y"}`}},
-		{"AnyChoice", []string{`{b: "x"}`}, []string{`{b: "x", z: 1}`}},
+		{"Choice", []string{`{a: "x"}`}, []string{aUndeclared, ab}},
+		{"AnyChoice", []string{`{b: "x"}`, ab}, nil},
 		{"RefChoice", []string{named}, []string{undeclared}},
-		{"Pair", []string{`{a: "x", c: "y"}`}, nil},
-		{"Both", []string{`{a: "x", c: "y"}`}, nil},
+		{"Pair", []string{ac}, nil},
+		{"Both", []string{ac}, nil},
 		{"Pinned", []string{`{kind: "k", a: "x"}`}, nil},
 		{"Patterned", []string{`{a: "x", k: "y"}`}, nil},
-		{"Hulled", []string{`{name: "x", crew: 1}`}, []string{`{name: "x", crew: 1, z: 1}`}},
+		{"Hulled", []string{crewed}, []string{`{name: "x", crew: 1, z: 1}`}},
 		{"RefBeside", []string{`{k: "x", name: "y"}`}, nil},
 		{"UnionPart", []string{`{sail: "x", k: "y"}`}, nil},
 		{"UnionPair", []string{`{sail: "x", c: "y"}`}, nil},
@@ -135,13 +158,27 @@ func TestExtractClosed(t *testing.T) {
 		{"AnyEither", []string{named}, nil},
 		{"Oared", []string{`{name: "x", sail: "y"}`}, nil},
 		{"Rigged", []string{`{name: "x", sail: "y"}`}, nil},
-		{"ShutCrew", []string{named}, []string{`{name: "x", crew: 1}`}},
+		{"ShutCrew", []string{named}, []string{crewed}},
 		{"CargoCrew", []string{named, undeclared}, []string{`{name: "x", crew: "y"}`, `{name: "x", z: "y"}`}},
 		{"AltInner", []string{`{k: "x", a: "y"}`}, nil},
 		{"NestAlt", []string{`{inner: {x: "y"}}`}, []string{`{inner: {x: "y", z: 1}}`, `{inner: {x: "y"}, z: 1}`}},
 		{"NestItems", []string{`{l: [{x: "y"}]}`}, []string{`{l: [{x: "y", z: 1}]}`}},
 		{"NestBeside", []string{`{kind: "k", meta: {x: "y"}}`}, []string{`{kind: "k", meta: {x: "y", z: 1}}`}},
 		{"NestPart", []string{`{name: "x", inner: {x: "y"}}`}, []string{`{name: "x", inner: {x: "y", z: 1}}`, `{name: "x", z: 1}`}},
+		{"ShutPart", []string{crewOnly}, []string{named}},
+		{"TypedPart", []string{crewOnly, `{crew: 1, z: 2}`}, []string{named}},
+		{"ShutBeside", []string{crewOnly}, []string{named}},
+		{"AnyReq", []string{ab}, nil},
+		{"AnyNest", []string{`{p: {a: "x", b: "y"}}`}, nil},
+		{"NotBeside", []string{`{a: "x"}`}, []string{ab}},
+		{"NotAlt", []string{`{a: "x", b: "good"}`}, []string{`{a: "x", b: "bad"}`}},
+		{"MergeAlt", []string{`{inner: {x: "a", y: "b"}}`}, []string{`{inner: {x: "a"}, z: 1}`}},
+		{"MergeRef", []string{`{inner: {x: "a", y: "b"}}`}, []string{`{inner: {x: "a"}, z: 1}`}},
+		{"UnionMerge", []string{`{p: {a: "x", z: "y"}}`}, []string{`{p: {a: "x"}, k: 1}`}},
+		{"UnionRev", []string{`{p: {a: "x", z: "y"}}`}, []string{`{p: {a: "x"}, k: 1}`}},
+		{"MergeItems", []string{`{l: [{x: "a", y: "b"}]}`}, nil},
+		{"RefMerge", []string{`{p: {name: "x", z: "y"}}`}, []string{`{p: {name: "x", k: 1}}`}},
+		{"UnionOwn", []string{`{name: "x", p: {a: "y"}}`}, []string{`{p: {a: "y", z: 1}}`}},
 	} {
 		def := v.LookupPath(cue.MakePath(cue.Def(c.def)))
 		if !def.Exists() {
@@ -224,9 +261,38 @@ func TestExtractClosedSubpath(t *testing.T) {
 	}
 }
 
+// closedDoc31 holds the components of closedDoc's kind that only OpenAPI
+// 3.1 can have.
+const closedDoc31 = `
+openapi: "3.1.0"
+info: {title: "ships", version: "1"}
+paths: {}
+components: schemas: {
+	Ship: {type: "object", properties: name: type: "string"}
+	Anything: {type: "object"}
+	RefCrewed: {$ref: "#/components/schemas/Ship", properties: crew: type: "integer"}
+	Free: {$ref: "#/components/schemas/Anything", properties: crew: type: "integer"}
+	Hull: {type: "object", required: ["hull"], properties: hull: type: "string"}
+	Sails: oneOf: [{$ref: "#/components/schemas/Hull"}, {type: "object", required: ["sail"], properties: sail: type: "string"}]
+	RefOneOf: {$ref: "#/components/schemas/Sails", oneOf: [{required: ["c"], properties: c: type: "string"}, {required: ["d"], properties: d: type: "string"}]}
+	RefRequired: {$ref: "#/components/schemas/Sails", required: ["k"]}
+	ShutRef: {$ref: "#/components/schemas/Ship", properties: crew: type: "integer", additionalProperties: false}
+	Skipped: {type: "object", properties: name: type: "string", patternProperties: "^(?!name)": type: "string"}
+	IfAlt: oneOf: [{type: "object", properties: a: type: "string", if: {required: ["a"]}, then: {properties: c: type: "string"}}, Hull]
+	ElseAlt: oneOf: [{type: "object", properties: {k: type: "string", p: type: "string"}, if: {properties: k: enum: ["x"]}, then: {}, else: {required: ["q"]}}, Hull]
+	DepAlt: oneOf: [{type: "object", properties: a: type: "string", dependentSchemas: a: properties: c: type: "string"}, Hull]
+	ContainsAlt: oneOf: [{type: "object", properties: l: {type: "array", contains: {type: "object", properties: x: type: "string"}}}, Hull]
+	CondNest: oneOf: [{type: "object", properties: a: type: "string", if: {required: ["a"]}, then: properties: c: {type: "object", properties: x: type: "string"}}, Hull]
+	CondBeside: {type: "object", properties: a: type: "string", if: {required: ["a"]}, then: properties: c: type: "string"}
+	CondPart: allOf: [{properties: name: type: "string"}, {if: {required: ["name"]}, then: properties: c: type: "string"}]
+}
+`
+
 // TestExtractClosedRefSiblings checks a $ref beside other keywords. From
 // OpenAPI 3.1 and JSON Schema 2019-09 they apply with it, as an allOf of
-// the two does. Before, they are ignored, and so declare nothing.
+// the two does. Before, they are ignored, and so declare nothing. It also
+// checks patternProperties and conditionals, which OpenAPI 3.0 doesn't
+// have.
 func TestExtractClosedRefSiblings(t *testing.T) {
 	ctx := cuecontext.New()
 	check := func(v cue.Value, f *ast.File, data string, valid bool) {
@@ -236,26 +302,36 @@ func TestExtractClosedRefSiblings(t *testing.T) {
 			t.Errorf("admits %s: %v, want %v (%v)\n%s", data, err == nil, valid, err, formatFile(t, f))
 		}
 	}
-	f, err := Extract(ctx.CompileString(`
-openapi: "3.1.0"
-info: {title: "ships", version: "1"}
-paths: {}
-components: schemas: {
-	Ship: {type: "object", properties: name: type: "string"}
-	Anything: {type: "object"}
-	Crewed: {$ref: "#/components/schemas/Ship", properties: crew: type: "integer"}
-	Free: {$ref: "#/components/schemas/Anything", properties: crew: type: "integer"}
-}
-`), nil)
+	f, err := Extract(ctx.CompileString(closedDoc31), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	v := ctx.BuildFile(f)
-	crewed, free := v.LookupPath(cue.MakePath(cue.Def("Crewed"))), v.LookupPath(cue.MakePath(cue.Def("Free")))
-	check(crewed, f, `{name: "x", crew: 1}`, true)
-	check(crewed, f, `{name: "x", crew: 1, z: 1}`, false)
-	check(free, f, `{crew: 1}`, true)
-	check(free, f, `{crew: 1, z: 1}`, false)
+	for _, c := range []struct {
+		def, data string
+		valid     bool
+	}{
+		{"RefCrewed", crewed, true},
+		{"RefCrewed", `{name: "x", crew: 1, z: 1}`, false},
+		{"Free", crewOnly, true},
+		{"Free", `{crew: 1, z: 1}`, false},
+		{"RefOneOf", `{sail: "x", c: "y"}`, true},
+		{"RefOneOf", `{hull: "x", c: "y"}`, true},
+		{"RefRequired", `{sail: "x", k: 1}`, true},
+		{"ShutRef", crewOnly, true},
+		{"ShutRef", `{name: "x"}`, false},
+		// A pattern Go can't compile leaves the properties it matches
+		// unknown, so the object stays open, as upstream leaves it.
+		{"Skipped", `{name: "x", foo: "y"}`, true},
+		{"IfAlt", ac, true},
+		{"ElseAlt", `{k: "x", p: "y"}`, true},
+		{"DepAlt", ac, true},
+		{"ContainsAlt", `{l: [{x: "a", w: 1}]}`, true},
+		{"CondNest", `{a: "x", c: {x: "y"}}`, true},
+		{"CondNest", `{a: "x", c: {x: "y", z: 1}}`, false},
+	} {
+		check(v.LookupPath(cue.MakePath(cue.Def(c.def))), f, c.data, c.valid)
+	}
 
 	// In draft-07 the properties beside the $ref are ignored, so the allOf
 	// declares nothing and stays open.

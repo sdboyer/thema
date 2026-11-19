@@ -293,32 +293,52 @@ func TestKnownGaps(t *testing.T) {
 
 	// An object whose oneOf or anyOf has properties beside it, in the
 	// object or in the allOf parts beside it, admits properties it doesn't
-	// declare: a definition that holds matchN stays open
+	// declare, as does one whose properties are beside a conditional: a
+	// definition that holds matchN or matchIf stays open
 	// (cue-lang/cue#4538), and the alternatives' properties are declared
-	// only inside it (#386). TestExtractClosed checks that each admits its
-	// valid data.
-	t.Run("properties beside a oneOf or an anyOf", func(t *testing.T) {
+	// only inside it (#386). So does the object of an anyOf, whose
+	// alternatives may match together, and an object beneath an
+	// alternative that the value of a property two schemas declare is:
+	// close is shallow, and only a definition closes the object they make
+	// together. TestExtractClosed and TestExtractClosedRefSiblings check
+	// that each admits its valid data.
+	t.Run("properties beside a oneOf, an anyOf or a conditional", func(t *testing.T) {
 		ctx := cuecontext.New()
-		f, err := Extract(ctx.CompileString(closedDoc), nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		v := ctx.BuildFile(f)
-		for def, data := range map[string]string{
-			"Either":       undeclared,
-			"AnyEither":    undeclared,
-			"Oared":        `{name: "x", sail: "y", z: 1}`,
-			"Rigged":       `{name: "x", sail: "y", z: 1}`,
-			"Pair":         `{a: "x", c: "y", z: 1}`,
-			"Both":         `{a: "x", c: "y", z: 1}`,
-			"RefBeside":    `{k: "x", name: "y", z: 1}`,
-			"UnionPart":    `{sail: "x", k: "y", z: 1}`,
-			"UnionPair":    `{sail: "x", c: "y", z: 1}`,
-			"NestedBeside": `{a: "x", k: "y", z: 1}`,
+		for doc, defs := range map[string]map[string]string{
+			closedDoc: {
+				"Either":       undeclared,
+				"AnyEither":    undeclared,
+				"Oared":        `{name: "x", sail: "y", z: 1}`,
+				"Rigged":       `{name: "x", sail: "y", z: 1}`,
+				"Pair":         `{a: "x", c: "y", z: 1}`,
+				"Both":         `{a: "x", c: "y", z: 1}`,
+				"RefBeside":    `{k: "x", name: "y", z: 1}`,
+				"UnionPart":    `{sail: "x", k: "y", z: 1}`,
+				"UnionPair":    `{sail: "x", c: "y", z: 1}`,
+				"NestedBeside": `{a: "x", k: "y", z: 1}`,
+				"AnyChoice":    `{b: "x", z: 1}`,
+				"AnyReq":       aUndeclared,
+				"AnyNest":      `{p: {a: "x", z: 1}}`,
+				"NotBeside":    aUndeclared,
+				"MergeAlt":     `{inner: {x: "a", z: 1}}`,
+				"MergeRef":     `{inner: {x: "a", z: 1}}`,
+				"UnionMerge":   `{p: {a: "x", k: 1}}`,
+			},
+			closedDoc31: {
+				"CondBeside": aUndeclared,
+				"CondPart":   `{name: "x", z: 1}`,
+			},
 		} {
-			err := v.LookupPath(cue.MakePath(cue.Def(def))).Unify(ctx.CompileString(data)).Validate(cue.Concrete(true))
+			f, err := Extract(ctx.CompileString(doc), nil)
 			if err != nil {
-				t.Errorf("#%s refuses %s: %v; want it admitted, until the issues are fixed\n%s", def, data, err, formatFile(t, f))
+				t.Fatal(err)
+			}
+			v := ctx.BuildFile(f)
+			for def, data := range defs {
+				err := v.LookupPath(cue.MakePath(cue.Def(def))).Unify(ctx.CompileString(data)).Validate(cue.Concrete(true))
+				if err != nil {
+					t.Errorf("#%s refuses %s: %v; want it admitted, until the issues are fixed\n%s", def, data, err, formatFile(t, f))
+				}
 			}
 		}
 	})
