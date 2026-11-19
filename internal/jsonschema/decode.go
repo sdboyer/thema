@@ -101,9 +101,8 @@ type decoder struct {
 	inPlace   int
 	expanding map[string]bool
 
-	// declared holds what [state.declaresAt] found, by schema path.
-	// (thema)
-	declared map[string]bool
+	// declared holds what [state.declaresAt] found. (thema)
+	declared map[declaredKey]bool
 }
 
 // definedSchema records information for a schema or subschema.
@@ -678,7 +677,8 @@ type state struct {
 	// properties that schemas beside it declare: it is one of several
 	// allOf parts, or an alternative that doesn't match alone, or beneath
 	// one. alternative holds whether it is an alternative of a oneOf or an
-	// anyOf that matches alone, as [state.alone] says. embedParts holds
+	// anyOf that matches alone, as [state.alone] says, and inAlternatives
+	// whether it is one of several, alone or not. embedParts holds
 	// whether its allOf parts are embedded, as one object. inPlace holds
 	// whether it is a referenced schema decoded where the reference is,
 	// which defines nothing.
@@ -686,6 +686,7 @@ type state struct {
 	closeWith        bool
 	beside           bool
 	alternative      bool
+	inAlternatives   bool
 	embedParts       bool
 	inPlace          bool
 }
@@ -765,12 +766,11 @@ func (s *state) finalizeObject() {
 	} else if s.openness == explicitlyClosed {
 		e = ast.NewCall(ast.NewIdent("close"), s.obj)
 	} else if s.closes() {
-		// thema: closed whatever additionalProperties: true says; an
-		// alternative, which matches alone, by close, since a struct in
-		// matchN's list is not closed by the definition it is in.
-		// An alternative whose allOf parts are embedded is closed whole,
-		// in [state.finalize].
-		if s.alternative && s.declaresProperty && !s.embedParts {
+		// thema: closed whatever additionalProperties: true says. A struct
+		// in matchN's list is not closed by the definition it is in, nor
+		// one beneath it, so those are closed by close. One whose allOf
+		// parts are embedded is closed whole, in [state.finalize].
+		if s.declaresProperty && !s.embedParts && s.closesInMatchN() {
 			e = ast.NewCall(ast.NewIdent("close"), s.obj)
 		}
 	} else {
@@ -804,12 +804,44 @@ func embedOpen(e ast.Expr) ast.Expr {
 	return &ast.PostfixExpr{X: e, Op: token.ELLIPSIS}
 }
 
+// closing reports whether the schema's objects can close: under
+// [Config.Closed], where unknown fields aren't preserved. (thema)
+func (s *state) closing() bool {
+	return s.cfg.Closed && !s.preserveUnknownFields
+}
+
+// closesInMatchN reports whether the schema's object, which closes, is
+// written with close: it is in matchN's list, or beneath it, where no
+// definition closes it; it is the whole object an instance is, an
+// alternative that matches alone or the value of a property, not a part
+// of one; and it holds no oneOf, anyOf or conditional, whose properties
+// close would refuse. (thema)
+func (s *state) closesInMatchN() bool {
+	if s.closeWith || s.beside {
+		return false
+	}
+	for _, k := range []string{"oneOf", "anyOf", "if", "then", "else", "dependentSchemas", "dependencies"} {
+		if s.pos.LookupPath(cue.MakePath(cue.Str(k))).Exists() {
+			return false
+		}
+	}
+	if s.alternative {
+		return true
+	}
+	for u := s.up; u != nil; u = u.up {
+		if u.inAlternatives {
+			return true
+		}
+	}
+	return false
+}
+
 // closes reports whether, under [Config.Closed], the schema's object is
 // written closed: it declares a property, it is an allOf part that closes
 // with one that does, or it holds such an allOf, and it doesn't preserve
 // unknown fields. (thema)
 func (s *state) closes() bool {
-	return s.cfg.Closed && !s.preserveUnknownFields && (s.declaresProperty || s.closeWith || s.embedParts)
+	return s.closing() && (s.declaresProperty || s.closeWith || s.embedParts)
 }
 
 // structOpen reports whether an object the schema allows but doesn't
@@ -817,7 +849,7 @@ func (s *state) closes() bool {
 // [Config.OpenOnlyWhenExplicit], nor where the schema is part of an allOf
 // that declares a property or holds one. (thema)
 func (s *state) structOpen() bool {
-	return !s.cfg.OpenOnlyWhenExplicit && !(s.cfg.Closed && (s.closeWith || s.embedParts) && !s.preserveUnknownFields)
+	return !s.cfg.OpenOnlyWhenExplicit && !(s.closing() && (s.closeWith || s.embedParts))
 }
 
 func (s *state) hasConstraints() bool {
@@ -956,7 +988,7 @@ func (s *state) finalize() (e ast.Expr) {
 			st.Elts = append(st.Elts, &ast.EmbedDecl{Expr: c})
 		}
 		e = st
-		if s.alternative {
+		if s.closesInMatchN() {
 			e = ast.NewCall(ast.NewIdent("close"), st)
 		}
 	} else {

@@ -305,8 +305,8 @@ func TestKnownGaps(t *testing.T) {
 		}
 		v := ctx.BuildFile(f)
 		for def, data := range map[string]string{
-			"Either":       `{name: "x", z: 1}`,
-			"AnyEither":    `{name: "x", z: 1}`,
+			"Either":       undeclared,
+			"AnyEither":    undeclared,
 			"Oared":        `{name: "x", sail: "y", z: 1}`,
 			"Rigged":       `{name: "x", sail: "y", z: 1}`,
 			"Pair":         `{a: "x", c: "y", z: 1}`,

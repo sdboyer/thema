@@ -70,13 +70,18 @@ type ExtractConfig struct {
 // object: its parts are embedded, not conjoined, a reference with a
 // postfix ..., and when one of them or the schema beside them declares a
 // property, the parts that declare none close with it, one that is a
-// reference as the schema it refers to. An alternative of a oneOf or an
-// anyOf that declares a property is closed alone, when the schema holding
-// them holds nothing else but annotations and isn't beside another schema,
-// as an allOf part beside others is. Otherwise the object an alternative
-// matches may hold properties declared beside it, so an alternative stays
-// open, one that is a reference as the schema it refers to. Its output is
-// CUE at language version v0.18.0: the postfix ... needs it.
+// reference as the schema it refers to. An allOf that, or one of whose
+// parts, disallows or constrains the properties it doesn't declare is a
+// conjunction, as upstream's is. From OpenAPI 3.1, a $ref beside keywords
+// that declare a property is one object with them, as an allOf is. An
+// alternative of a oneOf or an anyOf that declares a property is closed
+// alone, when the schema holding them holds nothing else but annotations
+// and isn't beside another schema, as an allOf part beside others is, and
+// so is each object beneath an alternative. Otherwise the object an
+// alternative matches may hold properties declared beside it, so an
+// alternative stays open, one that is a reference as the schema it refers
+// to. Its output is CUE at language version v0.18.0: the postfix ... needs
+// it.
 //
 // The result can be converted to a [cue.Value] via [cue.Context.BuildFile].
 func Extract(data cue.InstanceOrValue, c *ExtractConfig) (*ast.File, error) {

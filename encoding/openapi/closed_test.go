@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"cuelang.org/go/cue"
+	"cuelang.org/go/cue/ast"
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/errors"
 	"github.com/sdboyer/thema/internal/jsonschema"
@@ -57,8 +58,20 @@ components: schemas: {
 	AnyEither: {type: "object", properties: {name: type: "string", sail: type: "string"}, anyOf: [{required: ["name"]}, {required: ["sail"]}]}
 	Oared: {type: "object", properties: name: type: "string", oneOf: [req.sail, req.oar]}
 	Rigged: allOf: [{$ref: "#/components/schemas/Ship"}, {oneOf: [req.sail, req.oar]}]
+	ShutCrew: allOf: [{$ref: "#/components/schemas/ShutShip"}, {properties: crew: type: "integer"}]
+	CargoCrew: allOf: [{$ref: "#/components/schemas/Cargo"}, {properties: crew: type: "string"}]
+	AltInner: oneOf: [{type: "object", properties: k: type: "string", oneOf: [req.a, req.c]}, req.b]
+	NestAlt: oneOf: [{type: "object", properties: inner: {type: "object", properties: x: type: "string"}}, req.b]
+	NestItems: oneOf: [{type: "object", properties: l: {type: "array", items: {type: "object", properties: x: type: "string"}}}, req.b]
+	NestBeside: {type: "object", required: ["kind"], oneOf: [{properties: meta: {type: "object", properties: x: type: "string"}}, req.b]}
+	NestPart: oneOf: [{allOf: [{$ref: "#/components/schemas/Ship"}, {properties: inner: {type: "object", properties: x: type: "string"}}]}, req.b]
 }
 `
+
+// named is data every Ship-like schema of closedDoc admits, undeclared
+// that data with a property none of them declares, and crewed that data
+// with a crew.
+const named, undeclared, crewed = `{name: "x"}`, `{name: "x", z: 1}`, `{name: "x", crew: 2}`
 
 // TestExtractClosed checks what Extract's objects admit: an object that
 // declares a property is closed, whatever additionalProperties says unless
@@ -82,9 +95,6 @@ func TestExtractClosed(t *testing.T) {
 	if err := v.Err(); err != nil {
 		t.Fatalf("%v\n%s", err, formatFile(t, f))
 	}
-	// named is data every Ship-like schema admits, undeclared that data with
-	// a property none of them declares, and crewed that data with a crew.
-	const named, undeclared, crewed = `{name: "x"}`, `{name: "x", z: 1}`, `{name: "x", crew: 2}`
 	for _, c := range []struct {
 		def             string
 		admits, refuses []string
@@ -125,6 +135,13 @@ func TestExtractClosed(t *testing.T) {
 		{"AnyEither", []string{named}, nil},
 		{"Oared", []string{`{name: "x", sail: "y"}`}, nil},
 		{"Rigged", []string{`{name: "x", sail: "y"}`}, nil},
+		{"ShutCrew", []string{named}, []string{`{name: "x", crew: 1}`}},
+		{"CargoCrew", []string{named, undeclared}, []string{`{name: "x", crew: "y"}`, `{name: "x", z: "y"}`}},
+		{"AltInner", []string{`{k: "x", a: "y"}`}, nil},
+		{"NestAlt", []string{`{inner: {x: "y"}}`}, []string{`{inner: {x: "y", z: 1}}`, `{inner: {x: "y"}, z: 1}`}},
+		{"NestItems", []string{`{l: [{x: "y"}]}`}, []string{`{l: [{x: "y", z: 1}]}`}},
+		{"NestBeside", []string{`{kind: "k", meta: {x: "y"}}`}, []string{`{kind: "k", meta: {x: "y", z: 1}}`}},
+		{"NestPart", []string{`{name: "x", inner: {x: "y"}}`}, []string{`{name: "x", inner: {x: "y", z: 1}}`, `{name: "x", z: 1}`}},
 	} {
 		def := v.LookupPath(cue.MakePath(cue.Def(c.def)))
 		if !def.Exists() {
@@ -173,6 +190,85 @@ components: schemas: {
 	if !strings.Contains(string(formatFile(t, f)), "#Ship") {
 		t.Errorf("no #Ship in:\n%s", formatFile(t, f))
 	}
+}
+
+// TestExtractClosedSubpath checks a schema decoded in place when the
+// extraction converts one schema, as --src-subpath does: the schemas
+// beneath it that are referred to are defined, and its errors are
+// reported, as upstream reports them.
+func TestExtractClosedSubpath(t *testing.T) {
+	ctx := cuecontext.New()
+	extract := func(doc string, closed bool) (*ast.File, error) {
+		return jsonschema.Extract(ctx.CompileString(doc), &jsonschema.Config{Root: "#/$defs/ship", SingleRoot: true, Closed: closed})
+	}
+	f, err := extract(`{
+	$defs: free: {type: "object", additionalProperties: {type: "string", minLength: 1}}
+	$defs: ship: allOf: [{$ref: "#/$defs/free"}, {properties: name: $ref: "#/$defs/free/additionalProperties"}]
+}`, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := ctx.BuildFile(f)
+	if err := v.Unify(ctx.CompileString(`{name: "x"}`)).Validate(cue.Concrete(true)); err != nil {
+		t.Errorf("refuses {name: \"x\"}: %v\n%s", err, formatFile(t, f))
+	}
+
+	bad := `{
+	$defs: free: {type: "object", minProperties: "x"}
+	$defs: ship: allOf: [{$ref: "#/$defs/free"}, {properties: name: type: "string"}]
+}`
+	_, closedErr := extract(bad, true)
+	_, upErr := extract(bad, false)
+	if got, want := len(errors.Errors(closedErr)), len(errors.Errors(upErr)); got != want || want == 0 {
+		t.Errorf("Extract reports %d errors, upstream %d:\n%v\n%v", got, want, closedErr, upErr)
+	}
+}
+
+// TestExtractClosedRefSiblings checks a $ref beside other keywords. From
+// OpenAPI 3.1 and JSON Schema 2019-09 they apply with it, as an allOf of
+// the two does. Before, they are ignored, and so declare nothing.
+func TestExtractClosedRefSiblings(t *testing.T) {
+	ctx := cuecontext.New()
+	check := func(v cue.Value, f *ast.File, data string, valid bool) {
+		t.Helper()
+		err := v.Unify(ctx.CompileString(data)).Validate(cue.Concrete(true))
+		if (err == nil) != valid {
+			t.Errorf("admits %s: %v, want %v (%v)\n%s", data, err == nil, valid, err, formatFile(t, f))
+		}
+	}
+	f, err := Extract(ctx.CompileString(`
+openapi: "3.1.0"
+info: {title: "ships", version: "1"}
+paths: {}
+components: schemas: {
+	Ship: {type: "object", properties: name: type: "string"}
+	Anything: {type: "object"}
+	Crewed: {$ref: "#/components/schemas/Ship", properties: crew: type: "integer"}
+	Free: {$ref: "#/components/schemas/Anything", properties: crew: type: "integer"}
+}
+`), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := ctx.BuildFile(f)
+	crewed, free := v.LookupPath(cue.MakePath(cue.Def("Crewed"))), v.LookupPath(cue.MakePath(cue.Def("Free")))
+	check(crewed, f, `{name: "x", crew: 1}`, true)
+	check(crewed, f, `{name: "x", crew: 1, z: 1}`, false)
+	check(free, f, `{crew: 1}`, true)
+	check(free, f, `{crew: 1, z: 1}`, false)
+
+	// In draft-07 the properties beside the $ref are ignored, so the allOf
+	// declares nothing and stays open.
+	f, err = jsonschema.Extract(ctx.CompileString(`{
+	$schema: "http://json-schema.org/draft-07/schema#"
+	definitions: anything: type: "object"
+	allOf: [{$ref: "#/definitions/anything", properties: a: type: "string"}, {required: ["b"]}]
+}`), &jsonschema.Config{Closed: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := cue.MakePath(cue.Def("S"))
+	check(ctx.CompileString("#S: _").FillPath(s, ctx.BuildFile(f)).LookupPath(s), f, `{b: 1, z: 1}`, true)
 }
 
 // TestExtractClosedErrors checks that a schema decoded in place reports

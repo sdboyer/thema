@@ -122,21 +122,38 @@ func constraintRef(key string, n cue.Value, s *state) {
 		s.all.add(n, s.refExpr(n, "", cue.Path{}))
 		return
 	}
-	if s.cfg.Closed && (s.closeWith || s.beside) && !s.preserveUnknownFields {
+	// thema: under Config.Closed, a $ref beside keywords that declare a
+	// property is a part of one object with them, as an allOf's parts
+	// are, unless something disallows or constrains the properties it
+	// doesn't declare.
+	siblings := s.closing() && s.refSiblings() && !s.pure("$ref") &&
+		s.declaresAt(s.pos) && !schemaRoot.closesRoot(s.pos, make(map[string]bool), s.preserveUnknownFields)
+	if siblings {
+		s.embedParts = true
+	}
+	if s.closing() && (s.closeWith || s.beside || siblings) {
 		// thema: a schema that declares no property and is referred to
 		// beside other schemas is decoded here. Its definition is open, or
 		// closes its alternatives alone, and the object it matches holds
 		// the properties beside it: in an allOf that declares one, the
 		// part closes with them.
-		if target, ok := schemaRoot.localRefTarget(n); ok && !schemaRoot.declaresAt(target) {
+		if target, ok := schemaRoot.localRefTarget(n); ok && !s.declaresAt(target) {
 			if key := target.Path().String(); !s.expanding[key] {
+				// The reference is recorded, so that the schema is
+				// decoded where it is defined as well, defining the
+				// schemas beneath it and reporting its errors, which the
+				// decoding here doesn't.
+				if _, _, err := cueLocationForRef(s, n, u, schemaRoot); err != nil {
+					s.errf(n, "%v", err)
+					return
+				}
 				if s.expanding == nil {
 					s.expanding = map[string]bool{}
 				}
 				s.expanding[key] = true
 				s.decoder.inPlace++
 				x, sub := s.schemaState(target, s.allowedTypes, func(t *state) {
-					t.closeWith = s.closeWith
+					t.closeWith = s.closeWith || siblings
 					t.beside = true
 					t.inPlace = true
 				})

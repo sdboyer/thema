@@ -34,8 +34,12 @@ func constraintAllOf(key string, n cue.Value, s *state) {
 	}
 	a := make([]ast.Expr, 0, len(items))
 	// thema: under Config.Closed, an allOf that declares a property, or
-	// that is part of one that does, is one closed object.
-	closing := s.cfg.Closed && !s.preserveUnknownFields && (s.closeWith || s.schemaRoot().declaresAt(s.pos))
+	// that is part of one that does, is one closed object, unless it or a
+	// part disallows or constrains the properties it doesn't declare: that
+	// reaches the other parts' properties too, which the conjunction below
+	// keeps and embedding would lose.
+	closing := s.closing() && (s.closeWith || s.declaresAt(s.pos)) &&
+		!s.schemaRoot().closesRoot(s.pos, make(map[string]bool), s.preserveUnknownFields)
 	beside := s.beside || s.closeWith || len(items) > 1 || !s.pure("allOf")
 	for _, v := range items {
 		x, sub := s.schemaState(v, s.allowedTypes, func(sub *state) {
@@ -142,25 +146,32 @@ func (s *state) closesRoot(n cue.Value, seen map[string]bool, preserve bool) boo
 	return false
 }
 
-// declaresAt is [state.declares] for the schema n, remembered by its path.
-// (thema)
+// declaresAt is [state.declares] for the schema n, remembered by its path
+// and whether keywords beside a $ref apply. (thema)
 func (s *state) declaresAt(n cue.Value) bool {
-	path := n.Path().String()
-	if d, ok := s.decoder.declared[path]; ok {
+	key := declaredKey{n.Path().String(), s.refSiblings()}
+	if d, ok := s.decoder.declared[key]; ok {
 		return d
 	}
 	if s.decoder.declared == nil {
-		s.decoder.declared = map[string]bool{}
+		s.decoder.declared = map[declaredKey]bool{}
 	}
 	d := s.declares(n, map[string]bool{})
-	s.decoder.declared[path] = d
+	s.decoder.declared[key] = d
 	return d
+}
+
+// declaredKey is what [state.declaresAt] remembers a result by. (thema)
+type declaredKey struct {
+	path     string
+	siblings bool
 }
 
 // declares reports whether the schema n declares a property: its
 // properties name one, or a schema it refers to does, or one of its allOf
 // parts, or the only alternative of its anyOf or oneOf, which is unified
-// with it. s is the schema root, as for [state.closesRoot]. (thema)
+// with it. The keywords beside a $ref count only where they apply in s's
+// version of JSON Schema. (thema)
 func (s *state) declares(n cue.Value, seen map[string]bool) bool {
 	path := n.Path().String()
 	if n.Kind() != cue.StructKind || seen[path] {
@@ -170,13 +181,18 @@ func (s *state) declares(n cue.Value, seen map[string]bool) bool {
 	lookup := func(key string) cue.Value {
 		return n.LookupPath(cue.MakePath(cue.Str(key)))
 	}
+	ref := lookup("$ref")
+	if target, ok := s.schemaRoot().localRefTarget(ref); ok && s.declares(target, seen) {
+		return true
+	}
+	if ref.Exists() && !s.refSiblings() {
+		// The keywords beside the $ref are ignored.
+		return false
+	}
 	if props := lookup("properties"); props.Kind() == cue.StructKind {
 		if i, err := props.Fields(); err == nil && i.Next() {
 			return true
 		}
-	}
-	if target, ok := s.localRefTarget(lookup("$ref")); ok && s.declares(target, seen) {
-		return true
 	}
 	for _, key := range []string{"allOf", "anyOf", "oneOf"} {
 		subs := lookup(key)
@@ -190,6 +206,12 @@ func (s *state) declares(n cue.Value, seen map[string]bool) bool {
 		}
 	}
 	return false
+}
+
+// refSiblings reports whether the keywords beside a $ref apply with it,
+// as they do from JSON Schema 2019-09. (thema)
+func (s *state) refSiblings() bool {
+	return s.schemaVersion.is(vfrom(VersionDraft2019_09))
 }
 
 // alone reports whether each of the n alternatives of s's key, anyOf or
@@ -233,7 +255,7 @@ func (s *state) pure(key string) bool {
 // definition is embedded in a struct, as #a..., since the object it
 // matches may hold properties the definition doesn't declare. (thema)
 func (s *state) writeAlternative(x ast.Expr, alone bool) ast.Expr {
-	if s.cfg.Closed && !alone && isDefinition(x) {
+	if s.closing() && !alone && isDefinition(x) {
 		return &ast.StructLit{Elts: []ast.Decl{&ast.EmbedDecl{Expr: embedOpen(x)}}}
 	}
 	return x
@@ -253,6 +275,7 @@ func constraintAnyOf(key string, n cue.Value, s *state) {
 		x, sub := s.schemaState(v, s.allowedTypes, func(sub *state) {
 			sub.alternative = alone
 			sub.beside = !alone
+			sub.inAlternatives = len(items) > 1
 		})
 		x = s.writeAlternative(x, alone)
 		if sub.allowedTypes == 0 {
@@ -301,6 +324,7 @@ func constraintOneOf(key string, n cue.Value, s *state) {
 		x, sub := s.schemaState(v, s.allowedTypes, func(sub *state) {
 			sub.alternative = alone
 			sub.beside = !alone
+			sub.inAlternatives = len(items) > 1
 		})
 		x = s.writeAlternative(x, alone)
 		if sub.allowedTypes == 0 {
